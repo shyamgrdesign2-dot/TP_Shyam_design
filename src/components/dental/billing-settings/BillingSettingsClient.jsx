@@ -8,7 +8,6 @@ import {
 "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { Inter } from "next/font/google";
 import {
   ChevronLeft,
   Plus,
@@ -50,12 +49,6 @@ import rxHeaderStyles from "../tp-rxpad/imports/RxpadHeader.module.scss";
 import styles from "./billing-settings.module.scss";
 import { useBillingCatalog } from "../lib/billing-catalog-context";
 import { computeBillingLineTotal } from "../lib/billing-catalog";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-billing",
-  weight: ["400", "500", "600", "700"]
-});
 
 const CATALOG = {
   service: [
@@ -517,7 +510,7 @@ export default function BillingSettingsClient() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className={`${inter.variable} ${styles.page}`}>
+      <div className={`${styles.page}`}>
         <header className={styles.topBar}>
           <Link
             to="/appointments"
