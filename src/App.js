@@ -29,6 +29,7 @@ import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import { useTncConsent } from "./hooks/useTncConsent";
 import FullPageLoader from "./pages/vaccination/components/Loader";
 import { lazyRetry } from "./utils/lazyRetry";
+import { DentalModuleShell } from "./components/dental/DentalModuleShell";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -736,6 +737,7 @@ function App() {
             path="tabrx-digitization"
             element={<TabRxDigitization />}
           />
+          <Route path="dental" element={<DentalModuleShell />} />
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />
       </SentryRoutes>

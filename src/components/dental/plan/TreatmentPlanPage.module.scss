@@ -1,0 +1,17 @@
+@use "../styles/tp-tokens" as tp;
+
+.embedRoot {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.fallback {
+  display: flex;
+  min-height: 200px;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--tp-slate-500);
+}

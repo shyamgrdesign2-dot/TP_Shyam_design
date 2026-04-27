@@ -1,0 +1,138 @@
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+.track {
+  display: inline-flex;
+  overflow: hidden;
+  border-radius: 10px;
+  transition: box-shadow 150ms ease;
+  &:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+}
+
+.primaryBtn {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  padding-left: 16px;
+  padding-right: 8px;
+  transition: all 150ms ease;
+  &:hover:not(:disabled) {
+    filter: brightness(1.12) saturate(1.1);
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.separator {
+  flex-shrink: 0;
+  width: 1px;
+  min-width: 1px;
+  align-self: center;
+}
+
+.dropdownBtn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  transition: all 150ms ease;
+  &:hover:not(:disabled) {
+    filter: brightness(1.12) saturate(1.1);
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.chevron {
+  transition: transform 200ms ease-out;
+  &.open {
+    transform: rotate(180deg);
+  }
+}
+
+.menu {
+  overflow: hidden;
+  position: fixed;
+  border-radius: 10px;
+  z-index: 2100;
+  box-shadow: 0 12px 24px -4px rgba(23, 23, 37, 0.08), 0 4px 8px -4px rgba(23, 23, 37, 0.04);
+  background-color: #fff;
+  border: 1px solid #e2e2ea;
+}
+
+.menuSeparator {
+  height: 1px;
+  background-color: rgba(226, 226, 234, 0.9);
+  margin: 6px 8px;
+}
+
+.optionBtn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tp-slate-700);
+  transition: background-color 150ms ease;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background-color: var(--tp-slate-50);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.optionLabel {
+  flex: 1;
+}
+
+.shortcut {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--tp-slate-400);
+}
+
+.nextIcon {
+  color: var(--tp-slate-400);
+}

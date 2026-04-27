@@ -1,0 +1,495 @@
+@use "../styles/tp-tokens" as tp;
+
+.drawerPanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.primaryButton {
+  height: 42px;
+  min-width: 120px;
+  border-radius: 10px;
+  padding: 0 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--tp-blue-600);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  
+  &:hover {
+    background: var(--tp-blue-700);
+  }
+  
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.drawerBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+
+  > * + * {
+    margin-top: 14px;
+  }
+}
+
+.serviceInfoBox {
+  border-radius: 10px;
+  background: var(--tp-blue-50);
+  padding: 10px 12px;
+}
+
+.serviceTitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tp-blue-700);
+}
+
+.serviceSubtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--tp-blue-500);
+}
+
+.mainContainer {
+  border-radius: 16px;
+  border: 1px solid var(--tp-slate-100);
+  background: #fff;
+}
+
+.tableContainer {
+  padding: 12px 14px;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--tp-slate-200);
+}
+
+.table {
+  width: 100%;
+  min-width: 760px;
+  table-layout: fixed;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+}
+
+.tableHeadRow {
+  height: 38px;
+  background: var(--tp-slate-50);
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--tp-slate-500);
+}
+
+.tableHeadCellEmpty {
+  border-right: 1px solid var(--tp-slate-100);
+  padding: 8px 0;
+  text-align: center;
+  font-weight: 600;
+}
+
+.tableHeadCell {
+  border-right: 1px solid var(--tp-slate-100);
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tableHeadCellSticky {
+  position: sticky;
+  right: 0;
+  z-index: 40;
+  border-left: 1px solid rgba(var(--tp-slate-200-rgb), 0.8);
+  background: var(--tp-slate-50);
+  padding: 8px 0;
+  text-align: center;
+  font-weight: 600;
+  box-shadow: -8px 7px 14px -12px rgba(15, 23, 42, 0.18);
+}
+
+.tableRow {
+  border-top: 1px solid var(--tp-slate-100);
+  background: #fff;
+  vertical-align: middle;
+}
+
+.tableCellDrag {
+  border-right: 1px solid var(--tp-slate-100);
+  padding: 0;
+  text-align: center;
+  vertical-align: middle;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  
+  &:hover {
+    background: rgba(var(--tp-slate-100-rgb), 0.6);
+  }
+}
+
+.dragHandle {
+  display: inline-flex;
+  height: 52px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--tp-slate-300);
+}
+
+.tableCell {
+  border-right: 1px solid var(--tp-slate-100);
+  padding: 0;
+}
+
+.tableCellWithState {
+  position: relative;
+}
+
+.noteCell {
+  position: relative;
+  padding: 0;
+}
+
+.cellActiveBg {
+  background: rgba(var(--tp-blue-50-rgb), 0.2);
+}
+
+.cellHoverBg {
+  &:hover {
+    background: rgba(var(--tp-slate-100-rgb), 0.6);
+  }
+}
+
+.cellInner {
+  display: flex;
+  height: 52px;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.cellText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #454551;
+}
+
+.cellActiveIndicator {
+  pointer-events: none;
+  position: absolute;
+  inset: 2px;
+  z-index: 10;
+  border-radius: 6px;
+  border: 1px solid var(--tp-blue-500);
+  box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.16);
+}
+
+.selectInput {
+  position: relative;
+  z-index: 20;
+  height: 52px;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: #454551;
+  
+  &:focus {
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+.datePlaceholder {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.datePlaceholderText {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  line-height: 18px;
+  color: #a2a2a8;
+}
+
+.dateInput {
+  position: relative;
+  z-index: 20;
+  height: 52px;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+  
+  &::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+.dateInputWrapper {
+  position: relative;
+  height: 52px;
+  width: 100%;
+}
+
+.dateInputFilled {
+  color: #454551;
+}
+
+.dateInputEmpty {
+  color: transparent;
+}
+
+.textInput {
+  position: relative;
+  z-index: 20;
+  height: 52px;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: #454551;
+  
+  &::placeholder {
+    color: #a2a2a8;
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+.statusSelect {
+  height: 52px;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 20px;
+  color: #454551;
+  
+  &:focus {
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+.tableCellSticky {
+  position: sticky;
+  right: 0;
+  z-index: 30;
+  border-left: 1px solid rgba(var(--tp-slate-200-rgb), 0.8);
+  background: #fff;
+  padding: 0;
+  box-shadow: -8px 7px 14px -12px rgba(15, 23, 42, 0.18);
+}
+
+.actionButtonWrapper {
+  display: flex;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+}
+
+.deleteButton {
+  display: flex;
+  height: 28px;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--tp-slate-400);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  
+  &:hover {
+    color: var(--tp-error-500);
+    background: var(--tp-error-50);
+  }
+}
+
+.searchContainer {
+  padding: 12px 14px;
+}
+
+.searchContainerBorder {
+  border-top: 1px solid var(--tp-slate-100);
+}
+
+.searchInputWrapper {
+  position: relative;
+}
+
+.searchIcon {
+  pointer-events: none;
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--tp-slate-400);
+}
+
+.searchInput {
+  height: 42px;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--tp-slate-200);
+  background: #fff;
+  padding: 0 12px 0 40px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--tp-slate-700);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  
+  &::placeholder {
+    color: var(--tp-slate-300);
+  }
+  
+  &:hover {
+    border-color: var(--tp-slate-300);
+  }
+  
+  &:focus {
+    border-color: var(--tp-blue-500);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--tp-blue-500-rgb), 0.2);
+  }
+}
+
+.suggestionsWrapper {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suggestionPill {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  border-radius: 10px;
+  background: var(--tp-slate-100);
+  padding: 0 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tp-slate-600);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  
+  &:hover {
+    background: var(--tp-slate-200);
+  }
+}
+
+.dropdownMenu {
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--tp-slate-200);
+  background: #fff;
+}
+
+.dropdownInner {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.dropdownItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  text-align: left;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.dropdownItemActive {
+  background: var(--tp-blue-50);
+}
+
+.dropdownItemHover {
+  &:hover {
+    background: var(--tp-slate-50);
+  }
+}
+
+.dropdownItemText {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tp-slate-800);
+}
+
+.dropdownAddCustom {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tp-blue-600);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.dropdownAddCustomActive {
+  background: var(--tp-blue-50);
+}
+
+.dropdownAddCustomHover {
+  &:hover {
+    background: rgba(var(--tp-blue-50-rgb), 0.7);
+  }
+}
+
+.dropdownAddCustomText {
+  min-width: 0;
+}
+
+.dropdownIcon {
+  flex-shrink: 0;
+  color: var(--tp-blue-600);
+}

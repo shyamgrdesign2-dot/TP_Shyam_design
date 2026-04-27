@@ -1,0 +1,109 @@
+import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
+import { Danger } from "iconsax-reactjs";
+import { X } from "lucide-react";
+import styles from "./tp-confirm-dialog.module.scss";
+
+export function TPConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  warning,
+  description,
+  children,
+  secondaryLabel = "Cancel",
+  onSecondary,
+  secondaryTone = "link",
+  primaryLabel,
+  onPrimary,
+  primaryTone = "primary",
+  primaryDisabled = false
+}) {
+  const handleSecondary = (e) => {
+    if (onSecondary) {
+      e?.preventDefault?.();
+      onSecondary();
+    }
+  };
+  const handlePrimary = (e) => {
+    if (onPrimary) {
+      e?.preventDefault?.();
+      onPrimary();
+    }
+  };
+
+  const primaryBtnClass = `${styles.primaryBtn} ${
+    primaryTone === "destructive" ? styles.destructive :
+    primaryTone === "success" ? styles.success :
+    primaryTone === "warning" ? styles.warning :
+    styles.primary
+  } ${primaryDisabled ? styles.disabled : ""}`;
+
+  const secondaryBtnClass =
+    secondaryTone === "muted" ? styles.secondaryBtnMuted : styles.secondaryBtnLink;
+
+  return (
+    <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <AlertDialogPrimitive.Portal>
+        <AlertDialogPrimitive.Overlay className={styles.overlay} />
+        <AlertDialogPrimitive.Content className={styles.content}>
+          <div className={styles.header}>
+            <AlertDialogPrimitive.Title className={styles.title}>
+              {title}
+            </AlertDialogPrimitive.Title>
+            <AlertDialogPrimitive.Cancel asChild={true}>
+              <button
+                type="button"
+                aria-label="Close"
+                className={styles.closeBtn}>
+                <X size={16} strokeWidth={2.5} />
+              </button>
+            </AlertDialogPrimitive.Cancel>
+          </div>
+          <div className={styles.divider} aria-hidden={true} />
+          {(warning || description || children) && (
+            <div className={styles.body}>
+              {warning && (
+                <div className={styles.warningCallout}>
+                  <Danger
+                    size={20}
+                    variant="Linear"
+                    className={styles.warningIcon}
+                  />
+                  <p className={styles.warningText}>{warning}</p>
+                </div>
+              )}
+
+              {description && (
+                <AlertDialogPrimitive.Description className={styles.description}>
+                  {description}
+                </AlertDialogPrimitive.Description>
+              )}
+
+              {children}
+            </div>
+          )}
+
+          <div className={styles.footer}>
+            <AlertDialogPrimitive.Cancel asChild={true}>
+              <button
+                type="button"
+                onClick={handleSecondary}
+                className={secondaryBtnClass}>
+                {secondaryLabel}
+              </button>
+            </AlertDialogPrimitive.Cancel>
+            <AlertDialogPrimitive.Action asChild={true}>
+              <button
+                type="button"
+                onClick={handlePrimary}
+                disabled={primaryDisabled}
+                className={primaryBtnClass}>
+                {primaryLabel}
+              </button>
+            </AlertDialogPrimitive.Action>
+          </div>
+        </AlertDialogPrimitive.Content>
+      </AlertDialogPrimitive.Portal>
+    </AlertDialogPrimitive.Root>);
+
+}

@@ -1,0 +1,50 @@
+@use "../styles/tp-tokens" as tp;
+
+.root {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  background: tp.$slate-100;
+}
+
+.bodyRow {
+  display: flex;
+  height: calc(100vh - 62px);
+  overflow: hidden;
+}
+
+.aside {
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.main {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: tp.$slate-100;
+}
+
+.drAgentAside {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  border-color: tp.$slate-200;
+  background-color: #fff;
+  min-height: 0;
+  max-height: min(52vh, 560px);
+  width: 100%;
+  border-top-width: 1px;
+
+  @media (min-width: 768px) {
+    height: 100%;
+    max-height: none;
+    width: clamp(350px, 25vw, 400px);
+    max-width: 400px;
+    border-left-width: 1px;
+    border-top-width: 0;
+  }
+}
