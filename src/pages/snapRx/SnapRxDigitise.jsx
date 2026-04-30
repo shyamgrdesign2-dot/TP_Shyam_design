@@ -964,6 +964,7 @@ function SnapRxDigitise({isTabRx = false}) {
                   patient_data={patient_data}
                   vitalsFlow="snap"
                   digitiseSplitLayout
+                  isManyaDental={shouldUseCustomRxDigitize}
                 />
               </div>
             </div>
