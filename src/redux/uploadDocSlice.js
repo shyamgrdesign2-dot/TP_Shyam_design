@@ -79,13 +79,24 @@ const uploadDocSlice = createSlice({
         ...(isChikitsalayAccessable
           ? CLINIC_UPLOAD_CATEGORIES.map((category) => category.category_name)
           : []),
+        "Intra Oral",
+        "Extra Oral",
+        "Align Scan Report",
         "Other",
       ];
       if (categories?.length > 0) {
-        const reorderedCategories = categoriesOrder.map((name) =>
-          categories.find((category) => category.category_name === name)
+        const preferredCategories = categoriesOrder
+          .map((name) =>
+            categories.find((category) => category.category_name === name)
+          )
+          .filter(Boolean);
+        const remainingCategories = categories.filter(
+          (category) => !categoriesOrder.includes(category?.category_name)
         );
-        state.uploadDocCategories = reorderedCategories;
+        state.uploadDocCategories = [
+          ...preferredCategories,
+          ...remainingCategories,
+        ];
       }
     },
     setPatientUploadedDocs: (state, action) => {
