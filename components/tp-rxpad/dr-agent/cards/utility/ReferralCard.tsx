@@ -1,5 +1,6 @@
 "use client"
 
+import { safeClipboardWrite } from "@/lib/utils"
 import { CardShell } from "../CardShell"
 import { SidebarLink } from "../SidebarLink"
 import type { ReferralCardData } from "../../types"
@@ -14,7 +15,7 @@ export function ReferralCard({ data, onPillTap }: Props) {
     const text = data.items
       .map(r => `${r.doctorName} (${r.specialty}) · ${r.doctorPhone} · ${r.patientsReferred} patients · ${r.topReason}`)
       .join("\n")
-    navigator.clipboard.writeText(text)
+    safeClipboardWrite(text)
   }
 
   return (

@@ -73,7 +73,7 @@ export function VoiceRxBottomSheet({
         <div className="flex items-start justify-between border-b border-tp-slate-100 px-[16px] pb-[12px] pt-[8px]">
           <div className="min-w-0">
             <h3 className="inline-flex items-center gap-1.5 text-[16px] font-semibold leading-tight text-tp-slate-900">
-              Choose a consultation mode
+              Consultation mode
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span

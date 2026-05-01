@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn, safeClipboardWrite } from "@/lib/utils"
 import { useTouchDevice } from "@/hooks/use-touch-device"
 import { CardShell } from "../CardShell"
 import { CopyIcon } from "../CopyIcon"
@@ -92,7 +92,7 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader }: Vo
   const isCanvasMode = !!hideHeader
 
   const handleCopyItem = (sectionId: string, item: VoiceRxItem, key: string) => {
-    navigator.clipboard?.writeText(formatVoiceItem(item))
+    safeClipboardWrite(formatVoiceItem(item))
     onCopy?.(buildSectionPayload(sectionId, [item]))
     setCopiedKey(key)
     setTimeout(() => setCopiedKey(null), 1500)
@@ -100,7 +100,7 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader }: Vo
 
   const handleCopySection = (sectionId: string, items: VoiceRxItem[]) => {
     const text = items.map(formatVoiceItem).join("\n")
-    navigator.clipboard?.writeText(text)
+    safeClipboardWrite(text)
     onCopy?.(buildSectionPayload(sectionId, items))
     setCopiedKey(`section-${sectionId}`)
     setTimeout(() => setCopiedKey(null), 1500)

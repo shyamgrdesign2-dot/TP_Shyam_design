@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn, safeClipboardWrite } from "@/lib/utils"
 import { CardShell } from "../CardShell"
 import { CopyIcon } from "../CopyIcon"
 
@@ -27,7 +27,7 @@ export function AdviceCard({ data, onCopy, onPillTap }: AdviceCardProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
 
   const handleCopyItem = (item: string, index: number) => {
-    navigator.clipboard?.writeText(item)
+    safeClipboardWrite(item)
     setCopiedIndex(index)
     setTimeout(() => setCopiedIndex(null), 1200)
   }

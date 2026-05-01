@@ -1047,30 +1047,35 @@ export function VoiceRxActiveAgent({
                 <div
                   className={cn(
                     "vrx-status-card relative inline-flex items-center gap-[8px] rounded-t-[12px] rounded-b-none bg-white/60 pl-[12px] pr-[14px] pt-[7px] pb-[10px] backdrop-blur-[10px] transition-all duration-200",
-                    (manualMute || criticalBlock) && "vrx-status-card--paused",
+                    criticalBlock ? "vrx-status-card--error" : manualMute && "vrx-status-card--paused",
                   )}
                   role="status"
                   aria-live="polite"
                 >
-                  {!criticalBlock && (
-                    isListening ? (
-                      <span className="relative inline-flex h-[10px] w-[10px] items-center justify-center">
-                        <span className="absolute inset-0 rounded-full bg-rose-400" />
-                        <span className="absolute inset-0 rounded-full bg-rose-400/55" style={{ animation: "vrxRecRing 1.8s ease-out infinite" }} />
-                      </span>
-                    ) : manualMute ? (
-                      <span className="inline-flex h-[10px] w-[10px] items-center justify-center text-amber-500/80">
-                        <svg width={7} height={9} viewBox="0 0 8 10" fill="none" aria-hidden>
-                          <rect x="0" y="0" width="3" height="10" rx="1" fill="currentColor" />
-                          <rect x="5" y="0" width="3" height="10" rx="1" fill="currentColor" />
-                        </svg>
-                      </span>
-                    ) : (
-                      <span className="inline-block h-[7px] w-[7px] rounded-full bg-tp-slate-400/70" />
-                    )
+                  {criticalBlock ? (
+                    <span className="inline-flex h-[14px] w-[14px] items-center justify-center text-red-500">
+                      <AlertCircle size={14} strokeWidth={2.4} />
+                    </span>
+                  ) : isListening ? (
+                    <span className="relative inline-flex h-[10px] w-[10px] items-center justify-center">
+                      <span className="absolute inset-0 rounded-full bg-rose-400" />
+                      <span className="absolute inset-0 rounded-full bg-rose-400/55" style={{ animation: "vrxRecRing 1.8s ease-out infinite" }} />
+                    </span>
+                  ) : manualMute ? (
+                    <span className="inline-flex h-[10px] w-[10px] items-center justify-center text-amber-500/80">
+                      <svg width={7} height={9} viewBox="0 0 8 10" fill="none" aria-hidden>
+                        <rect x="0" y="0" width="3" height="10" rx="1" fill="currentColor" />
+                        <rect x="5" y="0" width="3" height="10" rx="1" fill="currentColor" />
+                      </svg>
+                    </span>
+                  ) : (
+                    <span className="inline-block h-[7px] w-[7px] rounded-full bg-tp-slate-400/70" />
                   )}
 
-                  <span className="text-[14px] font-medium tracking-[-0.05px] leading-none text-tp-slate-600 tabular-nums">
+                  <span className={cn(
+                    "text-[14px] font-medium tracking-[-0.05px] leading-none tabular-nums",
+                    criticalBlock ? "text-red-600" : "text-tp-slate-600",
+                  )}>
                     {statusLabel}
                     {!criticalBlock && (isListening || manualMute) && elapsedMs > 0 && (
                       <span className="ml-[6px] font-normal text-tp-slate-400">
@@ -1515,6 +1520,9 @@ export function VoiceRxActiveAgent({
           }
           .vrx-status-card--paused {
             background: rgba(254, 243, 199, 0.55) !important;
+          }
+          .vrx-status-card--error {
+            background: rgba(254, 226, 226, 0.72) !important;
           }
 
           .vrx-footer-blob {

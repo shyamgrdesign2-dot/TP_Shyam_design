@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { safeClipboardWrite } from "@/lib/utils"
 import { ClipboardTick } from "iconsax-reactjs"
 import { CardShell } from "../CardShell"
 import { CheckboxRow } from "../CheckboxRow"
@@ -52,7 +53,7 @@ export function InvestigationCard({
       copyAll={() => {
         // Copy only selected investigations (or all if none selected)
         const names = selectedCount > 0 ? selectedNames : data.items.map(i => i.name)
-        navigator.clipboard?.writeText(names.join("\n"))
+        safeClipboardWrite(names.join("\n"))
       }}
       copyAllTooltip={selectedCount > 0 ? `Fill ${selectedCount} selected to RxPad` : "Fill all to RxPad"}
       dataSources={["AI-Generated"]}

@@ -3,7 +3,7 @@
 import { NotificationBing } from "iconsax-reactjs"
 import { CardShell } from "../CardShell"
 import { FooterCTA } from "../FooterCTA"
-import { cn } from "@/lib/utils"
+import { cn, safeClipboardWrite } from "@/lib/utils"
 import type { VaccinationScheduleCardData } from "../../types"
 
 interface Props {
@@ -23,7 +23,7 @@ export function VaccinationScheduleCard({ data, onSidebarNav, onPillTap }: Props
     const text = data.vaccines
       .map(v => `${v.patientName} | ${v.name} (${v.dose}) | ${v.dueDate} [${v.status}]`)
       .join("\n")
-    navigator.clipboard.writeText(text)
+    safeClipboardWrite(text)
   }
 
   return (

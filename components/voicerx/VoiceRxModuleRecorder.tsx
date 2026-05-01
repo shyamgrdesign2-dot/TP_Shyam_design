@@ -787,7 +787,9 @@ export function VoiceRxModuleRecorder({
               aria-live="polite"
             >
               {criticalBlock ? (
-                <span className="inline-block h-[7px] w-[7px] rounded-full bg-red-500/80" aria-hidden />
+                <span className="inline-flex h-[14px] w-[14px] items-center justify-center text-red-500" aria-hidden>
+                  <AlertCircle size={14} strokeWidth={2.4} />
+                </span>
               ) : isListening ? (
                 <span className="relative inline-flex h-[10px] w-[10px] items-center justify-center">
                   <span className="absolute inset-0 rounded-full bg-rose-400" />

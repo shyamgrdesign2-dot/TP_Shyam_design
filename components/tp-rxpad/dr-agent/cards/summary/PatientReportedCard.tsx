@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn, safeClipboardWrite } from "@/lib/utils"
 import { useTouchDevice } from "@/hooks/use-touch-device"
 import { CardShell } from "../CardShell"
 import { CopyIcon } from "../CopyIcon"
@@ -287,7 +287,7 @@ export function PatientReportedCard({ data, onCopy, onPillTap, defaultCollapsed 
     item: { name: string; detail?: string },
     key: string,
   ) => {
-    navigator.clipboard?.writeText(formatItem(item))
+    safeClipboardWrite(formatItem(item))
     onCopy?.(buildPatientReportedPayload(sectionId, [item]))
     setCopiedKey(key)
     setTimeout(() => setCopiedKey(null), 1500)
@@ -295,7 +295,7 @@ export function PatientReportedCard({ data, onCopy, onPillTap, defaultCollapsed 
 
   const handleCopySection = (section: typeof activeSections[0]) => {
     const text = section.items.map(formatItem).join("\n")
-    navigator.clipboard?.writeText(text)
+    safeClipboardWrite(text)
     onCopy?.(buildPatientReportedPayload(section.id, section.items))
     setCopiedKey(`section-${section.id}`)
     setTimeout(() => setCopiedKey(null), 1500)
@@ -305,7 +305,7 @@ export function PatientReportedCard({ data, onCopy, onPillTap, defaultCollapsed 
     const allText = activeSections
       .flatMap((s) => s.items.map(formatItem))
       .join("\n")
-    navigator.clipboard?.writeText(allText)
+    safeClipboardWrite(allText)
     onCopy?.(buildPatientReportedAllPayload(activeSections.map((s) => ({ id: s.id, items: s.items }))))
     setCopiedKey("all")
     setTimeout(() => setCopiedKey(null), 1800)

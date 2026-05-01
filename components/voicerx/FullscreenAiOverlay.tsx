@@ -24,7 +24,7 @@ export function FullscreenAiOverlay({ active, rightOffset = 0 }: FullscreenAiOve
   if (!active) return null
   return (
     <div
-      className="pointer-events-auto fixed left-0 bottom-0 z-[24]"
+      className="pointer-events-auto fixed left-0 bottom-0 z-[134]"
       style={{
         // Starts BELOW the 62-px top nav so the top bar stays crisp
         // (disabled by the existing voice-lock, but visually intact).

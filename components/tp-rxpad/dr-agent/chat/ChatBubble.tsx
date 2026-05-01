@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { cn } from "@/lib/utils"
+import { cn, safeClipboardWrite } from "@/lib/utils"
 import { useTouchDevice } from "@/hooks/use-touch-device"
 import type { RxAgentChatMessage, RxAgentOutput, SpecialtyTabId, PatientDocument } from "../types"
 import { CardRenderer } from "../cards/CardRenderer"
@@ -726,12 +726,24 @@ export function ChatBubble({
     setIsEditing(false)
   }, [userDisplayText])
 
-  // ── Track whether this is a "new" message (just appeared) for streaming ──
-  const isNewRef = useRef(true)
-  const isNew = isNewRef.current
-  const shouldStream = isNew && !isUser && !!message.text && !message.shimmerReveal
-  const shouldShimmer = isNew && !isUser && !!message.text && !!message.shimmerReveal
-  useEffect(() => { isNewRef.current = false }, [])
+  // ── Track whether this is a "new" message (just appeared) for streaming/shimmer ──
+  // Using state instead of ref so the decision persists across re-renders;
+  // a ref-based "isNew = false after first commit" was causing the shimmer
+  // classes to disappear on the very next parent re-render, before the
+  // animation finished.
+  const [shimmerActive, setShimmerActive] = useState<boolean>(() => !isUser && !!message.text && !!message.shimmerReveal)
+  const [streamActive, setStreamActive] = useState<boolean>(() => !isUser && !!message.text && !message.shimmerReveal)
+  const shouldShimmer = shimmerActive
+  const shouldStream = streamActive
+  useEffect(() => {
+    if (shimmerActive) {
+      const words = (message.text || "").split(/\s+/).length
+      const total = words * 70 + 700
+      const t = setTimeout(() => setShimmerActive(false), total)
+      return () => clearTimeout(t)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Typewriter for assistant text (skipped when shimmerReveal) ──
   const { displayText, isDone: textDone } = useTypewriter(
@@ -811,9 +823,9 @@ export function ChatBubble({
             <div className={cn("flex items-center gap-[2px] transition-opacity", isTouch ? "opacity-70" : "opacity-0 group-hover/msg:opacity-100")}>
               <ActionableTooltip
                 label="Copy to clipboard"
-                onAction={() => navigator.clipboard?.writeText(userDisplayText)}
+                onAction={() => safeClipboardWrite(userDisplayText)}
               >
-                <CopyIcon onClick={() => navigator.clipboard?.writeText(userDisplayText)} className="!text-tp-slate-400 hover:!text-tp-slate-600" />
+                <CopyIcon onClick={() => safeClipboardWrite(userDisplayText)} className="!text-tp-slate-400 hover:!text-tp-slate-600" />
               </ActionableTooltip>
               {onEditMessage && (
                 <button

@@ -5,7 +5,7 @@ import { SectionTag } from "./SectionTag"
 import { ActionableTooltip } from "./ActionableTooltip"
 import { CopyIcon } from "./CopyIcon"
 import { FlagArrow } from "../shared/FlagArrow"
-import { cn } from "@/lib/utils"
+import { cn, safeClipboardWrite } from "@/lib/utils"
 import { useTouchDevice } from "@/hooks/use-touch-device"
 import { SECTION_INLINE_SUBKEY_CLASS } from "../shared/sectionInlineKey"
 
@@ -193,12 +193,12 @@ export function InlineDataRow({
     : `Fill all ${tag.toLowerCase()} to ${destinationLabel}`
 
   const handleCopyText = (text: string) => {
-    navigator.clipboard?.writeText(text)
+    safeClipboardWrite(text)
   }
 
   const handleCopyAll = () => {
     const text = values.map((v) => `${v.key}: ${v.value}`).join("\n")
-    navigator.clipboard?.writeText(text)
+    safeClipboardWrite(text)
     onTagCopy?.()
   }
 

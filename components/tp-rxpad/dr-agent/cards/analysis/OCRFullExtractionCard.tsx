@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn, safeClipboardWrite } from "@/lib/utils"
 import { useTouchDevice } from "@/hooks/use-touch-device"
 import { CardShell } from "../CardShell"
 import { CopyIcon } from "../CopyIcon"
@@ -35,7 +35,7 @@ export function OCRFullExtractionCard({
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   const handleCopyItem = (item: string, dest: string, key: string) => {
-    navigator.clipboard?.writeText(item)
+    safeClipboardWrite(item)
     onCopyItem?.(item, dest)
     setCopiedKey(key)
     setTimeout(() => setCopiedKey(null), 1200)
@@ -43,7 +43,7 @@ export function OCRFullExtractionCard({
 
   const handleCopySection = (heading: string, items: string[], dest: string, key: string) => {
     const text = items.join("\n")
-    navigator.clipboard?.writeText(text)
+    safeClipboardWrite(text)
     onCopySection?.(heading, items, dest)
     setCopiedKey(key)
     setTimeout(() => setCopiedKey(null), 1200)
@@ -61,7 +61,7 @@ export function OCRFullExtractionCard({
       }}
       copyAll={() => {
         const text = data.sections.map(s => `${s.heading}:\n${s.items.map(i => `  • ${i}`).join('\n')}`).join('\n\n')
-        navigator.clipboard?.writeText(text)
+        safeClipboardWrite(text)
       }}
       copyAllTooltip="Fill complete digitized report to Medical Records"
       sidebarLink={<SidebarLink text="View original" />}

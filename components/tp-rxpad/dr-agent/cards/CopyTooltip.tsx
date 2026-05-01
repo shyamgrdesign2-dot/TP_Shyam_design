@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Copy } from "iconsax-reactjs"
-import { cn } from "@/lib/utils"
+import { cn, safeClipboardWrite } from "@/lib/utils"
 import { useTouchDevice } from "@/hooks/use-touch-device"
 
 interface CopyOption {
@@ -52,7 +52,7 @@ export function CopyTooltip({
 
   const handleCopy = useCallback(
     (value: string, label: string) => {
-      navigator.clipboard?.writeText(value)
+      safeClipboardWrite(value)
       setCopied(label)
       setTimeout(() => {
         setCopied(null)

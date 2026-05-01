@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { safeClipboardWrite } from "@/lib/utils"
 import { CardShell } from "../CardShell"
 import { InlineDataRow } from "../InlineDataRow"
 import { SectionSummaryBar } from "../SectionSummaryBar"
@@ -41,7 +42,7 @@ interface LastVisitCardProps {
 
 /* ── helper: fill text to RxPad ── */
 function copyText(text: string) {
-  navigator.clipboard?.writeText(text)
+  safeClipboardWrite(text)
 }
 
 /* ── helper: build copy payload for a section ── */

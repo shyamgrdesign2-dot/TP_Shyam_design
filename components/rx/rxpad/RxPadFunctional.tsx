@@ -1247,7 +1247,7 @@ function EditableTableModule({
 
       const desiredWidth = (() => {
         if (activeMenu.mode === "search") {
-          return Math.max(activeMenu.anchorRect.width, isTablet ? 620 : 760)
+          return activeMenu.anchorRect.width
         }
         if (allowWideCellDropdown) {
           return activeMenu.anchorRect.width + (isTablet ? 32 : 40)

@@ -71,10 +71,8 @@ export function VoiceRxLiveBorder({ active, rightOffset = 0 }: VoiceRxLiveBorder
           top: 62px;
           left: 0;
           bottom: 0;
-          z-index: 50; /* above FullscreenAiOverlay (z-24) + Dr. Agent rail
-                          (z-30). The edge rim must sit on top of the
-                          submit-processing loader so its coloured blur is
-                          visible above the loader's white backdrop wash. */
+          z-index: 136; /* above RxPad portals (z-130), FullscreenAiOverlay
+                          (z-24) and the Dr. Agent rail (z-135). */
           pointer-events: none;
           border-radius: 0;
           overflow: hidden;

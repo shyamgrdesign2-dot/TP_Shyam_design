@@ -49,12 +49,8 @@ export function SecondarySidebar({ collapseExpandedOnly = false, onSectionSelect
   const { lastSignal, publishSignal, acknowledgeHistoricalSection, activeVoiceModule } = useRxPadSync()
   const lastSignalIdRef = useRef<number>(0)
 
-  useEffect(() => {
-    if (!collapseExpandedOnly) return
-    if (activeVoiceModule) return
-    setActiveId((prev) => (prev === null ? prev : null))
-    onSectionSelect?.(null)
-  }, [collapseExpandedOnly, onSectionSelect, activeVoiceModule])
+  // Note: collapseExpandedOnly is no longer used — both sidebars can
+  // coexist. Kept in the interface for backward compatibility.
 
   // Listen for section_focus signals from Dr. Agent panel (or elsewhere)
   // and open the corresponding sidebar section

@@ -40,6 +40,7 @@ import { pastVisits as buildPastVisits } from "@/lib/digitization/adapters"
 import { getMockPatientHistory } from "@/lib/digitization/mock-payload"
 import { useHistoricalSectionHighlights } from "../HistoricalInlineUpdates"
 import { FreshUpdateChip } from "../FreshUpdateChip"
+import { useRxPadSync, type RxPadCopyPayload } from "@/components/tp-rxpad/rxpad-sync-context"
 
 type RxTab = "digital" | "written"
 
@@ -192,7 +193,7 @@ function CopyAffordance({
       <CopyIcon
         size={14}
         color={copied ? "var(--tp-success-600)" : "var(--tp-blue-500)"}
-        variant={copied || hovered ? "Bulk" : "Linear"}
+        variant="Linear"
       />
     </button>
   )
@@ -258,16 +259,20 @@ function TapCopyTooltip({
         </button>
       </TooltipTrigger>
       <TooltipContent
-        align="start"
-        className="max-w-[180px] rounded-lg border border-tp-slate-200 bg-white px-2 py-1.5 text-[12px] leading-[16px] text-tp-slate-700 shadow-lg"
+        className="rounded-lg bg-tp-slate-900 px-2 py-1.5 text-[12px] text-white"
         collisionPadding={10}
         side="top"
         sideOffset={4}
       >
         <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1">{copied ? copiedLabel : copyHint}</p>
+          <span className="text-white/85">{copyHint}</span>
           <button
-            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-tp-blue-200 bg-tp-blue-50 px-1.5 py-1 font-medium text-tp-blue-600"
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium transition-colors",
+              copied
+                ? "bg-tp-success-500/25 text-tp-success-200"
+                : "bg-white/12 text-white hover:bg-white/20 active:bg-white/25",
+            )}
             onClick={(event) => {
               event.stopPropagation()
               runCopy()
@@ -275,11 +280,11 @@ function TapCopyTooltip({
             type="button"
           >
             <CopyIcon
-              size={12}
-              color={copied ? "var(--tp-success-600)" : "var(--tp-blue-500)"}
-              variant={copied ? "Bulk" : "Linear"}
+              size={11}
+              color={copied ? "var(--tp-success-300)" : "white"}
+              variant="Linear"
             />
-            <span>{copied ? "Done" : "Fill to RxPad"}</span>
+            <span>{copied ? "Copied" : "Copy"}</span>
           </button>
         </div>
       </TooltipContent>
@@ -501,46 +506,45 @@ function ListSection({
         </TapCopyTooltip>
         <CopyAffordance
           onCopy={onCopySection}
-          className="ml-auto"
           showOnHover={false}
-          hideOnTouch
-          copyHint={`Fill ${sectionDescriptions[title] ?? "all items"} to RxPad`}
-          copiedLabel={`${title} copied to RxPad`}
+          copyHint={`Click to fill ${sectionDescriptions[title] ?? "all items"} to RxPad`}
+          copiedLabel={`${title} filled to RxPad`}
         />
       </div>
 
-      <ul className="space-y-1 pl-[18px]">
+      <div className="space-y-1 pl-[6px]">
         {items.map((item) => {
           const normalizedLabel = normalizePointerText(item.label)
           const normalizedDetail = normalizePointerText(item.detail)
           return (
-            <li key={`${title}-${item.label}-${item.detail}`} className="group list-disc marker:text-tp-slate-500 text-[14px] leading-[20px] text-tp-slate-700">
-              <div className="flex items-start justify-between gap-1.5">
-                <TapCopyTooltip
-                  className="min-w-0 flex-1"
-                  copyHint={`Fill ${itemDescriptions[title] ?? "this item"} to RxPad`}
-                  copiedLabel={`${item.label} copied to RxPad`}
-                  onCopy={() => onCopyItem(item)}
-                >
-                  <span className="block min-w-0">
-                    <span className="font-sans font-medium text-tp-slate-700">{normalizedLabel}</span>
-                    {normalizedDetail ? (
-                      <span className="ml-1 font-sans text-[14px] leading-[20px] text-tp-slate-500">{`(${normalizedDetail})`}</span>
-                    ) : null}
-                  </span>
-                </TapCopyTooltip>
+            <div key={`${title}-${item.label}-${item.detail}`} className="group flex items-start gap-[4px] -mr-[6px] text-[14px] leading-[20px] text-tp-slate-700">
+              <span className="mt-[8px] h-[5px] w-[5px] shrink-0 rounded-full bg-tp-slate-500" />
+              <TapCopyTooltip
+                className="min-w-0 flex-1"
+                copyHint={`Click to fill ${itemDescriptions[title] ?? "this item"} to RxPad`}
+                copiedLabel={`${item.label} filled to RxPad`}
+                onCopy={() => onCopyItem(item)}
+              >
+                <span className="block min-w-0">
+                  <span className="font-sans font-medium text-tp-slate-700">{normalizedLabel}</span>
+                  {normalizedDetail ? (
+                    <span className="ml-1 font-sans text-[14px] leading-[20px] text-tp-slate-500">{`(${normalizedDetail})`}</span>
+                  ) : null}
+                </span>
+              </TapCopyTooltip>
+              <div className="shrink-0 self-start">
                 <CopyAffordance
                   onCopy={() => onCopyItem(item)}
                   showOnHover
                   hideOnTouch
-                  copyHint={`Fill ${itemDescriptions[title] ?? "this item"} to RxPad`}
-                  copiedLabel={`${item.label} copied to RxPad`}
+                  copyHint={`Click to fill ${itemDescriptions[title] ?? "this item"} to RxPad`}
+                  copiedLabel={`${item.label} filled to RxPad`}
                 />
               </div>
-            </li>
+            </div>
           )
         })}
-      </ul>
+      </div>
     </div>
   )
 }
@@ -567,10 +571,9 @@ function AdviceSection({
         </TapCopyTooltip>
         <CopyAffordance
           onCopy={onCopy}
-          className="ml-auto"
           showOnHover={false}
-          hideOnTouch
-          copiedLabel="Advice copied to RxPad"
+          copyHint="Click to fill advice to RxPad"
+          copiedLabel="Advice filled to RxPad"
         />
       </div>
       <TapCopyTooltip
@@ -607,10 +610,9 @@ function FollowUpSection({
         </TapCopyTooltip>
         <CopyAffordance
           onCopy={onCopy}
-          className="ml-auto"
           showOnHover={false}
-          hideOnTouch
-          copiedLabel="Follow-up copied to RxPad"
+          copyHint="Click to fill follow-up to RxPad"
+          copiedLabel="Follow-up filled to RxPad"
         />
       </div>
       <TapCopyTooltip
@@ -698,8 +700,17 @@ function WrittenRxPreviewCard({
   )
 }
 
+function fillToRxPad(
+  request: (payload: RxPadCopyPayload) => void,
+  dateLabel: string,
+  payload: Omit<RxPadCopyPayload, "sourceDateLabel" | "targetSection">,
+) {
+  request({ sourceDateLabel: dateLabel, targetSection: "rxpad", ...payload })
+}
+
 export function PastVisitsContent() {
   const orderedVisits = useMemo(loadPastVisits, [])
+  const { requestCopyToRxPad } = useRxPadSync()
   // Fresh updates land on TODAY's visit — index 0 is the most recent.
   const { freshLineCount } = useHistoricalSectionHighlights("pastVisits")
 
@@ -781,7 +792,20 @@ export function PastVisitsContent() {
                       [entry.id]: !prev[entry.id],
                     }))
                   }}
-                  onCopyDate={() => showCopySnackbar(`${entry.dateLabel} details added successfully to RxPad`)}
+                  onCopyDate={() => {
+                    if (entry.digitalRx) {
+                      fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                        symptoms: entry.digitalRx.symptoms.map((s) => `${s.label}${s.detail ? ` (${s.detail})` : ""}`),
+                        examinations: entry.digitalRx.examinations.map((e) => `${e.label}${e.detail ? ` (${e.detail})` : ""}`),
+                        diagnoses: entry.digitalRx.diagnoses.map((d) => `${d.label}${d.detail ? ` (${d.detail})` : ""}`),
+                        medications: entry.digitalRx.medications.map((m) => m.row),
+                        advice: entry.digitalRx.advice || undefined,
+                        followUp: entry.digitalRx.followUp || undefined,
+                        labInvestigations: entry.digitalRx.labInvestigations.length ? entry.digitalRx.labInvestigations : undefined,
+                      })
+                    }
+                    showCopySnackbar(`${entry.dateLabel} details added successfully to RxPad`)
+                  }}
                 />
 
                 {expanded ? (
@@ -801,42 +825,89 @@ export function PastVisitsContent() {
                           icon={<SymptomsIcon />}
                           title="Symptoms"
                           items={entry.digitalRx.symptoms}
-                          onCopySection={() => showCopySnackbar("Symptoms added successfully to RxPad")}
-                          onCopyItem={(item) => showCopySnackbar(`${item.label} symptom added successfully to RxPad`)}
+                          onCopySection={() => {
+                            fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                              symptoms: entry.digitalRx!.symptoms.map((s) => `${s.label}${s.detail ? ` (${s.detail})` : ""}`),
+                            })
+                            showCopySnackbar("Symptoms added successfully to RxPad")
+                          }}
+                          onCopyItem={(item) => {
+                            fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                              symptoms: [`${item.label}${item.detail ? ` (${item.detail})` : ""}`],
+                            })
+                            showCopySnackbar(`${item.label} symptom added successfully to RxPad`)
+                          }}
                         />
 
                         <ListSection
                           icon={<ExamIcon />}
                           title="Examination"
                           items={entry.digitalRx.examinations}
-                          onCopySection={() => showCopySnackbar("Examination findings added successfully to RxPad")}
-                          onCopyItem={(item) => showCopySnackbar(`${item.label} finding added successfully to RxPad`)}
+                          onCopySection={() => {
+                            fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                              examinations: entry.digitalRx!.examinations.map((e) => `${e.label}${e.detail ? ` (${e.detail})` : ""}`),
+                            })
+                            showCopySnackbar("Examination findings added successfully to RxPad")
+                          }}
+                          onCopyItem={(item) => {
+                            fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                              examinations: [`${item.label}${item.detail ? ` (${item.detail})` : ""}`],
+                            })
+                            showCopySnackbar(`${item.label} finding added successfully to RxPad`)
+                          }}
                         />
 
                         <ListSection
                           icon={<DiagnosisIcon />}
                           title="Diagnosis"
                           items={entry.digitalRx.diagnoses}
-                          onCopySection={() => showCopySnackbar("Diagnoses added successfully to RxPad")}
-                          onCopyItem={(item) => showCopySnackbar(`${item.label} diagnosis added successfully to RxPad`)}
+                          onCopySection={() => {
+                            fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                              diagnoses: entry.digitalRx!.diagnoses.map((d) => `${d.label}${d.detail ? ` (${d.detail})` : ""}`),
+                            })
+                            showCopySnackbar("Diagnoses added successfully to RxPad")
+                          }}
+                          onCopyItem={(item) => {
+                            fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                              diagnoses: [`${item.label}${item.detail ? ` (${item.detail})` : ""}`],
+                            })
+                            showCopySnackbar(`${item.label} diagnosis added successfully to RxPad`)
+                          }}
                         />
 
                         <ListSection
                           icon={<PillIcon />}
                           title="Med (Rx)"
                           items={entry.digitalRx.medications}
-                          onCopySection={() => showCopySnackbar("Medications added successfully to RxPad")}
-                          onCopyItem={(item) => showCopySnackbar(`${item.label} medication added successfully to RxPad`)}
+                          onCopySection={() => {
+                            fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                              medications: entry.digitalRx!.medications.map((m) => m.row),
+                            })
+                            showCopySnackbar("Medications added successfully to RxPad")
+                          }}
+                          onCopyItem={(item) => {
+                            const med = entry.digitalRx!.medications.find((m) => m.label === item.label)
+                            if (med) {
+                              fillToRxPad(requestCopyToRxPad, entry.dateLabel, { medications: [med.row] })
+                            }
+                            showCopySnackbar(`${item.label} medication added successfully to RxPad`)
+                          }}
                         />
 
                         <AdviceSection
                           advice={entry.digitalRx.advice}
-                          onCopy={() => showCopySnackbar("Advice added successfully to RxPad")}
+                          onCopy={() => {
+                            fillToRxPad(requestCopyToRxPad, entry.dateLabel, { advice: entry.digitalRx!.advice })
+                            showCopySnackbar("Advice added successfully to RxPad")
+                          }}
                         />
 
                         <FollowUpSection
                           followUp={entry.digitalRx.followUp}
-                          onCopy={() => showCopySnackbar("Follow-up added successfully to RxPad")}
+                          onCopy={() => {
+                            fillToRxPad(requestCopyToRxPad, entry.dateLabel, { followUp: entry.digitalRx!.followUp })
+                            showCopySnackbar("Follow-up added successfully to RxPad")
+                          }}
                         />
                       </>
                     ) : null}

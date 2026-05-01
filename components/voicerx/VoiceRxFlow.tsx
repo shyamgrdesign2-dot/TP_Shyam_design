@@ -58,35 +58,6 @@ function VoiceRxFlowInner() {
     return () => setVoiceActive(false)
   }, [voiceCaptureMode, setVoiceActive])
 
-  useEffect(() => {
-    if (typeof window === "undefined") return
-
-    const updateOffset = () => {
-      const width = window.innerWidth
-      // Width matches the Dr. Agent panel breakpoints declared on the
-      // panel container below — keep the two in lock-step so the live
-      // edge aura clears the panel exactly. iPad / tablet widths get
-      // a clamp of 330–360px so the chat copy and bubbles still read
-      // without bleeding off the page; xl breakpoints widen to 400px.
-      if (width >= 1280) {
-        setVoicePanelOffset(400)
-        return
-      }
-      if (width >= 768) {
-        // Use the actual rendered panel width here (between min 330
-        // and max 360 inside the breakpoint range). Picking the upper
-        // bound keeps the aura hugging the panel edge.
-        setVoicePanelOffset(360)
-        return
-      }
-      setVoicePanelOffset(0)
-    }
-
-    updateOffset()
-    window.addEventListener("resize", updateOffset)
-    return () => window.removeEventListener("resize", updateOffset)
-  }, [])
-
   // ──────────────────────────────────────────────────────────────────────
   // Voice-active lockdown.
   //
@@ -212,13 +183,36 @@ function VoiceRxFlowInner() {
     }
   }, [voiceCaptureMode, activeVoiceModule, showTooltipAt])
 
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true)
+  const bothOpen = isVoicePanelOpen && isSidebarExpanded
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const updateOffset = () => {
+      const width = window.innerWidth
+      if (width < 768) {
+        setVoicePanelOffset(0)
+        return
+      }
+      if (bothOpen) {
+        setVoicePanelOffset(300)
+        return
+      }
+      const clamped = Math.min(Math.max(width * 0.32, 300), 360)
+      setVoicePanelOffset(Math.round(clamped))
+    }
+
+    updateOffset()
+    window.addEventListener("resize", updateOffset)
+    return () => window.removeEventListener("resize", updateOffset)
+  }, [bothOpen])
+
   const handleSidebarSectionSelect = useCallback(
     (sectionId: string | null) => {
-      if (isVoicePanelOpen && sectionId && sectionId !== "drAgent") {
-        setIsVoicePanelOpen(false)
-      }
+      setIsSidebarExpanded(!!sectionId && sectionId !== "drAgent")
     },
-    [isVoicePanelOpen],
+    [],
   )
 
   useEffect(() => {
@@ -238,7 +232,11 @@ function VoiceRxFlowInner() {
   // instead of being hidden behind it on iPad / smaller laptops.
   // Matches the panel container's `w-[clamp(330px,38vw,360px)]`
   // tablet width and `xl:w-[400px]`.
-  const agentRailPad = isVoicePanelOpen ? "md:pr-[360px] xl:pr-[400px]" : ""
+  const agentRailPad = bothOpen
+    ? "pr-[300px]"
+    : isVoicePanelOpen
+      ? "md:pr-[300px] xl:pr-[360px]"
+      : ""
 
   return (
     <TPRxPadShell
@@ -290,27 +288,28 @@ function VoiceRxFlowInner() {
       }
       sidebar={
         <TPRxPadSecondarySidebar
-          collapseExpandedOnly={isVoicePanelOpen}
           onSectionSelect={handleSidebarSectionSelect}
         />
       }
     >
-      <div className={cn("relative flex h-[calc(100vh-62px)] min-h-0 min-w-0")}>
-        <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-tp-slate-100", agentRailPad)}>
+      <div className="relative flex h-[calc(100vh-62px)] min-h-0 min-w-0 overflow-x-auto">
+        <div className={cn(
+          "flex min-h-0 flex-1 flex-col overflow-y-auto bg-tp-slate-100",
+          bothOpen ? "min-w-[900px]" : "min-w-0",
+          agentRailPad,
+        )}>
           <RxPad patientId={patientId} />
         </div>
         <div
           data-voice-scope="dragent"
           className={cn(
-            // iPad / tablet (md ≤ width < xl): clamp width to
-            // 330–360px so the panel doesn't bleed off the page and
-            // also doesn't crush the chat copy. xl widens to 400px.
-            "pointer-events-none fixed right-0 top-[62px] z-30 hidden h-[calc(100vh-62px)] w-[clamp(330px,38vw,360px)] overflow-hidden md:block xl:w-[400px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-            isVoicePanelOpen ? "translate-x-0" : "translate-x-[110%]"
+            "pointer-events-none fixed right-0 top-[62px] z-[135] hidden h-[calc(100vh-62px)] overflow-hidden md:block transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+            bothOpen ? "w-[300px]" : "w-[clamp(300px,32vw,360px)]",
+            isVoicePanelOpen ? "translate-x-0" : "translate-x-[110%]",
           )}
           aria-hidden={!isVoicePanelOpen}
         >
-          <div className="pointer-events-auto h-full w-full shadow-[-4px_0_24px_rgba(15,23,42,0.06)]">
+          <div className="pointer-events-auto relative h-full w-full before:pointer-events-none before:absolute before:inset-y-0 before:-left-[12px] before:z-10 before:w-[12px] before:bg-gradient-to-r before:from-transparent before:to-tp-slate-900/[0.06] before:content-['']">
             <DrAgentPanel
               onClose={() => setIsVoicePanelOpen(false)}
               onOpen={() => {

@@ -1225,7 +1225,7 @@ export function DrAgentPanel({
                 {
                   id: uid(),
                   role: "assistant" as const,
-                  text: "Start consultation by **dictating** or having a **natural conversation** with the patient.\nTap **Start with Voice** below to begin.",
+                  text: "Start consultation by **dictating** or having a **natural conversation** with the patient. **Tap below** to begin.",
                   createdAt: replyIso,
                   feedbackGiven: null,
                   hideFeedback: true,
@@ -2111,7 +2111,7 @@ export function DrAgentPanel({
                           id: uid(),
                           role: "assistant" as const,
                           text: "Here's what the patient reported via the symptom collector.",
-                          rxOutput: { kind: "symptom_collector" as const, data: summary.symptomCollectorData },
+                          rxOutput: { kind: "symptom_collector" as const, data: summary.symptomCollectorData! },
                           createdAt: replyIso,
                           feedbackGiven: null,
                           shimmerReveal: true,

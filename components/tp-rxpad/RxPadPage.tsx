@@ -30,17 +30,18 @@ function RxPadPageInner() {
   )
   const { lastSignal } = useRxPadSync()
   const [isAgentOpen, setIsAgentOpen] = useState(true)
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true)
   const [hasNudge, setHasNudge] = useState(false)
   const [customiseOpen, setCustomiseOpen] = useState(false)
   const [sectionConfig, setSectionConfig] = useState<RxSectionItem[]>(DEFAULT_SECTION_CONFIG)
 
+  const bothOpen = isAgentOpen && isSidebarExpanded
+
   const handleSidebarSectionSelect = useCallback(
     (sectionId: string | null) => {
-      if (isAgentOpen && sectionId && sectionId !== "drAgent") {
-        setIsAgentOpen(false)
-      }
+      setIsSidebarExpanded(!!sectionId && sectionId !== "drAgent")
     },
-    [isAgentOpen],
+    [],
   )
 
   useEffect(() => {
@@ -94,7 +95,6 @@ function RxPadPageInner() {
       }
       sidebar={
         <TPRxPadSecondarySidebar
-          collapseExpandedOnly={isAgentOpen}
           onSectionSelect={handleSidebarSectionSelect}
         />
       }
@@ -105,18 +105,26 @@ function RxPadPageInner() {
         sectionConfig={sectionConfig}
         onSave={(cfg) => setSectionConfig(cfg)}
       />
-      <div className="relative flex h-full min-w-0">
-        <div className={`min-w-0 flex-1 ${isAgentOpen ? "md:pr-[300px] xl:pr-[400px]" : ""}`}>
+      <div className="relative flex h-full min-w-0 overflow-x-auto">
+        <div className={cn(
+          "flex-1",
+          bothOpen
+            ? "min-w-[900px] pr-[300px]"
+            : isAgentOpen
+              ? "min-w-0 md:pr-[300px] xl:pr-[360px]"
+              : "min-w-0",
+        )}>
           <RxPad patientId={patientId} sectionConfig={sectionConfig} />
         </div>
         <div
           className={cn(
-            "pointer-events-none fixed right-0 top-[62px] z-30 hidden h-[calc(100vh-62px)] w-[clamp(300px,32vw,400px)] overflow-hidden md:block transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-            isAgentOpen ? "translate-x-0" : "translate-x-[110%]"
+            "pointer-events-none fixed right-0 top-[62px] z-[135] hidden h-[calc(100vh-62px)] overflow-hidden md:block transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+            bothOpen ? "w-[300px]" : "w-[clamp(300px,32vw,360px)]",
+            isAgentOpen ? "translate-x-0" : "translate-x-[110%]",
           )}
           aria-hidden={!isAgentOpen}
         >
-          <div className="pointer-events-auto h-full w-full shadow-[-4px_0_24px_rgba(15,23,42,0.06)]">
+          <div className="pointer-events-auto relative h-full w-full before:pointer-events-none before:absolute before:inset-y-0 before:-left-[12px] before:z-10 before:w-[12px] before:bg-gradient-to-r before:from-transparent before:to-tp-slate-900/[0.06] before:content-['']">
             <DrAgentPanel
               onClose={() => setIsAgentOpen(false)}
               onOpen={() => { setIsAgentOpen(true); setHasNudge(false) }}
