@@ -1,20 +1,49 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { GripVertical } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { GripVertical, MoreHorizontal } from "lucide-react"
+import { toast } from "sonner"
+
 import { TPMedicalIcon } from "@/components/tp-ui/medical-icons"
 import { TutorialPlayIcon } from "@/components/tp-ui/TutorialPlayIcon"
+import { Note1, DocumentText, Ruler } from "iconsax-reactjs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { TPConfirmDialog } from "@/components/tp-ui/tp-confirm-dialog"
+
+import {
+  CUSTOM_MODULE_CAP,
+  type CustomModule,
+  type LayoutItem,
+  type RxLayoutItem,
+  type SidebarItemId,
+  type RxSectionId as StoreRxSectionId,
+} from "@/lib/customise-store"
+import {
+  useCustomModules,
+  useCustomModulesDrawer,
+  useCustomiseMutators,
+  useRxSectionConfig,
+  useSidebarConfig,
+} from "@/components/tp-rxpad/customise-context"
+import { CustomModulesDrawer } from "@/components/tp-rxpad/custom-modules"
+import { ModuleIcon } from "@/components/tp-rxpad/custom-modules/ModuleIcon"
 
 // ── Solid close-square icon (same glyph used in RxPreviewSidebar) ──────────
 function CloseSquareIcon({ size = 22, color = "currentColor" }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden style={{ color }}>
       <path d="M16.19 2H7.81C4.17 2 2 4.17 2 7.81V16.18C2 19.83 4.17 22 7.81 22H16.18C19.82 22 21.99 19.83 21.99 16.19V7.81C22 4.17 19.83 2 16.19 2ZM15.36 14.3C15.65 14.59 15.65 15.07 15.36 15.36C15.21 15.51 15.02 15.58 14.83 15.58C14.64 15.58 14.45 15.51 14.3 15.36L12 13.06L9.7 15.36C9.55 15.51 9.36 15.58 9.17 15.58C8.98 15.58 8.79 15.51 8.64 15.36C8.35 15.07 8.35 14.59 8.64 14.3L10.94 12L8.64 9.7C8.35 9.41 8.35 8.93 8.64 8.64C8.93 8.35 9.41 8.35 9.7 8.64L12 10.94L14.3 8.64C14.59 8.35 15.07 8.35 15.36 8.64C15.65 8.93 15.65 9.41 15.36 9.7L13.06 12L15.36 14.3Z" />
     </svg>
   )
 }
 
-// ── Section config types ────────────────────────────────────────────────────
+// ── Section config types — kept for backwards-compat with consumers that
+//    import the old shapes (e.g. RxPadFunctional's prop fallback). ───────
 
 export type RxSectionId =
   | "symptoms"
@@ -44,6 +73,40 @@ const SECTION_META: Record<RxSectionId, { label: string; iconName: string }> = {
 export const DEFAULT_SECTION_CONFIG: RxSectionItem[] = (
   Object.keys(SECTION_META) as RxSectionId[]
 ).map((id) => ({ id, label: SECTION_META[id].label, enabled: true }))
+
+// ── Sidebar item meta (icon + label) ─────────────────────────────────────
+//
+// Mirrors NavPanel.tsx so the sheet's left column shows the same labels +
+// icons as the live sidebar. Keeping this in lock-step is fine here — it's
+// a small enum.
+
+type SidebarMeta = { label: string; iconKind: "medical" | "iconsax"; iconName?: string; IconsaxIcon?: React.ComponentType<any> }
+
+const SIDEBAR_META: Record<SidebarItemId, SidebarMeta> = {
+  pastVisits:     { label: "Past Visits",     iconKind: "iconsax", IconsaxIcon: Note1 },
+  vitals:         { label: "Vitals",          iconKind: "medical", iconName: "Heart Rate" },
+  history:        { label: "History",         iconKind: "medical", iconName: "clipboard-activity" },
+  labResults:     { label: "Lab Results",     iconKind: "medical", iconName: "Lab" },
+  medicalRecords: { label: "Records",         iconKind: "medical", iconName: "health-file-03" },
+  gynec:          { label: "Gynec",           iconKind: "medical", iconName: "Gynec" },
+  obstetric:      { label: "Obstetric",       iconKind: "medical", iconName: "Obstetric" },
+  vaccine:        { label: "Vaccine",         iconKind: "medical", iconName: "injection" },
+  growth:         { label: "Growth",          iconKind: "iconsax", IconsaxIcon: Ruler },
+  personalNotes:  { label: "Personal Notes",  iconKind: "iconsax", IconsaxIcon: DocumentText },
+}
+
+function SidebarRowIcon({ id }: { id: SidebarItemId }) {
+  const meta = SIDEBAR_META[id]
+  return (
+    <span className="inline-flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] bg-tp-blue-50">
+      {meta.iconKind === "medical" && meta.iconName ? (
+        <TPMedicalIcon name={meta.iconName as any} variant="bulk" size={20} color="var(--tp-blue-500)" />
+      ) : meta.IconsaxIcon ? (
+        <meta.IconsaxIcon size={20} variant="Bulk" color="var(--tp-blue-500)" strokeWidth={1.5} />
+      ) : null}
+    </span>
+  )
+}
 
 // ── Inline toggle switch ────────────────────────────────────────────────────
 function ToggleSwitch({
@@ -75,13 +138,60 @@ function ToggleSwitch({
   )
 }
 
-// ── Props ───────────────────────────────────────────────────────────────────
+// ── Reorderable list hook (HTML5 drag) ───────────────────────────────────
+//
+// Extracted so both columns share the same drag affordance. Returns the
+// drag handlers + the dragOverId state for visual feedback.
+
+function useReorderableList<T extends { id: string }>(
+  items: T[],
+  setItems: (next: T[]) => void,
+) {
+  const draggingId = useRef<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  function handleDragStart(id: string) {
+    draggingId.current = id
+  }
+  function handleDragOver(e: React.DragEvent, id: string) {
+    e.preventDefault()
+    if (draggingId.current && draggingId.current !== id) setDragOverId(id)
+  }
+  function handleDrop(targetId: string) {
+    const from = draggingId.current
+    if (!from || from === targetId) {
+      draggingId.current = null
+      setDragOverId(null)
+      return
+    }
+    const fromIdx = items.findIndex((s) => s.id === from)
+    const toIdx = items.findIndex((s) => s.id === targetId)
+    if (fromIdx === -1 || toIdx === -1) return
+    const next = [...items]
+    const [moved] = next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, moved)
+    setItems(next)
+    draggingId.current = null
+    setDragOverId(null)
+  }
+  function handleDragEnd() {
+    draggingId.current = null
+    setDragOverId(null)
+  }
+  return { dragOverId, handleDragStart, handleDragOver, handleDrop, handleDragEnd }
+}
+
+// ── Public props (kept for backwards-compat — open/onClose still drive
+//    the sheet from the page; sectionConfig + onSave are now optional and
+//    only used as initial seeds for legacy callers). ──────────────────
 
 interface RxCustomiseSidebarProps {
   open: boolean
   onClose: () => void
-  sectionConfig: RxSectionItem[]
-  onSave: (config: RxSectionItem[]) => void
+  // Legacy props: still accepted but no longer required. The sheet now
+  // reads + writes through the customise store directly.
+  sectionConfig?: RxSectionItem[]
+  onSave?: (config: RxSectionItem[]) => void
 }
 
 // ── Component ───────────────────────────────────────────────────────────────
@@ -89,7 +199,6 @@ interface RxCustomiseSidebarProps {
 export function RxCustomiseSidebar({
   open,
   onClose,
-  sectionConfig,
   onSave,
 }: RxCustomiseSidebarProps) {
   // Animation state — same pattern as RxPreviewSidebar.
@@ -115,86 +224,180 @@ export function RxCustomiseSidebar({
     return () => window.removeEventListener("keydown", handler)
   }, [isMounted, onClose])
 
-  // Local edit state — seeded from prop on each open.
-  const [localConfig, setLocalConfig] = useState<RxSectionItem[]>(sectionConfig)
+  // ── Live config from the customise store ─────────────────────────────
+  const liveSidebar = useSidebarConfig()
+  const liveRxpad = useRxSectionConfig()
+  const customModules = useCustomModules()
+  const { setSidebarConfig, setRxConfig, resetLayoutToDefaults, deleteModule } = useCustomiseMutators()
+  const { openDrawer: openCustomModulesDrawer } = useCustomModulesDrawer()
+
+  // Local draft state — seeded on each open. Save commits to the store.
+  const [draftSidebar, setDraftSidebar] = useState<LayoutItem<SidebarItemId>[]>(liveSidebar)
+  const [draftRxpad, setDraftRxpad] = useState<RxLayoutItem[]>(liveRxpad)
   useEffect(() => {
-    if (open) setLocalConfig(sectionConfig)
-  }, [open, sectionConfig])
+    if (open) {
+      setDraftSidebar(liveSidebar.map((s) => ({ ...s })))
+      setDraftRxpad(liveRxpad.map((s) => ({ ...s })))
+    }
+  }, [open, liveSidebar, liveRxpad])
 
-  // ── Drag-to-reorder (HTML5 drag API) ──────────────────────────────────────
-  const draggingId = useRef<string | null>(null)
-  const [dragOverId, setDragOverId] = useState<string | null>(null)
-
-  function handleDragStart(id: string) {
-    draggingId.current = id
-  }
-
-  function handleDragOver(e: React.DragEvent, id: string) {
-    e.preventDefault()
-    if (draggingId.current && draggingId.current !== id) setDragOverId(id)
-  }
-
-  function handleDrop(targetId: string) {
-    const from = draggingId.current
-    if (!from || from === targetId) { draggingId.current = null; setDragOverId(null); return }
-    setLocalConfig((prev) => {
+  // Reflect in-flight module additions (created via the drawer while the
+  // sheet is open) into the draft so the new row appears immediately.
+  useEffect(() => {
+    if (!open) return
+    setDraftRxpad((prev) => {
+      const seen = new Set(prev.map((s) => s.id))
       const next = [...prev]
-      const fromIdx = next.findIndex((s) => s.id === from)
-      const toIdx = next.findIndex((s) => s.id === targetId)
-      const [item] = next.splice(fromIdx, 1)
-      next.splice(toIdx, 0, item)
-      return next
+      for (const cm of customModules) {
+        const fullId = `custom:${cm.id}`
+        if (!seen.has(fullId)) {
+          next.push({ id: fullId as `custom:${string}`, enabled: true, kind: "custom" })
+        }
+      }
+      // Drop drafts whose underlying module was deleted via the More menu.
+      return next.filter((s) => {
+        if (!s.id.startsWith("custom:")) return true
+        const cid = s.id.slice("custom:".length)
+        return customModules.some((m) => m.id === cid)
+      })
     })
-    draggingId.current = null
-    setDragOverId(null)
+  }, [open, customModules])
+
+  const sidebarReorder = useReorderableList(draftSidebar, setDraftSidebar)
+  const rxpadReorder = useReorderableList(draftRxpad, setDraftRxpad)
+
+  // ── Toggle handlers (per-side validation: keep ≥1 enabled) ─────────────
+
+  const sidebarEnabledCount = draftSidebar.filter((s) => s.enabled).length
+  const rxpadEnabledCount = draftRxpad.filter((s) => s.enabled).length
+
+  function toggleSidebar(id: SidebarItemId) {
+    const current = draftSidebar.find((s) => s.id === id)
+    if (!current) return
+    if (current.enabled && sidebarEnabledCount <= 1) {
+      toast.error("At least one sidebar section must remain enabled")
+      return
+    }
+    setDraftSidebar((prev) => prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)))
   }
 
-  function handleDragEnd() {
-    draggingId.current = null
-    setDragOverId(null)
+  function toggleRxpad(id: StoreRxSectionId) {
+    const current = draftRxpad.find((s) => s.id === id)
+    if (!current) return
+    if (current.enabled && rxpadEnabledCount <= 1) {
+      toast.error("At least one Rx pad section must remain enabled")
+      return
+    }
+    setDraftRxpad((prev) => prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)))
   }
 
-  function toggleSection(id: string) {
-    setLocalConfig((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s))
-    )
+  // ── Per-row More menu (custom modules) ────────────────────────────────
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const moduleById = useMemo(
+    () => Object.fromEntries(customModules.map((m) => [m.id, m])) as Record<string, CustomModule | undefined>,
+    [customModules],
+  )
+
+  function removeFromRxPad(customId: string) {
+    const fullId = `custom:${customId}`
+    setDraftRxpad((prev) => prev.filter((s) => s.id !== fullId))
   }
 
-  function handleReset() {
-    setLocalConfig(DEFAULT_SECTION_CONFIG.map((s) => ({ ...s })))
+  function handleEditModule(customId: string) {
+    openCustomModulesDrawer({ editingId: customId })
   }
+
+  function handleDeleteModuleConfirm() {
+    if (!confirmDeleteId) return
+    try {
+      deleteModule(confirmDeleteId)
+    } catch {
+      // hasBeenUsed — guard. Should not reach here because menu is disabled.
+    }
+    setDraftRxpad((prev) => prev.filter((s) => s.id !== `custom:${confirmDeleteId}`))
+    setConfirmDeleteId(null)
+  }
+
+  // ── Save / Reset ──────────────────────────────────────────────────────
+
+  const canSave = sidebarEnabledCount >= 1 && rxpadEnabledCount >= 1
 
   function handleSave() {
-    onSave(localConfig)
+    if (!canSave) return
+    setSidebarConfig(draftSidebar)
+    setRxConfig(draftRxpad)
+    // Backwards-compat: emit the legacy callback if a caller wired it.
+    onSave?.(
+      draftRxpad
+        .filter((s) => s.kind !== "custom")
+        .map((s) => ({
+          id: s.id as RxSectionId,
+          label: SECTION_META[s.id as RxSectionId]?.label ?? s.id,
+          enabled: s.enabled,
+        })),
+    )
     onClose()
   }
 
-  const enabledCount = localConfig.filter((s) => s.enabled).length
+  function handleReset() {
+    resetLayoutToDefaults()
+    // The store mutator pushed new state; the next open will reseed drafts.
+    // For immediate visual feedback while the sheet is open, also pull
+    // the new config into the drafts now.
+    setDraftSidebar(liveSidebar.map((s) => ({ ...s })))
+    setDraftRxpad(liveRxpad.map((s) => ({ ...s })))
+    toast.success("Layout reset to defaults")
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────
 
   if (!isMounted) return null
 
   return (
     <>
+      {/* Custom modules drawer mount — lives here so closing the customise
+          sheet doesn't tear it down mid-edit. The drawer animates above
+          this sheet via z-[161]. */}
+      <CustomModulesDrawer />
+
+      {/* Confirm-delete dialog */}
+      <TPConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+        title="Delete this custom module?"
+        warning={
+          confirmDeleteId
+            ? `Deleting "${moduleById[confirmDeleteId]?.name ?? "this module"}" removes the module and any rows you've filled in. This action cannot be undone.`
+            : ""
+        }
+        primaryLabel="Delete Module"
+        primaryTone="destructive"
+        onPrimary={handleDeleteModuleConfirm}
+        secondaryLabel="Cancel"
+        onSecondary={() => setConfirmDeleteId(null)}
+      />
+
       {/* Dimming backdrop */}
       <div
         aria-hidden
         onClick={onClose}
-        className={`fixed inset-0 z-[100] bg-black/30 backdrop-blur-[2px] transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[150] bg-black/30 backdrop-blur-[2px] transition-opacity duration-200 ${
           isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
 
-      {/* Slide-in panel — 60% desktop, 75% iPad, 94vw mobile */}
+      {/* Slide-in panel — 70% desktop, 75% iPad, 94vw mobile */}
       <aside
         role="dialog"
-        aria-label="Customise your Rx layout"
+        aria-label="Customise your pad"
         aria-hidden={!isVisible}
-        className={`fixed right-0 top-0 z-[101] flex h-full flex-col bg-white shadow-[-12px_0_40px_rgba(15,23,42,0.18)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] w-[94vw] md:w-[75vw] lg:w-[60vw] ${
+        className={`fixed right-0 top-0 z-[151] flex h-full flex-col bg-white shadow-[-12px_0_40px_rgba(15,23,42,0.18)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] w-[94vw] md:w-[75vw] lg:w-[70vw] ${
           isVisible ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* ── Header — close X → divider → title | Tutorial ───────────── */}
-        <header className="flex h-[56px] shrink-0 items-center justify-between border-b border-tp-slate-100 px-[16px]">
+        {/* ── Header ──────────────────────────────────────────────────── */}
+        <header className="flex h-[56px] shrink-0 items-center justify-between gap-[12px] border-b border-tp-slate-100 px-[16px]">
           <div className="flex min-w-0 items-center gap-[12px]">
             <button
               type="button"
@@ -206,108 +409,239 @@ export function RxCustomiseSidebar({
             </button>
             <span aria-hidden className="h-[24px] w-px shrink-0 bg-tp-slate-200" />
             <h3 className="truncate text-[16px] font-semibold tracking-[-0.1px] text-tp-slate-800">
-              Customise Your Rx
+              Customise Your Pad
             </h3>
           </div>
-          <button
-            type="button"
-            aria-label="Watch tutorial"
-            className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-600 transition-colors hover:bg-tp-slate-100 active:scale-[0.96]"
-          >
-            <TutorialPlayIcon size={26} />
-          </button>
+          <div className="flex shrink-0 items-center gap-[10px]">
+            <button
+              type="button"
+              aria-label="Watch tutorial"
+              className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-600 transition-colors hover:bg-tp-slate-100 active:scale-[0.96]"
+            >
+              <TutorialPlayIcon size={22} />
+            </button>
+            <NavGradientDivider />
+            <button
+              type="button"
+              onClick={handleReset}
+              className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] border border-tp-blue-300 bg-white px-[16px] text-[13px] font-semibold text-tp-blue-500 transition-colors hover:bg-tp-blue-50 active:scale-[0.98]"
+            >
+              Reset to default
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!canSave}
+              className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] bg-tp-blue-500 px-[16px] text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-tp-blue-500"
+            >
+              Save Changes
+            </button>
+          </div>
         </header>
 
-        {/* ── Body ────────────────────────────────────────────────────────── */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-[16px] py-[20px]">
-          <div className="mb-[16px] flex items-center justify-between">
-            <div>
-              <p className="text-[14px] font-semibold text-tp-slate-800">Rx Sections</p>
-              <p className="mt-[2px] text-[12px] text-tp-slate-500">
-                Toggle sections on or off. Drag to reorder.
-              </p>
-            </div>
-            <span className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-tp-blue-50 px-[8px] text-[12px] font-semibold text-tp-blue-600">
-              {enabledCount}/{localConfig.length}
-            </span>
-          </div>
-
-          <div className="space-y-[8px]">
-            {localConfig.map((section) => {
-              const meta = SECTION_META[section.id as RxSectionId]
-              const isDragOver = dragOverId === section.id
-
+        {/* ── Body — single grey-shaded container holding two columns ── */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-[16px]">
+          <div className="grid grid-cols-1 gap-[16px] rounded-[16px] bg-tp-slate-50 p-[16px] md:grid-cols-2">
+          {/* Left column — Sidebar Sections */}
+          <CustomisePanel
+            title="Sidebar Sections"
+            subtitle="Reorder or hide sections in the secondary navigation."
+            enabledCount={sidebarEnabledCount}
+            totalCount={draftSidebar.length}
+          >
+            {draftSidebar.map((row) => {
+              const meta = SIDEBAR_META[row.id]
+              const isDragOver = sidebarReorder.dragOverId === row.id
               return (
                 <div
-                  key={section.id}
+                  key={row.id}
                   draggable
-                  onDragStart={() => handleDragStart(section.id)}
-                  onDragOver={(e) => handleDragOver(e, section.id)}
-                  onDrop={() => handleDrop(section.id)}
-                  onDragEnd={handleDragEnd}
+                  onDragStart={() => sidebarReorder.handleDragStart(row.id)}
+                  onDragOver={(e) => sidebarReorder.handleDragOver(e, row.id)}
+                  onDrop={() => sidebarReorder.handleDrop(row.id)}
+                  onDragEnd={sidebarReorder.handleDragEnd}
                   className={`flex items-center gap-[12px] rounded-[14px] border bg-white px-[14px] py-[12px] transition-all duration-150 ${
                     isDragOver
                       ? "border-tp-blue-300 shadow-[0_0_0_2px_rgba(99,102,241,0.12)]"
                       : "border-tp-slate-100"
-                  } ${!section.enabled ? "opacity-50" : ""}`}
+                  } ${!row.enabled ? "opacity-60" : ""}`}
                 >
-                  {/* Drag handle */}
-                  <GripVertical
-                    size={18}
-                    strokeWidth={1.5}
-                    className="shrink-0 cursor-grab text-tp-slate-400 active:cursor-grabbing"
-                  />
-
-                  {/* Section icon */}
-                  <span className="inline-flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] bg-tp-violet-50">
-                    <TPMedicalIcon
-                      name={meta.iconName as any}
-                      variant="bulk"
-                      size={20}
-                      color="var(--tp-violet-500)"
-                    />
-                  </span>
-
-                  {/* Section label */}
+                  <GripVertical size={18} strokeWidth={1.5} className="shrink-0 cursor-grab text-tp-slate-400 active:cursor-grabbing" />
+                  <SidebarRowIcon id={row.id} />
                   <span className="min-w-0 flex-1 text-[14px] font-medium text-tp-slate-800">
-                    {section.label}
+                    {meta?.label ?? row.id}
                   </span>
-
-                  {/* Toggle */}
                   <ToggleSwitch
-                    checked={section.enabled}
-                    onChange={() => toggleSection(section.id)}
-                    disabled={section.enabled && enabledCount <= 1}
+                    checked={row.enabled}
+                    onChange={() => toggleSidebar(row.id)}
                   />
                 </div>
               )
             })}
-          </div>
+          </CustomisePanel>
 
-          <p className="mt-[16px] text-[12px] leading-[1.6] text-tp-slate-400">
-            At least one section must remain enabled.
-          </p>
+          {/* Right column — Rx Pad Sections */}
+          <CustomisePanel
+            title="Rx Pad Sections"
+            subtitle="Reorder, hide, or add custom modules to the Rx pad."
+            enabledCount={rxpadEnabledCount}
+            totalCount={draftRxpad.length}
+            footer={
+              <button
+                type="button"
+                onClick={() => openCustomModulesDrawer({ initialTab: "select" })}
+                disabled={customModules.length >= CUSTOM_MODULE_CAP}
+                title={
+                  customModules.length >= CUSTOM_MODULE_CAP
+                    ? "15-module cap reached. Delete a module to add more."
+                    : undefined
+                }
+                className="inline-flex h-[40px] w-full items-center justify-center gap-[6px] rounded-[12px] border border-dashed border-tp-blue-300 bg-tp-blue-50/30 text-[14px] font-semibold text-tp-blue-600 transition-colors hover:bg-tp-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-tp-blue-50/30"
+              >
+                <span aria-hidden>+</span>
+                Add Custom Module
+              </button>
+            }
+          >
+            {draftRxpad.map((row) => {
+              const isDragOver = rxpadReorder.dragOverId === row.id
+              const isCustom = row.kind === "custom" || row.id.startsWith("custom:")
+              const customId = isCustom ? row.id.slice("custom:".length) : null
+              const customDef = customId ? moduleById[customId] : undefined
+              const builtinMeta = !isCustom ? SECTION_META[row.id as RxSectionId] : undefined
+              const label = isCustom
+                ? customDef?.name ?? "Custom module"
+                : builtinMeta?.label ?? row.id
+              const disabled = !!(customDef && customDef.hasBeenUsed)
+              return (
+                <div
+                  key={row.id}
+                  draggable
+                  onDragStart={() => rxpadReorder.handleDragStart(row.id)}
+                  onDragOver={(e) => rxpadReorder.handleDragOver(e, row.id)}
+                  onDrop={() => rxpadReorder.handleDrop(row.id)}
+                  onDragEnd={rxpadReorder.handleDragEnd}
+                  className={`flex items-center gap-[12px] rounded-[14px] border bg-white px-[14px] py-[12px] transition-all duration-150 ${
+                    isDragOver
+                      ? "border-tp-blue-300 shadow-[0_0_0_2px_rgba(99,102,241,0.12)]"
+                      : "border-tp-slate-100"
+                  } ${!row.enabled ? "opacity-60" : ""}`}
+                >
+                  <GripVertical size={18} strokeWidth={1.5} className="shrink-0 cursor-grab text-tp-slate-400 active:cursor-grabbing" />
+                  <span className="inline-flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] bg-tp-violet-50">
+                    {isCustom ? (
+                      <ModuleIcon module={customDef ?? null} size={20} color="var(--tp-violet-500)" />
+                    ) : builtinMeta ? (
+                      <TPMedicalIcon name={builtinMeta.iconName as any} variant="bulk" size={20} color="var(--tp-violet-500)" />
+                    ) : null}
+                  </span>
+                  <span className="min-w-0 flex-1 text-[14px] font-medium text-tp-slate-800">
+                    <span className="block truncate">{label}</span>
+                    {isCustom && (
+                      <span className="mt-[2px] inline-flex items-center gap-[4px] text-[11px] font-medium text-tp-violet-500">
+                        Custom · {customDef?.fields.length ?? 0} {(customDef?.fields.length ?? 0) === 1 ? "column" : "columns"}
+                      </span>
+                    )}
+                  </span>
+                  <ToggleSwitch
+                    checked={row.enabled}
+                    onChange={() => toggleRxpad(row.id as StoreRxSectionId)}
+                  />
+                  {isCustom && customId && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={`More actions for ${label}`}
+                          className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-500 transition-colors hover:bg-tp-slate-50 hover:text-tp-slate-700"
+                        >
+                          <MoreHorizontal size={18} strokeWidth={1.5} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => removeFromRxPad(customId)}>
+                          Remove from Rx Pad
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={disabled}
+                          onClick={(e) => {
+                            if (disabled) return
+                            handleEditModule(customId)
+                          }}
+                        >
+                          Edit Module
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={disabled}
+                          variant="destructive"
+                          onClick={(e) => {
+                            if (disabled) return
+                            setConfirmDeleteId(customId)
+                          }}
+                        >
+                          Delete Module
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              )
+            })}
+          </CustomisePanel>
+          </div>
         </div>
 
-        {/* ── Footer — Reset (secondary) + Save (primary) ─────────────────── */}
-        <footer className="flex shrink-0 items-center justify-between gap-[12px] border-t border-tp-slate-100 px-[16px] py-[14px]">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="inline-flex h-[44px] items-center justify-center rounded-[12px] border border-tp-slate-300 bg-white px-[20px] text-[14px] font-semibold text-tp-slate-700 transition-colors hover:bg-tp-slate-50 active:scale-[0.98]"
-          >
-            Reset to default
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="inline-flex h-[44px] flex-1 items-center justify-center rounded-[12px] text-[14px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            style={{ background: "linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%)" }}
-          >
-            Save Changes
-          </button>
-        </footer>
       </aside>
     </>
+  )
+}
+
+// ── Gradient divider — same recipe as the home/visit-page top bar's NavDivider.
+function NavGradientDivider() {
+  return (
+    <div
+      aria-hidden
+      className="shrink-0 opacity-80"
+      style={{
+        width: "1.05px",
+        height: 36,
+        background:
+          "linear-gradient(to bottom, rgba(208,213,221,0.2) 0%, #d0d5dd 50%, rgba(208,213,221,0.2) 100%)",
+      }}
+    />
+  )
+}
+
+// ── Inner column component ───────────────────────────────────────────────
+
+function CustomisePanel({
+  title,
+  subtitle,
+  enabledCount,
+  totalCount,
+  children,
+  footer,
+}: {
+  title: string
+  subtitle: string
+  enabledCount: number
+  totalCount: number
+  children: React.ReactNode
+  footer?: React.ReactNode
+}) {
+  return (
+    <section className="flex min-h-0 flex-col rounded-[14px] bg-white p-[14px] ring-1 ring-tp-slate-100">
+      <div className="mb-[12px] flex items-start justify-between gap-[8px]">
+        <div className="min-w-0">
+          <p className="text-[14px] font-semibold text-tp-slate-800">{title}</p>
+          <p className="mt-[2px] text-[12px] text-tp-slate-500">{subtitle}</p>
+        </div>
+        <span className="inline-flex h-[22px] min-w-[28px] items-center justify-center rounded-full bg-white px-[8px] text-[12px] font-semibold text-tp-blue-600 ring-1 ring-tp-blue-100">
+          {enabledCount}/{totalCount}
+        </span>
+      </div>
+      <div className="space-y-[8px]">{children}</div>
+      {footer && <div className="mt-[12px]">{footer}</div>}
+    </section>
   )
 }

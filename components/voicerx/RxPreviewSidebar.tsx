@@ -83,7 +83,7 @@ export function RxPreviewSidebar({ open, onClose, patientId }: RxPreviewSidebarP
       <div
         aria-hidden
         onClick={onClose}
-        className={`fixed inset-0 z-[100] bg-black/30 backdrop-blur-[2px] transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[150] bg-black/30 backdrop-blur-[2px] transition-opacity duration-200 ${
           isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
@@ -93,7 +93,7 @@ export function RxPreviewSidebar({ open, onClose, patientId }: RxPreviewSidebarP
         role="dialog"
         aria-label="Rx preview"
         aria-hidden={!isVisible}
-        className={`fixed right-0 top-0 z-[101] flex h-full w-[460px] max-w-[94vw] flex-col bg-white shadow-[-12px_0_40px_rgba(15,23,42,0.18)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`fixed right-0 top-0 z-[151] flex h-full w-[460px] max-w-[94vw] flex-col bg-white shadow-[-12px_0_40px_rgba(15,23,42,0.18)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isVisible ? "translate-x-0" : "translate-x-full"
         }`}
       >

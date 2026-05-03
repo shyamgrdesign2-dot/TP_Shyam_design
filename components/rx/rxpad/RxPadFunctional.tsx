@@ -30,6 +30,10 @@ import { DictationTranscript } from "@/components/voicerx/VoiceTranscriptProcess
 import { AiTriggerChip } from "@/components/tp-rxpad/dr-agent/shared/AiTriggerChip"
 import { useV0Mode } from "@/components/tp-rxpad/dr-agent/hooks/useV0Mode"
 import { DEFAULT_SECTION_CONFIG, type RxSectionId, type RxSectionItem } from "@/components/tp-rxpad/RxCustomiseSidebar"
+import { useCustomModules, useCustomModulesDrawer, useRxSectionConfig } from "@/components/tp-rxpad/customise-context"
+import { CUSTOM_MODULE_CAP, markModuleUsed, type CustomModule } from "@/lib/customise-store"
+import { ModuleIcon } from "@/components/tp-rxpad/custom-modules/ModuleIcon"
+import { useModuleTemplateHandlers } from "@/components/tp-rxpad/templates"
 import { PER_PATIENT_RXPAD_DATA, checkDrugInteraction, checkTableInteractions } from "./per-patient-rxpad-data"
 import {
   TPMedicalIcon,
@@ -104,6 +108,11 @@ type TableModuleConfig = {
   voiceProcessingTranscript?: string
   /** Number of rows just added from voice — drives the blue count badge. */
   voiceAddedCount?: number
+  /** Identity for the template store. When set, the Save / Template
+   *  header buttons drive the global template sidebars instead of the
+   *  raw onSaveClick / onTemplateClick callbacks. */
+  templateModuleId?: string
+  templateModuleName?: string
 }
 
 type ActiveMenu = {
@@ -546,6 +555,8 @@ function EditableTableModule({
   onVoiceSubmit,
   voiceProcessingTranscript,
   voiceAddedCount,
+  templateModuleId,
+  templateModuleName,
 }: TableModuleConfig) {
   const isTablet = useTabletMode()
   const [searchText, setSearchText] = useState("")
@@ -694,17 +705,53 @@ function EditableTableModule({
 
   const hasAnyData = useMemo(() => rows.some((row) => rowHasValues(row)), [rows])
 
+  // ── Template integration ──
+  // When templateModuleId is provided, the Save / Template buttons open
+  // the global template sidebars (Save = save-template flow, Template =
+  // load-template list). Otherwise we fall back to the raw callbacks
+  // (legacy behaviour) so callers without templates wired still work.
+  const applyTemplateRows = useCallback(
+    (templateRows: Array<Record<string, string | undefined>>) => {
+      if (!templateRows.length) return
+      const enriched: TableRow[] = templateRows.map((src) => {
+        const next: TableRow = { id: getRowId(id) }
+        for (const col of columns) {
+          const v = src[col.key]
+          next[col.key] = typeof v === "string" ? v : ""
+        }
+        return next
+      })
+      onChangeRows([...rows, ...enriched])
+    },
+    [columns, id, onChangeRows, rows],
+  )
+
+  const templateHandlers = useModuleTemplateHandlers(
+    templateModuleId ?? "",
+    templateModuleName ?? title,
+    rows,
+    applyTemplateRows,
+  )
+
   const handleTemplateClick = useCallback(() => {
+    if (templateModuleId) {
+      templateHandlers.onTemplateClick()
+      return
+    }
     if (onTemplateClick) {
       onTemplateClick()
       return
     }
     addRow(cannedChips[0] ?? "")
-  }, [addRow, cannedChips, onTemplateClick])
+  }, [addRow, cannedChips, onTemplateClick, templateHandlers, templateModuleId])
 
   const handleSaveClick = useCallback(() => {
+    if (templateModuleId) {
+      templateHandlers.onSaveClick()
+      return
+    }
     onSaveClick?.()
-  }, [onSaveClick])
+  }, [onSaveClick, templateHandlers, templateModuleId])
 
   const handleClearClick = useCallback(() => {
     if (onClearClick) {
@@ -2192,6 +2239,118 @@ function EditableTableModule({
   )
 }
 
+/* ── Custom module table — uses the same EditableTableModule shell as
+   the built-in Symptoms/Examinations sections so a doctor sees one
+   consistent table grammar across the Rx pad. Rows are persisted per
+   patient + module in localStorage. */
+
+function loadCustomRows(patientId: string, moduleId: string): TableRow[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = window.localStorage.getItem(`tp.custom-module-rows:${patientId}:${moduleId}`)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((r): r is TableRow => !!r && typeof r === "object" && typeof r.id === "string")
+      .map((r) => ({ ...r }))
+  } catch {
+    return []
+  }
+}
+
+function saveCustomRows(patientId: string, moduleId: string, rows: TableRow[]) {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(
+      `tp.custom-module-rows:${patientId}:${moduleId}`,
+      JSON.stringify(rows),
+    )
+  } catch {
+    /* quota — drop silently */
+  }
+}
+
+function CustomModuleTable({
+  patientId,
+  moduleDef,
+}: {
+  patientId: string
+  moduleDef: CustomModule
+}) {
+  // Build columns from the module's fields. All custom fields are
+  // single-line text in v1.
+  const columns: ColumnConfig[] = useMemo(
+    () =>
+      moduleDef.fields.map((f) => ({
+        key: f.id,
+        label: f.label.toUpperCase(),
+        width: 240,
+        minWidth: 160,
+        maxWidth: 320,
+        placeholder: `Add ${f.label.toLowerCase()}`,
+      })),
+    [moduleDef.fields],
+  )
+
+  const primaryKey = moduleDef.fields[0]?.id ?? "id"
+
+  const [rows, setRows] = useState<TableRow[]>(() => loadCustomRows(patientId, moduleDef.id))
+
+  // Re-seed rows when the patient or the module schema changes.
+  useEffect(() => {
+    setRows(loadCustomRows(patientId, moduleDef.id))
+  }, [patientId, moduleDef.id])
+
+  // Persist on change.
+  useEffect(() => {
+    saveCustomRows(patientId, moduleDef.id, rows)
+  }, [patientId, moduleDef.id, rows])
+
+  // Flip hasBeenUsed once the doctor types anything into any cell. Same
+  // permission gate the customise sheet's Edit / Delete menu reads.
+  const usedRef = useRef(moduleDef.hasBeenUsed)
+  useEffect(() => {
+    if (usedRef.current) return
+    if (!rows.some(rowHasValues)) return
+    usedRef.current = true
+    markModuleUsed(moduleDef.id)
+  }, [rows, moduleDef.id])
+
+  // Suggestions list — pull every previously committed value of the
+  // primary column across all rows so search-add can complete.
+  const searchSuggestions = useMemo(() => {
+    const seen = new Set<string>()
+    for (const row of rows) {
+      const v = (row[primaryKey] as string | undefined)?.trim()
+      if (v) seen.add(v)
+    }
+    return Array.from(seen)
+  }, [rows, primaryKey])
+
+  return (
+    <EditableTableModule
+      id={`custom:${moduleDef.id}`}
+      moduleDataAttr={`custom:${moduleDef.id}`}
+      title={moduleDef.name}
+      icon={
+        <span className="inline-flex h-[24px] w-[24px] items-center justify-center text-tp-violet-500">
+          <ModuleIcon module={moduleDef} size={22} color="var(--tp-violet-500)" />
+        </span>
+      }
+      columns={columns}
+      primaryKey={primaryKey}
+      rows={rows}
+      onChangeRows={setRows}
+      searchPlaceholder={`Search & Add ${moduleDef.name}`}
+      cannedChips={searchSuggestions.slice(0, 12)}
+      searchSuggestions={searchSuggestions}
+      templateModuleId={`custom:${moduleDef.id}`}
+      templateModuleName={moduleDef.name}
+    />
+  )
+}
+
 /* ── Medication allergy/interaction check helper ── */
 
 /** Known drug-allergy keyword pairs: allergy keyword → matching drug substrings */
@@ -3008,10 +3167,29 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }: { 
     [],
   )
 
-  const activeSections = (sectionConfig ?? DEFAULT_SECTION_CONFIG).filter((s) => s.enabled)
+  // Layout config — prefer the global customise store, fall back to the
+  // prop (for backwards-compat with any caller still passing it directly)
+  // and finally the static default.
+  const rxConfigFromStore = useRxSectionConfig()
+  const customModules = useCustomModules()
+  const { openDrawer: openCustomModulesDrawer } = useCustomModulesDrawer()
+  const liveConfig = sectionConfig ?? (rxConfigFromStore.length ? rxConfigFromStore : DEFAULT_SECTION_CONFIG)
+  const activeSections = liveConfig.filter((s) => s.enabled)
 
-  function renderSection(id: RxSectionId) {
-    switch (id) {
+  function renderSection(id: string) {
+    if (typeof id === "string" && id.startsWith("custom:")) {
+      const moduleId = id.slice("custom:".length)
+      const moduleDef = customModules.find((m) => m.id === moduleId)
+      if (!moduleDef) return null
+      return (
+        <CustomModuleTable
+          key={id}
+          patientId={patientId}
+          moduleDef={moduleDef}
+        />
+      )
+    }
+    switch (id as RxSectionId) {
       case "symptoms":
         return (
           <EditableTableModule
@@ -3019,6 +3197,8 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }: { 
             id="symptoms"
             moduleDataAttr="symptoms"
             title="Symptoms"
+            templateModuleId="symptoms"
+            templateModuleName="Symptoms"
             icon={<TPMedicalIcon name="Virus" variant="bulk" size={24} color="var(--tp-violet-500)" />}
             columns={symptomsColumns}
             primaryKey="name"
@@ -3056,6 +3236,8 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }: { 
             id="examinations"
             moduleDataAttr="examinations"
             title="Examinations"
+            templateModuleId="examinations"
+            templateModuleName="Examinations"
             icon={<TPMedicalIcon name="medical service" variant="bulk" size={24} color="var(--tp-violet-500)" />}
             columns={examinationsColumns}
             primaryKey="name"
@@ -3078,6 +3260,8 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }: { 
             key="diagnosis"
             id="diagnosis"
             title="Diagnosis"
+            templateModuleId="diagnosis"
+            templateModuleName="Diagnosis"
             icon={<TPMedicalIcon name="Diagnosis" variant="bulk" size={24} color="var(--tp-violet-500)" />}
             columns={diagnosisColumns}
             primaryKey="name"
@@ -3133,6 +3317,8 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }: { 
             id="medication"
             moduleDataAttr="medication"
             title="Medication (Rx)"
+            templateModuleId="medication"
+            templateModuleName="Medication"
             icon={<TPMedicalIcon name="Tablets" variant="bulk" size={24} color="var(--tp-violet-500)" />}
             columns={medicationColumns}
             primaryKey="medicine"
@@ -3200,6 +3386,8 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }: { 
             id="advice"
             moduleDataAttr="advice"
             title="Advices"
+            templateModuleId="advice"
+            templateModuleName="Advices"
             icon={<TPMedicalIcon name="health care" variant="bulk" size={24} color="var(--tp-violet-500)" />}
             columns={adviceColumns}
             primaryKey="advice"
@@ -3231,6 +3419,8 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }: { 
             id="lab"
             moduleDataAttr="lab"
             title="Lab Investigation"
+            templateModuleId="lab"
+            templateModuleName="Lab Investigation"
             icon={<TPMedicalIcon name="Test Tube" variant="bulk" size={24} color="var(--tp-violet-500)" />}
             columns={labColumns}
             primaryKey="investigation"
@@ -3289,6 +3479,8 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }: { 
             key="surgery"
             id="surgery"
             title="Surgery"
+            templateModuleId="surgery"
+            templateModuleName="Surgery"
             icon={<TPMedicalIcon name="surgical-scissors-02" variant="bulk" size={24} color="var(--tp-violet-500)" />}
             columns={surgeryColumns}
             primaryKey="surgery"
@@ -3404,6 +3596,22 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }: { 
           </div>
         </TPRxPadSection>
       </div>
+
+      {/* Add Custom Module CTA — appears at the bottom of the RxPad body
+          alongside the Follow-up section. Hidden once the doctor has hit
+          the 15-module cap. Opens the same drawer as the in-sheet CTA. */}
+      {customModules.length < CUSTOM_MODULE_CAP && (
+        <button
+          type="button"
+          onClick={() => openCustomModulesDrawer()}
+          className="flex w-full items-center justify-center gap-[8px] rounded-[14px] border-2 border-dashed border-tp-blue-300 bg-tp-blue-50/30 py-[14px] text-[14px] font-semibold text-tp-blue-500 transition-colors hover:bg-tp-blue-50 active:scale-[0.99]"
+          aria-label="Add custom module"
+          data-rxpad-add-custom
+        >
+          <Plus size={18} strokeWidth={2} aria-hidden />
+          Add Custom Module
+        </button>
+      )}
 
       <TPSnackbar
         open={Boolean(toastMessage)}

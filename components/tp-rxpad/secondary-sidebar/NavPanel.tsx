@@ -9,6 +9,7 @@ import { ArrowDown2, DocumentText, Note1, Ruler } from "iconsax-reactjs"
 
 import { TPMedicalIcon } from "@/components/tp-ui"
 import { useRxPadSync } from "@/components/tp-rxpad/rxpad-sync-context"
+import { useSidebarConfig } from "@/components/tp-rxpad/customise-context"
 
 import type { NavItemId } from "./types"
 import { rxSidebarTokens } from "./tokens"
@@ -153,22 +154,22 @@ type NavIconConfig =
   | { kind: "medical"; name: string }
   | { kind: "iconsax"; Icon: React.ComponentType<any> }
 
-const NAV_ITEMS: Array<{
-  id: NavItemId
-  label: string
-  icon: NavIconConfig
-}> = [
-  { id: "pastVisits", label: "Past Visits", icon: { kind: "iconsax", Icon: Note1 } },
-  { id: "vitals", label: "Vitals", icon: { kind: "medical", name: "Heart Rate" } },
-  { id: "history", label: "History", icon: { kind: "medical", name: "clipboard-activity" } },
-  { id: "labResults", label: "Lab Results", icon: { kind: "medical", name: "Lab" } },
-  { id: "medicalRecords", label: "Records", icon: { kind: "medical", name: "health-file-03" } },
-  { id: "gynec", label: "Gynec", icon: { kind: "medical", name: "Gynec" } },
-  { id: "obstetric", label: "Obstetric", icon: { kind: "medical", name: "Obstetric" } },
-  { id: "vaccine", label: "Vaccine", icon: { kind: "medical", name: "injection" } },
-  { id: "growth", label: "Growth", icon: { kind: "iconsax", Icon: Ruler } },
-  { id: "personalNotes", label: "Personal Notes", icon: { kind: "iconsax", Icon: DocumentText } },
-]
+// Presentation metadata — order/enabled comes from the customise config
+// (`useSidebarConfig()`), but each item's label and icon stay declared
+// locally so a stored config doesn't carry presentational concerns.
+const NAV_META: Record<NavItemId, { label: string; icon: NavIconConfig }> = {
+  pastVisits:     { label: "Past Visits",     icon: { kind: "iconsax", Icon: Note1 } },
+  vitals:         { label: "Vitals",          icon: { kind: "medical", name: "Heart Rate" } },
+  history:        { label: "History",         icon: { kind: "medical", name: "clipboard-activity" } },
+  labResults:     { label: "Lab Results",     icon: { kind: "medical", name: "Lab" } },
+  medicalRecords: { label: "Records",         icon: { kind: "medical", name: "health-file-03" } },
+  gynec:          { label: "Gynec",           icon: { kind: "medical", name: "Gynec" } },
+  obstetric:      { label: "Obstetric",       icon: { kind: "medical", name: "Obstetric" } },
+  vaccine:        { label: "Vaccine",         icon: { kind: "medical", name: "injection" } },
+  growth:         { label: "Growth",          icon: { kind: "iconsax", Icon: Ruler } },
+  personalNotes:  { label: "Personal Notes",  icon: { kind: "iconsax", Icon: DocumentText } },
+  drAgent:        { label: "Dr Agent",        icon: { kind: "iconsax", Icon: DocumentText } },
+}
 
 function DrAgentGlyph({ active }: { active: boolean }) {
   return (
@@ -319,6 +320,10 @@ type Props = {
 
 export function NavPanel({ active, onSelect, voiceActiveSection }: Props) {
   const { isHistoricalSectionUnseen } = useRxPadSync()
+  const sidebarConfig = useSidebarConfig()
+  const navItems = sidebarConfig
+    .filter((item) => item.enabled && NAV_META[item.id as NavItemId])
+    .map((item) => ({ id: item.id as NavItemId, ...NAV_META[item.id as NavItemId] }))
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const [showScrollHint, setShowScrollHint] = useState(false)
 
@@ -358,7 +363,7 @@ export function NavPanel({ active, onSelect, voiceActiveSection }: Props) {
       >
         {/* Dr.Agent removed from sidebar nav — lives only in its own panel */}
 
-        {NAV_ITEMS.map(({ id, label, icon }) => (
+        {navItems.map(({ id, label, icon }) => (
           <NavItem
             key={id}
             id={id}

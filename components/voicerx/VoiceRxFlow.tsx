@@ -11,6 +11,7 @@ import { FullscreenAiOverlay } from "@/components/voicerx/FullscreenAiOverlay"
 import { RxPreviewSidebar } from "@/components/voicerx/RxPreviewSidebar"
 import { FlashSnackbar } from "@/components/tp-ui/flash-snackbar"
 import { RxPad } from "@/components/rx/rxpad/RxPad"
+import { RxCustomiseSidebar } from "@/components/tp-rxpad/RxCustomiseSidebar"
 import { RxPadSyncProvider, useRxPadSync } from "@/components/tp-rxpad/rxpad-sync-context"
 import { RX_CONTEXT_OPTIONS } from "@/components/tp-rxpad/dr-agent/constants"
 import { patientHasSymptomCollectorData } from "@/components/tp-rxpad/RxPadFloatingAgent"
@@ -48,6 +49,8 @@ function VoiceRxFlowInner() {
   // right).
   const rxScrollRef = useRef<HTMLDivElement | null>(null)
   const [scrollFade, setScrollFade] = useState({ left: false, right: false })
+  // Customise-pad sheet — opened from the gear icon in the top nav.
+  const [customiseOpen, setCustomiseOpen] = useState(false)
   const [voiceCaptureMode, setVoiceCaptureMode] = useState<VoiceConsultKind | null>(null)
   // Back-button confirm dialog state. While a voice session is live, the
   // top-nav back arrow opens this dialog instead of navigating directly —
@@ -288,6 +291,7 @@ function VoiceRxFlowInner() {
             )
           }
           onPreview={() => setRxPreviewOpen(true)}
+          onCustomise={() => setCustomiseOpen(true)}
           onEndVisit={() => {
             // Carry a flash flag so the EndVisit page surfaces
             // "Your Rx has been saved" via FlashSnackbar on arrival.
@@ -427,6 +431,12 @@ function VoiceRxFlowInner() {
         open={rxPreviewOpen}
         onClose={() => setRxPreviewOpen(false)}
         patientId={patientId}
+      />
+
+      {/* Customise Your Pad — two-column sheet driven by the gear icon. */}
+      <RxCustomiseSidebar
+        open={customiseOpen}
+        onClose={() => setCustomiseOpen(false)}
       />
 
       {/* Voice-reactive gradient focus ring — only while actively

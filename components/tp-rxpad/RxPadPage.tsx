@@ -13,11 +13,7 @@ import {
   TPRxPadShell,
   TPRxPadTopNav,
 } from "@/components/tp-ui"
-import {
-  RxCustomiseSidebar,
-  DEFAULT_SECTION_CONFIG,
-  type RxSectionItem,
-} from "@/components/tp-rxpad/RxCustomiseSidebar"
+import { RxCustomiseSidebar } from "@/components/tp-rxpad/RxCustomiseSidebar"
 import { cn } from "@/lib/utils"
 
 function RxPadPageInner() {
@@ -33,7 +29,6 @@ function RxPadPageInner() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true)
   const [hasNudge, setHasNudge] = useState(false)
   const [customiseOpen, setCustomiseOpen] = useState(false)
-  const [sectionConfig, setSectionConfig] = useState<RxSectionItem[]>(DEFAULT_SECTION_CONFIG)
 
   const bothOpen = isAgentOpen && isSidebarExpanded
 
@@ -102,8 +97,6 @@ function RxPadPageInner() {
       <RxCustomiseSidebar
         open={customiseOpen}
         onClose={() => setCustomiseOpen(false)}
-        sectionConfig={sectionConfig}
-        onSave={(cfg) => setSectionConfig(cfg)}
       />
       <div className="relative flex h-full min-w-0 overflow-x-auto">
         <div className={cn(
@@ -114,7 +107,7 @@ function RxPadPageInner() {
               ? "min-w-0 md:pr-[300px] xl:pr-[360px]"
               : "min-w-0",
         )}>
-          <RxPad patientId={patientId} sectionConfig={sectionConfig} />
+          <RxPad patientId={patientId} />
         </div>
         <div
           className={cn(
