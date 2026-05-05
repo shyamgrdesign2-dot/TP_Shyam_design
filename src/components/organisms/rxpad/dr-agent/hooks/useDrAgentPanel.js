@@ -798,13 +798,14 @@ export function useDrAgentPanel({
   }, []);
 
   // ── Fill to RxPad ──
-  const handleCopy = useCallback((payload) => {
+  // Second argument `opts` lets cards mark a copy as bulk (e.g.
+  // PatientReportedCard's "Copy all to RxPad" footer button). Bulk
+  // routes through runCopyWithAura with the page-edge aura on; per-
+  // section copies suppress the edge overlay (handled inside
+  // runCopyWithAura).
+  const handleCopy = useCallback((payload, opts) => {
     if (payload && typeof payload === "object" && "sourceDateLabel" in payload) {
-      // Show the copy overlay + edge aura for ~2.5s, THEN fire the
-      // actual fill — reads as a deliberate AI-mediated transfer
-      // instead of an instant clipboard write.
-      runCopyWithAura(payload);
-      // Also persist to sessionStorage so RxPad can pick it up if opened later
+      runCopyWithAura(payload, opts);
       try {
         const existing = sessionStorage.getItem("pendingRxPadCopy");
         const arr = existing ? JSON.parse(existing) : [];

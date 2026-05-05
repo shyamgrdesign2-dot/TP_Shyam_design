@@ -306,7 +306,11 @@ export function PatientReportedCard({ data, onCopy, onPillTap, defaultCollapsed 
     flatMap((s) => s.items.map(formatItem)).
     join("\n");
     safeClipboardWrite(allText);
-    onCopy?.(buildPatientReportedAllPayload(activeSections.map((s) => ({ id: s.id, items: s.items }))));
+    // Pass `{ bulk: true }` so the consumer (handleCopy in
+    // useDrAgentPanel) routes this through runCopyWithAura with the
+    // bulk-edge-aura branch — page-level edge shimmer only, no
+    // per-section flashes.
+    onCopy?.(buildPatientReportedAllPayload(activeSections.map((s) => ({ id: s.id, items: s.items }))), { bulk: true });
     setCopiedKey("all");
     setTimeout(() => setCopiedKey(null), 1800);
   };

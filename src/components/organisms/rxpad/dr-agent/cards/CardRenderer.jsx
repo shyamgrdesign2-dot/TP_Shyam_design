@@ -176,7 +176,7 @@ onPatientSelect)
           data={output.data}
           defaultCollapsed={false}
           onPillTap={onPillTap}
-          onCopy={(payload) => onCopy?.(payload)} />);
+          onCopy={(payload, opts) => onCopy?.(payload, opts)} />);
 
 
 
