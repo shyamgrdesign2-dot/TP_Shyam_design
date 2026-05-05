@@ -172,17 +172,17 @@ export function CustomModulesDrawer() {
         }>
         
         {/* Header — close X | divider | title | (right) CTAs */}
-        <header className="flex h-[56px] shrink-0 items-center justify-between gap-[12px] border-b border-tp-slate-100 px-[16px]">
-          <div className="flex min-w-0 items-center gap-[12px]">
+        <header className="flex h-[56px] shrink-0 items-stretch justify-between gap-[12px] border-b border-tp-slate-100 px-[16px]">
+          <div className="flex min-w-0 items-stretch gap-[12px]">
             <button
               type="button"
               onClick={closeDrawer}
               aria-label="Close custom modules drawer"
-              className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-900 active:scale-[0.96]">
-              
-              <CloseSquareIcon size={22} />
+              className="my-auto flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-900 active:scale-[0.96]">
+
+              <CloseSquareIcon size={24} />
             </button>
-            <span aria-hidden className="h-[24px] w-px shrink-0 bg-tp-slate-200" />
+            <span aria-hidden className="w-px shrink-0 self-stretch bg-tp-slate-200" />
             <span className="inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] bg-tp-blue-50 text-tp-blue-500">
               <ModuleAtomIcon size={18} />
             </span>

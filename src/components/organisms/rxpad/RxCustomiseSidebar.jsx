@@ -406,18 +406,25 @@ export function RxCustomiseSidebar({
         }>
         
         {/* ── Header ──────────────────────────────────────────────────── */}
+        {/* Sidebar header convention (applies to every panel sidebar):
+              – Close icon: 24px glyph in a 36px button.
+              – Divider next to close icon: full header height (56px),
+                solid slate-200, separates the close affordance from the
+                title.
+              – Tutorial icon: 36px glyph in the right-side rail.
+              – Header CTAs: 36px height, 10px radius (small variant).  */}
         <header className="flex h-[56px] shrink-0 items-center justify-between gap-[12px] border-b border-tp-slate-100 px-[16px]">
-          <div className="flex min-w-0 items-center gap-[12px]">
+          <div className="flex min-w-0 items-stretch gap-[12px]">
             <button
               type="button"
               onClick={onClose}
               aria-label="Close customise panel"
-              className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-900 active:scale-[0.96]">
-              
-              <CloseSquareIcon size={22} />
+              className="my-auto flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-900 active:scale-[0.96]">
+
+              <CloseSquareIcon size={24} />
             </button>
-            <span aria-hidden className="h-[24px] w-px shrink-0 bg-tp-slate-200" />
-            <h3 className="truncate text-[16px] font-semibold tracking-[-0.1px] text-tp-slate-800">
+            <span aria-hidden className="w-px shrink-0 self-stretch bg-tp-slate-200" />
+            <h3 className="my-auto truncate text-[16px] font-semibold tracking-[-0.1px] text-tp-slate-800">
               Customise Your Pad
             </h3>
           </div>
@@ -426,23 +433,23 @@ export function RxCustomiseSidebar({
               type="button"
               aria-label="Watch tutorial"
               className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-600 transition-colors hover:bg-tp-slate-100 active:scale-[0.96]">
-              
-              <TutorialPlayIcon size={22} />
+
+              <TutorialPlayIcon size={36} />
             </button>
             <NavGradientDivider />
             <button
               type="button"
               onClick={handleReset}
-              className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] border border-tp-blue-300 bg-white px-[16px] text-[13px] font-semibold text-tp-blue-500 transition-colors hover:bg-tp-blue-50 active:scale-[0.98]">
-              
+              className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] border border-tp-blue-300 bg-white px-[14px] text-[13px] font-semibold text-tp-blue-500 transition-colors hover:bg-tp-blue-50 active:scale-[0.98]">
+
               Reset to default
             </button>
             <button
               type="button"
               onClick={handleSave}
               disabled={!canSave}
-              className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] bg-tp-blue-500 px-[16px] text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-tp-blue-500">
-              
+              className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] bg-tp-blue-500 px-[14px] text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-tp-blue-500">
+
               Save Changes
             </button>
           </div>
