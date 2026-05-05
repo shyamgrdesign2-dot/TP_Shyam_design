@@ -142,7 +142,9 @@ export function AgentHeader({
         
         {/* Left: Dr. Agent brand tag — floating liquid-glass card with 10px radius */}
         <div className="pointer-events-auto relative z-10 flex items-center gap-[6px]">
-          <span className="vrx-agent-brand-tag relative flex items-center gap-[8px] rounded-[10px] p-[6px]">
+          {/* Right padding bumped to 12px (kebab removed; the title
+              shouldn't feel flush against the pill's trailing edge). */}
+          <span className="vrx-agent-brand-tag relative flex items-center gap-[8px] rounded-[10px] py-[6px] pl-[6px] pr-[12px]">
             <span
               className={cn("relative inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden", styles.brandIconWrapper)}
               aria-hidden>

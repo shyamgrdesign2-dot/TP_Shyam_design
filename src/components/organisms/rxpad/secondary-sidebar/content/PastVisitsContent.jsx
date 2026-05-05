@@ -979,7 +979,11 @@ export function PastVisitsContent() {
             onClose={() => setActiveDocument(null)}
             closeAriaLabel="Close written Rx preview"
             closeIcon={<CloseSquareIcon size={24} />}
-            title={activeDocument?.document.title ?? "Written Rx PDF"}
+            title={
+              activeDocument
+                ? `Written Rx (${activeDocument.dateLabel} · OPD)`
+                : "Written Rx"
+            }
             actions={activeDocument ? (
               <>
                 {/* Icon-only chip CTAs — same glazed slate-100
@@ -1004,20 +1008,23 @@ export function PastVisitsContent() {
             ) : null}
           />
 
-          <div className="h-[calc(100vh-128px)] bg-tp-slate-50 p-4">
+          {/* Body — fills the remaining viewport height (drawer is full
+              height; the only chrome above is the 56px header).
+              Slate wash spans the whole body; the Rx image sits inside
+              naked (no nested border / rounded shell). The image
+              auto-fits the column with its natural aspect ratio. */}
+          <div className="flex-1 min-h-0 overflow-auto bg-tp-slate-50 p-4">
             <object
               data={activeDocument?.document.pdfUrl}
               type="application/pdf"
-              className="h-full w-full rounded-lg border border-tp-slate-200 bg-white">
-              
-              <div className="flex h-full flex-col items-center justify-center gap-3">
-                {activeDocument ?
-                <img
-                  alt={activeDocument.document.title}
-                  src={activeDocument.document.previewImage}
-                  className="max-h-[70vh] w-auto rounded-md border border-tp-slate-200" /> :
-
-                null}
+              className="h-full w-full bg-tp-slate-50">
+              <div className="flex h-full flex-col items-center justify-start">
+                {activeDocument ? (
+                  <img
+                    alt={activeDocument.document.title}
+                    src={activeDocument.document.previewImage}
+                    className="w-full h-auto max-w-[820px]" />
+                ) : null}
               </div>
             </object>
           </div>

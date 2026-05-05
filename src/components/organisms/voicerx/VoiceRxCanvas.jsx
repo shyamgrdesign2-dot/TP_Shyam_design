@@ -140,7 +140,9 @@ export function VoiceRxCanvas({
       {/* Header — mirrors VoiceRxResultTabs so the surface reads
            consistently across the two flows that share the same panel. */}
       <div className="shrink-0 flex items-center justify-between gap-2 px-3 pt-[4px] pb-[12px]">
-        <span className="vrx-cn-mode-pill inline-flex items-center gap-[4px] rounded-[10px] px-[8px] py-[6px]">
+        {/* Right padding bumped post-kebab-removal so the title doesn't
+            sit flush against the pill's trailing edge. */}
+        <span className="vrx-cn-mode-pill inline-flex items-center gap-[6px] rounded-[10px] py-[6px] pl-[8px] pr-[12px]">
           <button
             type="button"
             onClick={onBack}

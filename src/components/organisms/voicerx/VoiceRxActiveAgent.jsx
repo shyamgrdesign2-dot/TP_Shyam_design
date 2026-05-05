@@ -183,7 +183,9 @@ selectedDeviceId)
     }
     if (lastNotifiedRef.current !== id) {
       lastNotifiedRef.current = id;
-      toast.message("Microphone switched", { description: activeDevice.label });
+      // Single-line toast — no description block. Long device names
+      // truncate via the Toaster's max-width + ellipsis handling.
+      toast.success(`Microphone switched to ${activeDevice.label}`);
     }
   }, [activeDevice]);
 
