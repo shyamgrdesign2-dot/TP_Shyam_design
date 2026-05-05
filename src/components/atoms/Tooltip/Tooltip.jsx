@@ -49,6 +49,13 @@ export function TooltipProvider({ delayDuration = 200, children }) {
  */
 export function Tooltip({
   content,
+  // MUI-compat aliases — `title` was MUI's content prop and several
+  // legacy callers still use it. `placement` maps to `side`. `arrow`
+  // is accepted for parity but currently a no-op (the SCSS module
+  // already paints the arrow caret).
+  title,
+  placement,
+  arrow: _arrow,
   children,
   side = "top",
   align = "center",
@@ -60,6 +67,8 @@ export function Tooltip({
   defaultOpen,
   onOpenChange,
 }) {
+  const resolvedContent = content !== undefined ? content : title;
+  const resolvedSide = placement ?? side;
   const provider = React.useContext(ProviderContext);
   const delay = delayDuration ?? provider.delayDuration ?? 200;
 
@@ -109,24 +118,25 @@ export function Tooltip({
       triggerRef,
       floatingRef,
       id,
-      side,
+      side: resolvedSide,
       align,
       sideOffset,
       collisionPadding,
       className,
     }),
-    [open, id, side, align, sideOffset, collisionPadding, className],
+    [open, id, resolvedSide, align, sideOffset, collisionPadding, className],
   );
 
-  // Wrapper mode: if `content` is set, render the simple form.
-  if (content !== undefined) {
+  // Wrapper mode: if `content` (or MUI-compat `title`) is set, render
+  // the simple form.
+  if (resolvedContent !== undefined && resolvedContent !== null && resolvedContent !== "") {
     const child = React.Children.only(children);
     return (
       <TooltipContext.Provider value={ctxValue}>
         <TooltipTrigger asChild>{child}</TooltipTrigger>
         {open ? (
-          <TooltipContent side={side} align={align} sideOffset={sideOffset} className={className}>
-            {content}
+          <TooltipContent side={resolvedSide} align={align} sideOffset={sideOffset} className={className}>
+            {resolvedContent}
           </TooltipContent>
         ) : null}
       </TooltipContext.Provider>
