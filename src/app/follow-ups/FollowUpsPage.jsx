@@ -47,9 +47,12 @@ function formatDate(iso) {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+// Aligned with appointments-screen tag tones — token-based, no
+// inline rgba(). Same warning/error scale as the Unbilled/Overdue
+// tags so the two surfaces read as one design language.
 const STATUS_TONES = {
-  Due: "bg-[rgba(245,158,11,0.10)] text-[#B45309] border-[rgba(245,158,11,0.20)]",
-  Overdue: "bg-[rgba(239,68,68,0.10)] text-[#B91C1C] border-[rgba(239,68,68,0.20)]",
+  Due: "bg-tp-warning-50 text-tp-warning-700 border-tp-warning-100",
+  Overdue: "bg-tp-error-50 text-tp-error-700 border-tp-error-100",
   Upcoming: "bg-tp-blue-50 text-tp-blue-700 border-tp-blue-200",
   Completed: "bg-[rgba(34,197,94,0.10)] text-tp-success-700 border-[rgba(34,197,94,0.20)]",
 };
@@ -295,7 +298,7 @@ export function FollowUpsPage() {
                                   <td className="px-3 py-3 align-middle">
                                     <span
                                       className={cn(
-                                        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                                        "inline-flex h-5 items-center rounded-md border px-1.5 text-[10px] font-semibold",
                                         STATUS_TONES[p.status] || "bg-tp-slate-100 text-tp-slate-600 border-tp-slate-200"
                                       )}>
                                       {p.status}

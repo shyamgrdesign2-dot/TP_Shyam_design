@@ -718,7 +718,7 @@ export function DrAgentPage() {
                               {tab.label}
                             </span>
                             <span className={cn(
-                                "inline-flex items-center justify-center rounded-full px-[5px] h-[16px] min-w-[16px] text-[10px] font-semibold tabular-nums leading-none",
+                                "inline-flex items-center justify-center rounded-full px-[6px] h-[18px] min-w-[18px] text-[10px] font-semibold tabular-nums leading-none",
                                 isActive ?
                                 "bg-tp-blue-100 text-tp-blue-400" :
                                 "bg-tp-slate-100 text-tp-slate-400"
@@ -1028,7 +1028,7 @@ export function DrAgentPage() {
                                     variant="outline"
                                     theme="primary"
                                     size="md"
-                                    leftIcon={<Printer size={16} variant="Bulk" />}
+                                    leftIcon={<Printer size={16} variant="Linear" />}
                                     onClick={() => openPrintPreview(row.id)}>
                                     
                                         Print Rx

@@ -5,34 +5,35 @@
  *
  * Behaviour:
  *   1. Flattens arrays / falsy values / objects (clsx-equivalent).
- *   2. De-duplicates conflicting Tailwind utility classes so that the
- *      LAST-PASSED wins (`cn("p-2", "p-4")` → `"p-4"`). Covers the
- *      common conflict groups; twMerge's full table is large but the
- *      project mostly hits these.
+ *   2. De-duplicates conflicting Tailwind utility classes for a CURATED
+ *      set of high-confidence groups (padding, margin, width, height,
+ *      gap, position offsets, display, flex/grid alignment). For
+ *      everything else, classes pass through unchanged — Tailwind's CSS
+ *      already disambiguates because text-size / text-color /
+ *      text-align target different properties.
+ *
+ * Non-goals: full twMerge replication. The previous attempt collapsed
+ * `text-[12px]` and `text-tp-slate-700` into one group, dropping the
+ * size class. We don't try to be smart about prefixes that span
+ * multiple CSS properties — passing through is safer.
  */
 
 const CONFLICT_GROUPS = [
-  // Layout / box
+  // Padding / margin (single-axis only — these reliably collide)
   /^p-/, /^px-/, /^py-/, /^pt-/, /^pr-/, /^pb-/, /^pl-/, /^ps-/, /^pe-/,
   /^m-/, /^mx-/, /^my-/, /^mt-/, /^mr-/, /^mb-/, /^ml-/, /^ms-/, /^me-/,
+  // Width / height
   /^w-/, /^min-w-/, /^max-w-/, /^h-/, /^min-h-/, /^max-h-/,
+  // Gap / space-between
   /^gap-/, /^gap-x-/, /^gap-y-/, /^space-x-/, /^space-y-/,
-  // Display / position
-  /^block$|^inline-block$|^inline$|^flex$|^inline-flex$|^grid$|^inline-grid$|^hidden$|^contents$/,
-  /^static$|^fixed$|^absolute$|^relative$|^sticky$/,
+  // Position offsets
   /^top-/, /^right-/, /^bottom-/, /^left-/, /^inset-/, /^inset-x-/, /^inset-y-/,
-  // Flex / grid
-  /^flex-/, /^items-/, /^justify-/, /^content-/, /^self-/, /^place-/, /^order-/, /^col-/, /^row-/,
-  // Typography
-  /^text-(?:xs|sm|base|lg|xl|\d)/, /^text-/,
-  /^font-/, /^leading-/, /^tracking-/,
-  // Color (text / bg / border)
-  /^bg-/, /^border$|^border-\d/, /^border-(?:t|r|b|l|x|y|s|e)-/, /^border-(?:transparent|current|inherit|black|white|tp-)/,
-  // Borders / rounded / shadow
-  /^rounded$|^rounded-/, /^shadow$|^shadow-/, /^ring$|^ring-/, /^outline$|^outline-/,
-  // Effects
-  /^opacity-/, /^transition$|^transition-/, /^duration-/, /^ease-/,
-  /^z-/, /^cursor-/, /^select-/, /^pointer-events-/, /^overflow$|^overflow-/,
+  // Z-index, opacity
+  /^z-/, /^opacity-/,
+  // Display (one of: block, inline-block, flex, hidden, grid, etc.)
+  /^(block|inline-block|inline|flex|inline-flex|grid|inline-grid|hidden|contents)$/,
+  // Position (static/fixed/absolute/relative/sticky)
+  /^(static|fixed|absolute|relative|sticky)$/,
 ];
 
 function classGroup(token) {
@@ -62,14 +63,13 @@ function flatten(input, out) {
 export function cn(...inputs) {
   const parts = [];
   flatten(inputs, parts);
-  // Split on whitespace so multi-class strings ("p-2 m-4") resolve as
-  // separate tokens for conflict resolution.
   const tokens = parts.flatMap((s) => s.split(/\s+/)).filter(Boolean);
 
-  // Resolve conflicts: last token in a group wins. Tokens with no
-  // matching group pass through (e.g. component module class names,
-  // arbitrary user classes).
-  const seen = new Map(); // group -> last token
+  // For tokens in a known conflict group: last-wins. For everything
+  // else (including all text-*, bg-*, border-*, rounded-*, shadow-*,
+  // ring-*, transition-*, hover:*, focus:*, etc.): pass through in
+  // source order — Tailwind's CSS layer ordering disambiguates them.
+  const seen = new Map();
   const passthrough = [];
   for (const tok of tokens) {
     const group = classGroup(tok);
