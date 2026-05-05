@@ -738,9 +738,20 @@ export function PastVisitsContent() {
 
 
     null);
-  // Single global toast — no inline snackbar in the expanded view.
+  // No-op: RxPadFunctional fires its own TPSnackbar at the destination
+  // when data lands in the Rx (single source of truth for copy
+  // confirmation). The previous source-side toast was firing on top of
+  // it — exactly the duplicate the design call called out. Kept the
+  // helper signature so all the existing call-sites stay intact; we
+  // just don't fire any snackbar from this side anymore. The Written-
+  // Rx download / print messages still go through here, so we route
+  // those few cases to the global toast as fallback.
   const showCopySnackbar = (message) => {
-    toast.success(message);
+    // Only fire for download / print confirmations; copy-to-RxPad
+    // confirmations are owned by the destination snackbar.
+    if (/download|print|preview/i.test(message)) {
+      toast.success(message);
+    }
   };
 
   const openDocument = (dateLabel, document) => {

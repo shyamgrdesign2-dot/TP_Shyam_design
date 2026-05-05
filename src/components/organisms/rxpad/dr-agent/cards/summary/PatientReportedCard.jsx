@@ -338,16 +338,20 @@ export function PatientReportedCard({ data, onCopy, onPillTap, defaultCollapsed 
             undefined
             }
             trailing={
+            // Questions to Doctor isn't copyable — those questions are
+            // talking points for the doctor, not Rx data. No section
+            // heading copy + no per-item copy below.
+            section.id === "questionsToDoctor" ? null :
             <span className="transition-opacity opacity-100">
                   <ActionableTooltip
                 label={section.copyTooltip}
                 onAction={() => handleCopySection(section)}>
-                
+
                     <CopyIcon
                   size={14}
                   copied={copiedKey === `section-${section.id}`}
                   onClick={() => handleCopySection(section)} />
-                
+
                   </ActionableTooltip>
                 </span>
             } />
@@ -368,8 +372,10 @@ export function PatientReportedCard({ data, onCopy, onPillTap, defaultCollapsed 
                       className="mt-[8px] inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-tp-slate-500" />
 
                     {/* Touch: tap the row text to surface "Copy to Rx".
-                       Desktop: keep the inline copy icon affordance. */}
-                    {isTouch ?
+                       Desktop: keep the inline copy icon affordance.
+                       Questions to Doctor is read-only — no tap-to-copy
+                       on touch either. */}
+                    {isTouch && section.id !== "questionsToDoctor" ?
                   <ActionableTooltip
                     label="Copy to Rx"
                     onAction={() => handleCopyItem(section.id, item, itemKey)}>
@@ -397,17 +403,17 @@ export function PatientReportedCard({ data, onCopy, onPillTap, defaultCollapsed 
                     }
                       </span>
                   }
-                    {!isTouch &&
+                    {!isTouch && section.id !== "questionsToDoctor" &&
                   <span className={cn("flex-shrink-0 transition-opacity", copiedKey === itemKey ? "opacity-100" : "opacity-0 group-hover/reported-item:opacity-100")}>
                         <ActionableTooltip
                       label={`Click to fill "${item.name}" to RxPad`}
                       onAction={() => handleCopyItem(section.id, item, itemKey)}>
-                      
+
                           <CopyIcon
                         size={14}
                         copied={copiedKey === itemKey}
                         onClick={() => handleCopyItem(section.id, item, itemKey)} />
-                      
+
                         </ActionableTooltip>
                       </span>
                   }
