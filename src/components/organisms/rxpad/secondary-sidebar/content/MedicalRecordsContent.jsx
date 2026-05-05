@@ -4,7 +4,7 @@
  */
 import Image from "next/image";
 import React, { useState } from "react";
-import { Eye, Import, Trash } from "iconsax-reactjs";
+import { DocumentDownload, Eye, Import, Printer, Trash } from "iconsax-reactjs";
 import { MoreVertical } from "@/src/components/atoms/icons/lucide";
 import { AiTriggerIcon } from "@/src/components/organisms/rxpad/dr-agent/shared/AiTriggerIcon";
 import { HistoricalNewDataBanner } from "../HistoricalNewDataBanner";
@@ -16,6 +16,19 @@ import {
   DropdownMenuTrigger } from
 "@/src/components/molecules/DropdownMenu";
 import { HoverTooltip } from "@/src/components/atoms/Tooltip";
+import { Sidebar } from "@/src/components/molecules/Sidebar";
+import { SidebarHeader } from "@/src/components/molecules/SidebarHeader";
+import { toast } from "@/src/components/molecules/Toaster";
+
+/** Filled rounded-square close glyph — same one every panel sidebar uses. */
+function CloseSquareIcon({ size = 24, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path
+        d="M16.19 2H7.81C4.17 2 2 4.17 2 7.81V16.18C2 19.83 4.17 22 7.81 22H16.18C19.82 22 21.99 19.83 21.99 16.19V7.81C22 4.17 19.83 2 16.19 2ZM15.36 14.3C15.65 14.59 15.65 15.07 15.36 15.36C15.21 15.51 15.02 15.58 14.83 15.58C14.64 15.58 14.45 15.51 14.3 15.36L12 13.06L9.7 15.36C9.55 15.51 9.36 15.58 9.17 15.58C8.98 15.58 8.79 15.51 8.64 15.36C8.35 15.07 8.35 14.59 8.64 14.3L10.94 12L8.64 9.7C8.35 9.41 8.35 8.93 8.64 8.64C8.93 8.35 9.41 8.35 9.7 8.64L12 10.94L14.3 8.64C14.59 8.35 15.07 8.35 15.36 8.64C15.65 8.93 15.65 9.41 15.36 9.7L13.06 12L15.36 14.3Z"
+        fill={color} />
+    </svg>);
+}
 
 const imgImage = "/assets/254812c5250025b09cfb4d7901db6be9343f3ff7.png";
 const imgEka111 = "/assets/afc7c9e55f8624dd8cba9c2017f7a975fba9d2d2.png";
@@ -140,7 +153,7 @@ const RECORD_ACTIONS = [
 { id: "delete", label: "Delete", icon: Trash }];
 
 
-function RecordActionMenu() {
+function RecordActionMenu({ onAction }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -152,7 +165,10 @@ function RecordActionMenu() {
         {RECORD_ACTIONS.map((action) => {
           const Icon = action.icon;
           return (
-            <DropdownMenuItem key={action.id} className="gap-2 text-tp-slate-700">
+            <DropdownMenuItem
+              key={action.id}
+              className="gap-2 text-tp-slate-700"
+              onSelect={(e) => { e.preventDefault?.(); onAction?.(action.id); }}>
               <Icon color="currentColor" size={16} variant="Linear" />
               {action.label}
             </DropdownMenuItem>);
@@ -171,7 +187,8 @@ function RecordCard({
   type,
   label,
   date,
-  note
+  note,
+  onAction
 
 
 
@@ -255,7 +272,7 @@ function RecordCard({
               <p className="font-sans font-normal leading-[20px] relative shrink-0 text-[14px] text-tp-slate-500">{date}</p>
             </div>
             <div className="flex items-center justify-center relative shrink-0">
-              <RecordActionMenu />
+              <RecordActionMenu onAction={onAction} />
             </div>
           </div>
         </div>
@@ -266,8 +283,36 @@ function RecordCard({
 
 // ─── Public export ────────────────────────────────────────────────────────────
 
+// Image asset per record type — used both as the card thumbnail and
+// as the full-size preview inside the View sidebar.
+const RECORD_PREVIEW_BY_TYPE = {
+  "pathology-img": imgImage,
+  "prescription-img": imgEka111,
+  "pdf": null, // pdf icon-only thumbnail; preview shows a placeholder
+  "pathology-blank": imgImage,
+};
+
+const RECORDS = [
+  { id: "rec-1", type: "pathology-img", label: "Pathology", date: "10 Aug'26", note: "Uploaded by Dr. Shyam: pathology panel from last follow-up." },
+  { id: "rec-2", type: "prescription-img", label: "Prescription", date: "10 Aug'26", note: "Scanned written prescription shared by patient at intake." },
+  { id: "rec-3", type: "pdf", label: "Prescription", date: "10 Aug'26", note: "Digitized PDF export generated from hospital EMR." },
+  { id: "rec-4", type: "pathology-blank", label: "Pathology", date: "10 Aug'26", note: "Follow-up pathology receipt uploaded by front desk." },
+  { id: "rec-5", type: "pathology-img", label: "Pathology", date: "10 Aug'26", note: "Previous lab copy attached for trend comparison." },
+];
+
 export function MedicalRecordsContent() {
   const [activeFilter, setActiveFilter] = useState("All");
+  const [activeRecord, setActiveRecord] = useState(null);
+
+  const handleRecordAction = (record, action) => {
+    if (action === "view") {
+      setActiveRecord(record);
+    } else if (action === "download") {
+      toast.success(`${record.label} download started`);
+    } else if (action === "delete") {
+      toast.success(`${record.label} (${record.date}) deleted`);
+    }
+  };
 
   return (
     <div className="content-stretch flex flex-col items-start relative size-full">
@@ -283,39 +328,86 @@ export function MedicalRecordsContent() {
       <div className="flex-[1_0_0] min-h-px min-w-px relative w-full">
         <div className="overflow-x-clip overflow-y-auto size-full">
           <div className="content-stretch flex flex-col gap-[16px] items-start p-[12px] relative w-full">
-            <RecordCard
-              type="pathology-img"
-              label="Pathology"
-              date="10 Aug'26"
-              note="Uploaded by Dr. Shyam: pathology panel from last follow-up." />
-            
-            <RecordCard
-              type="prescription-img"
-              label="Prescription"
-              date="10 Aug'26"
-              note="Scanned written prescription shared by patient at intake." />
-            
-            <RecordCard
-              type="pdf"
-              label="Prescription"
-              date="10 Aug'26"
-              note="Digitized PDF export generated from hospital EMR." />
-            
-            <RecordCard
-              type="pathology-blank"
-              label="Pathology"
-              date="10 Aug'26"
-              note="Follow-up pathology receipt uploaded by front desk." />
-            
-            <RecordCard
-              type="pathology-img"
-              label="Pathology"
-              date="10 Aug'26"
-              note="Previous lab copy attached for trend comparison." />
-            
+            {RECORDS.map((rec) => (
+              <RecordCard
+                key={rec.id}
+                type={rec.type}
+                label={rec.label}
+                date={rec.date}
+                note={rec.note}
+                onAction={(action) => handleRecordAction(rec, action)} />
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Record preview sidebar — shares the same chrome as Written Rx
+          (Sidebar shell + SidebarHeader). Title carries date + record
+          type. Trailing CTAs are icon-only chips: Download + Delete. */}
+      <Sidebar
+        open={Boolean(activeRecord)}
+        onClose={() => setActiveRecord(null)}
+        width="min(70vw, 880px)"
+        panelClassName="min-w-[480px]"
+        header={
+          <SidebarHeader
+            onClose={() => setActiveRecord(null)}
+            closeAriaLabel="Close record preview"
+            closeIcon={<CloseSquareIcon size={24} />}
+            title={activeRecord ? `${activeRecord.label} (${activeRecord.date} · OPD)` : "Record"}
+            actions={activeRecord ? (
+              <>
+                <button
+                  type="button"
+                  aria-label="Download record"
+                  onClick={() => { toast.success(`${activeRecord.label} download started`); }}
+                  className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200 active:scale-[0.96]">
+                  <DocumentDownload color="currentColor" size={20} strokeWidth={1.5} variant="Linear" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Print record"
+                  onClick={() => { toast.success(`Printing ${activeRecord.label}`); }}
+                  className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200 active:scale-[0.96]">
+                  <Printer color="currentColor" size={20} strokeWidth={1.5} variant="Linear" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Delete record"
+                  onClick={() => {
+                    toast.success(`${activeRecord.label} (${activeRecord.date}) deleted`);
+                    setActiveRecord(null);
+                  }}
+                  className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-tp-error-50 text-tp-error-600 transition-colors hover:bg-tp-error-100 active:scale-[0.96]">
+                  <Trash color="currentColor" size={20} strokeWidth={1.5} variant="Linear" />
+                </button>
+              </>
+            ) : null}
+          />
+        }>
+        <div className="flex-1 min-h-0 overflow-auto bg-tp-slate-50 p-4">
+          <div className="flex h-full flex-col items-center justify-start">
+            {activeRecord && RECORD_PREVIEW_BY_TYPE[activeRecord.type] ? (
+              <Image
+                alt={activeRecord.label}
+                src={RECORD_PREVIEW_BY_TYPE[activeRecord.type]}
+                width={820}
+                height={1100}
+                className="w-full h-auto max-w-[820px]" />
+            ) : activeRecord ? (
+              <div className="flex h-full w-full max-w-[820px] flex-col items-center justify-center gap-3 rounded-[12px] border border-tp-slate-200 bg-white py-24 text-tp-slate-500">
+                <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+                  <rect x="6" y="4" width="20" height="24" rx="2" fill="var(--tp-slate-300)" />
+                  <rect x="9" y="9" width="14" height="2" rx="1" fill="white" />
+                  <rect x="9" y="13" width="14" height="2" rx="1" fill="white" />
+                  <rect x="9" y="17" width="8" height="2" rx="1" fill="white" />
+                </svg>
+                <p className="font-sans text-tp-slate-500 text-[14px]">{activeRecord.label} · {activeRecord.date}</p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </Sidebar>
     </div>);
 
 }
