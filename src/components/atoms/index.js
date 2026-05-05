@@ -28,7 +28,6 @@ export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor } from "./Popove
 // Form — extended
 export { Radio, RadioGroup, FormControlLabel } from "./Radio";
 export { Slider } from "./Slider";
-export { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "./OTPInput";
 
 // Feedback
 export { Progress } from "./Progress";

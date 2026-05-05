@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/src/components/molecules/Toaster";
 
 import { DrAgentFab } from "@/src/components/organisms/rxpad/dr-agent/shell/DrAgentFab";
 import { DrAgentPanel } from "@/src/components/organisms/rxpad/dr-agent/DrAgentPanel";

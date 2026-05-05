@@ -1,7 +1,6 @@
 
 import { Mulish, Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
-import { TPThemeProvider } from '@/src/components/providers/tp-theme-provider';
 import { Toaster } from '@/src/components/molecules/Toaster';
 import './globals.css';
 
@@ -47,11 +46,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${mulish.variable} ${inter.variable} font-sans antialiased`}>
-        <TPThemeProvider>
-          {children}
-          <Toaster position="top-center" richColors closeButton />
-          <Analytics />
-        </TPThemeProvider>
+        {children}
+        <Toaster />
+        <Analytics />
       </body>
     </html>);
 

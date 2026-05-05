@@ -10,7 +10,7 @@ import {
 "lucide-react";
 import { VoiceRxIcon } from "@/src/components/organisms/voicerx/voice-consult-icons";
 import { CopyIcon } from "@/src/components/organisms/rxpad/dr-agent/cards/CopyIcon";
-import { toast } from "sonner";
+import { toast } from "@/src/components/molecules/Toaster";
 
 import { cn } from "@/src/hooks/utils";
 import styles from "./VoiceRxResultTabs.module.scss";

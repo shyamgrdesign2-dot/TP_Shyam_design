@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GripVertical, MoreHorizontal } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/src/components/molecules/Toaster";
 
 import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
 import { TutorialPlayIcon } from "@/src/components/atoms/TutorialPlayIcon/TutorialPlayIcon";

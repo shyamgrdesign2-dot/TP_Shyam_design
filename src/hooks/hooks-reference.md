@@ -32,7 +32,6 @@ finished component (`Tooltip`, `Popover`, `Dialog`, etc.) instead.
 | `utils.js` | `cn(...)` | Classname helper — combines `clsx` + `tailwind-merge`. **The single classname utility used across the project.** Always use this; do not bring in `classnames` or other variants. |
 | `use-mobile.js` | `useIsMobile()` | Boolean — viewport width is mobile (< 640 px). Hydration-safe (returns false on SSR). |
 | `use-touch-device.js` | `useIsTouchDevice()` | Boolean — primary input is touch (matches `(pointer: coarse)`). |
-| `use-toast.js` | `useToast()` | Sonner toast wrapper — small façade around `toast()` so consumers don't import sonner directly. |
 
 ## Usage
 

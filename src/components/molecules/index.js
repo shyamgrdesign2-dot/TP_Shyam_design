@@ -95,18 +95,6 @@ export { EmptyState } from "./EmptyState";
 /* ── Data table ── */
 export { Table, TableHead, TableBody, TableRow, TableCell } from "./Table";
 
-/* ── Command / context ── */
-export {
-  Command,
-  CommandDialog,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandSeparator,
-  CommandShortcut,
-} from "./Command";
 /* ── Composite / feature ── */
 export { DateRangePicker } from "./DateRangePicker";
 export { Toaster } from "./Toaster";

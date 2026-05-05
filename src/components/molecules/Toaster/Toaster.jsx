@@ -1,64 +1,87 @@
-'use client';
-
-import { Toaster as Sonner } from 'sonner';
+"use client";
 
 /**
- * Brand Sonner toaster — matches the VoiceRxSavingSnackbar spec:
+ * Toaster — hand-rolled brand toast surface (no sonner).
+ *
+ * Mount once at the root layout. Subscribes to `toast-store` and
+ * renders each active toast as a centered black pill at the top of
+ * the viewport. Same visual spec as before (matches
+ * VoiceRxSavingSnackbar):
  *   • Solid black pill (rgba(0,0,0,0.92))
- *   • White text, tight sans
+ *   • White text, tight Inter
  *   • Horizontally centered at the top of the viewport
  *   • No border / no ring
- * Applied globally so every toast (net-drop warnings, success states,
- * etc.) reads as the same surface as our in-app snackbar.
+ *
+ * Public toast API (mirrors sonner):
+ *   import { toast } from "@/src/components/molecules/Toaster";
+ *   toast.success("…"); toast.error("…"); toast.message("…", { description });
  */
-const Toaster = ({ ...props }) => {
+
+import * as React from "react";
+import { Portal } from "@/src/hooks/ui/Portal";
+import { subscribe, dismiss, toast } from "./toast-store";
+
+export { toast } from "./toast-store";
+
+export function Toaster() {
+  const [items, setItems] = React.useState([]);
+
+  React.useEffect(() => subscribe(setItems), []);
+
+  if (!items.length) return null;
+
   return (
-    <Sonner
-      theme="dark"
-      position="top-center"
-      className="toaster group"
-      toastOptions={{
-        // All app snackbars share the same spec: solid black pill, white
-        // text, NO outer shadow, no border / ring. Defaults apply to
-        // success / error / warning / info alike so a green Sonner
-        // success toast never leaks through.
-        classNames: {
-          toast:
-          'group toast !bg-black !text-white !border-0 !shadow-none !rounded-full !px-[18px] !py-[10px] !text-[14px] !font-medium !backdrop-blur-0',
-          title: '!text-white !text-[14px] !font-medium !leading-none',
-          description: '!text-white/80 !text-[12px] !mt-[2px]',
-          actionButton: '!bg-white/15 !text-white',
-          cancelButton: '!bg-white/10 !text-white/80',
-          closeButton: '!bg-transparent !text-white/70 !border-0',
-          success:
-          '!bg-black !text-white !border-0 !shadow-none',
-          error:
-          '!bg-black !text-white !border-0 !shadow-none',
-          warning:
-          '!bg-black !text-white !border-0 !shadow-none',
-          info:
-          '!bg-black !text-white !border-0 !shadow-none'
-        }
-      }}
-      style={
-      {
-        '--normal-bg': 'rgba(0,0,0,0.92)',
-        '--normal-text': '#ffffff',
-        '--normal-border': 'transparent',
-        '--success-bg': 'rgba(0,0,0,0.92)',
-        '--success-text': '#ffffff',
-        '--success-border': 'transparent',
-        '--error-bg': 'rgba(0,0,0,0.92)',
-        '--error-text': '#ffffff',
-        '--error-border': 'transparent',
-        '--warning-bg': 'rgba(0,0,0,0.92)',
-        '--warning-text': '#ffffff',
-        '--warning-border': 'transparent'
-      }
-      }
-      {...props} />);
-
-
-};
-
-export { Toaster };
+    <Portal>
+      <div
+        aria-live="polite"
+        style={{
+          position: "fixed",
+          top: 16,
+          left: 0,
+          right: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 8,
+          zIndex: 9999,
+          pointerEvents: "none",
+        }}>
+        {items.map((t) => (
+          <div
+            key={t.id}
+            role="status"
+            onClick={() => dismiss(t.id)}
+            style={{
+              pointerEvents: "auto",
+              background: "rgba(0,0,0,0.92)",
+              color: "#ffffff",
+              borderRadius: 9999,
+              padding: "10px 18px",
+              fontSize: 14,
+              fontWeight: 500,
+              fontFamily: "Inter, sans-serif",
+              lineHeight: 1.2,
+              maxWidth: "min(560px, calc(100vw - 32px))",
+              boxShadow: "none",
+              cursor: "pointer",
+              transition: "opacity 180ms ease",
+            }}>
+            <div style={{ color: "#ffffff", fontSize: 14, fontWeight: 500 }}>
+              {t.title}
+            </div>
+            {t.description ? (
+              <div
+                style={{
+                  color: "rgba(255,255,255,0.8)",
+                  fontSize: 12,
+                  marginTop: 2,
+                }}>
+                {t.description}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </Portal>
+  );
+}

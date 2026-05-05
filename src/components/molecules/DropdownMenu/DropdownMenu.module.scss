@@ -33,14 +33,26 @@
   transition: background 100ms ease, color 100ms ease;
   user-select: none;
 
-  /* Radix sets data-highlighted on keyboard focus + mouse hover */
+  /* Hover (mouse) and keyboard focus — neutral slate background.
+     Per design call: dropdown rows are NOT branded blue/violet; the
+     hover/focus state is just a quiet greyish wash so the row reads
+     as "active" without competing with the icon or label color. */
+  &:hover,
+  &:focus,
+  &:focus-visible,
   &[data-highlighted] {
-    background-color: var(--tp-blue-50, #eeeeff);
-    color: var(--tp-blue-700, #2e2d96);
+    background-color: var(--tp-slate-50, #f7f7f8);
+    color: var(--tp-slate-900, #171725);
+  }
+
+  /* Active / pressed — slightly stronger wash. */
+  &:active {
+    background-color: var(--tp-slate-100, #f1f1f5);
   }
 
   /* Disabled */
-  &[data-disabled] {
+  &[data-disabled],
+  &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
     pointer-events: none;

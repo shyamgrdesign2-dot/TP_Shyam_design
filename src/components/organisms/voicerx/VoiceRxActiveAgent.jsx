@@ -20,7 +20,7 @@ import {
   DropdownMenuItem as TPDropdownMenuItem,
   DropdownMenuTrigger as TPDropdownMenuTrigger } from
 "@/src/components/molecules/DropdownMenu";
-import { toast } from "sonner";
+import { toast } from "@/src/components/molecules/Toaster";
 
 import { cn } from "@/src/hooks/utils";
 import { useRxPadSync } from "@/src/components/organisms/rxpad/rxpad-sync-context";
