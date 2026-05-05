@@ -413,116 +413,62 @@ function StickyFooter({
   // Transcript  → primary: Copy            | secondary: Edit via voice
   // TP EMR      → primary: Copy to Rx      | secondary: Print, Edit via voice
   // Clinical    → primary: Print           | secondary: Copy, Edit via voice
-  let primaryLabel = "Copy all to EMR";
+  let primaryLabel = "Copy all to RxPad";
   // Use the plain iconsax glyph (not the wrapped CopyIcon) so the icon
   // inherits the parent button's white text colour. The wrapped
   // CopyIcon paints itself blue and would vanish on the blue CTA.
   let primaryIcon = <CopyGlyph size={16} variant="Linear" color="currentColor" />;
   let primaryAction = onCopyToRx ?? onCopyClipboard;
-  let isClinicalCopy = false;
 
   if (tab === "transcript") {
     primaryLabel = "Copy to Clipboard";
     primaryAction = onCopyClipboard;
-  } else if (tab === "clinical") {
-    primaryLabel = "Copy to Clipboard";
-    isClinicalCopy = true;
   }
-
-  // Print is offered on every tab now — for Transcript it prints the
-  // raw conversation, for the structured tabs it prints the rendered Rx /
-  // clinical-note view.
-  const showPrint = true;
 
   // Tooltip helper-classes — ALL tooltips across this surface use the
   // same dark slate-900 chip, so action vs. info reads consistently.
   const tooltipDarkCls = "rounded-[6px] border-0 bg-tp-slate-900 px-2.5 py-1.5 text-[12px] leading-[1.45] text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.45)]";
   const primaryHelp =
   tab === "transcript" ? "Copy the full conversation transcript to your clipboard" :
-  tab === "clinical" ? "Copy the clinical note (or fill into the active Rx) — choose from the menu" :
-  "Fill all of these structured EMR sections into the active Rx";
+  "Fill all of these structured sections into the active RxPad";
   return (
     <div className="shrink-0 border-t border-tp-slate-200 bg-white px-3 py-3">
       <TooltipProvider delayDuration={200}>
-      <div className="flex flex-col gap-2">
-        {/* Row 1: Primary Copy CTA (filled blue) */}
-        {isClinicalCopy ?
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="vrx-rt-primary flex h-[42px] w-full items-center justify-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold text-white transition-transform active:scale-[0.99]">
-                    
-                    {primaryIcon}
-                    {primaryLabel}
-                  </button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={6} className={tooltipDarkCls}>{primaryHelp}</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="center" className="w-[220px] border-tp-slate-200 bg-white rounded-[10px] p-1">
-              <DropdownMenuItem onClick={onCopyClipboard} className="text-[14px] text-tp-slate-700 py-2 rounded-[6px]">
-                <CopyIcon size={15} /> <span className="ml-2">Copy to Clipboard</span>
-              </DropdownMenuItem>
-              {onCopyToRx &&
-              <DropdownMenuItem onClick={onCopyToRx} className="text-[14px] text-tp-slate-700 py-2 rounded-[6px]">
-                  <Health size={15} className="mr-2" /> Copy all to EMR
-                </DropdownMenuItem>
-              }
-            </DropdownMenuContent>
-          </DropdownMenu> :
+      <div className="flex items-center gap-2">
+        {/* Single primary CTA + small mic affordance. The mic re-opens
+            the floating VoiceRx overlay so the doctor can append more
+            speech — the result-tab content updates in place when they
+            submit again. Print + the larger "Add or Edit" voice CTA
+            were dropped per design call: the small mic is enough. */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={primaryAction}
+              disabled={!primaryAction}
+              className="vrx-rt-primary flex h-[42px] flex-1 items-center justify-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold text-white transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50">
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={primaryAction}
-                disabled={!primaryAction}
-                className="vrx-rt-primary flex h-[42px] w-full items-center justify-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold text-white transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50">
-                
-                {primaryIcon}
-                {primaryLabel}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6} className={tooltipDarkCls}>{primaryHelp}</TooltipContent>
-          </Tooltip>
-          }
+              {primaryIcon}
+              {primaryLabel}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6} className={tooltipDarkCls}>{primaryHelp}</TooltipContent>
+        </Tooltip>
 
-        {/* Row 2: Print (secondary blue outline) + Add/Edit with Voice (AI gradient) */}
-        <div className="flex items-center gap-2">
-          {showPrint && onPrint &&
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={onPrint}
-                  aria-label="Print"
-                  className="vrx-rt-secondary-blue flex h-[42px] flex-1 items-center justify-center gap-2 rounded-[10px] transition-colors shrink-0 text-[14px] font-semibold">
-                  
-                  <Printer size={16} strokeWidth={2.2} /> Print
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={6} className={tooltipDarkCls}>Print this view</TooltipContent>
-            </Tooltip>
-            }
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={onAddVoice}
+              disabled={!onAddVoice}
+              aria-label="Edit clinical notes with voice"
+              className="vrx-rt-voice-cta-outline flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px] transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50">
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                  type="button"
-                  onClick={onAddVoice}
-                  disabled={!onAddVoice}
-                  className="vrx-rt-voice-cta-outline flex h-[42px] flex-1 items-center justify-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50">
-                  
-                <VoiceRxIcon size={20} color="#673AAC" className="shrink-0" />
-                <span className="vrx-rt-voice-cta-outline__label">Add or Edit</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6} className={tooltipDarkCls}>Re-record over this section to add or edit details by voice</TooltipContent>
-          </Tooltip>
-        </div>
+              <VoiceRxIcon size={20} color="#673AAC" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6} className={tooltipDarkCls}>Quickly edit the clinical notes using voice AI</TooltipContent>
+        </Tooltip>
       </div>
       </TooltipProvider>
       {/* vrx-* styles live in app/globals.css */}
