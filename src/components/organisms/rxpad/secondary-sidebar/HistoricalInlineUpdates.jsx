@@ -127,15 +127,21 @@ _isShimmering = false)
   // runs only on first arrival; the continuous sweep takes over from
   // then on. Recipe + sweep direction match the loader caption
   // (`vrxCaptionShine`) so both surfaces read as the same family.
+  // Fresh-data pointers within sidebar sections (Medical History,
+  // Vitals, etc.) now use an ORANGE/AMBER shimmer per design call —
+  // distinct from the violet AI-fill shimmer the form sections use.
+  // The colour family lines up with the bullet `marker:text-[#FBBF24]`
+  // already on the row, so the pointer + text read as one fresh
+  // affordance.
   return cn(
     isHighlighted &&
     "inline-block rounded-[4px] px-[1px] transition-colors duration-500 ease-out",
     isHighlighted &&
     isIntro &&
-    "font-semibold bg-[linear-gradient(92deg,#D565EA_0%,#673AAC_58%,#1A1994_100%)] bg-[length:180%_100%] bg-clip-text text-transparent [animation:tpHistoricalTextIntro_1s_cubic-bezier(0.22,1,0.36,1)_2]",
+    "font-semibold bg-[linear-gradient(92deg,#F59E0B_0%,#D97706_58%,#B45309_100%)] bg-[length:180%_100%] bg-clip-text text-transparent [animation:tpHistoricalTextIntro_1s_cubic-bezier(0.22,1,0.36,1)_2]",
     isHighlighted &&
     !isIntro &&
-    "[color:inherit] [background-image:linear-gradient(100deg,#45455c_0%,#45455c_32%,#D565EA_46%,#673AAC_50%,#1A1994_54%,#45455c_68%,#45455c_100%)] [background-size:200%_100%] bg-clip-text [-webkit-text-fill-color:transparent] [animation:tpHistoricalTextShimmer_4s_linear_infinite]"
+    "[color:inherit] [background-image:linear-gradient(100deg,#45455c_0%,#45455c_32%,#F59E0B_46%,#D97706_50%,#B45309_54%,#45455c_68%,#45455c_100%)] [background-size:200%_100%] bg-clip-text [-webkit-text-fill-color:transparent] [animation:tpHistoricalTextShimmer_4s_linear_infinite]"
   );
 }
 
