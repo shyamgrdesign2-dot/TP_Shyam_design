@@ -370,11 +370,10 @@ function SectionCardHeader({
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {titleAddon &&
-            <span className="opacity-0 transition-opacity group-hover/section-card:opacity-100">
-                {titleAddon}
-              </span>
-            }
+            {/* Title addon (e.g. Primigravida pill on GPLAE) is now
+                always visible — it's primary data for the section,
+                not a hover-only secondary affordance. */}
+            {titleAddon ? <span>{titleAddon}</span> : null}
             {!hideChevron ?
             <div className="flex items-center justify-center relative shrink-0">
                 <div className="flex-none transition-transform duration-150">

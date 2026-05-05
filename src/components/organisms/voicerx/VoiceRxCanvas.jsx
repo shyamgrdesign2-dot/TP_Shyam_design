@@ -164,44 +164,8 @@ export function VoiceRxCanvas({
             {canvasTitle}
           </span>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label="More options"
-                /* Naked kebab — no chip background. */
-                className="relative inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center bg-transparent text-tp-slate-500 transition-colors hover:text-tp-slate-800 active:scale-[0.94]"
-                onClick={(e) => e.stopPropagation()}>
-                
-                <MoreVertical size={16} strokeWidth={2} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[200px] border-tp-slate-200 bg-white">
-              <div className="px-2 py-[6px] text-[10px] font-semibold uppercase tracking-wider text-tp-slate-400">
-                Current Session: VRX-8149
-              </div>
-              <DropdownMenuSeparator className="bg-tp-slate-100" />
-              <div className="px-2 py-[4px] text-[12px] font-semibold text-tp-slate-500">
-                Session History
-              </div>
-              <DropdownMenuItem className="text-[14px] text-tp-slate-700 hover:bg-tp-slate-50 flex items-center justify-between">
-                <span>12 Oct, Consultation</span>
-                <span className="text-[12px] text-tp-slate-400">View</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-[14px] text-tp-slate-700 hover:bg-tp-slate-50 flex items-center justify-between">
-                <span>10 Oct, Follow-up</span>
-                <span className="text-[12px] text-tp-slate-400">View</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-[14px] text-tp-slate-700 hover:bg-tp-slate-50 flex items-center justify-between">
-                <span>05 Oct, Initial Visit</span>
-                <span className="text-[12px] text-tp-slate-400">View</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-tp-slate-100" />
-              <DropdownMenuItem className="text-[14px] text-tp-slate-700 hover:bg-tp-slate-50">
-                Settings
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Kebab removed per design call — Conversation/Dictate
+              mode-pill no longer carries a "More options" dropdown. */}
         </span>
         <div className="flex items-center gap-2">
           {onMinimize &&

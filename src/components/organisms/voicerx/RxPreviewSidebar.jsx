@@ -18,6 +18,7 @@ function CloseSquareIcon({ size = 22, color = "currentColor" }) {
 
 import { RxPreviewDocument } from "@/src/components/organisms/rxpad/RxPreviewDocument";
 import { useComposedRxPreviewSnapshot } from "@/src/components/organisms/rxpad/rx-preview-composer";
+import { SidebarHeader } from "@/src/components/molecules/SidebarHeader";
 
 
 
@@ -92,29 +93,13 @@ export function RxPreviewSidebar({ open, onClose, patientId }) {
         isVisible ? "translate-x-0" : "translate-x-full"}`
         }>
         
-        {/* ── Header ───────────────────────────────────────────────
-            Left side: solid close X (same glyph used in the patient
-            selection bottom sheet) → divider → "Rx Preview" title. */}
-        <header className="flex h-[56px] shrink-0 items-center gap-3 border-b border-tp-slate-100 px-[16px]">
-          <div className="flex min-w-0 items-center gap-[12px]">
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close preview"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-tp-slate-700 transition-colors hover:text-tp-slate-900 active:scale-[0.96]">
-              
-              <CloseSquareIcon size={22} />
-            </button>
-            {/* Vertical divider between close and title */}
-            <span
-              aria-hidden
-              className="h-[24px] w-px shrink-0 bg-tp-slate-200" />
-            
-            <h3 className="truncate text-[16px] font-semibold tracking-[-0.1px] text-tp-slate-800">
-              Rx Preview
-            </h3>
-          </div>
-        </header>
+        {/* Header — uses shared SidebarHeader molecule. */}
+        <SidebarHeader
+          onClose={onClose}
+          closeAriaLabel="Close preview"
+          closeIcon={<CloseSquareIcon size={24} />}
+          title="Rx Preview"
+        />
 
         {/* ── Body — slate wash with the RxPreviewDocument letterhead.
               Same document the End Visit page renders, so the two surfaces

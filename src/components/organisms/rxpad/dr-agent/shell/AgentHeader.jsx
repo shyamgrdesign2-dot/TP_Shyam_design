@@ -171,43 +171,9 @@ export function AgentHeader({
               {brandTitle ?? "VoiceRx"}
             </span>
 
-            {/* Brand-pill kebab — TP-styled dropdown with two actions:
-                 "View session history" → opens the SessionHistoryDrawer
-                 "Settings" → opens preferences (parent-handled). */}
-            <TPDropdownMenu>
-              <TPDropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex h-[20px] w-[20px] items-center justify-center bg-transparent text-tp-slate-700 transition-colors hover:text-tp-slate-900 active:scale-[0.94]"
-                  aria-label="VoiceRx options"
-                  onClick={(e) => e.stopPropagation()}>
-                  
-                  <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                    <circle cx="12" cy="5" r="2" />
-                    <circle cx="12" cy="12" r="2" />
-                    <circle cx="12" cy="19" r="2" />
-                  </svg>
-                </button>
-              </TPDropdownMenuTrigger>
-              {/* Kebab menu — TP violet leading icons, tight icon↔label gap,
-                   neutral gray hover (not blue), per latest design call. */}
-              <TPDropdownMenuContent align="start" className="w-[220px]">
-                <TPDropdownMenuItem
-                  onClick={() => onViewSessionHistory?.()}
-                  className="flex items-center gap-1.5 hover:bg-tp-slate-100 hover:text-tp-slate-900 focus:bg-tp-slate-100 focus:text-tp-slate-900">
-                  
-                  <Clock size={16} variant="Linear" color="currentColor" />
-                  <span>View session history</span>
-                </TPDropdownMenuItem>
-                <TPDropdownMenuItem
-                  onClick={() => onOpenSettings?.()}
-                  className="flex items-center gap-1.5 hover:bg-tp-slate-100 hover:text-tp-slate-900 focus:bg-tp-slate-100 focus:text-tp-slate-900">
-                  
-                  <Setting2 size={16} variant="Linear" color="currentColor" />
-                  <span>Settings</span>
-                </TPDropdownMenuItem>
-              </TPDropdownMenuContent>
-            </TPDropdownMenu>
+            {/* Kebab removed per design call — VoiceRx brand pill no
+                longer carries a "VoiceRx options" dropdown. Session
+                history and Settings move to the consult-mode footer. */}
           </span>
 
           {/* Unified Dropdown — Specialty + Doctor Type + Intake (removed — demo only) */}
