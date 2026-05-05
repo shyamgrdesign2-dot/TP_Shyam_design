@@ -16,7 +16,7 @@ import {
   Import,
   Printer } from
 "iconsax-reactjs";
-import { MoreVertical } from "@/src/components/atoms/icons/lucide";
+import { MoreVertical, Stethoscope } from "@/src/components/atoms/icons/lucide";
 
 import { cn } from "@/src/hooks/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/src/components/atoms/Tooltip";
@@ -632,13 +632,17 @@ function FollowUpSection({
 function PrescribedByFooter({ doctorName, specialty }) {
   return (
     <div className="px-[10px] pb-[12px] pt-[6px]">
-      <p className="font-sans text-[12px] leading-[18px] text-tp-slate-500">
-        <span className="text-tp-slate-400">by:</span>{" "}
-        <span className="font-semibold text-tp-slate-700">{doctorName}</span>
-      </p>
-      {specialty ? (
-        <p className="font-sans text-[12px] leading-[16px] text-tp-slate-400">{specialty}</p>
-      ) : null}
+      <div className="flex items-center gap-[10px] rounded-[10px] bg-tp-slate-50 px-[12px] py-[8px]">
+        <span className="inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-white text-tp-slate-500 ring-1 ring-tp-slate-200">
+          <Stethoscope size={14} strokeWidth={1.6} />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-700">{doctorName}</p>
+          {specialty ? (
+            <p className="truncate font-sans text-[12px] leading-[16px] text-tp-slate-500">{specialty}</p>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -660,15 +664,19 @@ function WrittenRxPreviewCard({
       <div className="h-[88px] w-full bg-tp-slate-50 overflow-hidden">
         <img alt={document.title} src={document.previewImage} className="h-full w-full object-cover opacity-85" />
       </div>
-      <div className="flex items-center justify-between gap-3 px-[10px] py-[8px]">
-        <div className="min-w-0">
-          <p className="truncate font-sans text-[14px] leading-[20px] text-tp-slate-700">
-            <span className="text-tp-slate-400">by:</span>{" "}
-            <span className="font-semibold">{document.doctorName ?? dateLabel ?? document.title}</span>
-          </p>
-          {document.doctorSpecialty ? (
-            <p className="truncate font-sans text-[12px] leading-[18px] text-tp-slate-400">{document.doctorSpecialty}</p>
-          ) : null}
+      <div className="flex items-center justify-between gap-3 bg-tp-slate-50 px-[12px] py-[8px]">
+        <div className="flex min-w-0 items-center gap-[10px]">
+          <span className="inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-white text-tp-slate-500 ring-1 ring-tp-slate-200">
+            <Stethoscope size={14} strokeWidth={1.6} />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-700">
+              {document.doctorName ?? dateLabel ?? document.title}
+            </p>
+            {document.doctorSpecialty ? (
+              <p className="truncate font-sans text-[12px] leading-[16px] text-tp-slate-500">{document.doctorSpecialty}</p>
+            ) : null}
+          </div>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
