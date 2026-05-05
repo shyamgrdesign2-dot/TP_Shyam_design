@@ -570,39 +570,8 @@ export function VoiceRxActiveAgent({
               {mode === "ambient_consultation" ? "Conversation Mode" : "Dictation Mode"}
             </span>
 
-            {/* Kebab menu — same View session history / Settings actions
-                 as the Dr.Agent brand-pill kebab, surfaced inline next to
-                 the consult mode label so the doctor reaches them without
-                 leaving the active panel. */}
-            <TPDropdownMenu>
-              <TPDropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Consultation options"
-                  /* Naked icon — no chip background, just the SVG with
-                     a subtle hover color change. Heavier dot radius
-                     keeps it visually present without a wrapper. */
-                  className="relative inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center bg-transparent text-tp-slate-700 transition-colors hover:text-tp-slate-900 active:scale-[0.94]"
-                  onClick={(e) => e.stopPropagation()}>
-                  
-                  <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                    <circle cx="12" cy="5" r="2" />
-                    <circle cx="12" cy="12" r="2" />
-                    <circle cx="12" cy="19" r="2" />
-                  </svg>
-                </button>
-              </TPDropdownMenuTrigger>
-              <TPDropdownMenuContent align="start" className="w-[220px]">
-                <TPDropdownMenuItem className="flex items-center gap-1.5 hover:bg-tp-slate-100 hover:text-tp-slate-900 focus:bg-tp-slate-100 focus:text-tp-slate-900">
-                  <Clock size={16} variant="Bulk" className="text-tp-violet-500" />
-                  <span>View session history</span>
-                </TPDropdownMenuItem>
-                <TPDropdownMenuItem className="flex items-center gap-1.5 hover:bg-tp-slate-100 hover:text-tp-slate-900 focus:bg-tp-slate-100 focus:text-tp-slate-900">
-                  <Setting2 size={16} variant="Bulk" className="text-tp-violet-500" />
-                  <span>Settings</span>
-                </TPDropdownMenuItem>
-              </TPDropdownMenuContent>
-            </TPDropdownMenu>
+            {/* Kebab dropped per design call — Conversation/Dictation
+                mode-pill no longer carries a "More options" menu. */}
           </span>
 
           <button

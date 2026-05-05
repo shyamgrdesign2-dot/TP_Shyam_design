@@ -8,6 +8,7 @@ import { cn } from "@/src/hooks/utils";
 
 import { FeedbackRow } from "./VoiceRxResultTabs";
 import { VoiceRxIcon } from "./voice-consult-icons";
+import { VoiceRxModuleRecorder } from "./VoiceRxModuleRecorder";
 import styles from "./VoiceRxCanvas.module.scss";
 
 /** localStorage key — gates the first-time educational coachmark for
@@ -91,6 +92,14 @@ export function VoiceRxCanvas({
   void modeLabel;
 
   const [activeTab, setActiveTab] = useState("emr");
+  // Inline quick-edit recorder overlay. Replaces the previous "kick
+  // back to conversation mode" handler with a transient bottom sheet
+  // pinned over the canvas — the existing clinical notes stay visible
+  // (and copyable) but back/minimize/etc. are blocked until the doctor
+  // submits or cancels. On submit, the new transcript chunk is forwarded
+  // to onAddDetailsByVoice so the parent can append + re-generate.
+  const [quickEditActive, setQuickEditActive] = useState(false);
+  const navLocked = quickEditActive;
 
   const [feedback, setFeedback] = useState({
     transcript: null,
@@ -146,11 +155,17 @@ export function VoiceRxCanvas({
         <span className="vrx-cn-mode-pill inline-flex items-center gap-[6px] rounded-[10px] py-[6px] pl-[8px] pr-[12px]">
           <button
             type="button"
-            onClick={onBack}
+            onClick={navLocked ? undefined : onBack}
+            disabled={navLocked}
             aria-label="Back to chat"
             /* Naked icon — no chip background, 16px SVG with hover
                color change. Matches the recorder's mode-pill back. */
-            className="inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center bg-transparent text-tp-slate-700 transition-colors hover:text-tp-slate-900 active:scale-[0.92]">
+            className={cn(
+              "inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center bg-transparent transition-colors active:scale-[0.92]",
+              navLocked
+                ? "cursor-not-allowed text-tp-slate-300"
+                : "text-tp-slate-700 hover:text-tp-slate-900"
+            )}>
             
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -174,12 +189,18 @@ export function VoiceRxCanvas({
           {onMinimize &&
           <button
             type="button"
-            onClick={onMinimize}
+            onClick={navLocked ? undefined : onMinimize}
+            disabled={navLocked}
             aria-label="Minimize agent"
             /* Naked icon — strips the chunky glossy chip; just a 16px
                SVG with hover color change to match the rest of the
                chrome. */
-            className="inline-flex h-[20px] w-[20px] items-center justify-center bg-transparent text-tp-slate-600 transition-colors hover:text-tp-slate-900 active:scale-[0.95]">
+            className={cn(
+              "inline-flex h-[20px] w-[20px] items-center justify-center bg-transparent transition-colors active:scale-[0.95]",
+              navLocked
+                ? "cursor-not-allowed text-tp-slate-300"
+                : "text-tp-slate-600 hover:text-tp-slate-900"
+            )}>
             
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
                 <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="2" />
@@ -317,9 +338,9 @@ export function VoiceRxCanvas({
                   type="button"
                   onClick={() => {
                     if (coachmarkVisible) dismissCoachmark();
-                    onAddDetailsByVoice?.();
+                    setQuickEditActive(true);
                   }}
-                  disabled={!onAddDetailsByVoice}
+                  disabled={quickEditActive}
                   aria-label="Edit clinical notes with voice"
                   className="vrx-rt-voice-cta-outline flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px] transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50">
 
@@ -334,6 +355,33 @@ export function VoiceRxCanvas({
         </TooltipProvider>
       </div>
       }
+
+      {/* Quick-edit recorder overlay — pinned to the bottom 40% of the
+          canvas. Uses the same VoiceRxModuleRecorder the sidebar
+          sections render so the mic affordance reads consistently. The
+          existing canvas content stays visible (and copyable) but back
+          / minimize are disabled while the overlay is active. */}
+      {quickEditActive ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-stretch"
+          style={{ height: "40%" }}>
+          <div className="pointer-events-auto w-full" data-voice-allow>
+            <VoiceRxModuleRecorder
+              sectionLabel="Clinical Notes"
+              variant="stack"
+              fillHeight
+              radiusClassName="rounded-none"
+              onCancel={() => setQuickEditActive(false)}
+              onSubmit={() => {
+                setQuickEditActive(false);
+                // Forward to the parent's append-and-regenerate hook.
+                // The parent owns transcript merge + clinical-notes
+                // re-generation; the canvas just hosts the recorder.
+                onAddDetailsByVoice?.();
+              }} />
+          </div>
+        </div>
+      ) : null}
       {/* vrx-* styles live in app/globals.css */}
     </div>);
 
