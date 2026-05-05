@@ -26,7 +26,8 @@ or a layer below. ESLint enforces this — see `eslint.config.mjs`.
 Smallest UI building blocks. **No domain knowledge.** A `Button` knows
 about variants, sizes, themes, but not about prescriptions. Atoms
 consume only:
-- Radix UI primitives (e.g. `@radix-ui/react-tooltip`)
+- **Hand-rolled internals first** — no third-party UI lib. Most atoms (Button, Switch, Checkbox, Avatar, Badge, Chip, etc.) ship zero JS dependencies.
+- Radix UI primitives **only where re-implementing is hard** (`Tooltip`, `Popover`). New atoms should default to hand-rolled — see "Why some atoms still wrap Radix" below.
 - Design tokens (`var(--tp-*)`)
 - Internal hooks (`@/src/hooks/utils`)
 
@@ -107,6 +108,31 @@ ANY        → @mui/material directly in product code             ❌
 - **Module styles = `<Name>.module.scss`** colocated.
 - **Barrel = `<Folder>/index.js`** that re-exports the entry. Never put logic in barrels.
 - **`atoms/index.js`** and **`molecules/index.js`** re-export everything in their layer.
+
+---
+
+## Why some atoms still wrap Radix
+
+We removed Radix from the simple primitives (`Switch`, `Checkbox`,
+`Button`'s Slot) — those are 60-100 lines of standard HTML + ARIA and
+the bundle / dependency win is real with no accessibility risk.
+
+We **deliberately keep** Radix for:
+
+| Component | Radix package | Why we keep it |
+|---|---|---|
+| `atoms/Tooltip` | `@radix-ui/react-tooltip` | Smart positioning + collision detection + portal + delay + `asChild` trigger pattern. Reimplementing correctly is multi-day work. |
+| `atoms/Popover` | `@radix-ui/react-popover` | Same as Tooltip plus click-outside, Escape, scroll lock. |
+| `molecules/Dialog` | `@radix-ui/react-dialog` | Focus trap, scroll lock, ARIA modal semantics. Single biggest a11y risk if reimplemented. |
+| `molecules/ConfirmDialog` | `@radix-ui/react-alert-dialog` | Same as Dialog with role=alertdialog. |
+| `molecules/Drawer` | `@radix-ui/react-dialog` | Side-sheet built on the Dialog primitive. |
+| `molecules/DropdownMenu` | `@radix-ui/react-dropdown-menu` | Roving tabindex, type-ahead, sub-menus, keyboard nav. |
+| `molecules/Tabs` | `@radix-ui/react-tabs` | Roving tabindex + arrow-key nav with screen-reader-correct ARIA. |
+| `molecules/Accordion` | `@radix-ui/react-accordion` | ARIA disclosure pattern + keyboard nav. |
+
+**Rule for new atoms / molecules:** default to hand-rolled. Only add a
+Radix dep when the table above's "why" applies. If you're tempted to
+add a new `@radix-ui/*` package, post in #frontend first.
 
 ---
 

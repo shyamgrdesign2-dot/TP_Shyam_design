@@ -17,6 +17,15 @@ shipped in a generic UI library without any change.
 - **Color via tokens.** `var(--tp-blue-500)`, `var(--tp-slate-700)`, never raw hex.
 - **CTAs use Linear iconsax variant** (Button + similar). Decorative icons may use Bulk/Bold.
 
+## Dependency status
+
+We're progressively removing third-party UI deps from atoms (FE feedback: per-component Radix imports were bloating `package.json`). The current state:
+
+- **Hand-rolled, zero deps:** `Button`, `Switch`, `Checkbox`, `Avatar`, `Badge`, `Chip`, `Tag`, `Divider`, `Spinner`, `Skeleton`, `Progress`, `Slider`, `Radio`, `Input`, `OTPInput`, `Select`, `MedicalIcon`, `NoiseOverlay`, `ShineBorder`, `ShinyText`, `TutorialPlayIcon`.
+- **Still wraps Radix (kept on purpose — accessibility is non-trivial):** `Tooltip` (`@radix-ui/react-tooltip`), `Popover` (`@radix-ui/react-popover`).
+
+If you add a new atom, **don't reach for a Radix primitive without reading [`../component-library.md`](../component-library.md) §"Why some atoms still wrap Radix".** The default for new atoms is hand-rolled.
+
 ## Catalog
 
 | Atom | Purpose | Variants / props summary |

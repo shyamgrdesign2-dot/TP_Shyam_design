@@ -11,7 +11,6 @@
  */
 
 import { forwardRef } from "react";
-import { Slot } from "@radix-ui/react-slot";
 import styles from "./Button.module.scss";
 
 // ── Types ──
@@ -58,7 +57,6 @@ export const Button = forwardRef(
     disabled = false,
     leftIcon,
     rightIcon,
-    asChild = false,
     className = "",
     children,
     style: styleProp,
@@ -67,7 +65,6 @@ export const Button = forwardRef(
   ref)
   {
     const isDisabled = disabled || loading;
-    const Comp = asChild ? Slot : "button";
 
     const cls = [styles.button, className].filter(Boolean).join(" ");
 
@@ -96,9 +93,9 @@ export const Button = forwardRef(
 
 
     return (
-      <Comp
+      <button
         ref={ref}
-        type={asChild ? undefined : "button"}
+        type="button"
         disabled={isDisabled}
         className={cls}
         style={styleProp}
@@ -108,9 +105,9 @@ export const Button = forwardRef(
         data-surface={surface}
         data-loading={loading || undefined}
         {...props}>
-        
+
         {content}
-      </Comp>);
+      </button>);
 
   }
 );
