@@ -89,7 +89,7 @@ export function Sidebar({
           aria-modal="true"
           aria-hidden={!isVisible}
           className={`fixed top-0 ${sideClass} z-[161] flex h-full flex-col bg-white ${shadowClass} transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${slideClass} ${panelClassName}`}
-          style={{ width }}>
+          style={width ? { width } : undefined}>
           {header}
           <div className="min-h-0 flex-1 overflow-y-auto">
             {children}

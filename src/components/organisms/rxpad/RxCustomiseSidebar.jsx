@@ -15,6 +15,7 @@ import {
 "@/src/components/molecules/DropdownMenu";
 import { ConfirmDialog as TPConfirmDialog } from "@/src/components/molecules/ConfirmDialog";
 import { SidebarHeader } from "@/src/components/molecules/SidebarHeader";
+import { Sidebar } from "@/src/components/molecules/Sidebar";
 
 import {
   CUSTOM_MODULE_CAP } from
@@ -211,28 +212,13 @@ export function RxCustomiseSidebar({
   onClose,
   onSave
 }) {
-  // Animation state — same pattern as RxPreviewSidebar.
-  const [isMounted, setIsMounted] = useState(open);
-  const [isVisible, setIsVisible] = useState(open);
-
-  useEffect(() => {
-    if (open) {
-      setIsMounted(true);
-      const id = window.requestAnimationFrame(() => setIsVisible(true));
-      return () => window.cancelAnimationFrame(id);
-    }
-    setIsVisible(false);
-    const id = window.setTimeout(() => setIsMounted(false), 300);
-    return () => window.clearTimeout(id);
-  }, [open]);
-
   // ESC closes.
   useEffect(() => {
-    if (!isMounted) return;
+    if (!open) return;
     const handler = (e) => {if (e.key === "Escape") onClose();};
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isMounted, onClose]);
+  }, [open, onClose]);
 
   // ── Live config from the customise store ─────────────────────────────
   const liveSidebar = useSidebarConfig();
@@ -362,8 +348,6 @@ export function RxCustomiseSidebar({
 
   // ── Render ────────────────────────────────────────────────────────────
 
-  if (!isMounted) return null;
-
   return (
     <>
       {/* Custom modules drawer mount — lives here so closing the customise
@@ -386,63 +370,48 @@ export function RxCustomiseSidebar({
         onPrimary={handleDeleteModuleConfirm}
         secondaryLabel="Cancel"
         onSecondary={() => setConfirmDeleteId(null)} />
-      
 
-      {/* Dimming backdrop */}
-      <div
-        aria-hidden
-        onClick={onClose}
-        className={`fixed inset-0 z-[150] bg-black/30 backdrop-blur-[2px] transition-opacity duration-200 ${
-        isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`
-        } />
-      
 
-      {/* Slide-in panel — 70% desktop, 75% iPad, 94vw mobile */}
-      <aside
-        role="dialog"
-        aria-label="Customise your pad"
-        aria-hidden={!isVisible}
-        className={`fixed right-0 top-0 z-[151] flex h-full flex-col bg-white shadow-[-12px_0_40px_rgba(15,23,42,0.18)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] w-[94vw] md:w-[75vw] lg:w-[70vw] ${
-        isVisible ? "translate-x-0" : "translate-x-full"}`
+      <Sidebar
+        open={open}
+        onClose={onClose}
+        width={null}
+        panelClassName="w-[94vw] md:w-[75vw] lg:w-[70vw]"
+        header={
+          <SidebarHeader
+            onClose={onClose}
+            closeAriaLabel="Close customise panel"
+            closeIcon={<CloseSquareIcon size={24} />}
+            title="Customise Your Pad"
+            tutorial={
+              <button
+                type="button"
+                aria-label="Watch tutorial"
+                className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-600 transition-colors hover:bg-tp-slate-100 active:scale-[0.96]">
+                <TutorialPlayIcon size={36} />
+              </button>
+            }
+            actionsDivider={<NavGradientDivider />}
+            actions={
+              <>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] border border-tp-blue-300 bg-white px-[14px] text-[13px] font-semibold text-tp-blue-500 transition-colors hover:bg-tp-blue-50 active:scale-[0.98]">
+                  Reset to default
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={!canSave}
+                  className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] bg-tp-blue-500 px-[14px] text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-tp-blue-500">
+                  Save Changes
+                </button>
+              </>
+            }
+          />
         }>
-        
-        {/* ── Header — uses shared SidebarHeader molecule so every
-            sidebar across the app speaks the same chrome language. */}
-        <SidebarHeader
-          onClose={onClose}
-          closeAriaLabel="Close customise panel"
-          closeIcon={<CloseSquareIcon size={24} />}
-          title="Customise Your Pad"
-          tutorial={
-            <button
-              type="button"
-              aria-label="Watch tutorial"
-              className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-600 transition-colors hover:bg-tp-slate-100 active:scale-[0.96]">
-              <TutorialPlayIcon size={36} />
-            </button>
-          }
-          actionsDivider={<NavGradientDivider />}
-          actions={
-            <>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] border border-tp-blue-300 bg-white px-[14px] text-[13px] font-semibold text-tp-blue-500 transition-colors hover:bg-tp-blue-50 active:scale-[0.98]">
-                Reset to default
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={!canSave}
-                className="inline-flex h-[36px] min-w-[100px] items-center justify-center rounded-[10px] bg-tp-blue-500 px-[14px] text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-tp-blue-500">
-                Save Changes
-              </button>
-            </>
-          }
-        />
-
-        {/* ── Body — single grey-shaded container holding two columns ── */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-[16px]">
+        <div className="p-[16px]">
           <div className="grid grid-cols-1 gap-[16px] rounded-[16px] bg-tp-slate-50 p-[16px] md:grid-cols-2">
           {/* Left column — Sidebar Sections */}
           <CustomisePanel
@@ -592,8 +561,7 @@ export function RxCustomiseSidebar({
           </CustomisePanel>
           </div>
         </div>
-
-      </aside>
+      </Sidebar>
     </>);
 
 }
