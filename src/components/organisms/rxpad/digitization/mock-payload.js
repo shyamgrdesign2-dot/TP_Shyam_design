@@ -136,7 +136,8 @@ const TODAY = visit(
       description: "Scanned OPD sheet (27 Jan'26)",
       pdfUrl: WRITTEN_RX_PDF,
       previewImage: WRITTEN_RX_PREVIEW,
-      doctorName: "Dr. Shyam Sundar"
+      doctorName: "Dr. Shyam Sundar",
+      doctorSpecialty: "General Physician"
     }]
 
   }
@@ -227,7 +228,8 @@ const D_24 = visit(
       description: "Legacy handwritten prescription (24 Jan'26)",
       pdfUrl: WRITTEN_RX_PDF,
       previewImage: WRITTEN_RX_PREVIEW,
-      doctorName: "Dr. Shyam Sundar"
+      doctorName: "Dr. Shyam Sundar",
+      doctorSpecialty: "General Physician"
     }]
 
   }
@@ -258,7 +260,8 @@ const D_22 = visit(
       description: "Only written Rx available for this date",
       pdfUrl: WRITTEN_RX_PDF,
       previewImage: WRITTEN_RX_PREVIEW,
-      doctorName: "Dr. Shyam Sundar"
+      doctorName: "Dr. Shyam Sundar",
+      doctorSpecialty: "General Physician"
     }]
 
   }
@@ -289,7 +292,8 @@ const D_20 = visit(
       description: "Only written Rx available for this date",
       pdfUrl: WRITTEN_RX_PDF,
       previewImage: WRITTEN_RX_PREVIEW,
-      doctorName: "Dr. Shyam Sundar"
+      doctorName: "Dr. Shyam Sundar",
+      doctorSpecialty: "General Physician"
     }]
 
   }

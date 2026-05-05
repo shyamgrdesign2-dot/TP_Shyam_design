@@ -648,9 +648,9 @@ function WrittenRxPreviewCard({
       </div>
       <div className="flex items-center justify-between gap-3 px-[10px] py-[8px]">
         <div className="min-w-0">
-          <p className="truncate font-sans text-[14px] font-semibold leading-[20px] text-tp-slate-700">{dateLabel ?? document.title}</p>
-          {document.doctorName ? (
-            <p className="truncate font-sans text-[12px] leading-[18px] text-tp-slate-400">{document.doctorName}</p>
+          <p className="truncate font-sans text-[14px] font-semibold leading-[20px] text-tp-slate-700">{document.doctorName ?? dateLabel ?? document.title}</p>
+          {document.doctorSpecialty ? (
+            <p className="truncate font-sans text-[12px] leading-[18px] text-tp-slate-400">{document.doctorSpecialty}</p>
           ) : null}
         </div>
         <DropdownMenu>
