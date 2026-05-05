@@ -197,10 +197,15 @@ function VitalsDateCard({
   const hasHighlightedRows = highlightedCount > 0;
 
   return (
+    // Removed `overflow-hidden` from this wrapper — it was creating a
+    // new containing block for the sticky header button below, so the
+    // header would only stick within ITS card instead of climbing up
+    // to the scroll ancestor (`data-sticky-scroll-root`). The button
+    // already owns its rounded corners; we don't need clipping here.
     <div
-      className="group/date-card relative shrink-0 w-full overflow-hidden"
+      className="group/date-card relative shrink-0 w-full rounded-[10px]"
       style={tpSectionCardStyle}>
-      
+
       <button
         type="button"
         ref={headerRef}

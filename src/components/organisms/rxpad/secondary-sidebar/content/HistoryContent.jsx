@@ -289,16 +289,7 @@ export function HistoryContent() {
     <div className="content-stretch flex flex-col items-center relative size-full">
       <ActionButton label="Add/Edit Details" icon="plus" sectionId="history" />
       <div className="overflow-x-clip overflow-y-auto size-full" data-sticky-scroll-root="true">
-        {/* Section heading — clarifies that the cards below are the
-             patient's full Medical History, broken into the six canonical
-             groups (Medical Conditions, Allergies, Family History,
-             Surgeries, Lifestyle, Additional Notes). */}
-        <div className="px-[12px] pt-[12px] pb-[6px]">
-          <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-tp-slate-500">
-            Medical History
-          </h3>
-        </div>
-        <div className="content-stretch flex flex-col gap-[12px] items-start px-[12px] pb-[12px] w-full">
+        <div className="content-stretch flex flex-col gap-[12px] items-start px-[12px] pt-[12px] pb-[12px] w-full">
           {nextSections.map((section) =>
           <HistoryCard
             key={section.id}

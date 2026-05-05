@@ -174,19 +174,8 @@ export const SMART_SUMMARY_BY_CONTEXT = {
     { name: "Vitamin D", value: "18", unit: "ng/mL", flag: "low", refRange: "30-100" }],
 
     dueAlerts: [],
-    symptomCollectorData: {
-      reportedAt: "Today, 11:20 AM",
-      symptoms: [
-      { name: "Headache", duration: "4 days", severity: "Moderate" },
-      { name: "Eye strain", duration: "1 week", severity: "Mild" }],
-
-      medicalHistory: ["Migraine without aura (3yr)"],
-      allergies: [],
-      questionsToDoctor: [
-      "Why are migraines worse this week?",
-      "Can I switch to a stronger painkiller?"]
-
-    },
+    // No symptomCollectorData — apt-anjali should open to a clean
+    // welcome screen, not a pre-filled symptom intake.
     gynecData: {
       menarche: "13 years",
       lmp: "10 Feb'26",
@@ -237,19 +226,7 @@ export const SMART_SUMMARY_BY_CONTEXT = {
     { name: "Triglycerides", value: "195", unit: "mg/dL", flag: "high", refRange: "<150" }],
 
     dueAlerts: ["ECG pending", "Lipid recheck overdue"],
-    symptomCollectorData: {
-      reportedAt: "Today, 08:30 AM",
-      symptoms: [
-      { name: "Fatigue", duration: "2 weeks", severity: "Moderate" },
-      { name: "Poor sleep", duration: "3 weeks", severity: "Moderate" }],
-
-      medicalHistory: ["Hypertension (3yr)", "Dyslipidemia (1yr)"],
-      allergies: ["Sulfa drugs"],
-      questionsToDoctor: [
-      "Is my BP under control?",
-      "Do I need a stress test?"]
-
-    },
+    // No symptomCollectorData — apt-vikram opens to clean welcome screen.
     ophthalData: {
       vaRight: "6/9",
       vaLeft: "6/9",

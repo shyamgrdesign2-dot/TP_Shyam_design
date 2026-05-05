@@ -165,6 +165,25 @@ function DropdownMenuContentInner({
     collisionPadding,
   });
 
+  // Arrow points at the centre of the trigger, not at a fixed offset
+  // on the panel. Compute the trigger's centre relative to the panel's
+  // left edge each time pos changes, then expose it as a CSS variable
+  // (`--arrow-x`) that the SCSS reads. Clamped so the arrow never sits
+  // past the rounded corner.
+  const [arrowX, setArrowX] = React.useState(18);
+  React.useLayoutEffect(() => {
+    if (!ctx.open) return;
+    const trigger = ctx.triggerRef.current;
+    const floating = ref.current;
+    if (!trigger || !floating) return;
+    const t = trigger.getBoundingClientRect();
+    const f = floating.getBoundingClientRect();
+    const triggerCenter = t.left + t.width / 2;
+    const localX = triggerCenter - f.left - 6; // -6 = half arrow width
+    const clamped = Math.max(12, Math.min(localX, f.width - 24));
+    setArrowX(clamped);
+  }, [ctx.open, pos.x, pos.y, pos.side]);
+
   const cls = [styles.panel, className].filter(Boolean).join(" ");
 
   return (
@@ -182,6 +201,7 @@ function DropdownMenuContentInner({
           top: pos.y,
           zIndex: 100,
           outline: "none",
+          "--arrow-x": `${arrowX}px`,
           ...style,
         }}
         {...props}>

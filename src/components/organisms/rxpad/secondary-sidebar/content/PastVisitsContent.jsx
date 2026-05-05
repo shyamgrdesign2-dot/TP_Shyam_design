@@ -34,6 +34,9 @@ import {
 "@/src/components/molecules/Drawer";
 import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
 import { Snackbar as TPSnackbar } from "@/src/components/molecules/Snackbar";
+import { SidebarHeader } from "@/src/components/molecules/SidebarHeader";
+import { CloseSquareIcon } from "@/src/components/organisms/rxpad/templates/shared";
+import { TPButton } from "@/src/components/atoms/Button/button-system";
 
 import { tpSectionCardStyle } from "../tokens";
 import { useStickyHeaderState } from "../detail-shared";
@@ -943,44 +946,43 @@ export function PastVisitsContent() {
         }}>
         
         <TPDrawerContent side="right" size="xl" className="p-0 w-[min(90vw,860px)] sm:max-w-none">
-          <TPDrawerHeader className="space-y-3">
-            <div>
-              <TPDrawerTitle>
-                {activeDocument?.document.title ?? "Written Rx PDF"}
-              </TPDrawerTitle>
-              <TPDrawerDescription>
-                {activeDocument ? `${activeDocument.dateLabel} • ${activeDocument.document.description}` : ""}
-              </TPDrawerDescription>
-            </div>
-            {activeDocument ?
-            <div className="flex items-center gap-2">
-                <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-md border border-tp-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-tp-slate-700 hover:bg-tp-slate-50"
-                onClick={() => showCopySnackbar("Preview is open")}>
-                
-                  <Eye color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
+          {/* Uses the shared SidebarHeader convention (cross + divider
+              + title + trailing CTAs). No secondary description line —
+              the date / source context lives inside the body now. */}
+          <SidebarHeader
+            onClose={() => setActiveDocument(null)}
+            closeAriaLabel="Close written Rx preview"
+            closeIcon={<CloseSquareIcon size={24} />}
+            title={activeDocument?.document.title ?? "Written Rx PDF"}
+            actions={activeDocument ? (
+              <>
+                <TPButton
+                  variant="outline"
+                  theme="neutral"
+                  size="sm"
+                  leftIcon={<Eye color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />}
+                  onClick={() => showCopySnackbar("Preview is open")}>
                   Preview
-                </button>
-                <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-md border border-tp-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-tp-slate-700 hover:bg-tp-slate-50"
-                onClick={() => handleDownload(activeDocument.document)}>
-                
-                  <Import color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
+                </TPButton>
+                <TPButton
+                  variant="outline"
+                  theme="neutral"
+                  size="sm"
+                  leftIcon={<Import color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />}
+                  onClick={() => handleDownload(activeDocument.document)}>
                   Download
-                </button>
-                <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-md border border-tp-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-tp-slate-700 hover:bg-tp-slate-50"
-                onClick={() => handlePrint(activeDocument.document)}>
-                
-                  <Printer color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
+                </TPButton>
+                <TPButton
+                  variant="outline"
+                  theme="neutral"
+                  size="sm"
+                  leftIcon={<Printer color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />}
+                  onClick={() => handlePrint(activeDocument.document)}>
                   Print
-                </button>
-              </div> :
-            null}
-          </TPDrawerHeader>
+                </TPButton>
+              </>
+            ) : null}
+          />
 
           <div className="h-[calc(100vh-128px)] bg-tp-slate-50 p-4">
             <object
@@ -996,7 +998,6 @@ export function PastVisitsContent() {
                   className="max-h-[70vh] w-auto rounded-md border border-tp-slate-200" /> :
 
                 null}
-                <p className="text-sm text-tp-slate-500">PDF preview unavailable. Use a browser with PDF support.</p>
               </div>
             </object>
           </div>

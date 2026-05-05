@@ -54,7 +54,10 @@ function formatDate(iso) {
 const STATUS_TONES = {
   Due: "bg-tp-warning-50 text-tp-warning-700 border-tp-warning-100",
   Overdue: "bg-tp-error-50 text-tp-error-700 border-tp-error-100",
-  Upcoming: "bg-tp-blue-50 text-tp-blue-700 border-tp-blue-200",
+  // Upcoming uses the warning palette per design call — both
+  // pre-visit states (Due / Upcoming) share the same yellow tone
+  // because they're both "action-needed-soon" cues.
+  Upcoming: "bg-tp-warning-50 text-tp-warning-700 border-tp-warning-100",
   Completed: "bg-[rgba(34,197,94,0.10)] text-tp-success-700 border-[rgba(34,197,94,0.20)]",
 };
 
