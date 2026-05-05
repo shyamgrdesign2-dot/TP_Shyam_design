@@ -715,7 +715,12 @@ payload)
 
 export function PastVisitsContent() {
   const orderedVisits = useMemo(loadPastVisits, []);
-  const { requestCopyToRxPad } = useRxPadSync();
+  // `runCopyWithAura` is the bulk path (page-edge shimmer, no per-
+  // section flash / scroll / sidebar focus); `requestCopyToRxPad` is
+  // the per-section path (target-module flash + scroll-into-view).
+  // Date-level "Copy all from this date" → bulk; section / inline →
+  // per-section.
+  const { requestCopyToRxPad, runCopyWithAura } = useRxPadSync();
   // Fresh updates land on TODAY's visit — index 0 is the most recent.
   const { freshLineCount } = useHistoricalSectionHighlights("pastVisits");
 
@@ -798,7 +803,14 @@ export function PastVisitsContent() {
                     }}
                     onCopyDate={() => {
                       if (entry.digitalRx) {
-                        fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                        // Date-level "Copy all from this date" → bulk
+                        // path. Page-edge shimmer only; per-module
+                        // flash + scroll + sidebar focus are all
+                        // suppressed inside RxPadFunctional via the
+                        // copyAllAuraActive guard.
+                        runCopyWithAura({
+                          sourceDateLabel: entry.dateLabel,
+                          targetSection: "rxpad",
                           symptoms: entry.digitalRx.symptoms.map((s) => `${s.label}${s.detail ? ` (${s.detail})` : ""}`),
                           examinations: entry.digitalRx.examinations.map((e) => `${e.label}${e.detail ? ` (${e.detail})` : ""}`),
                           diagnoses: entry.digitalRx.diagnoses.map((d) => `${d.label}${d.detail ? ` (${d.detail})` : ""}`),
@@ -806,7 +818,7 @@ export function PastVisitsContent() {
                           advice: entry.digitalRx.advice || undefined,
                           followUp: entry.digitalRx.followUp || undefined,
                           labInvestigations: entry.digitalRx.labInvestigations.length ? entry.digitalRx.labInvestigations : undefined
-                        });
+                        }, { bulk: true });
                       }
                       showCopySnackbar(`${entry.dateLabel} details added successfully to RxPad`);
                     }} />
