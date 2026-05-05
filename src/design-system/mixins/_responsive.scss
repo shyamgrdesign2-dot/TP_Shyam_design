@@ -1,0 +1,49 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Mixin: Responsive Breakpoints
+// Mobile-first media query helpers.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use '../tokens/breakpoints' as bp;
+
+/// Media query at or above a named breakpoint.
+/// @param {String} $name — sm | md | lg | xl | 2xl
+@mixin above($name) {
+  $value: map-get(bp.$breakpoints, $name);
+  @if $value {
+    @media (min-width: $value) { @content; }
+  } @else {
+    @error "Unknown breakpoint `#{$name}`. Use one of: sm, md, lg, xl, 2xl.";
+  }
+}
+
+/// Media query below a named breakpoint.
+/// @param {String} $name — sm | md | lg | xl | 2xl
+@mixin below($name) {
+  $value: map-get(bp.$breakpoints, $name);
+  @if $value {
+    @media (max-width: ($value - 1px)) { @content; }
+  } @else {
+    @error "Unknown breakpoint `#{$name}`. Use one of: sm, md, lg, xl, 2xl.";
+  }
+}
+
+/// Media query between two named breakpoints.
+@mixin between($lower, $upper) {
+  $min: map-get(bp.$breakpoints, $lower);
+  $max: map-get(bp.$breakpoints, $upper);
+  @if $min and $max {
+    @media (min-width: $min) and (max-width: ($max - 1px)) { @content; }
+  } @else {
+    @error "Unknown breakpoint. Use: sm, md, lg, xl, 2xl.";
+  }
+}
+
+/// Touch device (coarse pointer, no hover)
+@mixin touch-device {
+  @media (hover: none) and (pointer: coarse) { @content; }
+}
+
+/// Reduced motion preference
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) { @content; }
+}

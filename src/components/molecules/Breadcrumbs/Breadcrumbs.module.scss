@@ -1,0 +1,41 @@
+/* Breadcrumbs.module.scss */
+
+.nav {
+  /* wrapper — consumers size via className/style */
+}
+
+.list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-family: Inter, var(--font-sans, sans-serif);
+}
+
+.listItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.separator {
+  display: inline-flex;
+  align-items: center;
+  color: var(--tp-slate-300, #d1d1d8);
+}
+
+/* BreadcrumbItem */
+.item {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--tp-slate-500, #717179);
+  text-decoration: none;
+
+  &[aria-current="page"] {
+    font-weight: 600;
+    color: var(--tp-slate-900, #171725);
+  }
+}

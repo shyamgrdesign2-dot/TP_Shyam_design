@@ -1,0 +1,35 @@
+/* RevenueBarCard — semantic chip and table cell colours */
+
+/* Summary chip — conditionally green (collection) or red (deposit) */
+.chipPrimary {
+  &[data-mode="deposit"]    { background-color: rgba(239, 68, 68, 0.08); }
+  &[data-mode="collection"] { background-color: rgba(34, 197, 94, 0.08); }
+}
+.chipPrimaryLabel {
+  &[data-mode="deposit"]    { color: var(--tp-error-600, #dc2626); }
+  &[data-mode="collection"] { color: var(--tp-success-600, #16a34a); }
+}
+.chipPrimaryMeta {
+  &[data-mode="deposit"]    { color: var(--tp-error-500, #ef4444); }
+  &[data-mode="collection"] { color: var(--tp-success-500, #22c55e); }
+}
+
+/* Fixed warning chip (due/debited) */
+.chipWarn { background-color: rgba(245, 158, 11, 0.08); }
+.chipWarnLabel { color: var(--tp-warning-600, #d97706); }
+.chipWarnMeta  { color: var(--tp-warning-500, #f59e0b); }
+
+/* Fixed error chip (refunded) */
+.chipError { background-color: rgba(239, 68, 68, 0.08); }
+.chipErrorLabel { color: var(--tp-error-600, #dc2626); }
+.chipErrorMeta  { color: var(--tp-error-500, #ef4444); }
+
+/* Legend dots */
+.dotSuccess { background-color: var(--tp-success-500, #22c55e); }
+.dotWarn    { background-color: var(--tp-warning-500, #f59e0b); }
+.dotError   { background-color: var(--tp-error-500, #ef4444); }
+
+/* Table cell semantic colours */
+.cellSuccess { color: var(--tp-success-600, #16a34a); }
+.cellWarn    { color: var(--tp-warning-600, #d97706); }
+.cellError   { color: var(--tp-error-600, #dc2626); }

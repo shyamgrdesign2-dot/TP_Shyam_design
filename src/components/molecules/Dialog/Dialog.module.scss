@@ -1,0 +1,155 @@
+/* Dialog.module.scss */
+
+/* ── Overlay ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* ── Panel (composed Dialog) ── */
+.panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 201;
+  max-width: 94vw;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background-color: var(--tp-slate-0, #ffffff);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.15);
+  font-family: Inter, sans-serif;
+  outline: none;
+
+  &[data-width="narrow"]  { width: 360px; }
+  &[data-width="default"] { width: 480px; }
+  &[data-width="wide"]    { width: 640px; }
+}
+
+/* ── Header row ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tp-slate-900, #171725);
+  margin: 0;
+}
+
+/* ── Close pill ── */
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background-color: var(--tp-slate-900, #171725);
+  color: var(--tp-slate-0, #ffffff);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+  flex-shrink: 0;
+  outline: none;
+
+  &:hover { background-color: var(--tp-slate-700, #454551); }
+  &:focus-visible { box-shadow: 0 0 0 3px var(--tp-slate-300, #d0d5dd); }
+}
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background-color: var(--tp-slate-100, #f1f1f5);
+  flex-shrink: 0;
+}
+
+/* ── Body ── */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--tp-slate-600, #545460);
+  margin: 0;
+}
+
+/* ── Footer ── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--tp-slate-100, #f1f1f5);
+  flex-shrink: 0;
+}
+
+/* ── Sub-component surface (compound pattern) ── */
+
+.subOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 500;
+}
+
+.subPanel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--tp-slate-0, #ffffff);
+  border-radius: 14px;
+  box-shadow: 0 20px 40px -8px rgba(15, 23, 42, 0.16);
+  padding: 24px;
+  max-width: 480px;
+  width: calc(100vw - 32px);
+  z-index: 501;
+  outline: none;
+}
+
+.subHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.subFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.subTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tp-slate-800, #2c2c35);
+  margin: 0;
+}
+
+.subDescription {
+  font-size: 14px;
+  color: var(--tp-slate-500, #717179);
+  margin: 0;
+}

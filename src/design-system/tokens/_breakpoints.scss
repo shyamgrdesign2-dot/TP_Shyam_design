@@ -1,0 +1,19 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Design Tokens — Breakpoints
+// Mobile-first approach. VoiceRx primarily targets desktop + iPad.
+// ─────────────────────────────────────────────────────────────────────────────
+
+$breakpoint-sm:  640px;   // small phone landscape
+$breakpoint-md:  768px;   // iPad portrait
+$breakpoint-lg:  1024px;  // iPad landscape / small desktop
+$breakpoint-xl:  1280px;  // desktop
+$breakpoint-2xl: 1536px;  // wide desktop
+
+// ── Breakpoint Map (for programmatic use) ──
+$breakpoints: (
+  sm:  $breakpoint-sm,
+  md:  $breakpoint-md,
+  lg:  $breakpoint-lg,
+  xl:  $breakpoint-xl,
+  2xl: $breakpoint-2xl,
+);

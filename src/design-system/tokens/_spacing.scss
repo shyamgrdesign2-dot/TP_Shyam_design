@@ -1,0 +1,47 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Design Tokens — Spacing
+// 8px base grid. All values are even multiples.
+// ─────────────────────────────────────────────────────────────────────────────
+
+$spacing-base: 8px;
+
+$spacing-0:   0;
+$spacing-1:   2px;   // 0.25 × base — micro gap (icon-to-label)
+$spacing-2:   4px;   // 0.5 × base
+$spacing-3:   6px;   // 0.75 × base — tight internal padding
+$spacing-4:   8px;   // 1 × base
+$spacing-5:   12px;  // 1.5 × base
+$spacing-6:   16px;  // 2 × base
+$spacing-7:   20px;  // 2.5 × base
+$spacing-8:   24px;  // 3 × base
+$spacing-9:   32px;  // 4 × base
+$spacing-10:  40px;  // 5 × base
+$spacing-11:  48px;  // 6 × base
+$spacing-12:  56px;  // 7 × base
+$spacing-13:  64px;  // 8 × base
+$spacing-14:  80px;  // 10 × base
+$spacing-15:  96px;  // 12 × base
+$spacing-16:  128px; // 16 × base
+
+// ── Semantic Spacing Aliases ──
+$space-inline-xs:   $spacing-1;  // 2px
+$space-inline-sm:   $spacing-2;  // 4px
+$space-inline-md:   $spacing-4;  // 8px
+$space-inline-lg:   $spacing-6;  // 16px
+$space-inline-xl:   $spacing-8;  // 24px
+
+$space-stack-xs:    $spacing-2;  // 4px
+$space-stack-sm:    $spacing-4;  // 8px
+$space-stack-md:    $spacing-6;  // 16px
+$space-stack-lg:    $spacing-8;  // 24px
+$space-stack-xl:    $spacing-9;  // 32px
+
+$space-inset-xs:    $spacing-2;  // 4px
+$space-inset-sm:    $spacing-4;  // 8px
+$space-inset-md:    $spacing-5;  // 12px
+$space-inset-lg:    $spacing-6;  // 16px
+$space-inset-xl:    $spacing-8;  // 24px
+
+// ── Touch Targets (iOS HIG + desktop) ──
+$touch-target-desktop: 36px;
+$touch-target-ipad:    44px;

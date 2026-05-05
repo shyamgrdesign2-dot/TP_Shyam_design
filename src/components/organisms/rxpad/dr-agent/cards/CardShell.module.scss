@@ -1,0 +1,45 @@
+.card {
+  border: 1px solid transparent;
+  background-image: linear-gradient(white, white),
+    linear-gradient(
+      180deg,
+      rgba(75, 74, 213, 0.18) 0%,
+      rgba(75, 74, 213, 0.04) 25%,
+      rgba(23, 23, 37, 0.02) 50%,
+      rgba(75, 74, 213, 0.04) 75%,
+      rgba(75, 74, 213, 0.18) 100%
+    );
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.header {
+  background: linear-gradient(180deg, rgba(75, 74, 213, 0.05) 0%, #ffffff 100%);
+  border-bottom: 1px solid var(--tp-slate-50, #f8fafc);
+}
+
+.iconWrap {
+  background: var(--tp-blue-50, rgba(75, 74, 213, 0.08));
+}
+
+.iconInner {
+  color: var(--tp-blue-500, #4b4ad5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebarLinkWrap {
+  border-top: 0.5px solid var(--tp-slate-50, #f8fafc);
+  background: linear-gradient(180deg, #ffffff 0%, rgba(75, 74, 213, 0.04) 100%);
+}
+
+.sourceInfoTooltip {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  position: fixed;
+  transform: translateX(-100%);
+  z-index: 2147483647;
+  min-width: 160px;
+  max-width: 240px;
+  pointer-events: none;
+}

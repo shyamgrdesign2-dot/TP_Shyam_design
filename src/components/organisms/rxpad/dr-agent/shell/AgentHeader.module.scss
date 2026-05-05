@@ -1,0 +1,15 @@
+/* Header bar — fixed height, transparent background */
+.headerBar {
+  height: 52px;
+  background: transparent;
+}
+
+/* Brand title letterSpacing */
+.brandTitle {
+  letter-spacing: 0.1px;
+}
+
+/* Brand icon wrapper — 8px radius */
+.brandIconWrapper {
+  border-radius: 8px;
+}

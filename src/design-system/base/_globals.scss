@@ -1,0 +1,26 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Base — Global Styles
+// Non-component styles that apply site-wide: selection colors,
+// touch visibility, prose editor overrides, etc.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use '../tokens/colors' as c;
+
+// ── Rx Pad TipTap editor selection colors ──
+.rxpad-rich-editor.tiptap.ProseMirror ::selection {
+  background-color: color-mix(in oklab, var(--tp-blue-100) 88%, transparent);
+  color: var(--tp-slate-900);
+}
+
+.rxpad-rich-editor.tiptap.ProseMirror-focused .ProseMirror-selectednode {
+  outline: 2px solid color-mix(in oklab, var(--tp-blue-500) 32%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+// ── Touch device: always show hover-dependent copy icons ──
+@media (hover: none) and (pointer: coarse) {
+  .touch-show {
+    opacity: 0.6 !important;
+  }
+}

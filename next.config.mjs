@@ -18,6 +18,11 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  async redirects() {
+    return [
+      { source: "/invisit", destination: "/rxpad/voice", permanent: true },
+    ]
+  },
 }
 
 export default nextConfig

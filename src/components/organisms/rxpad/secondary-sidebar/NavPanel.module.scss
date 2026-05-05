@@ -1,0 +1,43 @@
+.navBg {
+  background-image:
+    url('data:image/svg+xml;utf8,<svg viewBox=\'0 0 80 1133\' xmlns=\'http://www.w3.org/2000/svg\' preserveAspectRatio=\'none\'><rect x=\'0\' y=\'0\' height=\'100%\' width=\'100%\' fill=\'url(%23grad)\' opacity=\'1\'/><defs><radialGradient id=\'grad\' gradientUnits=\'userSpaceOnUse\' cx=\'0\' cy=\'0\' r=\'10\' gradientTransform=\'matrix(64.518 65.21 -19.503 89.302 -155.96 413.08)\'><stop stop-color=\'rgba(22,21,88,1)\' offset=\'0\'/><stop stop-color=\'rgba(35,34,119,1)\' offset=\'0.25\'/><stop stop-color=\'rgba(49,48,151,1)\' offset=\'0.5\'/><stop stop-color=\'rgba(75,74,213,1)\' offset=\'1\'/></radialGradient></defs></svg>'),
+    linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%);
+}
+
+/* Rail outer wrapper */
+.railOuter {
+  width: 80px;
+}
+
+/* Rail scroll container — combines navBg + fixed width */
+.railScroll {
+  width: 80px;
+}
+
+/* Nav item row — width set; backgroundColor is dynamic (active/hover) so kept via style */
+.navItemRow {
+  width: 80px;
+}
+
+/* Nav item inner column — fixed token spacing */
+.navItemInner {
+  gap: 6px;
+  padding-inline: 6px;
+  padding-block: 14px;
+  width: 80px;
+}
+
+.drAgentGlyphActive {
+  background: radial-gradient(120% 120% at 20% 20%, #6f4e99 0%, #3a2258 55%, #24123d 100%);
+}
+
+.drAgentGlyphIdle {
+  background: radial-gradient(120% 120% at 20% 20%, #f4ecff 0%, #e8dbff 58%, #dcc7ff 100%);
+}
+
+.drAgentLabel {
+  background: linear-gradient(90deg, #f4e6ff, #c0c0ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

@@ -1,0 +1,21 @@
+/* Content flex container — fixed 430×115 canvas, always same layout */
+.fabContentFlex {
+  width: 430px;
+  height: 115px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px 60px 26px;
+}
+
+/* Label text on the FAB */
+.fabLabel {
+  color: white;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  line-height: 1;
+}

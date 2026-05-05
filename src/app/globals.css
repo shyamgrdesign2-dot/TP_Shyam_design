@@ -1,0 +1,1866 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ── Semantic surface tokens ── */
+  --background: #F1F1F5;
+  --foreground: #171725;
+  --card: #FFFFFF;
+  --card-foreground: #171725;
+  --popover: #FFFFFF;
+  --popover-foreground: #171725;
+  --primary: #4B4AD5;
+  --primary-foreground: #FFFFFF;
+  --secondary: #A461D8;
+  --secondary-foreground: #FFFFFF;
+  --muted: #F1F1F5;
+  --muted-foreground: #717179;
+  --accent: #A461D8;
+  --accent-foreground: #FFFFFF;
+  --destructive: #C8102E;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E2EA;
+  --input: #E2E2EA;
+  --ring: #4B4AD5;
+  --chart-1: #4B4AD5;
+  --chart-2: #A461D8;
+  --chart-3: #D565EA;
+  --chart-4: #673AAC;
+  --chart-5: #F5B832;
+  --radius: 0.75rem;
+
+  /* ── TP Blue (Primary Brand) ── */
+  --tp-blue-50: #EEEEFF;
+  --tp-blue-100: #D8D8FA;
+  --tp-blue-200: #B5B4F2;
+  --tp-blue-300: #8E8DE8;
+  --tp-blue-400: #6C6BDE;
+  --tp-blue-500: #4B4AD5;
+  --tp-blue-600: #3C3BB5;
+  --tp-blue-700: #2E2D96;
+  --tp-blue-800: #212077;
+  --tp-blue-900: #161558;
+
+  /* ── TP Violet (Secondary) ── */
+  --tp-violet-50: #FAF5FE;
+  --tp-violet-100: #EDDFF7;
+  --tp-violet-200: #DBBFEF;
+  --tp-violet-300: #C89FE7;
+  --tp-violet-400: #BA7DE9;
+  --tp-violet-500: #A461D8;
+  --tp-violet-600: #8A4DBB;
+  --tp-violet-700: #703A9E;
+  --tp-violet-800: #572A81;
+  --tp-violet-900: #3E1C64;
+
+  /* ── TP Amber (Tertiary -- minimized use) ── */
+  --tp-amber-50: #FFFBEB;
+  --tp-amber-100: #FFF4CC;
+  --tp-amber-200: #FFE8AE;
+  --tp-amber-300: #FEDC85;
+  --tp-amber-400: #FED15E;
+  --tp-amber-500: #F5B832;
+  --tp-amber-600: #D99B1A;
+  --tp-amber-700: #B47D10;
+  --tp-amber-800: #8F6008;
+  --tp-amber-900: #6A4504;
+
+  /* ── AI Gradient Stops ── */
+  --ai-pink: #D565EA;
+  --ai-violet: #673AAC;
+  --ai-indigo: #1A1994;
+
+  /* ── TP Slate (Neutrals) ── */
+  --tp-slate-0: #FFFFFF;
+  --tp-slate-50: #FAFAFB;
+  --tp-slate-100: #F1F1F5;
+  --tp-slate-200: #E2E2EA;
+  --tp-slate-300: #D0D5DD;
+  --tp-slate-400: #A2A2A8;
+  --tp-slate-500: #717179;
+  --tp-slate-600: #545460;
+  --tp-slate-700: #454551;
+  --tp-slate-800: #2C2C35;
+  --tp-slate-900: #171725;
+
+  /* ── TP Icon Clickable Surface Tokens ── */
+  --tp-icon-clickable-light-bg: rgba(75, 74, 213, 0.10); /* TP.icon.clickable.light.bg */
+  --tp-icon-clickable-light-bg-hover: rgba(75, 74, 213, 0.15); /* TP.icon.clickable.light.bg.hover */
+  --tp-icon-clickable-dark-bg: rgba(255, 255, 255, 0.25); /* TP.icon.clickable.dark.bg */
+  --tp-icon-clickable-dark-bg-hover: rgba(255, 255, 255, 0.28); /* TP.icon.clickable.dark.bg.hover */
+
+  /* ── TP Success (Green) full scale ── */
+  --tp-success-50: #ECFDF5;
+  --tp-success-100: #D1FAE5;
+  --tp-success-200: #A7F3D0;
+  --tp-success-300: #6EE7B7;
+  --tp-success-400: #34D399;
+  --tp-success-500: #10B981;
+  --tp-success-600: #059669;
+  --tp-success-700: #047857;
+  --tp-success-800: #065F46;
+  --tp-success-900: #064E3B;
+
+  /* ── TP Warning (Amber) full scale ── */
+  --tp-warning-50: #FFFBEB;
+  --tp-warning-100: #FEF3C7;
+  --tp-warning-200: #FDE68A;
+  --tp-warning-300: #FCD34D;
+  --tp-warning-400: #FBBF24;
+  --tp-warning-500: #F59E0B;
+  --tp-warning-600: #D97706;
+  --tp-warning-700: #B45309;
+  --tp-warning-800: #92400E;
+  --tp-warning-900: #78350F;
+
+  /* ── TP Error (Crimson Red) full scale ── */
+  --tp-error-50: #FFF1F2;
+  --tp-error-100: #FFE4E6;
+  --tp-error-200: #FECDD3;
+  --tp-error-300: #FDA4AF;
+  --tp-error-400: #FB7185;
+  --tp-error-500: #E11D48;
+  --tp-error-600: #C8102E;
+  --tp-error-700: #9F1239;
+  --tp-error-800: #881337;
+  --tp-error-900: #4C0519;
+  --core-primary-900: #161558;
+
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-heading: var(--font-heading);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* TP Slate */
+  --color-tp-slate-0: var(--tp-slate-0);
+  --color-tp-slate-50: var(--tp-slate-50);
+  --color-tp-slate-100: var(--tp-slate-100);
+  --color-tp-slate-200: var(--tp-slate-200);
+  --color-tp-slate-300: var(--tp-slate-300);
+  --color-tp-slate-400: var(--tp-slate-400);
+  --color-tp-slate-500: var(--tp-slate-500);
+  --color-tp-slate-600: var(--tp-slate-600);
+  --color-tp-slate-700: var(--tp-slate-700);
+  --color-tp-slate-800: var(--tp-slate-800);
+  --color-tp-slate-900: var(--tp-slate-900);
+
+  /* TP Blue */
+  --color-tp-blue-50: var(--tp-blue-50);
+  --color-tp-blue-100: var(--tp-blue-100);
+  --color-tp-blue-200: var(--tp-blue-200);
+  --color-tp-blue-300: var(--tp-blue-300);
+  --color-tp-blue-400: var(--tp-blue-400);
+  --color-tp-blue-500: var(--tp-blue-500);
+  --color-tp-blue-600: var(--tp-blue-600);
+  --color-tp-blue-700: var(--tp-blue-700);
+  --color-tp-blue-800: var(--tp-blue-800);
+  --color-tp-blue-900: var(--tp-blue-900);
+
+  /* TP Violet */
+  --color-tp-violet-50: var(--tp-violet-50);
+  --color-tp-violet-100: var(--tp-violet-100);
+  --color-tp-violet-200: var(--tp-violet-200);
+  --color-tp-violet-300: var(--tp-violet-300);
+  --color-tp-violet-400: var(--tp-violet-400);
+  --color-tp-violet-500: var(--tp-violet-500);
+  --color-tp-violet-600: var(--tp-violet-600);
+  --color-tp-violet-700: var(--tp-violet-700);
+  --color-tp-violet-800: var(--tp-violet-800);
+  --color-tp-violet-900: var(--tp-violet-900);
+
+  /* TP Amber */
+  --color-tp-amber-50: var(--tp-amber-50);
+  --color-tp-amber-500: var(--tp-amber-500);
+
+  /* TP Success full scale */
+  --color-tp-success-50: var(--tp-success-50);
+  --color-tp-success-100: var(--tp-success-100);
+  --color-tp-success-200: var(--tp-success-200);
+  --color-tp-success-300: var(--tp-success-300);
+  --color-tp-success-400: var(--tp-success-400);
+  --color-tp-success-500: var(--tp-success-500);
+  --color-tp-success-600: var(--tp-success-600);
+  --color-tp-success-700: var(--tp-success-700);
+  --color-tp-success-800: var(--tp-success-800);
+  --color-tp-success-900: var(--tp-success-900);
+
+  /* TP Warning full scale */
+  --color-tp-warning-50: var(--tp-warning-50);
+  --color-tp-warning-100: var(--tp-warning-100);
+  --color-tp-warning-200: var(--tp-warning-200);
+  --color-tp-warning-300: var(--tp-warning-300);
+  --color-tp-warning-400: var(--tp-warning-400);
+  --color-tp-warning-500: var(--tp-warning-500);
+  --color-tp-warning-600: var(--tp-warning-600);
+  --color-tp-warning-700: var(--tp-warning-700);
+  --color-tp-warning-800: var(--tp-warning-800);
+  --color-tp-warning-900: var(--tp-warning-900);
+
+  /* TP Error full scale */
+  --color-tp-error-50: var(--tp-error-50);
+  --color-tp-error-100: var(--tp-error-100);
+  --color-tp-error-200: var(--tp-error-200);
+  --color-tp-error-300: var(--tp-error-300);
+  --color-tp-error-400: var(--tp-error-400);
+  --color-tp-error-500: var(--tp-error-500);
+  --color-tp-error-600: var(--tp-error-600);
+  --color-tp-error-700: var(--tp-error-700);
+  --color-tp-error-800: var(--tp-error-800);
+  --color-tp-error-900: var(--tp-error-900);
+
+}
+
+/* Rx pad TipTap: TP-blue text + node selection (matches search input focus tokens) */
+.rxpad-rich-editor.tiptap.ProseMirror ::selection {
+  background-color: color-mix(in oklab, var(--tp-blue-100) 88%, transparent);
+  color: var(--tp-slate-900);
+}
+.rxpad-rich-editor.tiptap.ProseMirror-focused .ProseMirror-selectednode {
+  outline: 2px solid color-mix(in oklab, var(--tp-blue-500) 32%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Touch device: make hover-dependent copy icons always visible ── */
+@media (hover: none) and (pointer: coarse) {
+  .touch-show { opacity: 0.6 !important; }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  /* Prevent fixed-positioned overlays (e.g. the VoiceRx slide-out
+     panel, which sits at right-0 and translates 110% off-screen when
+     closed) from extending the document horizontally on iPad / small
+     screens. `overflow-x: clip` clips without becoming a scroll
+     container, so position: sticky inside descendants keeps working. */
+  html, body {
+    overflow-x: clip;
+  }
+}
+
+@keyframes aiShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes tpHistoricalTextIntro {
+  0% {
+    background-position: -120% center;
+    opacity: 0.92;
+  }
+  35% {
+    background-position: 8% center;
+    opacity: 1;
+  }
+  68% {
+    background-position: 56% center;
+    opacity: 0.96;
+  }
+  100% {
+    background-position: 120% center;
+    opacity: 1;
+  }
+}
+
+@keyframes tpHistoricalTextShimmer {
+  /* Mirrors `vrxCaptionShine` 1:1 — for a 200%-wide bg image,
+     `background-position: 200% → -200%` is the recipe that visually
+     sweeps the highlight band LEFT → RIGHT across the text. */
+  0%   { background-position: 200% 0%; }
+  100% { background-position: -200% 0%; }
+}
+
+/* Subtle white shimmer band painted OVER red (`text-tp-error-500`)
+   text — used on freshly-arrived abnormal vitals / lab values so the
+   red signal stays solid red while a soft white sweep passes through.
+   Same direction + cadence as `tpHistoricalTextShimmer`. */
+.tp-historical-red-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    currentColor 0%,
+    currentColor 38%,
+    rgba(255, 255, 255, 0.85) 50%,
+    currentColor 62%,
+    currentColor 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: tpHistoricalTextShimmer 4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-historical-red-shimmer {
+    animation: none;
+    -webkit-text-fill-color: currentColor;
+    background-image: none;
+  }
+}
+
+@keyframes tpHistoricalLineGlow {
+  0%, 100% {
+    opacity: 0.52;
+    transform: translateX(0) scale(0.98);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateX(1px) scale(1.04);
+  }
+}
+
+/*
+ * Route-level slide-in transition. Applied to pages that want the
+ * "new screen moves in on top of the previous one" feel — appointments
+ * → invisit / rxpad / end-visit / patient-details. The page root opts
+ * in by adding `data-tp-slide-in` so non-animated pages aren't affected.
+ */
+@keyframes tpPageSlideIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+/* Per-module voice dictation trigger — faint inner ring that pulses while
+   a given Rx module has an active dictation session attached to it. */
+@keyframes tpVoicePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+/* Standalone static-gradient wave glyph used as the per-module and per-
+   sidebar-section dictation trigger. No background, no stroke — just the
+   5-bar equalizer shape filled with the exact same static TP AI gradient
+   as the Start Consultation CTA (`linear-gradient(135deg, #D565EA 0%,
+   #673AAC 55%, #1A1994 100%)`). CSS mask paints the glyph shape.
+   Used via: <span className="tp-voice-wave-icon" /> */
+.tp-voice-wave-icon {
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  background: linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%);
+  mask-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 28 28' xmlns='http://www.w3.org/2000/svg'><path d='M6.29 17.72c-.53 0-.97-.44-.97-.97v-5.52c0-.53.44-.97.97-.97s.97.44.97.97v5.52c0 .54-.44.97-.97.97Z' fill='black'/><path d='M10.14 19.55c-.53 0-.97-.44-.97-.97V9.41c0-.53.44-.97.97-.97s.97.44.97.97v9.18c0 .54-.44.97-.97.97Z' fill='black'/><path d='M14 21.39c-.53 0-.97-.44-.97-.97V7.57c0-.53.44-.97.97-.97s.97.44.97.97v12.86c0 .53-.44.97-.97.97Z' fill='black'/><path d='M17.86 19.55c-.53 0-.97-.44-.97-.97V9.41c0-.53.44-.97.97-.97s.97.44.97.97v9.18c0 .54-.44.97-.97.97Z' fill='black'/><path d='M21.71 17.72c-.53 0-.97-.44-.97-.97v-5.52c0-.53.44-.97.97-.97s.97.44.97.97v5.52c0 .54-.44.97-.97.97Z' fill='black'/></svg>");
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 28 28' xmlns='http://www.w3.org/2000/svg'><path d='M6.29 17.72c-.53 0-.97-.44-.97-.97v-5.52c0-.53.44-.97.97-.97s.97.44.97.97v5.52c0 .54-.44.97-.97.97Z' fill='black'/><path d='M10.14 19.55c-.53 0-.97-.44-.97-.97V9.41c0-.53.44-.97.97-.97s.97.44.97.97v9.18c0 .54-.44.97-.97.97Z' fill='black'/><path d='M14 21.39c-.53 0-.97-.44-.97-.97V7.57c0-.53.44-.97.97-.97s.97.44.97.97v12.86c0 .53-.44.97-.97.97Z' fill='black'/><path d='M17.86 19.55c-.53 0-.97-.44-.97-.97V9.41c0-.53.44-.97.97-.97s.97.44.97.97v9.18c0 .54-.44.97-.97.97Z' fill='black'/><path d='M21.71 17.72c-.53 0-.97-.44-.97-.97v-5.52c0-.53.44-.97.97-.97s.97.44.97.97v5.52c0 .54-.44.97-.97.97Z' fill='black'/></svg>");
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-position: center;
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Shared Voice-Rx liquid-glass CTA primitives.
+   Originally defined inline in components/voicerx/VoiceRxActiveAgent.tsx;
+   lifted here so the per-module inline recorder
+   (components/voicerx/VoiceRxModuleRecorder.tsx) can reuse them verbatim
+   without duplicating ~150 lines of CSS.
+   Class names kept identical to the original block.
+   ───────────────────────────────────────────────────────────────────── */
+.vrx-squircle { border-radius: 18px; }
+.vrx-cta-divider {
+  display: inline-block; width: 1px; height: 36px; flex-shrink: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.15) 18%, rgba(148,163,184,0.55) 50%, rgba(255,255,255,0.15) 82%, transparent 100%);
+}
+.vrx-lg-btn { isolation: isolate; position: relative; cursor: pointer; }
+.vrx-lg-surface {
+  position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0.60) 100%);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.85);
+  box-shadow:
+    0 10px 28px -10px rgba(31,38,135,0.18),
+    0 4px 12px -4px rgba(15,23,42,0.08),
+    inset 0 1.5px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(255,255,255,0.55),
+    inset 1px 0 0 rgba(255,255,255,0.5),
+    inset -1px 0 0 rgba(255,255,255,0.5);
+  transition: background 220ms ease, box-shadow 220ms ease;
+}
+.vrx-lg-btn:hover .vrx-lg-surface {
+  background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.75) 100%);
+  box-shadow:
+    0 14px 34px -10px rgba(31,38,135,0.22),
+    0 6px 16px -4px rgba(15,23,42,0.10),
+    inset 0 1.5px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(255,255,255,0.6),
+    inset 1px 0 0 rgba(255,255,255,0.55),
+    inset -1px 0 0 rgba(255,255,255,0.55);
+}
+.vrx-lg-sheen {
+  pointer-events: none; position: absolute; left: 12%; right: 12%; top: 1px; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.9) 50%, transparent 100%);
+  border-radius: 999px; z-index: 1;
+}
+.vrx-lg-divider {
+  width: 1px; margin: 14px 0;
+  background: linear-gradient(180deg, transparent, rgba(15,23,42,0.14) 30%, rgba(15,23,42,0.14) 70%, transparent);
+  position: relative; z-index: 1;
+}
+.vrx-close-btn .vrx-lg-surface {
+  background: linear-gradient(180deg, rgba(252, 195, 195, 0.95) 0%, rgba(249, 168, 168, 0.85) 100%);
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  box-shadow:
+    0 6px 16px -6px rgba(220, 38, 38, 0.18),
+    0 2px 6px -2px rgba(220, 38, 38, 0.12),
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 -1px 0 rgba(220, 38, 38, 0.08);
+}
+.vrx-close-btn:hover .vrx-lg-surface {
+  background: linear-gradient(180deg, rgba(250, 180, 180, 1) 0%, rgba(248, 150, 150, 0.9) 100%);
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  box-shadow:
+    0 8px 20px -6px rgba(220, 38, 38, 0.24),
+    0 3px 8px -2px rgba(220, 38, 38, 0.16),
+    inset 0 1px 0 rgba(255,255,255,0.92),
+    inset 0 -1px 0 rgba(220, 38, 38, 0.10);
+}
+.vrx-lg-btn:not(.vrx-close-btn):not(.vrx-mic-muted) .vrx-lg-surface {
+  background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(241, 245, 249, 0.82) 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 6px 16px -6px rgba(15, 23, 42, 0.16),
+    0 2px 6px -2px rgba(15, 23, 42, 0.10),
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.05);
+}
+.vrx-lg-btn:not(.vrx-close-btn):not(.vrx-mic-muted):hover .vrx-lg-surface {
+  background: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248, 250, 252, 0.92) 100%);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow:
+    0 8px 20px -6px rgba(15, 23, 42, 0.22),
+    0 3px 8px -2px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.07);
+}
+.vrx-mic-muted .vrx-lg-surface {
+  background: linear-gradient(180deg, rgba(253, 230, 178, 0.75) 0%, rgba(250, 209, 143, 0.55) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow:
+    0 10px 28px -10px rgba(217, 119, 6, 0.32),
+    0 4px 12px -4px rgba(217, 119, 6, 0.18),
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 -1px 0 rgba(217, 119, 6, 0.12);
+}
+.vrx-mic-muted:hover .vrx-lg-surface {
+  background: linear-gradient(180deg, rgba(253, 235, 195, 0.65) 0%, rgba(250, 215, 160, 0.45) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  box-shadow:
+    0 10px 28px -10px rgba(217, 119, 6, 0.24),
+    0 4px 12px -4px rgba(217, 119, 6, 0.14),
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    inset 0 -1px 0 rgba(217, 119, 6, 0.08);
+}
+.vrx-submit-dim { opacity: 0.5; filter: saturate(0.85); }
+.vrx-submit-hero {
+  box-shadow:
+    0 6px 16px -6px rgba(103, 58, 172, 0.38),
+    0 2px 6px -2px rgba(103, 58, 172, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.14);
+}
+.vrx-submit-hero:hover {
+  box-shadow:
+    0 8px 20px -6px rgba(103, 58, 172, 0.46),
+    0 3px 8px -2px rgba(103, 58, 172, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.16);
+}
+.vrx-submit-gradient {
+  background: linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%);
+  background-size: 200% 100%;
+  animation: vrxSubmitShift 6s ease-in-out infinite;
+  border-radius: inherit;
+}
+@keyframes vrxSubmitShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+/* Word-level reveal fade — latest transcript line slides up + fades in.
+   Originally scoped to the Dr. Agent panel's inline <style>; shared here
+   so the per-module recorder can reuse the exact animation. */
+@keyframes vrxWordReveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Static TP AI gradient — matches the Start Consultation CTA exactly.
+   Used by the per-module recorder's Submit so it reads as the same
+   brand color rather than a constantly-shifting hero. */
+.tp-ai-gradient-static {
+  background: linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%);
+  border-radius: inherit;
+}
+@keyframes vrxRecRing { 0% { transform: scale(1); opacity: 0.75; } 70%, 100% { transform: scale(2.2); opacity: 0; } }
+.vrx-status-card {
+  filter: drop-shadow(0 0 calc(3px + var(--vrx-live-level, 0) * 16px) rgba(139, 92, 246, calc(0.05 + var(--vrx-live-level, 0) * 0.22)));
+}
+.vrx-status-card--paused { background: rgba(254, 243, 199, 0.55) !important; }
+.vrx-status-card--error  { background: rgba(254, 226, 226, 0.72) !important; }
+
+/* `tp-module-voice-active` — marker class only, no visible decoration.
+   Earlier iterations painted an outer halo / inner glow here; feedback
+   was that any edge treatment read as a competing surface and a cut.
+   Keeping the class (so selectors elsewhere can still test for it) but
+   removing all visual effects. */
+.tp-module-voice-active { position: relative; }
+
+/* ── TypeRx mode: hide every voice-driven affordance ─────────────────────────
+   When TypeRxFlow mounts it sets `body[data-typerx-mode="on"]`. Every voice
+   launcher / status surface that's purely useful for VoiceRx becomes a no-op
+   visually so the form is type-only. The components themselves still mount
+   (they're already wired into the same Rx data bus) — they just don't paint.
+
+   Anything with the `.tp-voice-wave-icon` class is the per-section mic
+   button. Anything marked `[data-voice-launcher]` is a voice-only launcher
+   we've explicitly tagged for this opt-out. The DrAgent header brand still
+   shows; only the mic-bound buttons disappear. */
+body[data-typerx-mode="on"] .tp-voice-wave-icon,
+body[data-typerx-mode="on"] [data-voice-launcher],
+body[data-typerx-mode="on"] .voicerx-mic-btn,
+body[data-typerx-mode="on"] .voicerx-section-mic {
+  display: none !important;
+}
+
+/* Also hide the wrapping `<button>` around the section mic so the surrounding
+   flex layout doesn't reserve space. The button has no semantic name beyond
+   the icon, so removing it is safe. */
+body[data-typerx-mode="on"] button:has(> .tp-voice-wave-icon) {
+  display: none !important;
+}
+
+/* `tp-module-just-filled` — transient class added to a Rx module for
+   ~2s right after data has been synced into it via Copy/Voice. The
+   AI-gradient aura rotates around the module like the Start
+   Conversation CTA's shine, then fades; the inner box-shadow halo
+   pulses underneath so the section visibly *receives* the new data
+   before settling. */
+.tp-module-just-filled { position: relative; isolation: isolate; }
+.tp-module-just-filled > div:first-child {
+  animation: tpModuleJustFilledPulse 2000ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@property --tp-mjf-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.tp-module-just-filled::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 18px;
+  pointer-events: none;
+  /* Rotating conic AI palette — same recipe used by the rotating
+     ShineBorder on the Start-conversation CTA, so the doctor sees the
+     "AI is touching this" affordance reused. */
+  background: conic-gradient(
+    from var(--tp-mjf-angle),
+    rgba(213, 101, 234, 0) 0deg,
+    rgba(213, 101, 234, 0.85) 60deg,
+    rgba(103, 58, 172, 0.95) 110deg,
+    rgba(26, 25, 148, 0.85) 160deg,
+    rgba(213, 101, 234, 0) 240deg,
+    rgba(213, 101, 234, 0) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 1.5px;
+  opacity: 0;
+  animation:
+    tpModuleJustFilledRing 2000ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    tpModuleJustFilledSpin 1.4s linear infinite;
+}
+@keyframes tpModuleJustFilledPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(103, 58, 172, 0.0); }
+  20%  { box-shadow: 0 0 0 8px rgba(103, 58, 172, 0.14); }
+  60%  { box-shadow: 0 0 0 6px rgba(103, 58, 172, 0.10); }
+  100% { box-shadow: 0 0 0 0 rgba(103, 58, 172, 0.0); }
+}
+@keyframes tpModuleJustFilledRing {
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  82%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes tpModuleJustFilledSpin {
+  from { --tp-mjf-angle: 0deg; }
+  to   { --tp-mjf-angle: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-module-just-filled > div:first-child,
+  .tp-module-just-filled::after { animation: none; }
+}
+
+/* `tp-section-just-filled` — same visual recipe as `tp-module-just-filled`
+   but tuned for the secondary-sidebar content panel. Fires when a copy
+   from the Dr. Agent panel lands data into Lab Results / History /
+   Vitals / etc. so the doctor's eye recognises the same "AI is touching
+   this" affordance whether the new content arrives in an RxPad module
+   or in a sidebar section. */
+.tp-section-just-filled { position: relative; isolation: isolate; }
+.tp-section-just-filled::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--tp-mjf-angle),
+    rgba(213, 101, 234, 0) 0deg,
+    rgba(213, 101, 234, 0.85) 60deg,
+    rgba(103, 58, 172, 0.95) 110deg,
+    rgba(26, 25, 148, 0.85) 160deg,
+    rgba(213, 101, 234, 0) 240deg,
+    rgba(213, 101, 234, 0) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 1.5px;
+  opacity: 0;
+  animation:
+    tpModuleJustFilledRing 2000ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    tpModuleJustFilledSpin 1.4s linear infinite;
+  z-index: 5;
+}
+.tp-section-just-filled > div:first-child {
+  animation: tpModuleJustFilledPulse 2000ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-section-just-filled > div:first-child,
+  .tp-section-just-filled::after { animation: none; }
+}
+
+/* `vrx-filled-flash` — pop-in animation on the green "Filled" badge
+   that replaces the per-item / per-section copy icon for ~1.5s. The
+   pop reads as a confirmation, not just a colour swap. */
+@keyframes vrxFilledFlash {
+  0%   { opacity: 0; transform: scale(0.85); }
+  35%  { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.vrx-filled-flash {
+  animation: vrxFilledFlash 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vrx-filled-flash { animation: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   "Recently filled" highlight for sidebar historical sections.
+   Applied to cards / rows inside a section that carries unacknowledged
+   voice-dictated updates. Minimal, never-scream treatment:
+     • Thin TP AI gradient rail on the left edge (2px)
+     • Subtle violet-tinted background that breathes in/out
+     • Tiny violet dot badge in the top-right corner
+     • Hover reveals a "Recently added" pill label
+   Once the clinician opens the section, the red-dot indicator on the
+   sidebar rail clears (existing behaviour), and the component using
+   this class should stop passing `.tp-recently-filled` so the
+   highlight goes away.
+   ───────────────────────────────────────────────────────────────── */
+@keyframes tpRecentlyFilledBreathe {
+  0%, 100% {
+    background-color: rgba(213, 101, 234, 0.03);
+  }
+  50% {
+    background-color: rgba(213, 101, 234, 0.09);
+  }
+}
+.tp-recently-filled {
+  position: relative;
+  animation: tpRecentlyFilledBreathe 3s ease-in-out infinite;
+  /* Left rail as a pseudo-element so it doesn't affect the card's layout. */
+}
+.tp-recently-filled::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, #D565EA 0%, #673AAC 55%, #1A1994 100%);
+  border-radius: 2px 0 0 2px;
+  pointer-events: none;
+  z-index: 1;
+}
+.tp-recently-filled::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #D565EA 0%, #673AAC 100%);
+  box-shadow: 0 0 0 3px rgba(213, 101, 234, 0.14);
+  pointer-events: none;
+  z-index: 1;
+}
+/* Hover pill label — placed next to the corner dot, slides in on hover. */
+.tp-recently-filled[data-recently-filled-label]:hover > .tp-recently-filled-badge,
+.tp-recently-filled-badge {
+  position: absolute;
+  top: 4px;
+  right: 18px;
+  padding: 2px 8px 3px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(213,101,234,0.12) 0%, rgba(103,58,172,0.12) 100%);
+  color: var(--tp-violet-700, #5B21B6);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(4px);
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+  pointer-events: none;
+  z-index: 1;
+}
+.tp-recently-filled:hover .tp-recently-filled-badge {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Wobbling violet blob that sits behind the module recorder content.
+   Pinned to the BOTTOM of an overflow-hidden parent so only the upper
+   arc / "half-heart" of the gradient shows — same visual language as
+   the Dr. Agent voice panel.
+
+   Reactivity: a parent may set `--vrx-blob-level` (0..1, smoothed
+   audio level from VoiceRxSiriWaveform). The `--reactive` modifier
+   uses it to swell the glow's opacity + scale + drop-shadow so the
+   blob physically responds to the speaker. Without the variable it
+   falls back to the gentle keyframe so the visual still pulses
+   at idle. */
+@keyframes tpVoiceBlobDrift {
+  0%, 100% {
+    transform: translate(-6px, 0)   scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(6px, -4px) scale(1.08);
+    opacity: 1;
+  }
+}
+.tp-voice-blob {
+  /* Heart-arc gradient — bright at top, fades steeply downward so
+     when the parent clips the lower half it reads as a glowing arch. */
+  background-image:
+    radial-gradient(60% 75% at 50% 78%, rgba(213, 101, 234, 0.55) 0%, rgba(213, 101, 234, 0) 72%),
+    radial-gradient(42% 58% at 32% 80%, rgba(139,  92, 246, 0.48) 0%, rgba(139,  92, 246, 0) 72%),
+    radial-gradient(42% 58% at 68% 80%, rgba( 79,  70, 229, 0.42) 0%, rgba( 79,  70, 229, 0) 72%);
+  background-repeat: no-repeat;
+  animation: tpVoiceBlobDrift 3.2s ease-in-out infinite;
+  pointer-events: none;
+  will-change: transform, opacity, scale, filter;
+  filter: blur(2px);
+}
+
+/* Voice-reactive modifier — driven by --vrx-blob-level (0..1) which
+   the recorder publishes on its container each animation frame. We
+   layer scale + filter on top of the keyframe-driven transform so
+   loud speech visibly swells the glow without fighting the drift. */
+.tp-voice-blob--reactive {
+  --vrx-blob-level: 0;
+  /* Larger swing on opacity so silence reads as a soft hint and loud
+     speech glows brightly. Idle floor (.55) keeps the blob always
+     visible behind the status pill — the previous .65 + .45 ratio
+     was nearly always opaque, so the wobble didn't read; now the
+     dynamic range is clearer. */
+  opacity: calc(0.55 + var(--vrx-blob-level) * 0.55);
+  transform-origin: 50% 100%;
+  /* Bigger scale swing (1 → 1.4) so the speaker sees a tangible
+     "voice → blob" link. The CTAs above don't move because the blob
+     is positioned `absolute bottom-0` and clipped by the recorder's
+     overflow-hidden, so even at 1.4× it stays inside its lane. */
+  scale: calc(1 + var(--vrx-blob-level) * 0.4);
+  filter:
+    blur(calc(1.5px + var(--vrx-blob-level) * 3px))
+    drop-shadow(0 0 calc(2px + var(--vrx-blob-level) * 26px)
+      rgba(139, 92, 246, calc(0.22 + var(--vrx-blob-level) * 0.65)));
+  transition: scale 70ms ease-out, opacity 70ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-voice-blob,
+  .tp-voice-blob--reactive { animation: none; }
+}
+[data-tp-slide-in] {
+  animation: tpPageSlideIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-tp-slide-in] { animation: none; }
+}
+
+/* ─── Secondary-sidebar section transition ────────────────────────────────
+   Plays when the user switches sections via swipe/wheel overscroll.
+   Two directions: "next" (incoming from below) and "prev" (incoming from above).
+   The animation runs once on mount because ContentPanel re-keys the wrapper
+   on section change. */
+@keyframes rxSectionSlideUp {
+  0%   { transform: translateY(16%); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+@keyframes rxSectionSlideDown {
+  0%   { transform: translateY(-16%); opacity: 0; }
+  100% { transform: translateY(0);     opacity: 1; }
+}
+.rx-section-slide-up   { animation: rxSectionSlideUp   280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rx-section-slide-down { animation: rxSectionSlideDown 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .rx-section-slide-up, .rx-section-slide-down { animation: none; }
+}
+
+/* ─── ShineBorder animation (magicui) ─────────────────────────────────────
+   Drives the radial-gradient overlay used by `<ShineBorder />`. The
+   gradient's background-size is 300% 300%, so animating background-position
+   between two diagonally opposite positions sweeps the bright band around
+   the perimeter of the masked stroke. */
+@keyframes shine {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+.animate-shine { animation: shine var(--duration, 14s) linear infinite; }
+
+/* ── VoiceRxMiniFab ─────────────────────────────────────────────────────── */
+@keyframes vrxFabIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.vrx-fab-surface {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.vrx-fab-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.62);
+  animation: vrxFabDot 1.4s ease-in-out infinite;
+}
+@keyframes vrxFabDot {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50%       { opacity: 1;    transform: translateY(-1px); }
+}
+
+/* ── VoiceRxModuleRecorder — submit sheen sweep ─────────────────────────── */
+.vrx-submit-sheen {
+  background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 100%);
+  animation: vrxSubmitSheen 3s ease-in-out infinite;
+}
+@keyframes vrxSubmitSheen {
+  0%   { transform: translateX(-120%); }
+  60%  { transform: translateX(280%); }
+  100% { transform: translateX(280%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vrx-fab-dot      { animation: none; }
+  .vrx-submit-sheen { animation: none; opacity: 0; }
+}
+
+/* ── VoiceRxActiveAgent — unique classes not shared with other components ── */
+@keyframes vrxRec {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.78); }
+}
+@keyframes vrxChipIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes vrxTextIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Richer vrxWordReveal — color + blur transitions for the VoiceRx panel */
+@keyframes vrxWordReveal {
+  from { opacity: 0; color: rgba(148, 163, 184, 0.3); transform: translateY(4px); filter: blur(1.5px); }
+  60%  { opacity: 1; color: rgba(148, 163, 184, 0.55); transform: translateY(0); filter: blur(0); }
+  to   { opacity: 1; color: inherit; transform: translateY(0); filter: blur(0); }
+}
+.vrx-word { display: inline; }
+.vrx-word[data-word-new="true"] {
+  animation: vrxWordReveal 420ms cubic-bezier(0.22, 1, 0.36, 1) var(--vrx-stagger, 0ms) both;
+}
+.vrx-caret {
+  display: inline-block; width: 2px; height: 0.85em;
+  background: currentColor; margin-left: 3px; vertical-align: -2px;
+  animation: vrxCaret 1s steps(1) infinite; opacity: 0.4;
+}
+@keyframes vrxCaret { 50% { opacity: 0; } }
+.vrx-scroll::-webkit-scrollbar { width: 0; height: 0; }
+
+.vrx-agent-collapse-tag {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.22) 100%),
+    linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(75,74,213,0.08) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 0 0 1px rgba(15,23,42,0.08),
+    0 4px 12px -4px rgba(15,23,42,0.08);
+  transition: background 180ms ease, box-shadow 180ms ease, color 180ms ease, transform 120ms ease;
+}
+.vrx-agent-collapse-tag:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.38) 100%),
+    linear-gradient(135deg, rgba(139,92,246,0.10) 0%, rgba(75,74,213,0.10) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 0 0 1px rgba(15,23,42,0.12),
+    0 6px 16px -4px rgba(15,23,42,0.12);
+}
+
+.vrx-mode-heading {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.20) 100%),
+    linear-gradient(135deg, rgba(213,101,234,0.16) 0%, rgba(103,58,172,0.12) 55%, rgba(75,74,213,0.12) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 0 0 1px rgba(103,58,172,0.14),
+    0 4px 12px -4px rgba(103,58,172,0.12);
+}
+
+.vrx-mic-chip {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 10px -6px rgba(15, 23, 42, 0.10);
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+}
+.vrx-mic-chip:hover {
+  background: #fafbfc;
+  border-color: rgba(15, 23, 42, 0.16);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 14px -6px rgba(15, 23, 42, 0.14);
+}
+
+/* Richer submit sheen — with opacity fade in/out */
+@keyframes vrxSubmitSheen {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  18%  { opacity: 0.65; }
+  55%  { opacity: 0.65; }
+  100% { transform: translateX(320%); opacity: 0; }
+}
+.vrx-submit-sheen {
+  background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%);
+  animation: vrxSubmitSheen 3s ease-in-out infinite;
+}
+
+.vrx-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,0.98);
+  box-shadow: 0 0 6px rgba(255,255,255,0.62);
+  animation: vrxDotBounce 1.2s ease-in-out infinite;
+}
+@keyframes vrxDotBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1.1); opacity: 1; }
+}
+
+.vrx-footer-blob {
+  opacity: calc(0.7 + var(--vrx-live-level, 0) * 0.9);
+  animation: vrxFooterBlobDrift 4.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+@keyframes vrxFooterBlobDrift {
+  0%, 100% {
+    transform: translateY(0px) scale(1) translateX(calc(var(--vrx-live-level, 0) * -4px));
+  }
+  50% {
+    transform:
+      translateY(calc(-3px - var(--vrx-live-level, 0) * 6px))
+      scale(calc(1.02 + var(--vrx-live-level, 0) * 0.08))
+      translateX(calc(var(--vrx-live-level, 0) * 4px));
+  }
+}
+
+.vrx-empty-state {
+  animation: vrxEmptyStateIn 420ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both;
+}
+@keyframes vrxEmptyStateIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Processing phase transitions — dock exit + shiner enter + loader bar */
+.vrx-bottom-loader { animation: vrxBottomLoaderIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes vrxBottomLoaderIn {
+  0%   { opacity: 0; transform: translateY(22px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.vrx-bottom-block--exit {
+  animation: vrxBottomBlockExit 320ms cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+@keyframes vrxBottomBlockExit {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(28px); }
+}
+.vrx-transcript-zone--exit {
+  animation: vrxTranscriptZoneExit 320ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes vrxTranscriptZoneExit {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-10px) scale(0.985); }
+}
+.vrx-transcript-zone-in {
+  animation: vrxTranscriptZoneIn 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes vrxTranscriptZoneIn {
+  0%   { opacity: 0; transform: translateY(18px) scale(0.985); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.vrx-shiner-handoff-exit {
+  animation: vrxShinerHandoffExit 320ms cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+@keyframes vrxShinerHandoffExit {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-22px) scale(0.985); }
+}
+.vrx-bottom-loader--exit {
+  animation: vrxBottomLoaderHandoffExit 280ms cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+@keyframes vrxBottomLoaderHandoffExit {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(14px); }
+}
+.vrx-progress-fill {
+  transform-origin: left center;
+  animation: vrxProgressFill 11s linear forwards;
+}
+@keyframes vrxProgressFill {
+  0%   { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+.vrx-progress-sheen {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%);
+  animation: vrxLoaderSheen 1.8s linear infinite;
+}
+@keyframes vrxLoaderSheen {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(360%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vrx-transcript-zone--exit,
+  .vrx-transcript-zone-in,
+  .vrx-bottom-block--exit { animation: none; opacity: 1; transform: none; }
+  .vrx-shiner-handoff-exit,
+  .vrx-bottom-loader--exit { animation: none; opacity: 1; transform: none; }
+  .vrx-bottom-loader        { animation: none; opacity: 1; transform: none; }
+  .vrx-progress-fill        { animation: none; transform: scaleX(1); }
+  .vrx-progress-sheen       { animation: none; }
+  .vrx-submit-sheen         { animation: none; opacity: 0; }
+}
+
+/* ── VoiceRxBottomSheet ─────────────────────────────────────────────────── */
+@keyframes docFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes docSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+@keyframes vrxAiCtaSheen {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  18%  { opacity: 0.55; }
+  55%  { opacity: 0.55; }
+  100% { transform: translateX(320%); opacity: 0; }
+}
+.vrx-ai-cta-sheen {
+  background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%);
+  animation: vrxAiCtaSheen 3.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .vrx-ai-cta-sheen { animation: none; opacity: 0; } }
+
+.vrx-option-card--idle { background: transparent; }
+.vrx-option-card--idle:hover { background: rgba(248, 250, 252, 0.65); }
+.vrx-option-card--selected,
+.vrx-option-card--selected:hover {
+  background: linear-gradient(180deg, #FBFCFF 0%, #F3F5FF 100%);
+  padding-top: 6px;
+  padding-bottom: 6px;
+  box-shadow: inset 0 0 0 1px rgba(75,74,213,0.14), 0 1px 2px rgba(75,74,213,0.04);
+}
+.vrx-consent-pill { background: rgba(75, 74, 213, 0.06); box-shadow: none; }
+.vrx-option-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px; height: 48px;
+  flex-shrink: 0;
+  border-radius: 303.03px;
+  background: #fff;
+  isolation: isolate;
+  --vrx-tile-halo: #ffffff;
+}
+.vrx-option-tile::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(213,101,234,0.26) 0%, rgba(180,110,220,0.20) 28%,
+    rgba(167,139,250,0.14) 52%, rgba(167,139,250,0) 88%);
+  z-index: 0;
+}
+.vrx-option-tile::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 7.5px 6.75px var(--vrx-tile-halo) inset;
+  z-index: 1;
+}
+.vrx-option-tile > svg { position: relative; z-index: 2; }
+.vrx-option-tile--selected { background: #F7F8FF; --vrx-tile-halo: #F7F8FF; }
+
+/* ── VoiceRxFlow — voice lock + tooltip ────────────────────────────────── */
+body[data-voice-lock="on"] :is(button, input, textarea, select, a,
+  [role="button"], [role="textbox"], [role="combobox"], [role="checkbox"],
+  [role="radio"], [contenteditable="true"], [data-voice-block]):not(:where(
+    [data-voice-scope="dragent"] *, [data-voice-scope="dragent"],
+    [data-voice-allow] *, [data-voice-allow])) {
+  cursor: not-allowed !important;
+}
+body[data-voice-lock="on"] :is(button, [role="button"], a,
+  [data-voice-block]):not(:where([data-voice-scope="dragent"] *, [data-voice-scope="dragent"],
+    [data-voice-allow] *, [data-voice-allow])):hover {
+  background-color: inherit !important;
+  color: inherit !important;
+  box-shadow: inherit !important;
+  filter: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+body[data-voice-lock="on"] [data-voice-allow] :is(input, textarea, select,
+  [role="textbox"], [role="combobox"], [contenteditable="true"]) {
+  cursor: not-allowed !important;
+}
+body[data-voice-lock="on"] [data-voice-block],
+body[data-voice-lock="on"] [data-voice-block] :is(button, input, textarea,
+  select, a, [role="button"], [role="textbox"], [role="combobox"],
+  [role="checkbox"], [role="radio"], [contenteditable="true"]) {
+  cursor: not-allowed !important;
+}
+body[data-voice-lock="on"] [data-voice-hide]:not(:where([data-voice-scope="dragent"] *, [data-voice-allow] *)) {
+  display: none !important;
+}
+body[data-voice-lock="on"] :is(input, textarea,
+  [contenteditable="true"]):not(:where([data-voice-scope="dragent"] *, [data-voice-allow] *)) {
+  caret-color: transparent !important;
+}
+body[data-voice-lock="on"] :is(input, textarea,
+  [contenteditable="true"]):not(:where([data-voice-scope="dragent"] *, [data-voice-allow] *)):focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.vrx-voice-tooltip { animation: vrxTooltipFade 140ms ease-out; }
+@keyframes vrxTooltipFade { from { opacity: 0; } to { opacity: 1; } }
+.vrx-voice-tooltip-arrow {
+  position: absolute;
+  left: 50%; top: 0;
+  width: 10px; height: 10px;
+  transform: translate(-50%, -55%) rotate(45deg);
+  background: rgba(15, 23, 42, 0.95);
+  border-top-left-radius: 2px;
+}
+
+/* ── VoiceRxInPanelLoader + VoiceRxResultTabs shared classes ────────────── */
+.vrx-rt-mode-pill {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.20) 100%),
+    linear-gradient(135deg, rgba(213,101,234,0.16) 0%, rgba(103,58,172,0.12) 55%, rgba(75,74,213,0.12) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 0 0 1px rgba(103,58,172,0.14),
+    0 4px 12px -4px rgba(103,58,172,0.12);
+}
+.vrx-rt-glossy {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.22) 100%),
+    linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(75,74,213,0.08) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 0 0 1px rgba(15,23,42,0.08),
+    0 4px 12px -4px rgba(15,23,42,0.08);
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+.vrx-loader-orb {
+  background: linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%);
+  background-size: 200% 100%;
+  animation: vrxLoaderShift 4s ease-in-out infinite;
+  box-shadow: 0 12px 28px -10px rgba(103, 58, 172, 0.45), inset 0 1px 0 rgba(255,255,255,0.45);
+}
+.vrx-loader-orb-glow {
+  background: radial-gradient(closest-side, rgba(213,101,234,0.55), rgba(213,101,234,0));
+  animation: vrxLoaderPulse 1.6s ease-in-out infinite;
+}
+.vrx-loader-bar-fill {
+  background: linear-gradient(90deg, #D565EA 0%, #673AAC 50%, #1A1994 100%);
+  animation: vrxLoaderSlide 1.4s linear infinite;
+}
+@keyframes vrxLoaderShift  { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes vrxLoaderPulse  { 0%,100% { transform: scale(1); opacity: 0.65; } 50% { transform: scale(1.18); opacity: 0.95; } }
+@keyframes vrxLoaderSlide  { 0% { transform: translateX(-110%); } 100% { transform: translateX(420%); } }
+
+/* ── VoiceRxLiveBorder ──────────────────────────────────────────────────── */
+@property --vrx-hue { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@property --vrx-idle { syntax: "<number>"; inherits: true; initial-value: 1; }
+@keyframes vrxIdleBreathe { 0%, 100% { --vrx-idle: 0.35; } 50% { --vrx-idle: 1.45; } }
+.vrx-live-halo {
+  position: fixed;
+  top: 62px; left: 0; bottom: 0;
+  z-index: 136;
+  pointer-events: none;
+  border-radius: 0;
+  overflow: hidden;
+  transition: right 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: vrxHaloEnter 700ms cubic-bezier(0.16, 1, 0.3, 1) both, vrxIdleBreathe 3.8s ease-in-out infinite;
+  will-change: opacity, --vrx-idle;
+}
+@keyframes vrxHaloEnter { 0% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes vrxHueSway { 0%, 100% { --vrx-hue: -35deg; } 50% { --vrx-hue: 35deg; } }
+.vrx-live-edge {
+  position: absolute;
+  opacity: calc(0.84 * var(--vrx-idle, 1));
+  will-change: transform, filter, opacity;
+}
+.vrx-live-edge--top, .vrx-live-edge--bottom {
+  left: -5%; right: -5%;
+  height: 3.5%;
+  filter: blur(14px) hue-rotate(var(--vrx-hue, 0deg));
+  will-change: filter, transform;
+}
+.vrx-live-edge--top {
+  top: -2.5%;
+  background: linear-gradient(90deg, rgba(213,101,234,1) 0%, rgba(139,92,246,1) 55%, rgba(213,101,234,1) 100%);
+  animation: vrxEdgeDriftTop 5.8s ease-in-out infinite, vrxHueSway 3.2s ease-in-out infinite 0s;
+}
+.vrx-live-edge--bottom {
+  bottom: -2.5%;
+  background: linear-gradient(90deg, rgba(213,101,234,1) 0%, rgba(139,92,246,1) 55%, rgba(213,101,234,1) 100%);
+  animation: vrxEdgeDriftBottom 6.2s ease-in-out infinite, vrxHueSway 3.2s ease-in-out infinite -1.6s;
+}
+.vrx-live-edge--left, .vrx-live-edge--right {
+  top: -5%; bottom: -5%;
+  width: 3%;
+  filter: blur(16px) hue-rotate(var(--vrx-hue, 0deg));
+  will-change: filter, transform;
+}
+.vrx-live-edge--left {
+  left: -2.5%;
+  background: linear-gradient(180deg, rgba(213,101,234,1) 0%, rgba(139,92,246,1) 55%, rgba(213,101,234,1) 100%);
+  animation: vrxEdgeDriftLeft 6s ease-in-out infinite, vrxHueSway 3.2s ease-in-out infinite -2.4s;
+}
+.vrx-live-edge--right {
+  right: -2.5%;
+  background: linear-gradient(180deg, rgba(213,101,234,1) 0%, rgba(139,92,246,1) 55%, rgba(213,101,234,1) 100%);
+  animation: vrxEdgeDriftRight 6.4s ease-in-out infinite, vrxHueSway 3.2s ease-in-out infinite -0.8s;
+}
+@keyframes vrxEdgeDriftTop    { 0%,100% { transform: translateY(0%) scaleY(1); } 50% { transform: translateY(1.4%) scaleY(1.08); } }
+@keyframes vrxEdgeDriftBottom { 0%,100% { transform: translateY(0%) scaleY(1); } 50% { transform: translateY(-1.4%) scaleY(1.08); } }
+@keyframes vrxEdgeDriftLeft   { 0%,100% { transform: translateX(0%) scaleX(1); } 50% { transform: translateX(1.2%) scaleX(1.08); } }
+@keyframes vrxEdgeDriftRight  { 0%,100% { transform: translateX(0%) scaleX(1); } 50% { transform: translateX(-1.2%) scaleX(1.08); } }
+@media (prefers-reduced-motion: reduce) { .vrx-live-edge { animation: none; } }
+
+/* ── VoiceRxCanvas ──────────────────────────────────────────────────────── */
+.vrx-canvas--enter { animation: vrxCanvasIn 220ms ease-out both; }
+@keyframes vrxCanvasIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .vrx-canvas--enter { animation: none; opacity: 1; } }
+.vrx-cn-mode-pill {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.20) 100%),
+    linear-gradient(135deg, rgba(213,101,234,0.16) 0%, rgba(103,58,172,0.12) 55%, rgba(75,74,213,0.12) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 0 0 1px rgba(103,58,172,0.14),
+    0 4px 12px -4px rgba(103,58,172,0.12);
+}
+.vrx-cn-secondary-blue {
+  background: #ffffff;
+  color: var(--tp-blue-600, #3A39C0);
+  border: 1px solid var(--tp-blue-500, #4B4AD5);
+}
+.vrx-cn-secondary-blue:hover:not(:disabled) { background: #eff6ff; border-color: var(--tp-blue-600, #3A39C0); }
+
+/* ── ClinicalNotesEditor ────────────────────────────────────────────────── */
+.vrx-cn-editor { min-height: 240px; }
+.vrx-cn-editor h1 { font-size: 18px; font-weight: 700; margin: 14px 0 6px; color: #0f172a; }
+.vrx-cn-editor h2 { font-size: 15px; font-weight: 700; margin: 12px 0 4px; color: #0f172a; }
+.vrx-cn-editor h3 { font-size: 14px; font-weight: 700; margin: 10px 0 4px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em; }
+.vrx-cn-editor p  { margin: 4px 0; }
+.vrx-cn-editor ul { list-style: disc; padding-left: 22px; margin: 4px 0; }
+.vrx-cn-editor ol { list-style: decimal; padding-left: 22px; margin: 4px 0; }
+.vrx-cn-editor li { margin: 2px 0; }
+.vrx-cn-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: rgb(148, 163, 184);
+  pointer-events: none;
+  height: 0;
+}
+.vrx-cn-shiner-shell {
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(#ffffff, #ffffff),
+    linear-gradient(180deg,
+      rgba(75,74,213,0.55) 0%, rgba(75,74,213,0.18) 28%,
+      rgba(75,74,213,0.10) 50%, rgba(75,74,213,0.18) 72%,
+      rgba(75,74,213,0.55) 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  transition: background-image 180ms ease, box-shadow 180ms ease;
+}
+.vrx-cn-shiner-shell:focus-within {
+  background-image:
+    linear-gradient(#ffffff, #ffffff),
+    linear-gradient(0deg, var(--tp-blue-500, #4B4AD5), var(--tp-blue-500, #4B4AD5));
+  box-shadow: 0 0 0 3px rgba(75, 74, 213, 0.14);
+}
+
+/* ── VoiceRxResultTabs ──────────────────────────────────────────────────── */
+.vrx-result-tabs--enter { animation: vrxResultTabsIn 220ms ease-out both; }
+@keyframes vrxResultTabsIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .vrx-result-tabs--enter { animation: none; opacity: 1; } }
+.vrx-rt-back { background: rgba(255,255,255,0.42); transition: background 160ms ease; }
+.vrx-rt-back:hover { background: rgba(255,255,255,0.72); }
+.vrx-fb-divider {
+  display: inline-block;
+  height: 14px; width: 1px;
+  flex-shrink: 0;
+  background: linear-gradient(to bottom, transparent 0%, rgba(148,163,184,0.45) 50%, transparent 100%);
+}
+.vrx-rt-primary {
+  background: var(--tp-blue-500, #4B4AD5);
+  box-shadow: 0 4px 10px -4px rgba(75,74,213,0.40), inset 0 1px 0 rgba(255,255,255,0.30);
+}
+.vrx-rt-primary:hover:not(:disabled) {
+  background: var(--tp-blue-600, #3A39C0);
+  box-shadow: 0 6px 14px -4px rgba(75,74,213,0.50), inset 0 1px 0 rgba(255,255,255,0.32);
+}
+.vrx-rt-secondary-blue {
+  background: #ffffff;
+  color: var(--tp-blue-600, #3A39C0);
+  border: 1px solid var(--tp-blue-500, #4B4AD5);
+}
+.vrx-rt-secondary-blue:hover:not(:disabled) { background: #eff6ff; border-color: var(--tp-blue-600, #3A39C0); }
+.vrx-rt-voice-cta-outline {
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%) border-box;
+  border: 1px solid transparent;
+}
+.vrx-rt-voice-cta-outline:hover:not(:disabled) {
+  background:
+    linear-gradient(#FAF5FF, #FAF5FF) padding-box,
+    linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%) border-box;
+}
+.vrx-rt-voice-cta-outline__label {
+  background: linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ── VoiceTranscriptProcessingCard ─────────────────────────────────────── */
+.vrx-dt-word {
+  opacity: 0;
+  transform: translateY(6px);
+  filter: blur(4px);
+  animation: vrxDtWordIn 340ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes vrxDtWordIn {
+  0%   { opacity: 0; transform: translateY(6px); filter: blur(4px); }
+  100% { opacity: 1; transform: translateY(0);   filter: blur(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vrx-dt-word { animation: none; opacity: 1; transform: none; filter: none; }
+}
+@keyframes vrxCaptionSlide {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.vrx-caption-slide {
+  animation: vrxCaptionSlide 360ms cubic-bezier(0.22, 1, 0.36, 1) both, vrxCaptionShine 2.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .vrx-caption-slide { animation: none; opacity: 1; transform: none; } }
+
+/* Caption carousel — paired enter/exit so the next caption rolls up
+   from below while the previous one rolls up + out. Used by the
+   inline RxPad voice-processing card (`VoiceRxSectionProcessing`). */
+@keyframes vrxCaptionEnter {
+  0%   { opacity: 0; transform: translateY(20px); filter: blur(2px); }
+  100% { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+@keyframes vrxCaptionExit {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-20px); }
+}
+.vrx-caption-enter {
+  animation: vrxCaptionEnter 420ms cubic-bezier(0.22, 1, 0.36, 1) both, vrxCaptionShine 2.4s linear infinite;
+}
+.vrx-caption-exit {
+  animation: vrxCaptionExit 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vrx-caption-enter, .vrx-caption-exit { animation: none; opacity: 1; transform: none; filter: none; }
+}
+@keyframes vrxCaptionShine {
+  0%   { background-position: 200% 0%; }
+  100% { background-position: -200% 0%; }
+}
+.vrx-process-caption { animation: vrxCaptionShine 2.4s linear infinite; }
+.vrx-chat-turn {
+  opacity: 0;
+  transform: translateY(8px) translateX(var(--vrx-turn-from, 0));
+}
+.vrx-chat-turn--doctor  { --vrx-turn-from: -10px; }
+.vrx-chat-turn--patient { --vrx-turn-from:  10px; }
+.vrx-chat-turn--in { animation: vrxChatTurnIn 360ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+@keyframes vrxChatTurnIn {
+  0%   { opacity: 0; transform: translateY(8px) translateX(var(--vrx-turn-from, 0)); }
+  100% { opacity: 1; transform: translateY(0) translateX(0); }
+}
+.vrx-shiner-enter { animation: vrxShinerEnter 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes vrxShinerEnter {
+  0%   { opacity: 0; transform: translateY(12px) scale(0.985); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vrx-process-caption, .vrx-chat-turn, .vrx-chat-turn--in, .vrx-shiner-enter
+  { animation: none; opacity: 1; transform: none; }
+}
+
+/* ── Dr. Agent panel — DrAgentPanel.tsx ────────────────────────────────── */
+.da-floating-chip { cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.da-floating-chip:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 16px rgba(15,23,42,0.12), 0 0 0 1px rgba(255,255,255,0.5) inset !important;
+}
+.da-floating-chip:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 1px 4px rgba(15,23,42,0.06), 0 0 0 1px rgba(255,255,255,0.5) inset !important;
+}
+@keyframes daChipShake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-4px); }
+  30% { transform: translateX(4px); }
+  45% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-1px); }
+  90% { transform: translateX(1px); }
+}
+.da-chip-shake { animation: daChipShake 0.5s ease-in-out; }
+.da-chat-scroll::-webkit-scrollbar { width: 3px; }
+.da-chat-scroll::-webkit-scrollbar-track { background: transparent; }
+.da-chat-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+.da-chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.12) transparent;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.975), rgba(255,255,255,0.975)),
+    url("/icons/dr-agent/chat-bg.gif");
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+}
+
+/* ── Dr. Agent V0 panel — legacy ────────────────────────────────────────── */
+.v0-icon-grad svg { color: #8B5CF6; }
+.v0-icon-grad svg path, .v0-icon-grad svg circle, .v0-icon-grad svg rect { fill: url(#v0IconGrad); }
+.v0-card-subtitle { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.v0-canned-card { cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+.v0-canned-card:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 3px 12px rgba(0,0,0,0.06) !important; border-color: rgba(139,92,246,0.25) !important; }
+.v0-canned-card:active { transform: translateY(0) scale(0.99); box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important; }
+@keyframes v0SparkRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.v0-welcome-spark-rotate { animation: v0SparkRotate 16s linear infinite; }
+.v0-search-input:hover { border-color: var(--tp-slate-300, #CBD5E1); background: var(--tp-slate-50, #F8FAFC); }
+.v0-search-input:focus { border-color: var(--tp-blue-400, #6C6BDE); box-shadow: 0 0 0 2px rgba(75,74,213,0.08); background: #fff; }
+.v0-patient-row:hover { background: var(--tp-blue-50, #EEEEFF); }
+.v0-patient-list::-webkit-scrollbar { width: 3px; }
+.v0-patient-list::-webkit-scrollbar-track { background: transparent; }
+.v0-patient-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
+@keyframes v0-chip-settle {
+  0% { opacity: 0; transform: translateY(30px) scale(0.85); }
+  60% { opacity: 1; transform: translateY(-2px) scale(1.03); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes v0ContentReveal { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: translateY(0); } }
+.v0-content-reveal { animation: v0ContentReveal 0.4s ease-out forwards; }
+.v0-floating-chip:hover { box-shadow: 0 4px 16px rgba(15,23,42,0.12), 0 0 0 1px rgba(255,255,255,0.6) inset !important; transform: translateY(-1px); }
+.v0-floating-chip:active { transform: translateY(0) scale(0.97); box-shadow: 0 1px 6px rgba(15,23,42,0.06), 0 0 0 1px rgba(255,255,255,0.5) inset !important; }
+@keyframes v0ChipShake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-3px); }
+  30% { transform: translateX(3px); }
+  45% { transform: translateX(-2px); }
+  60% { transform: translateX(2px); }
+  75% { transform: translateX(-1px); }
+  90% { transform: translateX(1px); }
+}
+.v0-chip-shake { animation: v0ChipShake 0.5s ease-in-out; }
+
+/* ── ChatThread ──────────────────────────────────────────────────────────── */
+@keyframes chatStreamIn {
+  0%   { opacity: 0; transform: translateY(10px); filter: blur(2px); }
+  50%  { opacity: 0.7; transform: translateY(3px); filter: blur(0.5px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.chat-stream-in { animation: chatStreamIn 550ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes chatVoiceIn {
+  0%   { opacity: 0; transform: translateY(36px) scale(0.96); filter: blur(3px); }
+  55%  { opacity: 1; transform: translateY(-2px) scale(1.01); filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.chat-voice-in { animation: chatVoiceIn 620ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 95% 100%; }
+@keyframes daShimmerWordIn {
+  0%   { opacity: 0; transform: translateY(8px); filter: blur(5px); }
+  60%  { opacity: 0.8; transform: translateY(1px); filter: blur(1px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.da-shimmer-word { opacity: 0; transform: translateY(8px); filter: blur(5px); animation: daShimmerWordIn 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.da-suggestion-scroll::-webkit-scrollbar { height: 0; display: none; }
+.da-suggestion-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* DocumentBottomSheet scrollbar */
+.doc-scroll::-webkit-scrollbar { width: 3px; }
+.doc-scroll::-webkit-scrollbar-track { background: transparent; }
+.doc-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+
+/* ── TypingIndicator ────────────────────────────────────────────────────── */
+.da-spark-loader { width: 26px; height: 26px; perspective: 500px; }
+.da-spark-flip {
+  display: inline-block;
+  transform-style: preserve-3d;
+  animation: daSparkFlip 2.2s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+  filter: drop-shadow(0 1px 2px rgba(103, 58, 172, 0.25));
+}
+.da-spark-halo {
+  position: absolute; inset: 0;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 50% 50%, rgba(213,101,234,0.30) 0%, rgba(139,92,246,0.22) 40%, rgba(75,74,213,0) 75%);
+  animation: daSparkHalo 2.2s ease-in-out infinite;
+}
+@keyframes daSparkFlip {
+  0%   { transform: rotateY(0deg)   scale(1);   }
+  25%  { transform: rotateY(180deg) scale(1.1); }
+  50%  { transform: rotateY(360deg) scale(1);   }
+  75%  { transform: rotateY(540deg) scale(1.1); }
+  100% { transform: rotateY(720deg) scale(1);   }
+}
+@keyframes daSparkHalo {
+  0%, 100% { opacity: 0.55; transform: scale(0.85); }
+  50%       { opacity: 1;    transform: scale(1.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .da-spark-flip { animation: none; }
+  .da-spark-halo { animation: none; opacity: 0.5; }
+}
+.typing-carousel-wrap { overflow: hidden; height: 18px; display: flex; align-items: center; padding-top: 1px; }
+.typing-carousel-item {
+  display: inline-flex; align-items: center;
+  max-width: 100%; font-size: 12px; font-weight: 500; line-height: 18px;
+  color: var(--tp-slate-500, #717179);
+  white-space: nowrap; text-overflow: ellipsis;
+  will-change: transform, opacity;
+}
+.typing-slide-in  { animation: typingSlideIn  0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.typing-slide-out { animation: typingSlideOut 0.26s cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+@keyframes typingSlideIn  { 0% { transform: translateY(10px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+@keyframes typingSlideOut { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-10px); opacity: 0; } }
+.typing-ellipsis { display: inline; letter-spacing: 0.5px; flex-shrink: 0; }
+.typing-ellipsis-dot { display: inline-block; animation: ellipsisFade 1.4s ease-in-out infinite; opacity: 0.3; }
+@keyframes ellipsisFade { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
+/* ── WelcomeScreen ──────────────────────────────────────────────────────── */
+.welcome-icon-grad svg { color: #8B5CF6; }
+.welcome-icon-grad svg path, .welcome-icon-grad svg circle, .welcome-icon-grad svg rect { fill: url(#welcomeIconGrad); }
+.welcome-card-subtitle { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.welcome-canned-card { cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+.welcome-canned-card:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 3px 12px rgba(0,0,0,0.06) !important; border-color: rgba(138,77,187,0.25) !important; }
+.welcome-canned-card:active { transform: translateY(0) scale(0.99); box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important; }
+@keyframes welcomeSparkRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.welcome-spark-rotate { animation: welcomeSparkRotate 16s linear infinite; }
+
+/* ── AgentHeader ─────────────────────────────────────────────────────────── */
+.vrx-agent-brand-tag {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.18) 100%),
+    linear-gradient(135deg, rgba(213,101,234,0.14) 0%, rgba(103,58,172,0.10) 55%, rgba(75,74,213,0.10) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.80),
+    inset 0 0 0 1px rgba(103,58,172,0.12),
+    0 4px 12px -4px rgba(103,58,172,0.12);
+}
+.vrx-agent-glossy-chip {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.22) 100%),
+    linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(75,74,213,0.08) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 0 0 1px rgba(15,23,42,0.08),
+    0 4px 12px -4px rgba(15,23,42,0.08);
+  transition: background 180ms ease, box-shadow 180ms ease, color 180ms ease, transform 120ms ease;
+}
+.vrx-agent-glossy-chip:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.38) 100%),
+    linear-gradient(135deg, rgba(139,92,246,0.10) 0%, rgba(75,74,213,0.10) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 0 0 1px rgba(15,23,42,0.12),
+    0 6px 16px -4px rgba(15,23,42,0.12);
+}
+
+/* ── DrAgentFab ─────────────────────────────────────────────────────────── */
+@keyframes fabMicPulse { 0%, 100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.08); } }
+.dr-agent-fab-inner { filter: brightness(1); transition: filter 180ms ease; }
+.group:hover .dr-agent-fab-inner { filter: brightness(1.12); }
+@keyframes vrxFabSheen {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  18%  { opacity: 0.55; }
+  55%  { opacity: 0.55; }
+  100% { transform: translateX(320%); opacity: 0; }
+}
+.vrx-fab-sheen { animation: vrxFabSheen 3.6s ease-in-out infinite; }
+@keyframes vrxFabSparkPulse { 0%, 100% { opacity: 0.82; transform: scale(1); } 50% { opacity: 1; transform: scale(1.18); } }
+.vrx-fab-spark-pulse { display: inline-flex; animation: vrxFabSparkPulse 2.4s ease-in-out infinite; }
+@keyframes vrxFabSparkSpin {
+  0%   { transform: scale(1)    rotate(0deg);  opacity: 0.8;  filter: brightness(1); }
+  15%  { transform: scale(1.18) rotate(8deg);  opacity: 1;    filter: brightness(1.15); }
+  30%  { transform: scale(0.95) rotate(-3deg); opacity: 0.85; filter: brightness(1); }
+  50%  { transform: scale(1.14) rotate(-6deg); opacity: 1;    filter: brightness(1.1); }
+  65%  { transform: scale(1)    rotate(2deg);  opacity: 0.9;  filter: brightness(1); }
+  80%  { transform: scale(1.1)  rotate(5deg);  opacity: 1;    filter: brightness(1.12); }
+  100% { transform: scale(1)    rotate(0deg);  opacity: 0.8;  filter: brightness(1); }
+}
+.vrx-fab-spark-icon { animation: vrxFabSparkSpin 3s ease-in-out infinite; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) {
+  .vrx-fab-sheen, .vrx-fab-spark-pulse, .vrx-fab-spark-icon { animation: none; }
+}
+
+/* ── PatientSelector + FeedbackBottomSheet ──────────────────────────────── */
+@keyframes psFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes psSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fbFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fbSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.ps-scroll::-webkit-scrollbar { width: 3px; }
+.ps-scroll::-webkit-scrollbar-track { background: transparent; }
+.ps-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+.ps-search-box:hover { border-color: var(--tp-slate-300, #CBD5E1); background: var(--tp-slate-50, #F8FAFC); }
+.ps-search-box:focus-within { border-color: var(--tp-blue-400, #6C6BDE); box-shadow: 0 0 0 2px rgba(75,74,213,0.08); background: #fff; }
+
+/* ── VoiceEmptyState ────────────────────────────────────────────────────── */
+.vrx-lottie-gradient path { stroke: url(#vrx-chip-arrow-grad) !important; }
+@keyframes vrxEmptySparkRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.vrx-empty-spark-rotate { animation: vrxEmptySparkRotate 16s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .vrx-empty-spark-rotate { animation: none; } }
+@keyframes vrxChipSheen {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  20%  { opacity: 0.4; }
+  60%  { opacity: 0.4; }
+  100% { transform: translateX(320%); opacity: 0; }
+}
+.vrx-patient-chip-sheen {
+  background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 100%);
+  animation: vrxChipSheen 4s ease-in-out infinite;
+}
+.vrx-patient-chip { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.vrx-patient-chip:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(103,58,172,0.18); }
+.vrx-patient-chip:active { transform: translateY(0) scale(0.98); }
+@media (prefers-reduced-motion: reduce) { .vrx-patient-chip-sheen { animation: none; opacity: 0; } }
+
+/* ─────────────────────────────────────────────────────────
+   NavPanel (secondary-sidebar) animations
+   ───────────────────────────────────────────────────────── */
+@keyframes tpNavPillWobble {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  15%      { transform: translateY(-1px) rotate(-4deg); }
+  30%      { transform: translateY(0) rotate(4deg); }
+  45%      { transform: translateY(-1px) rotate(-3deg); }
+  60%      { transform: translateY(0) rotate(2deg); }
+  75%      { transform: translateY(0) rotate(-1deg); }
+}
+.tp-nav-pill-wobble {
+  animation: tpNavPillWobble 1.6s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes tpNavUnseenDot {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.45); }
+  50%      { transform: scale(1.18); box-shadow: 0 0 0 4px rgba(229, 57, 53, 0); }
+}
+.tp-nav-unseen-dot {
+  animation: tpNavUnseenDot 1.6s ease-in-out infinite;
+}
+@keyframes tpNavVoiceDot {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.6); }
+  50%      { transform: scale(1.2); box-shadow: 0 0 0 4px rgba(251, 113, 133, 0); }
+}
+.tp-nav-voice-dot {
+  animation: tpNavVoiceDot 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-nav-pill-wobble,
+  .tp-nav-unseen-dot,
+  .tp-nav-voice-dot { animation: none; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   ContentPanel — section slide transitions
+   ───────────────────────────────────────────────────────── */
+@keyframes rxSectionSlideUp {
+  0%   { transform: translateY(14%); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+@keyframes rxSectionSlideDown {
+  0%   { transform: translateY(-14%); opacity: 0; }
+  100% { transform: translateY(0);     opacity: 1; }
+}
+.rx-section-slide-up   { animation: rxSectionSlideUp   280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rx-section-slide-down { animation: rxSectionSlideDown 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .rx-section-slide-up, .rx-section-slide-down { animation: none; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   RxPadAiOverlay
+   ───────────────────────────────────────────────────────── */
+@keyframes rxOverlayFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.rx-overlay-spark {
+  width: 72px;
+  height: 72px;
+  perspective: 800px;
+}
+.rx-overlay-flip {
+  display: inline-block;
+  transform-style: preserve-3d;
+  animation: rxOverlayFlip 2.2s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+  filter: drop-shadow(0 4px 10px rgba(103, 58, 172, 0.25));
+}
+.rx-overlay-halo {
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(213, 101, 234, 0.34) 0%,
+    rgba(139, 92, 246, 0.24) 40%,
+    rgba(75, 74, 213, 0) 75%);
+  animation: rxOverlayHalo 2.2s ease-in-out infinite;
+}
+@keyframes rxOverlayFlip {
+  0%   { transform: rotateY(0deg) scale(1); }
+  25%  { transform: rotateY(180deg) scale(1.12); }
+  50%  { transform: rotateY(360deg) scale(1); }
+  75%  { transform: rotateY(540deg) scale(1.12); }
+  100% { transform: rotateY(720deg) scale(1); }
+}
+@keyframes rxOverlayHalo {
+  0%, 100% { opacity: 0.55; transform: scale(0.88); }
+  50%      { opacity: 1;    transform: scale(1.18); }
+}
+@keyframes rxProgress {
+  0%   { left: -45%; }
+  100% { left: 100%; }
+}
+@keyframes rxCornerPulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rx-overlay-flip, .rx-overlay-halo { animation: none; }
+  .rx-overlay-halo { opacity: 0.5; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   VoiceRxSectionProcessing (duplicate keyframes with globals — safe cascade)
+   ───────────────────────────────────────────────────────── */
+@keyframes vrxCaptionShine {
+  0%   { background-position: 200% 0%; }
+  100% { background-position: -200% 0%; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   AiBrand — spark thinking animation
+   ───────────────────────────────────────────────────────── */
+@keyframes aiSparkThink {
+  0%   { transform: scale(0.86) rotate(0deg);   filter: saturate(0.9) brightness(0.95); }
+  25%  { transform: scale(1.12) rotate(90deg);  filter: saturate(1.2) brightness(1.08); }
+  50%  { transform: scale(0.94) rotate(180deg); filter: saturate(1.0) brightness(1.0); }
+  75%  { transform: scale(1.14) rotate(270deg); filter: saturate(1.2) brightness(1.08); }
+  100% { transform: scale(0.86) rotate(360deg); filter: saturate(0.9) brightness(0.95); }
+}
+.ai-spark-thinking > img {
+  animation: aiSparkThink 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  transform-origin: center;
+  will-change: transform, filter;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-spark-thinking > img { animation: none; }
+}

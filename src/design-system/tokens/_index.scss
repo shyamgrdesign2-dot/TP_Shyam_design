@@ -1,0 +1,151 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Design Tokens — Index
+// @forward all partials so consumers can `@use 'tokens'` for SCSS variables,
+// and the `:root` block below exports every token as a CSS custom property.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@forward 'colors';
+@forward 'typography';
+@forward 'spacing';
+@forward 'radii';
+@forward 'shadows';
+@forward 'motion';
+@forward 'z-index';
+@forward 'breakpoints';
+
+@use 'colors' as c;
+@use 'typography' as t;
+@use 'spacing' as s;
+@use 'radii' as r;
+
+// ── Export all tokens as CSS custom properties ──
+// This block is included once via globals.scss.
+// Components use var(--tp-…) in production CSS.
+@mixin export-css-vars {
+  :root {
+    // ── Semantic Surface Tokens ──
+    --background: #{c.$background};
+    --foreground: #{c.$foreground};
+    --card: #{c.$card};
+    --card-foreground: #{c.$card-foreground};
+    --popover: #{c.$popover};
+    --popover-foreground: #{c.$popover-foreground};
+    --primary: #{c.$primary};
+    --primary-foreground: #{c.$primary-foreground};
+    --secondary: #{c.$secondary};
+    --secondary-foreground: #{c.$secondary-foreground};
+    --muted: #{c.$muted};
+    --muted-foreground: #{c.$muted-foreground};
+    --accent: #{c.$accent};
+    --accent-foreground: #{c.$accent-foreground};
+    --destructive: #{c.$destructive};
+    --destructive-foreground: #{c.$destructive-foreground};
+    --border: #{c.$border};
+    --input: #{c.$input};
+    --ring: #{c.$ring};
+    --chart-1: #{c.$chart-1};
+    --chart-2: #{c.$chart-2};
+    --chart-3: #{c.$chart-3};
+    --chart-4: #{c.$chart-4};
+    --chart-5: #{c.$chart-5};
+    --radius: 0.75rem;
+
+    // ── TP Blue (Primary Brand) ──
+    --tp-blue-50: #{c.$tp-blue-50};
+    --tp-blue-100: #{c.$tp-blue-100};
+    --tp-blue-200: #{c.$tp-blue-200};
+    --tp-blue-300: #{c.$tp-blue-300};
+    --tp-blue-400: #{c.$tp-blue-400};
+    --tp-blue-500: #{c.$tp-blue-500};
+    --tp-blue-600: #{c.$tp-blue-600};
+    --tp-blue-700: #{c.$tp-blue-700};
+    --tp-blue-800: #{c.$tp-blue-800};
+    --tp-blue-900: #{c.$tp-blue-900};
+
+    // ── TP Violet (Secondary) ──
+    --tp-violet-50: #{c.$tp-violet-50};
+    --tp-violet-100: #{c.$tp-violet-100};
+    --tp-violet-200: #{c.$tp-violet-200};
+    --tp-violet-300: #{c.$tp-violet-300};
+    --tp-violet-400: #{c.$tp-violet-400};
+    --tp-violet-500: #{c.$tp-violet-500};
+    --tp-violet-600: #{c.$tp-violet-600};
+    --tp-violet-700: #{c.$tp-violet-700};
+    --tp-violet-800: #{c.$tp-violet-800};
+    --tp-violet-900: #{c.$tp-violet-900};
+
+    // ── TP Amber (Tertiary) ──
+    --tp-amber-50: #{c.$tp-amber-50};
+    --tp-amber-100: #{c.$tp-amber-100};
+    --tp-amber-200: #{c.$tp-amber-200};
+    --tp-amber-300: #{c.$tp-amber-300};
+    --tp-amber-400: #{c.$tp-amber-400};
+    --tp-amber-500: #{c.$tp-amber-500};
+    --tp-amber-600: #{c.$tp-amber-600};
+    --tp-amber-700: #{c.$tp-amber-700};
+    --tp-amber-800: #{c.$tp-amber-800};
+    --tp-amber-900: #{c.$tp-amber-900};
+
+    // ── AI Gradient Stops ──
+    --ai-pink: #{c.$ai-pink};
+    --ai-violet: #{c.$ai-violet};
+    --ai-indigo: #{c.$ai-indigo};
+
+    // ── TP Slate (Neutrals) ──
+    --tp-slate-0: #{c.$tp-slate-0};
+    --tp-slate-50: #{c.$tp-slate-50};
+    --tp-slate-100: #{c.$tp-slate-100};
+    --tp-slate-200: #{c.$tp-slate-200};
+    --tp-slate-300: #{c.$tp-slate-300};
+    --tp-slate-400: #{c.$tp-slate-400};
+    --tp-slate-500: #{c.$tp-slate-500};
+    --tp-slate-600: #{c.$tp-slate-600};
+    --tp-slate-700: #{c.$tp-slate-700};
+    --tp-slate-800: #{c.$tp-slate-800};
+    --tp-slate-900: #{c.$tp-slate-900};
+
+    // ── TP Icon Clickable Surface ──
+    --tp-icon-clickable-light-bg: #{c.$tp-icon-clickable-light-bg};
+    --tp-icon-clickable-light-bg-hover: #{c.$tp-icon-clickable-light-bg-hover};
+    --tp-icon-clickable-dark-bg: #{c.$tp-icon-clickable-dark-bg};
+    --tp-icon-clickable-dark-bg-hover: #{c.$tp-icon-clickable-dark-bg-hover};
+
+    // ── TP Success (Green) ──
+    --tp-success-50: #{c.$tp-success-50};
+    --tp-success-100: #{c.$tp-success-100};
+    --tp-success-200: #{c.$tp-success-200};
+    --tp-success-300: #{c.$tp-success-300};
+    --tp-success-400: #{c.$tp-success-400};
+    --tp-success-500: #{c.$tp-success-500};
+    --tp-success-600: #{c.$tp-success-600};
+    --tp-success-700: #{c.$tp-success-700};
+    --tp-success-800: #{c.$tp-success-800};
+    --tp-success-900: #{c.$tp-success-900};
+
+    // ── TP Warning (Amber) ──
+    --tp-warning-50: #{c.$tp-warning-50};
+    --tp-warning-100: #{c.$tp-warning-100};
+    --tp-warning-200: #{c.$tp-warning-200};
+    --tp-warning-300: #{c.$tp-warning-300};
+    --tp-warning-400: #{c.$tp-warning-400};
+    --tp-warning-500: #{c.$tp-warning-500};
+    --tp-warning-600: #{c.$tp-warning-600};
+    --tp-warning-700: #{c.$tp-warning-700};
+    --tp-warning-800: #{c.$tp-warning-800};
+    --tp-warning-900: #{c.$tp-warning-900};
+
+    // ── TP Error (Crimson Red) ──
+    --tp-error-50: #{c.$tp-error-50};
+    --tp-error-100: #{c.$tp-error-100};
+    --tp-error-200: #{c.$tp-error-200};
+    --tp-error-300: #{c.$tp-error-300};
+    --tp-error-400: #{c.$tp-error-400};
+    --tp-error-500: #{c.$tp-error-500};
+    --tp-error-600: #{c.$tp-error-600};
+    --tp-error-700: #{c.$tp-error-700};
+    --tp-error-800: #{c.$tp-error-800};
+    --tp-error-900: #{c.$tp-error-900};
+
+    --core-primary-900: #{c.$tp-blue-900};
+  }
+}

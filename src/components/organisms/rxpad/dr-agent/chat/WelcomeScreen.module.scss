@@ -1,0 +1,59 @@
+.bgGif {
+  background-image: url(/icons/dr-agent/chat-bg.gif);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.04;
+}
+
+.sparkWrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px; // 36 * 0.24 ≈ 8.64 → rounded to 8px (even)
+}
+
+.sparkBase {
+  border-radius: 8px;
+}
+
+.sparkGif {
+  background-image: url(/icons/dr-agent/chat-bg.gif);
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+  opacity: 0.3;
+}
+
+.subtitle {
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+.subtitlePatientName {
+  color: var(--tp-slate-500, #717179);
+}
+
+.actionCard {
+  border-radius: 14px;
+  padding: 14px 12px 16px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(226, 226, 234, 0.5);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.actionCardGif {
+  background-image: url(/icons/dr-agent/chat-bg.gif);
+  background-size: cover;
+  opacity: 0.06;
+  border-radius: 14px;
+}
+
+.actionCardIcon {
+  opacity: 0.85;
+}
+
+.actionCardTitle {
+  color: var(--tp-slate-700, #454551);
+}
+
+.actionCardSubtitle {
+  color: var(--tp-slate-400, #a2a2a8);
+}

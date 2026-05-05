@@ -1,304 +1,64 @@
 # Backend Integration Guide
 
 > How to swap the demo's mock data with a real backend / agentic API
-> without touching component code. Read after `engineering.md` §4 — the
-> data flow diagram tells you WHERE the seams are; this file tells you
-> WHAT to send and HOW to wire it.
+> without touching component code. Read after `engineering.md` §5 — the
+> data flow diagram shows WHERE the seams are; this file explains WHAT to
+> send and HOW to wire it.
 
 ---
 
 ## 1. The contract (TL;DR)
 
-The frontend already speaks in stable TypeScript shapes. To plug in a
-backend, you produce these shapes and feed them through the existing
-hand-off points:
+The frontend speaks in stable JS shapes. Plug in a backend by producing
+these shapes and feeding them through the existing hand-off points:
 
-| Shape | Where it's consumed | Source file |
+| Shape | Where consumed | Source file |
 |---|---|---|
-| `VoiceStructuredRxData` | The structured EMR card (canvas + chat preview) | `components/tp-rxpad/dr-agent/types.ts` |
-| `RxPadCopyPayload` | The Rx form fan-out (`requestCopyToRxPad`) | `components/tp-rxpad/rxpad-sync-context.tsx` |
-| `HistoricalUpdateBatch` | The sidebar fan-out (`pushHistoricalUpdates`) | `components/tp-rxpad/rxpad-sync-context.tsx` |
-| `RxAgentChatMessage` | A chat bubble in the Dr.Agent panel | `components/tp-rxpad/dr-agent/types.ts` (`RxAgentChatMessage`) |
+| `VoiceStructuredRxData` | Structured EMR card (canvas + chat preview) | `components/tp-rxpad/dr-agent/types.js` |
+| `RxPadCopyPayload` | Rx form fan-out via `requestCopyToRxPad` | `components/tp-rxpad/rxpad-sync-context.jsx` |
+| `HistoricalUpdateBatch` | Sidebar fan-out via `pushHistoricalUpdates` | `components/tp-rxpad/rxpad-sync-context.jsx` |
+| `RxAgentChatMessage` | A chat bubble in the Dr.Agent panel | `components/tp-rxpad/dr-agent/types.js` |
 
 If the backend returns these directly, you skip transformation entirely.
-If it returns its own shape, write a single adapter (one function per
-endpoint) and the rest of the UI stays the same.
+If it returns its own shape, write a single adapter per endpoint — the
+rest of the UI stays the same.
 
 ---
 
 ## 2. Endpoints the demo currently mocks
 
-These are the calls the frontend makes today, with `setTimeout` /
-hard-coded data instead of fetch. Replace each with an HTTP call.
+These calls exist today with `setTimeout` / hard-coded data. Replace each
+with an HTTP call to your backend.
 
 ### 2.1 `POST /voicerx/structure`
 
 **When**: Doctor hits Submit on the recorder.
 
-**Currently**: `DrAgentPanel.tsx:920–1020`, inside `submitVoiceRxRecording`. A `setTimeout` of ~2s, then `buildPatientVoiceStructuredRx(patientId, transcript)` returns hard-coded mock data per patient (`engines/voice-rx-patient-mock.ts`).
+**Currently mocked in**: `components/tp-rxpad/dr-agent/DrAgentPanel.jsx`,
+function `submitVoiceRxRecording`.
 
 **Request**:
-```ts
+```json
 {
-  patientId: string
-  transcript: string                   // raw voice transcript
-  mode: "ambient_consultation" | "dictation"
-  durationMs: number
-  contextHints?: {
-    specialty?: SpecialtyTabId         // "gp" | "gynec" | ...
-    visitType?: "first" | "followUp"
-    patientAge?: number
-    patientGender?: "M" | "F"
-    activeMedications?: string[]
-    activeConditions?: string[]
+  "patientId": "string",
+  "transcript": "raw voice transcript",
+  "mode": "ambient_consultation | dictation",
+  "durationMs": 34000,
+  "contextHints": {
+    "specialty": "gp | gynec | cardio | …",
+    "visitType": "first | followUp",
+    "patientAge": 42,
+    "patientGender": "M | F",
+    "activeMedications": ["Metformin 500mg"],
+    "activeConditions": ["Type 2 diabetes"]
   }
 }
 ```
 
 **Response** (must satisfy `VoiceStructuredRxData`):
-```ts
-{
-  voiceText: string                    // can be transcript or a server-cleaned version
-  sections: [
-    {
-      sectionId: "symptoms" | "examination" | "diagnosis" | "medication" | "advice" | "investigation" | "followUp" | "history" | "vitals" | "labs"
-      title: string                    // "Symptoms"
-      tpIconName: string               // "virus" | "medical-service" | ... — see §6
-      items: [
-        { name: string, detail?: string, abnormal?: "high" | "low" }
-      ]
-    }
-  ],
-  copyAllPayload: {                    // ready-to-fan shape; see §3
-    sourceDateLabel: "Voice consult",
-    targetSection: "rxpad",
-    symptoms?: string[],
-    examinations?: string[],
-    diagnoses?: string[],
-    medications?: [{
-      medicine: string,
-      unitPerDose: string,
-      frequency: string,
-      when: string,
-      duration: string,
-      note: string
-    }],
-    advice?: string,
-    labInvestigations?: string[],
-    additionalNotes?: string,
-    vitals?: { bpSystolic?, bpDiastolic?, temperature?, heartRate?, ... },
-    historyChangeSummaries?: string[]
-  }
-}
-```
-
-**Sidebar batch**: separate from `copyAllPayload`. The frontend currently
-computes it client-side via `buildVoiceConsultSidebarBatch`. Return it
-alongside if the backend has stronger context:
-
-```ts
-sidebarBatch?: HistoricalUpdateBatch  // see §3 for shape
-```
-
-### 2.2 `GET /patient/:id/snapshot` (or pre-loaded with the patient)
-
-**When**: Patient is selected; the Dr.Agent panel needs vitals, history, last visit, etc.
-
-**Currently**: `engines/voice-rx-patient-mock.ts` and `mock-data.ts`. Hard-coded per-patient data.
-
-**Response** would feed the various card data shapes in `types.ts`. Each card has its own `*Data` interface. Stable contracts already.
-
-### 2.3 `POST /chat/intent`
-
-**When**: Doctor types a free-form chat message.
-
-**Currently**: `engines/intent-engine.ts` + `engines/reply-engine.ts` — local heuristic engines that produce a `RxAgentChatMessage` with optional `rxOutput` (a typed card payload).
-
-**Request**:
-```ts
-{
-  patientId: string
-  text: string
-  conversationHistory?: { role: "user" | "assistant", text: string, createdAt: string }[]
-  contextHints?: { ... }            // same as voicerx/structure
-}
-```
-
-**Response**:
-```ts
-{
-  reply: {
-    text: string                    // the assistant's text bubble
-    rxOutput?: RxAgentRxOutput      // optional structured card to render under the bubble
-  }
-}
-```
-
-`RxAgentRxOutput` is a discriminated union over ~30 card kinds. See `types.ts` and `cards/CardRenderer.tsx`. A typical response uses one of:
-- `{ kind: "voice_structured_rx", data: VoiceStructuredRxData }`
-- `{ kind: "patient_reported", data: SymptomCollectorData }`
-- `{ kind: "lab_panel" | "lab_trends" | "lab_comparison", data: ... }`
-- `{ kind: "ddx", data: { options: [...] } }`
-- `{ kind: "advice_bundle", data: { sections: [...] } }`
-- `{ kind: "vitals_summary" | "vital_trends_bar" | "vital_trends_line", data: ... }`
-- `{ kind: "follow_up_question", data: { questions: string[] } }` — when intent is ambiguous and the assistant needs to ask back
-
-### 2.4 `POST /rxpad/copy/:section` (optional optimistic)
-
-**When**: Doctor hits a Copy CTA. Currently fully client-side via `RxPadSyncContext`.
-
-If you want server-side persistence of "what got copied" (audit trail, undo across sessions), the backend would receive the `RxPadCopyPayload` and return an id. The frontend already generates a local id (`copyId`) — replace that with the server id when the response arrives.
-
-### 2.5 `POST /print/render`
-
-**When**: Doctor prints. Lives at `app/print-preview/`. Currently renders client-side from local Rx state. Server-side PDF rendering would replace this route's data source.
-
----
-
-## 3. Where to plug calls in (the seam map)
-
-Code locations marked with `// TODO(integration)` would be the cleanest
-labels — they don't exist yet, but the seams below are where to put
-them.
-
-### Seam A: Voice submit
-
-**File**: `components/tp-rxpad/dr-agent/DrAgentPanel.tsx`
-**Function**: `submitVoiceRxRecording` (search for it)
-
-Replace this block:
-```ts
-voiceRxTimeoutRef.current = setTimeout(() => {
-  const structured = buildPatientVoiceStructuredRx(selectedPatientId, transcript)
-  // ... other mock builders
-  setVoiceRxResult({ structured, ... })
-}, 1800)
-```
-
-With:
-```ts
-const result = await fetch("/api/voicerx/structure", {
-  method: "POST",
-  body: JSON.stringify({ patientId, transcript, mode, durationMs })
-}).then(r => r.json())
-
-setVoiceRxResult({
-  structured: result,
-  transcript,
-  sections: result.sections.map(s => ({ id: s.sectionId, title: s.title, items: s.items.map(it => it.detail ? `${it.name} — ${it.detail}` : it.name) })),
-  durationMs,
-  modeLabel: voiceRxDialogChoice === "ambient_consultation" ? "Conversation Mode" : "Dictation Mode",
-  pendingSidebarBatch: result.sidebarBatch,
-})
-```
-
-The setTimeout exists today *only* to give the shiner card time to play. If the backend is fast, keep a min-display-time wrapper so the doctor sees the loader animation:
-
-```ts
-const [serverResult, _] = await Promise.all([
-  fetchStructured(...),
-  new Promise(r => setTimeout(r, 1800))  // min shiner visibility
-])
-```
-
-### Seam B: Chat send
-
-**File**: `DrAgentPanel.tsx`
-**Function**: `handleChatSubmit` / wherever the current `replyEngine.process(text)` lives
-
-Replace local engine call with `fetch("/api/chat/intent", ...)`. The
-response shape is already `{ reply: { text, rxOutput? } }`. Push the
-assistant message into the thread; CardRenderer picks up `rxOutput`.
-
-### Seam C: Patient context load
-
-**File**: wherever `selectedPatientId` is set, OR a `useEffect` keyed on it
-**Currently**: `mock-data.ts` is read synchronously at first render
-
-Add an async load:
-```ts
-useEffect(() => {
-  fetch(`/api/patient/${selectedPatientId}/snapshot`)
-    .then(r => r.json())
-    .then(setPatientSnapshot)
-}, [selectedPatientId])
-```
-
-While loading, render the existing skeleton states (cards already handle
-empty data — no errors fired).
-
----
-
-## 4. Loading / empty / error matrix
-
-The frontend has well-defined states for every card. Hand them off to
-the backend via these conventions:
-
-| State | What the UI does | What the backend should send |
-|---|---|---|
-| **Loading** (initial fetch) | Skeleton placeholder OR shiner card OR spinner inside the card | (don't send anything; resolve the fetch) |
-| **Empty** (no data for this patient) | "No data yet" empty-state — gentle, no red | Resolve with `{ data: null }` or `204 No Content` |
-| **Partial** (some sections missing) | Render available sections, omit missing ones gracefully | Send only the sections that have data; omit unknown keys |
-| **Error** (network / server) | Silent fallback to empty-state UNLESS this was an explicit user action | For background loads: return empty response. For user actions: return a structured error and the UI will show an inline retry |
-| **Offline** | Toast "You're offline — transcription paused"; recording continues locally | N/A — handled client-side via `useNetConnection` |
-
-### Critical: do NOT show red banner errors mid-consultation
-
-The doctor is mid-consult with a real patient. A red "Server error 500"
-banner is the worst possible UX. Default behavior:
-
-- Background loads (patient snapshot, side-panel data) → fail silently, fall back to empty-state
-- Submit actions (voice / chat / copy) → inline retry button, no banner
-- Critical actions (save / print) → only place a modal error is acceptable, and only with a clear next step
-
-This is the single biggest UX rule — the existing code holds to it; the
-backend integration must too.
-
----
-
-## 5. Authentication
-
-Not implemented in the demo. When you add it:
-
-- Token storage: prefer `httpOnly` cookies over `localStorage`
-- 401 handling: redirect to login or trigger re-auth flow; do NOT show the doctor a red error
-- Token refresh: silent in the background; only surface if refresh truly fails
-
-Add an `apiClient` wrapper (one new file, `lib/api-client.ts`) that injects auth headers and handles 401 retry. Every fetch call goes through it.
-
----
-
-## 6. Icon mapping
-
-The backend's `tpIconName` field must match an icon the frontend knows
-about. The lookup is in `components/tp-ui/TPMedicalIcon.tsx`. Common
-section icons:
-
-| sectionId | tpIconName |
-|---|---|
-| `symptoms` | `virus` |
-| `examination` | `medical-service` |
-| `diagnosis` | `Diagnosis` |
-| `medication` | `pill` or `tablets` |
-| `advice` | `health-care` |
-| `investigation` / `lab` | `Lab` |
-| `followUp` | `calendar` |
-| `history` | `medical-record` |
-| `vitals` | `heart-rate` |
-| `labs` (results) | `test-tube` |
-| `surgeries` | `surgical-scissors-02` |
-
-If you add new section types, add an icon (SVG file under `public/icons/medical/`) and register it.
-
----
-
-## 7. Sample wire payloads
-
-### Voice submit response (a real-ish one)
-
 ```json
 {
-  "voiceText": "Patient complains of fever and cough for 3 days...",
+  "voiceText": "can be transcript or server-cleaned version",
   "sections": [
     {
       "sectionId": "symptoms",
@@ -306,29 +66,15 @@ If you add new section types, add an icon (SVG file under `public/icons/medical/
       "tpIconName": "virus",
       "items": [
         { "name": "Fever", "detail": "3 days, moderate" },
-        { "name": "Cough", "detail": "3 days, dry" }
-      ]
-    },
-    {
-      "sectionId": "diagnosis",
-      "title": "Diagnosis",
-      "tpIconName": "Diagnosis",
-      "items": [{ "name": "Viral pharyngitis", "detail": "suspected" }]
-    },
-    {
-      "sectionId": "medication",
-      "title": "Medications",
-      "tpIconName": "tablets",
-      "items": [
-        { "name": "Paracetamol 650mg", "detail": "1 tablet, 1-0-0-1, AF, 3 days" }
+        { "name": "Cough", "detail": "dry, persistent" }
       ]
     }
   ],
   "copyAllPayload": {
     "sourceDateLabel": "Voice consult",
     "targetSection": "rxpad",
-    "symptoms": ["Fever (3 days, moderate)", "Cough (3 days, dry)"],
-    "diagnoses": ["Viral pharyngitis (suspected)"],
+    "symptoms": ["Fever (3 days, moderate)"],
+    "diagnoses": ["Viral pharyngitis"],
     "medications": [
       {
         "medicine": "Paracetamol 650mg",
@@ -338,54 +84,224 @@ If you add new section types, add an icon (SVG file under `public/icons/medical/
         "duration": "3 days",
         "note": ""
       }
-    ]
+    ],
+    "advice": "Rest, adequate fluids",
+    "labInvestigations": ["CBC"],
+    "vitals": { "temperature": 99.8, "heartRate": 88 }
   },
   "sidebarBatch": {
-    "vitals": [
-      { "id": "v1", "bullets": ["Temp 99.8°F", "Pulse 88 bpm"] }
-    ]
+    "vitals": [{ "id": "v1", "bullets": ["Temp 99.8°F", "Pulse 88 bpm"] }]
   }
 }
 ```
 
-### Chat reply response
+### 2.2 `GET /patient/:id/snapshot`
 
+**When**: Patient is selected; Dr.Agent panel loads vitals, history, last visit.
+
+**Currently mocked in**: `components/tp-rxpad/dr-agent/mock-data.js` and
+`engines/voice-rx-patient-mock.js` — hard-coded per-patient maps.
+
+Response feeds the various `*Data` card interfaces in `types.js`. Each
+card has a stable contract; the mock data shows the expected shape.
+
+### 2.3 `POST /chat/intent`
+
+**When**: Doctor types a free-form message.
+
+**Currently mocked in**: `engines/intent-engine.js` + `engines/reply-engine.js`.
+
+**Request**:
+```json
+{
+  "patientId": "string",
+  "text": "what are the likely diagnoses here?",
+  "conversationHistory": [
+    { "role": "user", "text": "…", "createdAt": "ISO 8601" }
+  ]
+}
+```
+
+**Response**:
 ```json
 {
   "reply": {
-    "text": "Based on the labs, hemoglobin is below range. Want me to suggest a workup?",
+    "text": "Based on the symptoms, consider viral pharyngitis.",
     "rxOutput": {
-      "kind": "lab_panel",
-      "data": {
-        "title": "CBC — 12 Mar 2026",
-        "category": "haematology",
-        "parameters": [
-          { "name": "Hb", "value": "9.2 g/dL", "refRange": "13.0–17.0", "flag": "low" }
-        ],
-        "normalCount": 5,
-        "insight": "Mild anemia — consider iron studies"
-      }
+      "kind": "ddx",
+      "data": { "options": [{ "label": "Viral pharyngitis", "likelihood": "high" }] }
     }
   }
 }
 ```
 
+`rxOutput` is a discriminated union over ~30 card kinds. Common ones:
+
+| `kind` | When to use |
+|---|---|
+| `voice_structured_rx` | Full structured clinical notes |
+| `patient_reported` | Symptom collector result |
+| `lab_panel` | Single lab report |
+| `lab_trends` | Time-series lab values |
+| `ddx` | Differential diagnosis options |
+| `advice_bundle` | Structured advice sections |
+| `vitals_summary` | Single-visit vitals |
+| `follow_up_question` | When intent is ambiguous — ask the doctor back |
+
+See `components/tp-rxpad/dr-agent/types.js` and `cards/CardRenderer.jsx`
+for the full union.
+
+### 2.4 `POST /rxpad/copy/:section` (optional)
+
+If you want server-side persistence of copy events (audit trail, undo
+across sessions): receive `RxPadCopyPayload`, return a server-assigned
+`copyId`. The frontend generates a local id today — swap it out when the
+response arrives.
+
+### 2.5 `POST /print/render` (optional)
+
+`app/print-preview/` currently renders client-side from local Rx state.
+Replace the data source with a server endpoint for PDF generation.
+
 ---
 
-## 8. Migration checklist
+## 3. Where to plug in (the seam map)
 
-For the team integrating:
+### Seam A — Voice submit
 
-- [ ] Stand up the API endpoints listed in §2
-- [ ] Match response shapes to `types.ts` interfaces (or write adapters)
-- [ ] Add `lib/api-client.ts` with auth + retry
-- [ ] Replace seams A/B/C in `DrAgentPanel.tsx` (engineering.md §4)
-- [ ] Verify the loading / empty / error contract — no red banners
-- [ ] Test offline behaviour (DevTools → Network → Offline)
-- [ ] Test 401 / 500 paths — silent fallback to empty
-- [ ] Test partial-data response — sections render only what's there
-- [ ] Test patient switch mid-action — abort in-flight fetch
-- [ ] Audit logging — every Copy CTA fires an event you can persist
+**File**: `components/tp-rxpad/dr-agent/DrAgentPanel.jsx`
+**Function**: `submitVoiceRxRecording`
 
-When this is done, every component above the seam stays untouched.
-That's the test that the contracts hold.
+Replace this:
+```js
+voiceRxTimeoutRef.current = setTimeout(() => {
+  const structured = buildPatientVoiceStructuredRx(selectedPatientId, transcript)
+  // … other mock builders
+  setVoiceRxResult({ structured, … })
+}, 1800)
+```
+
+With:
+```js
+const [result] = await Promise.all([
+  fetch("/api/voicerx/structure", {
+    method: "POST",
+    body: JSON.stringify({ patientId: selectedPatientId, transcript, mode, durationMs }),
+  }).then(r => r.json()),
+  new Promise(r => setTimeout(r, 1800)), // keep min shiner visibility
+])
+
+setVoiceRxResult({
+  structured: result,
+  transcript,
+  sections: result.sections.map(s => ({
+    id: s.sectionId, title: s.title,
+    items: s.items.map(it => it.detail ? `${it.name} — ${it.detail}` : it.name),
+  })),
+  durationMs,
+  modeLabel: mode === "ambient_consultation" ? "Conversation Mode" : "Dictation Mode",
+  pendingSidebarBatch: result.sidebarBatch,
+})
+```
+
+### Seam B — Chat send
+
+**File**: `DrAgentPanel.jsx`, function `handleChatSubmit`
+
+Replace `replyEngine.process(text)` with:
+```js
+const { reply } = await fetch("/api/chat/intent", {
+  method: "POST",
+  body: JSON.stringify({ patientId, text, conversationHistory }),
+}).then(r => r.json())
+
+// Push assistant message — CardRenderer handles rxOutput
+appendMessage({ role: "assistant", text: reply.text, rxOutput: reply.rxOutput })
+```
+
+### Seam C — Patient context load
+
+**File**: wherever `selectedPatientId` triggers a data load.
+
+```js
+useEffect(() => {
+  if (!selectedPatientId) return;
+  fetch(`/api/patient/${selectedPatientId}/snapshot`)
+    .then(r => r.json())
+    .then(setPatientSnapshot)
+}, [selectedPatientId])
+```
+
+Cards already handle `undefined` / empty data — skeleton states render
+automatically while the fetch is in flight.
+
+---
+
+## 4. Loading / error / empty contract
+
+**The cardinal rule**: no red error banners during a live consultation.
+
+| Situation | Frontend behaviour | Backend should… |
+|---|---|---|
+| Background load (patient snapshot) | Skeleton → fills when resolved | Return `null` / `204` for missing data |
+| User-triggered action (voice submit) | Shiner card shown; inline retry if fails | Return structured error; frontend shows retry button |
+| Partial data (some sections missing) | Renders only available sections | Omit missing keys — don't send empty arrays |
+| Network offline | Toast + recording continues | N/A — handled by `useNetConnection` |
+| 500 / unexpected error | Silent empty-state | Never surface raw error text to doctor |
+| Save / Print (critical) | Only place a modal error is acceptable | Include a `userFacingMessage` in the error body |
+
+---
+
+## 5. Authentication
+
+Not implemented in the demo. When adding:
+
+- **Token storage**: `httpOnly` cookies preferred over localStorage.
+- **401 handling**: silent re-auth or redirect to login — never show a red banner mid-consult.
+- **Token refresh**: background; only surface to user if refresh truly fails.
+
+Add a single `lib/api-client.js` that injects auth headers and handles
+401 retry. All fetch calls go through it — no auth logic in components.
+
+---
+
+## 6. Icon mapping
+
+The `tpIconName` field in section responses must match a registered
+`TPMedicalIcon`. Icons live in `public/icons/medical/`. Common mappings:
+
+| `sectionId` | `tpIconName` |
+|---|---|
+| `symptoms` | `virus` |
+| `examination` | `medical-service` |
+| `diagnosis` | `Diagnosis` |
+| `medication` | `tablets` |
+| `advice` | `health-care` |
+| `investigation` / `labs` | `Lab` |
+| `followUp` | `calendar` |
+| `history` | `medical-record` |
+| `vitals` | `heart-rate` |
+| `surgeries` | `surgical-scissors-02` |
+
+To add a new section type: drop an SVG into `public/icons/medical/` and
+register the name in `components/tp-ui/medical-icons/index.js`.
+
+---
+
+## 7. Integration checklist
+
+- [ ] Stand up the API endpoints from §2
+- [ ] Match response shapes to interfaces in `types.js` (or write adapters)
+- [ ] Add `lib/api-client.js` with auth header injection + 401 retry
+- [ ] Replace Seam A in `DrAgentPanel.jsx` (voice submit)
+- [ ] Replace Seam B in `DrAgentPanel.jsx` (chat send)
+- [ ] Replace Seam C (patient snapshot load)
+- [ ] Verify loading / empty / error contract — no red banners
+- [ ] Test offline path (DevTools → Network → Offline)
+- [ ] Test 401 / 500 paths — silent fallback to empty state
+- [ ] Test partial-data response — missing sections are omitted gracefully
+- [ ] Test patient switch during in-flight fetch — abort previous request
+- [ ] Test `prefers-reduced-motion` — animations off, data still correct
+
+When the checklist passes, every component above the seams is untouched.
+That confirms the data contracts held.

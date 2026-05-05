@@ -1,0 +1,31 @@
+.backdrop {
+  background: rgba(0, 0, 0, 0.45);
+  animation: psFadeIn 150ms ease-out;
+}
+
+.sheet {
+  height: 60%;
+  animation: psSlideUp 200ms ease-out;
+}
+
+.stickyHeader {
+  background: #f8f9fa;
+}
+
+.tooltip {
+  width: 210px;
+  white-space: normal;
+}
+
+.orDividerSpan {
+  background: #f8f9fa;
+}
+
+.scrollList {
+  background: #f8f9fa;
+}
+
+.separatorPipe {
+  color: #d0d5dd;
+  margin: 0 3px;
+}

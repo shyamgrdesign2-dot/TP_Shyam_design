@@ -1,0 +1,48 @@
+/* Alert.module.scss */
+
+.alert {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: Inter, sans-serif;
+  border: 1px solid transparent;
+
+  &[data-severity="info"] {
+    background-color: var(--tp-blue-50,    #eeeeff);
+    color:            var(--tp-blue-700,   #2e2d96);
+    border-color:     var(--tp-blue-200,   #b5b4f2);
+  }
+  &[data-severity="success"] {
+    background-color: var(--tp-success-50,  #ecfdf5);
+    color:            var(--tp-success-700, #047857);
+    border-color:     var(--tp-success-200, #a7f3d0);
+  }
+  &[data-severity="warning"] {
+    background-color: var(--tp-warning-50,  #fffbeb);
+    color:            var(--tp-warning-700, #b45309);
+    border-color:     var(--tp-warning-200, #fde68a);
+  }
+  &[data-severity="error"] {
+    background-color: var(--tp-error-50,  #fff1f2);
+    color:            var(--tp-error-700, #9f1239);
+    border-color:     var(--tp-error-200, #fecdd3);
+  }
+}
+
+.icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-weight: 600;
+  margin: 0 0 4px;
+}

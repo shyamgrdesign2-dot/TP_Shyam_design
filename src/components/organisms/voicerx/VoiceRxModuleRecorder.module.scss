@@ -1,0 +1,114 @@
+// ── Static empty-state icon halos ──────────────────────────────────────────
+
+// Stack variant — outer halo circle
+.errorHaloOuter {
+  background: rgba(148, 163, 184, 0.18);
+}
+
+// Stack variant — inner halo ring
+.errorHaloInner {
+  background: rgba(148, 163, 184, 0.22);
+}
+
+// Stack variant — retry button with blue token colors
+.retryBtn {
+  color: var(--tp-blue-500);
+  border-color: var(--tp-blue-500);
+}
+
+// Row variant — outer halo circle
+.errorHaloOuterRow {
+  background: rgba(148, 163, 184, 0.16);
+}
+
+// Row variant — inner halo ring
+.errorHaloInnerRow {
+  background: rgba(148, 163, 184, 0.20);
+}
+
+// Row variant — retry button with blue token colors
+.retryBtnRow {
+  color: var(--tp-blue-500);
+  border-color: var(--tp-blue-500);
+}
+
+// ── Transcript scroll container ─────────────────────────────────────────────
+.transcriptScroll {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+// ── Outer recorder wrapper backgrounds ─────────────────────────────────────
+// Row variant: near-opaque white overlay on top of the AI-gradient bg
+.recorderBg {
+  background: linear-gradient(rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.84)),
+    url("/icons/dr-agent/agent-bg.svg") center / cover no-repeat;
+}
+
+// Stack variant: same base bg + top-fade mask that dissolves into scroll
+.recorderBgStack {
+  background: linear-gradient(rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.84)),
+    url("/icons/dr-agent/agent-bg.svg") center / cover no-repeat;
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 1) 22%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 1) 22%,
+    rgba(0, 0, 0, 1) 100%
+  );
+}
+
+// ── Blob wrapper height ─────────────────────────────────────────────────────
+// Stack variant blob wrapper — always 56px
+.blobWrapperStack {
+  height: 56px;
+}
+
+// Row variant blob wrapper height is driven by --vrx-blob-wrapper-h CSS var
+// (set via data attribute) because it depends on isUltraCompact state.
+// Two static classes cover the two possible heights:
+.blobWrapperRow {
+  height: 48px;
+}
+
+.blobWrapperRowUltra {
+  height: 40px;
+}
+
+// ── Blob margin-top spacer ──────────────────────────────────────────────────
+.blobMargin {
+  margin-top: 4px;
+}
+
+// ── Submit button inner sheen gradient ─────────────────────────────────────
+.submitTopSheen {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+// ── Submit button inner flex row gap ───────────────────────────────────────
+// State-driven gap (isUltraCompact → 6px, normal → 8px)
+// Handled by two data-attribute classes:
+.submitIconRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.submitIconRowUltra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// ── Status pill recording ring animation ───────────────────────────────────
+.recRingAnim {
+  animation: vrxRecRing 1.8s ease-out infinite;
+}

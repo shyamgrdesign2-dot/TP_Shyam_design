@@ -1,0 +1,83 @@
+/* Banner.module.scss */
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-family: Inter, var(--font-sans, sans-serif);
+  line-height: 1.5;
+
+  &[data-status="info"] {
+    background-color: var(--tp-blue-50,    #eeeeff);
+    border-color:     var(--tp-blue-200,   #b5b4f2);
+    color:            var(--tp-blue-800,   #1e1d6d);
+  }
+  &[data-status="success"] {
+    background-color: var(--tp-success-50,  #ecfdf5);
+    border-color:     var(--tp-success-200, #a7f3d0);
+    color:            var(--tp-success-800, #065f46);
+  }
+  &[data-status="warning"] {
+    background-color: var(--tp-warning-50,  #fffbeb);
+    border-color:     var(--tp-warning-200, #fde68a);
+    color:            var(--tp-warning-800, #92400e);
+  }
+  &[data-status="error"] {
+    background-color: var(--tp-error-50,  #fff1f2);
+    border-color:     var(--tp-error-200, #fecdd3);
+    color:            var(--tp-error-800, #881337);
+  }
+}
+
+/* ── Icon — uses currentColor, set per-status ── */
+.icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: inline-flex;
+
+  &[data-status="info"]    { color: var(--tp-blue-500,    #4a49ca); }
+  &[data-status="success"] { color: var(--tp-success-500, #10b981); }
+  &[data-status="warning"] { color: var(--tp-warning-500, #f59e0b); }
+  &[data-status="error"]   { color: var(--tp-error-500,   #e11d48); }
+}
+
+/* ── Body ── */
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-weight: 600;
+  margin: 0 0 2px;
+}
+
+/* ── Action slot ── */
+.action {
+  flex-shrink: 0;
+}
+
+/* ── Dismiss button ── */
+.dismiss {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 2px;
+  transition: opacity 150ms ease;
+
+  &:hover { opacity: 1; }
+  &:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 2px; }
+}

@@ -1,0 +1,45 @@
+// PatientDetailAgentPanel — SCSS module
+// Phase 11f: inline style={{}} → SCSS classes
+
+// ── SummaryCard ──────────────────────────────────────────
+.sbarBackground {
+  background: linear-gradient(135deg, #f5f3ff 0%, #faf5ff 100%);
+}
+
+// ── MiniTrendBars ────────────────────────────────────────
+// Dynamic bar height: kept as CSS var in JSX → var(--bar-height) here
+.trendBar {
+  height: var(--bar-height);
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(to bottom, #8a4dbb, #4b4ad5);
+  transition: opacity 0.15s;
+
+  .trendBarButton:hover & {
+    opacity: 0.8;
+  }
+}
+
+// ── Confidence/completeness bars — widths kept dynamic via CSS var ──
+// (Dynamic: --bar-width set per element in JSX)
+.dynamicWidthBar {
+  height: 100%;
+  width: var(--bar-width);
+}
+
+// ── Prompt suggestion chips ──────────────────────────────
+.promptChip {
+  background: linear-gradient(
+    135deg,
+    rgba(242, 77, 182, 0.08) 0%,
+    rgba(150, 72, 254, 0.08) 50%,
+    rgba(75, 74, 213, 0.08) 100%
+  );
+  color: var(--tp-violet-600);
+}
+
+// ── AI brand icon container (uses AI_GRADIENT_SOFT JS constant) ─
+// Kept dynamic via CSS var --ai-gradient
+.aiBrandIcon {
+  background: var(--ai-gradient);
+}

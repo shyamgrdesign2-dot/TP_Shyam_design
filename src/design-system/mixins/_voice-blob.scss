@@ -1,0 +1,47 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Mixin: Voice Blob
+// Audio-reactive gradient blob for VoiceRx recorder UI.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Static voice blob — gentle drift animation.
+@mixin voice-blob {
+  background-image:
+    radial-gradient(60% 75% at 50% 78%, rgba(213, 101, 234, 0.55) 0%, rgba(213, 101, 234, 0) 72%),
+    radial-gradient(42% 58% at 32% 80%, rgba(139, 92, 246, 0.48) 0%, rgba(139, 92, 246, 0) 72%),
+    radial-gradient(42% 58% at 68% 80%, rgba(79, 70, 229, 0.42) 0%, rgba(79, 70, 229, 0) 72%);
+  background-repeat: no-repeat;
+  animation: _tp-voice-blob-drift 3.2s ease-in-out infinite;
+  pointer-events: none;
+  will-change: transform, opacity, scale, filter;
+  filter: blur(2px);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/// Reactive voice blob — responds to --vrx-blob-level (0..1) CSS variable.
+@mixin voice-blob-reactive {
+  @include voice-blob;
+
+  --vrx-blob-level: 0;
+  opacity: calc(0.65 + var(--vrx-blob-level) * 0.45);
+  transform-origin: 50% 100%;
+  scale: calc(1 + var(--vrx-blob-level) * 0.22);
+  filter:
+    blur(calc(1.5px + var(--vrx-blob-level) * 2px))
+    drop-shadow(0 0 calc(2px + var(--vrx-blob-level) * 18px)
+      rgba(139, 92, 246, calc(0.18 + var(--vrx-blob-level) * 0.55)));
+  transition: scale 80ms ease-out, opacity 80ms ease-out;
+}
+
+@keyframes _tp-voice-blob-drift {
+  0%, 100% {
+    transform: translate(-6px, 0) scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(6px, -4px) scale(1.08);
+    opacity: 1;
+  }
+}

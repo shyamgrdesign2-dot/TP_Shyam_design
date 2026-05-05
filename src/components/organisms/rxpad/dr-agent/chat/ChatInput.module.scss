@@ -1,0 +1,64 @@
+.gradientOverlay {
+  background: linear-gradient(to top, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.55) 55%, transparent);
+}
+
+.inputContainer {
+  padding: 6px 10px;
+  gap: 6px;
+}
+
+.footerRow {
+  min-height: 24px;
+}
+
+.patientChip {
+  background: var(--tp-slate-100, #f1f5f9);
+  border-radius: 6px;
+  padding: 3px 5px 3px 6px;
+  height: 24px;
+  max-width: 175px;
+  min-width: 0;
+}
+
+.chipName {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--tp-slate-800, #3d3d4e);
+  line-height: 12px;
+}
+
+.chipMeta {
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.chipMetaText {
+  color: var(--tp-slate-300, #b0b7c3);
+  font-weight: 400;
+}
+
+.chipMetaDivider {
+  color: var(--tp-slate-200, #d0d5dd);
+  font-weight: 400;
+}
+
+.chipChevron {
+  color: var(--tp-slate-500, #667085);
+}
+
+.lockedTooltip {
+  max-width: 200px;
+}
+
+.textarea {
+  min-height: 22px;
+  max-height: 100px;
+  color: var(--tp-slate-900, #1d2939);
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.voiceRxCta {
+  background: linear-gradient(135deg, #d565ea 0%, #673aac 55%, #1a1994 100%);
+  min-width: 96px;
+}

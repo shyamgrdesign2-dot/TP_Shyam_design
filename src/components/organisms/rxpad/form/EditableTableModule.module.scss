@@ -1,0 +1,14 @@
+// EditableTableModule — migrated inline styles
+// Phase 11f
+
+// Side column (drag handle + delete action) — fixed 50px
+.sideCol {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+}
+
+// Dropdown menu list — hide IE/Edge scrollbar
+.menuList {
+  -ms-overflow-style: none;
+}

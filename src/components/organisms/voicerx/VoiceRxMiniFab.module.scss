@@ -1,0 +1,174 @@
+// VoiceRxMiniFab — SCSS module
+// All values derived from SHELL_W=346, SHELL_H=100, viewBox 430×115
+// Computed: scale = 346/430 ≈ 0.8047; contentTop = -20 + (100 - 346*(115/430))/2 = -16.25px
+
+// ── Outer fixed container ────────────────────────────────────────────────────
+.outer {
+  bottom: 28px;
+  right: 0;
+  width: 100px;   // SHELL_H — visual width after 90° rotation
+  height: 346px;  // SHELL_W — visual height after 90° rotation
+  animation: vrxFabIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+// ── Inner native-size shell (346×100), rotated 90° ──────────────────────────
+.inner {
+  left: 50%;
+  top: 50%;
+  width: 346px;
+  height: 100px;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+}
+
+// ── SVG background (shell path + drop-shadow) ───────────────────────────────
+.svg {
+  width: 346px;
+  height: 100px;
+  position: absolute;
+  left: -10px;
+  top: -20px;
+  pointer-events: none;
+}
+
+// ── HTML content wrapper in viewBox coordinates, then scale down ─────────────
+.contentWrapper {
+  position: absolute;
+  left: -10px;
+  top: -16.25px; // -20 + (100 - 346*(115/430))/2
+  width: 430px;
+  height: 115px;
+  transform: scale(0.8047); // SHELL_W / 430 = 346/430
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+// ── Interior flex row ────────────────────────────────────────────────────────
+.fabContent {
+  width: 430px;
+  height: 115px;
+  padding: 16px 80px 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+}
+
+// ── Mic & submit shared surface reset ───────────────────────────────────────
+.surface {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 0;
+  flex: 0 0 auto;
+}
+
+// ── Mic button ───────────────────────────────────────────────────────────────
+.micBtn {
+  background: #fff4e6;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 12px 20px rgba(22, 8, 32, 0.12);
+
+  &[data-muted="true"] {
+    background: #f59e0b;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 18px rgba(245, 158, 11, 0.35);
+  }
+}
+
+// ── Counter-rotation span (un-rotates icon to read upright) ─────────────────
+.iconUnrotate {
+  display: inline-flex;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+// ── Center column ────────────────────────────────────────────────────────────
+.centerStack {
+  min-width: 0;
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+// ── Wave + timer row ─────────────────────────────────────────────────────────
+.waveRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  max-width: 100%;
+}
+
+// ── Waveform canvas container ────────────────────────────────────────────────
+.waveContainer {
+  width: 94px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+// ── Waveform canvas itself ───────────────────────────────────────────────────
+.waveCanvas {
+  display: block;
+  width: 86px;
+  height: 23px;
+}
+
+// ── Elapsed timer label ──────────────────────────────────────────────────────
+.elapsedLabel {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+// ── Status label row ─────────────────────────────────────────────────────────
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+// ── Status text ──────────────────────────────────────────────────────────────
+.statusLabel {
+  color: rgba(246, 237, 248, 0.78);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ── Animated dots row ────────────────────────────────────────────────────────
+.dotsRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+// ── Individual dot animation delays (vrx-fab-dot defined in globals.css) ─────
+.dotsRow > :nth-child(1) { animation-delay: 0ms; }
+.dotsRow > :nth-child(2) { animation-delay: 180ms; }
+.dotsRow > :nth-child(3) { animation-delay: 360ms; }
+
+// ── Submit button ────────────────────────────────────────────────────────────
+.submitBtn {
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 12px 24px rgba(22, 8, 32, 0.2);
+}
+
+// ── Awaiting-response spinner ────────────────────────────────────────────────
+.spinner {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2.5px solid rgba(26, 16, 33, 0.2);
+  border-top-color: #1a1021;
+}

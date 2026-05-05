@@ -1,0 +1,38 @@
+/* Hide scrollbar cross-browser */
+.pillScroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* AI gradient pill — default and hovered states */
+.pill {
+  background: linear-gradient(
+    135deg,
+    rgba(213, 101, 234, 0.08) 0%,
+    rgba(103, 58, 172, 0.08) 50%,
+    rgba(26, 25, 148, 0.08) 100%
+  );
+  border: 1px solid rgba(103, 58, 172, 0.15);
+
+  &[data-hovered="true"] {
+    background: linear-gradient(
+      135deg,
+      rgba(213, 101, 234, 0.14) 0%,
+      rgba(103, 58, 172, 0.14) 50%,
+      rgba(26, 25, 148, 0.14) 100%
+    );
+  }
+}
+
+/* AI gradient text on pill labels */
+.pillText {
+  background: linear-gradient(91deg, #d565ea 3.04%, #673aac 66.74%, #1a1994 130.45%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 400;
+}

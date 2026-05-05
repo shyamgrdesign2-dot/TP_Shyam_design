@@ -1,0 +1,56 @@
+/* Accordion.module.scss */
+
+.item {
+  border-bottom: 1px solid var(--tp-slate-100, #f1f1f5);
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: Inter, var(--font-sans, sans-serif);
+  color: var(--tp-slate-700, #454551);
+  line-height: 1.43;
+  outline: none;
+  text-align: left;
+  transition: color 150ms ease;
+
+  &:hover { color: var(--tp-slate-900, #171725); }
+
+  &:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--tp-blue-300, #9b9aec);
+    border-radius: 4px;
+  }
+
+  /* Rotate chevron when open — Radix sets data-state="open" on the trigger */
+  &[data-state="open"] .chevron {
+    transform: rotate(180deg);
+  }
+}
+
+.chevron {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--tp-slate-400, #a2a2a8);
+  transition: transform 200ms ease;
+}
+
+.content {
+  overflow: hidden;
+  font-size: 14px;
+  font-family: Inter, var(--font-sans, sans-serif);
+  color: var(--tp-slate-600, #585861);
+  line-height: 1.57;
+}
+
+.contentInner {
+  padding-bottom: 12px;
+}

@@ -1,0 +1,41 @@
+.backdrop {
+  background: rgba(0, 0, 0, 0.35);
+  animation: docFadeIn 150ms ease-out;
+}
+
+.sheet {
+  height: 60%;
+  animation: docSlideUp 200ms ease-out;
+}
+
+.sectionBg {
+  background: #f9fafb;
+}
+
+.orDividerLabel {
+  background: #f9fafb;
+}
+
+.scrollArea {
+  background: #f9fafb;
+}
+
+.emptyStateText {
+  max-width: 220px;
+}
+
+.checkboxSelected {
+  background: var(--tp-blue-500, #4b4ad5);
+}
+
+.docTypeTile {
+  // background set dynamically via style={{ background: config.bgColor }} — stays inline
+}
+
+.sendBtn {
+  background: var(--tp-blue-500, #4b4ad5);
+}
+
+.consentCta {
+  background: var(--tp-blue-500, #4b4ad5);
+}

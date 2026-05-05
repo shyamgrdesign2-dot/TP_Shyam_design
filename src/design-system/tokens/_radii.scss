@@ -1,0 +1,14 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Design Tokens — Border Radii
+// ─────────────────────────────────────────────────────────────────────────────
+
+$radius-none: 0;
+$radius-sm:   4px;   // small inputs, checkboxes
+$radius-md:   6px;   // tooltips, snackbar
+$radius-base: 8px;   // inputs, text fields, small cards
+$radius-lg:   10px;  // CTA buttons, primary cards (TP spec)
+$radius-xl:   12px;  // cards, papers, dialogs, FABs
+$radius-2xl:  16px;  // chips
+$radius-3xl:  18px;  // squircle (vrx-squircle)
+$radius-4xl:  20px;  // dialog paper
+$radius-full: 9999px; // pills, avatars, progress bars

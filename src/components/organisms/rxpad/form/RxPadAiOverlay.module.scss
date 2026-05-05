@@ -1,0 +1,74 @@
+.overlay {
+  animation: rxOverlayFade 400ms ease-out both;
+}
+
+.backdrop {
+  backdrop-filter: blur(72px) saturate(1.5);
+  -webkit-backdrop-filter: blur(72px) saturate(1.5);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.cornerTopLeft {
+  width: 45%;
+  height: 40%;
+  background: radial-gradient(ellipse at 0% 0%, rgba(213, 101, 234, 0.22) 0%, rgba(213, 101, 234, 0.08) 40%, transparent 70%);
+  animation: rxCornerPulse 3.5s ease-in-out infinite;
+}
+
+.cornerTopRight {
+  width: 45%;
+  height: 40%;
+  background: radial-gradient(ellipse at 100% 0%, rgba(103, 58, 172, 0.22) 0%, rgba(139, 92, 246, 0.08) 40%, transparent 70%);
+  animation: rxCornerPulse 3.5s ease-in-out 0.9s infinite;
+}
+
+.cornerBottomRight {
+  width: 45%;
+  height: 40%;
+  background: radial-gradient(ellipse at 100% 100%, rgba(26, 25, 148, 0.20) 0%, rgba(75, 74, 213, 0.08) 40%, transparent 70%);
+  animation: rxCornerPulse 3.5s ease-in-out 1.8s infinite;
+}
+
+.cornerBottomLeft {
+  width: 45%;
+  height: 40%;
+  background: radial-gradient(ellipse at 0% 100%, rgba(213, 101, 234, 0.18) 0%, rgba(103, 58, 172, 0.06) 40%, transparent 70%);
+  animation: rxCornerPulse 3.5s ease-in-out 2.7s infinite;
+}
+
+.edgeSweep {
+  background: conic-gradient(
+    from var(--rx-sweep-angle, 0deg) at 50% 50%,
+    transparent 0deg,
+    rgba(213, 101, 234, 0.15) 30deg,
+    rgba(103, 58, 172, 0.20) 60deg,
+    rgba(26, 25, 148, 0.12) 90deg,
+    transparent 150deg,
+    transparent 360deg
+  );
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  padding: 20px;
+  animation: rxSweep 4s linear infinite;
+}
+
+.labelText {
+  background: linear-gradient(91deg, #d565ea 3%, #673aac 67%, #1a1994 130%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hintSpan {
+  color: #64748b;
+}
+
+.progressTrack {
+  background: rgba(103, 58, 172, 0.10);
+}
+
+.progressBar {
+  background: linear-gradient(90deg, rgba(213, 101, 234, 0.3), rgba(103, 58, 172, 0.85), rgba(26, 25, 148, 0.3));
+  animation: rxProgress 1.8s ease-in-out infinite;
+}

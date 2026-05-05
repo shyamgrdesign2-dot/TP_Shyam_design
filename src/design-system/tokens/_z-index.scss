@@ -1,0 +1,16 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Design Tokens — Z-Index Scale
+// Explicit layers to prevent z-index wars.
+// ─────────────────────────────────────────────────────────────────────────────
+
+$z-base:       0;
+$z-dropdown:   100;
+$z-sticky:     200;
+$z-fixed:      300;
+$z-overlay:    400;    // backdrop behind modals
+$z-modal:      500;    // dialogs, sheets, drawers
+$z-popover:    600;    // dropdowns, context menus
+$z-tooltip:    700;    // tooltips on top of everything
+$z-toast:      800;    // snackbar / toast notifications
+$z-voice-panel: 900;   // VoiceRx floating agent panel
+$z-max:        9999;   // emergency escape hatch

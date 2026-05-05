@@ -1,0 +1,21 @@
+.backdrop {
+  background: rgba(0, 0, 0, 0.45);
+  animation: fbFadeIn 150ms ease-out;
+}
+
+.sheet {
+  animation: fbSlideUp 200ms ease-out;
+}
+
+.sheetPanel {
+  background-color: #f8f9fa;
+  animation: fbSlideUp 200ms ease-out;
+}
+
+.stickyHeader {
+  background: #f8f9fa;
+}
+
+.submitButton {
+  background: var(--tp-blue-500, #4b4ad5);
+}

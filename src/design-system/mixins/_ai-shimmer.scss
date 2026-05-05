@@ -1,0 +1,47 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Mixin: AI Shimmer Effect
+// Gradient sweep animation used on AI-generated content.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use '../tokens/colors' as c;
+
+/// AI shimmer text effect — sweeps a gradient highlight across text.
+/// @param {Time} $duration [4s] — animation duration
+@mixin ai-shimmer-text($duration: 4s) {
+  background-image: linear-gradient(
+    100deg,
+    currentColor 0%,
+    currentColor 38%,
+    rgba(255, 255, 255, 0.85) 50%,
+    currentColor 62%,
+    currentColor 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: _tp-ai-shimmer $duration linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    -webkit-text-fill-color: currentColor;
+    background-image: none;
+  }
+}
+
+/// AI shimmer background — sweeps a gradient band across a surface.
+/// @param {Time} $duration [2s]
+@mixin ai-shimmer-bg($duration: 2s) {
+  background-size: 200% 100%;
+  animation: _tp-ai-shimmer $duration linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+// Keyframe (prefixed to avoid global collision)
+@keyframes _tp-ai-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}

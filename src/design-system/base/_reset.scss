@@ -1,0 +1,17 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Base — Reset / Normalizations
+// Applied once globally. Kept minimal — most reset comes from Tailwind preflight
+// (still loaded during migration). This covers TP-specific overrides.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use '../mixins/scrollbar-hide' as sh;
+
+// Global scrollbar hide (TP design uses custom scroll indicators, not native)
+* {
+  @include sh.scrollbar-hide;
+}
+
+// Prevent horizontal overflow from fixed-position overlays (VoiceRx panel)
+html, body {
+  overflow-x: clip;
+}

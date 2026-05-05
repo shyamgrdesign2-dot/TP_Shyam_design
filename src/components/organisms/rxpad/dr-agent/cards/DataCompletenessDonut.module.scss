@@ -1,0 +1,26 @@
+.tooltipCard {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.tooltipArrow {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid white;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.06));
+}
+
+/* Legend dot colors — EMR, AI, missing */
+.dotEmr {
+  background: var(--tp-violet-500, #a461d8);
+}
+
+.dotAi {
+  background: var(--tp-amber-500, #f5b832);
+}
+
+.dotMissing {
+  background: #e2e8f0;
+}

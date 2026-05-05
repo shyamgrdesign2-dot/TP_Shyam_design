@@ -1,0 +1,109 @@
+/* Drawer.module.scss */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: rgba(23, 23, 37, 0.5);
+}
+
+.content {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--tp-slate-0, #ffffff);
+  box-shadow: 0 20px 60px -12px rgba(15, 23, 42, 0.25);
+  outline: none;
+  overflow: auto;
+
+  /* ── Horizontal sides ── */
+  &[data-side="left"],
+  &[data-side="right"] {
+    top: 0;
+    bottom: 0;
+    max-width: 100vw;
+
+    &[data-size="sm"]   { width: 320px; }
+    &[data-size="md"]   { width: 448px; }
+    &[data-size="lg"]   { width: 560px; }
+    &[data-size="xl"]   { width: 720px; }
+    &[data-size="full"] { width: 100%; }
+  }
+
+  &[data-side="right"] {
+    right: 0;
+    border-left: 1px solid var(--tp-slate-200, #e2e2ea);
+    border-top-left-radius: 20px;
+    border-bottom-left-radius: 20px;
+  }
+
+  &[data-side="left"] {
+    left: 0;
+    border-right: 1px solid var(--tp-slate-200, #e2e2ea);
+    border-top-right-radius: 20px;
+    border-bottom-right-radius: 20px;
+  }
+
+  /* ── Vertical sides ── */
+  &[data-side="top"],
+  &[data-side="bottom"] {
+    left: 0;
+    right: 0;
+
+    &[data-size="sm"]   { max-height: 320px; }
+    &[data-size="md"]   { max-height: 448px; }
+    &[data-size="lg"]   { max-height: 560px; }
+    &[data-size="xl"]   { max-height: 720px; }
+    &[data-size="full"] { max-height: 100vh; }
+  }
+
+  &[data-side="bottom"] {
+    bottom: 0;
+    border-top: 1px solid var(--tp-slate-200, #e2e2ea);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+  }
+
+  &[data-side="top"] {
+    top: 0;
+    border-bottom: 1px solid var(--tp-slate-200, #e2e2ea);
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+  }
+}
+
+/* ── Sub-component surface slots ── */
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--tp-slate-100, #f1f1f5);
+  flex-shrink: 0;
+}
+
+.drawerTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tp-slate-900, #171725);
+  margin: 0;
+}
+
+.drawerDescription {
+  font-size: 14px;
+  color: var(--tp-slate-600, #545460);
+  margin: 0;
+}
+
+.drawerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--tp-slate-100, #f1f1f5);
+  flex-shrink: 0;
+}

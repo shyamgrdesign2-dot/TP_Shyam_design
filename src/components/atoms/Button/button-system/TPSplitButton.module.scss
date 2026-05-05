@@ -1,0 +1,66 @@
+/* TPSplitButton.module.scss */
+
+/* ── Wrapper: dynamic border/bg/shadow via inline style — only static shell here ── */
+.wrapper {
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+/* ── Primary and dropdown buttons: static typography + layout ── */
+.baseBtn {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: Inter, sans-serif;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+
+  /* Dynamic values injected as custom properties */
+  height: var(--btn-height);
+  gap: var(--btn-gap);
+  color: var(--btn-text);
+  background-color: var(--btn-bg);
+  opacity: var(--btn-opacity);
+  cursor: var(--btn-cursor);
+}
+
+/* ── Spinner: static shape; size injected as custom property ── */
+.spinner {
+  border-radius: 50%;
+  width: var(--spinner-size);
+  height: var(--spinner-size);
+  border: 2px solid var(--spinner-color);
+  border-top-color: transparent;
+}
+
+/* ── Portal dropdown menu: static shape; position injected as custom properties ── */
+.dropdownMenu {
+  position: fixed;
+  overflow: hidden;
+  border-radius: 12px;
+  z-index: 2100;
+  background-color: #ffffff;
+  border: 1px solid #e2e2ea;
+  box-shadow:
+    0 12px 24px -4px rgba(23, 23, 37, 0.08),
+    0 4px 8px -4px rgba(23, 23, 37, 0.04);
+
+  /* Dynamic position injected as custom properties */
+  top: var(--menu-top);
+  left: var(--menu-left);
+  min-width: var(--menu-min-width);
+}
+
+/* ── Separator: static axis properties; size injected as custom properties ── */
+.separator {
+  flex-shrink: 0;
+  align-self: center;
+  width: 1px;
+  min-width: 1px;
+  height: var(--sep-height);
+  margin: var(--sep-margin);
+  background-color: var(--sep-color);
+  opacity: var(--sep-opacity);
+}

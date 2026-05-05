@@ -1,0 +1,29 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Design Tokens — Motion / Animation
+// Durations, easings, and keyframe references.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Durations ──
+$duration-instant:  0ms;
+$duration-fast:     80ms;    // micro-interactions (opacity, color)
+$duration-normal:   180ms;   // standard transitions (hover, focus)
+$duration-moderate: 280ms;   // route transitions, panel slides
+$duration-slow:     420ms;   // complex reveals, overlays
+$duration-glacial:  2000ms;  // AI fill aura, breath effects
+
+// ── Easings ──
+$ease-default:  cubic-bezier(0.22, 1, 0.36, 1);  // TP standard — snappy decel
+$ease-in:       cubic-bezier(0.4, 0, 1, 0.5);
+$ease-out:      cubic-bezier(0, 0.5, 0.4, 1);
+$ease-in-out:   cubic-bezier(0.4, 0, 0.2, 1);
+$ease-spring:   cubic-bezier(0.22, 1.4, 0.36, 1); // overshoot for popovers
+$ease-linear:   linear;
+
+// ── Standard Transition Shorthand ──
+$transition-colors:    color $duration-normal $ease-default,
+                       background-color $duration-normal $ease-default,
+                       border-color $duration-normal $ease-default;
+$transition-shadow:    box-shadow $duration-normal $ease-default;
+$transition-transform: transform $duration-normal $ease-default;
+$transition-opacity:   opacity $duration-normal $ease-default;
+$transition-all:       all $duration-normal $ease-default;

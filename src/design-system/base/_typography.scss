@@ -1,0 +1,28 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Base — Typography Globals
+// Sets default body font and heading styles.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use '../tokens/typography' as t;
+@use '../tokens/colors' as c;
+
+body {
+  font-family: t.$font-body;
+  font-size: t.$font-size-body;
+  line-height: t.$line-height-body;
+  color: c.$tp-slate-900;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Heading defaults — only set if not overridden by component SCSS modules
+@each $tag, $props in t.$headings {
+  #{$tag} {
+    font-family: map-get($props, family);
+    font-size: map-get($props, size);
+    font-weight: map-get($props, weight);
+    line-height: map-get($props, line-height);
+    letter-spacing: map-get($props, letter-spacing);
+    margin: 0;
+  }
+}

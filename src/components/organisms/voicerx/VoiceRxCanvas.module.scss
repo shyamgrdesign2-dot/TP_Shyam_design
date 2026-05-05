@@ -1,0 +1,36 @@
+// ── Mode pill label ─────────────────────────────────────────────────────────
+.modePillLabel {
+  letter-spacing: 0.1px;
+  max-width: 220px;
+}
+
+// ── EMR shell — violet gradient border trick ────────────────────────────────
+// Uses the CSS background-clip technique to paint a gradient border:
+// the padding-box layer is solid white; the border-box layer is a
+// vertical violet shimmer. The "border: 1px solid transparent" is
+// required so the background-clip region has space to show through.
+.emrShell {
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(white, white),
+    linear-gradient(
+      180deg,
+      rgba(75, 74, 213, 0.18) 0%,
+      rgba(75, 74, 213, 0.04) 25%,
+      rgba(23, 23, 37, 0.02) 50%,
+      rgba(75, 74, 213, 0.04) 75%,
+      rgba(75, 74, 213, 0.18) 100%
+    );
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+// ── Coachmark banner ────────────────────────────────────────────────────────
+.coachmark {
+  background: linear-gradient(
+    180deg,
+    rgba(245, 158, 11, 0.10) 0%,
+    rgba(245, 158, 11, 0.04) 100%
+  );
+  border: 1px solid rgba(245, 158, 11, 0.30);
+}

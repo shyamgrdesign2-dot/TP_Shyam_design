@@ -1,0 +1,64 @@
+/* Pagination.module.scss */
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Shared base for page buttons and prev/next */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: Inter, var(--font-sans, sans-serif);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  outline: none;
+  background: transparent;
+  color: var(--tp-slate-600, #585861);
+
+  /* Active page */
+  &[aria-current="page"] {
+    background-color: var(--tp-blue-500, #4a49ca);
+    color: #ffffff;
+    font-weight: 600;
+    border-color: var(--tp-blue-500, #4a49ca);
+  }
+
+  /* Hover — skip active and disabled */
+  &:hover:not([disabled]):not([aria-current="page"]) {
+    background-color: var(--tp-slate-100, #f1f1f5);
+  }
+
+  /* Disabled state (prev/next when at boundary) */
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px var(--tp-blue-100, #e8e8ff);
+  }
+}
+
+/* Ellipsis spans inherit btn layout but are non-interactive */
+.ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  font-size: 14px;
+  cursor: default;
+  color: var(--tp-slate-400, #a2a2a8);
+  user-select: none;
+}

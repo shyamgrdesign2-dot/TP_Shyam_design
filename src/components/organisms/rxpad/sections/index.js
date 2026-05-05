@@ -1,0 +1,11 @@
+export { PastVisitPanel } from "./PastVisitPanel";
+export { VitalsPanel } from "./VitalsPanel";
+export { HistoryPanel } from "./HistoryPanel";
+export { OphthalPanel } from "./OphthalPanel";
+export { GynecPanel } from "./GynecPanel";
+export { ObstetricPanel } from "./ObstetricPanel";
+export { VaccinePanel } from "./VaccinePanel";
+export { GrowthPanel } from "./GrowthPanel";
+export { LabResultsPanel } from "./LabResultsPanel";
+export { MedicalRecordsPanel } from "./MedicalRecordsPanel";
+export { FollowUpPanel } from "./FollowUpPanel";

@@ -1,0 +1,29 @@
+// ── Mode pill label ─────────────────────────────────────────────────────────
+.modePillLabel {
+  letter-spacing: 0.1px;
+}
+
+// ── Kebab button — explicit transparent background ──────────────────────────
+// Ensures the button has no background even when browser defaults differ.
+.kebabBtn {
+  background: transparent;
+}
+
+// ── EMR shell — violet gradient border trick ────────────────────────────────
+// Uses the CSS background-clip technique to paint a gradient border.
+// Same pattern as VoiceRxCanvas.module.scss.
+.emrShell {
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(white, white),
+    linear-gradient(
+      180deg,
+      rgba(75, 74, 213, 0.18) 0%,
+      rgba(75, 74, 213, 0.04) 25%,
+      rgba(23, 23, 37, 0.02) 50%,
+      rgba(75, 74, 213, 0.04) 75%,
+      rgba(75, 74, 213, 0.18) 100%
+    );
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}

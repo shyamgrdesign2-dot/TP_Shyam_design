@@ -1,0 +1,41 @@
+/* Card.module.scss */
+
+.card {
+  background-color: var(--tp-slate-0, #ffffff);
+  border: 1px solid var(--tp-slate-200, #e2e2ea);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(23, 23, 37, 0.08),
+              0 1px 2px -1px rgba(23, 23, 37, 0.06);
+
+  /* Padding presets */
+  &[data-padding="none"] { padding: 0; }
+  &[data-padding="sm"]   { padding: 12px; }
+  &[data-padding="md"]   { padding: 16px; }
+  &[data-padding="lg"]   { padding: 24px; }
+
+  /* Hover elevation */
+  &[data-hoverable] {
+    transition: box-shadow 150ms ease;
+
+    &:hover {
+      box-shadow: 0 4px 12px 0 rgba(23, 23, 37, 0.12),
+                  0 2px 4px -1px rgba(23, 23, 37, 0.08);
+    }
+  }
+}
+
+.header {
+  padding: 16px 16px 0;
+}
+
+.content {
+  padding: 16px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--tp-slate-200, #e2e2ea);
+}

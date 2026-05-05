@@ -1,0 +1,50 @@
+/* Switch.module.scss */
+
+.root {
+  border-radius: 9999px;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+  flex-shrink: 0;
+  outline: none;
+  background-color: var(--tp-slate-300, #d0d5dd);
+
+  /* Sizes */
+  &[data-size="sm"] { width: 34px; height: 20px; }
+  &[data-size="md"] { width: 42px; height: 24px; }
+
+  /* Checked */
+  &[data-state="checked"] {
+    background-color: var(--tp-blue-500, #4b4ad5);
+  }
+
+  /* Focus */
+  &:focus-visible {
+    box-shadow: 0 0 0 3px var(--tp-blue-200, #b5b4f2);
+  }
+
+  /* Disabled */
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.thumb {
+  display: block;
+  border-radius: 50%;
+  background-color: var(--tp-slate-0, #ffffff);
+  box-shadow: 0 1px 3px rgba(23, 23, 37, 0.12);
+  transition: transform 150ms ease;
+  will-change: transform;
+  transform: translateX(0);
+
+  /* Sizes */
+  .root[data-size="sm"] & { width: 16px; height: 16px; }
+  .root[data-size="md"] & { width: 20px; height: 20px; }
+
+  /* Checked — size-specific translate */
+  .root[data-size="sm"][data-state="checked"] & { transform: translateX(14px); }
+  .root[data-size="md"][data-state="checked"] & { transform: translateX(18px); }
+}

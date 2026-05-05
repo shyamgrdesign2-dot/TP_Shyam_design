@@ -1,0 +1,68 @@
+.editContainer {
+  box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.08);
+}
+
+.editSendBtn {
+  background: var(--tp-blue-500, #4b4ad5);
+}
+
+.dividerLine {
+  background: linear-gradient(180deg, transparent 0%, rgba(148, 163, 184, 0.25) 50%, transparent 100%);
+}
+
+.suggestionPill {
+  background: linear-gradient(
+    135deg,
+    rgba(213, 101, 234, 0.08) 0%,
+    rgba(103, 58, 172, 0.08) 50%,
+    rgba(26, 25, 148, 0.08) 100%
+  );
+  border: 1px solid rgba(103, 58, 172, 0.15);
+}
+
+.suggestionPillText {
+  background: linear-gradient(91deg, #d565ea 3%, #673aac 67%, #1a1994 130%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Dynamic animation delay set via --da-delay CSS custom property */
+:global(.da-shimmer-word) {
+  animation-delay: var(--da-delay, 0ms);
+}
+
+.tooltipCard {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.sourceDropdown {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(148, 163, 184, 0.12);
+}
+
+.sourceDropdownHeader {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.tooltipArrowWrapper {
+  // padding-left is dynamic (pos.arrowLeft - 5) — stays inline
+}
+
+.tooltipArrow {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid white;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.06));
+}
+
+.sourceInfoTooltip {
+  position: fixed;
+  transform: translateX(-100%);
+  z-index: 2147483647;
+  min-width: 160px;
+  max-width: 240px;
+  pointer-events: none;
+}

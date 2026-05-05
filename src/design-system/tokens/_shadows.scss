@@ -1,0 +1,59 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TatvaPractice Design Tokens — Shadows
+// 7 elevation levels + 3 focus ring shadows.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use 'colors' as c;
+
+// ── Elevation Scale ──
+$shadow-none: none;
+$shadow-xs:   0 1px 2px 0 rgba(23, 23, 37, 0.04);
+$shadow-sm:   0 1px 3px 0 rgba(23, 23, 37, 0.08), 0 1px 2px -1px rgba(23, 23, 37, 0.06);
+$shadow-md:   0 4px 8px -2px rgba(23, 23, 37, 0.08), 0 2px 4px -2px rgba(23, 23, 37, 0.06);
+$shadow-lg:   0 12px 24px -4px rgba(23, 23, 37, 0.08), 0 4px 8px -4px rgba(23, 23, 37, 0.04);
+$shadow-xl:   0 20px 40px -8px rgba(23, 23, 37, 0.12), 0 8px 16px -6px rgba(23, 23, 37, 0.06);
+$shadow-2xl:  0 32px 64px -12px rgba(23, 23, 37, 0.20);
+
+// ── Focus Rings ──
+$focus-ring-primary:     0 0 0 3px c.$tp-blue-200;
+$focus-ring-destructive: 0 0 0 3px c.$tp-error-300;
+$focus-ring-neutral:     0 0 0 3px c.$tp-slate-300;
+
+// ── Component-specific Shadows ──
+$shadow-card:     $shadow-sm;
+$shadow-card-hover: $shadow-md;
+$shadow-dialog:   $shadow-xl;
+$shadow-popover:  $shadow-md;
+$shadow-dropdown: $shadow-lg;
+$shadow-tooltip:  $shadow-sm;
+$shadow-snackbar: $shadow-md;
+
+// ── Liquid Glass CTA Shadows ──
+$shadow-lg-btn:
+  0 10px 28px -10px rgba(31, 38, 135, 0.18),
+  0 4px 12px -4px rgba(15, 23, 42, 0.08),
+  inset 0 1.5px 0 rgba(255, 255, 255, 1),
+  inset 0 -1px 0 rgba(255, 255, 255, 0.55),
+  inset 1px 0 0 rgba(255, 255, 255, 0.5),
+  inset -1px 0 0 rgba(255, 255, 255, 0.5);
+
+$shadow-lg-btn-hover:
+  0 14px 34px -10px rgba(31, 38, 135, 0.22),
+  0 6px 16px -4px rgba(15, 23, 42, 0.10),
+  inset 0 1.5px 0 rgba(255, 255, 255, 1),
+  inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+  inset 1px 0 0 rgba(255, 255, 255, 0.55),
+  inset -1px 0 0 rgba(255, 255, 255, 0.55);
+
+// ── Submit Hero Shadows ──
+$shadow-submit-hero:
+  0 6px 16px -6px rgba(103, 58, 172, 0.38),
+  0 2px 6px -2px rgba(103, 58, 172, 0.24),
+  inset 0 1px 0 rgba(255, 255, 255, 0.55),
+  inset 0 -1px 0 rgba(15, 23, 42, 0.14);
+
+$shadow-submit-hero-hover:
+  0 8px 20px -6px rgba(103, 58, 172, 0.46),
+  0 3px 8px -2px rgba(103, 58, 172, 0.30),
+  inset 0 1px 0 rgba(255, 255, 255, 0.62),
+  inset 0 -1px 0 rgba(15, 23, 42, 0.16);
