@@ -327,15 +327,18 @@ export function RxPadSyncProvider({ children }) {
       // Edge-gradient-only treatment — no backdrop blur, no caption.
       // The aura fires for ~2s; the actual fill lands halfway through
       // so the doctor sees the gradient activate, then the data appear.
-      // For BULK ("Copy all to RxPad") we also raise copyAllAuraActive
-      // so per-module pulses are suppressed (the edge rim becomes the
-      // single coordinated signal). For SINGLE-ITEM / per-section
-      // copies we leave it false — RxPadFunctional then runs its
-      // per-module flash + scroll-into-view as usual.
+      //
+      // Per design call: the edge overlay fires ONLY for BULK copies
+      // ("Copy all to RxPad"). Single-item / per-section copies
+      // suppress the page-level edge overlay entirely — the per-module
+      // flash + scroll-into-view inside RxPadFunctional is the only
+      // signal the doctor needs to track where the data landed.
       const delayMs = opts?.delayMs ?? 2000;
       const bulk = !!opts?.bulk;
-      setCopyOverlayActive(true);
-      if (bulk) setCopyAllAuraActive(true);
+      if (bulk) {
+        setCopyOverlayActive(true);
+        setCopyAllAuraActive(true);
+      }
       if (copyOverlayTimerRef.current) clearTimeout(copyOverlayTimerRef.current);
       if (copyAllAuraTimerRef.current) clearTimeout(copyAllAuraTimerRef.current);
       // Fire the actual fill at the midpoint so the gradient frames
@@ -351,8 +354,8 @@ export function RxPadSyncProvider({ children }) {
           });
         }
       }, fillAt);
-      copyOverlayTimerRef.current = setTimeout(() => setCopyOverlayActive(false), delayMs);
       if (bulk) {
+        copyOverlayTimerRef.current = setTimeout(() => setCopyOverlayActive(false), delayMs);
         copyAllAuraTimerRef.current = setTimeout(() => setCopyAllAuraActive(false), delayMs);
       }
     },
