@@ -2,6 +2,7 @@
 
 import { cn } from "@/src/hooks/utils";
 import { VoiceRxIcon } from "@/src/components/organisms/voicerx/voice-consult-icons";
+import { Tooltip } from "@/src/components/atoms/Tooltip";
 import { PillBar } from "../chat/PillBar";
 import { AttachPanel } from "../chat/AttachPanel";
 import { ChatInput } from "../chat/ChatInput";
@@ -89,20 +90,35 @@ export function FooterBar({
       }
       {voiceFirstTimeMode && messages.length > 0 &&
       <div className="px-[14px] pb-[14px] pt-[10px]">
-      {/* da-* styles live in app/globals.css */}
-          <button
-          type="button"
-          onClick={onStartVoice}
-          disabled={voiceLocked}
-          aria-disabled={voiceLocked || undefined}
-          title={voiceLocked ? "Another mic is active. Close that dictation first." : undefined}
-          className="vrx-ai-cta group relative flex w-full items-center justify-center gap-[10px] h-[48px] overflow-hidden rounded-[12px] px-[18px] text-[14px] font-bold tracking-wide text-white transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:grayscale disabled:hover:brightness-100 disabled:active:scale-100"
-          style={{ background: "linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%)" }}>
-
-            <span aria-hidden className="vrx-ai-cta-sheen pointer-events-none absolute inset-y-0 left-0 z-0 w-[40%]" />
-            <VoiceRxIcon size={32} color="#FFFFFF" className="relative z-[1]" />
-            <span className="relative z-[1]">Start with Voice</span>
-          </button>
+      {/* da-* styles live in app/globals.css.
+          When voiceLocked: keep the brand gradient but lower the
+          opacity so the CTA still reads as "TP voice" — not greyed
+          out. The Tooltip wrapper surfaces the reason on hover so
+          the disabled state doesn't read as a broken button. */}
+          {voiceLocked ? (
+            <Tooltip content="Another mic is active. Close that dictation first." side="top">
+              <button
+                type="button"
+                aria-disabled="true"
+                onClick={(e) => e.preventDefault()}
+                className="vrx-ai-cta group relative flex w-full items-center justify-center gap-[10px] h-[48px] overflow-hidden rounded-[12px] px-[18px] text-[14px] font-bold tracking-wide text-white opacity-50 cursor-not-allowed"
+                style={{ background: "linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%)" }}>
+                <span aria-hidden className="vrx-ai-cta-sheen pointer-events-none absolute inset-y-0 left-0 z-0 w-[40%]" />
+                <VoiceRxIcon size={32} color="#FFFFFF" className="relative z-[1]" />
+                <span className="relative z-[1]">Start with Voice</span>
+              </button>
+            </Tooltip>
+          ) : (
+            <button
+              type="button"
+              onClick={onStartVoice}
+              className="vrx-ai-cta group relative flex w-full items-center justify-center gap-[10px] h-[48px] overflow-hidden rounded-[12px] px-[18px] text-[14px] font-bold tracking-wide text-white transition-all hover:brightness-105 active:scale-[0.98]"
+              style={{ background: "linear-gradient(135deg, #D565EA 0%, #673AAC 55%, #1A1994 100%)" }}>
+              <span aria-hidden className="vrx-ai-cta-sheen pointer-events-none absolute inset-y-0 left-0 z-0 w-[40%]" />
+              <VoiceRxIcon size={32} color="#FFFFFF" className="relative z-[1]" />
+              <span className="relative z-[1]">Start with Voice</span>
+            </button>
+          )}
         </div>
       }
       {!voiceFirstTimeMode && (!voiceRxMode || !voiceRxRecording) &&
