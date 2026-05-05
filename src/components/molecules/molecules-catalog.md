@@ -8,7 +8,9 @@
 Composed UI patterns built from atoms. **Still domain-agnostic** — a
 molecule could ship in a generic UI library.
 
-> **Import rule:** molecules may import atoms + sibling molecules, plus Radix UI primitives, `@/src/hooks/utils`, and design tokens. Never `organisms/`.
+> **Import rule:** molecules may import atoms + sibling molecules + the shared overlay primitives in [`@/src/hooks/ui/`](../../hooks/ui/) + `@/src/hooks/utils` + design tokens. **No `@radix-ui/*` or other third-party UI lib** — every molecule is hand-rolled. Never `organisms/`.
+
+> **Zero Radix:** `Dialog`, `Drawer`, `ConfirmDialog`, `DropdownMenu`, `Tabs`, `Accordion` all hand-rolled on top of [`DialogPrimitive`](../../hooks/ui/DialogPrimitive.jsx) / [`use-overlay`](../../hooks/ui/use-overlay.js) / [`Slot`](../../hooks/ui/Slot.jsx) / [`Portal`](../../hooks/ui/Portal.jsx). See [`../component-library.md`](../component-library.md) §"How we removed Radix entirely".
 
 ## Catalog
 

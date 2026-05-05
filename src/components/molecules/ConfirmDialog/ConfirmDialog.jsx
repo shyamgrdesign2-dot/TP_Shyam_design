@@ -11,9 +11,24 @@
  */
 
 import * as React from "react";
-import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
+import * as DialogPrimitive from "@/src/hooks/ui/DialogPrimitive";
 import { Button } from "@/src/components/atoms/Button";
 import styles from "./ConfirmDialog.module.scss";
+
+// AlertDialog-specific: same as DialogPrimitive but role=alertdialog and
+// Action/Cancel are just semantic aliases for our Close + custom button.
+const AlertDialogPrimitive = {
+  Root: DialogPrimitive.Root,
+  Portal: DialogPrimitive.Portal,
+  Overlay: DialogPrimitive.Overlay,
+  Content: React.forwardRef(function AlertContent(props, ref) {
+    return <DialogPrimitive.Content ref={ref} role="alertdialog" {...props} />;
+  }),
+  Title: DialogPrimitive.Title,
+  Description: DialogPrimitive.Description,
+  Cancel: DialogPrimitive.Close,
+  Action: DialogPrimitive.Close,
+};
 
 
 

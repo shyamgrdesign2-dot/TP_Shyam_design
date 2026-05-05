@@ -19,12 +19,22 @@ shipped in a generic UI library without any change.
 
 ## Dependency status
 
-We're progressively removing third-party UI deps from atoms (FE feedback: per-component Radix imports were bloating `package.json`). The current state:
+**Zero `@radix-ui/*` packages remain.** Every atom and molecule is
+hand-rolled. Per FE feedback (per-component Radix imports were
+bloating `package.json`), we shipped a complete removal in two phases:
 
-- **Hand-rolled, zero deps:** `Button`, `Switch`, `Checkbox`, `Avatar`, `Badge`, `Chip`, `Tag`, `Divider`, `Spinner`, `Skeleton`, `Progress`, `Slider`, `Radio`, `Input`, `OTPInput`, `Select`, `MedicalIcon`, `NoiseOverlay`, `ShineBorder`, `ShinyText`, `TutorialPlayIcon`.
-- **Still wraps Radix (kept on purpose — accessibility is non-trivial):** `Tooltip` (`@radix-ui/react-tooltip`), `Popover` (`@radix-ui/react-popover`).
+- **Phase A** (commit `c02bc37`): `Switch`, `Checkbox`, `Button` (Slot dropped)
+- **Phase B** (this commit): `Tooltip`, `Popover`, plus the 7 Radix-using molecules below
 
-If you add a new atom, **don't reach for a Radix primitive without reading [`../component-library.md`](../component-library.md) §"Why some atoms still wrap Radix".** The default for new atoms is hand-rolled.
+Hand-rolled atoms (every atom in this folder ships zero JS deps now):
+`Avatar`, `Badge`, `Button`, `Checkbox`, `Chip`, `Divider`, `Input`,
+`MedicalIcon`, `NoiseOverlay`, `OTPInput`, `Popover`, `Progress`,
+`Radio`, `Select`, `ShineBorder`, `ShinyText`, `Skeleton`, `Slider`,
+`Spinner`, `Switch`, `Tag`, `Tooltip`, `TutorialPlayIcon`.
+
+The accessibility/positioning machinery they used to inherit from
+Radix is now in [`@/src/hooks/ui/`](../../hooks/ui/) (Slot, Portal,
+DialogPrimitive, use-overlay). New atoms should default to hand-rolled.
 
 ## Catalog
 

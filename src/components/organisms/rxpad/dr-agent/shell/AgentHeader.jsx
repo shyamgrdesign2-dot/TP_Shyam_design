@@ -196,14 +196,14 @@ export function AgentHeader({
                   onClick={() => onViewSessionHistory?.()}
                   className="flex items-center gap-1.5 hover:bg-tp-slate-100 hover:text-tp-slate-900 focus:bg-tp-slate-100 focus:text-tp-slate-900">
                   
-                  <Clock size={16} variant="Bulk" className="text-tp-violet-500" />
+                  <Clock size={16} variant="Linear" color="currentColor" />
                   <span>View session history</span>
                 </TPDropdownMenuItem>
                 <TPDropdownMenuItem
                   onClick={() => onOpenSettings?.()}
                   className="flex items-center gap-1.5 hover:bg-tp-slate-100 hover:text-tp-slate-900 focus:bg-tp-slate-100 focus:text-tp-slate-900">
                   
-                  <Setting2 size={16} variant="Bulk" className="text-tp-violet-500" />
+                  <Setting2 size={16} variant="Linear" color="currentColor" />
                   <span>Settings</span>
                 </TPDropdownMenuItem>
               </TPDropdownMenuContent>

@@ -26,8 +26,9 @@ or a layer below. ESLint enforces this — see `eslint.config.mjs`.
 Smallest UI building blocks. **No domain knowledge.** A `Button` knows
 about variants, sizes, themes, but not about prescriptions. Atoms
 consume only:
-- **Hand-rolled internals first** — no third-party UI lib. Most atoms (Button, Switch, Checkbox, Avatar, Badge, Chip, etc.) ship zero JS dependencies.
-- Radix UI primitives **only where re-implementing is hard** (`Tooltip`, `Popover`). New atoms should default to hand-rolled — see "Why some atoms still wrap Radix" below.
+- **Hand-rolled internals — zero third-party UI deps.** Every atom in
+  the catalog ships without any `@radix-ui/*` (or other UI lib) import.
+- Shared overlay primitives from [`@/src/hooks/ui/`](../hooks/ui/) — `Slot`, `Portal`, `DialogPrimitive`, `use-overlay` (positioning, focus trap, scroll lock, escape, click-outside).
 - Design tokens (`var(--tp-*)`)
 - Internal hooks (`@/src/hooks/utils`)
 
@@ -111,28 +112,37 @@ ANY        → @mui/material directly in product code             ❌
 
 ---
 
-## Why some atoms still wrap Radix
+## How we removed Radix entirely
 
-We removed Radix from the simple primitives (`Switch`, `Checkbox`,
-`Button`'s Slot) — those are 60-100 lines of standard HTML + ARIA and
-the bundle / dependency win is real with no accessibility risk.
+We previously kept Radix for the harder primitives (positioning,
+focus trap, asChild). FE feedback was that the per-package import
+surface was too noisy in `package.json`. So we hand-rolled every
+overlay primitive into a single internal layer at [`@/src/hooks/ui/`](../hooks/ui/):
 
-We **deliberately keep** Radix for:
-
-| Component | Radix package | Why we keep it |
+| Internal primitive | Replaces | What it does |
 |---|---|---|
-| `atoms/Tooltip` | `@radix-ui/react-tooltip` | Smart positioning + collision detection + portal + delay + `asChild` trigger pattern. Reimplementing correctly is multi-day work. |
-| `atoms/Popover` | `@radix-ui/react-popover` | Same as Tooltip plus click-outside, Escape, scroll lock. |
-| `molecules/Dialog` | `@radix-ui/react-dialog` | Focus trap, scroll lock, ARIA modal semantics. Single biggest a11y risk if reimplemented. |
-| `molecules/ConfirmDialog` | `@radix-ui/react-alert-dialog` | Same as Dialog with role=alertdialog. |
-| `molecules/Drawer` | `@radix-ui/react-dialog` | Side-sheet built on the Dialog primitive. |
-| `molecules/DropdownMenu` | `@radix-ui/react-dropdown-menu` | Roving tabindex, type-ahead, sub-menus, keyboard nav. |
-| `molecules/Tabs` | `@radix-ui/react-tabs` | Roving tabindex + arrow-key nav with screen-reader-correct ARIA. |
-| `molecules/Accordion` | `@radix-ui/react-accordion` | ARIA disclosure pattern + keyboard nav. |
+| [`Slot`](../hooks/ui/Slot.jsx) | `@radix-ui/react-slot` | The `asChild` mechanism — clones a single React child and merges props (event handlers chain, refs merge, className/style concatenate). |
+| [`Portal`](../hooks/ui/Portal.jsx) | `@radix-ui/react-*.Portal` | Synchronous `createPortal` to `document.body` (SSR-safe, no mount gate). |
+| [`useEscape`, `useClickOutside`, `useScrollLock`, `useFocusTrap`, `usePosition`](../hooks/ui/use-overlay.js) | scattered Radix internals | Shared overlay hooks. `usePosition` is the keystone — collision-aware flip + clamp. |
+| [`DialogPrimitive`](../hooks/ui/DialogPrimitive.jsx) | `@radix-ui/react-dialog` + `react-alert-dialog` | Headless `Root/Trigger/Portal/Overlay/Content/Title/Description/Close` with focus trap + scroll lock + ESC. Backs `Dialog`, `Drawer`, `ConfirmDialog`. |
 
-**Rule for new atoms / molecules:** default to hand-rolled. Only add a
-Radix dep when the table above's "why" applies. If you're tempted to
-add a new `@radix-ui/*` package, post in #frontend first.
+Components built on top:
+
+| Component | Layer | Notes |
+|---|---|---|
+| `atoms/Tooltip` | atom | Hover/focus + delay; supports both wrapper (`<Tooltip content="…">`) and compound (`Provider/Trigger asChild/Content`) APIs. |
+| `atoms/Popover` | atom | Toggle trigger, click-outside, ESC, position flip. |
+| `molecules/Dialog` | molecule | Composes `DialogPrimitive` for the standard centered modal. |
+| `molecules/Drawer` | molecule | Composes `DialogPrimitive` for the side-sheet variant. |
+| `molecules/ConfirmDialog` | molecule | `role="alertdialog"` + Action/Cancel slots. |
+| `molecules/DropdownMenu` | molecule | Trigger asChild, ESC + click-outside close, arrow-key nav, close-on-select. |
+| `molecules/Tabs` | molecule | Roving tabindex + arrow-key nav; `data-state="active|inactive"` preserved for SCSS. |
+| `molecules/Accordion` | molecule | Single/multiple, collapsible; `data-state="open|closed"` preserved. |
+
+**Rule for new atoms / molecules:** hand-roll, no third-party UI lib.
+Reuse the helpers in `@/src/hooks/ui/` instead of pulling a new
+package. If you think you need a new external dep, post in #frontend
+first — there's almost always a way to compose the existing helpers.
 
 ---
 

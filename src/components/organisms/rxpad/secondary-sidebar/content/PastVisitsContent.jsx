@@ -670,7 +670,7 @@ function WrittenRxPreviewCard({
                 onPreview(document);
               }}>
               
-              <Eye color="var(--tp-violet-500)" size={14} variant="Bulk" />
+              <Eye color="currentColor" size={14} variant="Linear" />
               Preview
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -679,7 +679,7 @@ function WrittenRxPreviewCard({
                 onDownload(document);
               }}>
               
-              <Import color="var(--tp-violet-500)" size={14} variant="Bulk" />
+              <Import color="currentColor" size={14} variant="Linear" />
               Download
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -688,7 +688,7 @@ function WrittenRxPreviewCard({
                 onPrint(document);
               }}>
               
-              <Printer color="var(--tp-violet-500)" size={14} variant="Bulk" />
+              <Printer color="currentColor" size={14} variant="Linear" />
               Print
             </DropdownMenuItem>
           </DropdownMenuContent>

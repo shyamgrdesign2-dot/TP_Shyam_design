@@ -153,7 +153,7 @@ function RecordActionMenu() {
           const Icon = action.icon;
           return (
             <DropdownMenuItem key={action.id} className="gap-2 text-tp-slate-700">
-              <Icon color="var(--tp-violet-500)" size={16} variant="Bulk" />
+              <Icon color="currentColor" size={16} variant="Linear" />
               {action.label}
             </DropdownMenuItem>);
 

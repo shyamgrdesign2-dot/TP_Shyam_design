@@ -135,9 +135,9 @@ export default function RxpadHeader({
                   <div className="pointer-events-none absolute -top-[10px] left-[95px] h-0 w-0 border-b-[10px] border-l-[10px] border-r-[10px] border-b-white border-l-transparent border-r-transparent" />
                   <div className="space-y-4">
                     {[
-                    { key: "patient-id", label: "Patient ID", value: "PAT0061", icon: <Card color="var(--tp-violet-500)" size={18} strokeWidth={1.5} variant="Linear" /> },
-                    { key: "mobile", label: "Mobile Number", value: "9567933357", icon: <CallCalling color="var(--tp-violet-500)" size={18} strokeWidth={1.5} variant="Linear" /> },
-                    { key: "dob", label: "DOB", value: "24 Jul 2000", icon: <Calendar2 color="var(--tp-violet-500)" size={18} strokeWidth={1.5} variant="Linear" /> }].
+                    { key: "patient-id", label: "Patient ID", value: "PAT0061", icon: <Card color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> },
+                    { key: "mobile", label: "Mobile Number", value: "9567933357", icon: <CallCalling color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> },
+                    { key: "dob", label: "DOB", value: "24 Jul 2000", icon: <Calendar2 color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> }].
                     map((item) =>
                     <div key={item.key} className="flex items-center gap-3.5">
                         <div className="inline-flex h-[36px] w-[36px] items-center justify-center rounded-full bg-tp-violet-50">{item.icon}</div>

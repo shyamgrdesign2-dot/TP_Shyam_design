@@ -22,11 +22,14 @@ import {
   Refresh2,
   User } from
 "iconsax-reactjs";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { MoreVertical } from "lucide-react";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/src/components/molecules/DropdownMenu";
-import { TooltipContent, TooltipProvider, TooltipTrigger } from "@/src/components/atoms/Tooltip";
+import { Tooltip as TooltipRoot, TooltipContent, TooltipProvider, TooltipTrigger } from "@/src/components/atoms/Tooltip";
+
+// Local alias — the page uses TooltipPrimitive.Root from the old
+// Radix import surface; map it onto our hand-rolled Tooltip root.
+const TooltipPrimitive = { Root: TooltipRoot };
 import { ClinicalTable as TPClinicalTable } from "@/src/components/molecules/ClinicalTable";
 import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
 import { TPButton as Button, TPSplitButton } from "@/src/components/atoms/Button/button-system";

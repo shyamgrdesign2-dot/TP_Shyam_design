@@ -7,6 +7,24 @@
 
 Cross-layer utilities. Anything in `src/components/{atoms,molecules,organisms}` may import from here.
 
+This folder has two sub-areas:
+- **Top-level files** — small, layer-agnostic helpers (`cn`, mobile, touch-device, toast).
+- **[`ui/`](./ui/)** — internal headless primitives that back our hand-rolled atoms/molecules and replace the per-component Radix imports. See "Overlay primitives" below.
+
+## Overlay primitives (`src/hooks/ui/`)
+
+These exist so atoms/molecules can be hand-rolled with zero
+third-party UI dependency. They're internal to the component library
+— don't import them from organisms or pages directly; reach for the
+finished component (`Tooltip`, `Popover`, `Dialog`, etc.) instead.
+
+| File | Replaces | What it does |
+|---|---|---|
+| `Slot.jsx` | `@radix-ui/react-slot` | The `asChild` mechanism — clones a single React child and merges props (event handlers chain, refs merge, className/style concatenate). |
+| `Portal.jsx` | `@radix-ui/react-*.Portal` | Synchronous `createPortal` to `document.body` (SSR-safe). |
+| `use-overlay.js` | scattered Radix internals | `useEscape`, `useClickOutside`, `useScrollLock`, `useFocusTrap`, `usePosition`. |
+| `DialogPrimitive.jsx` | `@radix-ui/react-dialog` + `react-alert-dialog` | Headless `Root/Trigger/Portal/Overlay/Content/Title/Description/Close` with focus trap + scroll lock + ESC. |
+
 ## Files
 
 | File | Export(s) | Purpose |

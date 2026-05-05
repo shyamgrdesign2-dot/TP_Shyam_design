@@ -100,7 +100,9 @@ export function PatientActionsMenu({
           if (!def) return null;
           const Icon = def.icon;
           const tone = def.tone === "danger" ? "text-tp-error-600" : "text-tp-slate-700";
-          const iconColor = def.tone === "danger" ? "var(--tp-error-500)" : "var(--tp-violet-500)";
+          // Neutral icons in dropdowns — color follows the row's text tone
+          // (slate for normal items, error for danger items) via currentColor.
+          const iconColor = "currentColor";
           const isTerminal =
             slot === "cancel-appointment" || slot === "end-visit" || slot === "send-reminder";
           const prevSlot = i > 0 ? slots[i - 1] : null;
