@@ -267,14 +267,14 @@ export function ActionButton({
           "VoiceRx is active — submit or close VoiceRx to use section dictation" :
           micDisabled ?
           rxSync.micUnavailableReason ?? "Microphone unavailable" :
-          `Dictate ${label}`
+          `Use Voice AI to fill ${label.toLowerCase()}`
           }
           title={
           globalLocked ?
           "VoiceRx is active — submit or close VoiceRx to use section dictation" :
           micDisabled ?
           rxSync.micUnavailableReason ?? "Microphone unavailable" :
-          "Dictate"
+          `Use Voice AI to fill ${label.toLowerCase()}`
           }
           {...isVoiceActive ?
           { "data-voice-allow": true } :

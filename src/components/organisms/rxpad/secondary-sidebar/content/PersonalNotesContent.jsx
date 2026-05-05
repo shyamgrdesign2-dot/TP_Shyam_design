@@ -58,8 +58,8 @@ export function PersonalNotesContent() {
             
             <button
               type="button"
-              aria-label="Dictate personal note"
-              title="Dictate personal note"
+              aria-label="Use Voice AI to fill personal notes"
+              title="Use Voice AI to fill personal notes"
               onClick={() => {
                 /* For the demo: dispatch the same signal the section
                    mic icons use so VoiceRxFlow can attach a recorder

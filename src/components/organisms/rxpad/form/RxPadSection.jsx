@@ -74,11 +74,14 @@ export function RxPadSection({
   const micDisabled = micUnavailable && !voiceActive;
   const globalLocked = globalVoiceActive && !voiceActive;
 
+  // Per design call: per-section mic tooltips use the "Voice AI"
+  // vocabulary so every quick-mic icon across the app speaks the same
+  // language. Active state still says "Stop dictation".
   const tooltipText = globalLocked ?
   "VoiceRx is active — submit or close VoiceRx to use section dictation" :
   micDisabled ?
   micUnavailableReason ?? "Microphone unavailable" :
-  voiceActive ? "Stop dictation" : `Dictate ${title.toLowerCase()} by voice`;
+  voiceActive ? "Stop dictation" : `Use Voice AI to fill ${title.toLowerCase()}`;
 
   const iconDisabled = micDisabled || globalLocked;
 

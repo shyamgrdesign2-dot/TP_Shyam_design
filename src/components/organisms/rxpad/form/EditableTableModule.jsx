@@ -1099,7 +1099,7 @@ function EditableTableModule({
                               <button
                                 type="button"
                                 data-voice-allow
-                                aria-label={isCellRecording ? "Stop dictation" : "Dictate into this cell"}
+                                aria-label={isCellRecording ? "Stop dictation" : "Use Voice AI to fill this cell"}
                                 onMouseDown={(event) => {
                                   // Prevent input blur before we toggle.
                                   event.preventDefault();
