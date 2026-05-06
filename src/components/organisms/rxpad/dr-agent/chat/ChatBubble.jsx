@@ -671,6 +671,7 @@ function useTypewriter(text, shouldAnimate, speed = 18) {
 
 export function ChatBubble({
   message,
+  isStale = false,
   onFeedback,
   onPillTap,
   onCopy,
@@ -903,6 +904,7 @@ export function ChatBubble({
           
             <CardRenderer
             output={message.rxOutput}
+            isStale={isStale}
             onPillTap={onPillTap}
             onCopy={onCopy}
             onSidebarNav={onSidebarNav}

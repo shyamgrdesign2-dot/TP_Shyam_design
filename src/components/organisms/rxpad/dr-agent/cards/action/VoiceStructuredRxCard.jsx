@@ -80,7 +80,7 @@ function buildSectionPayload(sectionId, items) {
   }
 }
 
-export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader }) {
+export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isStale = false }) {
   const isTouch = useTouchDevice();
   const [copiedKey, setCopiedKey] = useState(null);
 
@@ -248,21 +248,33 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader }) {
   };
 
   return (
-    <CardShell
-      icon={<DocumentText size={14} variant="Bulk" color="var(--tp-blue-500, #4B4AD5)" />}
-      title="Structured Clinical Notes"
-      collapsible={false}
-      dataSources={["Voice consultation"]}>
-      
-      {/* Body — single secondary CTA that opens the notes in the canvas for review. */}
-      <button
-        type="button"
-        onClick={handleExpand}
-        className="flex h-[36px] w-full items-center justify-center gap-[6px] rounded-[10px] border px-3 text-[14px] font-semibold transition-all active:scale-[0.99] border-tp-blue-300 bg-white text-tp-blue-500 hover:bg-tp-blue-50">
-        
-        View clinical notes
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      </button>
-    </CardShell>);
+    <div
+      className={isStale ? "opacity-50 grayscale-[0.4] pointer-events-none select-none" : undefined}
+      aria-disabled={isStale || undefined}>
+      <CardShell
+        icon={<DocumentText size={14} variant="Bulk" color="var(--tp-blue-500, #4B4AD5)" />}
+        title={isStale ? "Structured Clinical Notes (outdated)" : "Structured Clinical Notes"}
+        collapsible={false}
+        dataSources={["Voice consultation"]}>
+
+        {/* When this card is stale (a newer voice card exists below in
+            the chat), suppress the expand CTA — the doctor has already
+            iterated past this generation. */}
+        {!isStale ? (
+          <button
+            type="button"
+            onClick={handleExpand}
+            className="flex h-[36px] w-full items-center justify-center gap-[6px] rounded-[10px] border px-3 text-[14px] font-semibold transition-all active:scale-[0.99] border-tp-blue-300 bg-white text-tp-blue-500 hover:bg-tp-blue-50">
+
+            View clinical notes
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        ) : (
+          <p className="text-[12px] italic leading-[1.5] text-tp-slate-400">
+            Replaced by a newer recording below.
+          </p>
+        )}
+      </CardShell>
+    </div>);
 
 }

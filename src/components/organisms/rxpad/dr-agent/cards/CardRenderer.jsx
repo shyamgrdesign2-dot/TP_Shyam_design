@@ -122,8 +122,8 @@ import { PatientSearchCard } from "./homepage/PatientSearchCard";
  * expected data set. For open-ended responses, the response IS the available data
  * — there's nothing "missing" to indicate.
  */
-export function CardRenderer({ output, onPillTap, onCopy, onSidebarNav, activeSpecialty, onPatientSelect }) {
-  return renderCard(output, onPillTap, onCopy, onSidebarNav, activeSpecialty, onPatientSelect);
+export function CardRenderer({ output, isStale = false, onPillTap, onCopy, onSidebarNav, activeSpecialty, onPatientSelect }) {
+  return renderCard(output, onPillTap, onCopy, onSidebarNav, activeSpecialty, onPatientSelect, isStale);
 }
 
 function renderCard(
@@ -132,7 +132,8 @@ onPillTap,
 onCopy,
 onSidebarNav,
 activeSpecialty,
-onPatientSelect)
+onPatientSelect,
+isStale = false)
 {
   switch (output.kind) {
     // -- Summary Family (A) --------------------------------------------------
@@ -357,6 +358,7 @@ onPatientSelect)
       return (
         <VoiceStructuredRxCard
           data={output.data}
+          isStale={isStale}
           onCopy={onCopy} />);
 
 

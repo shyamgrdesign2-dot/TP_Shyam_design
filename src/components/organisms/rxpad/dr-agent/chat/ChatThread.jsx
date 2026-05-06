@@ -76,6 +76,14 @@ export function ChatThread({
       )}>
       
       {messages.map((message, index) => {
+        // Voice cards in chat history: only the LATEST voice_structured_rx
+        // is active. Earlier ones get rendered stale (faded, no CTAs)
+        // since the doctor has already iterated past them.
+        const isStaleVoiceCard =
+          message.rxOutput?.kind === "voice_structured_rx" &&
+          messages.some(
+            (m, i) => i > index && m.rxOutput?.kind === "voice_structured_rx"
+          );
         // Spacing: 6px between same-role, 16px between different roles for clear separation
         const prevMessage = index > 0 ? messages[index - 1] : null;
         const isSameRole = prevMessage?.role === message.role;
@@ -104,6 +112,7 @@ export function ChatThread({
             
             <ChatBubble
               message={message}
+              isStale={isStaleVoiceCard}
               onFeedback={onFeedback}
               onPillTap={onPillTap}
               onCopy={onCopy}
