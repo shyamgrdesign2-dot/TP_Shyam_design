@@ -1864,22 +1864,3 @@ body[data-voice-lock="on"] :is(input, textarea,
 @media (prefers-reduced-motion: reduce) {
   .ai-spark-thinking > img { animation: none; }
 }
-
-/* VoiceRx Canvas — shimmer skeleton blocks for the EMR area while a
-   quick-edit regen is in flight. Soft slate sweep so it reads as
-   "loading" without competing with the ShineBorder loader inside the
-   bottom-sheet overlay. */
-.vrx-cn-skeleton {
-  background: linear-gradient(
-    90deg,
-    rgba(226, 232, 240, 0.55) 0%,
-    rgba(241, 245, 249, 0.95) 45%,
-    rgba(226, 232, 240, 0.55) 100%
-  );
-  background-size: 200% 100%;
-  animation: vrxCnSkeletonSweep 1.4s linear infinite;
-}
-@keyframes vrxCnSkeletonSweep {
-  0%   { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
-}

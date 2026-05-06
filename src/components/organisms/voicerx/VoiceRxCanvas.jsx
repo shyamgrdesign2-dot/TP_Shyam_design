@@ -9,7 +9,7 @@ import { cn } from "@/src/hooks/utils";
 import { FeedbackRow } from "./VoiceRxResultTabs";
 import { VoiceRxIcon } from "./voice-consult-icons";
 import { VoiceRxModuleRecorder } from "./VoiceRxModuleRecorder";
-import { ShineBorder } from "@/src/components/atoms/ShineBorder";
+import { VoiceRxSectionProcessing } from "@/src/components/organisms/rxpad/form/VoiceRxSectionProcessing";
 import styles from "./VoiceRxCanvas.module.scss";
 
 /** localStorage key — gates the first-time educational coachmark for
@@ -282,33 +282,7 @@ export function VoiceRxCanvas({
                 "vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white",
                 styles.emrShell
               )}>
-              {regenPhase === "processing" ? (
-                /* Skeleton shimmers — same vertical rhythm as the
-                   real EMR sections so the doctor doesn't see stale
-                   text while the merge happens. The ShineBorder +
-                   loader live inside the bottom-sheet overlay, not
-                   here. */
-                <div className="flex flex-col gap-[14px] px-3 py-[10px]" aria-busy="true" aria-live="polite">
-                  {[
-                    { w: "32%", rows: 2 },
-                    { w: "28%", rows: 3 },
-                    { w: "24%", rows: 2 },
-                    { w: "30%", rows: 4 }
-                  ].map((s, idx) => (
-                    <div key={idx} className="flex flex-col gap-[8px]">
-                      <span className="vrx-cn-skeleton block h-[12px] rounded" style={{ width: s.w }} />
-                      {Array.from({ length: s.rows }).map((_, r) => (
-                        <span
-                          key={r}
-                          className="vrx-cn-skeleton block h-[10px] rounded"
-                          style={{ width: `${88 - r * 6}%` }} />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="px-3 py-[10px]">{emrCard}</div>
-              )}
+              <div className="px-3 py-[10px]">{emrCard}</div>
             </div>
             <FeedbackRow
             value={feedback.emr}
@@ -408,28 +382,12 @@ export function VoiceRxCanvas({
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-stretch"
           style={{ height: "40%" }}>
-          <div className="pointer-events-auto w-full" data-voice-allow>
+          <div className="pointer-events-auto w-full bg-white" data-voice-allow>
             {regenPhase === "processing" ? (
-              <div className="relative flex h-full w-full flex-col items-center justify-center gap-[12px] overflow-hidden bg-white">
-                <ShineBorder
-                  variant="rotate"
-                  borderWidth={1.5}
-                  duration={2.4}
-                  shineColor={["#D565EA", "#673AAC", "#1A1994"]}
-                  baseColor="rgba(226,226,234,0.95)" />
-                <span
-                  aria-hidden
-                  className="inline-flex h-[16px] w-[16px] animate-pulse rounded-full"
-                  style={{
-                    background:
-                      "linear-gradient(135deg,#D565EA 0%,#673AAC 60%,#1A1994 100%)"
-                  }} />
-                <p className="font-sans text-[14px] font-semibold leading-[20px] text-tp-slate-700">
-                  Updating clinical notes…
-                </p>
-                <p className="max-w-[320px] px-4 text-center font-sans text-[12px] leading-[18px] text-tp-slate-500">
-                  Merging your latest dictation into the existing note. This usually takes a few seconds.
-                </p>
+              <div className="flex h-full w-full items-center justify-center px-4 py-4">
+                <VoiceRxSectionProcessing
+                  transcript={transcript}
+                  sectionLabel="Clinical Notes" />
               </div>
             ) : (
               <VoiceRxModuleRecorder
@@ -438,12 +396,11 @@ export function VoiceRxCanvas({
                 fillHeight
                 radiusClassName="rounded-none"
                 onCancel={() => setQuickEditActive(false)}
-                onSubmit={() => {
-                  // Submit hands off to the loading phase — overlay
-                  // stays mounted and swaps to ShineBorder + loader.
+                onSubmit={(submittedTranscript) => {
                   setQuickEditActive(false);
                   setRegenPhase("processing");
                   window.setTimeout(() => setRegenPhase("idle"), 12000);
+                  void submittedTranscript;
                 }} />
             )}
           </div>
