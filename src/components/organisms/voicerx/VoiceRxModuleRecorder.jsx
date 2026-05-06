@@ -126,6 +126,7 @@ function formatElapsed(ms) {
 
 export function VoiceRxModuleRecorder({
   sectionLabel,
+  showSectionInStatus = true,
   onCancel,
   onSubmit,
   transcript: scriptedTranscript,
@@ -819,7 +820,7 @@ export function VoiceRxModuleRecorder({
             criticalBlock ? "text-red-600" : "text-tp-slate-600"
           )}>
                 {statusLabel}
-                {!criticalBlock && <span className="ml-[3px] font-normal text-tp-slate-400/80">· {sectionLabel}</span>}
+                {!criticalBlock && showSectionInStatus && sectionLabel ? <span className="ml-[3px] font-normal text-tp-slate-400/80">· {sectionLabel}</span> : null}
                 {!criticalBlock && (isListening || manualMute) && elapsedMs > 0 &&
             <span className="ml-[6px] font-normal text-tp-slate-400">
                     ({formatElapsed(elapsedMs)})

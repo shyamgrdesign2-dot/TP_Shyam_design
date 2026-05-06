@@ -90,7 +90,11 @@ export function VoiceRxSectionProcessing({
           ref={transcriptScrollRef}
           className="relative flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-y-auto p-[14px] text-center">
 
-          <DictationTranscript raw={transcript} />
+          {/* Instant render: word-by-word reveal added an unwanted
+              ~5s delay before the doctor could read the transcript
+              they just dictated. The loader caption covers the
+              "we're working" feel. */}
+          <DictationTranscript raw={transcript} animate={false} />
         </div>
       </div>
 

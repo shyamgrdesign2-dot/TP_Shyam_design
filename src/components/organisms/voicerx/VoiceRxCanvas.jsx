@@ -11,6 +11,7 @@ import { VoiceRxIcon } from "./voice-consult-icons";
 import { VoiceRxModuleRecorder } from "./VoiceRxModuleRecorder";
 import recorderStyles from "./VoiceRxModuleRecorder.module.scss";
 import { VoiceRxSectionProcessing } from "@/src/components/organisms/rxpad/form/VoiceRxSectionProcessing";
+import { toast } from "@/src/components/molecules/Toaster";
 import styles from "./VoiceRxCanvas.module.scss";
 
 /** localStorage key — gates the first-time educational coachmark for
@@ -279,21 +280,31 @@ export function VoiceRxCanvas({
                     ) : null}
                   </div>
                   <DictationTranscript raw={seg.body} animate={false} />
+                  {/* Per-card feedback row — each take owns its own
+                      thumbs / audio-quality / download affordances. */}
+                  <div className="mt-[10px]">
+                    <FeedbackRow
+                      value={feedback[`transcript-${seg.id ?? idx}`] ?? null}
+                      onChange={(v) => handleFeedback(`transcript-${seg.id ?? idx}`, v)}
+                      audioQuality="good" />
+                  </div>
                 </div>
               ))
             ) : transcript ? (
               <div className="vrx-transcript-frame rounded-[12px] bg-tp-slate-100/80 p-[12px] backdrop-blur-sm">
                 <DictationTranscript raw={transcript} animate={false} />
+                <div className="mt-[10px]">
+                  <FeedbackRow
+                    value={feedback.transcript}
+                    onChange={(v) => handleFeedback("transcript", v)}
+                    audioQuality="good" />
+                </div>
               </div>
             ) : (
               <div className="vrx-transcript-frame rounded-[12px] bg-tp-slate-100/80 p-[12px] backdrop-blur-sm">
                 <p className="text-[14px] italic leading-[1.6] text-tp-slate-400">No transcript captured.</p>
               </div>
             )}
-            <FeedbackRow
-            value={feedback.transcript}
-            onChange={(v) => handleFeedback("transcript", v)}
-            audioQuality="good" />
 
           </div> :
 
@@ -401,21 +412,19 @@ export function VoiceRxCanvas({
             ) : (
               <VoiceRxModuleRecorder
                 sectionLabel="Clinical Notes"
+                showSectionInStatus={false}
                 variant="stack"
                 fillHeight
                 radiusClassName="rounded-none"
                 onCancel={() => setQuickEditActive(false)}
                 onSubmit={(submittedTranscript) => {
-                  // Hand off to the parent so a new transcript
-                  // segment is appended to voiceRxResult and a fresh
-                  // structured-rx card is pushed to chat (the older
-                  // chat card auto-marks stale). The bottom-dock
-                  // stays on screen during the parent's processing
-                  // window via regenPhase=processing.
                   setQuickEditActive(false);
                   setRegenPhase("processing");
                   onQuickEditSubmit?.();
-                  window.setTimeout(() => setRegenPhase("idle"), 12000);
+                  window.setTimeout(() => {
+                    setRegenPhase("idle");
+                    toast.success("Clinical notes updated successfully");
+                  }, 12000);
                   void submittedTranscript;
                 }} />
             )}
