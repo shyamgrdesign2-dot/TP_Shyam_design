@@ -223,7 +223,7 @@ export function VaccineContent() {
       <HistoricalNewDataBanner activeId="vaccine" />
       <SectionScrollArea>
         <SectionCard
-          title={`Overdue Vaccines (${overdueRows.length})`}
+          title={`Overdue Vaccines (${overdueCount})`}
           expanded={expandedState.overdue}
           onToggle={() => setExpandedState((prev) => ({ ...prev, overdue: !prev.overdue }))}
           titleAddon={
