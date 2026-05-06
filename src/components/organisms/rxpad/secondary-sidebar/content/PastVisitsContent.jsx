@@ -15,10 +15,9 @@ import {
   DocumentDownload,
   Eye,
   Import,
-  Printer,
-  Profile } from
+  Printer } from
 "iconsax-reactjs";
-import { MoreVertical } from "@/src/components/atoms/icons/lucide";
+import { MoreVertical, Stethoscope } from "@/src/components/atoms/icons/lucide";
 
 import { cn } from "@/src/hooks/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/src/components/atoms/Tooltip";
@@ -678,7 +677,11 @@ function AdditionalNotesSection({ notes, onCopy }) {
 function PrescribedByFooter({ doctorName, specialty, bare = false }) {
   const inner = (
     <div className="flex items-center gap-2 rounded-[4px] bg-tp-slate-100/70 px-2 py-[6px]">
-      <Profile size={18} color="var(--tp-slate-500)" variant="Bulk" className="shrink-0" />
+      <span
+        aria-hidden
+        className="inline-flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-tp-slate-200/80 text-tp-slate-500">
+        <Stethoscope size={24} strokeWidth={1.6} />
+      </span>
       <div className="min-w-0">
         <p className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-700">{doctorName}</p>
         {specialty ? (
