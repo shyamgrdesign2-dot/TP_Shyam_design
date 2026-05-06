@@ -1,6 +1,8 @@
 "use client";
 
+import * as React from "react";
 import { useCallback, useState } from "react";
+import { FeedbackBottomSheet } from "@/src/components/organisms/rxpad/dr-agent/shell/FeedbackBottomSheet";
 import {
   Download,
 
@@ -326,7 +328,12 @@ function ClinicalPane({ html, onChange }) {
   return <ClinicalNotesEditor value={html} onChange={onChange} />;
 }
 
-export function FeedbackRow({ value, onChange, audioQuality }) {
+export function FeedbackRow({ value, onChange, audioQuality, timestamp }) {
+  const [downSheetOpen, setDownSheetOpen] = React.useState(false);
+  const handleDown = () => {
+    onChange("down");
+    setDownSheetOpen(true);
+  };
   return (
     <div className="flex items-center gap-1.5">
       {/* vrx-* styles live in app/globals.css */}
@@ -337,17 +344,17 @@ export function FeedbackRow({ value, onChange, audioQuality }) {
           "flex h-[20px] w-[20px] items-center justify-center rounded transition-colors",
           value === "up" ? "text-tp-success-500" : "text-tp-slate-400 hover:text-tp-success-500"
         )}>
-        
+
         <Like1 size={14} variant={value === "up" ? "Bold" : "Linear"} />
       </button>
       <button
         type="button"
-        onClick={() => onChange("down")}
+        onClick={handleDown}
         className={cn(
           "flex h-[20px] w-[20px] items-center justify-center rounded transition-colors",
           value === "down" ? "text-tp-error-500" : "text-tp-slate-400 hover:text-tp-error-500"
         )}>
-        
+
         <Dislike size={14} variant={value === "down" ? "Bold" : "Linear"} />
       </button>
 
@@ -374,6 +381,17 @@ export function FeedbackRow({ value, onChange, audioQuality }) {
           </HoverTooltip>
         </>
       }
+
+      {timestamp ? (
+        <>
+          <span aria-hidden className="vrx-fb-divider mx-[6px]" />
+          <span className="ml-auto font-sans text-[11px] leading-[14px] text-tp-slate-400">{timestamp}</span>
+        </>
+      ) : null}
+      <FeedbackBottomSheet
+        isOpen={downSheetOpen}
+        onClose={() => setDownSheetOpen(false)}
+        onSubmit={() => setDownSheetOpen(false)} />
     </div>);
 
 }

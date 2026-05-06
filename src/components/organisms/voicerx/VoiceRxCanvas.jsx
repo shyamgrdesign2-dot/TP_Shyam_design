@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MoreVertical, X } from "@/src/components/atoms/icons/lucide";
+import { Mic, MoreVertical, X } from "@/src/components/atoms/icons/lucide";
 import { Copy as CopyGlyph, InfoCircle, Microphone2, DocumentText } from "iconsax-reactjs";
 import { DictationTranscript } from "./VoiceTranscriptProcessingCard";
 import { cn } from "@/src/hooks/utils";
@@ -72,6 +72,14 @@ import { HoverTooltip } from "@/src/components/atoms/Tooltip";
 
 
 
+
+function formatDuration(ms) {
+  if (!ms || ms < 0) return "0:00";
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 export function VoiceRxCanvas({
   modeLabel = "Conversation Mode",
@@ -269,36 +277,38 @@ export function VoiceRxCanvas({
                 <div
                   key={seg.id ?? idx}
                   className="vrx-transcript-frame rounded-[12px] bg-tp-slate-100/80 p-[12px] backdrop-blur-sm">
-                  <div className="mb-[8px] flex items-center justify-between gap-2">
-                    <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.6px] text-tp-slate-500">
-                      {transcriptSegments.length > 1 ? `Transcript ${idx + 1}` : "Transcript"}
+                  <div className="mb-[2px] flex items-center justify-between gap-2">
+                    <p className="font-sans text-[13px] font-medium leading-[18px] text-tp-slate-400">
+                      {seg.mode === "ambient_consultation" ? "Conversation Transcript" : "Dictation Transcript"}
                     </p>
-                    {seg.createdAt ? (
-                      <p className="font-sans text-[11px] leading-[14px] text-tp-slate-400">
-                        {new Date(seg.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
-                      </p>
-                    ) : null}
+                    <span
+                      className="inline-flex items-center gap-[4px] rounded-full bg-white/80 px-[10px] py-[3.5px] text-[12px] font-medium text-tp-slate-400 tabular-nums"
+                      aria-label={`Recording duration ${formatDuration(seg.durationMs)}`}>
+                      <Mic size={12} strokeWidth={1.8} aria-hidden />
+                      {formatDuration(seg.durationMs)}
+                    </span>
                   </div>
                   <DictationTranscript raw={seg.body} animate={false} />
-                  {/* Per-card feedback row — each take owns its own
-                      thumbs / audio-quality / download affordances. */}
-                  <div className="mt-[10px]">
-                    <FeedbackRow
-                      value={feedback[`transcript-${seg.id ?? idx}`] ?? null}
-                      onChange={(v) => handleFeedback(`transcript-${seg.id ?? idx}`, v)}
-                      audioQuality="good" />
-                  </div>
+                  {/* Subtle horizontal gradient divider — same recipe
+                      as the Customise sidebar header divider, rotated
+                      to the horizontal axis. Separates transcript
+                      body from the feedback footer. */}
+                  <div className="my-[10px] h-px w-full bg-gradient-to-r from-[rgba(208,213,221,0.2)] via-[#d0d5dd] to-[rgba(208,213,221,0.2)]" />
+                  <FeedbackRow
+                    value={feedback[`transcript-${seg.id ?? idx}`] ?? null}
+                    onChange={(v) => handleFeedback(`transcript-${seg.id ?? idx}`, v)}
+                    audioQuality="good"
+                    timestamp={seg.createdAt ? new Date(seg.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : null} />
                 </div>
               ))
             ) : transcript ? (
               <div className="vrx-transcript-frame rounded-[12px] bg-tp-slate-100/80 p-[12px] backdrop-blur-sm">
                 <DictationTranscript raw={transcript} animate={false} />
-                <div className="mt-[10px]">
-                  <FeedbackRow
-                    value={feedback.transcript}
-                    onChange={(v) => handleFeedback("transcript", v)}
-                    audioQuality="good" />
-                </div>
+                <div className="my-[10px] h-px w-full bg-gradient-to-r from-[rgba(208,213,221,0.2)] via-[#d0d5dd] to-[rgba(208,213,221,0.2)]" />
+                <FeedbackRow
+                  value={feedback.transcript}
+                  onChange={(v) => handleFeedback("transcript", v)}
+                  audioQuality="good" />
               </div>
             ) : (
               <div className="vrx-transcript-frame rounded-[12px] bg-tp-slate-100/80 p-[12px] backdrop-blur-sm">
