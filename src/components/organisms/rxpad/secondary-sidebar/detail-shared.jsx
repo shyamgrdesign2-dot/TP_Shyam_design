@@ -478,7 +478,8 @@ export function GradientDivider({ className }) {
     <div
       aria-hidden
       className={clsx(
-        "relative w-full h-px shrink-0 my-[12px] bg-tp-slate-200",
+        "relative w-full h-px shrink-0 my-[12px]",
+        "bg-[linear-gradient(90deg,rgba(208,213,221,0)_0%,#d0d5dd_50%,rgba(208,213,221,0)_100%)]",
         className
       )}
     />
