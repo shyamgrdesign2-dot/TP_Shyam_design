@@ -101,11 +101,15 @@ export function VoiceRxCanvas({
   // to onAddDetailsByVoice so the parent can append + re-generate.
   const [quickEditActive, setQuickEditActive] = useState(false);
   // Quick-edit regeneration UX:
-  //   idle       → normal canvas
-  //   processing → loader replaces the EMR body for ~1.4s
-  //   updated    → ShineBorder wraps the EMR card for ~2.5s
-  // Lets the doctor see "your dictation is being merged → notes
-  // updated" without leaving the canvas.
+  //   idle       → normal canvas, no overlay.
+  //   recording  → bottom-sheet recorder visible (mic + waveform + submit).
+  //   processing → recorder is replaced with a ShineBorder + animated
+  //                "Updating clinical notes…" loader in the SAME bottom
+  //                sheet. Stays mounted for ~12s so the doctor sees the
+  //                regen unfold. The EMR card behind transforms into
+  //                shimmer skeletons during this window so stale text
+  //                isn't visible while the new note is being merged.
+  //   idle (post)→ overlay closes; updated note re-appears with no flash.
   const [regenPhase, setRegenPhase] = useState("idle");
   const navLocked = quickEditActive || regenPhase !== "idle";
 
@@ -276,34 +280,31 @@ export function VoiceRxCanvas({
             <div
               className={cn(
                 "vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white",
-                styles.emrShell,
-                regenPhase === "updated" && "vrx-cn-emr-shell--just-updated"
+                styles.emrShell
               )}>
-              {/* Gradient shiner border for 2.5s after a quick-edit
-                  submit so the doctor sees which area regenerated. */}
-              {regenPhase === "updated" ? (
-                <ShineBorder
-                  variant="rotate"
-                  borderWidth={1.5}
-                  duration={2.4}
-                  shineColor={["#D565EA", "#673AAC", "#1A1994"]}
-                  baseColor="rgba(226,226,234,0.95)" />
-              ) : null}
               {regenPhase === "processing" ? (
-                <div className="flex flex-col items-center justify-center gap-[10px] py-[40px]">
-                  <span
-                    aria-hidden
-                    className="inline-flex h-[14px] w-[14px] animate-pulse rounded-full"
-                    style={{
-                      background:
-                        "linear-gradient(135deg,#D565EA 0%,#673AAC 60%,#1A1994 100%)"
-                    }} />
-                  <p className="font-sans text-[13px] font-medium leading-[18px] text-tp-slate-600">
-                    Updating clinical notes…
-                  </p>
-                  <p className="font-sans text-[12px] leading-[16px] text-tp-slate-400">
-                    Merging your latest dictation into the existing note.
-                  </p>
+                /* Skeleton shimmers — same vertical rhythm as the
+                   real EMR sections so the doctor doesn't see stale
+                   text while the merge happens. The ShineBorder +
+                   loader live inside the bottom-sheet overlay, not
+                   here. */
+                <div className="flex flex-col gap-[14px] px-3 py-[10px]" aria-busy="true" aria-live="polite">
+                  {[
+                    { w: "32%", rows: 2 },
+                    { w: "28%", rows: 3 },
+                    { w: "24%", rows: 2 },
+                    { w: "30%", rows: 4 }
+                  ].map((s, idx) => (
+                    <div key={idx} className="flex flex-col gap-[8px]">
+                      <span className="vrx-cn-skeleton block h-[12px] rounded" style={{ width: s.w }} />
+                      {Array.from({ length: s.rows }).map((_, r) => (
+                        <span
+                          key={r}
+                          className="vrx-cn-skeleton block h-[10px] rounded"
+                          style={{ width: `${88 - r * 6}%` }} />
+                      ))}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="px-3 py-[10px]">{emrCard}</div>
@@ -395,32 +396,56 @@ export function VoiceRxCanvas({
       </div>
       }
 
-      {/* Quick-edit recorder overlay — pinned to the bottom 40% of the
-          canvas. Uses the same VoiceRxModuleRecorder the sidebar
-          sections render so the mic affordance reads consistently. The
-          existing canvas content stays visible (and copyable) but back
-          / minimize are disabled while the overlay is active. */}
-      {quickEditActive ? (
+      {/* Quick-edit overlay — pinned to the bottom 40% of the canvas.
+          Two states share the same surface so the doctor never sees
+          a flash:
+            - quickEditActive  → VoiceRxModuleRecorder (mic + submit)
+            - regenPhase=processing → ShineBorder + loader copy in
+              the same dock; the EMR area above renders shimmer
+              skeletons. After ~12s the overlay clears and the
+              merged notes re-appear. */}
+      {quickEditActive || regenPhase === "processing" ? (
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-stretch"
           style={{ height: "40%" }}>
           <div className="pointer-events-auto w-full" data-voice-allow>
-            <VoiceRxModuleRecorder
-              sectionLabel="Clinical Notes"
-              variant="stack"
-              fillHeight
-              radiusClassName="rounded-none"
-              onCancel={() => setQuickEditActive(false)}
-              onSubmit={() => {
-                setQuickEditActive(false);
-                // Local two-stage UX: loader → shimmer. Real regen
-                // would also update the parent transcript / notes;
-                // for the demo we surface the visual handshake so
-                // the doctor sees their dictation "land".
-                setRegenPhase("processing");
-                window.setTimeout(() => setRegenPhase("updated"), 1400);
-                window.setTimeout(() => setRegenPhase("idle"), 1400 + 2500);
-              }} />
+            {regenPhase === "processing" ? (
+              <div className="relative flex h-full w-full flex-col items-center justify-center gap-[12px] overflow-hidden bg-white">
+                <ShineBorder
+                  variant="rotate"
+                  borderWidth={1.5}
+                  duration={2.4}
+                  shineColor={["#D565EA", "#673AAC", "#1A1994"]}
+                  baseColor="rgba(226,226,234,0.95)" />
+                <span
+                  aria-hidden
+                  className="inline-flex h-[16px] w-[16px] animate-pulse rounded-full"
+                  style={{
+                    background:
+                      "linear-gradient(135deg,#D565EA 0%,#673AAC 60%,#1A1994 100%)"
+                  }} />
+                <p className="font-sans text-[14px] font-semibold leading-[20px] text-tp-slate-700">
+                  Updating clinical notes…
+                </p>
+                <p className="max-w-[320px] px-4 text-center font-sans text-[12px] leading-[18px] text-tp-slate-500">
+                  Merging your latest dictation into the existing note. This usually takes a few seconds.
+                </p>
+              </div>
+            ) : (
+              <VoiceRxModuleRecorder
+                sectionLabel="Clinical Notes"
+                variant="stack"
+                fillHeight
+                radiusClassName="rounded-none"
+                onCancel={() => setQuickEditActive(false)}
+                onSubmit={() => {
+                  // Submit hands off to the loading phase — overlay
+                  // stays mounted and swaps to ShineBorder + loader.
+                  setQuickEditActive(false);
+                  setRegenPhase("processing");
+                  window.setTimeout(() => setRegenPhase("idle"), 12000);
+                }} />
+            )}
           </div>
         </div>
       ) : null}
