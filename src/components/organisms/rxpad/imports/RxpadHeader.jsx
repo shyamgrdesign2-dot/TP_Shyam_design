@@ -30,7 +30,6 @@ import { ChevronLeft, MoreVertical } from "@/src/components/atoms/icons/lucide";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/src/components/molecules/DropdownMenu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/src/components/atoms/Tooltip";
 import { TutorialPlayIcon } from "@/src/components/atoms/TutorialPlayIcon/TutorialPlayIcon";
-import { VoiceRxIcon } from "@/src/components/organisms/voicerx/voice-consult-icons";
 
 
 
@@ -56,7 +55,6 @@ export default function RxpadHeader({
   onBack,
   onVisitSummary,
   onPreview,
-  onVoiceRx,
   onCustomise,
   onEndVisit,
   onSaveDraft,
@@ -237,21 +235,6 @@ export default function RxpadHeader({
               <TooltipContent side="bottom" sideOffset={6} className="rounded-[6px] border-0 bg-tp-slate-900 px-2.5 py-1.5 text-[12px] leading-[1.45] text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.45)]">Customise your Rx layout</TooltipContent>
             </Tooltip>
             <div className="bg-gradient-to-b from-[rgba(208,213,221,0.2)] h-[42px] opacity-80 shrink-0 to-[rgba(208,213,221,0.2)] via-1/2 via-[#d0d5dd] w-[1.05px]" data-name="Divider" />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                    type="button"
-                    aria-label="VoiceRx"
-                    onClick={onVoiceRx}
-                    className="content-stretch flex gap-[6.3px] items-center justify-center px-[16px] py-[8px] relative rounded-[10px] shrink-0 bg-white border border-tp-blue-500 transition-colors hover:bg-tp-blue-50/50"
-                    data-name="VoiceRx">
-
-                  <VoiceRxIcon size={24} color="var(--tp-blue-500)" />
-                  <p className="font-['Inter:Semi_Bold',sans-serif] font-semibold leading-[normal] not-italic relative shrink-0 text-tp-blue-500 text-[14.7px] text-center whitespace-nowrap">VoiceRx</p>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={6} className="rounded-[6px] border-0 bg-tp-slate-900 px-2.5 py-1.5 text-[12px] leading-[1.45] text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.45)]">Capture this consultation by voice</TooltipContent>
-            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
