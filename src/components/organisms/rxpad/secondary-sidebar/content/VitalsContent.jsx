@@ -267,7 +267,7 @@ function VitalsDateCard({
                   <span className={historicalInlineTextClass(row.isHighlighted, row.isFresh, false, shimmerActive)}>
                     {row.label}
                   </span>{" "}
-                  <span className={clsx("text-[14px] leading-[20px] text-tp-slate-400", historicalInlineTextClass(row.isHighlighted, row.isFresh, false, shimmerActive))}>
+                  <span className={clsx("text-[14px] leading-[20px] text-tp-slate-500", historicalInlineTextClass(row.isHighlighted, row.isFresh, false, shimmerActive))}>
                     ({row.unit})
                   </span>
                 </span>

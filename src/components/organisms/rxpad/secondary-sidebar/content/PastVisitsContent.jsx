@@ -654,7 +654,7 @@ function FollowUpSection({ followUp }) {
         <ClockIcon />
         <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">Follow Up</span>
       </div>
-      <span className="pl-[6px] font-sans text-[14px] leading-[20px] text-tp-slate-600">{followUp}</span>
+      <span className="pl-[6px] font-sans text-[14px] leading-[20px] text-tp-slate-500">{followUp}</span>
     </div>);
 
 }
@@ -681,7 +681,7 @@ function AdditionalNotesSection({ notes, onCopy }) {
         onCopy={onCopy}
         copyHint="Fill additional notes to RxPad"
         copiedLabel="Additional notes copied to RxPad">
-        <span className="font-sans text-[14px] leading-[20px] text-tp-slate-600">{notes}</span>
+        <span className="font-sans text-[14px] leading-[20px] text-tp-slate-500">{notes}</span>
       </TapCopyTooltip>
     </div>);
 
@@ -691,22 +691,24 @@ function AdditionalNotesSection({ notes, onCopy }) {
 // card. Vertical violet fade (transparent at top → soft violet at
 // bottom) so the doctor stamp reads as a letterhead signature.
 function SignatureFooter({ doctorName, specialty }) {
+  // Reads as a quiet, "disabled-looking" sign-off block: lighter
+  // slate fade, no chip ring around the icon, all text in the lighter
+  // slate-500 family. Top padding is bumped so the strip has room to
+  // breathe under the last clinical section above it.
   return (
     <div
-      className="relative mt-[4px] flex items-center gap-3 overflow-hidden rounded-b-[10px] px-[14px] pt-[10px] pb-[10px]"
+      className="relative mt-[4px] flex items-center gap-3 overflow-hidden rounded-b-[10px] px-[14px] pt-[20px] pb-[10px]"
       style={{
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(148,163,184,0.08) 35%, rgba(100,116,139,0.14) 75%, rgba(71,85,105,0.18) 100%)"
+          "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(148,163,184,0.05) 50%, rgba(148,163,184,0.10) 100%)"
       }}>
-      <span
-        aria-hidden
-        className="inline-flex h-[32px] w-[32px] shrink-0 items-center justify-center text-tp-slate-600">
-        <StethoscopeGlyph size={20} color="currentColor" />
+      <span aria-hidden className="shrink-0 text-tp-slate-500">
+        <StethoscopeGlyph size={24} color="currentColor" />
       </span>
       <div className="min-w-0">
-        <p className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-800">{doctorName}</p>
+        <p className="font-sans text-[13px] font-medium leading-[18px] text-tp-slate-500">{doctorName}</p>
         {specialty ? (
-          <p className="font-sans text-[12px] leading-[16px] text-tp-slate-600">{specialty}</p>
+          <p className="font-sans text-[12px] leading-[16px] text-tp-slate-500">{specialty}</p>
         ) : null}
       </div>
     </div>

@@ -101,7 +101,7 @@ function GynecLineRow({
         <span className={historicalInlineTextClass(line.isHighlighted, line.isFresh)}>
           {segments.map((seg, i) =>
         <span key={i}>
-              {i > 0 ? <span className="text-tp-slate-300"> | </span> : null}
+              {i > 0 ? <span className="text-tp-slate-500"> | </span> : null}
               {seg.label ?
           <>
                   <span className="text-tp-slate-500">{seg.label}: </span>

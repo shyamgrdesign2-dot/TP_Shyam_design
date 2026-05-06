@@ -180,7 +180,7 @@ function LabRow({
           <span className="font-sans font-normal text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px] truncate">
             <span className={historicalInlineTextClass(isHighlighted, isFresh)}>{label}</span>
           </span>
-          <span className={clsx("font-sans text-tp-slate-400 text-[14px] leading-[20px] whitespace-nowrap", historicalInlineTextClass(isHighlighted, isFresh))}>
+          <span className={clsx("font-sans text-tp-slate-500 text-[14px] leading-[20px] whitespace-nowrap", historicalInlineTextClass(isHighlighted, isFresh))}>
             {unit}
           </span>
         </div>
