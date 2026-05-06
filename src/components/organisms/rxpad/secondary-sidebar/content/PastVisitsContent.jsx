@@ -9,6 +9,7 @@ import {
   ArrowSquareDown,
   ArrowSquareUp,
   Calendar2,
+  Note1,
   Copy as CopyIcon,
   CopySuccess,
   DocumentDownload,
@@ -319,6 +320,10 @@ function ClockIcon() {
   return <Calendar2 size={18} color="var(--tp-slate-500)" variant="Bulk" className="shrink-0" />;
 }
 
+function NotesDocIcon() {
+  return <Note1 size={18} color="var(--tp-slate-500)" variant="Bulk" className="shrink-0" />;
+}
+
 function DateHeader({
   dateLabel,
   expanded,
@@ -627,38 +632,44 @@ function AdviceSection({ advice, onCopy, onCopyItem }) {
 
 }
 
-function FollowUpSection({
-  followUp,
-  onCopy
-
-
-
-}) {
+function FollowUpSection({ followUp }) {
+  // Follow-up is read-only here (per design call). The doctor sets
+  // the cadence directly in the RxPad form's Follow-up section, so a
+  // copy affordance in past-visit history would only confuse.
   return (
     <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
       <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
         <ClockIcon />
+        <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">Follow Up</span>
+      </div>
+      <span className="pl-[6px] font-sans text-[14px] leading-[20px] text-tp-slate-600">{followUp}</span>
+    </div>);
+
+}
+
+function AdditionalNotesSection({ notes, onCopy }) {
+  return (
+    <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
+      <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
+        <NotesDocIcon />
         <TapCopyTooltip
           onCopy={onCopy}
-          copyHint="Fill all follow-up details to RxPad"
-          copiedLabel="Follow-up copied to RxPad">
-
-          <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">Follow Up</span>
+          copyHint="Fill additional notes to RxPad"
+          copiedLabel="Additional notes copied to RxPad">
+          <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">Additional Notes</span>
         </TapCopyTooltip>
         <CopyAffordance
           onCopy={onCopy}
           showOnHover={false}
-          copyHint="Click to fill follow-up to RxPad"
-          copiedLabel="Follow-up filled to RxPad" />
-
+          copyHint="Click to fill additional notes to RxPad"
+          copiedLabel="Additional notes filled to RxPad" />
       </div>
       <TapCopyTooltip
         className="w-full pl-[6px]"
         onCopy={onCopy}
-        copyHint="Fill this follow-up to RxPad"
-        copiedLabel="Follow-up copied to RxPad">
-
-        <span className="font-sans text-[14px] leading-[20px] text-tp-slate-600">{followUp}</span>
+        copyHint="Fill additional notes to RxPad"
+        copiedLabel="Additional notes copied to RxPad">
+        <span className="font-sans text-[14px] leading-[20px] text-tp-slate-600">{notes}</span>
       </TapCopyTooltip>
     </div>);
 
@@ -990,25 +1001,30 @@ export function PastVisitsContent() {
                         <AdviceSection
                         advice={entry.digitalRx.advice}
                         onCopy={() => {
-                          const adviceText = Array.isArray(entry.digitalRx.advice)
-                            ? entry.digitalRx.advice.join(" ")
-                            : entry.digitalRx.advice;
-                          fillToRxPad(requestCopyToRxPad, entry.dateLabel, { advice: adviceText });
+                          // Send the object array so the form's fill
+                          // handler can split each entry's name/notes
+                          // into separate columns.
+                          fillToRxPad(requestCopyToRxPad, entry.dateLabel, { advice: entry.digitalRx.advice });
                           showCopySnackbar("Advice added successfully to RxPad");
                         }}
                         onCopyItem={(item) => {
-                          const text = item.detail ? `${item.label} (${item.detail})` : item.label;
-                          fillToRxPad(requestCopyToRxPad, entry.dateLabel, { advice: text });
+                          fillToRxPad(requestCopyToRxPad, entry.dateLabel, {
+                            advice: [{ name: item.label, notes: item.detail }]
+                          });
                           showCopySnackbar(`${item.label} advice added successfully to RxPad`);
                         }} />
                       
 
-                        <FollowUpSection
-                        followUp={entry.digitalRx.followUp}
-                        onCopy={() => {
-                          fillToRxPad(requestCopyToRxPad, entry.dateLabel, { followUp: entry.digitalRx.followUp });
-                          showCopySnackbar("Follow-up added successfully to RxPad");
-                        }} />
+                        <FollowUpSection followUp={entry.digitalRx.followUp} />
+
+                        {entry.digitalRx.additionalNotes ? (
+                          <AdditionalNotesSection
+                            notes={entry.digitalRx.additionalNotes}
+                            onCopy={() => {
+                              fillToRxPad(requestCopyToRxPad, entry.dateLabel, { additionalNotes: entry.digitalRx.additionalNotes });
+                              showCopySnackbar("Additional notes added successfully to RxPad");
+                            }} />
+                        ) : null}
                       </> :
                     null}
 

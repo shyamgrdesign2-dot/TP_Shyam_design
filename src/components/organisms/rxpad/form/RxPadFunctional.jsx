@@ -695,14 +695,45 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
       });
     }
     if (payload.advice) {
-      setAdviceRows((prev) => [
-      ...prev,
-      {
-        id: getRowId("advice"),
-        advice: payload.advice ?? "",
-        note: `From ${sourceLabel}`
-      }]
-      );
+      // Accept three shapes:
+      //   string                         → whole text goes to `advice`
+      //   { name, notes }                → split across columns
+      //   Array of strings/objects        → one row per entry
+      const rawEntries = Array.isArray(payload.advice) ? payload.advice : [payload.advice];
+      const newRows = rawEntries
+        .map((entry) => {
+          if (typeof entry === "object" && entry !== null) {
+            const adviceText = entry.name ?? entry.label ?? "";
+            const notesText = entry.notes ?? entry.detail ?? "";
+            if (!adviceText && !notesText) return null;
+            return {
+              id: getRowId("advice"),
+              advice: adviceText,
+              note: notesText || `From ${sourceLabel}`
+            };
+          }
+          const text = String(entry ?? "").trim();
+          if (!text) return null;
+          // Try to parse "Name (notes)" out of plain strings so even
+          // legacy single-string callers populate the right columns.
+          const m = text.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+          if (m) {
+            return {
+              id: getRowId("advice"),
+              advice: m[1].trim(),
+              note: m[2].trim()
+            };
+          }
+          return {
+            id: getRowId("advice"),
+            advice: text,
+            note: `From ${sourceLabel}`
+          };
+        })
+        .filter(Boolean);
+      if (newRows.length) {
+        setAdviceRows((prev) => [...prev, ...newRows]);
+      }
     }
     if (payload.followUpDate) {
       setFollowUpDate(payload.followUpDate);
@@ -1461,7 +1492,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             no rows). */}
         <TPRxPadSection
           title="Additional Notes"
-          icon={<Calendar2 size={24} variant="Bulk" color="var(--tp-violet-500)" />}
+          icon={<Notepad2 size={24} variant="Bulk" color="var(--tp-violet-500)" />}
           showHeaderActions
           onVoiceClick={() => handleVoiceToggle("additionalNotes")}
           voiceActive={voiceModuleId === "additionalNotes"}
