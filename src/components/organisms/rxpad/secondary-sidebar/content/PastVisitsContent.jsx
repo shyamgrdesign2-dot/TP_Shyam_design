@@ -829,7 +829,7 @@ export function PastVisitsContent() {
                 <DateHeader
                     dateLabel={entry.dateLabel}
                     expanded={expanded}
-                    canCopy={hasDigital}
+                    canCopy={hasDigital && activeTab !== "written"}
                     freshCount={
                     /* Fresh updates from Dr.Agent attach to the most recent visit. */
                     orderedVisits[0]?.id === entry.id ? freshLineCount : 0
@@ -1049,30 +1049,42 @@ export function PastVisitsContent() {
               naked (no nested border / rounded shell). The image
               auto-fits the column with its natural aspect ratio. */}
           <div className="flex flex-1 min-h-0 flex-col gap-3 overflow-auto bg-tp-slate-50 p-4">
-            {/* Doctor stamp — same convention as the digital Rx body
-                so the Written Rx preview also reads as "by Dr. X". */}
+            {/* Doctor stamp — keeps the violet wash from the digital
+                Rx body so the convention stays consistent across
+                surfaces. White background variant available via
+                tone="white" if a calmer treatment is needed. */}
             {activeDocument ? (
               <div className="mx-auto w-full max-w-[820px]">
                 <PrescribedByFooter
                   bare
-                  tone="grey"
                   doctorName={activeDocument.document.doctorName ?? "Dr. Shyam Sundar"}
                   specialty={activeDocument.document.doctorSpecialty ?? "General Physician"} />
               </div>
             ) : null}
-            <object
-              data={activeDocument?.document.pdfUrl}
-              type="application/pdf"
-              className="h-full w-full bg-tp-slate-50">
-              <div className="flex h-full flex-col items-center justify-start">
-                {activeDocument ? (
-                  <img
-                    alt={activeDocument.document.title}
-                    src={activeDocument.document.previewImage}
-                    className="w-full h-auto max-w-[820px]" />
-                ) : null}
-              </div>
-            </object>
+            {/* Document surface — soft 12px corners + a hairline top
+                border so the page reads as a clean A4 sheet sitting
+                on the slate-50 wash. The top padding (~56px) gives
+                the first page room to breathe under the doctor stamp.
+                Container is `min-h-0` + the inner object is sized via
+                content height, which lets multi-page PDFs render
+                their own internal scroll inside this surface. */}
+            <div
+              className="mx-auto w-full max-w-[820px] flex-1 overflow-hidden rounded-[12px] bg-white pt-[56px]"
+              style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)" }}>
+              <object
+                data={activeDocument?.document.pdfUrl}
+                type="application/pdf"
+                className="h-full w-full bg-white">
+                <div className="flex h-full flex-col items-center justify-start">
+                  {activeDocument ? (
+                    <img
+                      alt={activeDocument.document.title}
+                      src={activeDocument.document.previewImage}
+                      className="w-full h-auto" />
+                  ) : null}
+                </div>
+              </object>
+            </div>
           </div>
         </TPDrawerContent>
       </TPDrawer>

@@ -490,16 +490,23 @@ export function MedicalRecordsContent() {
                 record={activeRecord}
                 editTrigger={editTrigger} />
             ) : null}
-            <div className="flex flex-col items-center justify-start">
+            {/* A4 sheet surface — same convention as the Written Rx
+                preview drawer: rounded-[12px] white card with a 0.5px
+                hairline top border + a 56px top breathing space so the
+                document doesn't sit flush against the chrome above.
+                Multi-page PDFs/images render their own scroll inside. */}
+            <div
+              className="w-full max-w-[820px] mx-auto overflow-hidden rounded-[12px] bg-white pt-[56px]"
+              style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)" }}>
               {activeRecord && RECORD_PREVIEW_BY_TYPE[activeRecord.type] ? (
                 <Image
                   alt={activeRecord.label}
                   src={RECORD_PREVIEW_BY_TYPE[activeRecord.type]}
                   width={820}
                   height={1100}
-                  className="w-full h-auto max-w-[820px]" />
+                  className="w-full h-auto" />
               ) : activeRecord ? (
-                <div className="flex h-full w-full max-w-[820px] flex-col items-center justify-center gap-3 rounded-[12px] border border-tp-slate-200 bg-white py-24 text-tp-slate-500">
+                <div className="flex w-full flex-col items-center justify-center gap-3 py-24 text-tp-slate-500">
                   <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
                     <rect x="6" y="4" width="20" height="24" rx="2" fill="var(--tp-slate-300)" />
                     <rect x="9" y="9" width="14" height="2" rx="1" fill="white" />
