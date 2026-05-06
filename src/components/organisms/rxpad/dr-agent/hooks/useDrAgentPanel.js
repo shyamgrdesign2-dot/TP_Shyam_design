@@ -144,6 +144,12 @@ export function useDrAgentPanel({
     null);
   const voiceRxStreamIdx = useRef(0);
   const voiceRxTimeoutRef = useRef(null);
+  // Captures the prior voiceRxResult when the doctor clicks the small
+  // mic on the result canvas to add more dictation. The next submit
+  // merges the new transcript chunk with the prior one so the
+  // transcript is cumulative — without this ref the prior transcript
+  // would be wiped each time the doctor re-records.
+  const priorVoiceResultRef = useRef(null);
   /** Active agent lifts its paused state here so the scripted transcript can also pause. */
   const voiceRxPausedRef = useRef(false);
   const [voiceRxPaused, setVoiceRxPaused] = useState(false);
@@ -286,6 +292,21 @@ export function useDrAgentPanel({
     }));
   }, [voiceRxDialogChoice, onVoiceCaptureModeChange, selectedPatientId, setMessagesByPatient, activeVoiceModule, resetLiveTranscript]);
 
+  // Stash the current voiceRxResult and flip into recorder mode WITHOUT
+  // wiping the chat history of prior voice cards. The prior result's
+  // transcript will be merged onto the next submit so the transcript
+  // pane stays cumulative across multiple re-records.
+  const beginVoiceAddOn = useCallback(() => {
+    priorVoiceResultRef.current = voiceRxResult;
+    setVoiceRxResult(null);
+    setVoiceRxResultMinimized(false);
+    setVoiceRxScriptedTranscript("");
+    resetLiveTranscript();
+    setVoiceRxAwaitingResponse(false);
+    setVoiceRxRecording(true);
+    onVoiceCaptureModeChange?.(voiceRxDialogChoice);
+  }, [voiceRxResult, voiceRxDialogChoice, onVoiceCaptureModeChange, resetLiveTranscript]);
+
   const cancelVoiceRxRecording = useCallback(() => {
     if (voiceRxTimeoutRef.current) {
       clearTimeout(voiceRxTimeoutRef.current);
@@ -297,6 +318,13 @@ export function useDrAgentPanel({
     setVoiceRxAwaitingResponse(false);
     setAiFillInProgress(false);
     onVoiceCaptureModeChange?.(null);
+    // If the doctor canceled an add-on dictation, restore the prior
+    // result so the canvas re-appears with the original transcript +
+    // clinical notes intact.
+    if (priorVoiceResultRef.current) {
+      setVoiceRxResult(priorVoiceResultRef.current);
+      priorVoiceResultRef.current = null;
+    }
   }, [onVoiceCaptureModeChange, setAiFillInProgress, resetLiveTranscript]);
 
   const submitVoiceRxRecording = useCallback((meta) => {
@@ -403,11 +431,19 @@ export function useDrAgentPanel({
       // the previous staged 320ms slide-up + remount.
       setVoiceRxHandoffExiting(false);
       setVoiceRxResultMinimized(false);
+      // If this submit followed an add-on dictation (prior result was
+      // stashed), prepend the prior transcript so the doctor sees the
+      // full cumulative conversation, not just the latest chunk.
+      const prior = priorVoiceResultRef.current;
+      const mergedTranscript = prior?.transcript
+        ? `${prior.transcript}\n\n${demoTranscript}`
+        : demoTranscript;
+      priorVoiceResultRef.current = null;
       setVoiceRxResult({
-        transcript: demoTranscript,
+        transcript: mergedTranscript,
         sections: resultSections,
         clinicalNotesHtml: emrSectionsToHtml(resultSections),
-        durationMs: meta?.durationMs ?? 0,
+        durationMs: (meta?.durationMs ?? 0) + (prior?.durationMs ?? 0),
         structured,
         modeLabel: voiceRxDialogChoice === "dictation_consultation" ? "Dictation Mode" : "Conversation Mode",
         pendingSidebarBatch
@@ -1129,6 +1165,7 @@ export function useDrAgentPanel({
     setVoiceRxDialogChoice,
     voiceRxRecording,
     setVoiceRxRecording,
+    beginVoiceAddOn,
     voiceRxAwaitingResponse,
     voiceRxHandoffExiting,
     voiceRxResult,

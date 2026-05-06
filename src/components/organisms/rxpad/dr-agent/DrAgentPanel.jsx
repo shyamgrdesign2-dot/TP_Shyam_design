@@ -52,6 +52,7 @@ export function DrAgentPanel({
     setVoiceRxDialogChoice,
     voiceRxRecording,
     setVoiceRxRecording,
+    beginVoiceAddOn,
     voiceRxAwaitingResponse,
     voiceRxHandoffExiting,
     voiceRxResult,
@@ -332,11 +333,7 @@ export function DrAgentPanel({
           onPauseChange={handleVoiceRxPauseChange}
           onBack={() => setVoiceRxResultMinimized(true)}
           onMinimize={onClose}
-          onAddDetailsByVoice={() => {
-            setVoiceRxResult(null);
-            setVoiceRxRecording(true);
-            onVoiceCaptureModeChange?.(voiceRxDialogChoice);
-          }}
+          onAddDetailsByVoice={beginVoiceAddOn}
           onCopyResult={(payload) => runCopyWithAura(payload)}
           onCopyAll={() => {
             if (!voiceRxResult) return;
