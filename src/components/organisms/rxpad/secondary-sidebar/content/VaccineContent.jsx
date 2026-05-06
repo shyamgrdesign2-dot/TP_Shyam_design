@@ -117,7 +117,7 @@ function PendingVaccineItem({ name, dateLabel, dateColor, notes }) {
 // up top, bullets stacked below.
 function PendingVaccineGroup({ week, vaccines, dateColor }) {
   return (
-    <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
+    <div className="relative shrink-0 w-full px-[12px] py-[12px] flex flex-col gap-[6px]">
       {/* Week tag — same chrome as Symptoms / Examination section
           headers in Past Visits so the layout reads as one family. */}
       <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
@@ -181,7 +181,7 @@ function GivenVaccineItem({ name, givenDate, brand, dueDate, notes }) {
 
 function GivenVaccineGroup({ week, vaccines }) {
   return (
-    <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
+    <div className="relative shrink-0 w-full px-[12px] py-[12px] flex flex-col gap-[6px]">
       <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
         <Calendar2 size={18} variant="Bulk" color="var(--tp-slate-500)" className="shrink-0" />
         <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">{week}</span>

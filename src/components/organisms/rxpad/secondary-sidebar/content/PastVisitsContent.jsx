@@ -514,7 +514,7 @@ function ListSection({
   };
 
   return (
-    <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
+    <div className="relative shrink-0 w-full px-[12px] py-[12px] flex flex-col gap-[6px]">
       <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
         {icon}
         <TapCopyTooltip
@@ -592,7 +592,7 @@ function AdviceSection({ advice, onCopy, onCopyItem }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
+    <div className="relative shrink-0 w-full px-[12px] py-[12px] flex flex-col gap-[6px]">
       <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
         <AdviceIcon />
         <TapCopyTooltip
@@ -649,7 +649,7 @@ function FollowUpSection({ followUp }) {
   // the cadence directly in the RxPad form's Follow-up section, so a
   // copy affordance in past-visit history would only confuse.
   return (
-    <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
+    <div className="relative shrink-0 w-full px-[12px] py-[12px] flex flex-col gap-[6px]">
       <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
         <ClockIcon />
         <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">Follow Up</span>
@@ -661,7 +661,7 @@ function FollowUpSection({ followUp }) {
 
 function AdditionalNotesSection({ notes, onCopy }) {
   return (
-    <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
+    <div className="relative shrink-0 w-full px-[12px] py-[12px] flex flex-col gap-[6px]">
       <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
         <NotesDocIcon />
         <TapCopyTooltip
