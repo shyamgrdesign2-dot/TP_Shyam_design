@@ -432,7 +432,7 @@ function StickyFooter({
           </button>
         </HoverTooltip>
 
-        <HoverTooltip content="Quickly edit the clinical notes using voice AI" side="top">
+        <HoverTooltip content="Quickly edit the clinical notes using voice AI" side="top" align="end">
           <button
             type="button"
             onClick={onAddVoice}

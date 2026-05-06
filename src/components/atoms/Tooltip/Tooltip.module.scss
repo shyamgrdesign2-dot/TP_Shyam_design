@@ -1,18 +1,20 @@
 /* Tooltip.module.scss */
 
 .content {
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-size: 12px;
   font-weight: 500;
   font-family: Inter, sans-serif;
-  line-height: 1.33;
+  line-height: 1.4;
   color: var(--tp-slate-0, #ffffff);
   background-color: var(--tp-slate-800, #2c2c35);
   box-shadow: 0 4px 8px -2px rgba(23, 23, 37, 0.08);
   z-index: 700;
-  max-width: 240px;
-  white-space: pre-wrap;
+  max-width: 280px;
+  white-space: normal;
+  word-wrap: break-word;
+  text-align: center;
   animation-duration: 180ms;
 }
 
