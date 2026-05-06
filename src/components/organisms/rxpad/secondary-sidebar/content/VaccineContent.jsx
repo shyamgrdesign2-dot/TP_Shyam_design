@@ -1,17 +1,20 @@
 /**
  * Vaccination History content panel.
  *
- * Three expandable cards: Pending, Upcoming, Given. Each schedule entry
- * is rendered as a bullet pointer (week label + vaccine row) so dense
- * pipe-separated metadata becomes scannable. Cards are split with the
- * canonical TP-AI gradient divider — the same one painted on the top
- * brand bar — so the section reads as a single connected family.
+ * Three expandable cards: Overdue, Upcoming, Given. The
+ * Overdue/Upcoming split is system-driven by comparing each row's
+ * due date against today — the doctor never picks Overdue manually.
+ *
+ * Per-section row shape:
+ *   • Overdue / Upcoming  → weeks + vaccine name + (Status, optional Notes)
+ *   • Given               → weeks + vaccine name + (Given date · Brand
+ *                           · Due date · optional Notes)
  *
  * Tone palette:
  *   • Heading: tp-slate-700 (primary)
  *   • Sub-heading / week label: tp-slate-700, semibold
- *   • Body label (Status / Brand / Due date): tp-slate-500 (muted)
- *   • Inline `|` separators: tp-slate-300 (lightest divider)
+ *   • Body label (Status / Brand / Due date / Notes): tp-slate-500 (muted)
+ *   • Inline `|` separators: tp-slate-200
  *   • Status accents: due (tp-warning-500), overdue (tp-error-500)
  */
 import React, { useState } from "react";
@@ -28,18 +31,55 @@ import {
 import { AiTriggerIcon } from "../../dr-agent/shared/AiTriggerIcon";
 import { HistoricalNewDataBanner } from "../HistoricalNewDataBanner";
 
-function VaccineItemRow({
-  week,
-  name,
-  status,
-  statusColor = "normal",
-  givenDate = "14 Jan'26",
-}) {
+// Today (UTC midnight) — used to bucket pending entries into
+// Overdue vs Upcoming based on their dueDate. Frozen at module load
+// to keep the demo output deterministic per render.
+const TODAY = new Date();
+
+// ── Mock schedule. Real backend would supply the same shape. ───────
+const PENDING_VACCINES = [
+  { week: "12-18 Weeks", name: "HPV 1", dueDate: "2025-12-30", notes: "" },
+  { week: "13 Weeks", name: "PPSV23", dueDate: "2025-09-12", notes: "Discuss with parents first" },
+  { week: "18 Weeks", name: "Tdap Booster", dueDate: "2026-02-12", notes: "" },
+  { week: "20 Weeks", name: "Influenza", dueDate: "2026-04-10", notes: "Seasonal — confirm stock" },
+];
+
+const GIVEN_VACCINES = [
+  { week: "Birth", name: "IPV B-1", givenDate: "14 Jan'25", brand: "Pneumovax 23 Vaccine", dueDate: "14 Jan'26", notes: "" },
+  { week: "6 Weeks", name: "DTP B1", givenDate: "14 Jan'25", brand: "Pneumovax 23 Vaccine", dueDate: "14 Jan'26", notes: "Mild fever next day" },
+  { week: "6 Weeks", name: "Hib B1", givenDate: "14 Jan'25", brand: "Pneumovax 23 Vaccine", dueDate: "14 Jan'26", notes: "" },
+  { week: "10 Weeks", name: "HEP A-2", givenDate: "14 Jan'25", brand: "Pneumovax 23 Vaccine", dueDate: "14 Jan'26", notes: "" },
+  { week: "10 Weeks", name: "PPSV 23", givenDate: "14 Jan'25", brand: "Pneumovax 23 Vaccine", dueDate: "14 Jan'26", notes: "" },
+  { week: "10 Weeks", name: "PPSV 23 (2)", givenDate: "14 Jan'25", brand: "Pneumovax 23 Vaccine", dueDate: "14 Jan'26", notes: "" },
+  { week: "2-3 years", name: "PPSV 23", givenDate: "14 Jan'25", brand: "Pneumovax 23 Vaccine", dueDate: "14 Jan'26", notes: "Booster" },
+];
+
+function parseDueDate(s) {
+  // Accepts ISO ("2026-04-10") or "DD MMM'YY" ("14 Jan'26"). Returns Date or null.
+  if (!s) return null;
+  const isoTry = new Date(s);
+  if (!Number.isNaN(isoTry.getTime())) return isoTry;
+  const m = s.match(/^(\d{1,2})\s+([A-Za-z]+)'(\d{2})$/);
+  if (!m) return null;
+  const months = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+  const month = months[m[2].slice(0, 3)];
+  if (month == null) return null;
+  return new Date(2000 + Number(m[3]), month, Number(m[1]));
+}
+
+function formatDateLabel(s) {
+  const d = parseDueDate(s);
+  if (!d) return s;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const yr = String(d.getFullYear()).slice(-2);
+  return `${d.getDate()} ${months[d.getMonth()]}'${yr}`;
+}
+
+function PendingVaccineItem({ week, name, status, statusColor, notes }) {
   const statusEl =
     statusColor === "overdue" ? <Red>{status}</Red> :
     statusColor === "due" ? <span className="text-tp-warning-500">{status}</span> :
     <span>{status}</span>;
-
   return (
     <div className="flex items-start gap-[6px] px-[10px] py-[8px]">
       <Bullet />
@@ -52,16 +92,21 @@ function VaccineItemRow({
           <span>{" ("}</span>
           <Grey>Status: </Grey>
           {statusEl}
-          <span className="text-tp-slate-700">{", "}</span>
-          <Grey>Given date: </Grey>
-          <span>{givenDate})</span>
+          {notes ? (
+            <>
+              <Sep />
+              <Grey>Notes: </Grey>
+              <span className="text-tp-slate-500">{notes}</span>
+            </>
+          ) : null}
+          <span>)</span>
         </p>
       </div>
     </div>
   );
 }
 
-function GivenVaccineItem({ name, givenDate = "14 Jan'25", dueDate = "14 Jan'26" }) {
+function GivenVaccineItem({ name, givenDate, brand, dueDate, notes }) {
   return (
     <div className="flex items-start gap-[6px]">
       <Bullet />
@@ -72,10 +117,18 @@ function GivenVaccineItem({ name, givenDate = "14 Jan'25", dueDate = "14 Jan'26"
         <span>{givenDate} </span>
         <Sep />
         <Grey>Brand: </Grey>
-        <span>Pneumovax 23 Vaccine </span>
+        <span>{brand} </span>
         <Sep />
         <Grey>Due date: </Grey>
-        <span>{dueDate})</span>
+        <span>{dueDate}</span>
+        {notes ? (
+          <>
+            <Sep />
+            <Grey>Notes: </Grey>
+            <span className="text-tp-slate-500">{notes}</span>
+          </>
+        ) : null}
+        <span>)</span>
       </p>
     </div>
   );
@@ -89,7 +142,7 @@ function GivenVaccineGroup({ week, vaccines }) {
       </p>
       <div className="flex flex-col gap-[4px]">
         {vaccines.map((v, i) => (
-          <GivenVaccineItem key={`${week}-${v}-${i}`} name={v} />
+          <GivenVaccineItem key={`${week}-${v.name}-${i}`} {...v} />
         ))}
       </div>
     </div>
@@ -97,8 +150,34 @@ function GivenVaccineGroup({ week, vaccines }) {
 }
 
 export function VaccineContent() {
+  // Bucket pending vaccines by due-date vs today.
+  const { overdueRows, upcomingRows } = React.useMemo(() => {
+    const overdue = [];
+    const upcoming = [];
+    for (const v of PENDING_VACCINES) {
+      const d = parseDueDate(v.dueDate);
+      if (d && d < TODAY) overdue.push(v);
+      else upcoming.push(v);
+    }
+    return { overdueRows: overdue, upcomingRows: upcoming };
+  }, []);
+
+  // Bucket given vaccines by week so the same week renders as a group.
+  const givenByWeek = React.useMemo(() => {
+    const order = [];
+    const byWeek = new Map();
+    for (const v of GIVEN_VACCINES) {
+      if (!byWeek.has(v.week)) {
+        byWeek.set(v.week, []);
+        order.push(v.week);
+      }
+      byWeek.get(v.week).push(v);
+    }
+    return order.map((week) => ({ week, vaccines: byWeek.get(week) }));
+  }, []);
+
   const [expandedState, setExpandedState] = useState({
-    pending: true,
+    overdue: true,
     upcoming: true,
     given: true,
   });
@@ -109,25 +188,37 @@ export function VaccineContent() {
       <HistoricalNewDataBanner activeId="vaccine" />
       <SectionScrollArea>
         <SectionCard
-          title="Vaccination History — Pending (4)"
-          expanded={expandedState.pending}
-          onToggle={() => setExpandedState((prev) => ({ ...prev, pending: !prev.pending }))}
+          title={`Overdue Vaccines (${overdueRows.length})`}
+          expanded={expandedState.overdue}
+          onToggle={() => setExpandedState((prev) => ({ ...prev, overdue: !prev.overdue }))}
           titleAddon={
             <AiTriggerIcon
-              tooltip="Summarize pending vaccines"
-              signalLabel="Summarize pending vaccines"
+              tooltip="Summarize overdue vaccines"
+              signalLabel="Summarize overdue vaccines"
               sectionId="vaccine"
               size={12}
               as="span"
             />
           }>
-          <VaccineItemRow week="12-18 Weeks" name="HPV 1" status="Due" statusColor="due" />
-          <GradientDivider />
-          <VaccineItemRow week="18 Weeks" name="Tdap Booster" status="Due" statusColor="due" />
+          {overdueRows.length === 0 ? (
+            <p className="px-[10px] py-[10px] font-sans text-[13px] italic text-tp-slate-500">No overdue vaccines.</p>
+          ) : (
+            overdueRows.map((row, idx) => (
+              <React.Fragment key={`overdue-${row.name}-${idx}`}>
+                {idx > 0 ? <GradientDivider /> : null}
+                <PendingVaccineItem
+                  week={row.week}
+                  name={row.name}
+                  status="Overdue"
+                  statusColor="overdue"
+                  notes={row.notes} />
+              </React.Fragment>
+            ))
+          )}
         </SectionCard>
 
         <SectionCard
-          title="Vaccination History — Upcoming (2)"
+          title={`Upcoming Vaccines (${upcomingRows.length})`}
           expanded={expandedState.upcoming}
           onToggle={() => setExpandedState((prev) => ({ ...prev, upcoming: !prev.upcoming }))}
           titleAddon={
@@ -139,13 +230,25 @@ export function VaccineContent() {
               as="span"
             />
           }>
-          <VaccineItemRow week="13 Weeks" name="PPSV23" status="Overdue" statusColor="overdue" />
-          <GradientDivider />
-          <VaccineItemRow week="20 Weeks" name="Influenza" status="Due in 2 weeks" />
+          {upcomingRows.length === 0 ? (
+            <p className="px-[10px] py-[10px] font-sans text-[13px] italic text-tp-slate-500">No upcoming vaccines.</p>
+          ) : (
+            upcomingRows.map((row, idx) => (
+              <React.Fragment key={`upcoming-${row.name}-${idx}`}>
+                {idx > 0 ? <GradientDivider /> : null}
+                <PendingVaccineItem
+                  week={row.week}
+                  name={row.name}
+                  status={`Due ${formatDateLabel(row.dueDate)}`}
+                  statusColor="due"
+                  notes={row.notes} />
+              </React.Fragment>
+            ))
+          )}
         </SectionCard>
 
         <SectionCard
-          title="Vaccination History — Given (20)"
+          title={`Given Vaccines (${GIVEN_VACCINES.length})`}
           expanded={expandedState.given}
           onToggle={() => setExpandedState((prev) => ({ ...prev, given: !prev.given }))}
           titleAddon={
@@ -157,13 +260,12 @@ export function VaccineContent() {
               as="span"
             />
           }>
-          <GivenVaccineGroup week="Birth" vaccines={["IPV B-1"]} />
-          <GradientDivider />
-          <GivenVaccineGroup week="6 Weeks" vaccines={["DTP B1", "Hib B1"]} />
-          <GradientDivider />
-          <GivenVaccineGroup week="10 Weeks" vaccines={["HEP A-2", "PPSV 23", "PPSV 23 (2)"]} />
-          <GradientDivider />
-          <GivenVaccineGroup week="2-3 years" vaccines={["PPSV 23"]} />
+          {givenByWeek.map((g, idx) => (
+            <React.Fragment key={`given-${g.week}-${idx}`}>
+              {idx > 0 ? <GradientDivider /> : null}
+              <GivenVaccineGroup week={g.week} vaccines={g.vaccines} />
+            </React.Fragment>
+          ))}
         </SectionCard>
       </SectionScrollArea>
     </div>
