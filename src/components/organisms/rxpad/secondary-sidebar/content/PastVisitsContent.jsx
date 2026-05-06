@@ -630,12 +630,18 @@ function FollowUpSection({
 }
 
 function PrescribedByFooter({ doctorName, specialty }) {
-  // Digital Rx footer — sits inside a subtle slate-50 strip so the
-  // doctor stamp parses as its own section ("attended by") rather
-  // than blending into the card body.
+  // Digital Rx footer — sits inside a very subtle violet wash so the
+  // doctor stamp reads as informative rather than transactional.
+  // Gradient is intentionally low-contrast (3% → 6%) so the strip
+  // tints without competing with the card chrome above.
   return (
     <div className="px-[10px] pb-[12px] pt-[2px]">
-      <div className="rounded-[10px] bg-tp-slate-50 px-[12px] py-[8px]">
+      <div
+        className="rounded-[10px] px-[12px] py-[8px] ring-1 ring-tp-violet-100/60"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(213,101,234,0.04) 0%, rgba(103,58,172,0.06) 60%, rgba(26,25,148,0.04) 100%)"
+        }}>
         <p className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-700">{doctorName}</p>
         {specialty ? (
           <p className="font-sans text-[12px] leading-[16px] text-tp-slate-500">{specialty}</p>

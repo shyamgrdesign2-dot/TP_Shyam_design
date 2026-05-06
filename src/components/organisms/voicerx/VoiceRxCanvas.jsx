@@ -265,15 +265,29 @@ export function VoiceRxCanvas({
           </div> :
 
         <div className="flex flex-col gap-3">
+            {/* Doctor-info strip — same violet wash convention as the
+                Past Visits "by" card, so the canvas reads as "this is
+                Dr. X's clinical notes". Subtle gradient keeps it
+                informative rather than competing with the EMR card
+                that follows. */}
+            <div
+              className="rounded-[12px] px-[12px] py-[8px] ring-1 ring-tp-violet-100/60"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(213,101,234,0.04) 0%, rgba(103,58,172,0.06) 60%, rgba(26,25,148,0.04) 100%)"
+              }}>
+              <p className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-700">Dr. Shyam Sundar</p>
+              <p className="font-sans text-[12px] leading-[16px] text-tp-slate-500">General Physician</p>
+            </div>
             <div
             className={cn("vrx-cn-emr-shell w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell)}>
-            
+
               <div className="px-3 py-[10px]">{emrCard}</div>
             </div>
             <FeedbackRow
             value={feedback.emr}
             onChange={(v) => handleFeedback("emr", v)} />
-          
+
           </div>
         }
       </div>
