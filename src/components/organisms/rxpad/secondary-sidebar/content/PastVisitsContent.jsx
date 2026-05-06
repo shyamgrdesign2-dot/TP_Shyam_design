@@ -637,7 +637,7 @@ function PrescribedByFooter({ doctorName, specialty }) {
   return (
     <div className="px-[10px] pb-[12px] pt-[2px]">
       <div
-        className="rounded-[10px] px-[12px] py-[8px] ring-1 ring-tp-violet-100/60"
+        className="rounded-[10px] px-[12px] py-[8px]"
         style={{
           background:
             "linear-gradient(135deg, rgba(213,101,234,0.04) 0%, rgba(103,58,172,0.06) 60%, rgba(26,25,148,0.04) 100%)"
