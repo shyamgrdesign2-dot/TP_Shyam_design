@@ -687,6 +687,32 @@ function AdditionalNotesSection({ notes, onCopy }) {
 
 }
 
+// Signature-style footer that lives at the BOTTOM of the digital Rx
+// card. Vertical violet fade (transparent at top → soft violet at
+// bottom) so the doctor stamp reads as a letterhead signature.
+function SignatureFooter({ doctorName, specialty }) {
+  return (
+    <div
+      className="relative mt-[4px] flex items-center gap-3 overflow-hidden rounded-b-[10px] px-[14px] pt-[10px] pb-[10px]"
+      style={{
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(148,163,184,0.08) 35%, rgba(100,116,139,0.14) 75%, rgba(71,85,105,0.18) 100%)"
+      }}>
+      <span
+        aria-hidden
+        className="inline-flex h-[32px] w-[32px] shrink-0 items-center justify-center text-tp-slate-600">
+        <StethoscopeGlyph size={20} color="currentColor" />
+      </span>
+      <div className="min-w-0">
+        <p className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-800">{doctorName}</p>
+        {specialty ? (
+          <p className="font-sans text-[12px] leading-[16px] text-tp-slate-600">{specialty}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function PrescribedByFooter({ doctorName, specialty, bare = false }) {
   const inner = (
     <div
@@ -939,13 +965,6 @@ export function PastVisitsContent() {
 
                     {showDigital && entry.digitalRx ?
                     <>
-                        {/* Doctor stamp — placed AT THE TOP of the
-                            digital Rx body, right above Symptoms,
-                            so the doctor identity reads like a
-                            letterhead before any clinical content. */}
-                        <PrescribedByFooter
-                          doctorName={entry.writtenRx?.[0]?.doctorName ?? "Dr. Shyam Sundar"}
-                          specialty={entry.writtenRx?.[0]?.doctorSpecialty ?? "General Physician"} />
                         <ListSection
                         icon={<SymptomsIcon />}
                         title="Symptoms"
@@ -1046,6 +1065,13 @@ export function PastVisitsContent() {
                               showCopySnackbar("Additional notes added successfully to RxPad");
                             }} />
                         ) : null}
+                        {/* Doctor signature — bottom-of-card fade
+                            (violet darkening downward). Reads like a
+                            letterhead signature stamp at the foot of
+                            the prescription. */}
+                        <SignatureFooter
+                          doctorName={entry.writtenRx?.[0]?.doctorName ?? "Dr. Shyam Sundar"}
+                          specialty={entry.writtenRx?.[0]?.doctorSpecialty ?? "General Physician"} />
                       </> :
                     null}
 

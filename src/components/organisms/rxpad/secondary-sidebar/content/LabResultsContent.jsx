@@ -180,7 +180,7 @@ function LabRow({
           <span className="font-sans font-normal text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px] truncate">
             <span className={historicalInlineTextClass(isHighlighted, isFresh)}>{label}</span>
           </span>
-          <span className={clsx("font-sans text-tp-slate-500 text-[14px] leading-[20px] whitespace-nowrap", historicalInlineTextClass(isHighlighted, isFresh))}>
+          <span className={clsx("font-sans text-tp-slate-400 text-[14px] leading-[20px] whitespace-nowrap", historicalInlineTextClass(isHighlighted, isFresh))}>
             {unit}
           </span>
         </div>
@@ -189,8 +189,8 @@ function LabRow({
             // Hugs its own content (no fixed min-width) — short values
             // like "84" stay snug next to the arrow. The arrow + value
             // share one inline-flex row so the glyph can't wrap.
-            "flex shrink-0 items-center gap-[4px] whitespace-nowrap font-sans font-normal text-[14px] leading-[20px]",
-            abnormal ? "text-tp-error-500 font-medium" : "text-tp-slate-700",
+            "flex shrink-0 items-center gap-[4px] whitespace-nowrap font-sans font-semibold text-[14px] leading-[20px]",
+            abnormal ? "text-tp-error-500" : "text-tp-slate-700",
             // Non-abnormal: AI gradient shimmer.
             // Abnormal: subtle WHITE shimmer band over the red text so
             // the out-of-range state still reads as red while the row
