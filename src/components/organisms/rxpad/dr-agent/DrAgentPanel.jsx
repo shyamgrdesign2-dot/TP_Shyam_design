@@ -53,6 +53,7 @@ export function DrAgentPanel({
     voiceRxRecording,
     setVoiceRxRecording,
     beginVoiceAddOn,
+    submitQuickEdit,
     flipDeg,
     voiceRxAwaitingResponse,
     voiceRxHandoffExiting,
@@ -331,6 +332,7 @@ export function DrAgentPanel({
           onBack={() => setVoiceRxResultMinimized(true)}
           onMinimize={onClose}
           onAddDetailsByVoice={beginVoiceAddOn}
+          onQuickEditSubmit={submitQuickEdit}
           onCopyResult={(payload) => runCopyWithAura(payload)}
           onCopyAll={() => {
             if (!voiceRxResult) return;

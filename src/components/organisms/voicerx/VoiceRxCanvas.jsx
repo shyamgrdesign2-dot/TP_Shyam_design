@@ -81,7 +81,8 @@ export function VoiceRxCanvas({
   onCopyToRx,
   onBack,
   onMinimize,
-  onAddDetailsByVoice
+  onAddDetailsByVoice,
+  onQuickEditSubmit
 }) {
   const canvasTitle = "Back";
   void modeLabel;
@@ -405,13 +406,15 @@ export function VoiceRxCanvas({
                 radiusClassName="rounded-none"
                 onCancel={() => setQuickEditActive(false)}
                 onSubmit={(submittedTranscript) => {
-                  // Submit hands off to the loading phase — overlay
-                  // stays mounted, swaps to ShineBorder + loader.
-                  // After the loader completes the doctor lands
-                  // back on the EMR card directly (no transition,
-                  // no wrapper-level shimmer).
+                  // Hand off to the parent so a new transcript
+                  // segment is appended to voiceRxResult and a fresh
+                  // structured-rx card is pushed to chat (the older
+                  // chat card auto-marks stale). The bottom-dock
+                  // stays on screen during the parent's processing
+                  // window via regenPhase=processing.
                   setQuickEditActive(false);
                   setRegenPhase("processing");
+                  onQuickEditSubmit?.();
                   window.setTimeout(() => setRegenPhase("idle"), 12000);
                   void submittedTranscript;
                 }} />

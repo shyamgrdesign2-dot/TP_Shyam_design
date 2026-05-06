@@ -319,6 +319,83 @@ export function useDrAgentPanel({
   }, [voiceRxResult, voiceRxDialogChoice, onVoiceCaptureModeChange, resetLiveTranscript]);
   beginVoiceAddOnRef.current = beginVoiceAddOn;
 
+  // Inline quick-edit submit (called by the canvas's bottom-overlay
+  // recorder). Unlike beginVoiceAddOn, this does NOT flip back to a
+  // full recording cycle — it just appends a new transcript segment
+  // to the existing voiceRxResult, echoes a user message into chat,
+  // and pushes a fresh structured-rx card so the prior chat card
+  // gets marked stale. The canvas keeps the bottom-dock loader on
+  // screen during the regen window.
+  const submitQuickEdit = useCallback(() => {
+    if (!voiceRxResult) return;
+    const demoBody =
+      voiceRxDialogChoice === "ambient_consultation"
+        ? VOICE_RX_AMBIENT_CHUNKS.join("").trim()
+        : VOICE_RX_DICTATION_CHUNKS.join("").trim();
+    const segment = {
+      id: uid(),
+      body: demoBody,
+      mode: voiceRxDialogChoice ?? "ambient_consultation",
+      durationMs: 0,
+      createdAt: new Date().toISOString()
+    };
+    // 1) Append user voice message in chat so the chat history
+    //    carries each take.
+    setMessagesByPatient((prev) => ({
+      ...prev,
+      [selectedPatientId]: [
+        ...(prev[selectedPatientId] || []),
+        {
+          id: uid(),
+          role: "user",
+          text: demoBody,
+          voiceTranscript: demoBody,
+          voiceMode: segment.mode,
+          voiceDurationMs: 0,
+          createdAt: segment.createdAt,
+          feedbackGiven: null,
+          voiceEntryAnimation: true
+        }
+      ]
+    }));
+    // 2) Append the segment to voiceRxResult so the Transcript tab
+    //    immediately reflects the new take.
+    setVoiceRxResult((prev) => {
+      if (!prev) return prev;
+      const segments = [...(prev.transcriptSegments ?? [{
+        id: uid(),
+        body: prev.transcript,
+        mode: "ambient_consultation",
+        durationMs: prev.durationMs ?? 0,
+        createdAt: new Date().toISOString()
+      }]), segment];
+      return {
+        ...prev,
+        transcript: segments.map((s) => s.body).join("\n\n"),
+        transcriptSegments: segments
+      };
+    });
+    // 3) After the canvas's loader window, also push a new structured
+    //    card to chat so the older one is auto-marked stale.
+    window.setTimeout(() => {
+      const structured = buildPatientVoiceStructuredRx(selectedPatientId, demoBody);
+      setMessagesByPatient((prev) => ({
+        ...prev,
+        [selectedPatientId]: [
+          ...(prev[selectedPatientId] || []),
+          {
+            id: uid(),
+            role: "assistant",
+            text: "Your clinical notes are updated — view to fine-tune and copy to RxPad.",
+            createdAt: new Date().toISOString(),
+            rxOutput: { kind: "voice_structured_rx", data: structured },
+            feedbackGiven: null
+          }
+        ]
+      }));
+    }, VOICE_RX_LOADER_MS);
+  }, [voiceRxResult, voiceRxDialogChoice, selectedPatientId, setMessagesByPatient]);
+
   const cancelVoiceRxRecording = useCallback(() => {
     if (voiceRxTimeoutRef.current) {
       clearTimeout(voiceRxTimeoutRef.current);
@@ -1204,6 +1281,7 @@ export function useDrAgentPanel({
     voiceRxRecording,
     setVoiceRxRecording,
     beginVoiceAddOn,
+    submitQuickEdit,
     flipDeg,
     voiceRxAwaitingResponse,
     voiceRxHandoffExiting,

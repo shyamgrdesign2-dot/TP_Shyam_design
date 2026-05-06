@@ -57,6 +57,7 @@ export function BackFace({
   onBack,
   onMinimize,
   onAddDetailsByVoice,
+  onQuickEditSubmit,
   onCopyResult,
   onCopyAll
 }) {
@@ -89,7 +90,8 @@ export function BackFace({
           onCopyToRx={onCopyAll}
           onBack={onBack}
           onMinimize={onMinimize}
-          onAddDetailsByVoice={onAddDetailsByVoice} /> :
+          onAddDetailsByVoice={onAddDetailsByVoice}
+          onQuickEditSubmit={onQuickEditSubmit} /> :
 
         isFlipped ?
         <VoiceRxActiveAgent
