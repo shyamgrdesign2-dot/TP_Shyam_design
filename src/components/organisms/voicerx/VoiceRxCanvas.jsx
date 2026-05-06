@@ -105,6 +105,10 @@ export function VoiceRxCanvas({
   //                isn't visible while the new note is being merged.
   //   idle (post)→ overlay closes; updated note re-appears with no flash.
   const [regenPhase, setRegenPhase] = useState("idle");
+  // Once processing ends, paint a brief gradient-text shimmer over the
+  // entire EMR card so the doctor sees which surface refreshed. Same
+  // gradient family as the historical-inline shimmer in the sidebar.
+  const [emrFresh, setEmrFresh] = useState(false);
   const navLocked = quickEditActive || regenPhase !== "idle";
 
   const [feedback, setFeedback] = useState({
@@ -289,7 +293,8 @@ export function VoiceRxCanvas({
             <div
               className={cn(
                 "vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white",
-                styles.emrShell
+                styles.emrShell,
+                emrFresh && "vrx-cn-emr-fresh"
               )}>
               <div className="px-3 py-[10px]">{emrCard}</div>
             </div>
@@ -396,7 +401,11 @@ export function VoiceRxCanvas({
                 onSubmit={(submittedTranscript) => {
                   setQuickEditActive(false);
                   setRegenPhase("processing");
-                  window.setTimeout(() => setRegenPhase("idle"), 12000);
+                  window.setTimeout(() => {
+                    setRegenPhase("idle");
+                    setEmrFresh(true);
+                    window.setTimeout(() => setEmrFresh(false), 5500);
+                  }, 12000);
                   void submittedTranscript;
                 }} />
             )}

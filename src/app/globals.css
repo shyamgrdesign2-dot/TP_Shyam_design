@@ -1864,3 +1864,29 @@ body[data-voice-lock="on"] :is(input, textarea,
 @media (prefers-reduced-motion: reduce) {
   .ai-spark-thinking > img { animation: none; }
 }
+
+/* VoiceRx Canvas — post-regen freshness shimmer for the EMR card.
+   When a quick-edit submit lands and the structured Rx re-renders,
+   the wrapper carries this class for ~5.5s so the text reads in the
+   TP CTA brand gradient (#D565EA → #673AAC → #1A1994), matching the
+   historical-inline shimmer used by the sidebar sections. The text
+   "settles" when the class is removed. */
+.vrx-cn-emr-fresh,
+.vrx-cn-emr-fresh * {
+  background-image: linear-gradient(
+    100deg,
+    #45455c 0%,
+    #45455c 32%,
+    #d565ea 46%,
+    #673aac 50%,
+    #1a1994 54%,
+    #45455c 68%,
+    #45455c 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  animation: tpHistoricalTextShimmer 4s linear infinite !important;
+}
