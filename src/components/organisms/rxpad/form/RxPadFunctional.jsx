@@ -27,7 +27,7 @@ import { saveRxPreviewSnapshot } from "@/src/components/organisms/rxpad/rx-previ
 import { PER_PATIENT_RXPAD_DATA, checkDrugInteraction, checkTableInteractions } from "./per-patient-rxpad-data";
 import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
 import { Tooltip as TPTooltip } from "@/src/components/atoms/Tooltip";
-import { Snackbar as TPSnackbar } from "@/src/components/molecules/Snackbar";
+import { toast as tpToast } from "@/src/components/molecules/Toaster";
 import { RxPadSection as TPRxPadSection } from "@/src/components/organisms/rxpad/form/RxPadSection";
 
 /* ── Types, constants, and utilities ── */
@@ -289,7 +289,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
 
       // Show toast instead of the inline badge
       const label = MODULE_LABEL[moduleId] ?? moduleId;
-      setToastMessage(`${label} filled from voice dictation`);
+      tpToast.success(`${label} filled from voice dictation`);
 
       // Pulse the filled module and snap-scroll to it.
       window.requestAnimationFrame(() => {
@@ -329,7 +329,6 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
   const symptomCountRef = useRef(0);
   const medCountRef = useRef(0);
   const dxCountRef = useRef(0);
-  const [toastMessage, setToastMessage] = useState(null);
 
   // Per-patient initial data — first-time entry starts with EMPTY rows so
   // the clinician sees only the catalog suggestions, not a pre-filled table.
@@ -765,7 +764,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
       }
     }
 
-    setToastMessage(`Filled in your Rx from ${payload.sourceDateLabel}`);
+    tpToast.success(`Filled in your Rx from ${payload.sourceDateLabel}`);
   }, [lastCopyRequest, pushHistoricalUpdates, publishSignal]);
 
   // ── Consume pending copies from sessionStorage (homepage → RxPad navigation) ──
@@ -805,7 +804,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
         }
       }
       if (payloads.length > 0) {
-        setToastMessage("Pre-populated from Dr. Agent");
+        tpToast.success("Pre-populated from Dr. Agent");
       }
     } catch {/* ignore parse errors */}
   }, [pushHistoricalUpdates]);
@@ -1461,14 +1460,6 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
         </button>
       }
 
-      <TPSnackbar
-        open={Boolean(toastMessage)}
-        message={toastMessage ?? ""}
-        severity="success"
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        autoHideDuration={1800}
-        onClose={() => setToastMessage(null)} />
-      
     </div>);
 
 }

@@ -391,7 +391,10 @@ export function FeedbackRow({ value, onChange, audioQuality, timestamp }) {
       <FeedbackBottomSheet
         isOpen={downSheetOpen}
         onClose={() => setDownSheetOpen(false)}
-        onSubmit={() => setDownSheetOpen(false)} />
+        onSubmit={() => {
+          setDownSheetOpen(false);
+          toast.success("Thanks — feedback submitted");
+        }} />
     </div>);
 
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Like1, Dislike, TickCircle } from "iconsax-reactjs";
+import { Like1, Dislike } from "iconsax-reactjs";
 import { cn } from "@/src/hooks/utils";
-import { Snackbar as TPSnackbar } from "@/src/components/molecules/Snackbar";
+import { toast } from "@/src/components/molecules/Toaster";
 import { FeedbackBottomSheet } from "../shell/FeedbackBottomSheet";
 
 
@@ -15,7 +15,6 @@ import { FeedbackBottomSheet } from "../shell/FeedbackBottomSheet";
 export function FeedbackRow({ messageId, initialFeedback, onFeedback }) {
   const [feedback, setFeedback] = useState(initialFeedback ?? null);
   const [downSheetOpen, setDownSheetOpen] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
     setFeedback(initialFeedback ?? null);
@@ -47,7 +46,7 @@ export function FeedbackRow({ messageId, initialFeedback, onFeedback }) {
 
   const handleDownSubmit = (_comment) => {
     setDownSheetOpen(false);
-    setSnackbarOpen(true);
+    toast.success("Thanks — feedback submitted");
   };
 
   return (
@@ -82,28 +81,6 @@ export function FeedbackRow({ messageId, initialFeedback, onFeedback }) {
       </div>
 
       <FeedbackBottomSheet isOpen={downSheetOpen} onClose={handleDownSheetClose} onSubmit={handleDownSubmit} />
-
-      <TPSnackbar
-        open={snackbarOpen}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        autoHideDuration={2800}
-        onClose={(_, reason) => {
-          if (reason === "clickaway") return;
-          setSnackbarOpen(false);
-        }}
-        message={
-        <div
-          className="flex max-w-[min(400px,calc(100vw-32px))] items-center gap-2.5 rounded-[12px] px-4 py-3 text-[14px] font-medium leading-snug text-white shadow-lg"
-          style={{
-            background: "#171725",
-            boxShadow: "0 12px 24px rgba(23,23,37,0.15)"
-          }}>
-          
-            <TickCircle size={20} variant="Bold" className="shrink-0 text-emerald-400" aria-hidden />
-            <span>Feedback received</span>
-          </div>
-        } />
-      
     </>);
 
 }

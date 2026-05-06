@@ -455,36 +455,28 @@ function TranscriptCard({ heading, body, durationMs, timeLabel, feedbackValue, o
   return (
     <div className="flex flex-col gap-[8px]">
       <div className="vrx-transcript-frame rounded-[12px] bg-tp-slate-100/80 p-[12px] backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-2">
-          <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.6px] text-tp-slate-400">
-            {heading}
-          </p>
-          <span
-            className="inline-flex items-center gap-[4px] rounded-full bg-white/80 px-[10px] py-[3.5px] text-[12px] font-medium text-tp-slate-400 tabular-nums"
-            aria-label={`Recording duration ${formatDuration(durationMs)}`}>
-            <Mic size={12} strokeWidth={1.8} aria-hidden />
-            {formatDuration(durationMs)}
-          </span>
-        </div>
+        <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.6px] text-tp-slate-400">
+          {heading}
+        </p>
         <DictationTranscript raw={body} animate={false} />
         <div className="my-[10px] h-px w-full bg-gradient-to-r from-[rgba(208,213,221,0.2)] via-[#d0d5dd] to-[rgba(208,213,221,0.2)]" />
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1 text-[12px] font-medium text-emerald-600">
-            Audio quality: Good
-            <HoverTooltip content="Audio was clear and easily processed by the AI models." side="top">
-              <button type="button" className="ml-0.5 mt-0.5 text-tp-slate-400 hover:text-tp-slate-600">
-                <InfoCircle size={14} variant="Linear" />
-              </button>
-            </HoverTooltip>
-          </div>
-          {timeLabel ? (
-            <span className="font-sans text-[11px] leading-[14px] text-tp-slate-400">{timeLabel}</span>
-          ) : null}
+        {/* Combined audio quality + duration. The mic icon previously
+            lived on the heading right; folded into this row so the
+            heading carries only the title. */}
+        <div className="flex items-center gap-1 text-[12px] font-medium text-emerald-600">
+          <Mic size={12} strokeWidth={1.8} aria-hidden className="text-emerald-600" />
+          Audio quality: Good
+          <span className="text-tp-slate-400 tabular-nums">({formatDuration(durationMs)})</span>
+          <HoverTooltip content="Audio was clear and easily processed by the AI models." side="top">
+            <button type="button" className="ml-0.5 mt-0.5 text-tp-slate-400 hover:text-tp-slate-600">
+              <InfoCircle size={14} variant="Linear" />
+            </button>
+          </HoverTooltip>
         </div>
       </div>
-      {/* Outside-the-box affordances — thumbs / divider / download.
-          Sit on the canvas slate background so the box reads as the
-          message and these read as message-actions, WhatsApp-style. */}
+      {/* Outside-the-box affordances — thumbs / divider / download on
+          the left, timestamp on the right. Reads like a chat-message
+          actions row sitting on the canvas slate background. */}
       <div className="flex items-center gap-1.5 px-[4px]">
         <button
           type="button"
@@ -513,11 +505,17 @@ function TranscriptCard({ heading, body, durationMs, timeLabel, feedbackValue, o
             <DownloadIcon size={14} strokeWidth={2.2} />
           </button>
         </HoverTooltip>
+        {timeLabel ? (
+          <span className="ml-auto font-sans text-[11px] leading-[14px] text-tp-slate-400">{timeLabel}</span>
+        ) : null}
       </div>
       <FeedbackBottomSheet
         isOpen={downSheetOpen}
         onClose={() => setDownSheetOpen(false)}
-        onSubmit={() => setDownSheetOpen(false)} />
+        onSubmit={() => {
+          setDownSheetOpen(false);
+          toast.success("Thanks — feedback submitted");
+        }} />
     </div>
   );
 }
