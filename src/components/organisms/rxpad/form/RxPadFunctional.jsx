@@ -357,14 +357,13 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
   // a recurring follow-up instruction set ("2 weeks, monitor BP, …")
   // and reapply it on the next consultation.
   const followUpTemplateRows = useMemo(
-    () => [{ date: followUpDate, notes: followUpNotes }],
-    [followUpDate, followUpNotes]
+    () => [{ date: followUpDate }],
+    [followUpDate]
   );
   const applyFollowUpTemplate = useCallback((rows) => {
     const r = Array.isArray(rows) ? rows[0] : rows;
     if (!r) return;
     if (typeof r.date === "string") setFollowUpDate(r.date);
-    if (typeof r.notes === "string") setFollowUpNotes(r.notes);
   }, []);
   const followUpTemplateHandlers = useModuleTemplateHandlers(
     "followUp",
@@ -372,7 +371,28 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
     followUpTemplateRows,
     applyFollowUpTemplate
   );
-  const followUpHasContent = Boolean(followUpDate) || Boolean(followUpNotes.trim());
+
+  // Additional Notes — single free-text module, lives just below
+  // Follow-up. Same Template / Save / Erase / Voice chrome as the
+  // table modules but the body is a plain textarea (no search, no
+  // table rows).
+  const additionalNotesTemplateRows = useMemo(
+    () => [{ notes: additionalNotes }],
+    [additionalNotes]
+  );
+  const applyAdditionalNotesTemplate = useCallback((rows) => {
+    const r = Array.isArray(rows) ? rows[0] : rows;
+    if (!r) return;
+    if (typeof r.notes === "string") setAdditionalNotes(r.notes);
+  }, []);
+  const additionalNotesTemplateHandlers = useModuleTemplateHandlers(
+    "additionalNotes",
+    "Additional Notes",
+    additionalNotesTemplateRows,
+    applyAdditionalNotesTemplate
+  );
+  const additionalNotesHasContent = Boolean(additionalNotes.trim());
+  const followUpHasContent = Boolean(followUpDate);
 
   // Hoisted above the publisher effect because the effect's dep array
   // references `customModules`. Re-used by the layout-config block below.
@@ -1387,7 +1407,6 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
           saveDisabled={!followUpHasContent}
           onClearClick={() => {
             setFollowUpDate("");
-            setFollowUpNotes("");
           }}
           clearDisabled={!followUpHasContent}>
 
@@ -1414,14 +1433,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
                 onChange={(event) => setFollowUpDate(event.currentTarget.value)}
                 className="h-[42px] w-full rounded-[10px] border border-tp-slate-300 bg-white px-3 py-2 text-[14px] font-['Inter',sans-serif] text-tp-slate-700 placeholder:text-tp-slate-400 transition-colors hover:border-tp-slate-400 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20"
                 placeholder="Select follow-up date" />
-              
-            <textarea
-                value={followUpNotes}
-                onChange={(event) => setFollowUpNotes(event.currentTarget.value)}
-                rows={3}
-                className="w-full rounded-[10px] border border-tp-slate-300 bg-white px-3 py-2 text-[14px] font-['Inter',sans-serif] text-tp-slate-700 placeholder:text-tp-slate-400 transition-colors hover:border-tp-slate-400 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20"
-                placeholder="Follow-up notes/instructions for patient reminder" />
-              
+
             <div className="flex flex-wrap gap-2">
               {[
                 { label: "2 days", days: 2 },
@@ -1440,6 +1452,45 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
                 )}
             </div>
           </div>
+          </div>
+        </TPRxPadSection>
+
+        {/* Additional Notes — free-text companion module to Follow-up.
+            Same Template / Save / Erase / Voice header chrome as the
+            structured modules; the body is just a textarea (no search,
+            no rows). */}
+        <TPRxPadSection
+          title="Additional Notes"
+          icon={<Calendar2 size={24} variant="Bulk" color="var(--tp-violet-500)" />}
+          showHeaderActions
+          onVoiceClick={() => handleVoiceToggle("additionalNotes")}
+          voiceActive={voiceModuleId === "additionalNotes"}
+          onTemplateClick={additionalNotesTemplateHandlers.onTemplateClick}
+          onSaveClick={additionalNotesTemplateHandlers.onSaveClick}
+          saveDisabled={!additionalNotesHasContent}
+          onClearClick={() => setAdditionalNotes("")}
+          clearDisabled={!additionalNotesHasContent}>
+
+          {voiceModuleId === "additionalNotes" ?
+            <VoiceRxModuleRecorder
+              sectionLabel="Additional Notes"
+              onCancel={() => setVoiceModuleId(null)}
+              onSubmit={(transcript) => {
+                setVoiceModuleId(null);
+                handleVoiceSubmit("additionalNotes", transcript);
+              }}
+              radiusClassName="rounded-[14px]" /> :
+            null}
+          {voiceModuleProcessing?.moduleId === "additionalNotes" ?
+            <VoiceRxSectionProcessing transcript={voiceModuleProcessing.transcript} sectionLabel="Additional Notes" /> :
+            null}
+          <div className={voiceModuleId === "additionalNotes" || voiceModuleProcessing?.moduleId === "additionalNotes" ? "hidden" : ""}>
+            <textarea
+              value={additionalNotes}
+              onChange={(event) => setAdditionalNotes(event.currentTarget.value)}
+              rows={4}
+              className="w-full rounded-[10px] border border-tp-slate-300 bg-white px-3 py-2 text-[14px] font-['Inter',sans-serif] text-tp-slate-700 placeholder:text-tp-slate-400 transition-colors hover:border-tp-slate-400 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20"
+              placeholder="Add patient-specific notes, observations, or counselling points" />
           </div>
         </TPRxPadSection>
       </div>

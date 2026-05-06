@@ -560,7 +560,10 @@ function AdviceSection({ advice, onCopy, onCopyItem }) {
   const items = (Array.isArray(advice) ? advice : advice ? [advice] : [])
     .map((entry) => {
       if (typeof entry === "object" && entry !== null) {
-        return { label: entry.label ?? "", detail: entry.detail ?? entry.notes ?? "" };
+        return {
+          label: entry.label ?? entry.name ?? "",
+          detail: entry.detail ?? entry.notes ?? ""
+        };
       }
       const text = String(entry ?? "").trim();
       const m = text.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
@@ -872,7 +875,17 @@ export function PastVisitsContent() {
                           examinations: entry.digitalRx.examinations.map((e) => `${e.label}${e.detail ? ` (${e.detail})` : ""}`),
                           diagnoses: entry.digitalRx.diagnoses.map((d) => `${d.label}${d.detail ? ` (${d.detail})` : ""}`),
                           medications: entry.digitalRx.medications.map((m) => m.row),
-                          advice: Array.isArray(entry.digitalRx.advice) ? entry.digitalRx.advice.join(" ") : (entry.digitalRx.advice || undefined),
+                          advice: Array.isArray(entry.digitalRx.advice)
+                            ? entry.digitalRx.advice
+                                .map((a) =>
+                                  typeof a === "object" && a !== null
+                                    ? a.notes || a.detail
+                                      ? `${a.name ?? a.label} (${a.notes ?? a.detail})`
+                                      : (a.name ?? a.label ?? "")
+                                    : a)
+                                .filter(Boolean)
+                                .join(" ")
+                            : (entry.digitalRx.advice || undefined),
                           followUp: entry.digitalRx.followUp || undefined,
                           labInvestigations: entry.digitalRx.labInvestigations.length ? entry.digitalRx.labInvestigations : undefined
                         }, { bulk: true });

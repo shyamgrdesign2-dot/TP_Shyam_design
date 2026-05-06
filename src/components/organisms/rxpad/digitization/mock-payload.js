@@ -95,8 +95,10 @@ const TODAY = visit(
     }],
 
     advice: [
-    "Hydration, eye hygiene, and steam inhalation.",
-    "Return if fever persists for 48 hours."],
+    { name: "Adequate hydration", notes: "8-10 glasses of water daily" },
+    { name: "Eye hygiene", notes: "warm compresses 2x/day" },
+    { name: "Steam inhalation", notes: "twice daily for 5 days" },
+    { name: "Return if fever persists", notes: "after 48 hours" }],
 
     labInvestigation: [
     { name: "CBC", instruction: "", notes: "" },
@@ -174,7 +176,10 @@ const D_26 = visit(
       quantity: 3
     }],
 
-    advice: ["Warm fluids and rest.", "Avoid cold exposure."],
+    advice: [
+    { name: "Warm fluids", notes: "ginger tea, soups; 4-5x/day" },
+    { name: "Adequate rest", notes: "minimum 8 hours sleep" },
+    { name: "Avoid cold exposure", notes: "no cold drinks or AC" }],
     labInvestigation: [{ name: "CBC", instruction: "", notes: "" }],
     followUp: "5 Days",
     others: ["Digital Rx imported from 26 Jan consultation."]
@@ -213,7 +218,10 @@ const D_24 = visit(
       quantity: 0
     }],
 
-    advice: ["Sleep hygiene and hydration.", "Trigger diary advised."],
+    advice: [
+    { name: "Sleep hygiene", notes: "fixed bedtime, no screens 1hr before sleep" },
+    { name: "Hydration", notes: "2-3 L water daily" },
+    { name: "Trigger diary", notes: "log onset, food, stress" }],
     labInvestigation: [{ name: "TSH", instruction: "", notes: "" }],
     followUp: "1 Week",
     others: ["Digital Rx imported from 24 Jan consultation."]
