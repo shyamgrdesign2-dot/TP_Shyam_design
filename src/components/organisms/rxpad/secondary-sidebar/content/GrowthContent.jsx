@@ -3,21 +3,26 @@
  *
  * Layout (top → bottom):
  *   1. Static "Growth Info" card — mid-parental height, mother, father,
- *      gestation period. Always expanded; reads like the Obstetric
- *      patient-info block.
+ *      gestation period. Always expanded.
  *   2. Five chart cards stacked one below the other:
  *      Height · Weight · BMI · OFC · Height-vs-Weight.
- *      Each chart carries its own toggles for percentile lines (off
- *      by default) and time-axis units (Years on by default,
- *      switching off renders months).
  *
- * Charts are rendered via recharts LineChart. Mock measurement series
- * + WHO-shaped percentile bands (P3 / P15 / P50 / P85 / P97) live in
- * this file; in production a backend payload would supply the same
- * shape.
+ * Each chart carries:
+ *   • A sticky header (date-card chrome — same as PastVisits) that
+ *     paints the title + AI summarise icon and stays visible while
+ *     scrolling.
+ *   • A percentile **dropdown** (multi-select) — doctor picks which
+ *     of P03 / P10 / P50 / P90 / P97 to overlay. Each percentile
+ *     renders in its own colour with a labelled end-cap so the chart
+ *     reads as a 5-band growth standard.
+ *   • A Years / Months **toggle** — flips the X-axis tick formatter.
+ *
+ * Charts are drawn with recharts. Tooltip works on hover AND on tap
+ * via Recharts' built-in defaultIndex + onClick handling on touch
+ * devices.
  */
-import React, { useMemo, useState } from "react";
-import { Calendar2 } from "iconsax-reactjs";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Calendar2, ArrowDown2 } from "iconsax-reactjs";
 import {
   LineChart,
   Line,
@@ -26,10 +31,11 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Scatter,
-  ScatterChart,
+  ReferenceLine,
+  LabelList,
 } from "recharts";
-import { ActionButton } from "../detail-shared";
+import { ActionButton, useStickyHeaderState } from "../detail-shared";
+import { tpSectionCardStyle } from "../tokens";
 import { AiTriggerIcon } from "../../dr-agent/shared/AiTriggerIcon";
 import { HistoricalNewDataBanner } from "../HistoricalNewDataBanner";
 
@@ -42,114 +48,94 @@ const PATIENT_INFO = {
   gestationPeriod: "39 weeks",
 };
 
+// Patient's date-of-birth-derived "today" age in months (demo).
+const PATIENT_AGE_MONTHS_TODAY = 34; // 2y 10m
+
 // ── Mock measurement series (age in months → value) ───────────────────────────
-//
-// Patient's recorded measurements over time. Demo data covers ~3
-// years with monthly cadence in early childhood, sparser later.
 
 const PATIENT_HEIGHT = [
-  { ageMonths: 0, value: 50 },
-  { ageMonths: 3, value: 60 },
-  { ageMonths: 6, value: 67 },
-  { ageMonths: 12, value: 75 },
-  { ageMonths: 18, value: 82 },
-  { ageMonths: 24, value: 87 },
-  { ageMonths: 30, value: 93 },
-  { ageMonths: 36, value: 96 },
+  { ageMonths: 0, value: 50 }, { ageMonths: 3, value: 60 },
+  { ageMonths: 6, value: 67 }, { ageMonths: 12, value: 75 },
+  { ageMonths: 18, value: 82 }, { ageMonths: 24, value: 87 },
+  { ageMonths: 30, value: 93 }, { ageMonths: 36, value: 96 },
 ];
 
 const PATIENT_WEIGHT = [
-  { ageMonths: 0, value: 3.4 },
-  { ageMonths: 3, value: 5.8 },
-  { ageMonths: 6, value: 7.6 },
-  { ageMonths: 12, value: 9.4 },
-  { ageMonths: 18, value: 10.8 },
-  { ageMonths: 24, value: 12.0 },
-  { ageMonths: 30, value: 12.8 },
-  { ageMonths: 36, value: 13.4 },
+  { ageMonths: 0, value: 3.4 }, { ageMonths: 3, value: 5.8 },
+  { ageMonths: 6, value: 7.6 }, { ageMonths: 12, value: 9.4 },
+  { ageMonths: 18, value: 10.8 }, { ageMonths: 24, value: 12.0 },
+  { ageMonths: 30, value: 12.8 }, { ageMonths: 36, value: 13.4 },
 ];
 
 const PATIENT_BMI = [
-  { ageMonths: 0, value: 13.6 },
-  { ageMonths: 3, value: 16.1 },
-  { ageMonths: 6, value: 16.9 },
-  { ageMonths: 12, value: 16.7 },
-  { ageMonths: 18, value: 16.0 },
-  { ageMonths: 24, value: 15.8 },
-  { ageMonths: 30, value: 14.8 },
-  { ageMonths: 36, value: 14.5 },
+  { ageMonths: 0, value: 13.6 }, { ageMonths: 3, value: 16.1 },
+  { ageMonths: 6, value: 16.9 }, { ageMonths: 12, value: 16.7 },
+  { ageMonths: 18, value: 16.0 }, { ageMonths: 24, value: 15.8 },
+  { ageMonths: 30, value: 14.8 }, { ageMonths: 36, value: 14.5 },
 ];
 
 const PATIENT_OFC = [
-  { ageMonths: 0, value: 34 },
-  { ageMonths: 3, value: 40 },
-  { ageMonths: 6, value: 43 },
-  { ageMonths: 12, value: 46 },
-  { ageMonths: 18, value: 47.5 },
-  { ageMonths: 24, value: 48.5 },
-  { ageMonths: 30, value: 49 },
-  { ageMonths: 36, value: 49.4 },
+  { ageMonths: 0, value: 34 }, { ageMonths: 3, value: 40 },
+  { ageMonths: 6, value: 43 }, { ageMonths: 12, value: 46 },
+  { ageMonths: 18, value: 47.5 }, { ageMonths: 24, value: 48.5 },
+  { ageMonths: 30, value: 49 }, { ageMonths: 36, value: 49.4 },
 ];
-
-// Height-vs-Weight: x-axis is height (cm), y-axis is weight (kg).
-const HEIGHT_VS_WEIGHT = [
-  { x: 50, y: 3.4 },
-  { x: 60, y: 5.8 },
-  { x: 67, y: 7.6 },
-  { x: 75, y: 9.4 },
-  { x: 82, y: 10.8 },
-  { x: 87, y: 12.0 },
-  { x: 93, y: 12.8 },
-  { x: 96, y: 13.4 },
-];
-
-// Approx WHO-shaped percentile bands per metric. Each entry is the
-// metric value at that age in months. Real chart would source from
-// the WHO Growth Standards LMS tables — these are coarse stand-ins
-// to give the lines plausible curvature.
 
 const PERCENTILE_AGES = [0, 3, 6, 9, 12, 18, 24, 30, 36];
 
+// WHO-shaped P03 / P10 / P50 / P90 / P97 stand-ins.
+
 const PERCENTILES_HEIGHT = {
-  P3:  [46, 56, 62, 67, 71, 77, 81, 85, 88],
-  P15: [48, 58, 64, 69, 73, 79, 84, 88, 92],
+  P03: [46, 56, 62, 67, 71, 77, 81, 85, 88],
+  P10: [48, 58, 64, 69, 73, 79, 84, 88, 92],
   P50: [50, 61, 67, 72, 76, 82, 87, 92, 96],
-  P85: [52, 64, 70, 75, 79, 86, 91, 96, 100],
+  P90: [52, 64, 70, 75, 79, 86, 91, 96, 100],
   P97: [54, 66, 72, 77, 82, 89, 94, 99, 104],
 };
-
 const PERCENTILES_WEIGHT = {
-  P3:  [2.5, 5.0, 6.4, 7.5, 8.4, 9.6, 10.5, 11.3, 12.0],
-  P15: [2.9, 5.6, 7.0, 8.2, 9.0, 10.4, 11.4, 12.4, 13.2],
+  P03: [2.5, 5.0, 6.4, 7.5, 8.4, 9.6, 10.5, 11.3, 12.0],
+  P10: [2.9, 5.6, 7.0, 8.2, 9.0, 10.4, 11.4, 12.4, 13.2],
   P50: [3.4, 6.4, 7.9, 9.2, 10.1, 11.6, 12.7, 13.7, 14.6],
-  P85: [4.0, 7.4, 9.0, 10.3, 11.4, 13.0, 14.2, 15.4, 16.4],
+  P90: [4.0, 7.4, 9.0, 10.3, 11.4, 13.0, 14.2, 15.4, 16.4],
   P97: [4.5, 8.2, 10.0, 11.4, 12.6, 14.4, 15.7, 17.0, 18.1],
 };
-
 const PERCENTILES_BMI = {
-  P3:  [11.5, 14.5, 15.0, 14.7, 14.4, 13.9, 13.6, 13.4, 13.2],
-  P15: [12.5, 15.4, 15.7, 15.5, 15.2, 14.7, 14.4, 14.1, 13.9],
+  P03: [11.5, 14.5, 15.0, 14.7, 14.4, 13.9, 13.6, 13.4, 13.2],
+  P10: [12.5, 15.4, 15.7, 15.5, 15.2, 14.7, 14.4, 14.1, 13.9],
   P50: [13.4, 16.4, 16.8, 16.6, 16.2, 15.7, 15.4, 15.1, 14.9],
-  P85: [14.5, 17.6, 18.0, 17.9, 17.5, 17.0, 16.6, 16.3, 16.1],
+  P90: [14.5, 17.6, 18.0, 17.9, 17.5, 17.0, 16.6, 16.3, 16.1],
   P97: [15.5, 18.7, 19.2, 19.1, 18.7, 18.2, 17.9, 17.6, 17.4],
 };
-
 const PERCENTILES_OFC = {
-  P3:  [32, 38, 41, 43, 45, 46, 47, 47.5, 48],
-  P15: [33, 39, 42, 44, 46, 47, 48, 48.5, 49],
+  P03: [32, 38, 41, 43, 45, 46, 47, 47.5, 48],
+  P10: [33, 39, 42, 44, 46, 47, 48, 48.5, 49],
   P50: [34, 40, 43, 45, 47, 48, 49, 49.5, 50],
-  P85: [35, 41, 44, 46, 48, 49, 50, 50.5, 51],
+  P90: [35, 41, 44, 46, 48, 49, 50, 50.5, 51],
   P97: [36, 42, 45, 47, 49, 50, 51, 51.5, 52],
 };
 
 // Height-vs-Weight curves: x is height (cm), y is weight (kg).
-const PERCENTILES_HVW = [
-  { name: "P3",  data: [{ x: 50, y: 2.8 }, { x: 70, y: 6.6 }, { x: 90, y: 10.4 }, { x: 110, y: 16.2 }] },
-  { name: "P15", data: [{ x: 50, y: 3.0 }, { x: 70, y: 7.2 }, { x: 90, y: 11.4 }, { x: 110, y: 17.6 }] },
-  { name: "P50", data: [{ x: 50, y: 3.4 }, { x: 70, y: 8.2 }, { x: 90, y: 12.6 }, { x: 110, y: 19.4 }] },
-  { name: "P85", data: [{ x: 50, y: 3.9 }, { x: 70, y: 9.4 }, { x: 90, y: 14.4 }, { x: 110, y: 22.0 }] },
-  { name: "P97", data: [{ x: 50, y: 4.3 }, { x: 70, y: 10.4 }, { x: 90, y: 16.0 }, { x: 110, y: 24.6 }] },
-];
+const PERCENTILES_HVW_AGES = [50, 60, 70, 80, 90, 100, 110];
+const PERCENTILES_HVW = {
+  P03: [2.8, 4.5, 6.6, 8.6, 10.4, 12.8, 16.2],
+  P10: [3.0, 5.0, 7.2, 9.4, 11.4, 14.0, 17.6],
+  P50: [3.4, 5.8, 8.2, 10.8, 12.6, 15.6, 19.4],
+  P90: [3.9, 6.6, 9.4, 12.2, 14.4, 17.6, 22.0],
+  P97: [4.3, 7.2, 10.4, 13.4, 16.0, 19.6, 24.6],
+};
+
+const PERCENTILE_KEYS = ["P03", "P10", "P50", "P90", "P97"];
+const PERCENTILE_LABEL = { P03: "P 03", P10: "P 10", P50: "P 50", P90: "P 90", P97: "P 97" };
+const PERCENTILE_COLOR = {
+  P03: "#F87171", // red-400
+  P10: "#A78BFA", // violet-400
+  P50: "#34D399", // emerald-400
+  P90: "#C084FC", // purple-400
+  P97: "#FBBF24", // amber-400
+};
+
+const PATIENT_LINE_COLOR = "var(--tp-blue-500, #4B4AD5)";
+const TODAY_LINE_COLOR = "#34D399";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -159,18 +145,26 @@ function toAgeAxisData(seriesByAge, percentiles) {
     return {
       ageMonths,
       patient: point ? point.value : null,
-      P3: percentiles.P3[idx],
-      P15: percentiles.P15[idx],
+      P03: percentiles.P03[idx],
+      P10: percentiles.P10[idx],
       P50: percentiles.P50[idx],
-      P85: percentiles.P85[idx],
+      P90: percentiles.P90[idx],
       P97: percentiles.P97[idx],
     };
   });
 }
 
-const PERCENTILE_LINE_COLOR = "rgba(148,163,184,0.55)"; // tp-slate-400-ish
-const PERCENTILE_P50_COLOR = "rgba(100,116,139,0.7)"; // tp-slate-500-ish, slightly bolder
-const PATIENT_LINE_COLOR = "var(--tp-blue-500, #4B4AD5)";
+function toHvwData() {
+  return PERCENTILES_HVW_AGES.map((cm, idx) => ({
+    cm,
+    patient: idx === 0 ? null : null, // patient series has its own x's
+    P03: PERCENTILES_HVW.P03[idx],
+    P10: PERCENTILES_HVW.P10[idx],
+    P50: PERCENTILES_HVW.P50[idx],
+    P90: PERCENTILES_HVW.P90[idx],
+    P97: PERCENTILES_HVW.P97[idx],
+  }));
+}
 
 // ── Building blocks ───────────────────────────────────────────────────────────
 
@@ -185,33 +179,20 @@ function SectionTag({ children, icon }) {
   );
 }
 
-function ToggleRow({ label, checked, onChange }) {
+function InfoRow({ label, value }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="inline-flex items-center gap-[6px] rounded-[6px] px-[6px] py-[2px] text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-50">
-      <span
-        aria-hidden
-        className={`relative inline-block h-[14px] w-[24px] rounded-full transition-colors ${
-          checked ? "bg-tp-blue-500" : "bg-tp-slate-300"
-        }`}>
-        <span
-          className={`absolute top-[1px] inline-block h-[12px] w-[12px] rounded-full bg-white shadow-[0_1px_2px_rgba(15,23,42,0.2)] transition-transform ${
-            checked ? "translate-x-[11px]" : "translate-x-[1px]"
-          }`}
-        />
-      </span>
-      {label}
-    </button>
+    <div className="flex items-center justify-between gap-3 text-[14px] leading-[20px]">
+      <span className="font-sans font-normal text-tp-slate-500">{label}</span>
+      <span className="font-sans font-medium text-tp-slate-700">{value}</span>
+    </div>
   );
 }
 
 function GrowthInfoCard() {
   return (
-    <div className="relative shrink-0 w-full px-[12px] py-[12px] flex flex-col gap-[6px]" style={{ border: "0.8px solid var(--tp-slate-200)", borderRadius: 10 }}>
+    <div
+      className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]"
+      style={tpSectionCardStyle}>
       <SectionTag icon={<Calendar2 size={18} variant="Bulk" color="var(--tp-slate-500)" className="shrink-0" />}>
         Growth Info
       </SectionTag>
@@ -225,21 +206,18 @@ function GrowthInfoCard() {
   );
 }
 
-function InfoRow({ label, value }) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-[14px] leading-[20px]">
-      <span className="font-sans font-normal text-tp-slate-500">{label}</span>
-      <span className="font-sans font-medium text-tp-slate-700">{value}</span>
-    </div>
-  );
-}
+// ── Chart card chrome ────────────────────────────────────────────────────────
 
-function ChartFrame({ title, children, showPercentiles, onTogglePercentiles, showYears, onToggleYears }) {
+/** Sticky title strip — same chrome the PastVisits date cards use. */
+function ChartHeader({ title }) {
+  const { headerRef, isStuck } = useStickyHeaderState();
   return (
     <div
-      className="relative shrink-0 w-full px-[12px] py-[12px] flex flex-col gap-[8px]"
-      style={{ border: "0.8px solid var(--tp-slate-200)", borderRadius: 10 }}>
-      <div className="flex items-center justify-between gap-2">
+      ref={headerRef}
+      className={`group bg-tp-slate-100 sticky top-0 z-[2] shrink-0 w-full ${
+        isStuck ? "rounded-tl-none rounded-tr-none" : "rounded-tl-[10px] rounded-tr-[10px]"
+      }`}>
+      <div className="flex items-center justify-between gap-2 px-[10px] py-[8px]">
         <p className="font-sans text-[14px] font-semibold leading-[20px] text-tp-slate-700">{title}</p>
         <AiTriggerIcon
           tooltip={`Summarize ${title.toLowerCase()}`}
@@ -248,49 +226,216 @@ function ChartFrame({ title, children, showPercentiles, onTogglePercentiles, sho
           size={12}
           as="span" />
       </div>
-      <div className="flex flex-wrap items-center gap-x-[6px] gap-y-[4px]">
-        <ToggleRow label="Percentile lines" checked={showPercentiles} onChange={onTogglePercentiles} />
-        <ToggleRow label={showYears ? "Years" : "Months"} checked={showYears} onChange={onToggleYears} />
+    </div>
+  );
+}
+
+/** Percentile multi-select dropdown. Doctor picks which lines to overlay. */
+function PercentileDropdown({ selected, onChange }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  const summary = selected.length === 0
+    ? "Percentile"
+    : selected.length === PERCENTILE_KEYS.length
+      ? "All percentiles"
+      : `${selected.length} selected`;
+
+  const toggleKey = (k) => {
+    onChange(selected.includes(k) ? selected.filter((s) => s !== k) : [...selected, k]);
+  };
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="inline-flex h-[28px] items-center gap-[6px] rounded-[8px] border border-tp-slate-200 bg-white px-[10px] text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-50">
+        <span>{summary}</span>
+        <ArrowDown2 size={12} color="currentColor" className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? (
+        <div
+          role="listbox"
+          className="absolute right-0 top-[32px] z-30 w-[180px] overflow-hidden rounded-[10px] border border-tp-slate-200 bg-white shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
+          <button
+            type="button"
+            onClick={() => onChange(selected.length === PERCENTILE_KEYS.length ? [] : [...PERCENTILE_KEYS])}
+            className="flex w-full items-center justify-between border-b border-tp-slate-100 px-[12px] py-[8px] text-[12px] font-medium text-tp-blue-500 hover:bg-tp-slate-50">
+            <span>{selected.length === PERCENTILE_KEYS.length ? "Clear all" : "Select all"}</span>
+          </button>
+          {PERCENTILE_KEYS.map((k) => {
+            const checked = selected.includes(k);
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => toggleKey(k)}
+                className="flex w-full items-center gap-[8px] px-[12px] py-[8px] text-left text-[13px] text-tp-slate-700 transition-colors hover:bg-tp-slate-50">
+                <span
+                  aria-hidden
+                  className={`inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-[3px] border ${
+                    checked ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"
+                  }`}>
+                  {checked ? (
+                    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+                      <path d="M2 5.2L4 7L8 3" stroke="white" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : null}
+                </span>
+                <span className="flex-1">{PERCENTILE_LABEL[k]}</span>
+                <span aria-hidden className="inline-block h-[10px] w-[14px] rounded-full" style={{ background: PERCENTILE_COLOR[k] }} />
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Years ↔ Months pill toggle. */
+function AxisToggle({ showYears, onChange }) {
+  return (
+    <div role="tablist" className="inline-flex h-[28px] items-center rounded-[8px] border border-tp-slate-200 bg-white p-[2px] text-[12px] font-medium text-tp-slate-500">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={showYears}
+        onClick={() => onChange(true)}
+        className={`flex h-full items-center rounded-[6px] px-[10px] transition-colors ${
+          showYears ? "bg-tp-slate-100 text-tp-slate-700" : "hover:text-tp-slate-700"
+        }`}>
+        Years
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={!showYears}
+        onClick={() => onChange(false)}
+        className={`flex h-full items-center rounded-[6px] px-[10px] transition-colors ${
+          !showYears ? "bg-tp-slate-100 text-tp-slate-700" : "hover:text-tp-slate-700"
+        }`}>
+        Months
+      </button>
+    </div>
+  );
+}
+
+function ChartFrame({ title, children, percentileSelected, onPercentileChange, showYears, onYearsChange, hidePercentile = false, hideYears = false }) {
+  return (
+    <div className="relative shrink-0 w-full overflow-hidden" style={tpSectionCardStyle}>
+      <ChartHeader title={title} />
+      <div className="flex flex-wrap items-center justify-end gap-[8px] px-[12px] pt-[8px]">
+        {hidePercentile ? null : <PercentileDropdown selected={percentileSelected} onChange={onPercentileChange} />}
+        {hideYears ? null : <AxisToggle showYears={showYears} onChange={onYearsChange} />}
       </div>
-      <div className="h-[200px] w-full">
-        {children}
+      <div className="h-[260px] w-full px-[6px] pb-[12px] pt-[4px]">{children}</div>
+    </div>
+  );
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+
+function tickFormatterForAge(showYears) {
+  return (m) => {
+    if (showYears) {
+      const yrs = m / 12;
+      return Number.isInteger(yrs) ? `${yrs}y` : `${yrs.toFixed(1)}y`;
+    }
+    return `${m}m`;
+  };
+}
+
+function TooltipBox({ active, payload, label, formatLabel }) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <div className="rounded-[8px] border border-tp-slate-200 bg-white px-[10px] py-[8px] text-[12px] shadow-[0_4px_12px_-6px_rgba(15,23,42,0.18)]">
+      <p className="mb-[4px] font-sans font-semibold text-tp-slate-700">{formatLabel(label)}</p>
+      <div className="flex flex-col gap-[2px]">
+        {payload
+          .filter((p) => p.value != null)
+          .map((p) => (
+            <div key={p.dataKey} className="flex items-center gap-[8px]">
+              <span aria-hidden className="inline-block h-[8px] w-[8px] rounded-full" style={{ background: p.color }} />
+              <span className="font-sans text-tp-slate-500">
+                {p.dataKey === "patient" ? "Patient" : PERCENTILE_LABEL[p.dataKey] ?? p.dataKey}:
+              </span>
+              <span className="font-sans font-medium text-tp-slate-700">{p.value}</span>
+            </div>
+          ))}
       </div>
     </div>
   );
 }
 
-function AgeAxisChart({ data, valueLabel, showPercentiles, showYears, yDomain }) {
-  const tickFormatter = (m) => (showYears ? `${(m / 12).toFixed(m % 12 === 0 ? 0 : 1)}y` : `${m}m`);
+function AgeAxisChart({ data, valueLabel, percentileSelected, showYears, yDomain }) {
+  const tickFmt = tickFormatterForAge(showYears);
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top: 6, right: 10, bottom: 0, left: -10 }}>
-        <CartesianGrid stroke="rgba(226,232,240,0.6)" vertical={false} />
+      <LineChart data={data} margin={{ top: 8, right: 30, bottom: 24, left: 6 }}>
+        <CartesianGrid stroke="rgba(226,232,240,0.7)" />
         <XAxis
           dataKey="ageMonths"
           type="number"
           domain={[0, 36]}
           ticks={PERCENTILE_AGES}
-          tickFormatter={tickFormatter}
+          tickFormatter={tickFmt}
           tick={{ fill: "var(--tp-slate-500)", fontSize: 11 }}
-          stroke="var(--tp-slate-200)" />
+          stroke="var(--tp-slate-200)"
+          label={{
+            value: showYears ? "Age in Years" : "Age in Months",
+            position: "insideBottom",
+            offset: -8,
+            style: { fill: "var(--tp-slate-500)", fontSize: 11 },
+          }} />
         <YAxis
           domain={yDomain}
           tick={{ fill: "var(--tp-slate-500)", fontSize: 11 }}
           stroke="var(--tp-slate-200)"
-          width={36}
-          label={{ value: valueLabel, angle: -90, position: "insideLeft", offset: 14, style: { fill: "var(--tp-slate-500)", fontSize: 11 } }} />
-        <Tooltip
-          contentStyle={{ borderRadius: 8, borderColor: "var(--tp-slate-200)", fontSize: 12 }}
-          labelFormatter={(m) => tickFormatter(m)} />
-        {showPercentiles ? (
-          <>
-            <Line type="monotone" dataKey="P3"  stroke={PERCENTILE_LINE_COLOR} strokeWidth={1} dot={false} strokeDasharray="3 3" name="P3" />
-            <Line type="monotone" dataKey="P15" stroke={PERCENTILE_LINE_COLOR} strokeWidth={1} dot={false} strokeDasharray="3 3" name="P15" />
-            <Line type="monotone" dataKey="P50" stroke={PERCENTILE_P50_COLOR} strokeWidth={1.4} dot={false} name="P50" />
-            <Line type="monotone" dataKey="P85" stroke={PERCENTILE_LINE_COLOR} strokeWidth={1} dot={false} strokeDasharray="3 3" name="P85" />
-            <Line type="monotone" dataKey="P97" stroke={PERCENTILE_LINE_COLOR} strokeWidth={1} dot={false} strokeDasharray="3 3" name="P97" />
-          </>
-        ) : null}
+          width={40}
+          label={{
+            value: valueLabel,
+            angle: -90,
+            position: "insideLeft",
+            offset: 4,
+            style: { fill: "var(--tp-slate-500)", fontSize: 11 },
+          }} />
+        <Tooltip content={<TooltipBox formatLabel={tickFmt} />} cursor={{ stroke: "var(--tp-slate-300)", strokeDasharray: "3 3" }} />
+        {percentileSelected.map((k) => (
+          <Line
+            key={k}
+            type="monotone"
+            dataKey={k}
+            stroke={PERCENTILE_COLOR[k]}
+            strokeWidth={1.6}
+            dot={false}
+            name={PERCENTILE_LABEL[k]}
+            isAnimationActive={false}>
+            <LabelList
+              dataKey={k}
+              position="right"
+              content={({ x, y, value, index }) => {
+                if (index !== data.length - 1) return null;
+                return (
+                  <text x={x + 6} y={y + 4} fill={PERCENTILE_COLOR[k]} fontSize={10} fontWeight={600}>
+                    {PERCENTILE_LABEL[k]}
+                  </text>
+                );
+              }} />
+          </Line>
+        ))}
         <Line
           type="monotone"
           dataKey="patient"
@@ -298,57 +443,118 @@ function AgeAxisChart({ data, valueLabel, showPercentiles, showYears, yDomain })
           strokeWidth={2.2}
           dot={{ r: 3, fill: PATIENT_LINE_COLOR }}
           activeDot={{ r: 4 }}
-          name="Patient" />
+          name="Patient"
+          isAnimationActive={false} />
+        {/* Vertical "today" marker. */}
+        <ReferenceLine
+          x={PATIENT_AGE_MONTHS_TODAY}
+          stroke={TODAY_LINE_COLOR}
+          strokeWidth={1.4}
+          label={{
+            value: "Today",
+            position: "top",
+            fill: TODAY_LINE_COLOR,
+            fontSize: 10,
+            fontWeight: 600,
+          }} />
       </LineChart>
     </ResponsiveContainer>
   );
 }
 
-function HeightVsWeightChart({ showPercentiles }) {
+function HeightVsWeightChart({ percentileSelected }) {
+  const data = useMemo(() => toHvwData(), []);
+  // Patient height-vs-weight scattered onto same x-axis (cm).
+  const patientPoints = PATIENT_HEIGHT.map((h, i) => ({
+    cm: h.value,
+    patient: PATIENT_WEIGHT[i]?.value ?? null,
+  }));
+  // Merge patient points into the percentile data array by cm.
+  const merged = [...data, ...patientPoints]
+    .reduce((acc, row) => {
+      const existing = acc.find((r) => r.cm === row.cm);
+      if (existing) Object.assign(existing, row);
+      else acc.push({ ...row });
+      return acc;
+    }, [])
+    .sort((a, b) => a.cm - b.cm);
+
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <ScatterChart margin={{ top: 6, right: 10, bottom: 0, left: -10 }}>
-        <CartesianGrid stroke="rgba(226,232,240,0.6)" vertical={false} />
+      <LineChart data={merged} margin={{ top: 8, right: 30, bottom: 24, left: 6 }}>
+        <CartesianGrid stroke="rgba(226,232,240,0.7)" />
         <XAxis
+          dataKey="cm"
           type="number"
-          dataKey="x"
           domain={[45, 110]}
+          ticks={[50, 60, 70, 80, 90, 100, 110]}
+          tickFormatter={(v) => `${v}`}
           tick={{ fill: "var(--tp-slate-500)", fontSize: 11 }}
           stroke="var(--tp-slate-200)"
-          label={{ value: "Height (cm)", position: "insideBottom", offset: -2, style: { fill: "var(--tp-slate-500)", fontSize: 11 } }} />
+          label={{
+            value: "Height (cm)",
+            position: "insideBottom",
+            offset: -8,
+            style: { fill: "var(--tp-slate-500)", fontSize: 11 },
+          }} />
         <YAxis
-          type="number"
-          dataKey="y"
           domain={[0, 28]}
           tick={{ fill: "var(--tp-slate-500)", fontSize: 11 }}
           stroke="var(--tp-slate-200)"
-          width={36}
-          label={{ value: "Weight (kg)", angle: -90, position: "insideLeft", offset: 14, style: { fill: "var(--tp-slate-500)", fontSize: 11 } }} />
-        <Tooltip contentStyle={{ borderRadius: 8, borderColor: "var(--tp-slate-200)", fontSize: 12 }} />
-        {showPercentiles ? (
-          PERCENTILES_HVW.map((p) => (
-            <Scatter
-              key={p.name}
-              name={p.name}
-              data={p.data}
-              line={{ stroke: p.name === "P50" ? PERCENTILE_P50_COLOR : PERCENTILE_LINE_COLOR, strokeWidth: p.name === "P50" ? 1.4 : 1, strokeDasharray: p.name === "P50" ? undefined : "3 3" }}
-              shape={() => null} />
-          ))
-        ) : null}
-        <Scatter
+          width={40}
+          label={{
+            value: "Weight (kg)",
+            angle: -90,
+            position: "insideLeft",
+            offset: 4,
+            style: { fill: "var(--tp-slate-500)", fontSize: 11 },
+          }} />
+        <Tooltip content={<TooltipBox formatLabel={(v) => `${v} cm`} />} cursor={{ stroke: "var(--tp-slate-300)", strokeDasharray: "3 3" }} />
+        {percentileSelected.map((k) => (
+          <Line
+            key={k}
+            type="monotone"
+            dataKey={k}
+            stroke={PERCENTILE_COLOR[k]}
+            strokeWidth={1.6}
+            dot={false}
+            connectNulls
+            name={PERCENTILE_LABEL[k]}
+            isAnimationActive={false}>
+            <LabelList
+              dataKey={k}
+              position="right"
+              content={({ x, y, value, index }) => {
+                if (index !== merged.length - 1) return null;
+                return (
+                  <text x={x + 6} y={y + 4} fill={PERCENTILE_COLOR[k]} fontSize={10} fontWeight={600}>
+                    {PERCENTILE_LABEL[k]}
+                  </text>
+                );
+              }} />
+          </Line>
+        ))}
+        <Line
+          type="monotone"
+          dataKey="patient"
+          stroke={PATIENT_LINE_COLOR}
+          strokeWidth={2.2}
+          dot={{ r: 3, fill: PATIENT_LINE_COLOR }}
+          activeDot={{ r: 4 }}
           name="Patient"
-          data={HEIGHT_VS_WEIGHT}
-          fill={PATIENT_LINE_COLOR}
-          line={{ stroke: PATIENT_LINE_COLOR, strokeWidth: 2.2 }} />
-      </ScatterChart>
+          connectNulls
+          isAnimationActive={false} />
+      </LineChart>
     </ResponsiveContainer>
   );
 }
 
 // ── Per-chart card ────────────────────────────────────────────────────────────
 
+const DEFAULT_PERCENTILES = ["P03", "P10", "P50", "P90", "P97"];
+
 function ChartCard({ title, type }) {
-  const [showPercentiles, setShowPercentiles] = useState(false);
+  const [percentileSelected, setPercentileSelected] = useState([...DEFAULT_PERCENTILES]);
   const [showYears, setShowYears] = useState(true);
 
   const data = useMemo(() => {
@@ -365,11 +571,10 @@ function ChartCard({ title, type }) {
     return (
       <ChartFrame
         title={title}
-        showPercentiles={showPercentiles}
-        onTogglePercentiles={setShowPercentiles}
-        showYears={showYears}
-        onToggleYears={setShowYears}>
-        <HeightVsWeightChart showPercentiles={showPercentiles} />
+        percentileSelected={percentileSelected}
+        onPercentileChange={setPercentileSelected}
+        hideYears>
+        <HeightVsWeightChart percentileSelected={percentileSelected} />
       </ChartFrame>
     );
   }
@@ -384,14 +589,14 @@ function ChartCard({ title, type }) {
   return (
     <ChartFrame
       title={title}
-      showPercentiles={showPercentiles}
-      onTogglePercentiles={setShowPercentiles}
+      percentileSelected={percentileSelected}
+      onPercentileChange={setPercentileSelected}
       showYears={showYears}
-      onToggleYears={setShowYears}>
+      onYearsChange={setShowYears}>
       <AgeAxisChart
         data={data}
         valueLabel={meta.unit}
-        showPercentiles={showPercentiles}
+        percentileSelected={percentileSelected}
         showYears={showYears}
         yDomain={meta.domain} />
     </ChartFrame>
@@ -411,7 +616,7 @@ export function GrowthContent() {
           <ChartCard title="Height for Age" type="height" />
           <ChartCard title="Weight for Age" type="weight" />
           <ChartCard title="BMI for Age" type="bmi" />
-          <ChartCard title="Head Circumference (OFC) for Age" type="ofc" />
+          <ChartCard title="Head Circumference (OFC)" type="ofc" />
           <ChartCard title="Height vs Weight" type="hvw" />
         </div>
       </div>
