@@ -9,6 +9,7 @@ import { cn } from "@/src/hooks/utils";
 import { FeedbackRow } from "./VoiceRxResultTabs";
 import { VoiceRxIcon } from "./voice-consult-icons";
 import { VoiceRxModuleRecorder } from "./VoiceRxModuleRecorder";
+import { ShineBorder } from "@/src/components/atoms/ShineBorder";
 import styles from "./VoiceRxCanvas.module.scss";
 
 /** localStorage key — gates the first-time educational coachmark for
@@ -88,7 +89,7 @@ export function VoiceRxCanvas({
   const tooltipDarkCls =
   "rounded-[6px] border-0 bg-tp-slate-900 px-2 py-1 text-[12px] leading-[1.4] text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.45)]";
 
-  const canvasTitle = "Back to VoiceRx";
+  const canvasTitle = "Back";
   void modeLabel;
 
   const [activeTab, setActiveTab] = useState("emr");
@@ -99,7 +100,14 @@ export function VoiceRxCanvas({
   // submits or cancels. On submit, the new transcript chunk is forwarded
   // to onAddDetailsByVoice so the parent can append + re-generate.
   const [quickEditActive, setQuickEditActive] = useState(false);
-  const navLocked = quickEditActive;
+  // Quick-edit regeneration UX:
+  //   idle       → normal canvas
+  //   processing → loader replaces the EMR body for ~1.4s
+  //   updated    → ShineBorder wraps the EMR card for ~2.5s
+  // Lets the doctor see "your dictation is being merged → notes
+  // updated" without leaving the canvas.
+  const [regenPhase, setRegenPhase] = useState("idle");
+  const navLocked = quickEditActive || regenPhase !== "idle";
 
   const [feedback, setFeedback] = useState({
     transcript: null,
@@ -265,24 +273,41 @@ export function VoiceRxCanvas({
           </div> :
 
         <div className="flex flex-col gap-3">
-            {/* Doctor-info strip — same violet wash convention as the
-                Past Visits "by" card, so the canvas reads as "this is
-                Dr. X's clinical notes". Subtle gradient keeps it
-                informative rather than competing with the EMR card
-                that follows. */}
             <div
-              className="rounded-[12px] px-[12px] py-[8px]"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(213,101,234,0.04) 0%, rgba(103,58,172,0.06) 60%, rgba(26,25,148,0.04) 100%)"
-              }}>
-              <p className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-700">Dr. Shyam Sundar</p>
-              <p className="font-sans text-[12px] leading-[16px] text-tp-slate-500">General Physician</p>
-            </div>
-            <div
-            className={cn("vrx-cn-emr-shell w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell)}>
-
-              <div className="px-3 py-[10px]">{emrCard}</div>
+              className={cn(
+                "vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white",
+                styles.emrShell,
+                regenPhase === "updated" && "vrx-cn-emr-shell--just-updated"
+              )}>
+              {/* Gradient shiner border for 2.5s after a quick-edit
+                  submit so the doctor sees which area regenerated. */}
+              {regenPhase === "updated" ? (
+                <ShineBorder
+                  variant="rotate"
+                  borderWidth={1.5}
+                  duration={2.4}
+                  shineColor={["#D565EA", "#673AAC", "#1A1994"]}
+                  baseColor="rgba(226,226,234,0.95)" />
+              ) : null}
+              {regenPhase === "processing" ? (
+                <div className="flex flex-col items-center justify-center gap-[10px] py-[40px]">
+                  <span
+                    aria-hidden
+                    className="inline-flex h-[14px] w-[14px] animate-pulse rounded-full"
+                    style={{
+                      background:
+                        "linear-gradient(135deg,#D565EA 0%,#673AAC 60%,#1A1994 100%)"
+                    }} />
+                  <p className="font-sans text-[13px] font-medium leading-[18px] text-tp-slate-600">
+                    Updating clinical notes…
+                  </p>
+                  <p className="font-sans text-[12px] leading-[16px] text-tp-slate-400">
+                    Merging your latest dictation into the existing note.
+                  </p>
+                </div>
+              ) : (
+                <div className="px-3 py-[10px]">{emrCard}</div>
+              )}
             </div>
             <FeedbackRow
             value={feedback.emr}
@@ -388,10 +413,13 @@ export function VoiceRxCanvas({
               onCancel={() => setQuickEditActive(false)}
               onSubmit={() => {
                 setQuickEditActive(false);
-                // Forward to the parent's append-and-regenerate hook.
-                // The parent owns transcript merge + clinical-notes
-                // re-generation; the canvas just hosts the recorder.
-                onAddDetailsByVoice?.();
+                // Local two-stage UX: loader → shimmer. Real regen
+                // would also update the parent transcript / notes;
+                // for the demo we surface the visual handshake so
+                // the doctor sees their dictation "land".
+                setRegenPhase("processing");
+                window.setTimeout(() => setRegenPhase("updated"), 1400);
+                window.setTimeout(() => setRegenPhase("idle"), 1400 + 2500);
               }} />
           </div>
         </div>
