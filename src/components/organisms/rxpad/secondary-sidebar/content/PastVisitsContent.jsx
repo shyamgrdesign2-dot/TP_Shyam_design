@@ -14,7 +14,8 @@ import {
   DocumentDownload,
   Eye,
   Import,
-  Printer } from
+  Printer,
+  Profile } from
 "iconsax-reactjs";
 import { MoreVertical } from "@/src/components/atoms/icons/lucide";
 
@@ -295,27 +296,27 @@ function TapCopyTooltip({
 }
 
 function SymptomsIcon() {
-  return <TPMedicalIcon name="Virus" variant="bulk" size={16} color="var(--tp-violet-400)" className="block h-[16px] w-[16px]" />;
+  return <TPMedicalIcon name="Virus" variant="bulk" size={18} color="var(--tp-slate-500)" className="shrink-0" />;
 }
 
 function ExamIcon() {
-  return <TPMedicalIcon name="medical service" variant="bulk" size={16} color="var(--tp-violet-400)" className="block h-[16px] w-[16px]" />;
+  return <TPMedicalIcon name="medical service" variant="bulk" size={18} color="var(--tp-slate-500)" className="shrink-0" />;
 }
 
 function DiagnosisIcon() {
-  return <TPMedicalIcon name="Diagnosis" variant="bulk" size={16} color="var(--tp-violet-400)" className="block h-[16px] w-[16px]" />;
+  return <TPMedicalIcon name="Diagnosis" variant="bulk" size={18} color="var(--tp-slate-500)" className="shrink-0" />;
 }
 
 function PillIcon() {
-  return <TPMedicalIcon name="Tablets" variant="bulk" size={16} color="var(--tp-violet-400)" className="block h-[16px] w-[16px]" />;
+  return <TPMedicalIcon name="Tablets" variant="bulk" size={18} color="var(--tp-slate-500)" className="shrink-0" />;
 }
 
 function AdviceIcon() {
-  return <TPMedicalIcon name="health care" variant="bulk" size={16} color="var(--tp-violet-400)" className="block h-[16px] w-[16px]" />;
+  return <TPMedicalIcon name="health care" variant="bulk" size={18} color="var(--tp-slate-500)" className="shrink-0" />;
 }
 
 function ClockIcon() {
-  return <Calendar2 size={16} color="var(--tp-violet-400)" variant="Bulk" className="block h-[16px] w-[16px]" />;
+  return <Calendar2 size={18} color="var(--tp-slate-500)" variant="Bulk" className="shrink-0" />;
 }
 
 function DateHeader({
@@ -497,21 +498,21 @@ function ListSection({
 
   return (
     <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
-      <div className="group flex items-center gap-[6px]">
-        <div className="flex h-[16px] w-[16px] shrink-0 items-center justify-center">{icon}</div>
+      <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
+        {icon}
         <TapCopyTooltip
           onCopy={onCopySection}
           copyHint={`Fill ${sectionDescriptions[title] ?? "all items"} to RxPad`}
           copiedLabel={`${title} copied to RxPad`}>
-          
-          <span className="font-sans font-semibold text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px]">{title}</span>
+
+          <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">{title}</span>
         </TapCopyTooltip>
         <CopyAffordance
           onCopy={onCopySection}
           showOnHover={false}
           copyHint={`Click to fill ${sectionDescriptions[title] ?? "all items"} to RxPad`}
           copiedLabel={`${title} filled to RxPad`} />
-        
+
       </div>
 
       <div className="space-y-1 pl-[6px]">
@@ -560,30 +561,28 @@ function AdviceSection({
 }) {
   return (
     <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
-      <div className="group flex items-center gap-[6px]">
-        <div className="flex h-[16px] w-[16px] shrink-0 items-center justify-center">
-          <AdviceIcon />
-        </div>
+      <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
+        <AdviceIcon />
         <TapCopyTooltip
           onCopy={onCopy}
           copyHint="Fill all advice to RxPad"
           copiedLabel="Advice copied to RxPad">
-          
-          <span className="font-sans font-semibold text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px]">Advice</span>
+
+          <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">Advice</span>
         </TapCopyTooltip>
         <CopyAffordance
           onCopy={onCopy}
           showOnHover={false}
           copyHint="Click to fill advice to RxPad"
           copiedLabel="Advice filled to RxPad" />
-        
+
       </div>
       <TapCopyTooltip
-        className="w-full pl-[18px]"
+        className="w-full pl-[6px]"
         onCopy={onCopy}
         copyHint="Fill this advice to RxPad"
         copiedLabel="Advice copied to RxPad">
-        
+
         <span className="font-sans text-[14px] leading-[20px] text-tp-slate-600">{advice}</span>
       </TapCopyTooltip>
     </div>);
@@ -599,68 +598,47 @@ function FollowUpSection({
 }) {
   return (
     <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
-      <div className="group flex items-center gap-[6px]">
-        <div className="flex h-[16px] w-[16px] shrink-0 items-center justify-center">
-          <ClockIcon />
-        </div>
+      <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
+        <ClockIcon />
         <TapCopyTooltip
           onCopy={onCopy}
           copyHint="Fill all follow-up details to RxPad"
           copiedLabel="Follow-up copied to RxPad">
-          
-          <span className="font-sans font-semibold text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px]">Follow Up</span>
+
+          <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">Follow Up</span>
         </TapCopyTooltip>
         <CopyAffordance
           onCopy={onCopy}
           showOnHover={false}
           copyHint="Click to fill follow-up to RxPad"
           copiedLabel="Follow-up filled to RxPad" />
-        
+
       </div>
       <TapCopyTooltip
-        className="w-full pl-[18px]"
+        className="w-full pl-[6px]"
         onCopy={onCopy}
         copyHint="Fill this follow-up to RxPad"
         copiedLabel="Follow-up copied to RxPad">
-        
+
         <span className="font-sans text-[14px] leading-[20px] text-tp-slate-600">{followUp}</span>
       </TapCopyTooltip>
     </div>);
 
 }
 
-function PrescribedByFooter({ doctorName, specialty, bare = false, tone = "violet" }) {
-  // Digital Rx footer (default) — subtle violet wash so the doctor
-  // stamp reads as informative rather than transactional.
-  //
-  // bare=true   → drops the outer pad; caller is responsible for
-  //               positioning (used inside the Written Rx preview
-  //               drawer, where the surrounding `p-4` already
-  //               provides spacing).
-  // tone="grey" → slate-50 background instead of the violet gradient,
-  //               so it harmonises with surfaces that don't want a
-  //               coloured wash.
-  const tinted =
-    tone === "grey"
-      ? { background: "rgb(248, 250, 252)" }
-      : {
-          background:
-            "linear-gradient(135deg, rgba(213,101,234,0.04) 0%, rgba(103,58,172,0.06) 60%, rgba(26,25,148,0.04) 100%)"
-        };
+function PrescribedByFooter({ doctorName, specialty, bare = false }) {
   const inner = (
-    <div className="rounded-[10px] px-[12px] py-[8px]" style={tinted}>
-      <p className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-700">{doctorName}</p>
-      {specialty ? (
-        <p className="font-sans text-[12px] leading-[16px] text-tp-slate-500">{specialty}</p>
-      ) : null}
+    <div className="flex items-center gap-2 rounded-[4px] bg-tp-slate-100/70 px-2 py-[6px]">
+      <Profile size={18} color="var(--tp-slate-500)" variant="Bulk" className="shrink-0" />
+      <div className="min-w-0">
+        <p className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-700">{doctorName}</p>
+        {specialty ? (
+          <p className="font-sans text-[12px] leading-[16px] text-tp-slate-500">{specialty}</p>
+        ) : null}
+      </div>
     </div>
   );
-  // The neighbours above (DateHeader / RxTabStrip) provide their own
-  // bottom padding, but the section below (Symptoms ListSection)
-  // adds its own pt-[8px] on top. Drop our pb to 0 and lift the pt
-  // a bit so the perceived gap above the stamp matches the gap
-  // below — without doubling up the bottom margin.
-  return bare ? inner : <div className="px-[10px] pt-[10px] pb-0">{inner}</div>;
+  return bare ? inner : <div className="px-[10px] pt-[10px] pb-[8px]">{inner}</div>;
 }
 
 function WrittenRxPreviewCard({
