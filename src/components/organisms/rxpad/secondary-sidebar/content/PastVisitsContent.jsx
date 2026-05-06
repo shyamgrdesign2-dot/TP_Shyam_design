@@ -706,7 +706,10 @@ function SignatureFooter({ doctorName, specialty }) {
         <StethoscopeGlyph size={24} color="currentColor" />
       </span>
       <div className="min-w-0">
-        <p className="font-sans text-[13px] font-medium leading-[18px] text-tp-slate-400">{doctorName}</p>
+        <p className="font-sans text-[13px] font-medium leading-[18px] text-tp-slate-400">
+          <span className="font-normal text-tp-slate-400/80">Rx by </span>
+          {doctorName}
+        </p>
         {specialty ? (
           <p className="font-sans text-[12px] leading-[16px] text-tp-slate-400">{specialty}</p>
         ) : null}

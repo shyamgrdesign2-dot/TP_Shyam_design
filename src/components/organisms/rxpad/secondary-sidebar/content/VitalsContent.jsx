@@ -263,7 +263,7 @@ function VitalsDateCard({
             historicalInlineHighlightClass(row.isHighlighted, row.isFresh)
           )}>
           
-                <span className="font-sans text-[14px] leading-[20px] text-tp-slate-700">
+                <span className="font-sans font-medium text-[14px] leading-[20px] text-tp-slate-700">
                   <span className={historicalInlineTextClass(row.isHighlighted, row.isFresh, false, shimmerActive)}>
                     {row.label}
                   </span>{" "}

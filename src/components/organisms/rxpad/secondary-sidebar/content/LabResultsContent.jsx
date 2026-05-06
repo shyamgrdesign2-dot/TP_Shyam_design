@@ -177,7 +177,7 @@ function LabRow({
     <div className={clsx("relative shrink-0 w-full", historicalInlineHighlightClass(isHighlighted, isFresh))}>
       <div className="content-stretch flex items-center justify-between px-[12px] py-[8px] w-full">
         <div className="flex items-baseline gap-[6px] min-w-0">
-          <span className="font-sans font-normal text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px] truncate">
+          <span className="font-sans font-medium text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px] truncate">
             <span className={historicalInlineTextClass(isHighlighted, isFresh)}>{label}</span>
           </span>
           <span className={clsx("font-sans text-tp-slate-500 text-[14px] leading-[20px] whitespace-nowrap", historicalInlineTextClass(isHighlighted, isFresh))}>

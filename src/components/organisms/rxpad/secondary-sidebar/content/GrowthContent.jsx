@@ -134,8 +134,8 @@ function GrowthDateCard({
           key={`${entry.id}-${row.label}`}
           className="flex w-full items-center justify-between gap-3 bg-white px-[12px] py-[8px]">
           
-              <span className="min-w-0 flex-1 font-sans text-[14px] leading-[20px] text-tp-slate-700">
-                {row.label} <span className="text-[14px] leading-[20px] text-tp-slate-500">({row.unit})</span>
+              <span className="min-w-0 flex-1 font-sans font-medium text-[14px] leading-[20px] text-tp-slate-700">
+                {row.label} <span className="font-normal text-[14px] leading-[20px] text-tp-slate-500">({row.unit})</span>
               </span>
               <span className="shrink-0 text-right font-sans font-semibold text-[14px] leading-[20px] text-tp-slate-700 whitespace-nowrap">{row.value}</span>
             </div>
