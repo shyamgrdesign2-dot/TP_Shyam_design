@@ -83,22 +83,22 @@ function formatDateLabel(s) {
   return `${d.getDate()} ${months[d.getMonth()]}'${yr}`;
 }
 
-function PendingVaccineItem({ name, status, statusColor, notes }) {
-  // Status value keeps its semantic colour (red overdue, amber due)
-  // and gets font-medium per the palette-weight rule. Plain values
-  // fall through to slate-700 medium.
-  const statusEl =
-    statusColor === "overdue" ? <span className="font-medium text-tp-error-500">{status}</span> :
-    statusColor === "due" ? <span className="font-medium text-tp-warning-500">{status}</span> :
-    <span className="font-medium text-tp-slate-700">{status}</span>;
+function PendingVaccineItem({ name, dateLabel, dateColor, notes }) {
+  // Mirrors the Given row shape: "Vaccine (Due date: <date> | Notes: …)".
+  // Date value keeps its semantic colour (red for past-due, amber for
+  // upcoming) and font-medium per the palette-weight rule.
+  const dateEl =
+    dateColor === "overdue" ? <span className="font-medium text-tp-error-500">{dateLabel}</span> :
+    dateColor === "due" ? <span className="font-medium text-tp-warning-500">{dateLabel}</span> :
+    <span className="font-medium text-tp-slate-700">{dateLabel}</span>;
   return (
     <div className="flex items-start gap-[6px]">
       <Bullet />
       <p className="font-sans text-[14px] leading-[22px] text-tp-slate-700 whitespace-pre-wrap min-w-0">
         <span className="font-medium">{name}</span>
         <span>{" ("}</span>
-        <Grey>Status: </Grey>
-        {statusEl}
+        <Grey>Due date: </Grey>
+        {dateEl}
         {notes ? (
           <>
             <Sep />
@@ -115,7 +115,7 @@ function PendingVaccineItem({ name, status, statusColor, notes }) {
 // Pending vaccines (Overdue / Upcoming) grouped by week, same shape
 // as GivenVaccineGroup so the three sections read alike: week heading
 // up top, bullets stacked below.
-function PendingVaccineGroup({ week, vaccines, statusColor, statusFor }) {
+function PendingVaccineGroup({ week, vaccines, dateColor }) {
   return (
     <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
       {/* Week tag — same chrome as Symptoms / Examination section
@@ -129,8 +129,8 @@ function PendingVaccineGroup({ week, vaccines, statusColor, statusFor }) {
           <PendingVaccineItem
             key={`${week}-${v.name}-${i}`}
             name={v.name}
-            status={statusFor(v)}
-            statusColor={statusColor}
+            dateLabel={formatDateLabel(v.dueDate)}
+            dateColor={dateColor}
             notes={v.notes} />
         ))}
       </div>
@@ -249,8 +249,7 @@ export function VaccineContent() {
                 <PendingVaccineGroup
                   week={g.week}
                   vaccines={g.vaccines}
-                  statusColor="overdue"
-                  statusFor={() => "Overdue"} />
+                  dateColor="overdue" />
               </React.Fragment>
             ))
           )}
@@ -277,8 +276,7 @@ export function VaccineContent() {
                 <PendingVaccineGroup
                   week={g.week}
                   vaccines={g.vaccines}
-                  statusColor="due"
-                  statusFor={(v) => `Due ${formatDateLabel(v.dueDate)}`} />
+                  dateColor="due" />
               </React.Fragment>
             ))
           )}
