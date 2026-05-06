@@ -220,10 +220,10 @@ export function VoiceRxCanvas({
         </div>
       </div>
 
-      {/* Tab strip — hidden when the quick-edit overlay (recorder OR
-          processing loader) is active so the doctor's focus is on the
-          listening / processing UI only. */}
-      <div className={cn("shrink-0 px-3 pb-[6px] pt-[6px]", overlayActive && "hidden")}>
+      {/* Tab strip stays visible while the quick-edit overlay is up
+          so the doctor sees the underlying canvas (tabs + clinical
+          notes) behind the bottom-dock recorder / loader. */}
+      <div className="shrink-0 px-3 pb-[6px] pt-[6px]">
         <div className="vrx-cn-tabs flex h-[44px] w-full items-stretch gap-[4px] overflow-x-auto rounded-[14px] bg-tp-slate-100 p-[5px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
@@ -252,10 +252,10 @@ export function VoiceRxCanvas({
         </div>
       </div>
 
-      {/* Body — tab content. Hidden while the quick-edit overlay is
-          active; the recorder / processing UI takes over the whole
-          body region instead. */}
-      <div className={cn("min-h-0 flex-1 overflow-y-auto px-3 pb-[12px] pt-[6px]", overlayActive && "hidden")}>
+      {/* Body — tab content. Stays mounted (and visible) when the
+          quick-edit overlay is up so the canvas reads as a true
+          overlay over the existing clinical notes. */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-[12px] pt-[6px]">
         {inlineRecorderSlot ?
         <div className="mb-[10px]">{inlineRecorderSlot}</div> :
         null}
@@ -388,8 +388,9 @@ export function VoiceRxCanvas({
               merged notes re-appear. */}
       {overlayActive ? (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 top-[60px] z-20 flex items-stretch">
-          <div className="pointer-events-auto h-full w-full overflow-y-auto" data-voice-allow>
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-stretch"
+          style={{ height: "40%" }}>
+          <div className="pointer-events-auto w-full" data-voice-allow>
             {regenPhase === "processing" ? (
               <div className={cn("flex h-full w-full items-center justify-center px-4 py-4", recorderStyles.recorderBgStack)}>
                 <VoiceRxSectionProcessing
