@@ -635,7 +635,7 @@ function PrescribedByFooter({ doctorName, specialty }) {
   // Gradient is intentionally low-contrast (3% → 6%) so the strip
   // tints without competing with the card chrome above.
   return (
-    <div className="px-[10px] pb-[12px] pt-[2px]">
+    <div className="px-[10px] py-[6px]">
       <div
         className="rounded-[10px] px-[12px] py-[8px]"
         style={{
