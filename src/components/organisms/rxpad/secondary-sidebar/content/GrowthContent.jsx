@@ -22,7 +22,7 @@
  * devices.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Calendar2, ArrowDown2 } from "iconsax-reactjs";
+import { ArrowDown2 } from "iconsax-reactjs";
 import {
   LineChart,
   Line,
@@ -83,45 +83,45 @@ const PATIENT_OFC = [
 
 const PERCENTILE_AGES = [0, 3, 6, 9, 12, 18, 24, 30, 36];
 
-// WHO-shaped P03 / P10 / P50 / P90 / P97 stand-ins.
+// WHO Child Growth Standards (boys, 0–36 m). Ages: 0,3,6,9,12,18,24,30,36 months.
 
 const PERCENTILES_HEIGHT = {
-  P03: [46, 56, 62, 67, 71, 77, 81, 85, 88],
-  P10: [48, 58, 64, 69, 73, 79, 84, 88, 92],
-  P50: [50, 61, 67, 72, 76, 82, 87, 92, 96],
-  P90: [52, 64, 70, 75, 79, 86, 91, 96, 100],
-  P97: [54, 66, 72, 77, 82, 89, 94, 99, 104],
+  P03: [46.1, 55.3, 61.2, 65.6, 69.0, 75.2, 80.0, 84.4, 88.2],
+  P10: [47.5, 57.1, 63.3, 67.7, 71.3, 77.8, 82.8, 87.4, 91.4],
+  P50: [49.9, 61.4, 67.6, 72.0, 75.7, 82.3, 87.1, 91.9, 96.1],
+  P90: [52.3, 65.5, 71.9, 76.2, 80.1, 86.7, 91.4, 96.4, 100.8],
+  P97: [53.8, 67.8, 74.0, 78.4, 82.3, 89.2, 94.0, 99.1, 103.5],
 };
 const PERCENTILES_WEIGHT = {
-  P03: [2.5, 5.0, 6.4, 7.5, 8.4, 9.6, 10.5, 11.3, 12.0],
-  P10: [2.9, 5.6, 7.0, 8.2, 9.0, 10.4, 11.4, 12.4, 13.2],
-  P50: [3.4, 6.4, 7.9, 9.2, 10.1, 11.6, 12.7, 13.7, 14.6],
-  P90: [4.0, 7.4, 9.0, 10.3, 11.4, 13.0, 14.2, 15.4, 16.4],
-  P97: [4.5, 8.2, 10.0, 11.4, 12.6, 14.4, 15.7, 17.0, 18.1],
+  P03: [2.5, 4.9, 6.4, 7.4, 8.4, 9.6, 10.5, 11.4, 12.1],
+  P10: [2.9, 5.5, 7.0, 8.1, 9.0, 10.4, 11.4, 12.3, 13.1],
+  P50: [3.5, 6.4, 7.9, 9.2, 10.2, 11.8, 13.0, 14.0, 14.9],
+  P90: [4.2, 7.5, 9.2, 10.6, 11.8, 13.5, 14.9, 16.1, 17.2],
+  P97: [4.6, 8.1, 9.9, 11.5, 12.7, 14.6, 16.1, 17.4, 18.6],
 };
 const PERCENTILES_BMI = {
-  P03: [11.5, 14.5, 15.0, 14.7, 14.4, 13.9, 13.6, 13.4, 13.2],
-  P10: [12.5, 15.4, 15.7, 15.5, 15.2, 14.7, 14.4, 14.1, 13.9],
-  P50: [13.4, 16.4, 16.8, 16.6, 16.2, 15.7, 15.4, 15.1, 14.9],
-  P90: [14.5, 17.6, 18.0, 17.9, 17.5, 17.0, 16.6, 16.3, 16.1],
-  P97: [15.5, 18.7, 19.2, 19.1, 18.7, 18.2, 17.9, 17.6, 17.4],
+  P03: [11.5, 14.5, 15.0, 14.7, 14.3, 13.8, 13.5, 13.3, 13.1],
+  P10: [12.5, 15.4, 15.7, 15.4, 15.0, 14.6, 14.3, 14.0, 13.8],
+  P50: [13.4, 16.3, 16.6, 16.4, 16.0, 15.5, 15.2, 14.9, 14.7],
+  P90: [14.6, 17.6, 17.9, 17.8, 17.4, 16.8, 16.5, 16.3, 16.1],
+  P97: [15.6, 18.7, 19.1, 19.0, 18.6, 18.1, 17.8, 17.5, 17.3],
 };
 const PERCENTILES_OFC = {
-  P03: [32, 38, 41, 43, 45, 46, 47, 47.5, 48],
-  P10: [33, 39, 42, 44, 46, 47, 48, 48.5, 49],
-  P50: [34, 40, 43, 45, 47, 48, 49, 49.5, 50],
-  P90: [35, 41, 44, 46, 48, 49, 50, 50.5, 51],
-  P97: [36, 42, 45, 47, 49, 50, 51, 51.5, 52],
+  P03: [31.9, 37.9, 41.0, 43.0, 44.6, 46.2, 47.3, 48.0, 48.6],
+  P10: [32.8, 38.9, 42.0, 44.0, 45.6, 47.2, 48.3, 49.1, 49.7],
+  P50: [34.5, 40.5, 43.5, 45.4, 47.0, 48.6, 49.6, 50.4, 51.0],
+  P90: [36.0, 42.0, 45.0, 46.9, 48.5, 50.0, 51.0, 51.8, 52.4],
+  P97: [36.9, 43.0, 46.0, 47.9, 49.5, 51.0, 52.0, 52.8, 53.4],
 };
 
-// Height-vs-Weight curves: x is height (cm), y is weight (kg).
-const PERCENTILES_HVW_AGES = [50, 60, 70, 80, 90, 100, 110];
+// Height-vs-Weight curves (WHO boys): x = height (cm), y = weight (kg).
+const PERCENTILES_HVW_AGES = [50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110];
 const PERCENTILES_HVW = {
-  P03: [2.8, 4.5, 6.6, 8.6, 10.4, 12.8, 16.2],
-  P10: [3.0, 5.0, 7.2, 9.4, 11.4, 14.0, 17.6],
-  P50: [3.4, 5.8, 8.2, 10.8, 12.6, 15.6, 19.4],
-  P90: [3.9, 6.6, 9.4, 12.2, 14.4, 17.6, 22.0],
-  P97: [4.3, 7.2, 10.4, 13.4, 16.0, 19.6, 24.6],
+  P03: [2.5, 3.4, 4.4, 5.5, 6.5, 7.4, 8.3, 9.3, 10.3, 11.3, 12.5, 13.8, 15.2],
+  P10: [2.9, 3.8, 5.0, 6.1, 7.2, 8.2, 9.2, 10.2, 11.3, 12.5, 13.8, 15.3, 16.8],
+  P50: [3.5, 4.5, 5.8, 7.1, 8.3, 9.4, 10.5, 11.6, 12.9, 14.3, 15.8, 17.5, 19.3],
+  P90: [4.2, 5.4, 6.8, 8.3, 9.7, 11.0, 12.3, 13.7, 15.2, 16.8, 18.6, 20.6, 22.7],
+  P97: [4.7, 6.0, 7.5, 9.1, 10.6, 12.1, 13.6, 15.1, 16.8, 18.6, 20.6, 22.8, 25.1],
 };
 
 const PERCENTILE_KEYS = ["P03", "P10", "P50", "P90", "P97"];
@@ -134,8 +134,53 @@ const PERCENTILE_COLOR = {
   P97: "#FBBF24", // amber-400
 };
 
-const PATIENT_LINE_COLOR = "var(--tp-blue-500, #4B4AD5)";
 const TODAY_LINE_COLOR = "#34D399";
+
+// ── Today reference-line label ────────────────────────────────────────────────
+//
+// Two-line SVG label: "Today" on the first row, patient age ("2y 10m")
+// immediately below. The component is passed as a React element to
+// recharts `<ReferenceLine label={…}>`; recharts clones it and injects
+// `viewBox` (the chart-area bounding rect) so we can derive the x of
+// the line and the top of the chart area.
+
+function TodayRefLabel({ viewBox }) {
+  if (!viewBox) return null;
+  const cx = viewBox.x; // pixel x of the reference line
+  const chartTop = viewBox.y; // y = chart area top (= margin.top)
+
+  const totalMonths = PATIENT_AGE_MONTHS_TODAY;
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  const ageParts = [];
+  if (years > 0) ageParts.push(`${years}y`);
+  if (months > 0) ageParts.push(`${months}m`);
+  const ageStr = ageParts.join(" ");
+
+  return (
+    <g>
+      <text
+        x={cx}
+        y={chartTop - 20}
+        textAnchor="middle"
+        fill={TODAY_LINE_COLOR}
+        fontSize={10}
+        fontWeight={600}>
+        Today
+      </text>
+      <text
+        x={cx}
+        y={chartTop - 8}
+        textAnchor="middle"
+        fill={TODAY_LINE_COLOR}
+        fontSize={9}
+        fontWeight={500}
+        opacity={0.82}>
+        {ageStr}
+      </text>
+    </g>
+  );
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -168,17 +213,6 @@ function toHvwData() {
 
 // ── Building blocks ───────────────────────────────────────────────────────────
 
-function SectionTag({ children, icon }) {
-  return (
-    <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
-      {icon ? icon : null}
-      <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">
-        {children}
-      </span>
-    </div>
-  );
-}
-
 function InfoRow({ label, value }) {
   return (
     <div className="flex items-center justify-between gap-3 text-[14px] leading-[20px]">
@@ -189,14 +223,19 @@ function InfoRow({ label, value }) {
 }
 
 function GrowthInfoCard() {
+  const { headerRef, isStuck } = useStickyHeaderState();
   return (
-    <div
-      className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]"
-      style={tpSectionCardStyle}>
-      <SectionTag icon={<Calendar2 size={18} variant="Bulk" color="var(--tp-slate-500)" className="shrink-0" />}>
-        Growth Info
-      </SectionTag>
-      <div className="grid grid-cols-1 gap-[6px] pl-[6px]">
+    <div className="relative shrink-0 w-full overflow-hidden" style={tpSectionCardStyle}>
+      <div
+        ref={headerRef}
+        className={`bg-tp-slate-100 sticky top-0 z-[10] shrink-0 w-full ${
+          isStuck ? "rounded-tl-none rounded-tr-none" : "rounded-tl-[10px] rounded-tr-[10px]"
+        }`}>
+        <div className="px-[10px] py-[8px]">
+          <p className="font-sans text-[14px] font-semibold leading-[20px] text-tp-slate-700">Growth Info</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-[6px] px-[12px] py-[10px]">
         <InfoRow label="Mid-parental height" value={PATIENT_INFO.midParentalHeight} />
         <InfoRow label="Mother" value={PATIENT_INFO.motherHeight} />
         <InfoRow label="Father" value={PATIENT_INFO.fatherHeight} />
@@ -214,7 +253,7 @@ function ChartHeader({ title }) {
   return (
     <div
       ref={headerRef}
-      className={`group bg-tp-slate-100 sticky top-0 z-[2] shrink-0 w-full ${
+      className={`group bg-tp-slate-100 sticky top-0 z-[10] shrink-0 w-full ${
         isStuck ? "rounded-tl-none rounded-tr-none" : "rounded-tl-[10px] rounded-tr-[10px]"
       }`}>
       <div className="flex items-center justify-between gap-2 px-[10px] py-[8px]">
@@ -244,11 +283,19 @@ function PercentileDropdown({ selected, onChange }) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [open]);
 
-  const summary = selected.length === 0
+  // Label switches based on viewport: "All Percentiles" on desktop
+  // (≥1024px), "All PRCN" on iPad/smaller — both collapse to
+  // "N selected" when a partial set is chosen.
+  const summaryFull = selected.length === 0
     ? "Percentile"
     : selected.length === PERCENTILE_KEYS.length
-      ? "All percentiles"
+      ? "All Percentiles"
       : `${selected.length} selected`;
+  const summaryShort = selected.length === 0
+    ? "Percentile"
+    : selected.length === PERCENTILE_KEYS.length
+      ? "All PRCN"
+      : `${selected.length} sel`;
 
   const toggleKey = (k) => {
     onChange(selected.includes(k) ? selected.filter((s) => s !== k) : [...selected, k]);
@@ -262,13 +309,14 @@ function PercentileDropdown({ selected, onChange }) {
         aria-haspopup="listbox"
         aria-expanded={open}
         className="inline-flex h-[28px] items-center gap-[6px] rounded-[8px] border border-tp-slate-200 bg-white px-[10px] text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-50">
-        <span>{summary}</span>
+        <span className="hidden lg:inline">{summaryFull}</span>
+        <span className="inline lg:hidden">{summaryShort}</span>
         <ArrowDown2 size={12} color="currentColor" className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open ? (
         <div
           role="listbox"
-          className="absolute right-0 top-[32px] z-30 w-[180px] overflow-hidden rounded-[10px] border border-tp-slate-200 bg-white shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
+          className="absolute left-0 top-[32px] z-30 w-[180px] overflow-hidden rounded-[10px] border border-tp-slate-200 bg-white shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
           <button
             type="button"
             onClick={() => onChange(selected.length === PERCENTILE_KEYS.length ? [] : [...PERCENTILE_KEYS])}
@@ -317,7 +365,7 @@ function AxisToggle({ showYears, onChange }) {
         className={`flex h-full items-center rounded-[6px] px-[10px] transition-colors ${
           showYears ? "bg-tp-slate-100 text-tp-slate-700" : "hover:text-tp-slate-700"
         }`}>
-        Years
+        Yrs
       </button>
       <button
         type="button"
@@ -327,7 +375,7 @@ function AxisToggle({ showYears, onChange }) {
         className={`flex h-full items-center rounded-[6px] px-[10px] transition-colors ${
           !showYears ? "bg-tp-slate-100 text-tp-slate-700" : "hover:text-tp-slate-700"
         }`}>
-        Months
+        Mth
       </button>
     </div>
   );
@@ -335,13 +383,13 @@ function AxisToggle({ showYears, onChange }) {
 
 function ChartFrame({ title, children, percentileSelected, onPercentileChange, showYears, onYearsChange, hidePercentile = false, hideYears = false }) {
   return (
-    <div className="relative shrink-0 w-full overflow-hidden" style={tpSectionCardStyle}>
+    <div className="relative shrink-0 w-full" style={tpSectionCardStyle}>
       <ChartHeader title={title} />
-      <div className="flex flex-wrap items-center justify-end gap-[8px] px-[12px] pt-[8px]">
-        {hidePercentile ? null : <PercentileDropdown selected={percentileSelected} onChange={onPercentileChange} />}
+      <div className="flex flex-wrap items-center justify-between gap-[8px] px-[10px] pt-[10px] pb-[4px]">
+        {hidePercentile ? <span /> : <PercentileDropdown selected={percentileSelected} onChange={onPercentileChange} />}
         {hideYears ? null : <AxisToggle showYears={showYears} onChange={onYearsChange} />}
       </div>
-      <div className="h-[260px] w-full px-[6px] pb-[12px] pt-[4px]">{children}</div>
+      <div className="h-[258px] w-full pb-[12px] pt-[2px]">{children}</div>
     </div>
   );
 }
@@ -384,7 +432,7 @@ function AgeAxisChart({ data, valueLabel, percentileSelected, showYears, yDomain
   const tickFmt = tickFormatterForAge(showYears);
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top: 8, right: 30, bottom: 24, left: 6 }}>
+      <LineChart data={data} margin={{ top: 40, right: 32, bottom: 24, left: 6 }}>
         <CartesianGrid stroke="rgba(226,232,240,0.7)" />
         <XAxis
           dataKey="ageMonths"
@@ -426,37 +474,21 @@ function AgeAxisChart({ data, valueLabel, percentileSelected, showYears, yDomain
             <LabelList
               dataKey={k}
               position="right"
-              content={({ x, y, value, index }) => {
+              content={({ x, y, index }) => {
                 if (index !== data.length - 1) return null;
                 return (
-                  <text x={x + 6} y={y + 4} fill={PERCENTILE_COLOR[k]} fontSize={10} fontWeight={600}>
+                  <text x={x + 4} y={y + 4} fill={PERCENTILE_COLOR[k]} fontSize={9} fontWeight={600} textAnchor="start">
                     {PERCENTILE_LABEL[k]}
                   </text>
                 );
               }} />
           </Line>
         ))}
-        <Line
-          type="monotone"
-          dataKey="patient"
-          stroke={PATIENT_LINE_COLOR}
-          strokeWidth={2.2}
-          dot={{ r: 3, fill: PATIENT_LINE_COLOR }}
-          activeDot={{ r: 4 }}
-          name="Patient"
-          isAnimationActive={false} />
-        {/* Vertical "today" marker. */}
         <ReferenceLine
           x={PATIENT_AGE_MONTHS_TODAY}
           stroke={TODAY_LINE_COLOR}
           strokeWidth={1.4}
-          label={{
-            value: "Today",
-            position: "top",
-            fill: TODAY_LINE_COLOR,
-            fontSize: 10,
-            fontWeight: 600,
-          }} />
+          label={<TodayRefLabel />} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -481,12 +513,12 @@ function HeightVsWeightChart({ percentileSelected }) {
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={merged} margin={{ top: 8, right: 30, bottom: 24, left: 6 }}>
+      <LineChart data={merged} margin={{ top: 20, right: 32, bottom: 24, left: 6 }}>
         <CartesianGrid stroke="rgba(226,232,240,0.7)" />
         <XAxis
           dataKey="cm"
           type="number"
-          domain={[45, 110]}
+          domain={[45, 115]}
           ticks={[50, 60, 70, 80, 90, 100, 110]}
           tickFormatter={(v) => `${v}`}
           tick={{ fill: "var(--tp-slate-500)", fontSize: 11 }}
@@ -524,26 +556,16 @@ function HeightVsWeightChart({ percentileSelected }) {
             <LabelList
               dataKey={k}
               position="right"
-              content={({ x, y, value, index }) => {
+              content={({ x, y, index }) => {
                 if (index !== merged.length - 1) return null;
                 return (
-                  <text x={x + 6} y={y + 4} fill={PERCENTILE_COLOR[k]} fontSize={10} fontWeight={600}>
+                  <text x={x + 4} y={y + 4} fill={PERCENTILE_COLOR[k]} fontSize={9} fontWeight={600} textAnchor="start">
                     {PERCENTILE_LABEL[k]}
                   </text>
                 );
               }} />
           </Line>
         ))}
-        <Line
-          type="monotone"
-          dataKey="patient"
-          stroke={PATIENT_LINE_COLOR}
-          strokeWidth={2.2}
-          dot={{ r: 3, fill: PATIENT_LINE_COLOR }}
-          activeDot={{ r: 4 }}
-          name="Patient"
-          connectNulls
-          isAnimationActive={false} />
       </LineChart>
     </ResponsiveContainer>
   );

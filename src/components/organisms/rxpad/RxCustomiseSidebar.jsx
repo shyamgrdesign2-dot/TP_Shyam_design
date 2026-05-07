@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { GripVertical, MoreHorizontal } from "@/src/components/atoms/icons/lucide";
+import { GripVertical, MoreVertical } from "@/src/components/atoms/icons/lucide";
 import { toast } from "@/src/components/molecules/Toaster";
 
 import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
@@ -351,8 +351,8 @@ export function RxCustomiseSidebar({
   return (
     <>
       {/* Custom modules drawer mount — lives here so closing the customise
-           sheet doesn't tear it down mid-edit. The drawer animates above
-           this sheet via z-[161]. */}
+           sheet doesn't tear it down mid-edit. The drawer is layer 2
+           (z-[162]/z-[163]) and always renders above this layer-1 sheet. */}
       <CustomModulesDrawer />
 
       {/* Confirm-delete dialog */}
@@ -412,7 +412,7 @@ export function RxCustomiseSidebar({
           />
         }>
         <div className="p-[16px]">
-          <div className="grid grid-cols-1 gap-[16px] md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-[16px] md:grid-cols-2 md:items-start">
           {/* Left column — Sidebar Sections */}
           <CustomisePanel
               title="Sidebar Sections"
@@ -457,22 +457,7 @@ export function RxCustomiseSidebar({
               subtitle="Reorder, hide, or add custom modules to the Rx pad."
               enabledCount={rxpadEnabledCount}
               totalCount={draftRxpad.length}
-              footer={
-              <button
-                type="button"
-                onClick={() => openCustomModulesDrawer({ initialTab: "select" })}
-                disabled={customModules.length >= CUSTOM_MODULE_CAP}
-                title={
-                customModules.length >= CUSTOM_MODULE_CAP ?
-                "15-module cap reached. Delete a module to add more." :
-                undefined
-                }
-                className="inline-flex h-[40px] w-full items-center justify-center gap-[6px] rounded-[12px] border border-dashed border-tp-blue-300 bg-tp-blue-50/30 text-[14px] font-semibold text-tp-blue-600 transition-colors hover:bg-tp-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-tp-blue-50/30">
-                
-                <span aria-hidden>+</span>
-                Add Custom Module
-              </button>
-              }>
+>
               
             {draftRxpad.map((row) => {
                 const isDragOver = rxpadReorder.dragOverId === row.id;
@@ -526,7 +511,7 @@ export function RxCustomiseSidebar({
                           aria-label={`More actions for ${label}`}
                           className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] text-tp-slate-500 transition-colors hover:bg-tp-slate-50 hover:text-tp-slate-700">
                           
-                          <MoreHorizontal size={18} strokeWidth={1.5} />
+                          <MoreVertical size={18} strokeWidth={1.5} />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -600,7 +585,7 @@ function CustomisePanel({
 
 }) {
   return (
-    <section className="flex min-h-0 flex-col rounded-[14px] bg-white p-[14px] ring-1 ring-tp-slate-100">
+    <section className="flex flex-col rounded-[14px] bg-white p-[14px] ring-1 ring-tp-slate-100">
       <div className="mb-[12px] flex items-start justify-between gap-[8px]">
         <div className="min-w-0">
           <p className="text-[14px] font-semibold text-tp-slate-800">{title}</p>

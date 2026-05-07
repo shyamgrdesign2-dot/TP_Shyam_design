@@ -400,13 +400,14 @@ export function SectionCard({
   expanded = true,
   onToggle,
   hideChevron = false,
+  padded = false,
   children
 }) {
   return (
     <div className="group/section-card relative shrink-0 w-full" style={tpSectionCardStyle}>
       <SectionCardHeader title={title} titleAddon={titleAddon} expanded={expanded} onToggle={onToggle} hideChevron={hideChevron} />
       {expanded ?
-      <div className="content-stretch flex flex-col items-start relative shrink-0 w-full">
+      <div className={`content-stretch flex flex-col items-start relative shrink-0 w-full${padded ? " py-[8px]" : ""}`}>
           {children}
         </div> :
       null}

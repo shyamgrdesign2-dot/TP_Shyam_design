@@ -23,11 +23,13 @@
 
 import React, { useState } from "react";
 import { cn as clsx } from "@/src/hooks/utils";
-import { ArrowSquareDown, ArrowSquareUp } from "iconsax-reactjs";
+import { ArrowSquareDown, ArrowSquareUp, Copy as CopyIcon, CopySuccess } from "iconsax-reactjs";
 import { ActionButton, Bullet, useStickyHeaderState } from "../detail-shared";
 import { tpSectionCardStyle } from "../tokens";
 import { AiTriggerIcon } from "../../dr-agent/shared/AiTriggerIcon";
 import { HistoricalNewDataBanner } from "../HistoricalNewDataBanner";
+import { HoverTooltip } from "@/src/components/atoms/Tooltip";
+import { toast } from "@/src/components/molecules/Toaster";
 
 // ─── Mock data — shape the OD/OS payload that `optalEntries(history)` will yield ──
 const OPTAL_ENTRIES = [
@@ -35,10 +37,27 @@ const OPTAL_ENTRIES = [
     id: "op-27",
     dateLabel: "27 Jan'26",
     visualAcuity: {
+      OD: { "UC Dist": "6/9", PH: "6/6", "C Dist": "6/6", "C Near": "N6" },
+      OS: { "UC Dist": "6/12", PH: "6/9", "C Dist": "6/9", "C Near": "N8" },
+    },
+    iop: {
+      OD: { NCT: "12 mmhg", GAT: "14 mmhg" },
+      OS: { NCT: "13 mmhg", GAT: "15 mmhg" },
+    },
+    slitLamp: [
+      { name: "Lids/Lacrimal Apparatus", OD: "Normal", OS: "Normal" },
+      { name: "Cornea", OD: "Clear", OS: "Clear" },
+    ],
+    fundus: [{ name: "Disc", OD: "WNL", OS: "WNL" }],
+  },
+  {
+    id: "op-15",
+    dateLabel: "15 Jan'26",
+    visualAcuity: {
       OD: { "UC Dist": "6/120", "UC Near": "N5", PH: "6/12", "C Dist": "6/9", "C Near": "N6" },
       OS: { "UC Dist": "6/120", "UC Near": "N5", PH: "6/12", "C Dist": "6/9", "C Near": "N6" },
     },
-    subjectiveRefraction: {
+    autoRefraction: {
       Undilated: {
         OD: { Sph: "+0.25", Cyl: "+1.25", Axis: "10°", "Add": "+1.75", Dist: "6/24", Near: "N6" },
         OS: { Sph: "+0.25", Cyl: "+1.25", Axis: "10°", "Add": "+1.75", Dist: "6/24", Near: "N6" },
@@ -72,24 +91,61 @@ const OPTAL_ENTRIES = [
       { name: "Choroid", OD: "Choroidal Nevus", OS: "NIL" },
     ],
   },
-  {
-    id: "op-15",
-    dateLabel: "15 Jan'26",
-    visualAcuity: {
-      OD: { "UC Dist": "6/9", PH: "6/6", "C Dist": "6/6", "C Near": "N6" },
-      OS: { "UC Dist": "6/12", PH: "6/9", "C Dist": "6/9", "C Near": "N8" },
-    },
-    iop: {
-      OD: { NCT: "12 mmhg", GAT: "14 mmhg" },
-      OS: { NCT: "13 mmhg", GAT: "15 mmhg" },
-    },
-    slitLamp: [
-      { name: "Lids/Lacrimal Apparatus", OD: "Normal", OS: "Normal" },
-      { name: "Cornea", OD: "Clear", OS: "Clear" },
-    ],
-    fundus: [{ name: "Disc", OD: "WNL", OS: "WNL" }],
-  },
 ];
+
+// ─── Dummy copy affordance ────────────────────────────────────────────────────
+//
+// Full click-state + tooltip + snackbar UX. The actual copy-to-RxPad
+// wire-up will be added when the Ophthal module lands in production;
+// for now this acts as a visual placeholder so the UX pattern is
+// consistent with Past Visits.
+
+function DummyCopyButton({
+  hint = "Copy to RxPad",
+  toastMsg = "Copied to RxPad",
+  showOnHover = false,
+  className,
+}) {
+  const [copied, setCopied] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (copied) return;
+    setCopied(true);
+    toast.success(toastMsg);
+    window.setTimeout(() => setCopied(false), 1200);
+  };
+
+  const visibilityClass = showOnHover
+    ? "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+    : "opacity-100";
+
+  return (
+    <HoverTooltip content={hint} side="top">
+      <button
+        type="button"
+        aria-label={hint}
+        onClick={handleClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={clsx(
+          "inline-flex h-6 w-6 items-center justify-center rounded-md transition-all",
+          copied
+            ? "bg-tp-success-50 text-tp-success-600"
+            : "text-tp-blue-500 hover:bg-tp-blue-50 active:bg-tp-blue-100",
+          visibilityClass,
+          className
+        )}>
+        {copied ? (
+          <CopySuccess size={14} color="var(--tp-success-600)" variant="Bulk" />
+        ) : (
+          <CopyIcon size={14} color="var(--tp-blue-500)" variant={hovered ? "Bulk" : "Linear"} />
+        )}
+      </button>
+    </HoverTooltip>
+  );
+}
 
 // ─── Section icons for each Ophthal sub-section ──────────────────────────────
 
@@ -226,13 +282,24 @@ function InlineFields({ fields }) {
 
 /** OD / OS row — eye prefix dark/semibold, fields in inline brackets. */
 function EyeRow({ eye, fields }) {
+  const label = Object.entries(fields ?? {})
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(", ");
   return (
-    <div className="flex items-start gap-[6px]">
+    <div className="group flex items-start gap-[6px] -mr-[6px]">
       <Bullet />
       <p className="flex-1 min-w-0 text-[14px] leading-[22px] text-tp-slate-700">
         <span className="font-semibold text-tp-slate-700">{eye}</span>
         <InlineFields fields={fields} />
       </p>
+      <div className="shrink-0 self-start">
+        <DummyCopyButton
+          hint={`Copy ${eye} reading to RxPad`}
+          toastMsg={`${eye} (${label}) copied to RxPad`}
+          showOnHover
+        />
+      </div>
     </div>
   );
 }
@@ -253,13 +320,24 @@ function ExamRows({ items }) {
     <div className="flex flex-col gap-[8px]">
       {items.map((entry) => {
         const { name, ...fields } = entry;
+        const label = Object.entries(fields)
+          .filter(([, v]) => v)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(", ");
         return (
-          <div key={name} className="flex items-start gap-[6px]">
+          <div key={name} className="group flex items-start gap-[6px] -mr-[6px]">
             <Bullet />
             <p className="flex-1 min-w-0 text-[14px] leading-[22px] text-tp-slate-700">
               <span className="font-semibold text-tp-slate-700">{name}</span>
               <InlineFields fields={fields} />
             </p>
+            <div className="shrink-0 self-start">
+              <DummyCopyButton
+                hint={`Copy ${name} to RxPad`}
+                toastMsg={`${name} (${label}) copied to RxPad`}
+                showOnHover
+              />
+            </div>
           </div>
         );
       })}
@@ -277,12 +355,17 @@ function ExamRows({ items }) {
  */
 function GroupCard({ id, title, icon, children, sectionLabelLower }) {
   return (
-    <div key={id} className="relative shrink-0 w-full flex flex-col">
+    <div key={id} className="group relative shrink-0 w-full flex flex-col">
       <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[8px]">
         {icon ?? null}
         <span className="flex min-h-0 min-w-0 flex-1 items-center text-left text-[14px] font-semibold leading-none text-tp-slate-500">
           {title}
         </span>
+        <DummyCopyButton
+          hint={`Copy ${title} to RxPad`}
+          toastMsg={`${title} copied to RxPad`}
+          showOnHover={false}
+        />
         <AiTriggerIcon
           tooltip={`Summarize ${sectionLabelLower}`}
           signalLabel={`Summarize ${sectionLabelLower}`}
@@ -316,11 +399,18 @@ function OptalDateCard({ entry, expanded, onToggle }) {
             : "rounded-[10px]"
         )}>
         <div className="flex items-center justify-between px-[10px] py-[8px] w-full">
-          <div className="font-['Inter',sans-serif] font-semibold text-tp-slate-700 text-[14px] tracking-[0.012px] whitespace-nowrap leading-[20px]">
-            {entry.dateLabel}
+          <div className="flex items-center gap-1.5">
+            <span className="font-['Inter',sans-serif] font-semibold text-tp-slate-700 text-[14px] tracking-[0.012px] whitespace-nowrap leading-[20px]">
+              {entry.dateLabel}
+            </span>
+            <DummyCopyButton
+              hint={`Copy all ${entry.dateLabel} findings to RxPad`}
+              toastMsg={`${entry.dateLabel} ophthal findings copied to RxPad`}
+              showOnHover={false}
+            />
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="opacity-0 transition-opacity group-hover/date-card:opacity-100">
+            <span className="opacity-0 transition-opacity group-hover/date-card:opacity-100 inline-flex items-center gap-1">
               <AiTriggerIcon
                 tooltip={`Summarize ${entry.dateLabel} ophthal exam`}
                 signalLabel={`Summarize ${entry.dateLabel} ophthalmology exam`}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Portal } from "@/src/hooks/ui/Portal";
 import { LayoutGrid, Plus, Search } from "@/src/components/atoms/icons/lucide";
 
 import {
@@ -154,21 +155,27 @@ export function CustomModulesDrawer() {
   const submitLabel = isEditingMode ? "Save Changes" : "Create Module";
 
   return (
-    <>
-      {/* Backdrop */}
+    // Portal to document.body — critical so this drawer escapes any CSS stacking
+    // context in the parent tree and competes at document level with the
+    // Sidebar-molecule portal (z-160/161). Layer 2: z-[162]/z-[163].
+    <Portal>
+      <>
+      {/* Backdrop — layer 2 (opened from within RxCustomiseSidebar which is layer 1).
+           Rule: sidebars opened from within another sidebar use z-[162]/z-[163].
+           See Sidebar molecule for the full stacking contract. */}
       <div
         aria-hidden
         onClick={closeDrawer}
-        className={`fixed inset-0 z-[160] bg-black/35 backdrop-blur-[2px] transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[162] bg-black/35 backdrop-blur-[2px] transition-opacity duration-200 ${
         isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`
         } />
-      
-      {/* Slide-in panel — 70% desktop / 75% iPad / 94vw mobile */}
+
+      {/* Slide-in panel — layer 2: z-[163]. 70% desktop / 75% iPad / 94vw mobile */}
       <aside
         role="dialog"
         aria-label="Custom modules"
         aria-hidden={!isVisible}
-        className={`fixed right-0 top-0 z-[161] flex h-full w-[94vw] flex-col bg-white shadow-[-12px_0_40px_rgba(15,23,42,0.22)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:w-[75vw] lg:w-[70vw] ${
+        className={`fixed right-0 top-0 z-[163] flex h-full w-[94vw] flex-col bg-white shadow-[-12px_0_40px_rgba(15,23,42,0.22)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:w-[75vw] lg:w-[70vw] ${
         isVisible ? "translate-x-0" : "translate-x-full"}`
         }>
         
@@ -265,7 +272,9 @@ export function CustomModulesDrawer() {
           }
         </div>
       </aside>
-    </>);
+    </>
+    </Portal>
+  );
 
 }
 

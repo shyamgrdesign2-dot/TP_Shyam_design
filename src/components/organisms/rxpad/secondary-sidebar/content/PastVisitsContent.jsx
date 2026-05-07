@@ -688,27 +688,22 @@ function AdditionalNotesSection({ notes, onCopy }) {
 }
 
 // Signature-style footer that lives at the BOTTOM of the digital Rx
-// card. Vertical violet fade (transparent at top → soft violet at
-// bottom) so the doctor stamp reads as a letterhead signature.
+// card. Single-line "Rx by: Dr. Name (Specialty)" stamp with a soft
+// slate fade so it reads as a letterhead signature at the foot of
+// the prescription.
 function SignatureFooter({ doctorName, specialty }) {
-  // Reads as a quiet, "disabled-looking" sign-off block: lighter
-  // slate fade, no chip ring around the icon, all text in the lighter
-  // slate-500 family. Top padding is bumped so the strip has room to
-  // breathe under the last clinical section above it.
   return (
     <div
-      className="relative mt-[4px] flex items-center gap-3 overflow-hidden rounded-b-[10px] px-[14px] pt-[20px] pb-[10px]"
+      className="relative mt-[4px] overflow-hidden rounded-b-[10px] px-[14px] pt-[16px] pb-[10px]"
       style={{
         background:
           "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(148,163,184,0.05) 50%, rgba(148,163,184,0.10) 100%)"
       }}>
-      <span className="shrink-0 font-sans text-[13px] font-normal leading-[18px] text-tp-slate-400/80">Rx by:</span>
-      <div className="min-w-0">
-        <p className="font-sans text-[13px] font-medium leading-[18px] text-tp-slate-400">{doctorName}</p>
-        {specialty ? (
-          <p className="font-sans text-[12px] leading-[16px] text-tp-slate-400">{specialty}</p>
-        ) : null}
-      </div>
+      <p className="min-w-0 truncate font-sans text-[12px] leading-[18px] text-tp-slate-400">
+        <span className="font-normal text-tp-slate-400/70">Rx by: </span>
+        <span className="font-medium">{doctorName}</span>
+        {specialty ? <span className="font-normal text-tp-slate-400/70"> ({specialty})</span> : null}
+      </p>
     </div>
   );
 }
@@ -716,22 +711,13 @@ function SignatureFooter({ doctorName, specialty }) {
 function PrescribedByFooter({ doctorName, specialty, bare = false }) {
   const inner = (
     <div
-      className="flex items-center gap-2 rounded-[10px] px-2 py-[6px]"
-      style={{
-        background:
-          "linear-gradient(135deg, rgba(213,101,234,0.05) 0%, rgba(103,58,172,0.07) 60%, rgba(26,25,148,0.05) 100%)"
-      }}>
-      <span
-        aria-hidden
-        className="inline-flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-tp-violet-100/70 text-tp-violet-500">
-        <StethoscopeGlyph size={18} color="currentColor" />
-      </span>
-      <div className="min-w-0">
-        <p className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-700">{doctorName}</p>
-        {specialty ? (
-          <p className="font-sans text-[12px] leading-[16px] text-tp-slate-500">{specialty}</p>
-        ) : null}
-      </div>
+      className="flex items-center gap-[6px] rounded-[8px] px-[10px] py-[6px]"
+      style={{ background: "rgba(148,163,184,0.08)" }}>
+      <span className="shrink-0 font-sans text-[12px] font-normal leading-[18px] text-tp-slate-400/70">Rx by:</span>
+      <p className="min-w-0 truncate font-sans text-[12px] leading-[18px] text-tp-slate-500">
+        <span className="font-semibold text-tp-slate-700">{doctorName}</span>
+        {specialty ? <span className="font-normal"> ({specialty})</span> : null}
+      </p>
     </div>
   );
   return bare ? inner : <div className="px-[10px] pt-[10px] pb-[8px]">{inner}</div>;

@@ -244,17 +244,21 @@ export function bestMatchPercent(option, candidates) {
 /* ── LocalStorage persistence for custom module rows ── */
 
 export function loadCustomRows(patientId, moduleId) {
-  if (typeof window === "undefined") return [];
+  // Always seed at least one empty row so the table body is visible
+  // immediately when a custom module is first added.
+  const emptyRow = () => [{ id: getRowId(moduleId) }];
+  if (typeof window === "undefined") return emptyRow();
   try {
     const raw = window.localStorage.getItem(`tp.custom-module-rows:${patientId}:${moduleId}`);
-    if (!raw) return [];
+    if (!raw) return emptyRow();
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.
-    filter((r) => !!r && typeof r === "object" && typeof r.id === "string").
-    map((r) => ({ ...r }));
+    if (!Array.isArray(parsed)) return emptyRow();
+    const rows = parsed
+      .filter((r) => !!r && typeof r === "object" && typeof r.id === "string")
+      .map((r) => ({ ...r }));
+    return rows.length ? rows : emptyRow();
   } catch {
-    return [];
+    return emptyRow();
   }
 }
 

@@ -346,8 +346,8 @@ export function VoiceRxCanvas({
               <InfoCircle size={16} variant="Bulk" color="currentColor" />
             </span>
             <p className="min-w-0 flex-1 text-[12px] leading-[1.5] text-tp-slate-700">
-              <span className="font-semibold text-amber-700">Heads up. </span>
-              Notes aren&apos;t always perfect. Copy to your RxPad and fine-tune as needed.
+              <span className="font-semibold text-amber-700">Note: </span>
+              We aren&apos;t always perfect. Copy these notes to your RxPad and edit as needed.
             </p>
             <button
             type="button"

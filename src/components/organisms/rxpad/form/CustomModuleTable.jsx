@@ -2,66 +2,50 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-import { loadCustomRows, saveCustomRows, rowHasValues } from "./rxpad-table-utils";
+import {
+  loadCustomRows,
+  saveCustomRows,
+  rowHasValues,
+  filterByQuery,
+  withCustomOption,
+} from "./rxpad-table-utils";
 import { markModuleUsed } from "@/src/components/organisms/rxpad/customise-store";
 import { ModuleIcon } from "@/src/components/organisms/rxpad/custom-modules/ModuleIcon";
-
-/* Lazily imported — avoid circular dep by accepting EditableTableModule as a prop-render
-   pattern would be overkill for an internal file; we import from the parent barrel instead. */
 import { EditableTableModule } from "./EditableTableModule";
 
 /**
- * Custom module table — uses the same EditableTableModule shell as
- * the built-in Symptoms/Examinations sections so a doctor sees one
- * consistent table grammar across the Rx pad. Rows are persisted per
- * patient + module in localStorage.
+ * Custom module table — uses EditableTableModule with `hideSearch` mode.
  *
- * Extracted from RxPadFunctional.tsx during Phase 8 decomposition.
+ * UX contract:
+ *  • No search bar. Instead, an "+ Add new line" link appends empty rows.
+ *  • Clicking any cell opens a dropdown populated with every value
+ *    previously typed into *that column* (per-column history).
+ *  • History is persisted in localStorage (via loadCustomRows /
+ *    saveCustomRows) and surfaces automatically next session.
+ *  • Works for any number of columns the doctor defined.
  */
 export function CustomModuleTable({
   patientId,
   moduleDef,
-  // Voice plumbing — kept optional so existing call sites (e.g. tests)
-  // still work. When provided, the custom module shows the same mic
-  // affordance + active-recording overlay as the built-in modules,
-  // so a doctor sees one consistent voice grammar across the Rx pad.
   onVoiceClick,
   onVoiceClose,
   voiceActive,
   onVoiceSubmit,
   voiceProcessingTranscript,
 }) {
-  // Build columns from the module's fields. All custom fields are
-  // single-line text in v1.
-  const columns = useMemo(
-    () =>
-    moduleDef.fields.map((f) => ({
-      key: f.id,
-      label: f.label.toUpperCase(),
-      width: 240,
-      minWidth: 160,
-      maxWidth: 320,
-      placeholder: `Add ${f.label.toLowerCase()}`
-    })),
-    [moduleDef.fields]
-  );
-
-  const primaryKey = moduleDef.fields[0]?.id ?? "id";
-
   const [rows, setRows] = useState(() => loadCustomRows(patientId, moduleDef.id));
 
-  // Re-seed rows when the patient or the module schema changes.
+  // Re-seed rows when the patient or module schema changes.
   useEffect(() => {
     setRows(loadCustomRows(patientId, moduleDef.id));
   }, [patientId, moduleDef.id]);
 
-  // Persist on change.
+  // Persist every change.
   useEffect(() => {
     saveCustomRows(patientId, moduleDef.id, rows);
   }, [patientId, moduleDef.id, rows]);
 
-  // Flip hasBeenUsed once the doctor types anything into any cell. Same
-  // permission gate the customise sheet's Edit / Delete menu reads.
+  // Flip hasBeenUsed once any cell has content.
   const usedRef = useRef(moduleDef.hasBeenUsed);
   useEffect(() => {
     if (usedRef.current) return;
@@ -70,16 +54,53 @@ export function CustomModuleTable({
     markModuleUsed(moduleDef.id);
   }, [rows, moduleDef.id]);
 
-  // Suggestions list — pull every previously committed value of the
-  // primary column across all rows so search-add can complete.
-  const searchSuggestions = useMemo(() => {
-    const seen = new Set();
-    for (const row of rows) {
-      const v = row[primaryKey]?.trim();
-      if (v) seen.add(v);
+  // ── Per-column suggestion maps ─────────────────────────────────────────
+  // For each column key, collect every unique non-empty value across all
+  // rows. These become the dropdown suggestions when a cell is clicked.
+  const colSuggestions = useMemo(() => {
+    const map = {};
+    for (const field of moduleDef.fields) {
+      const seen = new Set();
+      for (const row of rows) {
+        const v = row[field.id]?.trim();
+        if (v) seen.add(v);
+      }
+      map[field.id] = Array.from(seen);
     }
-    return Array.from(seen);
-  }, [rows, primaryKey]);
+    return map;
+  }, [rows, moduleDef.fields]);
+
+  // ── Columns ────────────────────────────────────────────────────────────
+  // Each column gets a `getOptions` callback that returns history-based
+  // suggestions filtered by whatever the user has typed so far.
+  const columns = useMemo(
+    () =>
+      moduleDef.fields.map((f) => ({
+        key: f.id,
+        label: f.label.toUpperCase(),
+        width: 240,
+        minWidth: 160,
+        maxWidth: 320,
+        placeholder: `Add ${f.label.toLowerCase()}`,
+        // Return filtered history for this column, plus an "Add custom: X"
+        // entry when the user has typed something not in history yet.
+        // This means the dropdown always surfaces on first type even with
+        // zero history, and grows richer on every subsequent visit.
+        getOptions: (query) => {
+          const suggestions = colSuggestions[f.id] ?? [];
+          const filtered = filterByQuery(suggestions, query);
+          return withCustomOption(filtered, query);
+        },
+        // Don't restrict to suggestions — free text is always allowed.
+        restrictToOptions: false,
+        // Hide the chevron toggle — the dropdown opens automatically on
+        // cell focus / typing, no explicit toggle button needed.
+        showDropdownToggle: false,
+      })),
+    [moduleDef.fields, colSuggestions]
+  );
+
+  const primaryKey = moduleDef.fields[0]?.id ?? "id";
 
   return (
     <EditableTableModule
@@ -87,7 +108,7 @@ export function CustomModuleTable({
       moduleDataAttr={`custom:${moduleDef.id}`}
       title={moduleDef.name}
       icon={
-      <span className="inline-flex h-[24px] w-[24px] items-center justify-center text-tp-violet-500">
+        <span className="inline-flex h-[24px] w-[24px] items-center justify-center text-tp-violet-500">
           <ModuleIcon module={moduleDef} size={22} color="var(--tp-violet-500)" />
         </span>
       }
@@ -95,16 +116,14 @@ export function CustomModuleTable({
       primaryKey={primaryKey}
       rows={rows}
       onChangeRows={setRows}
-      searchPlaceholder={`Search & Add ${moduleDef.name}`}
-      cannedChips={searchSuggestions.slice(0, 12)}
-      searchSuggestions={searchSuggestions}
+      hideSearch
       templateModuleId={`custom:${moduleDef.id}`}
       templateModuleName={moduleDef.name}
       onVoiceClick={onVoiceClick}
       onVoiceClose={onVoiceClose}
       voiceActive={voiceActive}
       onVoiceSubmit={onVoiceSubmit}
-      voiceProcessingTranscript={voiceProcessingTranscript} />);
-
-
+      voiceProcessingTranscript={voiceProcessingTranscript}
+    />
+  );
 }

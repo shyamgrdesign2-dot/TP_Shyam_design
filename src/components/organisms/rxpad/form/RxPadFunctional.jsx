@@ -789,6 +789,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
     if (payload.advice) filledModules.push("advice");
     if (payload.labInvestigations?.length) filledModules.push("lab");
     if (payload.followUp || payload.followUpDate) filledModules.push("followUp");
+    if (payload.additionalNotes) filledModules.push("additionalNotes");
     if (typeof window !== "undefined" && filledModules.length) {
       // When a "Copy all to RxPad" is firing the edge aura is doing
       // the work — skip the per-module pulses so the doctor sees one
@@ -1494,6 +1495,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
           title="Additional Notes"
           icon={<Notepad2 size={24} variant="Bulk" color="var(--tp-violet-500)" />}
           showHeaderActions
+          moduleId="additionalNotes"
           onVoiceClick={() => handleVoiceToggle("additionalNotes")}
           voiceActive={voiceModuleId === "additionalNotes"}
           onTemplateClick={additionalNotesTemplateHandlers.onTemplateClick}

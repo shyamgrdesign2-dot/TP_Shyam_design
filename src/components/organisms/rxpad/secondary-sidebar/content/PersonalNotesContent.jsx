@@ -74,9 +74,16 @@ export function PersonalNotesContent() {
               <span className="tp-voice-wave-icon" aria-hidden />
             </button>
           </div>
-          <p className="text-[12px] leading-[16px] text-tp-slate-500">
-            Doctor-only note. This content is not included in print and is never shared with the patient.
-          </p>
+          <div className="flex items-start gap-[8px] rounded-[8px] bg-tp-slate-100 px-[10px] py-[8px]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-[1px]" aria-hidden>
+              <path opacity="0.4" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="var(--tp-slate-500)" />
+              <path d="M12 8V13" stroke="var(--tp-slate-500)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M11.9941 16H12.0031" stroke="var(--tp-slate-500)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <p className="text-[12px] leading-[16px] text-tp-slate-500">
+              This note will only be visible to you and will not be printed. You will be able to see it in Patient Details.
+            </p>
+          </div>
         </div>
       </div>
     </div>);

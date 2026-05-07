@@ -66,7 +66,7 @@ function EditableTableModule({
   rows,
   onChangeRows,
   searchPlaceholder,
-  cannedChips,
+  cannedChips = [],
   searchSuggestions = [],
   onRowAdded,
   onSaveClick,
@@ -87,7 +87,11 @@ function EditableTableModule({
   voiceProcessingTranscript,
   voiceAddedCount,
   templateModuleId,
-  templateModuleName
+  templateModuleName,
+  /** When true: hides the search bar + canned chips and shows an
+   *  "+ Add new line" link instead. Used by custom modules where every
+   *  column is free-text with history-based suggestions. */
+  hideSearch = false,
 }) {
   const isTablet = useTabletMode();
   const [searchText, setSearchText] = useState("");
@@ -527,25 +531,29 @@ function EditableTableModule({
     const colKey = activeMenu.colKey ?? "";
     const row = rows.find((item) => item.id === rowId);
     const column = columns.find((item) => item.key === colKey);
-    if (!row || !column?.getOptions) return [];
+    if (!row || !column) return [];
+    // If the column supplies its own getOptions (e.g. custom modules with
+    // per-column history), always use it — even for the primary key column.
+    if (column.getOptions) {
+      const filtered = filterByQuery(column.getOptions(activeMenu.query, row), activeMenu.query);
+      return moveSelectedOptionToTop(filtered, row[colKey] ?? "");
+    }
+    // Built-in modules: primary key falls back to the global search catalog.
     if (column.key === primaryKey && !column.restrictToOptions) {
       const filtered = getCatalogOptions(dynamicSearchCatalog, activeMenu.query, 10);
       return moveSelectedOptionToTop(filtered, row[colKey] ?? "");
     }
-    const filtered = filterByQuery(column.getOptions(activeMenu.query, row), activeMenu.query);
-    return moveSelectedOptionToTop(filtered, row[colKey] ?? "");
+    return [];
   }, [activeMenu, columns, rows, dynamicSearchCatalog, primaryKey]);
 
   const getMenuHighlightedIndex = useCallback(
     (row, column, query, selectedValue) => {
-      if (!column.getOptions) return 0;
-      const options =
-      column.key === primaryKey && !column.restrictToOptions ?
-      moveSelectedOptionToTop(getCatalogOptions(dynamicSearchCatalog, query, 10), selectedValue) :
-      moveSelectedOptionToTop(
-        filterByQuery(column.getOptions(query, row), query),
-        selectedValue
-      );
+      // column.getOptions takes priority (custom modules with per-column history).
+      const options = column.getOptions
+        ? moveSelectedOptionToTop(filterByQuery(column.getOptions(query, row), query), selectedValue)
+        : column.key === primaryKey && !column.restrictToOptions
+          ? moveSelectedOptionToTop(getCatalogOptions(dynamicSearchCatalog, query, 10), selectedValue)
+          : [];
       if (options.length === 0) return 0;
       const selected = normalizeText(selectedValue);
       const selectedIndex = options.findIndex(
@@ -1591,136 +1599,156 @@ function EditableTableModule({
         {voiceProcessingTranscript != null ?
           <VoiceRxSectionProcessing transcript={voiceProcessingTranscript} sectionLabel={title} /> :
           null}
-        <div className={`relative ${voiceActive || voiceProcessingTranscript != null ? "hidden" : ""}`}>
-          <TPRxPadSearchInput
-              ref={searchInputRef}
-              data-rx-module-search="true"
-              value={searchText}
-              className={afterSearch ? "pr-[220px]" : undefined}
-              onFocus={() => {
-                openSearchMenu(searchText);
-              }}
-              onClick={() => {
-                openSearchMenu(searchText);
-              }}
-              onChange={(event) => {
-                const next = event.currentTarget.value;
-                setSearchText(next);
-                openSearchMenu(next);
-              }}
-              onBlur={() => {
-                window.setTimeout(() => {
-                  setActiveMenu((current) => current?.mode === "search" ? null : current);
-                }, 90);
-              }}
-              onKeyDown={(event) => {
-                const searchMenuOpen = activeMenu?.mode === "search" && optionsForMenu.length > 0;
+        {hideSearch ?
+          /* ── Custom-module mode: "+ Add new line" link ── */
+          <button
+            type="button"
+            onClick={() => {
+              const nextRowIndex = rows.length;
+              addRow("");
+              window.requestAnimationFrame(() => {
+                focusCell(nextRowIndex, 0);
+              });
+            }}
+            className="inline-flex items-center gap-[6px] self-start text-[13px] font-semibold text-tp-blue-500 transition-colors hover:text-tp-blue-600 active:opacity-70">
+            <Plus size={14} strokeWidth={2.5} />
+            Add new line
+          </button> :
 
-                if (searchMenuOpen && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
-                  event.preventDefault();
-                  const delta = event.key === "ArrowDown" ? 1 : -1;
-                  setActiveMenu((current) => {
-                    if (!current || current.mode !== "search") return current;
-                    const next = (current.highlightedIndex + delta + optionsForMenu.length) % optionsForMenu.length;
-                    return { ...current, highlightedIndex: next };
-                  });
-                  return;
-                }
+          /* ── Standard module mode: search bar + canned chips ── */
+          <>
+            <div className={`relative ${voiceActive || voiceProcessingTranscript != null ? "hidden" : ""}`}>
+              <TPRxPadSearchInput
+                  ref={searchInputRef}
+                  data-rx-module-search="true"
+                  value={searchText}
+                  className={afterSearch ? "pr-[220px]" : undefined}
+                  onFocus={() => {
+                    openSearchMenu(searchText);
+                  }}
+                  onClick={() => {
+                    openSearchMenu(searchText);
+                  }}
+                  onChange={(event) => {
+                    const next = event.currentTarget.value;
+                    setSearchText(next);
+                    openSearchMenu(next);
+                  }}
+                  onBlur={() => {
+                    window.setTimeout(() => {
+                      setActiveMenu((current) => current?.mode === "search" ? null : current);
+                    }, 90);
+                  }}
+                  onKeyDown={(event) => {
+                    const searchMenuOpen = activeMenu?.mode === "search" && optionsForMenu.length > 0;
 
-                if (searchMenuOpen && event.key === "Enter") {
-                  event.preventDefault();
-                  const picked = optionsForMenu[activeMenu.highlightedIndex] ?? optionsForMenu[0];
-                  const value = picked ? getOptionValue(picked).trim() : searchText.trim();
-                  if (!value) {
-                    focusNextModuleFirstCell();
-                    return;
-                  }
-                  if (picked && isCustomOption(picked)) {
-                    registerCustomValue(value);
-                  }
-                  const nextRowIndex = rows.length;
-                  addRow(value);
-                  setSearchText("");
-                  closeMenu();
-                  window.requestAnimationFrame(() => {
-                    focusCell(nextRowIndex, 0);
-                  });
-                  return;
-                }
+                    if (searchMenuOpen && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+                      event.preventDefault();
+                      const delta = event.key === "ArrowDown" ? 1 : -1;
+                      setActiveMenu((current) => {
+                        if (!current || current.mode !== "search") return current;
+                        const next = (current.highlightedIndex + delta + optionsForMenu.length) % optionsForMenu.length;
+                        return { ...current, highlightedIndex: next };
+                      });
+                      return;
+                    }
 
-                if (searchMenuOpen && event.key === "Escape") {
-                  event.preventDefault();
-                  closeMenu();
-                  return;
-                }
+                    if (searchMenuOpen && event.key === "Enter") {
+                      event.preventDefault();
+                      const picked = optionsForMenu[activeMenu.highlightedIndex] ?? optionsForMenu[0];
+                      const value = picked ? getOptionValue(picked).trim() : searchText.trim();
+                      if (!value) {
+                        focusNextModuleFirstCell();
+                        return;
+                      }
+                      if (picked && isCustomOption(picked)) {
+                        registerCustomValue(value);
+                      }
+                      const nextRowIndex = rows.length;
+                      addRow(value);
+                      setSearchText("");
+                      closeMenu();
+                      window.requestAnimationFrame(() => {
+                        focusCell(nextRowIndex, 0);
+                      });
+                      return;
+                    }
 
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  const value = searchText.trim();
-                  if (!value) {
-                    focusNextModuleFirstCell();
-                    return;
-                  }
-                  openSearchMenu(value);
-                  return;
-                }
+                    if (searchMenuOpen && event.key === "Escape") {
+                      event.preventDefault();
+                      closeMenu();
+                      return;
+                    }
 
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  focusNextModuleFirstCell();
-                  return;
-                }
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      const value = searchText.trim();
+                      if (!value) {
+                        focusNextModuleFirstCell();
+                        return;
+                      }
+                      openSearchMenu(value);
+                      return;
+                    }
 
-                if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  if (rows.length > 0) {
-                    focusCell(rows.length - 1, Math.max(0, columns.length - 1));
-                  } else {
-                    focusPreviousModuleLastCell();
-                  }
-                  return;
-                }
+                    if (event.key === "ArrowDown") {
+                      event.preventDefault();
+                      focusNextModuleFirstCell();
+                      return;
+                    }
 
-                if (event.key === "ArrowRight") {
-                  event.preventDefault();
-                  focusNextModuleSearch();
-                  return;
-                }
+                    if (event.key === "ArrowUp") {
+                      event.preventDefault();
+                      if (rows.length > 0) {
+                        focusCell(rows.length - 1, Math.max(0, columns.length - 1));
+                      } else {
+                        focusPreviousModuleLastCell();
+                      }
+                      return;
+                    }
 
-                if (event.key === "ArrowLeft") {
-                  event.preventDefault();
-                  focusPreviousModuleSearch();
-                }
-              }}
-              placeholder={searchPlaceholder} />
-            
-          {afterSearch ?
-            <div className="pointer-events-none absolute inset-y-0 right-2 z-20 flex items-center">
-              <div className="pointer-events-auto flex max-w-[200px] items-center justify-end gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {afterSearch}
-              </div>
-            </div> :
-            null}
-        </div>
+                    if (event.key === "ArrowRight") {
+                      event.preventDefault();
+                      focusNextModuleSearch();
+                      return;
+                    }
 
-        {isTablet ?
-          <div className="flex flex-wrap gap-3">
-            {cannedChips.map((chip) =>
-            <button
-              key={`${id}-${chip}`}
-              type="button"
-              className="inline-flex h-[36px] items-center rounded-[10px] bg-tp-slate-100 px-3 text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
-              onClick={() => addRow(chip)}>
-              
-                {chip}
-              </button>
-            )}
-          </div> :
-          null}
+                    if (event.key === "ArrowLeft") {
+                      event.preventDefault();
+                      focusPreviousModuleSearch();
+                    }
+                  }}
+                  placeholder={searchPlaceholder} />
+
+              {afterSearch ?
+                <div className="pointer-events-none absolute inset-y-0 right-2 z-20 flex items-center">
+                  <div className="pointer-events-auto flex max-w-[200px] items-center justify-end gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {afterSearch}
+                  </div>
+                </div> :
+                null}
+            </div>
+
+            {isTablet ?
+              <div className="flex flex-wrap gap-3">
+                {cannedChips.map((chip) =>
+                <button
+                  key={`${id}-${chip}`}
+                  type="button"
+                  className="inline-flex h-[36px] items-center rounded-[10px] bg-tp-slate-100 px-3 text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+                  onClick={() => addRow(chip)}>
+
+                    {chip}
+                  </button>
+                )}
+              </div> :
+              null}
+          </>
+        }
 
       </div>
 
-      {activeMenu && menuPosition && optionsForMenu.length > 0 && typeof document !== "undefined" ?
+      {activeMenu && menuPosition && (optionsForMenu.length > 0 || activeMenu.mode === "search") && typeof document !== "undefined" ?
         createPortal(
           <div
             className="fixed z-[130] flex flex-col overflow-hidden rounded-[10px] border border-tp-slate-100 bg-white shadow-lg"
@@ -1855,7 +1883,25 @@ function EditableTableModule({
                     </button> :
               <span />}
                   {activeMenu.mode === "search" ?
-              <div className="flex items-center gap-3 max-lg:order-2 max-lg:flex-wrap">
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  const nextRowIndex = rows.length;
+                  addRow("");
+                  setSearchText("");
+                  closeMenu();
+                  window.requestAnimationFrame(() => {
+                    focusCell(nextRowIndex, 0);
+                  });
+                }}
+                className="inline-flex items-center gap-[6px] rounded-[8px] border border-dashed border-tp-slate-200 px-[10px] py-[6px] text-[12px] font-semibold text-tp-slate-500 transition-colors hover:border-tp-slate-300 hover:bg-tp-slate-50 hover:text-tp-slate-600 max-lg:order-2 max-lg:w-full max-lg:justify-center">
+                <Plus size={13} strokeWidth={2} />
+                Add new line item
+              </button> :
+              null}
+                  {activeMenu.mode === "search" ?
+              <div className="flex items-center gap-3 max-lg:order-3 max-lg:flex-wrap">
                       <span className="inline-flex items-center gap-1">
                         <kbd className="rounded border border-tp-slate-200 bg-tp-slate-50 px-1 py-0.5 text-[10px] font-semibold text-tp-slate-600">↑</kbd>
                         Up

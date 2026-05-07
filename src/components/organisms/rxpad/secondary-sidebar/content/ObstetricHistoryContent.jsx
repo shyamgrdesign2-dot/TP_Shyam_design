@@ -226,7 +226,7 @@ function HeadingBracketRow({ line, showTooltip }) {
 /** Violet pill — used for the GPLAE qualifier ("Primigravida"). */
 function GravidaTag({ children }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-tp-violet-300 bg-tp-violet-50 px-[8px] py-[1px] text-[11px] font-semibold leading-[16px] text-tp-violet-700">
+    <span className="inline-flex items-center rounded-full bg-tp-violet-50 px-[8px] py-[1px] text-[11px] font-semibold leading-[16px] text-tp-violet-700">
       {children}
     </span>
   );

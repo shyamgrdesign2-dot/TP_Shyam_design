@@ -68,7 +68,8 @@ export function RxPadSection({
   autofillLabel,
   onVoiceClick,
   voiceActive = false,
-  headerBadge
+  headerBadge,
+  moduleId,
 }) {
   const { micUnavailable, micUnavailableReason, voiceActive: globalVoiceActive } = useRxPadSync();
   const micDisabled = micUnavailable && !voiceActive;
@@ -107,7 +108,9 @@ export function RxPadSection({
   null;
 
   return (
-    <div className={`rounded-[16px] border border-tp-slate-100 bg-white ${voiceActive ? "tp-module-voice-active" : ""}`}>
+    <div
+      className={`rounded-[16px] border border-tp-slate-100 bg-white ${voiceActive ? "tp-module-voice-active" : ""}`}
+      {...(moduleId ? { "data-rxpad-module": moduleId } : {})}>
       {/* Header */}
       <div className="flex items-center justify-between gap-8 px-[18px] pt-[18px]">
         <div className="inline-flex items-center gap-[4px]">

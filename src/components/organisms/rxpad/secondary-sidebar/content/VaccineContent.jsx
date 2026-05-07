@@ -42,7 +42,7 @@ const PENDING_VACCINES = [
   { week: "12-18 Weeks", name: "HPV 1", dueDate: "2025-12-30", notes: "" },
   { week: "13 Weeks", name: "PPSV23", dueDate: "2025-09-12", notes: "Discuss with parents first" },
   { week: "18 Weeks", name: "Tdap Booster", dueDate: "2026-02-12", notes: "" },
-  { week: "20 Weeks", name: "Influenza", dueDate: "2026-04-10", notes: "Seasonal — confirm stock" },
+  { week: "20 Weeks", name: "Influenza", dueDate: "2026-04-10", notes: "Seasonal - confirm stock" },
   // Upcoming (future due dates) — same bucket logic, render in
   // amber "Due" status. Several share a week so the grouped UI shows
   // multiple bullets under one week heading.
@@ -229,6 +229,7 @@ export function VaccineContent() {
       <HistoricalNewDataBanner activeId="vaccine" />
       <SectionScrollArea>
         <SectionCard
+          padded
           title={`Overdue Vaccines (${overdueCount})`}
           expanded={expandedState.overdue}
           onToggle={() => setExpandedState((prev) => ({ ...prev, overdue: !prev.overdue }))}
@@ -256,6 +257,7 @@ export function VaccineContent() {
         </SectionCard>
 
         <SectionCard
+          padded
           title={`Upcoming Vaccines (${upcomingCount})`}
           expanded={expandedState.upcoming}
           onToggle={() => setExpandedState((prev) => ({ ...prev, upcoming: !prev.upcoming }))}
@@ -283,6 +285,7 @@ export function VaccineContent() {
         </SectionCard>
 
         <SectionCard
+          padded
           title={`Given Vaccines (${GIVEN_VACCINES.length})`}
           expanded={expandedState.given}
           onToggle={() => setExpandedState((prev) => ({ ...prev, given: !prev.given }))}
