@@ -1427,70 +1427,10 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
            the doctor would have entered there now lives in the Follow-up
            textarea below. AI-extracted `additionalNotes` payload still
            flows in but is routed straight into `followUpNotes`. */}
+      {/* Default order: Additional Notes first, Follow-up second.
+           The doctor can reorder these in Customise settings. */}
       <div className="grid grid-cols-1 gap-4">
-        <TPRxPadSection
-          title="Follow-up"
-          icon={<Calendar2 size={24} variant="Bulk" color="var(--tp-violet-500)" />}
-          showHeaderActions
-          onVoiceClick={() => handleVoiceToggle("followUp")}
-          voiceActive={voiceModuleId === "followUp"}
-          onTemplateClick={followUpTemplateHandlers.onTemplateClick}
-          onSaveClick={followUpTemplateHandlers.onSaveClick}
-          saveDisabled={!followUpHasContent}
-          onClearClick={() => {
-            setFollowUpDate("");
-          }}
-          clearDisabled={!followUpHasContent}>
-
-          
-          {voiceModuleId === "followUp" ?
-          <VoiceRxModuleRecorder
-            sectionLabel="Follow-up"
-            onCancel={() => setVoiceModuleId(null)}
-            onSubmit={(transcript) => {
-              setVoiceModuleId(null);
-              handleVoiceSubmit("followUp", transcript);
-            }}
-            radiusClassName="rounded-[14px]" /> :
-
-          null}
-          {voiceModuleProcessing?.moduleId === "followUp" ?
-          <VoiceRxSectionProcessing transcript={voiceModuleProcessing.transcript} sectionLabel="Follow-up" /> :
-          null}
-          <div className={voiceModuleId === "followUp" || voiceModuleProcessing?.moduleId === "followUp" ? "hidden" : ""}>
-          <div className="space-y-2">
-            <input
-                type="date"
-                value={followUpDate}
-                onChange={(event) => setFollowUpDate(event.currentTarget.value)}
-                className="h-[42px] w-full rounded-[10px] border border-tp-slate-300 bg-white px-3 py-2 text-[14px] font-['Inter',sans-serif] text-tp-slate-700 placeholder:text-tp-slate-400 transition-colors hover:border-tp-slate-400 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20"
-                placeholder="Select follow-up date" />
-
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "2 days", days: 2 },
-                { label: "1 week", days: 7 },
-                { label: "1 month", days: 30 },
-                { label: "3 months", days: 90 }].
-                map((quick) =>
-                <button
-                  key={quick.label}
-                  type="button"
-                  className="rounded-lg border border-tp-blue-200 bg-tp-blue-50 px-3 py-1.5 text-[14px] font-medium font-['Inter',sans-serif] text-tp-blue-600 hover:bg-tp-blue-100"
-                  onClick={() => setFollowUpByOffset(quick.days)}>
-                  
-                  {quick.label}
-                </button>
-                )}
-            </div>
-          </div>
-          </div>
-        </TPRxPadSection>
-
-        {/* Additional Notes — free-text companion module to Follow-up.
-            Same Template / Save / Erase / Voice header chrome as the
-            structured modules; the body is just a textarea (no search,
-            no rows). */}
+        {/* Additional Notes — always above Follow-up by default */}
         <TPRxPadSection
           title="Additional Notes"
           icon={<Notepad2 size={24} variant="Bulk" color="var(--tp-violet-500)" />}
@@ -1524,6 +1464,63 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
               rows={4}
               className="w-full rounded-[10px] border border-tp-slate-300 bg-white px-3 py-2 text-[14px] font-['Inter',sans-serif] text-tp-slate-700 placeholder:text-tp-slate-400 transition-colors hover:border-tp-slate-400 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20"
               placeholder="Add patient-specific notes, observations, or counselling points" />
+          </div>
+        </TPRxPadSection>
+
+        <TPRxPadSection
+          title="Follow-up"
+          icon={<Calendar2 size={24} variant="Bulk" color="var(--tp-violet-500)" />}
+          showHeaderActions
+          onVoiceClick={() => handleVoiceToggle("followUp")}
+          voiceActive={voiceModuleId === "followUp"}
+          onTemplateClick={followUpTemplateHandlers.onTemplateClick}
+          onSaveClick={followUpTemplateHandlers.onSaveClick}
+          saveDisabled={!followUpHasContent}
+          onClearClick={() => {
+            setFollowUpDate("");
+          }}
+          clearDisabled={!followUpHasContent}>
+
+          {voiceModuleId === "followUp" ?
+          <VoiceRxModuleRecorder
+            sectionLabel="Follow-up"
+            onCancel={() => setVoiceModuleId(null)}
+            onSubmit={(transcript) => {
+              setVoiceModuleId(null);
+              handleVoiceSubmit("followUp", transcript);
+            }}
+            radiusClassName="rounded-[14px]" /> :
+          null}
+          {voiceModuleProcessing?.moduleId === "followUp" ?
+          <VoiceRxSectionProcessing transcript={voiceModuleProcessing.transcript} sectionLabel="Follow-up" /> :
+          null}
+          <div className={voiceModuleId === "followUp" || voiceModuleProcessing?.moduleId === "followUp" ? "hidden" : ""}>
+          <div className="space-y-2">
+            <input
+                type="date"
+                value={followUpDate}
+                onChange={(event) => setFollowUpDate(event.currentTarget.value)}
+                className="h-[42px] w-full rounded-[10px] border border-tp-slate-300 bg-white px-3 py-2 text-[14px] font-['Inter',sans-serif] text-tp-slate-700 placeholder:text-tp-slate-400 transition-colors hover:border-tp-slate-400 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20"
+                placeholder="Select follow-up date" />
+
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "2 days", days: 2 },
+                { label: "1 week", days: 7 },
+                { label: "1 month", days: 30 },
+                { label: "3 months", days: 90 }].
+                map((quick) =>
+                <button
+                  key={quick.label}
+                  type="button"
+                  className="rounded-lg border border-tp-blue-200 bg-tp-blue-50 px-3 py-1.5 text-[14px] font-medium font-['Inter',sans-serif] text-tp-blue-600 hover:bg-tp-blue-100"
+                  onClick={() => setFollowUpByOffset(quick.days)}>
+
+                  {quick.label}
+                </button>
+                )}
+            </div>
+          </div>
           </div>
         </TPRxPadSection>
       </div>

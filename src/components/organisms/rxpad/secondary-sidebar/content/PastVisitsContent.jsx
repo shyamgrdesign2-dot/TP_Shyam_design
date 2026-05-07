@@ -1041,8 +1041,7 @@ export function PastVisitsContent() {
                         }} />
                       
 
-                        <FollowUpSection followUp={entry.digitalRx.followUp} />
-
+                        {/* Additional Notes always renders before Follow Up — matches RxPad form order */}
                         {entry.digitalRx.additionalNotes ? (
                           <AdditionalNotesSection
                             notes={entry.digitalRx.additionalNotes}
@@ -1051,6 +1050,8 @@ export function PastVisitsContent() {
                               showCopySnackbar("Additional notes added successfully to RxPad");
                             }} />
                         ) : null}
+
+                        <FollowUpSection followUp={entry.digitalRx.followUp} />
                         {/* Doctor signature — bottom-of-card fade
                             (violet darkening downward). Reads like a
                             letterhead signature stamp at the foot of
