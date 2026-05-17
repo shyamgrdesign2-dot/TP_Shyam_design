@@ -58,6 +58,8 @@ import { MiniToothCanvas } from "./MiniToothCanvas";
 import { MiniScopeCanvas } from "./MiniScopeCanvas";
 import { TPMedicalIcon } from "../tp-ui/medical-icons";
 import { saveDentalPreviewSnapshot } from "../tp-rxpad/rx-preview-store";
+import { useDentalMasters } from "../../../hooks/useDentalMasters";
+import { useDentalExamination } from "../lib/useDentalExamination";
 import ex from "./ExaminationTab.module.scss";
 import ui from "./ExaminationTab.ui.module.scss";
 import { useBillingCatalog } from "../lib/billing-catalog-context";
@@ -267,7 +269,79 @@ function toDentalPreviewSections(state) {
 }
 export function ExaminationTab({ patientId, patientAge = 30 }) {
   const { drAgentOpen } = useRxPadChrome();
+  const { syncState, toothState, loading } = useDentalExamination(patientId);
   const [canvasState, setCanvasState] = useState(null);
+
+  // Transform Redux state back to the structure DentalCanvas expects for initialization
+  const initialCanvasData = useMemo(() => {
+    if (!toothState || Object.keys(toothState).length === 0) return null;
+    const out = {
+      toothDiagnoses: {},
+      implantTeeth: [],
+      findingsByTooth: {},
+      toothNotes: {},
+      treatmentHistoryDetailsByTooth: {}
+    };
+
+    Object.entries(toothState).forEach(([fdi, data]) => {
+      if (data.diagnoses) out.toothDiagnoses[fdi] = data.diagnoses;
+      if (data.isImplant) out.implantTeeth.push(fdi);
+      if (data.findings) out.findingsByTooth[fdi] = data.findings;
+      if (data.notes) out.toothNotes[fdi] = data.notes;
+      if (data.treatmentHistory) out.treatmentHistoryDetailsByTooth[fdi] = data.treatmentHistory;
+    });
+    return out;
+  }, [toothState]);
+
+  // Sync canvas state to Redux for global "End Visit" access
+  useEffect(() => {
+    if (!canvasState) return;
+
+    const newToothState = {};
+
+    // 1. Findings
+    if (canvasState.findingsByTooth) {
+      Object.entries(canvasState.findingsByTooth).forEach(([fdi, findings]) => {
+        if (!newToothState[fdi]) newToothState[fdi] = {};
+        newToothState[fdi].findings = findings;
+      });
+    }
+
+    // 2. Diagnoses (Set -> Array for Redux)
+    if (canvasState.toothDiagnoses) {
+      Object.entries(canvasState.toothDiagnoses).forEach(([fdi, diags]) => {
+        if (!newToothState[fdi]) newToothState[fdi] = {};
+        newToothState[fdi].diagnoses = Array.from(diags);
+      });
+    }
+
+    // 3. Implants
+    if (canvasState.implantTeeth) {
+      canvasState.implantTeeth.forEach((fdi) => {
+        if (!newToothState[fdi]) newToothState[fdi] = {};
+        newToothState[fdi].isImplant = true;
+      });
+    }
+
+    // 4. Notes
+    if (canvasState.toothNotes) {
+      Object.entries(canvasState.toothNotes).forEach(([fdi, note]) => {
+        if (!newToothState[fdi]) newToothState[fdi] = {};
+        newToothState[fdi].notes = note;
+      });
+    }
+
+    // 5. Treatment History
+    if (canvasState.treatmentHistoryDetailsByTooth) {
+      Object.entries(canvasState.treatmentHistoryDetailsByTooth).forEach(([fdi, history]) => {
+        if (!newToothState[fdi]) newToothState[fdi] = {};
+        newToothState[fdi].treatmentHistory = history;
+      });
+    }
+
+    syncState({ toothState: newToothState, dentitionType: canvasState.patientType });
+  }, [canvasState, syncState]);
+
   const isSingle = canvasState?.viewMode === "single-tooth";
   const containerRef = useRef(null);
   // Separate persisted widths for dentition vs single-tooth. Both draggable 40-60.
@@ -359,6 +433,15 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
     });
   }, [canvasState, patientId]);
   const hideGetStarted = isGetStarted && drAgentOpen;
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff' }}>
+        Loading Dental Examination...
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -412,6 +495,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
           <DentalCanvas
             patientId={patientId}
             patientAge={patientAge}
+            initialData={initialCanvasData}
             onStateChange={setCanvasState} />
 
         </div>
@@ -1834,6 +1918,7 @@ function SectionHeader({
 // EntryTab — shared builder + table for Findings and Procedures
 // ──────────────────────────────────────────────────────────────
 function EntryTab({ state, kind }) {
+  const { activeDiagnoses, activeProcedures, activeSurfaces } = useDentalMasters();
   const [activeCell, setActiveCell] = useState(null);
   const [query, setQuery] = useState("");
   const { items: billingItems } = useBillingCatalog();
@@ -1917,7 +2002,7 @@ function EntryTab({ state, kind }) {
     kind === "finding" ?
       isGroupedScope ?
         groupedFindingCatalog :
-        DIAGNOSES :
+        activeDiagnoses :
       kind === "symptom" ?
         DENTAL_SYMPTOM_CATALOG :
         kind === "planned" ?
@@ -1925,8 +2010,8 @@ function EntryTab({ state, kind }) {
           kind === "procedure" ?
             isGroupedScope ?
               groupedProcedureCatalog :
-              PROCEDURE_CATALOG :
-            PROCEDURE_CATALOG;
+              activeProcedures :
+            activeProcedures;
   const entries = state.currentToothEntries.filter((e) => e.kind === kind);
   const activeSurfaceRowId =
     activeCell?.colKey === "surfaces" ? activeCell.rowId : null;
@@ -2917,6 +3002,7 @@ function SurfaceCellDropdown({
   onHover,
   multiSelectZones
 }) {
+  const { activeSurfaces } = useDentalMasters();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(null);
   const anchorRef = useRef(null);
@@ -3109,7 +3195,7 @@ function SurfaceCellDropdown({
                 </button>
               </li>
               <li className={ui.surfaceListRule} />
-              {ALL_ZONES.map((z) => {
+              {activeSurfaces.map((z) => {
                 const checked = shown.includes(z);
                 const label = getZoneLabel(z, arch, toothPosition);
                 return (
@@ -3314,9 +3400,10 @@ function SurfaceMultiSelect({
   onToggle,
   onHover
 }) {
+  const { activeSurfaces } = useDentalMasters();
   return (
     <div className={ui.zoneChipsRow}>
-      {ALL_ZONES.map((z) => {
+      {activeSurfaces.map((z) => {
         const isActive = selected.includes(z);
         const label = getZoneLabel(z, arch, toothPosition);
         const color = ZONE_INFO[z].color;
@@ -3409,6 +3496,7 @@ function SymptomSurfacePicker({
   mode = "symptom",
   onChange
 }) {
+  const { activeSurfaces } = useDentalMasters();
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
   const popoverRef = useRef(null);
@@ -3452,7 +3540,7 @@ function SymptomSurfacePicker({
       selected.has(z) ? surfaces.filter((s) => s !== z) : [...surfaces, z]
     );
   };
-  const optionsList = mode === "symptom" ? ALL_ZONES : ["whole", ...ALL_ZONES];
+  const optionsList = mode === "symptom" ? activeSurfaces : ["whole", ...activeSurfaces];
   return (
     <>
       <button
@@ -3523,7 +3611,7 @@ function SymptomSurfacePicker({
                   label = "Whole Tooth";
                   color = "#64748b";
                   if (mode !== "treatment") {
-                    checked = ALL_ZONES.every((az) => selected.has(az));
+                    checked = activeSurfaces.every((az) => selected.has(az));
                   }
                 }
                 return (
@@ -3853,6 +3941,7 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }) {
 
 }
 function PrimaryDiagnosisBody({ state }) {
+  const { activeToothDiagnoses } = useDentalMasters();
   const [activeCell, setActiveCell] = useState(null);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3897,14 +3986,14 @@ function PrimaryDiagnosisBody({ state }) {
     const q = query.toLowerCase().trim();
     const activeSet = new Set(activeRows.map((r) => r.toLowerCase()));
     const pool = q ?
-      TOOTH_DIAGNOSES.filter((c) => c.toLowerCase().includes(q)) :
-      TOOTH_DIAGNOSES;
+      activeToothDiagnoses.filter((c) => c.toLowerCase().includes(q)) :
+      activeToothDiagnoses;
     return pool.filter((c) => !activeSet.has(c.toLowerCase())).slice(0, 12);
   }, [query, activeRows]);
   const queryTrim = query.trim();
   const catalogHasExactName =
     queryTrim.length > 0 &&
-    TOOTH_DIAGNOSES.some((d) => d.toLowerCase() === queryTrim.toLowerCase());
+    activeToothDiagnoses.some((d) => d.toLowerCase() === queryTrim.toLowerCase());
   const alreadyHasTypedTreatmentLabel =
     queryTrim.length > 0 &&
     displayRows.some((r) => r.toLowerCase() === queryTrim.toLowerCase());
@@ -4275,7 +4364,7 @@ function PrimaryDiagnosisBody({ state }) {
             onFocus={() => setSearchOpen(true)}
             onKeyDown={(e) => {
               if (e.key !== "Enter" || !queryTrim) return;
-              const match = TOOTH_DIAGNOSES.find(
+              const match = activeToothDiagnoses.find(
                 (d) => d.toLowerCase() === queryTrim.toLowerCase()
               );
               if (match) {

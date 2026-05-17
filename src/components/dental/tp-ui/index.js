@@ -11,6 +11,3 @@ export {
   TPMedicalIcon,
 } from "./medical-icons";
 
-export { TPRxPadTopNav } from "./tp-rxpad-top-nav";
-export { TPRxPadSecondarySidebar } from "./tp-rxpad-secondary-sidebar";
-export { TPRxPadShell } from "./tp-rxpad-shell";

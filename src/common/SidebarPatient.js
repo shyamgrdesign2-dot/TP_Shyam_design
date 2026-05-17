@@ -16,6 +16,7 @@ import { useDispatch } from 'react-redux';
 import moment from 'moment';
 import {
     GB_HEALTH_CHECKUP_REPORT,
+    GB_MANYA_DENTAL,
     NEO_NATOLOGISTS_DP_ID,
     PAEDIATRIC_DP_ID,
     PATIENT_DETAILS_SIDEBAR_KEYS,
@@ -63,6 +64,7 @@ function SidebarPatient({
     const isIPDAccessible = isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB;
     const isAdmitted = patientAdmissionStatus?.alreadyAdmitted === true;
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
+    const isDentalDoctor = useFeatureIsOn(GB_MANYA_DENTAL) || true;
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
     const menu = [
         {
@@ -103,6 +105,12 @@ function SidebarPatient({
             icon_image: sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? HealthCheckupReportIcon : HealthCheckupReportIconSecondary,
             short_title: "Health Checkup",
             long_title: "Health Checkup Report",
+        },
+        isDentalDoctor && {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN,
+            icon_name: "icon-Medical-Certificate",
+            short_title: "Dental",
+            long_title: "Dental Plan",
         },
         // { icon_name: 'icon-Discharge-Summary', short_title: 'Discharge', long_title: 'Discharge Summary' },
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },

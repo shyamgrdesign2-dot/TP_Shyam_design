@@ -4,7 +4,7 @@
  *   1. Examination / Findings → 3D dental canvas (ported from 3D_Dental_R3F)
  *   2. Treatment Plan → PRD-spec table with auto-calculation
  */
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Health, ClipboardText } from "iconsax-reactjs";
 import { ExaminationTab } from "./examination/ExaminationTab";
@@ -14,6 +14,7 @@ import { APPOINTMENT_PATIENTS } from "./lib/appointment-patients";
 import { RxPadChromeProvider } from "./tp-rxpad/rxpad-chrome-context";
 import { RxPadSyncProvider } from "./tp-rxpad/rxpad-sync-context";
 import { BillingCatalogProvider } from "./lib/billing-catalog-context";
+import { useDentalTabState } from "./lib/useDentalTabState";
 const PATIENT_NAMES = {
   ...Object.fromEntries(
     Object.entries(APPOINTMENT_PATIENTS).map(([id, p]) => [
@@ -34,23 +35,7 @@ export function DentalModuleShell() {
   const rawName = PATIENT_NAMES[patientId] || "Unknown, 30M";
   const ageMatch = rawName.match(/(\d+)[MF]/);
   const patientAge = ageMatch ? parseInt(ageMatch[1], 10) : 30;
-  const [activeTab, setActiveTab] = useState("examination");
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem(
-      `dental.module.active-tab.${patientId}`
-    );
-    if (saved === "examination" || saved === "plan") {
-      setActiveTab(saved);
-    }
-  }, [patientId]);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      `dental.module.active-tab.${patientId}`,
-      activeTab
-    );
-  }, [activeTab, patientId]);
+  const [activeTab, setActiveTab] = useDentalTabState(patientId);
   const handleBack = () => {
     navigate(`/rxpad?patientId=${patientId}`);
   };
@@ -97,34 +82,34 @@ export function DentalModuleShell() {
                 className={dui.shellNav}
                 style={{
                   backgroundImage:
-                  "radial-gradient(120% 120% at 20% 0%, rgb(75,74,213) 0%, rgb(49,48,151) 50%, rgb(22,21,88) 100%)"
+                    "radial-gradient(120% 120% at 20% 0%, rgb(75,74,213) 0%, rgb(49,48,151) 50%, rgb(22,21,88) 100%)"
                 }}>
                 <TabButton
                   icon={
-                  <Health
-                    size={20}
-                    variant={activeTab === "examination" ? "Bulk" : "Linear"}
-                    color={
-                    activeTab === "examination" ? "var(--tp-blue-500)" : "#FFFFFF"}
-                    strokeWidth={1.5} />}
+                    <Health
+                      size={20}
+                      variant={activeTab === "examination" ? "Bulk" : "Linear"}
+                      color={
+                        activeTab === "examination" ? "var(--tp-blue-500)" : "#FFFFFF"}
+                      strokeWidth={1.5} />}
                   label="Exam"
                   active={activeTab === "examination"}
                   onClick={() => setActiveTab("examination")} />
                 <TabButton
                   icon={
-                  <ClipboardText
-                    size={20}
-                    variant={activeTab === "plan" ? "Bulk" : "Linear"}
-                    color={activeTab === "plan" ? "var(--tp-blue-500)" : "#FFFFFF"}
-                    strokeWidth={1.5} />}
+                    <ClipboardText
+                      size={20}
+                      variant={activeTab === "plan" ? "Bulk" : "Linear"}
+                      color={activeTab === "plan" ? "var(--tp-blue-500)" : "#FFFFFF"}
+                      strokeWidth={1.5} />}
                   label="Plan"
                   active={activeTab === "plan"}
                   onClick={() => setActiveTab("plan")} />
               </nav>
               <main className={dui.shellMain}>
                 {activeTab === "examination" ?
-                <ExaminationTab patientId={patientId} patientAge={patientAge} /> :
-                <TreatmentPlanTab patientId={patientId} patientAge={patientAge} />}
+                  <ExaminationTab patientId={patientId} patientAge={patientAge} /> :
+                  <TreatmentPlanTab patientId={patientId} patientAge={patientAge} />}
               </main>
             </div>
           </div>

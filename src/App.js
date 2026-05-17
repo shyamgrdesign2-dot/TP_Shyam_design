@@ -193,6 +193,9 @@ const TabRxPrescriptionPrintView = React.lazy(() =>
 const TabRxDigitization = React.lazy(() =>
   lazyRetry(() => import("./pages/tabRx/components/Digitization"))
 );
+const PrescriptionRouter = React.lazy(() =>
+  lazyRetry(() => import("./pages/PrescriptionRouter"))
+);
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -654,7 +657,7 @@ function App() {
           />
           <Route
             path="prescription"
-            element={isMobile ? <TabPrescription /> : <Prescription />}
+            element={<PrescriptionRouter isMobile={isMobile} />}
           />
           <Route
             path="prescription_print_view"

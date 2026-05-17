@@ -40,6 +40,9 @@ import fundusTemplateSlice from "./fundusTemplateSlice";
 import teleconsultNotificationReducer from "./teleconsultNotificationSlice";
 import healthCheckupReportSlice from "./healthCheckupReportSlice";
 import dentalRxSlice from "./dentalRxSlice";
+import dentalExaminationSlice from "./dentalExaminationSlice";
+import dentalMastersSlice from "./dentalMastersSlice";
+import dentalPlanSlice from "./dentalPlanSlice";
 
 const persistConfig = {
   key: "root",
@@ -85,6 +88,9 @@ const rootReducer = combineReducers({
   teleconsultNotification: teleconsultNotificationReducer,
   healthCheckupReport: healthCheckupReportSlice,
   dentalRx: dentalRxSlice,
+  dentalExamination: dentalExaminationSlice,
+  dentalMasters: dentalMastersSlice,
+  dentalPlan: dentalPlanSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

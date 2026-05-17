@@ -52,6 +52,8 @@ import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
 import { lazyRetry } from "../utils/lazyRetry";
 import { searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
+import { TreatmentPlanEmbed } from "../components/dental/plan/TreatmentPlanPage";
+import { BillingCatalogProvider } from "../components/dental/lib/billing-catalog-context";
 import { errorMessage } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
@@ -560,6 +562,12 @@ function PatientDetails() {
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? (
                             <div className="appointment-wrap PatientDetailswrap">
                                 <HealthCheckupReport patient_data={patient_data} showHealthCheckupReportDrawer={showHealthCheckupReportDrawer} setShowHealthCheckupReportDrawer={setShowHealthCheckupReportDrawer} />
+                            </div>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? (
+                            <div className="appointment-wrap PatientDetailswrap">
+                                <BillingCatalogProvider>
+                                    <TreatmentPlanEmbed patientId={patient_data?.patient_unique_id} />
+                                </BillingCatalogProvider>
                             </div>
                         ) : null}
                     </div>

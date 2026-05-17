@@ -1,0 +1,213 @@
+import api from "./axiosService";
+import config from "../../config";
+
+const dentalBaseUrl = { customBaseUrl: config.snap_rx_api_url };
+
+// 1. Masters
+export const getSurfaces = () => api.get(`/api/v1/dental/masters/surfaces`, dentalBaseUrl);
+export const getDiagnoses = () => api.get(`/api/v1/dental/masters/diagnoses`, dentalBaseUrl);
+export const getProcedures = () => api.get(`/api/v1/dental/masters/procedures`, dentalBaseUrl);
+export const getToothMap = (dentition = "adult") =>
+  api.get(`/api/v1/dental/masters/tooth-map?dentition=${dentition}`, dentalBaseUrl);
+export const getBillingItems = () =>
+  api.get(`/api/v1/dental/masters/billing/dental-items`, dentalBaseUrl);
+export const createBillingItem = (data) =>
+  api.post(`/api/v1/dental/masters/billing/dental-items`, data, dentalBaseUrl);
+
+// 2. Examinations
+export const getExamination = (patientId) =>
+  api.get(`/api/v1/dental/patients/${patientId}/examination`, dentalBaseUrl);
+export const updateExaminationFull = (patientId, data) =>
+  api.put(`/api/v1/dental/patients/${patientId}/examination`, data, dentalBaseUrl);
+export const updateExaminationPartial = (patientId, data) =>
+  api.patch(`/api/v1/dental/patients/${patientId}/examination`, data, dentalBaseUrl);
+export const getExaminationHistory = (patientId) =>
+  api.get(`/api/v1/dental/patients/${patientId}/examination/history`, dentalBaseUrl);
+export const getRxExamination = (patientId, rxId) =>
+  api.get(
+    `/api/v1/dental/patients/${patientId}/prescriptions/${rxId}/examination`,
+    dentalBaseUrl
+  );
+export const updateRxExaminationFull = (patientId, rxId, data) =>
+  api.put(
+    `/api/v1/dental/patients/${patientId}/prescriptions/${rxId}/examination`,
+    data,
+    dentalBaseUrl
+  );
+export const updateRxExaminationPartial = (patientId, rxId, data) =>
+  api.patch(
+    `/api/v1/dental/patients/${patientId}/prescriptions/${rxId}/examination`,
+    data,
+    dentalBaseUrl
+  );
+export const updateToothFindings = (patientId, toothCode, data) =>
+  api.put(
+    `/api/v1/dental/patients/${patientId}/teeth/${toothCode}/findings`,
+    data,
+    dentalBaseUrl
+  );
+export const updateToothProcedures = (patientId, toothCode, data) =>
+  api.put(
+    `/api/v1/dental/patients/${patientId}/teeth/${toothCode}/procedures`,
+    data,
+    dentalBaseUrl
+  );
+export const updateToothTreatmentHistory = (patientId, toothCode, data) =>
+  api.put(
+    `/api/v1/dental/patients/${patientId}/teeth/${toothCode}/treatment-history`,
+    data,
+    dentalBaseUrl
+  );
+export const updateToothNotes = (patientId, toothCode, data) =>
+  api.put(
+    `/api/v1/dental/patients/${patientId}/teeth/${toothCode}/notes`,
+    data,
+    dentalBaseUrl
+  );
+
+// 3. Treatment Plans
+export const getPlans = (patientId) =>
+  api.get(`/api/v1/dental/patients/${patientId}/plans`, dentalBaseUrl);
+export const createPlan = (patientId, data) =>
+  api.post(`/api/v1/dental/patients/${patientId}/plans`, data, dentalBaseUrl);
+export const updatePlan = (patientId, planId, data) =>
+  api.patch(`/api/v1/dental/patients/${patientId}/plans/${planId}`, data, dentalBaseUrl);
+export const deletePlan = (patientId, planId) =>
+  api.delete(`/api/v1/dental/patients/${patientId}/plans/${planId}`, dentalBaseUrl);
+export const duplicatePlan = (patientId, planId) =>
+  api.post(`/api/v1/dental/patients/${patientId}/plans/${planId}/duplicate`, {}, dentalBaseUrl);
+export const activatePlan = (patientId, planId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/activate`,
+    data || {},
+    dentalBaseUrl
+  );
+export const startTreatment = (patientId, planId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/start-treatment`,
+    data || {},
+    dentalBaseUrl
+  );
+export const markPlanCompleted = (patientId, planId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/mark-completed`,
+    data || {},
+    dentalBaseUrl
+  );
+export const revertPlanToEstimates = (patientId, planId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/revert-to-estimates`,
+    data || {},
+    dentalBaseUrl
+  );
+export const revertPlanToProgress = (patientId, planId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/revert-to-progress`,
+    data || {},
+    dentalBaseUrl
+  );
+
+// 4. Plan Services
+export const addPlanService = (patientId, planId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services`,
+    data,
+    dentalBaseUrl
+  );
+export const updatePlanService = (patientId, planId, serviceId, data) =>
+  api.patch(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}`,
+    data,
+    dentalBaseUrl
+  );
+export const deletePlanService = (patientId, planId, serviceId) =>
+  api.delete(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}`,
+    dentalBaseUrl
+  );
+export const markServiceCompleted = (patientId, planId, serviceId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/mark-completed`,
+    data || {},
+    dentalBaseUrl
+  );
+export const revertServiceToProgress = (patientId, planId, serviceId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/revert-to-progress`,
+    data || {},
+    dentalBaseUrl
+  );
+
+// 5. Quick Visit Records
+export const getQuickVisitRecords = (patientId, planId, serviceId) =>
+  api.get(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/quick-visit-records`,
+    dentalBaseUrl
+  );
+export const getQuickVisitRecord = (patientId, planId, serviceId, qvrId) =>
+  api.get(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/quick-visit-records/${qvrId}`,
+    dentalBaseUrl
+  );
+export const createQuickVisitRecord = (patientId, planId, serviceId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/quick-visit-records`,
+    data,
+    dentalBaseUrl
+  );
+export const updateQuickVisitRecord = (patientId, planId, serviceId, qvrId, data) =>
+  api.patch(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/quick-visit-records/${qvrId}`,
+    data,
+    dentalBaseUrl
+  );
+export const deleteQuickVisitRecord = (patientId, planId, serviceId, qvrId) =>
+  api.delete(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/quick-visit-records/${qvrId}`,
+    dentalBaseUrl
+  );
+
+// 6. Appointments
+export const getServiceAppointments = (patientId, planId, serviceId) =>
+  api.get(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/appointments`,
+    dentalBaseUrl
+  );
+export const updateServiceAppointment = (patientId, planId, serviceId, appointmentId, data) =>
+  api.patch(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/appointments/${appointmentId}`,
+    data,
+    dentalBaseUrl
+  );
+
+// 7. Billing & Invoices
+export const getPlanBillPreview = (patientId, planId) =>
+  api.get(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/bill-preview`,
+    dentalBaseUrl
+  );
+export const getServiceBillPreview = (patientId, planId, serviceId) =>
+  api.get(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/bill-preview`,
+    dentalBaseUrl
+  );
+export const createInvoice = (patientId, planId, data) =>
+  api.post(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/invoices`,
+    data,
+    dentalBaseUrl
+  );
+export const getInvoice = (patientId, invoiceId) =>
+  api.get(`/api/v1/dental/patients/${patientId}/invoices/${invoiceId}`, dentalBaseUrl);
+
+// 8. Rx Previews
+export const getPlanRxPreview = (patientId, planId) =>
+  api.get(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/rx-preview`,
+    dentalBaseUrl
+  );
+export const getServiceRxPreview = (patientId, planId, serviceId) =>
+  api.get(
+    `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/rx-preview`,
+    dentalBaseUrl
+  );

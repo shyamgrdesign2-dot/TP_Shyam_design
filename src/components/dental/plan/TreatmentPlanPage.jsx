@@ -160,21 +160,18 @@ function TreatmentPlanEmbedInner({ patientId }) {
   const pid = patientId ?? "apt-1";
   const [searchParams] = useSearchParams();
   const tabParam = searchParams?.get("planTab") || searchParams?.get("tab");
-  const drawerParam = searchParams?.get("drawer");
   const initialTab =
     tabParam === "progress" ||
     tabParam === "completed" ||
     tabParam === "estimates"
       ? tabParam
       : "estimates";
-  const plans = getMockPlans(pid);
-  const initialDrawer = getInitialDrawer(drawerParam, initialTab, plans);
   return (
     <div className={styles.embedRoot}>
       <TreatmentPlanTab
         patientId={pid}
         initialTab={initialTab}
-        initialDrawer={initialDrawer}
+        initialDrawer={{ type: "closed" }}
         embedInPatientShell={true}
       />
     </div>
