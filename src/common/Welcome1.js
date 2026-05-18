@@ -163,6 +163,10 @@ function Welcome1(props) {
         navigate("/tab-rx", { state: { patient_data: patient } });
     };
 
+    const onTypeRxClick = async (patient) => {
+        navigate("/dental", { state: { patient_data: patient } });
+    };
+
     const onVoiceRxClick = async (patient) => {
         const clinic = getClinic(profile?.hospital_data);
         window.Moengage.track_event("TP_AV_Entry", {
@@ -489,6 +493,7 @@ function Welcome1(props) {
                                             onSnapRxClick={onSnapRxClick}
                                             onVoiceRxClick={onVoiceRxClick}
                                             onTabRxClick={onTabRxClick}
+                                            onTypeRxClick={onTypeRxClick}
                                             onConsultClick={onConsultClick}
                                             patient={patient_data}
                                             buttonStyle="walkin"
