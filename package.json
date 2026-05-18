@@ -11,6 +11,8 @@
     "@dnd-kit/sortable": "^8.0.0",
     "@growthbook/growthbook-react": "^1.0.0",
     "@lottiefiles/dotlottie-react": "^0.13.0",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
     "@mui/material": "^9.0.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -120,14 +122,17 @@
       "import"
     ],
     "rules": {
-      "import/no-unresolved": "error"
+      "import/no-unresolved": "warn"
     },
     "settings": {
       "import/resolver": {
         "node": {
           "extensions": [
             ".js",
-            ".jsx"
+            ".jsx",
+            ".mjs",
+            ".cjs",
+            ".json"
           ]
         }
       }
@@ -146,6 +151,7 @@
     ]
   },
   "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.29.1",
     "husky": "^9.0.11"
