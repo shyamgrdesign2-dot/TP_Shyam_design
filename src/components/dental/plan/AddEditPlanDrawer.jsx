@@ -37,7 +37,7 @@ import {
   getUniqueDentalBillItems,
   sortDentalBillItemsForSearch,
 } from "../lib/billing-catalog";
-import { useBillingCatalog } from "../lib/billing-catalog-context";
+import { useBillingCatalog } from "../lib/useBillingCatalog";
 import { AddDentalBillItemDrawer } from "../AddDentalBillItemDrawer";
 import { useDirtyDrawerGuard } from "./use-dirty-drawer-guard";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";

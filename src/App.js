@@ -192,9 +192,6 @@ const TabRxPrescriptionPrintView = React.lazy(() =>
 const TabRxDigitization = React.lazy(() =>
   lazyRetry(() => import("./pages/tabRx/components/Digitization"))
 );
-const PrescriptionRouter = React.lazy(() =>
-  lazyRetry(() => import("./pages/PrescriptionRouter"))
-);
 
 const ConsultationTestPage = React.lazy(() =>
   lazyRetry(() => import("./components/ConsultationTestPage"))
@@ -664,7 +661,7 @@ function App() {
           />
           <Route
             path="prescription"
-            element={<PrescriptionRouter isMobile={isMobile} />}
+            element={isMobile ? <TabPrescription /> : <Prescription />}
           />
           <Route
             path="prescription_print_view"

@@ -1,6 +1,4 @@
-import { forwardRef } from "react";
-import MuiSnackbar from "@mui/material/Snackbar";
-import MuiAlert from "@mui/material/Alert";
+import { forwardRef, useEffect } from "react";
 import styles from "./tp-snackbar.module.scss";
 
 const SuccessSnackbarContent = forwardRef(function SuccessSnackbarContent(
@@ -70,31 +68,63 @@ const SuccessSnackbarContent = forwardRef(function SuccessSnackbarContent(
 });
 
 export function TPSnackbar({ severity = "info", message, onClose, ...props }) {
-  const handleAlertClose = (event) => {
-    onClose?.(event, "escapeKeyDown");
+  const {
+    open,
+    autoHideDuration,
+    anchorOrigin = { vertical: "bottom", horizontal: "center" },
+  } = props;
+
+  useEffect(() => {
+    if (!open || !autoHideDuration || !onClose) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      onClose(undefined, "timeout");
+    }, autoHideDuration);
+    return () => window.clearTimeout(timeoutId);
+  }, [autoHideDuration, onClose, open]);
+
+  if (!open || message == null) return null;
+
+  const handleClose = (event) => {
+    onClose?.(event, "closeClick");
   };
 
   const content =
-    message == null ? undefined : severity === "success" ? (
+    severity === "success" ? (
       <SuccessSnackbarContent
         message={message}
-        onClose={onClose ? handleAlertClose : undefined}
+        onClose={onClose ? handleClose : undefined}
       />
     ) : typeof message === "string" ? (
-      <MuiAlert
-        severity={severity}
-        variant="filled"
-        onClose={onClose ? handleAlertClose : undefined}
+      <div
+        className={`${styles.alertContent} ${
+          severity === "error" ? styles.alertError : styles.alertInfo
+        }`}
       >
-        {message}
-      </MuiAlert>
+        <span className={styles.message}>{message}</span>
+        {onClose ? (
+          <button
+            type="button"
+            aria-label="Close notification"
+            onClick={handleClose}
+            className={styles.closeBtn}
+          >
+            ×
+          </button>
+        ) : null}
+      </div>
     ) : (
       <div className={styles.customRoot}>{message}</div>
     );
 
   return (
-    <MuiSnackbar {...props} onClose={onClose}>
+    <div
+      role="status"
+      aria-live="polite"
+      className={`${styles.root} ${styles[anchorOrigin.vertical]} ${
+        styles[anchorOrigin.horizontal]
+      }`}
+    >
       {content}
-    </MuiSnackbar>
+    </div>
   );
 }

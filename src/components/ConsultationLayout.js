@@ -151,9 +151,6 @@ import ClinicalExaminationContent from "./ClinicalExaminationContent";
 import { ExaminationTab } from "./dental/examination/ExaminationTab";
 import { ClipboardText } from "iconsax-reactjs";
 import { TPMedicalIcon } from "./dental/tp-ui/medical-icons";
-import { RxPadChromeProvider } from "./dental/tp-rxpad/rxpad-chrome-context";
-import { RxPadSyncProvider } from "./dental/tp-rxpad/rxpad-sync-context";
-import { BillingCatalogProvider } from "./dental/lib/billing-catalog-context";
 
 import VideoConsultModal from "../components/VideoConsultModal";
 import { addCaseManager, editCaseManager, viewCaseManager } from "../redux/caseManagerSlice";
@@ -1977,16 +1974,10 @@ function ConsultationLayout({ children, headerProps }) {
                         loadPrevOpthalSignal={loadPrevOpthalSignal}
                       />
                     ) : (
-                      <RxPadChromeProvider>
-                        <RxPadSyncProvider>
-                          <BillingCatalogProvider>
-                            <ExaminationTab 
-                              patientId={patient_data?.patient_unique_id} 
-                              patientAge={patient_data?.patient_age} 
-                            />
-                          </BillingCatalogProvider>
-                        </RxPadSyncProvider>
-                      </RxPadChromeProvider>
+                      <ExaminationTab 
+                        patientId={patient_data?.patient_unique_id} 
+                        patientAge={patient_data?.patient_age} 
+                      />
                     )}
                   </div>
                 </Content>

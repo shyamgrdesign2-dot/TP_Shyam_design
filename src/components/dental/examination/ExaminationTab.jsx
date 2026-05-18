@@ -62,14 +62,13 @@ import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { useDentalExamination } from "../lib/useDentalExamination";
 import ex from "./ExaminationTab.module.scss";
 import ui from "./ExaminationTab.ui.module.scss";
-import { useBillingCatalog } from "../lib/billing-catalog-context";
+import { useBillingCatalog } from "../lib/useBillingCatalog";
 import {
   getUniqueDentalBillItems,
   sortStringsForTypeahead
 } from
   "../lib/billing-catalog";
 import { AddDentalBillItemDrawer } from "../AddDentalBillItemDrawer";
-import { useRxPadChrome } from "../tp-rxpad/rxpad-chrome-context";
 // Score weights per diagnosis/finding severity (out of 100).
 const DIAG_WEIGHT = {
   Missing: 8,
@@ -268,7 +267,6 @@ function toDentalPreviewSections(state) {
   );
 }
 export function ExaminationTab({ patientId, patientAge = 30 }) {
-  const { drAgentOpen } = useRxPadChrome();
   const { syncState, toothState, loading } = useDentalExamination(patientId);
   const [canvasState, setCanvasState] = useState(null);
 
@@ -432,7 +430,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
       sections: toDentalPreviewSections(canvasState)
     });
   }, [canvasState, patientId]);
-  const hideGetStarted = isGetStarted && drAgentOpen;
+  const hideGetStarted = false;
 
   if (loading) {
     return (

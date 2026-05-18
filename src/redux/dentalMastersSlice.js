@@ -7,6 +7,7 @@ import {
   getBillingItems,
 } from "../api/services/ApiDental";
 import { DIAGNOSES, PROCEDURE_CATALOG, ALL_ZONES } from "../components/dental/examination/types";
+import { buildInitialDentalBillingItems } from "../utils/dentalBillingCatalog";
 import { getDentalApiPayload } from "../utils/dentalApiMappers";
 
 const initialState = {
@@ -15,7 +16,7 @@ const initialState = {
   procedures: [],
   toothMapAdult: null,
   toothMapPediatric: null,
-  billingItems: [],
+  billingItems: buildInitialDentalBillingItems(),
   loading: false,
   error: null,
 };
@@ -24,6 +25,14 @@ const initialState = {
 const normalize = (apiArr, fallbackArr) => {
   if (!apiArr || apiArr.length === 0) return fallbackArr;
   return apiArr.map(item => (typeof item === 'object' ? (item.code || item.name || item.id) : item));
+};
+
+const normalizeBillingItems = (response) => {
+  const payload = getDentalApiPayload(response);
+  const items = payload?.items || payload;
+  return Array.isArray(items) && items.length > 0
+    ? items
+    : buildInitialDentalBillingItems();
 };
 
 export const fetchAllDentalMasters = createAsyncThunk(
@@ -52,7 +61,7 @@ export const fetchAllDentalMasters = createAsyncThunk(
         procedures: normalize(getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes), PROCEDURE_CATALOG),
         toothMapAdult: getDentalApiPayload(toothMapAdultRes) || null,
         toothMapPediatric: getDentalApiPayload(toothMapPediatricRes) || null,
-        billingItems: getDentalApiPayload(billingItemsRes)?.items || getDentalApiPayload(billingItemsRes) || [],
+        billingItems: normalizeBillingItems(billingItemsRes),
       };
     } catch (err) {
       return rejectWithValue(err.message);
@@ -63,7 +72,15 @@ export const fetchAllDentalMasters = createAsyncThunk(
 const dentalMastersSlice = createSlice({
   name: "dentalMasters",
   initialState,
-  reducers: {},
+  reducers: {
+    setDentalBillingItems: (state, action) => {
+      state.billingItems = Array.isArray(action.payload) ? action.payload : [];
+    },
+    addDentalBillingItem: (state, action) => {
+      if (!action.payload) return;
+      state.billingItems.push(action.payload);
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchAllDentalMasters.pending, (state) => {
@@ -85,4 +102,7 @@ const dentalMastersSlice = createSlice({
   },
 });
 
+export const { setDentalBillingItems, addDentalBillingItem } = dentalMastersSlice.actions;
+export const selectDentalMasters = (state) => state.dentalMasters;
+export const selectDentalBillingItems = (state) => state.dentalMasters.billingItems;
 export default dentalMastersSlice.reducer;

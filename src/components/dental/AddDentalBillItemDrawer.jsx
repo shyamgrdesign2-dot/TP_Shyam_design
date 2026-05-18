@@ -14,7 +14,7 @@ import {
   computeBillingLineTotal,
   formatBillingInr } from
 "./lib/billing-catalog";
-import { useBillingCatalog } from "./lib/billing-catalog-context";
+import { useBillingCatalog } from "./lib/useBillingCatalog";
 import styles from "./AddDentalBillItemDrawer.module.scss";
 
 function sanitizeDecimal(raw) {

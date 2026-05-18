@@ -15,7 +15,7 @@ import {
   getUniqueDentalBillItems,
   sortStringsForTypeahead } from
 "../lib/billing-catalog";
-import { useBillingCatalog } from "../lib/billing-catalog-context";
+import { useBillingCatalog } from "../lib/useBillingCatalog";
 import { AddDentalBillItemDrawer } from "../AddDentalBillItemDrawer";
 import styles from "./AddProcedureDrawer.module.scss";
 const cx = (...classes) => classes.filter(Boolean).join(" ");

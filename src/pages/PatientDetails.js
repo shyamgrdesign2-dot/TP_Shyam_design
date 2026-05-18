@@ -53,7 +53,6 @@ import { resetPatientsDetails } from "../redux/appointmentsSlice";
 import { lazyRetry } from "../utils/lazyRetry";
 import { searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
 import { TreatmentPlanEmbed } from "../components/dental/plan/TreatmentPlanPage";
-import { BillingCatalogProvider } from "../components/dental/lib/billing-catalog-context";
 import { errorMessage } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
@@ -565,9 +564,7 @@ function PatientDetails() {
                             </div>
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? (
                             <div className="appointment-wrap PatientDetailswrap">
-                                <BillingCatalogProvider>
-                                    <TreatmentPlanEmbed patientId={patient_data?.patient_unique_id} />
-                                </BillingCatalogProvider>
+                                <TreatmentPlanEmbed patientId={patient_data?.patient_unique_id} />
                             </div>
                         ) : null}
                     </div>

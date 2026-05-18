@@ -1,3 +1,31 @@
+.root {
+  position: fixed;
+  z-index: 1400;
+  max-width: min(420px, calc(100vw - 32px));
+  pointer-events: auto;
+}
+
+.top {
+  top: 24px;
+}
+
+.bottom {
+  bottom: 24px;
+}
+
+.center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.left {
+  left: 24px;
+}
+
+.right {
+  right: 24px;
+}
+
 .successContent {
   border-radius: 10px;
   background-color: rgba(23, 23, 37, 0.9);
@@ -48,6 +76,27 @@
   }
 }
 
+.alertContent {
+  display: flex;
+  min-width: 260px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 10px;
+  padding: 12px 15px;
+  box-shadow: 0 8px 20px -8px rgba(15, 23, 42, 0.45);
+}
+
+.alertInfo {
+  background-color: rgba(49, 48, 151, 0.94);
+}
+
+.alertError {
+  background-color: rgba(185, 28, 28, 0.94);
+}
+
 .customRoot {
-  /* Placeholder for custom content wrapper if needed */
+  border-radius: 10px;
+  background-color: rgba(23, 23, 37, 0.9);
+  padding: 10px 15px;
+  box-shadow: 0 8px 20px -8px rgba(15, 23, 42, 0.45);
 }
