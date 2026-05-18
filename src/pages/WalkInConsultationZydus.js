@@ -207,6 +207,16 @@ function WalkInConsultationZydus() {
         }
     };
 
+    const onTypeRxClick = async (record) => {
+        const action = await dispatch(synczyduspatient(record));
+        if (action.meta.requestStatus === "fulfilled") {
+            const result = action.payload;
+            navigate("/dental", { state: { patient_data: { ...result, mrno: record.mrno } } });
+        } else {
+            errorMessage(action.error);
+        }
+    };
+
     const getMenuItems = (record) => {
         const items = [];
 
@@ -420,6 +430,7 @@ function WalkInConsultationZydus() {
                                 onSnapRxClick={onSnapRxClick}
                                 onVoiceRxClick={onVoiceRxClick}
                                 onTabRxClick={onTabRxClick}
+                                onTypeRxClick={onTypeRxClick}
                                 onConsultClick={onConsultClick}
                                 patient={patient}
                                 buttonStyle="walkin"
@@ -550,6 +561,7 @@ function WalkInConsultationZydus() {
                                             onSnapRxClick={onSnapRxClick}
                                             onVoiceRxClick={onVoiceRxClick}
                                             onTabRxClick={onTabRxClick}
+                                            onTypeRxClick={onTypeRxClick}
                                             onConsultClick={onConsultClick}
                                             patient={clickedPatient}
                                             setAutoCompleteFlag={setAutoCompleteFlag}

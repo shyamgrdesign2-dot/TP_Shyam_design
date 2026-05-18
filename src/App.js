@@ -29,7 +29,6 @@ import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import { useTncConsent } from "./hooks/useTncConsent";
 import FullPageLoader from "./pages/vaccination/components/Loader";
 import { lazyRetry } from "./utils/lazyRetry";
-import { DentalModuleShell } from "./components/dental/DentalModuleShell";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -195,6 +194,14 @@ const TabRxDigitization = React.lazy(() =>
 );
 const PrescriptionRouter = React.lazy(() =>
   lazyRetry(() => import("./pages/PrescriptionRouter"))
+);
+
+const ConsultationTestPage = React.lazy(() =>
+  lazyRetry(() => import("./components/ConsultationTestPage"))
+);
+
+const ConsultationLayout = React.lazy(() =>
+  lazyRetry(() => import("./components/ConsultationLayout"))
 );
 
 const growthbook = new GrowthBook({
@@ -740,7 +747,8 @@ function App() {
             path="tabrx-digitization"
             element={<TabRxDigitization />}
           />
-          <Route path="dental" element={<DentalModuleShell />} />
+          <Route path="dental" element={<ConsultationLayout />} />
+          <Route path="consultation-layout-test" element={<ConsultationTestPage />} />
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />
       </SentryRoutes>

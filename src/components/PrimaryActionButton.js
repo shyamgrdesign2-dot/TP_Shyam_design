@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Dropdown } from "antd";
+import { useSelector } from "react-redux";
 
 import { isMobile, isTablet } from "react-device-detect";
 import { isZydus } from "../utils/utils";
@@ -38,10 +39,12 @@ const PrimaryActionButton = ({
   isVoiceRxAccessible = false,
   isVoiceRxPaid = false,
   // isTabRxAccessible = false,
+  isTypeRxAccessible = true,
   onSmartRxClick,
   onSnapRxClick,
   onVoiceRxClick,
   onTabRxClick,
+  onTypeRxClick,
   onConsultClick,
   patient,
   setAutoCompleteFlag,
@@ -49,6 +52,10 @@ const PrimaryActionButton = ({
   onClose,
   fullWidth = false,
 }) => {
+  const { profile } = useSelector((state) => state.doctors);
+  const dpid = profile?.dp_id;
+  const department = profile?.dp_name;
+
   // Check if mobile (screen width < 768)
   const [isMobileScreen, setIsMobileScreen] = useState(
     typeof window !== "undefined" && window.innerWidth < 768
@@ -101,24 +108,51 @@ const PrimaryActionButton = ({
   const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
   // const isTabRxVisible = isTabRxEnabledFromGB ;
   
+  const isDental = dpid === 26 || (department && department.toLowerCase() === 'dental');
+
   if (isZydusAccount) {
     // For Zydus accounts: Consult is always primary, all other options go to dropdown
-    if (isSmartRxAccessible && !isMobile) {
-      dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+    if (isDental) {
+      // If dental, TypeRx becomes primary and others go to dropdown
+      allAvailableOptions.push({ type: "typerx", label: "TypeRx", handler: onTypeRxClick });
+      if (isSmartRxAccessible && !isMobile) {
+        dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+      }
+      if (isVoiceRxAccessible) {
+        dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+      }
+      if (isSnapRxAccessible) {
+        dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
+      }
+      if (isTabRxVisible) {
+        dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
+      }
+      dropdownOptionsList.push({ type: "consult", label: "Consult", handler: onConsultClick });
+    } else {
+      if (isSmartRxAccessible && !isMobile) {
+        dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+      }
+      if (isVoiceRxAccessible) {
+        dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+      }
+      if (isSnapRxAccessible) {
+        dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
+      }
+      if (isTabRxVisible) {
+        dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
+      }
+      if (isTypeRxAccessible) {
+        dropdownOptionsList.push({ type: "typerx", label: "TypeRx", handler: onTypeRxClick });
+      }
+      // Consult is always primary for Zydus
+      allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
     }
-    if (isVoiceRxAccessible) {
-      dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
-    }
-    if (isSnapRxAccessible) {
-      dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
-    }
-    if (isTabRxVisible) {
-      dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
-    }
-    // Consult is always primary for Zydus
-    allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
   } else {
-    // Normal priority logic: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+    // Normal priority logic
+    if (isDental) {
+      allAvailableOptions.push({ type: "typerx", label: "TypeRx", handler: onTypeRxClick });
+    }
+
     if (isSmartRxAccessible && !isMobile) {
       allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
@@ -136,9 +170,13 @@ const PrimaryActionButton = ({
     if (isTabRxVisible) {
       allAvailableOptions.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
+
+    if (!isDental && isTypeRxAccessible) {
+      allAvailableOptions.push({ type: "typerx", label: "TypeRx", handler: onTypeRxClick });
+    }
     
     // Consult is always available as fallback
-    // If VoiceRx is accessible but not paid, Consult becomes primary
+    // If VoiceRx is accessible but not paid, Consult becomes primary (if no higher priority available)
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
     
     // If VoiceRx is accessible but not paid, add it to dropdown (after Consult)
@@ -197,7 +235,7 @@ const PrimaryActionButton = ({
 
   // Get primary button text
   const getPrimaryButtonText = () => {
-    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
+    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" || primaryOption.type === "typerx") {
       return primaryOption.label;
     }
     if (primaryOption.type === "voicerx") {
@@ -208,7 +246,7 @@ const PrimaryActionButton = ({
 
   // If mobile screen, show simple button without dropdown
   if (isMobileScreen) {
-    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
+    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" || primaryOption.type === "typerx") {
       return (
         <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
           {/* <img src={smartPad} alt="vitals" /> */}
@@ -238,7 +276,7 @@ const PrimaryActionButton = ({
         }
       : { paddingLeft: "6px" };
     
-    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
+    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" || primaryOption.type === "typerx") {
       return (
         <div 
           ref={buttonRef}
@@ -316,6 +354,7 @@ const PrimaryActionButton = ({
             if (option.type === "snaprx") return "Start New SnapRx";
             if (option.type === "voicerx") return "Start Voice Rx";
             if (option.type === "tabrx") return "Start TabRx";
+            if (option.type === "typerx") return "Start TypeRx";
             return "Start New Consult";
           };
 
@@ -366,7 +405,7 @@ const PrimaryActionButton = ({
       className="d-flex btn btn-smart-rx-walkin"
       style={{ ...containerStyle, position: "relative", zIndex: 1 }}
     >
-      {primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" ? (
+      {primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" || primaryOption.type === "typerx" ? (
         <div style={dropdownOptions.length === 0 ? { ...primaryButtonStyle, width: fullWidth ? "100%" : undefined } : primaryButtonStyle} onClick={handlePrimaryClick}>
           {/* <img src={smartPad} alt="vitals" /> */}
           <button 
