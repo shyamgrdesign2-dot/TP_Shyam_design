@@ -106,7 +106,7 @@ export function AddSittingDrawer() {
   const sittingId = isEdit ? drawer.sittingId : undefined;
   const service = serviceId ? findService(serviceId) : undefined;
   const editingSitting = sittingId
-    ? service?.sittings.find((s) => s.id === sittingId)
+    ? service?.sittings?.find((s) => s.id === sittingId)
     : undefined;
   const now = new Date();
   const [visitDate, setVisitDate] = useState(toDateInputValue(now));

@@ -12,7 +12,7 @@ import {
 const cx = (...classes) => classes.filter(Boolean).join(" ");
 /** Standard width (600px) for Dental Treatment Plan right drawers (bill, Rx, booking, visits, etc.). */
 export const PLAN_DRAWER_PANEL_CLASS = dui.planDrawerPanel;
-/** Wider width (880px) for the Create / Edit Plan drawer — it hosts a wider
+/** Wider width (1040px) for the Create / Edit Plan drawer — it hosts a wider
  * services table than the preview / booking drawers and needs more room. */
 export const PLAN_DRAWER_WIDE_PANEL_CLASS = dui.planDrawerWidePanel;
 
@@ -25,6 +25,7 @@ export function PlanSurfaceAbbrTags({
   surfaces,
   gapClass = "gap-[3px]",
   wrap = false,
+  maxCount,
 }) {
   if (!surfaces?.length) return null;
   const resolvedGapClass = SURFACE_GAP_CLASS_MAP[gapClass] ?? dui.surfaceTagGap3;
@@ -33,9 +34,13 @@ export function PlanSurfaceAbbrTags({
     wrap ? dui.surfaceTagRowWrap : "",
     resolvedGapClass,
   );
+  const hasLimit = typeof maxCount === "number" && surfaces.length > maxCount;
+  const visibleSurfaces = hasLimit ? surfaces.slice(0, maxCount) : surfaces;
+  const overflowCount = hasLimit ? surfaces.length - maxCount : 0;
+
   return (
     <div className={rowClass}>
-      {surfaces.map((z, i) => {
+      {visibleSurfaces.map((z, i) => {
         const label = getPlanSurfaceLabel(z);
         const abbr =
           SURFACE_ABBR[z] ??
@@ -60,6 +65,19 @@ export function PlanSurfaceAbbrTags({
           </Tooltip>
         );
       })}
+      {overflowCount > 0 && (
+        <span
+          style={{
+            fontFamily: "'Inter', sans-serif",
+            fontSize: "12px",
+            color: "#94a3b8",
+            fontWeight: "500",
+            marginLeft: "2px",
+          }}
+        >
+          +{overflowCount}
+        </span>
+      )}
     </div>
   );
 }
@@ -214,6 +232,7 @@ export function computePlanDiscount(services) {
   return services.reduce((sum, s) => sum + s.discount, 0);
 }
 export function getServiceWorkflowStatus(service) {
+  if (!service) return "not-started";
   if (service.status === "completed") return "completed";
   if (service.status === "no-show") return "no-show";
   if (service.status === "not-interested") return "not-interested";
@@ -223,10 +242,12 @@ export function getServiceWorkflowStatus(service) {
   // intent, not execution. Consultations (Rx / end visit), sittings, or
   // procedures count as activity for the workflow chip.
   const consultCount = service.consultations?.length ?? 0;
+  const sittingsCount = service.sittings?.length ?? 0;
+  const proceduresCount = service.procedures?.length ?? 0;
   const hasActivity =
     consultCount > 0 ||
-    service.sittings.length > 0 ||
-    service.procedures.length > 0;
+    sittingsCount > 0 ||
+    proceduresCount > 0;
   return hasActivity ? "in-progress" : "not-started";
 }
 export function getPlanCompletionStatus(services) {

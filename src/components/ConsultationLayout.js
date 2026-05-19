@@ -149,6 +149,7 @@ import {
 import TabRxHeader from "../pages/tabRx/components/tabRxHeader/TabRxHeader";
 import ClinicalExaminationContent from "./ClinicalExaminationContent";
 import { ExaminationTab } from "./dental/examination/ExaminationTab";
+import { TreatmentPlanTab } from "./dental/plan/TreatmentPlanTab";
 import { ClipboardText } from "iconsax-reactjs";
 import { TPMedicalIcon } from "./dental/tp-ui/medical-icons";
 
@@ -656,6 +657,7 @@ function ConsultationLayout({ children, headerProps }) {
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
+  const [dentalDrawer, setDentalDrawer] = useState(false);
   const [labReportID, setLabReportID] = useState(null);
   const [labParamsDrawer, setLabParamsDrawer] = useState(false);
   const [viewlabparamsDrawer, setViewlabparamsDrawer] = useState(false);
@@ -1098,6 +1100,17 @@ function ConsultationLayout({ children, headerProps }) {
     },
     [privateNotesDrawer, selectPrivateNotes],
   );
+
+  // Drawer Dental
+  const handleDrawerDental = useCallback(() => {
+    if (dentalDrawer) {
+      setCollapsedFlag(null);
+    } else {
+      setCollapsedFlag(13);
+      setCollapsed(false);
+    }
+    setDentalDrawer(!dentalDrawer);
+  }, [dentalDrawer]);
 
   // Drawer Vaccination
   const handleDrawerVaccination = (chartType) => {
@@ -1928,6 +1941,7 @@ function ConsultationLayout({ children, headerProps }) {
                 handleUploadDocPopup={handleUploadDocPopup}
                 setUploadDocDrawer={setUploadDocDrawer}
                 handleDrawerUploadDoc={handleDrawerUploadDoc}
+                handleDrawerDental={handleDrawerDental}
               />
               {location.pathname === "/dental" ? (
                 <Content className="dental-content-wrapper w-100 d-flex flex-column" style={{ height: "100%", overflow: "hidden" }}>
@@ -2123,6 +2137,42 @@ function ConsultationLayout({ children, headerProps }) {
               handleUploadDocPopup={handleUploadDocPopup}
               setUploadDocDrawer={setUploadDocDrawer}
             />
+          </Drawer>
+        )}
+        {dentalDrawer && (
+          <Drawer
+            className="scroll-y-hidden"
+            closeIcon={false}
+            placement="right"
+            onClose={handleDrawerDental}
+            open={dentalDrawer}
+            width="100%"
+            push={false}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div className="search-modalCard h-100 d-flex flex-column" style={{ backgroundColor: "#fff" }}>
+                <div className='modalCard-header h-60 align-items-center justify-content-between d-flex flex-shrink-0'>
+                    <div className='align-items-center d-flex h-100'>
+                        <div className='border-end h-100 text-center me-3'>
+                            <div
+                                onClick={handleDrawerDental}
+                                className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'
+                            >
+                                <i className='icon-right'></i>
+                            </div>
+                        </div>
+                        <div className="title-common">
+                            Dental Treatment Plan
+                        </div>
+                    </div>
+                </div>
+                <div className="flex-grow-1 overflow-auto h-100" style={{ backgroundColor: "#F8F8FB" }}>
+                  <TreatmentPlanTab
+                    patientId={patient_data?.patient_unique_id}
+                    patientAge={patient_data?.patient_age}
+                  />
+                </div>
+            </div>
           </Drawer>
         )}
         {shouldShowUploadDocPopup && (

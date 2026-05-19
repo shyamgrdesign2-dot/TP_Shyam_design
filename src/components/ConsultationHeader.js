@@ -151,7 +151,9 @@ const ConsultationHeader = ({
   const showHideVideoListPopover = () => setPopOverVideo(!popOverVideo);
   const handleDrawerTemplate = () => setTemplateDrawer(!templateDrawer);
   const handleDrawerSave = () => setSaveDrawer(!saveDrawer);
-  const handleDrawerCustomize = () => setCustomizeDrawer(!customizeDrawer);
+  const handleDrawerCustomize = useCallback(() => {
+    setCustomizeDrawer((prev) => !prev);
+  }, []);
 
   const onTemplateSelected = async (tmoc_id, tmoc_template_name) => {
     const action = await dispatch(oneClickSingleTemplateDetails(tmoc_id));

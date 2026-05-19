@@ -1,5 +1,5 @@
-import { Input, Radio } from "antd";
-import CommonModal from "../../../../common/CommonModal";
+import { Input, Drawer } from "antd";
+import { ASSETS } from "../../../../assets";
 import { Button } from "react-bootstrap";
 import { useState } from "react";
 import { upsertBillItem } from "../../service";
@@ -26,11 +26,14 @@ const ServiceItemPopup = ({
     type: item?.type || "Service",
     price: item?.price || item?.amount,
     discount: item?.discount,
-    discountType: item?.discountType || advancedSettings?.defaultDiscountType,
+    discountType: item?.discountType || advancedSettings?.defaultDiscountType || "flat",
     gst: item?.gst,
   });
   const { profile } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
+  const {
+    close: closeIcon
+  } = ASSETS.images;
 
   const handleServiceItem = (key, value) => {
     setServiceItem((prev) => {
@@ -55,13 +58,17 @@ const ServiceItemPopup = ({
         type: serviceItem?.type
       });
     }
-    serviceItem.totalAmount = calculateTotalAmount(serviceItem);
-    handleServiceItem(serviceItem);
+
+    const finalItem = { ...serviceItem };
+    finalItem.totalAmount = calculateTotalAmount(finalItem);
+    handleServiceItem(finalItem);
+
     const billItemRes = await upsertBillItem({
-      ...serviceItem,
-      discount: serviceItem?.discount || undefined,
-      gst: serviceItem?.gst || undefined,
+      ...finalItem,
+      discount: finalItem?.discount || undefined,
+      gst: finalItem?.gst || undefined,
     });
+
     if (billItemRes?.id) {
       setDataSource((prev) => {
         const updatedData = [...prev];
@@ -73,13 +80,13 @@ const ServiceItemPopup = ({
             ...updatedData[updateIndex], // Keep existing values
             masterId: billItemRes?.id,
             quantity: 1,
-            name: serviceItem?.name,
-            amount: serviceItem?.price,
-            discount: serviceItem?.discount,
-            discountType: serviceItem?.discountType,
-            type: serviceItem?.type,
-            gst: serviceItem?.gst,
-            totalAmount: serviceItem?.totalAmount,
+            name: finalItem?.name,
+            amount: finalItem?.price,
+            discount: finalItem?.discount,
+            discountType: finalItem?.discountType,
+            type: finalItem?.type,
+            gst: finalItem?.gst,
+            totalAmount: finalItem?.totalAmount,
             createdBy: billItemRes?.createdBy,
           };
           addRow &&
@@ -100,13 +107,13 @@ const ServiceItemPopup = ({
           updatedData.push({
             masterId: billItemRes?.id,
             quantity: 1,
-            name: serviceItem?.name,
-            amount: serviceItem?.price,
-            discount: serviceItem?.discount,
-            discountType: serviceItem?.discountType,
-            type: serviceItem?.type,
-            gst: serviceItem?.gst,
-            totalAmount: serviceItem?.totalAmount,
+            name: finalItem?.name,
+            amount: finalItem?.price,
+            discount: finalItem?.discount,
+            discountType: finalItem?.discountType,
+            type: finalItem?.type,
+            gst: finalItem?.gst,
+            totalAmount: finalItem?.totalAmount,
             createdBy: billItemRes?.createdBy,
             ...billItemRes,
           });
@@ -118,196 +125,202 @@ const ServiceItemPopup = ({
     }
   };
 
+  // Preview amount
+  const previewItem = {
+    ...serviceItem,
+  };
+  const totalAmount = calculateTotalAmount(previewItem);
+
   return (
-    <div>
-      <CommonModal
-        isModalOpen={true}
-        onCancel={onCancel}
-        modalWidth={500}
-        title={editIndex === -1 ? "Add New Item" : "Edit Item"}
-        modalBody={
-          <>
-            <div className="d-flex flex-column gap-3">
-              <div className="d-flex gap-5 align-items-center">
-                <label
-                  className="d-flex"
-                  style={{ fontWeight: 500, width: 110 }}
-                >
-                  Name <span className="bdg-danger">*</span>
-                </label>
-                <Input
-                  value={serviceItem.name}
-                  style={{ height: 38 }}
-                  onChange={(e) => handleServiceItem("name", e.target.value)}
-                />
-              </div>
+    <Drawer
+      title={
+        <div className="d-flex align-items-center gap-2">
+          <span style={{ fontWeight: 600, fontSize: '16px', color: '#1A1A1A' }}>
+            {editIndex === -1 ? "Add new bill item" : "Edit bill item"}
+          </span>
+          <i className="fi fi-rr-info text-muted" style={{ fontSize: '14px', cursor: 'pointer' }}></i>
+        </div>
+      }
+      placement="right"
+      onClose={onCancel}
+      open={true}
+      width={500}
+      closeIcon={<img src={closeIcon} alt="close" style={{ width: '24px', height: '24px', cursor: 'pointer'}} />}
+      extra={
+        <Button
+          onClick={addOrEditServieItem}
+          className="btn btn-primary3 px-4"
+          style={{ height: '36px', borderRadius: '6px', background: '#5452F6', border: 'none' }}
+          disabled={!serviceItem.type || !serviceItem.name || !serviceItem.price}
+        >
+          <span>Save</span>
+        </Button>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '24px', overflowX: 'hidden' }}>
+        <div className="d-flex flex-column gap-4" style={{ flex: 1 }}>
 
-              <div className="d-flex gap-5 align-items-center">
-                <label
-                  className="d-flex"
-                  style={{ fontWeight: 500, width: 110 }}
-                >
-                  Price/Unit <span className="bdg-danger">*</span>
-                </label>
-                <Input
-                  value={serviceItem.price}
-                  inputMode="decimal"
-                  onChange={(e) => {
-                    const price = onlyDecimalFormat(e.target.value);
-                    if (price <= 1000000000) {
-                      handleServiceItem("price", price);
-                    }
+          {/* Type selection */}
+          <div className="d-flex flex-column gap-2">
+            <label className="d-flex align-items-center gap-2 text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500 }}>
+              Type <i className="fi fi-rr-info" style={{ fontSize: '12px' }}></i>
+            </label>
+            <div style={{ background: '#F2F4F7', borderRadius: '8px', padding: '4px', display: 'flex' }}>
+              {[{label: 'Clinical services', value: 'Service'}, {label: 'Consumables', value: 'Consumables'}, {label: 'Dental services', value: 'Dental_Service'}].map((typeOption) => (
+                <div
+                  key={typeOption.value}
+                  onClick={() => handleServiceItem("type", typeOption.value)}
+                  style={{
+                    flex: 1,
+                    textAlign: 'center',
+                    padding: '8px 4px',
+                    fontSize: '13px',
+                    fontWeight: serviceItem.type === typeOption.value ? 600 : 500,
+                    color: serviceItem.type === typeOption.value ? '#1A1A1A' : '#667085',
+                    background: serviceItem.type === typeOption.value ? '#FFFFFF' : 'transparent',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    boxShadow: serviceItem.type === typeOption.value ? '0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06)' : 'none',
+                    transition: 'all 0.2s'
                   }}
-                  style={{ height: 38 }}
-                  prefix={<i style={{ fontSize: 14 }}>₹</i>}
-                />
-              </div>
-
-              <div className="d-flex gap-5 align-items-center">
-                <label
-                  className="d-flex"
-                  style={{ fontWeight: 500, width: 110 }}
                 >
-                  Discount
-                </label>
+                  {typeOption.label}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Clinical service name */}
+          <div className="d-flex flex-column gap-2">
+            <label className="text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500, color: '#475467' }}>
+              {serviceItem.type === 'Service' ? 'Clinical service name' : serviceItem.type === 'Consumables' ? 'Consumable name' : 'Dental service name'} <span className="text-danger">*</span>
+            </label>
+            <Input
+              value={serviceItem.name}
+              placeholder="Search or type a name"
+              style={{ height: 44, borderRadius: '8px' }}
+              onChange={(e) => handleServiceItem("name", e.target.value)}
+            />
+          </div>
+
+          {/* Price */}
+          <div className="d-flex flex-column gap-2">
+            <label className="text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500, color: '#475467' }}>
+              Price (₹) <span className="text-danger">*</span>
+            </label>
+            <Input
+              value={serviceItem.price}
+              placeholder="0"
+              inputMode="decimal"
+              onChange={(e) => {
+                const price = onlyDecimalFormat(e.target.value);
+                if (price <= 1000000000) {
+                  handleServiceItem("price", price);
+                }
+              }}
+              style={{ height: 44, borderRadius: '8px' }}
+              prefix={<span style={{ color: '#475467', marginRight: '4px' }}>₹</span>}
+            />
+          </div>
+
+          {/* Taxes & Discount */}
+          <div className="d-flex gap-3">
+            <div className="d-flex flex-column gap-2" style={{ flex: 1 }}>
+              <label className="text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500, color: '#475467' }}>
+                GST (%)
+              </label>
+              <Input
+                value={serviceItem.gst}
+                placeholder="0"
+                inputMode="decimal"
+                onChange={(e) => {
+                  const value = onlyDecimalFormat(e.target.value);
+                  handleServiceItem("gst", value > 100 ? serviceItem.gst : value ? value : undefined);
+                }}
+                style={{ height: 44, borderRadius: '8px' }}
+                suffix={<span style={{ color: '#475467' }}>%</span>}
+              />
+            </div>
+            <div className="d-flex flex-column gap-2" style={{ flex: 1 }}>
+              <label className="text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500, color: '#475467' }}>
+                Discount
+              </label>
+              <div style={{ position: 'relative' }}>
                 <Input
                   value={serviceItem.discount}
+                  placeholder="0"
                   inputMode="decimal"
                   onChange={(e) => {
                     const discount = onlyDecimalFormat(e.target.value);
                     if (
-                      (serviceItem.discountType === "percentage" &&
-                        discount <= 100) ||
-                      (serviceItem.discountType === "flat" &&
-                        Number(discount) <= Number(serviceItem.price))
+                      (serviceItem.discountType === "percentage" && discount <= 100) ||
+                      (serviceItem.discountType === "flat" && Number(discount) <= Number(serviceItem.price))
                     ) {
-                      handleServiceItem(
-                        "discount",
-                        discount ? discount : undefined
-                      );
+                      handleServiceItem("discount", discount ? discount : undefined);
                     }
                   }}
-                  style={{ height: 38 }}
+                  style={{ height: 44, borderRadius: '8px', paddingRight: '56px' }}
                 />
                 <div
-                  style={{ position: "absolute", right: "35px", zIndex: 10 }}
-                >
-                  <Radio.Group
-                    value={serviceItem.discountType}
-                    style={{ display: "flex", width: "60px" }}
-                    onChange={(e) =>
-                      handleServiceItem("discountType", e.target.value)
-                    }
-                  >
-                    <Radio.Button
-                      value={"percentage"}
-                      style={{
-                        width: "50%",
-                        height: "23px",
-                      }}
-                      className="custom-radio-button d-flex align-items-center justify-content-center"
-                    >
-                      %
-                    </Radio.Button>
-                    <Radio.Button
-                      value={"flat"}
-                      style={{
-                        width: "50%",
-                        height: "23px",
-                      }}
-                      className="custom-radio-button  d-flex align-items-center justify-content-center"
-                    >
-                      ₹
-                    </Radio.Button>
-                  </Radio.Group>
-                </div>
-              </div>
-
-              <div className="d-flex gap-5 align-items-center">
-                <label
-                  className="d-flex"
-                  style={{ fontWeight: 500, width: 110 }}
-                >
-                  GST
-                </label>
-                <Input
-                  value={serviceItem.gst}
-                  inputMode="decimal"
-                  onChange={(e) => {
-                    const value = onlyDecimalFormat(e.target.value);
-                    handleServiceItem(
-                      "gst",
-                      value > 100 ? serviceItem.gst : value ? value : undefined
-                    );
+                  style={{
+                    position: 'absolute',
+                    right: '4px',
+                    top: '4px',
+                    bottom: '4px',
+                    background: '#F2F4F7',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '2px'
                   }}
-                  style={{ height: 38 }}
-                  suffix={
-                    <i style={{ fontFamily: "Roboto", fontSize: 14 }}>%</i>
-                  }
-                />
-              </div>
-
-              <div className="d-flex gap-5 align-items-center">
-                <label
-                  className="d-flex"
-                  style={{ fontWeight: 500, width: 110 }}
                 >
-                  Type <span className="bdg-danger">*</span>
-                </label>
-                <Radio.Group
-                  value={serviceItem.type}
-                  style={{ display: "flex", width: "100%" }}
-                  onChange={(e) => handleServiceItem("type", e.target.value)}
-                >
-                  <Radio.Button
-                    value={"Service"}
+                  <div
+                    onClick={() => handleServiceItem("discountType", "flat")}
                     style={{
-                      width: "50%",
-                      height: "41px",
-                      padding: "5px 0 0 20px",
+                      padding: '2px 8px',
+                      cursor: 'pointer',
+                      background: serviceItem.discountType === 'flat' ? '#FFFFFF' : 'transparent',
+                      borderRadius: '2px',
+                      boxShadow: serviceItem.discountType === 'flat' ? '0px 1px 2px rgba(16, 24, 40, 0.05)' : 'none',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: serviceItem.discountType === 'flat' ? '#1A1A1A' : '#667085'
                     }}
-                    className="custom-radio-button"
                   >
-                    Service
-                  </Radio.Button>
-                  <Radio.Button
-                    value={"Consumables"}
+                    ₹
+                  </div>
+                  <div
+                    onClick={() => handleServiceItem("discountType", "percentage")}
                     style={{
-                      width: "50%",
-                      height: "41px",
-                      padding: "5px 0 0 20px",
+                      padding: '2px 8px',
+                      cursor: 'pointer',
+                      background: serviceItem.discountType === 'percentage' ? '#FFFFFF' : 'transparent',
+                      borderRadius: '2px',
+                      boxShadow: serviceItem.discountType === 'percentage' ? '0px 1px 2px rgba(16, 24, 40, 0.05)' : 'none',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: serviceItem.discountType === 'percentage' ? '#1A1A1A' : '#667085'
                     }}
-                    className="custom-radio-button"
                   >
-                    Consumables
-                  </Radio.Button>
-                </Radio.Group>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <div className="d-flex align-items-center mt-2 justify-content-end">
-                <div
-                  onClick={onCancel}
-                  className="me-4 text-decoration-underline btn p-0 text-main"
-                >
-                  {"Cancel"}
+                    %
+                  </div>
                 </div>
-                <Button
-                  onClick={addOrEditServieItem}
-                  className="lh-lg btn btn-primary3 btn-41 px-4"
-                  disabled={
-                    !serviceItem.type || !serviceItem.name || !serviceItem.price
-                  }
-                >
-                  <span>{editIndex === -1 ? "Add" : "Save"}</span>
-                </Button>
               </div>
             </div>
-          </>
-        }
-      />
-    </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-auto" style={{ borderTop: '1px solid #EAECF0', paddingTop: '20px', marginTop: '40px' }}>
+          <div className="d-flex justify-content-between align-items-center">
+            <span style={{ fontWeight: 600, color: '#475467', fontSize: '14px' }}>Total amount (incl. GST)</span>
+            <span style={{ fontWeight: 600, color: '#1A1A1A', fontSize: '16px' }}>
+              {totalAmount > 0 ? `₹ ${totalAmount}` : '-'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Drawer>
   );
 };
 

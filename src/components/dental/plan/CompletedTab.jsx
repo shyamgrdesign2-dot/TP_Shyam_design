@@ -200,7 +200,10 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
     <div className={styles.subCard}>
       <div
         className={styles.subCardHeader}
-        onClick={() => onToggle?.()}
+        onClick={(e) => {
+          if (e.target.closest("button") || e.target.closest("a")) return;
+          onToggle?.();
+        }}
       >
         <div className={styles.titleGroup}>
           <div className={styles.indexWrap}>
@@ -238,7 +241,6 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
             <DropdownMenuTrigger asChild={true}>
               <button
                 type="button"
-                onClick={(e) => e.stopPropagation()}
                 className={styles.iconBtn}
               >
                 <MoreVertical
@@ -278,10 +280,7 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
           </DropdownMenu>
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle?.();
-            }}
+            onClick={onToggle}
             aria-label={isOpen ? "Collapse plan" : "Expand plan"}
             className={styles.iconBtn}
           >

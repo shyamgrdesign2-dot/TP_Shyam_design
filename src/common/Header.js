@@ -21,9 +21,10 @@ import { getProfile, updateStatusMoengageB2C, changeHospital, customizedPad, swt
 import { clearTeleconsultNotification } from "../redux/teleconsultNotificationSlice";
 import ApiAbha from "../api/services/ApiAbha";
 import { viewDoctorWebsite } from "../redux/doctorWebsiteSlice";
+import { verifyAndAddDentalModule } from "../utils/dentalModuleUtils";
 
 import { useLocalStorage, clearLocalStorage, getDecodedToken } from "../utils/localStorage";
-import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP } from "../utils/constants";
+import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP, GB_DENTAL_MODULE } from "../utils/constants";
 import { errorMessage, getClinicName, makeDefaultLogo, shouldMonetizationDisabled, getTokenData, getDeviceSdkData } from "../utils/utils";
 import { createAbhaPrintHandlerConfig, createAbhaDownloadHandler } from "./abhaQrHelper";
 import { Modal, Card } from "antd";
@@ -91,6 +92,7 @@ function Header({ locationPath }) {
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isAbhaQRAccessableFromGB = useFeatureIsOn("abha-qr");
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
   const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const decodedToken = getDecodedToken();
@@ -148,7 +150,12 @@ function Header({ locationPath }) {
   useEffect(() => {
     if (!isReceptionist) {
       dispatch(getProfile());
-      dispatch(customizedPad(CUSTOMIZED_PAD_SENDDATA));
+      dispatch(customizedPad(CUSTOMIZED_PAD_SENDDATA)).then(() => {
+        const userId = decodedToken?.result?.user_id;
+        if (userId) {
+          dispatch(verifyAndAddDentalModule(userId, isDentalEnabled));
+        }
+      });
       dispatch(showMedicineTime());
       dispatch(showMedicineFrequency());
       dispatch(getMedicineType());

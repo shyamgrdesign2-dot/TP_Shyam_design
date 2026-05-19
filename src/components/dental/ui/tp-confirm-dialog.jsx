@@ -20,13 +20,11 @@ export function TPConfirmDialog({
 }) {
   const handleSecondary = (e) => {
     if (onSecondary) {
-      e?.preventDefault?.();
       onSecondary();
     }
   };
   const handlePrimary = (e) => {
     if (onPrimary) {
-      e?.preventDefault?.();
       onPrimary();
     }
   };
@@ -45,7 +43,7 @@ export function TPConfirmDialog({
     <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialogPrimitive.Portal>
         <AlertDialogPrimitive.Overlay className={styles.overlay} />
-        <AlertDialogPrimitive.Content className={styles.content}>
+        <AlertDialogPrimitive.Content className={styles.content} aria-describedby={undefined}>
           <div className={styles.header}>
             <AlertDialogPrimitive.Title className={styles.title}>
               {title}
@@ -69,7 +67,9 @@ export function TPConfirmDialog({
                     variant="Linear"
                     className={styles.warningIcon}
                   />
-                  <p className={styles.warningText}>{warning}</p>
+                  <AlertDialogPrimitive.Description className={styles.warningText}>
+                    {warning}
+                  </AlertDialogPrimitive.Description>
                 </div>
               )}
 

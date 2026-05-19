@@ -5,7 +5,7 @@ import { useSelector } from "react-redux";
 import { isMobile, isTablet } from "react-device-detect";
 import { isZydus } from "../utils/utils";
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { GB_TAB_RX } from "../utils/constants";
+import { GB_TAB_RX, GB_DENTAL_MODULE } from "../utils/constants";
 import { ASSETS } from "../assets";
 const smartPad = ASSETS.images.smartpad;
 
@@ -109,50 +109,45 @@ const PrimaryActionButton = ({
   // const isTabRxVisible = isTabRxEnabledFromGB ;
   
   const isDental = dpid === 26 || (department && department.toLowerCase() === 'dental');
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalAndEnabled = isDentalEnabled;
 
-  if (isZydusAccount) {
-    // For Zydus accounts: Consult is always primary, all other options go to dropdown
-    if (isDental) {
-      // If dental, TypeRx becomes primary and others go to dropdown
-      allAvailableOptions.push({ type: "typerx", label: "TypeRx", handler: onTypeRxClick });
-      if (isSmartRxAccessible && !isMobile) {
-        dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
-      }
-      if (isVoiceRxAccessible) {
-        dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
-      }
-      if (isSnapRxAccessible) {
-        dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
-      }
-      if (isTabRxVisible) {
-        dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
-      }
-      dropdownOptionsList.push({ type: "consult", label: "Consult", handler: onConsultClick });
-    } else {
-      if (isSmartRxAccessible && !isMobile) {
-        dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
-      }
-      if (isVoiceRxAccessible) {
-        dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
-      }
-      if (isSnapRxAccessible) {
-        dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
-      }
-      if (isTabRxVisible) {
-        dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
-      }
-      if (isTypeRxAccessible) {
-        dropdownOptionsList.push({ type: "typerx", label: "TypeRx", handler: onTypeRxClick });
-      }
-      // Consult is always primary for Zydus
-      allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
+  if (isDentalAndEnabled) {
+    // 1. If Dental & Enabled, Consult (redirecting to Dental) is always primary
+    allAvailableOptions.push({ type: "consult", label: "Consult", handler: onTypeRxClick });
+    
+    if (isSmartRxAccessible && !isMobile) {
+      dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
+    if (isVoiceRxAccessible) {
+      dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+    }
+    if (isSnapRxAccessible) {
+      dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
+    }
+    if (isTabRxVisible) {
+      dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
+    }
+  } else if (isZydusAccount) {
+    // 2. Zydus Account (non-Dental or not GB enabled):
+    // Consult is always primary, all other options go to dropdown
+    if (isSmartRxAccessible && !isMobile) {
+      dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+    }
+    if (isVoiceRxAccessible) {
+      dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+    }
+    if (isSnapRxAccessible) {
+      dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
+    }
+    if (isTabRxVisible) {
+      dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
+    }
+    allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
   } else {
-    // Normal priority logic
-    if (isDental) {
-      allAvailableOptions.push({ type: "typerx", label: "TypeRx", handler: onTypeRxClick });
-    }
-
+    // 3. Normal priority logic (non-Dental or not GB enabled):
+    // Priority order: SmartRx > VoiceRx (if paid) > SnapRx > TabRx > Consult
+    // (TypeRx is completely removed)
     if (isSmartRxAccessible && !isMobile) {
       allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
@@ -166,17 +161,11 @@ const PrimaryActionButton = ({
       allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
     }
     
-    // TabRx comes before Consult
     if (isTabRxVisible) {
       allAvailableOptions.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
-
-    if (!isDental && isTypeRxAccessible) {
-      allAvailableOptions.push({ type: "typerx", label: "TypeRx", handler: onTypeRxClick });
-    }
     
     // Consult is always available as fallback
-    // If VoiceRx is accessible but not paid, Consult becomes primary (if no higher priority available)
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
     
     // If VoiceRx is accessible but not paid, add it to dropdown (after Consult)
@@ -187,8 +176,8 @@ const PrimaryActionButton = ({
 
   // Primary button is the first available option (highest priority)
   const primaryOption = allAvailableOptions[0];
-  // Dropdown options: For Zydus, use dropdownOptionsList; otherwise, use remaining options from allAvailableOptions
-  const dropdownOptions = isZydusAccount ? dropdownOptionsList : allAvailableOptions.slice(1);
+  // Dropdown options: For Zydus and DentalAndEnabled, use dropdownOptionsList; otherwise, use remaining options from allAvailableOptions
+  const dropdownOptions = (isZydusAccount || isDentalAndEnabled) ? dropdownOptionsList : allAvailableOptions.slice(1);
 
   // Generate dropdown menu items - following priority order: SmartRx > VoiceRx > SnapRx > TabRx > Consult
   const getMenuItems = () => {

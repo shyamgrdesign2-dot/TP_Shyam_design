@@ -125,6 +125,7 @@ export const GB_VIDEO_CONSULT = "video-consult";
 export const GB_TELE_CONSULT = "tele-consult";
 export const GB_TAB_RX = "tab-rx";
 export const GB_TAB_RX_CVT = "tab-rx-cvt";
+export const GB_DENTAL_MODULE = "dental-module";
 
 export const FREE = "FREE";
 export const TRIAL = "TRIAL";

@@ -10,7 +10,8 @@ import TabDDxList from "./tab_design/TabDDxList";
 import TabVoiceRx from "./tab_design/TabVoiceRx";
 import TabCarePlanList from "./tab_design/TabCarePlanList";
 import GroundingBox from "./GroundingBox";
-import { EDIT, ADD } from "../utils/constants";
+import { EDIT, ADD, GB_DENTAL_MODULE } from "../utils/constants";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import "./ConsultationSidebar.scss";
 import { ASSETS } from "../assets";
 
@@ -100,7 +101,10 @@ const ConsultationSidebar = ({
   handleUploadDocPopup,
   setUploadDocDrawer,
   handleDrawerUploadDoc,
+  handleDrawerDental,
 }) => {
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  
   return (
     <div className="consultation-sidebar-container">
       <div className="nav-panel">
@@ -182,6 +186,13 @@ const ConsultationSidebar = ({
               icon = active ? carePlanIconDark : carePlanIcon;
               label = "Care Plan";
               onClick = () => openCollapsed(11);
+              break;
+            case 26: // Dental
+              if (!isDentalEnabled) return null;
+              active = collapsedFlag === 13; // Assuming 13 is the next available flag
+              icon = module.tmdpm_icon_url; 
+              label = "Dental";
+              onClick = () => handleDrawerDental();
               break;
             default:
               return null;

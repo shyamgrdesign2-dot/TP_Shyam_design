@@ -32,6 +32,11 @@ function SheetContent({
         data-slot="sheet-content"
         className={cx(styles.contentBase, styles[`side${side[0].toUpperCase()}${side.slice(1)}`], className)}
         {...props}>
+        
+        {/* Visually hidden title for Radix UI accessibility requirements */}
+        <SheetPrimitive.Title style={{ position: 'absolute', width: '1px', height: '1px', padding: '0', margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: '0' }}>
+          Sheet Content
+        </SheetPrimitive.Title>
 
         {children}
       </SheetPrimitive.Content>

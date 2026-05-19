@@ -118,17 +118,12 @@ export function AddEditPlanDrawer() {
   const [examSuggestionTick, setExamSuggestionTick] = useState(0);
   useEffect(() => {
     if (!isOpen || typeof window === "undefined") return;
-    const id = window.setInterval(
-      () => setExamSuggestionTick((t) => t + 1),
-      700
-    );
     const onChart = (e) => {
       if (e.detail?.patientId === patientId)
         setExamSuggestionTick((t) => t + 1);
     };
     window.addEventListener("dental-exam-chart-updated", onChart);
     return () => {
-      window.clearInterval(id);
       window.removeEventListener("dental-exam-chart-updated", onChart);
     };
   }, [isOpen, patientId]);

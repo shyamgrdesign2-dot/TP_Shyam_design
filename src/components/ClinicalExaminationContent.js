@@ -48,7 +48,6 @@ const ClinicalExaminationContent = ({
 
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
 
-  console.log(customizedPadRightList,"customizedPadRightList")
   return (
     <Content className="clinical-examination-content">
       {showSCBanner && (
