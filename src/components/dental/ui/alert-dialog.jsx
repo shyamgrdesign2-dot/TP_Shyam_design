@@ -26,15 +26,22 @@ function AlertDialogOverlay({ className, ...props }) {
 
 
 }
-function AlertDialogContent({ className, ...props }) {
+function AlertDialogContent({ className, children, ...props }) {
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cx(styles.content, className)}
-        {...props} />
+        {...props}>
+        
+        {/* Visually hidden title for Radix UI accessibility requirements */}
+        <AlertDialogPrimitive.Title style={{ position: 'absolute', width: '1px', height: '1px', padding: '0', margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: '0' }}>
+          Alert Dialog Content
+        </AlertDialogPrimitive.Title>
 
+        {children}
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>);
 
 }

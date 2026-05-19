@@ -123,7 +123,7 @@ export function ToothPicker({
       position: "fixed",
       top: rect.bottom + 4,
       left,
-      zIndex: 9999,
+      zIndex: 10001,
       width: dropdownWidth,
       pointerEvents: "auto",
     });

@@ -4,7 +4,7 @@
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid rgba(var(--tp-slate-200-rgb), 0.8);
-  background-color: var(--tp-white);
+  background-color: #ffffff;
 }
 
 .subCardHeader {
@@ -102,6 +102,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
   transition: background-color 0.2s;
 
   &:hover {
@@ -155,17 +158,22 @@
     padding-left: 14px;
     width: 36px;
   }
-  &.tooth, &.surface {
+
+  &.tooth,
+  &.surface {
     width: 70px;
   }
+
   &.rate {
     text-align: right;
     width: 80px;
   }
+
   &.disc {
     text-align: right;
     width: 60px;
   }
+
   &.amount {
     text-align: right;
     padding-right: 14px;
@@ -175,7 +183,7 @@
 
 .tbodyTr {
   border-top: 1px solid rgba(var(--tp-slate-100-rgb), 0.7);
-  background-color: var(--tp-white);
+  background-color: #ffffff;
   transition: background-color 0.2s;
 
   &:hover {
@@ -193,20 +201,24 @@
     padding-left: 14px;
     color: var(--tp-slate-400);
   }
+
   &.serviceCell {
     display: flex;
     flex-direction: column;
     gap: 2px;
   }
+
   &.treatmentName {
     font-size: 14px;
     font-weight: 500;
     color: var(--tp-slate-800);
   }
+
   &.toothMeta {
     font-size: 10px;
     color: var(--tp-slate-400);
   }
+
   &.toothPill {
     display: inline-flex;
     align-items: center;
@@ -216,6 +228,7 @@
     font-weight: 700;
     color: var(--tp-slate-600);
   }
+
   &.amount {
     padding-right: 14px;
     text-align: right;
@@ -223,10 +236,12 @@
     font-weight: 600;
     color: var(--tp-slate-800);
   }
+
   &.rate {
     text-align: right;
     font-size: 14px;
   }
+
   &.disc {
     text-align: right;
     color: var(--tp-slate-400);
@@ -258,6 +273,7 @@
   &.success {
     color: var(--tp-success-700);
   }
+
   &.final {
     padding-top: 9px;
     padding-bottom: 9px;
@@ -278,6 +294,7 @@
     font-weight: 600;
     color: var(--tp-success-700);
   }
+
   &.final {
     padding-top: 9px;
     padding-bottom: 9px;
@@ -364,6 +381,7 @@
   color: white !important;
   transition: background-color 0.2s;
   border: none !important;
+
   &:hover {
     background-color: var(--tp-blue-700);
   }
@@ -380,6 +398,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
   transition: background-color 0.2s;
 
   &:hover {
@@ -426,7 +447,7 @@
   width: 220px;
   border-radius: 10px;
   border: 1px solid rgba(var(--tp-slate-100-rgb), 0.7);
-  background-color: var(--tp-white);
+  background-color: #ffffff;
   padding: 4px;
 
   &.small {
@@ -442,7 +463,8 @@
   padding: 8px;
   cursor: pointer;
 
-  &:focus, &[data-highlighted] {
+  &:focus,
+  &[data-highlighted] {
     background-color: var(--tp-slate-100);
     color: var(--tp-slate-700);
     outline: none;
@@ -450,8 +472,9 @@
 
   &.destructive {
     color: var(--tp-error-600);
-    
-    &:focus, &[data-highlighted] {
+
+    &:focus,
+    &[data-highlighted] {
       background-color: #fef2f2; // red-50
       color: var(--tp-error-600);
     }

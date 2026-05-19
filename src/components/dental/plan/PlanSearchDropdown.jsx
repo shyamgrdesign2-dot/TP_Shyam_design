@@ -52,7 +52,7 @@ export const PlanSearchDropdown = forwardRef(function PlanSearchDropdown(
         top: dropdownPos.top,
         left: dropdownPos.left,
         width: Math.max(dropdownPos.width, 400),
-        zIndex: 9999,
+        zIndex: 10001,
         pointerEvents: "auto",
       }}
       className={styles.searchDropdown}

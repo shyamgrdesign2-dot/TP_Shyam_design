@@ -41,7 +41,7 @@ export function AddProcedureDrawer() {
   const procedureId = isEdit ? drawer.procedureId : undefined;
   const service = serviceId ? findService(serviceId) : undefined;
   const editingProcedure = procedureId ?
-  service?.procedures.find((p) => p.id === procedureId) :
+  service?.procedures?.find((p) => p.id === procedureId) :
   undefined;
   const [rows, setRows] = useState([]);
   const [activeCell, setActiveCell] = useState(null);
@@ -584,7 +584,7 @@ export function AddProcedureDrawer() {
               top: dropdownPos.top,
               left: dropdownPos.left,
               width: dropdownPos.width,
-              zIndex: 9999
+              zIndex: 10001
             }}
             className={styles.dropdownMenu}>
 

@@ -479,12 +479,12 @@
   gap: 0 !important;
   border-radius: 0 !important;
   min-height: 0 !important;
-  width: min(100vw, 880px) !important;
-  max-width: 880px !important;
+  width: min(100vw, 1040px) !important;
+  max-width: 1040px !important;
 
   @media (min-width: 640px) {
-    width: 880px !important;
-    max-width: 880px !important;
+    width: 1040px !important;
+    max-width: 1040px !important;
   }
 }
 

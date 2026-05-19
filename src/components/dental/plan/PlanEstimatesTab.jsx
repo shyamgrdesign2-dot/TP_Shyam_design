@@ -93,7 +93,11 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
     <div className={styles.subCard}>
       <div
         className={styles.subCardHeader}
-        onClick={() => onToggle?.()}
+        onClick={(e) => {
+          if (e.target.closest("button") || e.target.closest("a")) return;
+          onToggle?.();
+        }}
+        // onClick={() => onToggle?.()}
       >
         <div className={styles.indexWrap}>
           <span className={styles.indexText}>
@@ -111,6 +115,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
         <div className={styles.actionRow}>
           <button
             type="button"
+            // onClick={handleActivateClick}
             onClick={(e) => {
               e.stopPropagation();
               handleActivateClick();
@@ -123,7 +128,6 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
             <DropdownMenuTrigger asChild={true}>
               <button
                 type="button"
-                onClick={(e) => e.stopPropagation()}
                 className={styles.iconBtn}
               >
                 <MoreVertical
@@ -178,10 +182,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
           </DropdownMenu>
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle?.();
-            }}
+            onClick={onToggle}
             aria-label={isOpen ? "Collapse plan" : "Expand plan"}
             className={styles.iconBtn}
           >
@@ -199,12 +200,21 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
         <div className={styles.subCardContent}>
           <div className={styles.tableContainer}>
             <table className={styles.table}>
+              <colgroup>
+                <col style={{ width: 36, minWidth: 36 }} />
+                <col />
+                <col style={{ width: 70, minWidth: 70 }} />
+                <col style={{ width: 170, minWidth: 170 }} />
+                <col style={{ width: 80, minWidth: 80 }} />
+                <col style={{ width: 60, minWidth: 60 }} />
+                <col style={{ width: 80, minWidth: 80 }} />
+              </colgroup>
               <thead>
                 <tr className={styles.theadTr}>
                   <th className={`${styles.th} ${styles.idx}`}>#</th>
                   <th className={styles.th}>Service</th>
-                  <th className={styles.th}>Tooth</th>
-                  <th className={styles.th}>Surface</th>
+                  <th className={`${styles.th} ${styles.tooth}`}>Tooth</th>
+                  <th className={`${styles.th} ${styles.surface}`}>Surface</th>
                   <th className={`${styles.th} ${styles.rate}`}>Rate</th>
                   <th className={`${styles.th} ${styles.disc}`}>Disc.</th>
                   <th className={`${styles.th} ${styles.amount}`}>Amount</th>

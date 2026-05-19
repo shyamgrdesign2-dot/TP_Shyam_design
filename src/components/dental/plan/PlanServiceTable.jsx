@@ -42,7 +42,7 @@ function SurfacePicker({ value, onChange }) {
       position: "fixed",
       top: rect.bottom + 4,
       left,
-      zIndex: 9999,
+      zIndex: 10001,
       minWidth: dropdownWidth,
       pointerEvents: "auto",
     });
@@ -144,7 +144,7 @@ function SurfacePicker({ value, onChange }) {
       >
         <span className={styles.surfaceTriggerText}>
           {value.length > 0 ? (
-            <PlanSurfaceAbbrTags surfaces={value} gapClass="gap-[4px]" />
+            <PlanSurfaceAbbrTags surfaces={value} gapClass="gap-[4px]" maxCount={3} />
           ) : (
             <span className={styles.surfacePlaceholder}>Select surface</span>
           )}
@@ -186,20 +186,20 @@ function PlanServiceTableInner({
       <div className={styles.tableShell}>
         <table className={styles.servicesTable}>
           <colgroup>
-            <col style={{ width: 40, minWidth: 36 }} />
-            <col style={{ minWidth: 132, maxWidth: 200 }} />
-            <col style={{ width: 104, minWidth: 96 }} />
-            <col style={{ width: 108, minWidth: 100 }} />
-            <col style={{ width: 118, minWidth: 108 }} />
-            <col style={{ minWidth: 112, maxWidth: 200 }} />
+            <col style={{ width: 36, minWidth: 32 }} />
+            <col style={{ minWidth: 160, maxWidth: 240 }} />
+            <col style={{ width: 130, minWidth: 130 }} />
+            <col style={{ width: 160, minWidth: 160 }} />
+            <col style={{ width: 114, minWidth: 108 }} />
+            <col style={{ minWidth: 140, maxWidth: 240 }} />
             <col style={{ width: 88, minWidth: 76 }} />
-            <col style={{ width: 72, minWidth: 64 }} />
+            <col style={{ width: 68, minWidth: 60 }} />
             <col style={{ width: 84, minWidth: 72 }} />
             <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
           </colgroup>
           <thead>
             <tr className={styles.tableHeadRow}>
-              <th className={styles.tableHeadCellCenter} />
+              <th className={styles.tableHeadCellCenterStickyLeft} />
               <th className={styles.tableHeadCellLeft}>Service</th>
               <th className={styles.tableHeadCellLeft}>Teeth</th>
               <th className={styles.tableHeadCellLeft}>Surfaces</th>
@@ -222,7 +222,7 @@ function PlanServiceTableInner({
               const isDiscActive = isCellActive(row.id, "disc");
               return (
                 <tr key={row.id} className={styles.tableBodyRow}>
-                  <td className={styles.rowIndexCell}>{idx + 1}</td>
+                  <td className={styles.rowIndexCellStickyLeft}>{idx + 1}</td>
                   <td className={styles.tableCell}>
                     <div className={styles.serviceNameWrap}>
                       <p className={styles.serviceNameText}>{row.treatment}</p>

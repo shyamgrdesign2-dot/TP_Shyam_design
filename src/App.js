@@ -201,7 +201,7 @@ const ConsultationLayout = React.lazy(() =>
   lazyRetry(() => import("./components/ConsultationLayout"))
 );
 
-const growthbook = new GrowthBook({
+export const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
   clientKey: config?.GROWTHBOOK_CLIENTKEY,
   enableDevMode: process.env.REACT_APP_ENV !== "prod",
@@ -745,7 +745,7 @@ function App() {
             element={<TabRxDigitization />}
           />
           <Route path="dental" element={<ConsultationLayout />} />
-          <Route path="consultation-layout-test" element={<ConsultationTestPage />} />
+          {/* <Route path="dental" element={<DentalModuleShell />} /> */}
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />
       </SentryRoutes>

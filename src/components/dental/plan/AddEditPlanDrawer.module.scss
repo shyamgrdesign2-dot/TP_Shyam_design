@@ -77,7 +77,7 @@
   justify-content: center;
   border-radius: 4px;
   border: 1px solid var(--tp-slate-300);
-  background-color: var(--tp-white);
+  background-color: #ffffff;
 
   &.checked {
     border-color: var(--tp-blue-500);
@@ -307,14 +307,14 @@
 .tableShell {
   width: 100%;
   min-width: 0;
-  overflow: hidden auto;
+  overflow: auto;
   border: 1px solid var(--tp-slate-200);
   border-radius: 10px;
 }
 
 .servicesTable {
   width: 100%;
-  min-width: 880px;
+  min-width: 1012px;
   max-width: 100%;
   table-layout: fixed;
   font-family: 'Inter', sans-serif;
@@ -346,6 +346,31 @@
   padding-right: 0;
 }
 
+.tableHeadCellCenterStickyLeft {
+  @extend .tableHeadCellBase;
+  text-align: center;
+  padding-left: 0;
+  padding-right: 0;
+  position: sticky;
+  left: 0;
+  z-index: 40;
+  border-right: 1px solid var(--tp-slate-200, #e2e8f0);
+  background: var(--tp-slate-50);
+  box-shadow: 4px 0 10px rgba(15, 23, 42, 0.08);
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: -8px;
+    bottom: 0;
+    width: 8px;
+    pointer-events: none;
+    background: linear-gradient(to right, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0));
+    z-index: 10;
+  }
+}
+
 .tableHeadCellLeft {
   @extend .tableHeadCellBase;
   text-align: left;
@@ -371,20 +396,43 @@
   position: sticky;
   right: 0;
   z-index: 40;
-  border-left: 1px solid rgba(226, 232, 240, 0.8);
+  border-left: 1px solid var(--tp-slate-200, #e2e8f0);
   background: var(--tp-slate-50);
   padding: 0.5rem 0;
   text-align: center;
   font-weight: 600;
-  box-shadow: -8px 7px 14px -12px rgba(15, 23, 42, 0.18);
+  box-shadow: -4px 0 10px rgba(15, 23, 42, 0.08);
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -8px;
+    bottom: 0;
+    width: 8px;
+    pointer-events: none;
+    background: linear-gradient(to left, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0));
+    z-index: 10;
+  }
 }
 
 .tableBodyRow {
   height: 46px;
   border-top: 1px solid var(--tp-slate-100);
-  background: var(--tp-white);
+  background: #ffffff;
   vertical-align: middle;
   transition: background-color 150ms ease;
+
+  &:hover {
+    background-color: var(--tp-slate-50);
+
+    .rowIndexCellStickyLeft {
+      background-color: var(--tp-slate-50);
+    }
+    .tableStickyCell {
+      background-color: var(--tp-slate-50) !important;
+    }
+  }
 }
 
 .tableCell {
@@ -399,6 +447,33 @@
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   color: var(--tp-slate-400);
+}
+
+.rowIndexCellStickyLeft {
+  position: sticky;
+  left: 0;
+  z-index: 40;
+  border-right: 1px solid var(--tp-slate-200, #e2e8f0);
+  background: #ffffff;
+  padding: 0 1rem;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--tp-slate-400);
+  box-shadow: 4px 0 10px rgba(15, 23, 42, 0.08);
+  transition: background-color 150ms ease;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: -8px;
+    bottom: 0;
+    width: 8px;
+    pointer-events: none;
+    background: linear-gradient(to right, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0));
+    z-index: 10;
+  }
 }
 
 .serviceNameWrap {
@@ -569,10 +644,23 @@
   position: sticky;
   right: 0;
   z-index: 40;
-  border-left: 1px solid rgba(226, 232, 240, 0.8);
-  background: var(--tp-white);
+  border-left: 1px solid var(--tp-slate-200, #e2e8f0);
+  background: #ffffff;
   padding: 0;
-  box-shadow: -8px 7px 14px -12px rgba(15, 23, 42, 0.18);
+  box-shadow: -4px 0 10px rgba(15, 23, 42, 0.08);
+  transition: background-color 150ms ease;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -8px;
+    bottom: 0;
+    width: 8px;
+    pointer-events: none;
+    background: linear-gradient(to left, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0));
+    z-index: 10;
+  }
 }
 
 .rowActionWrap {
@@ -604,7 +692,7 @@
 .totalBar {
   flex-shrink: 0;
   border-top: 1px solid var(--tp-slate-200);
-  background: var(--tp-white);
+  background: #ffffff;
   padding: 14px 24px;
 }
 
@@ -646,7 +734,7 @@
   width: 140px;
   border: 1px solid var(--tp-slate-200);
   border-radius: 10px;
-  background: var(--tp-white);
+  background: #ffffff;
   padding: 0 12px 0 28px;
   font-family: 'Inter', sans-serif;
   font-size: 14px;
@@ -739,7 +827,7 @@
   width: 100%;
   border-radius: 10px;
   border: 1px solid var(--tp-slate-200);
-  background: var(--tp-white);
+  background: #ffffff;
   padding-left: 36px;
   padding-right: 14px;
   font-family: 'Inter', sans-serif;
@@ -817,7 +905,7 @@
   gap: 8px;
   border: 0;
   border-radius: 10px;
-  background: var(--tp-white);
+  background: #ffffff;
   padding: 4px 12px 4px 6px;
   text-align: left;
   transition: background-color 0.2s;
