@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { ZONE_INFO, getZoneLabel, QUADRANT_LABELS } from "./types";
+import styles from "./DentitionTooltip.module.scss";
 
 /**
  * DentitionTooltip — camera-relative tooltip that stays fixed on
@@ -18,15 +19,11 @@ function DentitionTooltip({
   isImplant,
   allEntries,
   toothNotes,
+  treatmentHistoryDetails = {},
 }) {
   const tooltipRef = useRef(null);
   const connectorRef = useRef(null);
   const { camera, gl, size } = useThree();
-  const violetAccent = {
-    stroke: "#8B5CF6",
-    badgeBg: "#8B5CF6",
-    badgeText: "#ffffff",
-  };
   // With the narrow side panel and wider 3D canvas, horizontal space on either
   // side of the arch is limited. Place tooltip ABOVE maxillary teeth and BELOW
   // mandibular teeth so it always lands in the whitespace outside the arch —
@@ -228,18 +225,19 @@ function DentitionTooltip({
     }
   });
 
-  const cardMinW = isTiny ? 200 : isCompact ? 220 : 240;
-  const cardMaxW = isTiny ? 260 : isCompact ? 290 : 320;
-  const cardPadding = isTiny ? "8px 10px" : "10px 13px";
-  const titleSize = isTiny ? 12 : 13;
-  const bodySize = isTiny ? 9 : 10;
-  const sectionPad = isTiny ? "6px 8px" : "7px 9px";
   // Derive data for full overview sections.
   const diagLabels = [];
   if (diagnoses) {
     for (const d of diagnoses) diagLabels.push(d);
   }
   if (isImplant && !diagLabels.includes("Implant")) diagLabels.push("Implant");
+  if (treatmentHistoryDetails) {
+    Object.keys(treatmentHistoryDetails).forEach((key) => {
+      if (!diagLabels.includes(key)) {
+        diagLabels.push(key);
+      }
+    });
+  }
   const toothEntries = useMemo(
     () => (allEntries ?? []).filter((e) => e.toothFdi === tooth.fdi),
     [allEntries, tooth.fdi],
@@ -277,14 +275,6 @@ function DentitionTooltip({
     groupedFindings.length > 0 ||
     procedureSummary.length > 0 ||
     noteText.length > 0;
-  const sectionHeadingStyle = {
-    fontSize: isTiny ? "8px" : "9px",
-    textTransform: "uppercase",
-    letterSpacing: "0.6px",
-    color: "#cbd5e1",
-    marginBottom: "4px",
-    fontWeight: 600,
-  };
   return (
     <>
       <Html
@@ -300,116 +290,29 @@ function DentitionTooltip({
       >
         <div
           ref={connectorRef}
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            height: 0,
-            borderTop: "1px dashed rgba(148, 163, 184, 0.45)",
-            transformOrigin: "0 50%",
-            zIndex: 0,
-          }}
+          className={styles.connector}
         />
 
         <div
           ref={tooltipRef}
-          style={{
-            transform: "translate(-50%, -50%)",
-            transformOrigin: "center center",
-            background: "rgba(0, 0, 0, 0.78)",
-            color: "#fff",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
-            padding: cardPadding,
-            borderRadius: "8px",
-            fontSize: isTiny ? "11px" : "12px",
-            borderLeft: `3px solid ${violetAccent.stroke}`,
-            fontFamily: "'Inter', sans-serif",
-            minWidth: `${cardMinW}px`,
-            maxWidth: `${cardMaxW}px`,
-            whiteSpace: "normal",
-            boxShadow: "0 4px 18px rgba(0,0,0,0.45)",
-            textAlign: "left",
-            left: 0,
-            top: 0,
-            position: "relative",
-            zIndex: 1,
-            transition: "transform 120ms ease-out, opacity 120ms ease-out",
-          }}
+          className={`${styles.tooltipCard} ${isCompact ? styles.isCompact : ""} ${isTiny ? styles.isTiny : ""}`}
         >
           <div
-            style={{
-              fontWeight: 700,
-              fontSize: `${titleSize}px`,
-              paddingBottom: hasContent ? "8px" : 0,
-              marginBottom: hasContent ? "10px" : 0,
-              borderBottom: hasContent
-                ? "1px solid rgba(255,255,255,0.1)"
-                : "none",
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              lineHeight: 1.3,
-              whiteSpace: "nowrap",
-            }}
+            className={`${styles.tooltipHeader} ${hasContent ? styles.hasContent : ""}`}
           >
-            <span
-              style={{
-                color: violetAccent.badgeText,
-                background: violetAccent.badgeBg,
-                borderRadius: "4px",
-                padding: isTiny ? "1px 5px" : "1px 6px",
-                fontSize: isTiny ? "11px" : "12px",
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
+            <span className={styles.toothBadge}>
               T{tooth.fdi}
             </span>
-            <span
-              style={{
-                fontWeight: 600,
-                color: "#f1f5f9",
-                flexShrink: 0,
-              }}
-            >
+            <span className={styles.toothLabel}>
               {QUADRANT_LABELS[tooth.quadrant]} {tooth.name}
             </span>
           </div>
           {treatmentHistory.length > 0 && (
-            <div
-              style={{
-                marginBottom:
-                  groupedFindings.length > 0 ||
-                  procedureSummary.length > 0 ||
-                  noteText
-                    ? "8px"
-                    : 0,
-                background: "rgba(255,255,255,0.06)",
-                borderRadius: "6px",
-                padding: sectionPad,
-              }}
-            >
-              <div style={sectionHeadingStyle}>Treatment History</div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "4px",
-                  flexWrap: "wrap",
-                }}
-              >
+            <div className={styles.section}>
+              <div className={styles.sectionHeading}>Treatment History</div>
+              <div className={styles.tagContainer}>
                 {treatmentHistory.map((d) => (
-                  <span
-                    key={d}
-                    style={{
-                      fontSize: `${bodySize}px`,
-                      fontWeight: 600,
-                      padding: isTiny ? "2px 6px" : "2px 8px",
-                      borderRadius: "10px",
-                      background: "rgba(148,163,184,0.3)",
-                      color: "#f1f5f9",
-                    }}
-                  >
+                  <span key={d} className={styles.pillTag}>
                     {d}
                   </span>
                 ))}
@@ -418,23 +321,9 @@ function DentitionTooltip({
           )}
 
           {groupedFindings.length > 0 && (
-            <div
-              style={{
-                marginBottom:
-                  procedureSummary.length > 0 || noteText ? "8px" : 0,
-                background: "rgba(255,255,255,0.06)",
-                borderRadius: "6px",
-                padding: sectionPad,
-              }}
-            >
-              <div style={sectionHeadingStyle}>Findings</div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "4px",
-                }}
-              >
+            <div className={styles.section}>
+              <div className={styles.sectionHeading}>Findings</div>
+              <div className={styles.findingsList}>
                 {groupedFindings.map(([zid, types]) => {
                   const zc = ZONE_INFO[zid]?.color || "#888";
                   const zl =
@@ -442,41 +331,19 @@ function DentitionTooltip({
                       ? "Whole Tooth"
                       : getZoneLabel(zid, tooth.arch, tooth.position);
                   return (
-                    <div
-                      key={zid}
-                      style={{
-                        fontSize: `${bodySize}px`,
-                        display: "flex",
-                        gap: "8px",
-                        alignItems: "baseline",
-                        lineHeight: 1.35,
-                      }}
-                    >
+                    <div key={zid} className={styles.findingRow}>
                       <span
-                        style={{
-                          width: "7px",
-                          height: "7px",
-                          borderRadius: "50%",
-                          background: zc,
-                          flexShrink: 0,
-                          marginTop: "3px",
-                        }}
+                        className={styles.findingDot}
+                        style={{ background: zc }}
                       />
 
                       <span
-                        style={{
-                          fontWeight: 600,
-                          color: zc,
-                          minWidth: "56px",
-                        }}
+                        className={styles.findingLabel}
+                        style={{ color: zc }}
                       >
                         {zl}
                       </span>
-                      <span
-                        style={{
-                          color: "#e2e8f0",
-                        }}
-                      >
+                      <span className={styles.findingValue}>
                         {types.join(", ")}
                       </span>
                     </div>
@@ -487,38 +354,19 @@ function DentitionTooltip({
           )}
 
           {procedureSummary.length > 0 && (
-            <div
-              style={{
-                marginBottom: noteText ? "8px" : 0,
-                background: "rgba(255,255,255,0.06)",
-                borderRadius: "6px",
-                padding: sectionPad,
-              }}
-            >
-              <div style={sectionHeadingStyle}>Procedures</div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "4px",
-                  flexWrap: "wrap",
-                }}
-              >
+            <div className={styles.section}>
+              <div className={styles.sectionHeading}>Procedures</div>
+              <div className={styles.tagContainer}>
                 {procedureSummary.map((entry) => (
                   <span
                     key={entry.name}
-                    style={{
-                      fontSize: `${bodySize}px`,
-                      fontWeight: 600,
-                      padding: isTiny ? "2px 6px" : "2px 8px",
-                      borderRadius: "10px",
-                      background:
-                        entry.kind === "planned"
-                          ? "rgba(59,130,246,0.22)"
-                          : entry.kind === "symptom"
-                            ? "rgba(236,72,153,0.22)"
-                            : "rgba(148,163,184,0.3)",
-                      color: "#f1f5f9",
-                    }}
+                    className={`${styles.pillTag} ${
+                      entry.kind === "planned"
+                        ? styles.planned
+                        : entry.kind === "symptom"
+                          ? styles.symptom
+                          : ""
+                    }`}
                   >
                     {entry.name}
                   </span>
@@ -528,22 +376,9 @@ function DentitionTooltip({
           )}
 
           {noteText && (
-            <div
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                borderRadius: "6px",
-                padding: sectionPad,
-              }}
-            >
-              <div style={sectionHeadingStyle}>Notes</div>
-              <div
-                style={{
-                  fontSize: `${bodySize}px`,
-                  color: "#e2e8f0",
-                  fontStyle: "italic",
-                  lineHeight: 1.4,
-                }}
-              >
+            <div className={styles.section}>
+              <div className={styles.sectionHeading}>Notes</div>
+              <div className={styles.noteText}>
                 "
                 {noteText.length > (isTiny ? 64 : 80)
                   ? noteText.slice(0, isTiny ? 64 : 80) + "…"
@@ -554,15 +389,7 @@ function DentitionTooltip({
           )}
 
           {!hasContent && (
-            <div
-              style={{
-                fontSize: "11px",
-                color: "#94a3b8",
-                fontStyle: "italic",
-                textAlign: "center",
-                padding: "8px 0",
-              }}
-            >
+            <div className={styles.emptyHint}>
               Click on the tooth to start adding details
             </div>
           )}

@@ -267,7 +267,7 @@ function toDentalPreviewSections(state) {
   );
 }
 export function ExaminationTab({ patientId, patientAge = 30 }) {
-  const { syncState, toothState, loading } = useDentalExamination(patientId);
+  const { syncState, toothState, version, loading, saveChart } = useDentalExamination(patientId);
   const [canvasState, setCanvasState] = useState(null);
 
   // Transform Redux state back to the structure DentalCanvas expects for initialization
@@ -409,9 +409,14 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
   }, [singleAsidePct]);
   const asidePct = isSingle ? singleAsidePct : dentitionAsidePct;
   const canvasPct = 100 - asidePct;
+  // version is set by fetchDentalExamination.fulfilled and reset to 0 on .pending.
+  // It is NOT overwritten by syncWholeState (which only touches toothState), so it
+  // reliably reflects whether the GET API returned saved examination data for this patient.
+  const hasApiExaminationData = version > 0;
   const isGetStarted =
     !isSingle &&
     !!canvasState &&
+    !hasApiExaminationData &&
     Object.values(canvasState.toothDiagnoses).every((s) => s.size === 0) &&
     canvasState.implantTeeth.size === 0 &&
     Object.values(canvasState.findingsByTooth).every((a) => a.length === 0) &&
@@ -554,12 +559,12 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
             {isSingle && canvasState ?
               <div className={ex.singleCol}>
                 <div className={ex.singleCard}>
-                  <SingleToothPanel state={canvasState} />
+                  <SingleToothPanel state={canvasState} onSave={saveChart} />
                 </div>
               </div> :
 
               <div className={isGetStarted ? ex.scrollStarted : ex.scrollSplit}>
-                <DentitionPanel state={canvasState} />
+                <DentitionPanel state={canvasState} hasApiExaminationData={hasApiExaminationData} />
               </div>}
 
           </div>
@@ -623,7 +628,7 @@ function uniquePartList(raw) {
 // Dentition panel: Patient Dental Score + per-tooth summary
 // Clicking any summary row → opens that tooth's single view.
 // ──────────────────────────────────────────────────────────────
-function DentitionPanel({ state }) {
+function DentitionPanel({ state, hasApiExaminationData = false }) {
   const scoreData = useMemo(() => computeDentalScore(state), [state]);
   const [showFormula, setShowFormula] = useState(false);
   const infoBtnRef = useRef(null);
@@ -649,6 +654,19 @@ function DentitionPanel({ state }) {
       const e = seed(fdi);
       if (!e.diagnoses.includes("Implant")) e.diagnoses.push("Implant");
     });
+    // Treatment history details (e.g. Crown stored without __dx__ marker from older saves)
+    // must also surface in Tooth records, de-duped against toothDiagnoses entries.
+    const historyByTooth = state.treatmentHistoryDetailsByTooth ?? {};
+    for (const [fdi, histMap] of Object.entries(historyByTooth)) {
+      if (!histMap || !Object.keys(histMap).length) continue;
+      const row = seed(fdi);
+      const existingLower = new Set(row.diagnoses.map((d) => d.toLowerCase()));
+      for (const name of Object.keys(histMap)) {
+        if (name && !existingLower.has(name.toLowerCase())) {
+          row.diagnoses.push(name);
+        }
+      }
+    }
     const findingsByTooth = state.findingsByTooth ?? {};
     for (const [fdi, list] of Object.entries(findingsByTooth)) {
       if (!list?.length) continue;
@@ -726,7 +744,7 @@ function DentitionPanel({ state }) {
   };
   return (
     <>
-      {summary.length > 0 ?
+      {summary.length > 0 || hasApiExaminationData ?
         <>
           <ScoreCard
             data={scoreData}
@@ -740,102 +758,109 @@ function DentitionPanel({ state }) {
             <span className={ui.recordsBadge}>{summary.length}</span>
           </div>
           <div className={ui.recordsList}>
-            {summary.map((entry) => {
-              const tooth = TEETH.find((t) => t.fdi === entry.fdi);
-              const toothName = tooth ?
-                `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` :
-                "";
-              // Determine thumbnail color by most-severe diagnosis
-              let crownColor = "#E8DDD5",
-                rootColor = "#C4AD97";
-              if (entry.diagnoses.includes("Missing")) {
-                crownColor = "#d1d5db";
-                rootColor = "#d1d5db";
-              } else if (
-                entry.diagnoses.includes("Crown") ||
-                entry.diagnoses.includes("Bridge")) {
-                crownColor = "#d1d5db";
-                rootColor = "#C4AD97";
-              } else if (entry.diagnoses.includes("RCT")) {
-                crownColor = "#f87171";
-                rootColor = "#C4AD97";
-              } else if (entry.diagnoses.includes("Implant")) {
-                crownColor = "#9ca3af";
-                rootColor = "#6B7280";
-              }
-              return (
-                <button
-                  type="button"
-                  onClick={() => openTooth(entry.fdi)}
-                  onMouseEnter={() => state?.onSetHoveredTooth(entry.fdi)}
-                  onMouseLeave={() => state?.onSetHoveredTooth(null)}
-                  className={`${ui.toothRow} ${enterFdis.has(entry.fdi) ? ui.toothRowEnter : ""
-                    } ${state?.agentApplyPulseFdis?.has(String(entry.fdi)) ?
-                      ui.toothRowAgentPulse : ""
-                    } ${state?.hoveredToothFdi === entry.fdi ? ui.toothRowActive : ""
-                    }`}>
+            {summary.length > 0 ? (
+              summary.map((entry) => {
+                const tooth = TEETH.find((t) => t.fdi === entry.fdi);
+                const toothName = tooth ?
+                  `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` :
+                  "";
+                // Determine thumbnail color by most-severe diagnosis
+                let crownColor = "#E8DDD5",
+                  rootColor = "#C4AD97";
+                if (entry.diagnoses.includes("Missing")) {
+                  crownColor = "#d1d5db";
+                  rootColor = "#d1d5db";
+                } else if (
+                  entry.diagnoses.includes("Crown") ||
+                  entry.diagnoses.includes("Bridge")) {
+                  crownColor = "#d1d5db";
+                  rootColor = "#C4AD97";
+                } else if (entry.diagnoses.includes("RCT")) {
+                  crownColor = "#f87171";
+                  rootColor = "#C4AD97";
+                } else if (entry.diagnoses.includes("Implant")) {
+                  crownColor = "#9ca3af";
+                  rootColor = "#6B7280";
+                }
+                return (
+                  <button
+                    type="button"
+                    onClick={() => openTooth(entry.fdi)}
+                    onMouseEnter={() => state?.onSetHoveredTooth(entry.fdi)}
+                    onMouseLeave={() => state?.onSetHoveredTooth(null)}
+                    className={`${ui.toothRow} ${enterFdis.has(entry.fdi) ? ui.toothRowEnter : ""
+                      } ${state?.agentApplyPulseFdis?.has(String(entry.fdi)) ?
+                        ui.toothRowAgentPulse : ""
+                      } ${state?.hoveredToothFdi === entry.fdi ? ui.toothRowActive : ""
+                      }`}>
 
-                  <div className={ui.toothRowHeader}>
-                    <div className={ui.toothThumb}>
-                      {tooth &&
-                        <MiniToothCanvas
-                          tooth={tooth}
-                          size={52}
-                          diagnoses={new Set(entry.diagnoses)}
-                          isImplant={entry.diagnoses.includes("Implant")}
-                          findings={state?.findingsByTooth?.[entry.fdi] ?? []} />}
+                    <div className={ui.toothRowHeader}>
+                      <div className={ui.toothThumb}>
+                        {tooth &&
+                          <MiniToothCanvas
+                            tooth={tooth}
+                            size={52}
+                            diagnoses={new Set(entry.diagnoses)}
+                            isImplant={entry.diagnoses.includes("Implant")}
+                            findings={state?.findingsByTooth?.[entry.fdi] ?? []} />}
+
+
+                      </div>
+                      <div className={ui.toothHeaderText}>
+                        <span className={ui.toothName}>{toothName}</span>
+                        <span className={ui.toothFdiBelow}>T{entry.fdi}</span>
+                      </div>
+                      <span className={ui.toothChevron} aria-hidden={true}>
+                        <ExpandIcon size={17} />
+                      </span>
+                    </div>
+                    <div className={ui.toothRowDivider} aria-hidden={true} />
+                    <div className={ui.toothChips}>
+                      {entry.diagnosisParts.length > 0 &&
+                        <SummaryPillSegmented
+                          icon="clipboard-activity"
+                          parts={entry.diagnosisParts}
+                          title={entry.historyTitle}
+                          tone="violet" />}
+
+
+
+                      {entry.findingParts.length > 0 &&
+                        <SummaryPillSegmented
+                          icon="diagnosis"
+                          parts={entry.findingParts}
+                          title={entry.findingsTitle}
+                          tone="violet" />}
+
+
+
+                      {entry.procedureParts.length > 0 &&
+                        <SummaryPillSegmented
+                          icon="surgical-scissors-02"
+                          parts={entry.procedureParts}
+                          title={entry.procedureTitle}
+                          tone="violet" />}
+
+
+
+                      {Boolean((state?.toothNotes ?? {})[entry.fdi]?.trim()) &&
+                        <SummaryPill
+                          icon="note-2"
+                          label="Notes"
+                          title={(state?.toothNotes ?? {})[entry.fdi]?.trim()}
+                          tone="violet" />}
 
 
                     </div>
-                    <div className={ui.toothHeaderText}>
-                      <span className={ui.toothName}>{toothName}</span>
-                      <span className={ui.toothFdiBelow}>T{entry.fdi}</span>
-                    </div>
-                    <span className={ui.toothChevron} aria-hidden={true}>
-                      <ExpandIcon size={17} />
-                    </span>
-                  </div>
-                  <div className={ui.toothRowDivider} aria-hidden={true} />
-                  <div className={ui.toothChips}>
-                    {entry.diagnosisParts.length > 0 &&
-                      <SummaryPillSegmented
-                        icon="clipboard-activity"
-                        parts={entry.diagnosisParts}
-                        title={entry.historyTitle}
-                        tone="violet" />}
-
-
-
-                    {entry.findingParts.length > 0 &&
-                      <SummaryPillSegmented
-                        icon="diagnosis"
-                        parts={entry.findingParts}
-                        title={entry.findingsTitle}
-                        tone="violet" />}
-
-
-
-                    {entry.procedureParts.length > 0 &&
-                      <SummaryPillSegmented
-                        icon="surgical-scissors-02"
-                        parts={entry.procedureParts}
-                        title={entry.procedureTitle}
-                        tone="violet" />}
-
-
-
-                    {Boolean((state?.toothNotes ?? {})[entry.fdi]?.trim()) &&
-                      <SummaryPill
-                        icon="note-2"
-                        label="Notes"
-                        title={(state?.toothNotes ?? {})[entry.fdi]?.trim()}
-                        tone="violet" />}
-
-
-                  </div>
-                </button>);
-
-            })}
+                  </button>);
+              })
+            ) : (
+              <div className={ui.emptyPlaceholder}>
+                <p className={ui.emptyPlaceholderText}>
+                  No active findings or procedures. Select a tooth from the 3D model to begin.
+                </p>
+              </div>
+            )}
           </div>
         </> : (
 
@@ -1295,7 +1320,7 @@ const ARCH_SCOPE_BADGE = {
   UPPER_ARCH: "Maxillary",
   LOWER_ARCH: "Mandibular"
 };
-function SingleToothPanel({ state }) {
+function SingleToothPanel({ state, onSave }) {
   const isGroupedScope =
     state.selectionScopeType === "quadrant" ||
     state.selectionScopeType === "full-mouth" ||
@@ -1442,7 +1467,7 @@ function SingleToothPanel({ state }) {
                 variant="Linear" />
 
             </button>
-            <button type="button" className={ui.panelIconBtn} title="Save">
+            <button type="button" className={ui.panelIconBtn} title="Save" onClick={onSave}>
               <Ram
                 color="currentColor"
                 size={16}
@@ -1916,7 +1941,7 @@ function SectionHeader({
 // EntryTab — shared builder + table for Findings and Procedures
 // ──────────────────────────────────────────────────────────────
 function EntryTab({ state, kind }) {
-  const { activeDiagnoses, activeProcedures, activeSurfaces } = useDentalMasters();
+  const { activeSurfaceFindings, activeProcedures, activeSurfaces } = useDentalMasters();
   const [activeCell, setActiveCell] = useState(null);
   const [query, setQuery] = useState("");
   const { items: billingItems } = useBillingCatalog();
@@ -2000,7 +2025,7 @@ function EntryTab({ state, kind }) {
     kind === "finding" ?
       isGroupedScope ?
         groupedFindingCatalog :
-        activeDiagnoses :
+        activeSurfaceFindings :
       kind === "symptom" ?
         DENTAL_SYMPTOM_CATALOG :
         kind === "planned" ?

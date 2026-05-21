@@ -36,6 +36,7 @@ const ArchTooth = memo(function ArchTooth({
   onHover,
   onClick,
   onPin,
+  treatmentHistoryDetails = {},
 }) {
   const { gl, camera } = useThree();
   const gltf = useGLTF(tooth.modelPath);
@@ -43,12 +44,17 @@ const ArchTooth = memo(function ArchTooth({
   const groupRef = useRef(null); // Center ref (for bounding box)
   const outerGroupRef = useRef(null); // mirrorX group (parentGroup for diagnosis visuals)
   const meshRef = useRef(null);
-  const isMissing =
-    diagnoses?.has("Missing") || diagnoses?.has("Extraction") || false;
-  const isCrown = diagnoses?.has("Crown") || false;
-  const isRCT = diagnoses?.has("RCT") || false;
-  const isBridge = diagnoses?.has("Bridge") || false;
-  const isDenture = diagnoses?.has("Denture") || false;
+
+  const hasCrown = diagnoses?.has("Crown") || Boolean(treatmentHistoryDetails?.Crown);
+  const hasRCT = diagnoses?.has("RCT") || Boolean(treatmentHistoryDetails?.RCT);
+  const hasBridge = diagnoses?.has("Bridge") || Boolean(treatmentHistoryDetails?.Bridge);
+  const hasDenture = diagnoses?.has("Denture") || Boolean(treatmentHistoryDetails?.Denture);
+  const hasImplant = isImplant || diagnoses?.has("Implant") || Boolean(treatmentHistoryDetails?.Implant);
+  const isMissingOrExtraction =
+    diagnoses?.has("Missing") ||
+    diagnoses?.has("Extraction") ||
+    Boolean(treatmentHistoryDetails?.Missing) ||
+    Boolean(treatmentHistoryDetails?.Extraction);
   // Fresh clone on every mount — mount generation forces a new clone so that
   // switching tabs (Adult→Pedia→Adult) always starts with clean materials.
   const [mountGen] = useState(() => Math.random());
@@ -177,12 +183,12 @@ const ArchTooth = memo(function ArchTooth({
             tooth.quadrant,
             zoneYawRad,
             tooth.fdi,
-            isImplant,
-            isMissing,
-            isCrown,
-            isRCT,
-            isBridge,
-            isDenture,
+            hasImplant,
+            isMissingOrExtraction,
+            hasCrown,
+            hasRCT,
+            hasBridge,
+            hasDenture,
           ),
         );
         mat.needsUpdate = true;
@@ -192,18 +198,18 @@ const ArchTooth = memo(function ArchTooth({
         camera,
         source: clonedScene,
         variantKey: getDentalShaderVariantKey({
-          isImplant,
-          isMissing,
-          isCrown,
-          isRCT,
-          isBridge,
-          isDenture,
+          isImplant: hasImplant,
+          isMissing: isMissingOrExtraction,
+          isCrown: hasCrown,
+          isRCT: hasRCT,
+          isBridge: hasBridge,
+          isDenture: hasDenture,
         }),
       });
       shaderInjectedRef.current = true;
       // Compute implant placement + store bb
       implantBB.current = bb;
-      if (isImplant) {
+      if (hasImplant) {
         const cervicalDiam = Math.max(size.x, size.z) * 0.75;
         setImplantPlacement({
           cervicalY,
@@ -303,14 +309,15 @@ const ArchTooth = memo(function ArchTooth({
   }, [
     clonedScene,
     tooth,
-    isImplant,
-    isMissing,
-    isCrown,
-    isRCT,
-    isBridge,
-    isDenture,
+    hasImplant,
+    isMissingOrExtraction,
+    hasCrown,
+    hasRCT,
+    hasBridge,
+    hasDenture,
     gl,
     camera,
+    treatmentHistoryDetails,
   ]);
   // Hover glow on state change (avoid per-frame traversals across all teeth).
   useEffect(() => {
@@ -419,7 +426,7 @@ const ArchTooth = memo(function ArchTooth({
             onClick={handleClick}
           />
         </Center>
-        {isCrown && meshBoundsData && toothMeshRefLocal.current && (
+        {hasCrown && meshBoundsData && toothMeshRefLocal.current && (
           <PreparedStump
             toothMesh={toothMeshRefLocal.current}
             meshBounds={meshBoundsData}
@@ -428,7 +435,7 @@ const ArchTooth = memo(function ArchTooth({
           />
         )}
 
-        {isRCT && meshBoundsData && zoneDirs && (
+        {hasRCT && meshBoundsData && zoneDirs && (
           <RootCanals
             meshBounds={meshBoundsData}
             arch={tooth.arch}
@@ -438,7 +445,7 @@ const ArchTooth = memo(function ArchTooth({
           />
         )}
 
-        {isImplant && implantPlacement && (
+        {hasImplant && implantPlacement && (
           <ImplantScrew
             placement={implantPlacement}
             arch={tooth.arch}

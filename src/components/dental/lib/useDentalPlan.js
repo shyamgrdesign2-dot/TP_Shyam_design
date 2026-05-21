@@ -9,9 +9,13 @@ import {
   activateDentalPlan,
   startDentalTreatment,
   markDentalPlanCompleted,
+  revertDentalPlanToEstimates,
+  revertDentalPlanToProgress,
   addPlanService,
   updatePlanService,
   deletePlanService,
+  markDentalServiceCompleted,
+  revertDentalServiceToProgress,
   setCurrentPlan,
   clearPlanError
 } from "../../../redux/dentalPlanSlice";
@@ -68,6 +72,16 @@ export function useDentalPlan(patientId) {
     return dispatch(markDentalPlanCompleted({ patientId, planId, data }));
   }, [patientId, dispatch]);
 
+  const revertToEstimates = useCallback((planId, data) => {
+    if (!patientId) return;
+    return dispatch(revertDentalPlanToEstimates({ patientId, planId, data }));
+  }, [patientId, dispatch]);
+
+  const revertToProgress = useCallback((planId, data) => {
+    if (!patientId) return;
+    return dispatch(revertDentalPlanToProgress({ patientId, planId, data }));
+  }, [patientId, dispatch]);
+
   const addService = useCallback((planId, data) => {
     if (!patientId) return;
     return dispatch(addPlanService({ patientId, planId, data }));
@@ -81,6 +95,16 @@ export function useDentalPlan(patientId) {
   const removeService = useCallback((planId, serviceId) => {
     if (!patientId) return;
     return dispatch(deletePlanService({ patientId, planId, serviceId }));
+  }, [patientId, dispatch]);
+
+  const markServiceDone = useCallback((planId, serviceId, data) => {
+    if (!patientId) return;
+    return dispatch(markDentalServiceCompleted({ patientId, planId, serviceId, data }));
+  }, [patientId, dispatch]);
+
+  const revertServiceToProgress = useCallback((planId, serviceId, data) => {
+    if (!patientId) return;
+    return dispatch(revertDentalServiceToProgress({ patientId, planId, serviceId, data }));
   }, [patientId, dispatch]);
 
   const selectPlan = useCallback((plan) => {
@@ -103,9 +127,13 @@ export function useDentalPlan(patientId) {
     activatePlan,
     startTreatment,
     markCompleted,
+    revertToEstimates,
+    revertToProgress,
     addService,
     updateService,
     removeService,
+    markServiceDone,
+    revertServiceToProgress,
     selectPlan,
     clearError
   };

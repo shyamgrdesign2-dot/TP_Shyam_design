@@ -12,6 +12,7 @@ const initialState = {
   toothState: {},
   version: 0,
   loading: false,
+  saving: false,
   error: null,
   lastSaved: null,
   dentitionType: "adult", // Default
@@ -76,6 +77,8 @@ const dentalExaminationSlice = createSlice({
       .addCase(fetchDentalExamination.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.toothState = {};
+        state.version = 0; // reset so version>0 reliably signals the API returned existing data
       })
       .addCase(fetchDentalExamination.fulfilled, (state, action) => {
         state.loading = false;
@@ -90,15 +93,15 @@ const dentalExaminationSlice = createSlice({
         state.error = action.payload;
       })
       .addCase(saveDentalExamination.pending, (state) => {
-        state.loading = true;
+        state.saving = true;
       })
       .addCase(saveDentalExamination.fulfilled, (state, action) => {
-        state.loading = false;
+        state.saving = false;
         state.lastSaved = new Date().toISOString();
         state.version = action.payload?.version || state.version;
       })
       .addCase(saveDentalExamination.rejected, (state, action) => {
-        state.loading = false;
+        state.saving = false;
         state.error = action.payload;
       });
   },

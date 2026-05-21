@@ -103,7 +103,7 @@ const ConsultationSidebar = ({
   handleDrawerUploadDoc,
   handleDrawerDental,
 }) => {
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE) || true;
   
   return (
     <div className="consultation-sidebar-container">

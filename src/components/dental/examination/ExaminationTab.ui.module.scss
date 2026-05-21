@@ -628,7 +628,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
-  color: rgb(255 255 255 / 0.95);
+  color: rgb(255 255 255 / 0.95) !important;
 }
 
 .tooltipLead {
@@ -636,7 +636,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   line-height: 14px;
-  color: rgb(255 255 255 / 0.55);
+  color: rgb(255 255 255 / 0.55) !important;
 }
 
 .tooltipStack {
@@ -659,7 +659,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: rgb(255 255 255 / 0.6);
+  color: rgb(255 255 255 / 0.6) !important;
 }
 
 .tooltipFooterVal {
@@ -667,7 +667,7 @@
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #fff;
+  color: #fff !important;
 }
 
 .tooltipRow {
@@ -680,7 +680,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: rgb(255 255 255 / 0.8);
+  color: rgb(255 255 255 / 0.8) !important;
 }
 
 .tooltipRowVal {
@@ -688,7 +688,7 @@
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: #fff;
+  color: #fff !important;
 }
 
 // ── Single tooth panel ─────────────────────────────────────────────────────────
@@ -751,7 +751,7 @@
   font-size: 17px;
   font-weight: 600;
   line-height: 20px;
-  color: tp.$slate-800;
+  color: tp.$slate-800 !important;
   font-family: "Inter", sans-serif;
   letter-spacing: 0.1px;
   overflow: hidden;
@@ -770,7 +770,7 @@
   font-family: "Inter", sans-serif;
   font-size: 11px;
   font-weight: 700;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
   font-variant-numeric: tabular-nums;
 }
 
@@ -789,7 +789,7 @@
   justify-content: center;
   border-radius: 10px;
   background: tp.$slate-100;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
   border: 0;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -807,7 +807,7 @@
   justify-content: center;
   border-radius: 10px;
   background: tp.$slate-100;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
   border: 0;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -845,7 +845,7 @@
   justify-content: center;
   border-radius: 10px;
   background: tp.$slate-50;
-  color: tp.$slate-600;
+  color: tp.$slate-600 !important;
   border: 0;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -888,19 +888,19 @@
   font-family: "Inter", sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: tp.$slate-900;
+  color: tp.$slate-900 !important;
 }
 
 .clearDialogDesc {
   font-family: "Inter", sans-serif;
   font-size: 13px;
-  color: tp.$slate-500;
+  color: tp.$slate-500 !important;
   line-height: 1.5;
 }
 
 .clearDialogStrong {
   font-weight: 600;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
 }
 
 .clearDialogFooter {
@@ -918,7 +918,7 @@
   font-family: "Inter", sans-serif;
   font-size: 13px;
   font-weight: 600;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
   cursor: pointer;
 
   &:hover {
@@ -964,7 +964,7 @@
   padding: 10px 12px;
   font-family: "Inter", sans-serif;
   font-size: 14px;
-  color: tp.$slate-800;
+  color: tp.$slate-800 !important;
 
   &::placeholder {
     color: tp.$slate-400 !important;
@@ -1046,7 +1046,7 @@
   font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: tp.$slate-800;
+  color: tp.$slate-800 !important;
 }
 
 .secCount {
@@ -1061,7 +1061,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 700;
-  color: tp.$slate-600;
+  color: tp.$slate-600 !important;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1083,7 +1083,7 @@
   justify-content: center;
   border-radius: 10px;
   background: tp.$slate-100;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
   border: 0;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -1128,7 +1128,7 @@
 .missingText {
   font-family: "Inter", sans-serif;
   font-size: 12px;
-  color: tp.$slate-500;
+  color: tp.$slate-500 !important;
 }
 
 .tableWrap {
@@ -1151,7 +1151,7 @@
   text-align: left;
   font-family: "Inter", sans-serif;
   font-size: 12px;
-  color: tp.$slate-500;
+  color: tp.$slate-500 !important;
 }
 
 .th {
@@ -1218,7 +1218,7 @@
   width: 100%;
   align-items: center;
   justify-content: center;
-  color: tp.$slate-300;
+  color: tp.$slate-300 !important;
 }
 
 .cellFocusRing {
@@ -1256,7 +1256,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   line-height: 18px;
-  color: #a2a2a8;
+  color: #a2a2a8 !important;
 }
 
 .dateInput {
@@ -1294,7 +1294,7 @@
 }
 
 .dateInputFilled {
-  color: #454551;
+  color: #454551 !important;
 }
 
 .selectNative {
@@ -1309,7 +1309,7 @@
   font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
-  color: #454551;
+  color: #454551 !important;
   transition: all 0.2s ease;
 
   &:focus {
@@ -1331,11 +1331,11 @@
   font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
-  color: #454551;
+  color: #454551 !important;
   transition: all 0.2s ease;
 
   &::placeholder {
-    color: #a2a2a8;
+    color: #a2a2a8 !important;
   }
 
   &:focus {
@@ -1438,7 +1438,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: tp.$slate-500;
+  color: tp.$slate-500 !important;
   font-family: "Inter", sans-serif;
 }
 
@@ -1474,7 +1474,7 @@
   text-align: left;
   font-family: "Inter", sans-serif;
   font-size: 13px;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
   border: 0;
   background: transparent;
   width: 100%;
@@ -1492,7 +1492,7 @@
   font-family: "Inter", sans-serif;
   font-size: 13px;
   font-weight: 500;
-  color: var(--tp-blue-600);
+  color: var(--tp-blue-600) !important;
   border: 0;
   background: transparent;
   width: 100%;
@@ -1527,7 +1527,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: tp.$slate-600;
+  color: tp.$slate-600 !important;
   border: 0;
   cursor: pointer;
   transition:
@@ -1536,7 +1536,7 @@
 
   &:hover {
     background: tp.$slate-200;
-    color: tp.$slate-700;
+    color: tp.$slate-700 !important;
   }
 }
 
@@ -1555,7 +1555,7 @@
   font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: tp.$slate-800;
+  color: tp.$slate-800 !important;
 
   &::placeholder {
     color: tp.$slate-400 !important;
@@ -1652,7 +1652,7 @@
 
 .diagToggleLabel {
   font-weight: 600;
-  color: tp.$slate-800;
+  color: tp.$slate-800 !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1666,7 +1666,7 @@
   padding: 6px 10px;
   font-family: "Inter", sans-serif;
   font-size: 12px;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -1679,7 +1679,7 @@
 }
 
 .menuRowBtnHi {
-  background: tp.$slate-100;
+  background: tp.$slate-100 !important;
 
   &:hover {
     background: tp.$slate-100;
@@ -1715,7 +1715,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: var(--tp-blue-700);
+  color: var(--tp-blue-700) !important;
   background: transparent;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -1752,7 +1752,7 @@
   font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: tp.$slate-800;
+  color: tp.$slate-800 !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1775,7 +1775,7 @@
   font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
-  color: #454551;
+  color: #454551 !important;
   cursor: pointer;
   transition: color 0.15s ease;
 
@@ -1796,7 +1796,7 @@
 .surfacePlaceholder {
   font-weight: 400;
   font-size: 12px;
-  color: #a2a2a8;
+  color: #a2a2a8 !important;
 }
 
 .surfaceInlineRow {
@@ -1804,7 +1804,7 @@
   align-items: center;
   gap: 4px;
   font-weight: 500;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
 }
 
 .surfaceDot8 {
@@ -1840,13 +1840,13 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: var(--tp-amber-800);
+  color: var(--tp-amber-800) !important;
   line-height: 1.35;
 }
 
 .surfaceHintBold {
   font-weight: 700;
-  color: var(--tp-amber-900);
+  color: var(--tp-amber-900) !important;
 }
 
 .surfaceZoneList {
@@ -1876,7 +1876,7 @@
   padding: 5px 10px;
   font-family: "Inter", sans-serif;
   font-size: 12px;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -1939,10 +1939,10 @@
   font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
-  color: #454551;
+  color: #454551 !important;
 
   &::placeholder {
-    color: #a2a2a8;
+    color: #a2a2a8 !important;
   }
 
   &:focus {
@@ -2000,7 +2000,7 @@
 
 .zoneChipOff {
   background: tp.$slate-100;
-  color: tp.$slate-600;
+  color: tp.$slate-600 !important;
 
   &:hover {
     background: tp.$slate-200;
@@ -2010,7 +2010,7 @@
 .zoneChipOn {
   border-color: var(--tp-blue-300);
   background: var(--tp-blue-50);
-  color: var(--tp-blue-700);
+  color: var(--tp-blue-700) !important;
 }
 
 // SurfaceDots
@@ -2023,7 +2023,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
-  color: tp.$slate-600;
+  color: tp.$slate-600 !important;
 }
 
 .dotsRow {
@@ -2042,7 +2042,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: #fff !important;
   font-variant-numeric: tabular-nums;
   cursor: default;
   transition: filter 0.15s ease, box-shadow 0.15s ease;
@@ -2063,7 +2063,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
-  color: tp.$slate-600;
+  color: tp.$slate-600 !important;
   cursor: default;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 
@@ -2137,7 +2137,7 @@
   font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: tp.$slate-800;
+  color: tp.$slate-800 !important;
 }
 
 .symptomField {
@@ -2149,7 +2149,7 @@
   padding: 0 10px;
   font-family: "Inter", sans-serif;
   font-size: 14px;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
 
   &::placeholder {
     color: tp.$slate-400 !important;
@@ -2188,7 +2188,7 @@
 }
 
 .symptomSelectFilled {
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
 }
 
 .optionMuted {
@@ -2208,7 +2208,7 @@
   padding: 0 12px 0 32px;
   font-family: "Inter", sans-serif;
   font-size: 14px;
-  color: tp.$slate-700;
+  color: tp.$slate-700 !important;
 
   &::placeholder {
     color: tp.$slate-400 !important;
@@ -2250,10 +2250,10 @@
   font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
-  color: #454551;
+  color: #454551 !important;
 
   &::placeholder {
-    color: #a2a2a8;
+    color: #a2a2a8 !important;
   }
 
   &:focus {
@@ -2282,3 +2282,25 @@
   max-height: 260px;
   overflow-y: auto;
 }
+
+.emptyPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 16px;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px dashed tp.$slate-200;
+  margin-top: 4px;
+}
+
+.emptyPlaceholderText {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: tp.$slate-500 !important;
+  line-height: 1.5;
+  max-width: 240px;
+}
+

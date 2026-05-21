@@ -235,9 +235,7 @@ export function PlanProvider({
         )
           continue;
 
-        // Bridge to API or Redux
-        // For now, we'll just log or handle via a dedicated consultation thunk if available
-        console.log("Flushing consultation queue item:", item);
+        // TODO: bridge to API or Redux via a dedicated consultation thunk
       }
     };
     flush();

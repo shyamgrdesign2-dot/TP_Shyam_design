@@ -38,6 +38,17 @@ const EMPTY_TREATMENTS = {};
 
 // ── Helpers (pure, no React deps) ────────────────────────────────────────────
 
+/** Convert a YYYY-MM-DD date string back to the closest UI label ("1 hour" … "1 year"). */
+const dateToSinceLabel = (dateStr) => {
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return "";
+  const diffDays = Math.round((Date.now() - new Date(dateStr + "T00:00:00").getTime()) / 86400000);
+  if (diffDays < 1) return "1 hour";
+  if (diffDays <= 3) return "1 day";
+  if (diffDays <= 14) return "1 week";
+  if (diffDays <= 180) return "1 month";
+  return "1 year";
+};
+
 const ARCH_SCOPE_IDS = new Set([
   "RIGHT_ARCH",
   "LEFT_ARCH",
@@ -166,10 +177,10 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     const out = {};
     for (const [fdi, list] of Object.entries(initialState.findingsByTooth)) {
       out[fdi] = list.map((f, i) => ({
-        id: `seed-${fdi}-${i}`,
+        id: f.id || `seed-${fdi}-${i}`,
         zoneId: f.zoneId,
         type: f.type,
-        notes: ""
+        notes: f.notes || ""
       }));
     }
     return out;
@@ -197,7 +208,8 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     fdis: []
   });
 
-  const hasHydratedFromStorage = useRef(false);
+  const hydratedStoragePatientIdRef = useRef(null);
+  const hydratedApiPatientIdRef = useRef(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const [, setHoveredZone] = useState(null);
   const [findingsByTooth, setFindingsByTooth] = useState(initialFindings);
@@ -239,10 +251,85 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     }
   }, [selectionScope.fdis.length, selectedTooth]);
 
+  // ── Hydrate all canvas state from API initialData (arrives after first fetch) ─
+  useEffect(() => {
+    if (!initialData || hydratedApiPatientIdRef.current === patientId) return;
+    hydratedApiPatientIdRef.current = patientId;
+
+    // Treatment history: API array [{name, surface_codes, since_date, notes}] → object map
+    const rawHistory = initialData.treatmentHistoryDetailsByTooth;
+    if (rawHistory && Object.keys(rawHistory).length) {
+      const converted = {};
+      for (const [fdi, history] of Object.entries(rawHistory)) {
+        if (Array.isArray(history)) {
+          converted[fdi] = {};
+          for (const h of history) {
+            converted[fdi][h.name] = {
+              surfaces: h.surface_codes || ["whole"],
+              since: dateToSinceLabel(h.since_date),
+              note: h.notes || "",
+            };
+          }
+        } else if (history && typeof history === "object") {
+          converted[fdi] = history;
+        }
+      }
+      if (Object.keys(converted).length > 0) {
+        setTreatmentHistoryDetailsByTooth(converted);
+      }
+    }
+
+    // Findings: API [{id, type, zoneId, notes}] → canvas array per tooth
+    const rawFindings = initialData.findingsByTooth;
+    if (rawFindings && Object.keys(rawFindings).length) {
+      const converted = {};
+      for (const [fdi, list] of Object.entries(rawFindings)) {
+        if (!Array.isArray(list) || !list.length) continue;
+        converted[fdi] = list.map((f, i) => ({
+          id: f.id || `seed-${fdi}-${i}`,
+          zoneId: f.zoneId || "whole",
+          type: f.type,
+          notes: f.notes || "",
+        }));
+      }
+      if (Object.keys(converted).length > 0) {
+        setFindingsByTooth(converted);
+      }
+    }
+
+    // Tooth notes
+    const rawNotes = initialData.toothNotes;
+    if (rawNotes && Object.keys(rawNotes).length) {
+      setToothNotes(rawNotes);
+    }
+
+    // Primary diagnosis chips (Missing, Crown, RCT…)
+    const rawDiagnoses = initialData.toothDiagnoses;
+    if (rawDiagnoses && Object.keys(rawDiagnoses).length) {
+      setToothDiagnoses((prev) => {
+        const next = { ...prev };
+        for (const [fdi, diags] of Object.entries(rawDiagnoses)) {
+          const arr = Array.isArray(diags) ? diags : diags instanceof Set ? [...diags] : [];
+          if (arr.length > 0) next[fdi] = new Set(arr);
+        }
+        return next;
+      });
+      // Sync implantTeeth from diagnoses
+      setImplantTeeth((prev) => {
+        const next = new Set(prev);
+        for (const [fdi, diags] of Object.entries(rawDiagnoses)) {
+          const arr = Array.isArray(diags) ? diags : diags instanceof Set ? [...diags] : [];
+          if (arr.includes("Implant")) next.add(fdi);
+        }
+        return next;
+      });
+    }
+  }, [initialData, patientId]);
+
   // ── Hydrate from localStorage ──────────────────────────────────────────────
   useEffect(() => {
-    if (typeof window === "undefined" || hasHydratedFromStorage.current) return;
-    hasHydratedFromStorage.current = true;
+    if (typeof window === "undefined" || hydratedStoragePatientIdRef.current === patientId) return;
+    hydratedStoragePatientIdRef.current = patientId;
     const raw = window.localStorage.getItem(`dental.canvas.state.${patientId}`);
     if (!raw) return;
     try {

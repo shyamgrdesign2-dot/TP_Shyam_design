@@ -470,8 +470,9 @@ function PatientDetails() {
                 </Sider>
 
                 <Content>
-                    <div className='w-100 vh-100 overflow-y-auto'>
+                    <div className={`w-100 vh-100 ${sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                         { sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT &&
+                          sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN &&
                             <Welcome1
                                 locationPath={locationPath}
                                 isMobile={isMobile}
@@ -563,7 +564,7 @@ function PatientDetails() {
                                 <HealthCheckupReport patient_data={patient_data} showHealthCheckupReportDrawer={showHealthCheckupReportDrawer} setShowHealthCheckupReportDrawer={setShowHealthCheckupReportDrawer} />
                             </div>
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? (
-                            <div className="appointment-wrap PatientDetailswrap">
+                            <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
                                 <TreatmentPlanEmbed patientId={patient_data?.patient_unique_id} />
                             </div>
                         ) : null}

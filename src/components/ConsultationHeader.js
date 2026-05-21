@@ -53,6 +53,7 @@ const ConsultationHeader = ({
   isTeleconsultActive,
   onEndVisit,
   handleSelectLetterHead,
+  hasDentalData = false,
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -114,6 +115,7 @@ const ConsultationHeader = ({
   // Helper functions
   const hasEnteredData = useCallback(() => {
     return (
+      hasDentalData ||
       symptomsData?.length > 0 ||
       examinationData?.length > 0 ||
       surgeriesData?.length > 0 ||
@@ -128,7 +130,7 @@ const ConsultationHeader = ({
       additionalNote ||
       customModuleContents?.length > 0
     );
-  }, [symptomsData, examinationData, surgeriesData, diagnosisData, adviceData, investigationData, medicationData, vitalsData, medicalHistoryData, privateNotesData, followUpDate, additionalNote, customModuleContents]);
+  }, [hasDentalData, symptomsData, examinationData, surgeriesData, diagnosisData, adviceData, investigationData, medicationData, vitalsData, medicalHistoryData, privateNotesData, followUpDate, additionalNote, customModuleContents]);
 
   const onResetClick = useCallback(() => {
     setSymptomsData([]);

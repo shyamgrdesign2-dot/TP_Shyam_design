@@ -483,6 +483,7 @@ export function DentalCanvas({
                 allEntries={allEntries}
                 toothNotes={toothNotes}
                 agentPulseFdis={agentApplyPulseFdis}
+                treatmentHistoryDetailsByTooth={treatmentHistoryDetailsByTooth}
               />
             ) : selectionScope.type !== "tooth" ? (
               <DentitionView
@@ -501,6 +502,7 @@ export function DentalCanvas({
                 allEntries={allEntries}
                 toothNotes={toothNotes}
                 agentPulseFdis={agentApplyPulseFdis}
+                treatmentHistoryDetailsByTooth={treatmentHistoryDetailsByTooth}
               />
             ) : (
               <group position={[0, -0.17, 0]}>

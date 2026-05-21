@@ -109,7 +109,7 @@ const PrimaryActionButton = ({
   // const isTabRxVisible = isTabRxEnabledFromGB ;
   
   const isDental = dpid === 26 || (department && department.toLowerCase() === 'dental');
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE) || true;
   const isDentalAndEnabled = isDentalEnabled;
 
   if (isDentalAndEnabled) {

@@ -1818,6 +1818,18 @@ export function Tooth({
   const [annotationData, setAnnotationData] = useState(null);
   const [boundsReady, setBoundsReady] = useState(0);
   const { camera, gl } = useThree();
+
+  const hasCrown = toothDiagnoses.has("Crown") || Boolean(treatmentHistoryDetails?.Crown);
+  const hasRCT = toothDiagnoses.has("RCT") || Boolean(treatmentHistoryDetails?.RCT);
+  const hasBridge = toothDiagnoses.has("Bridge") || Boolean(treatmentHistoryDetails?.Bridge);
+  const hasDenture = toothDiagnoses.has("Denture") || Boolean(treatmentHistoryDetails?.Denture);
+  const hasImplant = isImplant || toothDiagnoses.has("Implant") || Boolean(treatmentHistoryDetails?.Implant);
+  const isMissingOrExtraction =
+    toothDiagnoses.has("Missing") ||
+    toothDiagnoses.has("Extraction") ||
+    Boolean(treatmentHistoryDetails?.Missing) ||
+    Boolean(treatmentHistoryDetails?.Extraction);
+
   useLayoutEffect(() => {
     let cancelled = false;
     let rafOuter = 0;
@@ -1869,8 +1881,6 @@ export function Tooth({
             size,
           };
           setBoundsReady((v) => v + 1);
-          const isMissingOrExtraction =
-            toothDiagnoses.has("Missing") || toothDiagnoses.has("Extraction");
           shaderRefs.current = [];
           for (const mat of materials) {
             shaderRefs.current.push(
@@ -1885,12 +1895,12 @@ export function Tooth({
                 quadrant,
                 zoneYawRad,
                 toothFdi,
-                isImplant,
+                hasImplant,
                 isMissingOrExtraction,
-                toothDiagnoses.has("Crown"),
-                toothDiagnoses.has("RCT"),
-                toothDiagnoses.has("Bridge"),
-                toothDiagnoses.has("Denture"),
+                hasCrown,
+                hasRCT,
+                hasBridge,
+                hasDenture,
               ),
             );
           }
@@ -1899,15 +1909,15 @@ export function Tooth({
             camera,
             source: clonedScene,
             variantKey: getDentalShaderVariantKey({
-              isImplant,
+              isImplant: hasImplant,
               isMissing: isMissingOrExtraction,
-              isCrown: toothDiagnoses.has("Crown"),
-              isRCT: toothDiagnoses.has("RCT"),
-              isBridge: toothDiagnoses.has("Bridge"),
-              isDenture: toothDiagnoses.has("Denture"),
+              isCrown: hasCrown,
+              isRCT: hasRCT,
+              isBridge: hasBridge,
+              isDenture: hasDenture,
             }),
           });
-          if (isImplant) {
+          if (hasImplant) {
             // Scale implant to fit proportionally within the tooth
             const cervicalDiam = Math.max(size.x, size.z) * 0.75;
             setImplantPlacement({
@@ -1971,8 +1981,13 @@ export function Tooth({
     quadrant,
     toothPosition,
     modelPath,
-    isImplant,
-    toothDiagnoses,
+    hasImplant,
+    isMissingOrExtraction,
+    hasCrown,
+    hasRCT,
+    hasBridge,
+    hasDenture,
+    treatmentHistoryDetails,
   ]);
   // Store current zone indices + finding flags in a ref so useFrame always has latest values
   const zoneIndicesRef = useRef({
@@ -2063,10 +2078,7 @@ export function Tooth({
           object={clonedScene}
           onPointerMove={(e) => {
             e.stopPropagation();
-            if (
-              toothDiagnoses.has("Missing") ||
-              toothDiagnoses.has("Extraction")
-            ) {
+            if (isMissingOrExtraction) {
               zoneIndicesRef.current.hovered = -1;
               setLocalHover(null);
               onHoverZone(null);
@@ -2088,7 +2100,7 @@ export function Tooth({
               b.zoneYawRad,
               toothFdi,
             );
-            if (isImplant && z && (z === "cervical" || z === "root")) {
+            if (hasImplant && z && (z === "cervical" || z === "root")) {
               zoneIndicesRef.current.hovered = -1;
               setLocalHover(null);
               onHoverZone(null);
@@ -2110,10 +2122,7 @@ export function Tooth({
           }}
           onClick={(e) => {
             e.stopPropagation();
-            if (
-              toothDiagnoses.has("Missing") ||
-              toothDiagnoses.has("Extraction")
-            )
+            if (isMissingOrExtraction)
               return;
             if (!boundsData.current) return;
             const b = boundsData.current;
@@ -2130,7 +2139,7 @@ export function Tooth({
               b.zoneYawRad,
               toothFdi,
             );
-            if (isImplant && z && (z === "cervical" || z === "root")) return;
+            if (hasImplant && z && (z === "cervical" || z === "root")) return;
             // Multi-select only when a Findings/Procedures row is actively editing its surfaces.
             // Otherwise: normal single-select (replaces prior selection).
             if (z)
@@ -2194,7 +2203,7 @@ export function Tooth({
         />
       )}
 
-      {toothDiagnoses.has("Crown") &&
+      {hasCrown &&
         annotationData &&
         toothMeshRef.current && (
           <PreparedStump
@@ -2210,7 +2219,7 @@ export function Tooth({
           />
         )}
 
-      {toothDiagnoses.has("RCT") && annotationData && (
+      {hasRCT && annotationData && (
         <RootCanals
           meshBounds={{
             center: annotationData.meshBounds.center,
@@ -2225,7 +2234,7 @@ export function Tooth({
         />
       )}
 
-      {isImplant && implantPlacement && (
+      {hasImplant && implantPlacement && (
         <ImplantScrew
           placement={implantPlacement}
           arch={arch}
@@ -2236,7 +2245,7 @@ export function Tooth({
         />
       )}
 
-      {toothDiagnoses.has("Bridge") &&
+      {hasBridge &&
         boundsData.current &&
         (() => {
           const adj = getAdjacentTeeth(toothFdi);
@@ -2280,8 +2289,15 @@ export function Tooth({
             if (visualWholeTags.has(d)) wholeTags.push(d);
           }
         }
-        if (isImplant && !wholeTags.includes("Implant"))
+        if (hasImplant && !wholeTags.includes("Implant"))
           wholeTags.push("Implant");
+        if (treatmentHistoryDetails) {
+          for (const key of Object.keys(treatmentHistoryDetails)) {
+            if (visualWholeTags.has(key) && !wholeTags.includes(key)) {
+              wholeTags.push(key);
+            }
+          }
+        }
         if (toothEntries) {
           for (const e of toothEntries) {
             if (e.surfaces?.includes("whole") && !wholeTags.includes(e.name)) {

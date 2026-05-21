@@ -15,7 +15,7 @@ const GenRxBox = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
   const [isCollapseActive, setIsCollapseActive] = useState(true);
   const { profile } = useSelector((state) => state.doctors);
   const { state } = useLocation();
-  const { patient_data } = state;
+  const { patient_data } = state || {};
   const navigate = useNavigate();
 
   const handlePanelChange = () => {

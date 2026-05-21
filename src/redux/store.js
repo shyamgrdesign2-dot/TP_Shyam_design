@@ -43,6 +43,9 @@ import dentalRxSlice from "./dentalRxSlice";
 import dentalExaminationSlice from "./dentalExaminationSlice";
 import dentalMastersSlice from "./dentalMastersSlice";
 import dentalPlanSlice from "./dentalPlanSlice";
+import dentalQvrSlice from "./dentalQvrSlice";
+import dentalBillingSlice from "./dentalBillingSlice";
+import dentalTemplateSlice from "./dentalTemplateSlice";
 
 const persistConfig = {
   key: "root",
@@ -91,6 +94,9 @@ const rootReducer = combineReducers({
   dentalExamination: dentalExaminationSlice,
   dentalMasters: dentalMastersSlice,
   dentalPlan: dentalPlanSlice,
+  dentalQvr: dentalQvrSlice,
+  dentalBilling: dentalBillingSlice,
+  dentalTemplate: dentalTemplateSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

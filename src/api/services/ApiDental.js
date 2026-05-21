@@ -3,18 +3,32 @@ import config from "../../config";
 
 const dentalBaseUrl = { customBaseUrl: config.snap_rx_api_url };
 
-// 1. Masters
+// 1. Templates
+export const listTemplates = (type) =>
+  api.get(`/api/v1/dental/templates/${type}`, dentalBaseUrl);
+export const getTemplate = (type, id) =>
+  api.get(`/api/v1/dental/templates/${type}/${id}`, dentalBaseUrl);
+export const saveExaminationTemplate = (data) =>
+  api.post(`/api/v1/dental/templates/examination`, data, dentalBaseUrl);
+export const saveFindingsTemplate = (data) =>
+  api.post(`/api/v1/dental/templates/findings`, data, dentalBaseUrl);
+export const saveProceduresTemplate = (data) =>
+  api.post(`/api/v1/dental/templates/procedures`, data, dentalBaseUrl);
+export const saveTreatmentHistoryTemplate = (data) =>
+  api.post(`/api/v1/dental/templates/treatment-history`, data, dentalBaseUrl);
+export const saveNotesTemplate = (data) =>
+  api.post(`/api/v1/dental/templates/notes`, data, dentalBaseUrl);
+export const deleteTemplateById = (type, id) =>
+  api.delete(`/api/v1/dental/templates/${type}/${id}`, dentalBaseUrl);
+
+// 2. Masters
 export const getSurfaces = () => api.get(`/api/v1/dental/masters/surfaces`, dentalBaseUrl);
 export const getDiagnoses = () => api.get(`/api/v1/dental/masters/diagnoses`, dentalBaseUrl);
 export const getProcedures = () => api.get(`/api/v1/dental/masters/procedures`, dentalBaseUrl);
 export const getToothMap = (dentition = "adult") =>
   api.get(`/api/v1/dental/masters/tooth-map?dentition=${dentition}`, dentalBaseUrl);
-export const getBillingItems = () =>
-  api.get(`/api/v1/dental/masters/billing/dental-items`, dentalBaseUrl);
-export const createBillingItem = (data) =>
-  api.post(`/api/v1/dental/masters/billing/dental-items`, data, dentalBaseUrl);
 
-// 2. Examinations
+// 3. Examinations
 export const getExamination = (patientId) =>
   api.get(`/api/v1/dental/patients/${patientId}/examination`, dentalBaseUrl);
 export const updateExaminationFull = (patientId, data) =>
@@ -65,7 +79,7 @@ export const updateToothNotes = (patientId, toothCode, data) =>
     dentalBaseUrl
   );
 
-// 3. Treatment Plans
+// 4. Treatment Plans
 export const getPlans = (patientId) =>
   api.get(`/api/v1/dental/patients/${patientId}/plans`, dentalBaseUrl);
 export const createPlan = (patientId, data) =>
@@ -107,7 +121,7 @@ export const revertPlanToProgress = (patientId, planId, data) =>
     dentalBaseUrl
   );
 
-// 4. Plan Services
+// 5. Plan Services
 export const addPlanService = (patientId, planId, data) =>
   api.post(
     `/api/v1/dental/patients/${patientId}/plans/${planId}/services`,
@@ -138,7 +152,7 @@ export const revertServiceToProgress = (patientId, planId, serviceId, data) =>
     dentalBaseUrl
   );
 
-// 5. Quick Visit Records
+// 6. Quick Visit Records
 export const getQuickVisitRecords = (patientId, planId, serviceId) =>
   api.get(
     `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/quick-visit-records`,
@@ -167,7 +181,7 @@ export const deleteQuickVisitRecord = (patientId, planId, serviceId, qvrId) =>
     dentalBaseUrl
   );
 
-// 6. Appointments
+// 7. Appointments
 export const getServiceAppointments = (patientId, planId, serviceId) =>
   api.get(
     `/api/v1/dental/patients/${patientId}/plans/${planId}/services/${serviceId}/appointments`,
@@ -180,7 +194,7 @@ export const updateServiceAppointment = (patientId, planId, serviceId, appointme
     dentalBaseUrl
   );
 
-// 7. Billing & Invoices
+// 8. Billing & Invoices
 export const getPlanBillPreview = (patientId, planId) =>
   api.get(
     `/api/v1/dental/patients/${patientId}/plans/${planId}/bill-preview`,
@@ -200,7 +214,7 @@ export const createInvoice = (patientId, planId, data) =>
 export const getInvoice = (patientId, invoiceId) =>
   api.get(`/api/v1/dental/patients/${patientId}/invoices/${invoiceId}`, dentalBaseUrl);
 
-// 8. Rx Previews
+// 9. Rx Previews
 export const getPlanRxPreview = (patientId, planId) =>
   api.get(
     `/api/v1/dental/patients/${patientId}/plans/${planId}/rx-preview`,

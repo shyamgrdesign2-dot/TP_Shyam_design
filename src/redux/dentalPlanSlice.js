@@ -8,9 +8,13 @@ import {
   activatePlan,
   startTreatment,
   markPlanCompleted,
+  revertPlanToEstimates,
+  revertPlanToProgress,
   addPlanService as addPlanServiceApi,
   updatePlanService as updatePlanServiceApi,
   deletePlanService as deletePlanServiceApi,
+  markServiceCompleted as markServiceCompletedApi,
+  revertServiceToProgress as revertServiceToProgressApi,
 } from "../api/services/ApiDental";
 import {
   getDentalApiError,
@@ -156,6 +160,36 @@ export const markDentalPlanCompleted = createAsyncThunk(
   }
 );
 
+export const revertDentalPlanToEstimates = createAsyncThunk(
+  "dentalPlan/revertToEstimates",
+  async ({ patientId, planId, data }, { rejectWithValue }) => {
+    try {
+      const response = await revertPlanToEstimates(patientId, planId, toDentalTransitionRequest(data));
+      if (response?.status === false) {
+        return rejectWithValue(getDentalApiError(response, "Failed to revert plan to estimates"));
+      }
+      return { planId, data: toDentalPlan(getDentalApiPayload(response)) };
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const revertDentalPlanToProgress = createAsyncThunk(
+  "dentalPlan/revertToProgress",
+  async ({ patientId, planId, data }, { rejectWithValue }) => {
+    try {
+      const response = await revertPlanToProgress(patientId, planId, toDentalTransitionRequest(data));
+      if (response?.status === false) {
+        return rejectWithValue(getDentalApiError(response, "Failed to revert plan to in-progress"));
+      }
+      return { planId, data: toDentalPlan(getDentalApiPayload(response)) };
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
 // ==========================================
 // 2. Service Thunks
 // ==========================================
@@ -187,6 +221,36 @@ export const updatePlanService = createAsyncThunk(
       );
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to update service"));
+      }
+      return { planId, serviceId, service: toDentalService(getDentalApiPayload(response)) };
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const markDentalServiceCompleted = createAsyncThunk(
+  "dentalPlan/markServiceCompleted",
+  async ({ patientId, planId, serviceId, data }, { rejectWithValue }) => {
+    try {
+      const response = await markServiceCompletedApi(patientId, planId, serviceId, toDentalTransitionRequest(data));
+      if (response?.status === false) {
+        return rejectWithValue(getDentalApiError(response, "Failed to mark service as completed"));
+      }
+      return { planId, serviceId, service: toDentalService(getDentalApiPayload(response)) };
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const revertDentalServiceToProgress = createAsyncThunk(
+  "dentalPlan/revertServiceToProgress",
+  async ({ patientId, planId, serviceId, data }, { rejectWithValue }) => {
+    try {
+      const response = await revertServiceToProgressApi(patientId, planId, serviceId, toDentalTransitionRequest(data));
+      if (response?.status === false) {
+        return rejectWithValue(getDentalApiError(response, "Failed to revert service to in-progress"));
       }
       return { planId, serviceId, service: toDentalService(getDentalApiPayload(response)) };
     } catch (err) {
@@ -278,6 +342,32 @@ const dentalPlanSlice = createSlice({
         const index = state.plans.findIndex(p => p.id === action.payload.planId);
         if (index !== -1) {
           state.plans[index] = action.payload.data;
+        }
+      })
+      // Revert To Estimates
+      .addCase(revertDentalPlanToEstimates.fulfilled, (state, action) => {
+        const index = state.plans.findIndex(p => p.id === action.payload.planId);
+        if (index !== -1) state.plans[index] = action.payload.data;
+      })
+      // Revert To Progress
+      .addCase(revertDentalPlanToProgress.fulfilled, (state, action) => {
+        const index = state.plans.findIndex(p => p.id === action.payload.planId);
+        if (index !== -1) state.plans[index] = action.payload.data;
+      })
+      // Mark Service Completed
+      .addCase(markDentalServiceCompleted.fulfilled, (state, action) => {
+        const plan = state.plans.find(p => p.id === action.payload.planId);
+        if (plan?.services) {
+          const idx = plan.services.findIndex(s => s.id === action.payload.serviceId);
+          if (idx !== -1) plan.services[idx] = action.payload.service;
+        }
+      })
+      // Revert Service To Progress
+      .addCase(revertDentalServiceToProgress.fulfilled, (state, action) => {
+        const plan = state.plans.find(p => p.id === action.payload.planId);
+        if (plan?.services) {
+          const idx = plan.services.findIndex(s => s.id === action.payload.serviceId);
+          if (idx !== -1) plan.services[idx] = action.payload.service;
         }
       })
       // Add Service

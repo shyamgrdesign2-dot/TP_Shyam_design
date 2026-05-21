@@ -94,6 +94,7 @@ export default function DentitionView({
   toothNotes,
   agentPulseFdis,
   showTreatmentTags = true,
+  treatmentHistoryDetailsByTooth = {},
 }) {
   const USE_SPLIT_QUADRANT_EXPERIMENT = layoutMode === "split";
   const [hoveredTooth, setHoveredToothInternal] = useState(null);
@@ -286,12 +287,14 @@ export default function DentitionView({
       {visibleTeeth.map((tooth) => {
         const isPrimaryTooth = ["5", "6", "7", "8"].includes(tooth.fdi[0]);
         const findings = findingsByTooth[tooth.fdi] || [];
+        const historyDetails = treatmentHistoryDetailsByTooth?.[tooth.fdi] || {};
         const treatmentHistoryTags = Array.from(
           new Set([
             ...(toothDiagnoses[tooth.fdi]
               ? Array.from(toothDiagnoses[tooth.fdi])
               : []),
             ...(implantTeeth.has(tooth.fdi) ? ["Implant"] : []),
+            ...Object.keys(historyDetails),
           ]),
         );
         return (
@@ -311,6 +314,7 @@ export default function DentitionView({
             onHover={setHoveredTooth}
             onClick={disableSelection ? () => {} : onSelectTooth}
             onPin={setPinnedTooth}
+            treatmentHistoryDetails={historyDetails}
           />
         );
       })}
@@ -358,6 +362,7 @@ export default function DentitionView({
           isImplant={implantTeeth.has(activeTooth.fdi)}
           allEntries={allEntries}
           toothNotes={toothNotes}
+          treatmentHistoryDetails={treatmentHistoryDetailsByTooth?.[activeTooth.fdi] || {}}
         />
       )}
     </group>

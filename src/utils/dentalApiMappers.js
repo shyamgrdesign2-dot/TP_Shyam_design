@@ -38,6 +38,9 @@ export const getDentalApiPayload = (response) => {
 export const getDentalApiError = (response, fallback) =>
   response?.error || response?.message || fallback;
 
+// Marker stored in notes field to identify serialized primary-diagnosis chips.
+const DX_MARKER = "__dx__";
+
 export const toDentalToothState = (payload = {}) => {
   const toothState = {};
   if (!Array.isArray(payload.tooth_states)) return toothState;
@@ -45,6 +48,25 @@ export const toDentalToothState = (payload = {}) => {
   payload.tooth_states.forEach((tooth) => {
     const toothCode = String(tooth.tooth_code || "");
     if (!toothCode) return;
+
+    // Split treatment_history into primary-diagnosis chips (marked __dx__) and real rows.
+    const diagnosisNames = [];
+    const historyRows = [];
+    for (const h of tooth.treatment_history || []) {
+      if (h.notes === DX_MARKER) {
+        diagnosisNames.push(h.name);
+      } else {
+        historyRows.push({
+          id: h.id,
+          name: h.name,
+          surface_codes: h.surface_codes || ["whole"],
+          since_date: h.since_date,
+          notes: h.notes || "",
+          version: h.version,
+        });
+      }
+    }
+
     toothState[toothCode] = {
       findings: (tooth.findings || []).map((finding) => ({
         id: finding.id,
@@ -63,14 +85,8 @@ export const toDentalToothState = (payload = {}) => {
         notes: procedure.notes || "",
         version: procedure.version,
       })),
-      treatmentHistory: (tooth.treatment_history || []).map((history) => ({
-        id: history.id,
-        name: history.name,
-        surface_codes: history.surface_codes || ["whole"],
-        since_date: history.since_date,
-        notes: history.notes || "",
-        version: history.version,
-      })),
+      treatmentHistory: historyRows,
+      diagnoses: diagnosisNames,
       notes: tooth.overall_notes || "",
     };
   });
@@ -151,6 +167,42 @@ export const toDentalTransitionRequest = (data = {}) =>
     reason: data.reason,
     version: data.version,
   });
+
+export const toDentalQvr = (qvr = {}) => ({
+  id: qvr.id,
+  serviceId: qvr.serviceId,
+  visitDate: qvr.visitDate,
+  visitTime: qvr.visitTime,
+  visitType: qvr.visitType,
+  doctorId: qvr.doctorId,
+  status: qvr.status,
+  notes: qvr.notes || "",
+  version: qvr.version,
+});
+
+export const toDentalQvrRequest = (data = {}) =>
+  cleanUndefined({
+    visitDate: data.visitDate,
+    visitTime: data.visitTime,
+    doctorId: data.doctorId,
+    visitType: data.visitType,
+    notes: data.notes,
+    version: data.version,
+  });
+
+export const toDentalTemplate = (raw = {}) => ({
+  id: raw.id,
+  name: raw.name || "",
+  type: raw.type || "",
+  createdAt: raw.createdAt || raw.created_at,
+  updatedAt: raw.updatedAt || raw.updated_at,
+  payload: raw,
+});
+
+export const toDentalTemplates = (response) => {
+  const items = Array.isArray(response) ? response : response?.items || [];
+  return items.map(toDentalTemplate);
+};
 
 export const toDentalServiceRequest = (service = {}) => {
   const toothFdi = service.tooth_fdi || service.toothFdi;

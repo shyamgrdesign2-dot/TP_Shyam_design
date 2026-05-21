@@ -16,7 +16,7 @@ import { transformToothStateToApi } from "./examination-helpers";
  */
 export function useDentalExamination(patientId) {
   const dispatch = useDispatch();
-  const { toothState, version, dentitionType, loading, error, lastSaved } = useSelector(
+  const { toothState, version, dentitionType, loading, saving, error, lastSaved } = useSelector(
     (state) => state.dentalExamination
   );
 
@@ -58,7 +58,9 @@ export function useDentalExamination(patientId) {
 
   return {
     toothState,
+    version,
     loading,
+    saving,
     error,
     lastSaved,
     updateTooth,

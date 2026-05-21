@@ -161,6 +161,8 @@ import {
   setActiveTeleconsultConsultationId,
   setJoinToken,
 } from "../redux/teleconsultNotificationSlice";
+import { saveDentalExamination } from "../redux/dentalExaminationSlice";
+import { transformToothStateToApi } from "./dental/lib/examination-helpers";
 import { ASSETS } from "../assets";
 const {
   vitalsWhite,
@@ -264,6 +266,7 @@ function ConsultationLayout({ children, headerProps }) {
   const { customModules, hospitalSearchResults } = useSelector(
     (state) => state.customModules,
   );
+  const dentalExamination = useSelector((state) => state.dentalExamination);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
   const isGroundingAccessableForZydus =
@@ -313,6 +316,7 @@ function ConsultationLayout({ children, headerProps }) {
     fromEditRx,
     smartRxFilesData,
   } = state || {};
+
 
   const chartType = state?.chartType;
   const tcmId =
@@ -1741,8 +1745,28 @@ function ConsultationLayout({ children, headerProps }) {
   const handleEndVisit = async () => {
     setIsEndVisitLoading(true);
     try {
+      const patientId = patient_data?.patient_unique_id;
+
+      // Save dental examination before ending visit when on dental route
+      if (location.pathname === "/dental" && patientId && dentalExamination?.toothState && Object.keys(dentalExamination.toothState).length > 0) {
+        try {
+          const tooth_states = transformToothStateToApi(dentalExamination.toothState);
+          await dispatch(saveDentalExamination({
+            patientId,
+            data: {
+              dentition_type: dentalExamination.dentitionType || "adult",
+              tooth_states,
+              version: dentalExamination.version || 0,
+            },
+          }));
+        } catch (dentalErr) {
+          console.warn("[Dental] Save failed before end visit:", dentalErr);
+        }
+      }
+
       const sendData = {
-        patient_unique_id: patient_data?.patient_unique_id,
+        action: tcmId === 0 ? 'add' : 'edit',
+        patient_unique_id: patientId,
         tcm_id: tcmId,
         pam_id: pamId,
         consultation_date: consultationDate,
@@ -1771,7 +1795,7 @@ function ConsultationLayout({ children, headerProps }) {
         errorMessage(action.error);
       }
     } catch (error) {
-      console.error("Error ending visit:", error);
+      console.warn("[ConsultationLayout] Error ending visit:", error);
       errorMessage("Failed to end visit");
     } finally {
       setIsEndVisitLoading(false);
@@ -1869,6 +1893,7 @@ function ConsultationLayout({ children, headerProps }) {
             isTeleconsultActive={!!joinToken}
             onEndVisit={handleEndVisit}
             handleSelectLetterHead={() => setIsSelectLetterHead(!isSelectLetterHead)}
+            hasDentalData={location.pathname === "/dental" && Object.keys(dentalExamination?.toothState ?? {}).length > 0}
             {...headerProps}
           />
           <div 

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAllDentalMasters } from "../redux/dentalMastersSlice";
-import { TOOTH_DIAGNOSES } from "../components/dental/examination/types";
+import { DIAGNOSES, TOOTH_DIAGNOSES } from "../components/dental/examination/types";
 
 /**
  * useDentalMasters Hook
@@ -22,6 +22,7 @@ export function useDentalMasters() {
   return {
     ...masters,
     activeDiagnoses: masters.diagnoses,
+    activeSurfaceFindings: masters.surfaceFindings.length > 0 ? masters.surfaceFindings : DIAGNOSES,
     activeToothDiagnoses: masters.diagnoses.length > 0 ? masters.diagnoses : TOOTH_DIAGNOSES,
     activeProcedures: masters.procedures,
     activeSurfaces: masters.surfaces,

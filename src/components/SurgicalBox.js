@@ -64,7 +64,7 @@ function SurgicalBox() {
   const { profile } = useSelector((state) => state.doctors);
 
   const { state } = useLocation();
-  const { patient_data } = state;
+  const { patient_data } = state || {};
 
   const { surgeriesData, setSurgeriesData } = useContext(CashManagerContext);
 

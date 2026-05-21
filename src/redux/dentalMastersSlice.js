@@ -4,7 +4,6 @@ import {
   getDiagnoses,
   getProcedures,
   getToothMap,
-  getBillingItems,
 } from "../api/services/ApiDental";
 import { DIAGNOSES, PROCEDURE_CATALOG, ALL_ZONES } from "../components/dental/examination/types";
 import { buildInitialDentalBillingItems } from "../utils/dentalBillingCatalog";
@@ -13,6 +12,7 @@ import { getDentalApiPayload } from "../utils/dentalApiMappers";
 const initialState = {
   surfaces: [],
   diagnoses: [],
+  surfaceFindings: [],
   procedures: [],
   toothMapAdult: null,
   toothMapPediatric: null,
@@ -52,12 +52,23 @@ export const fetchAllDentalMasters = createAsyncThunk(
         getProcedures(),
         getToothMap("adult"),
         getToothMap("pediatric"),
-        getBillingItems(),
       ]);
 
+      const diagnosesPayload = getDentalApiPayload(diagnosesRes);
+      const rawSurfaceFindings = Array.isArray(diagnosesPayload?.surface_findings)
+        ? diagnosesPayload.surface_findings
+        : [];
+      const rawToothDiagnoses = Array.isArray(diagnosesPayload?.tooth_diagnoses)
+        ? diagnosesPayload.tooth_diagnoses
+        : Array.isArray(diagnosesPayload?.items)
+          ? diagnosesPayload.items
+          : Array.isArray(diagnosesPayload)
+            ? diagnosesPayload
+            : [];
       return {
         surfaces: normalize(getDentalApiPayload(surfacesRes)?.items || getDentalApiPayload(surfacesRes), ALL_ZONES),
-        diagnoses: normalize(getDentalApiPayload(diagnosesRes)?.items || getDentalApiPayload(diagnosesRes), DIAGNOSES),
+        diagnoses: normalize(rawToothDiagnoses, []),
+        surfaceFindings: normalize(rawSurfaceFindings, DIAGNOSES),
         procedures: normalize(getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes), PROCEDURE_CATALOG),
         toothMapAdult: getDentalApiPayload(toothMapAdultRes) || null,
         toothMapPediatric: getDentalApiPayload(toothMapPediatricRes) || null,
@@ -90,6 +101,7 @@ const dentalMastersSlice = createSlice({
         state.loading = false;
         state.surfaces = action.payload.surfaces;
         state.diagnoses = action.payload.diagnoses;
+        state.surfaceFindings = action.payload.surfaceFindings;
         state.procedures = action.payload.procedures;
         state.toothMapAdult = action.payload.toothMapAdult;
         state.toothMapPediatric = action.payload.toothMapPediatric;

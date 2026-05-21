@@ -1,3 +1,19 @@
+const SINCE_LABEL_TO_DAYS = { "1 hour": 0, "1 day": 1, "1 week": 7, "1 month": 30, "1 year": 365 };
+
+// Must match the DX_MARKER in dentalApiMappers.js
+const DX_MARKER = "__dx__";
+
+const sinceToDate = (since) => {
+  if (!since) return null;
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(since)) return since;
+  const days = SINCE_LABEL_TO_DAYS[since];
+  if (days === undefined) return null;
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().split("T")[0];
+};
+
 /**
  * Transforms internal toothState map to API's tooth_states array.
  */
@@ -12,27 +28,55 @@ export const transformToothStateToApi = (toothState) => {
   };
 
   return Object.entries(toothState).map(([fdi, data]) => {
-        // Ensure we are working with arrays to prevent .map is not a function errors
     const findings = Array.isArray(data.findings) ? data.findings : [];
-    const history = Array.isArray(data.treatmentHistory) ? data.treatmentHistory : [];
+
+    // Primary diagnosis chips (Missing, Crown, RCT…) serialized as treatment_history entries
+    // with DX_MARKER in notes so they can be round-tripped back to toothDiagnoses on load.
+    const diagnoses = Array.isArray(data.diagnoses) ? data.diagnoses : [];
+    const diagEntries = diagnoses.map((name) => ({
+      name,
+      surface_codes: ["whole"],
+      notes: DX_MARKER,
+    }));
+
+    // treatmentHistory may be an array (legacy) or an object map { name: { surfaces, since, note } }
+    const rawHistory = data.treatmentHistory;
+    const historyEntries = Array.isArray(rawHistory)
+      ? rawHistory
+      : Object.entries(rawHistory || {}).map(([name, details]) => ({
+          name,
+          surface_codes: details.surfaces || ["whole"],
+          since_date: sinceToDate(details.since),
+          notes: details.note || "",
+        }));
+
     return {
       tooth_code: fdi,
       quadrant: getQuadrantCode(fdi),
-      findings: findings.map((f) => ({
-        id: f.id,
-        name: f.type,
-        surface_codes: [f.zoneId],
-        notes: f.notes || "",
-        since_date: f.since_date || new Date().toISOString().split("T")[0],
-      })),
-      procedures: [], // Current UI doesn't track live procedures in exam tab
-      treatment_history: history.map((h) => ({
-        id: h.id,
-        name: h.name || h.type,
-        surface_codes: h.surface_codes || ["whole"],
-        since_date: h.since_date || "",
-        notes: h.notes || "",
-      })),
+      findings: findings.map((f) => {
+        const since = sinceToDate(f.since_date || "");
+        return {
+          ...(f.id ? { id: f.id } : {}),
+          name: f.type,
+          surface_codes: [f.zoneId],
+          notes: f.notes || "",
+          ...(since ? { since_date: since } : {}),
+        };
+      }),
+      procedures: [],
+      treatment_history: [
+        ...diagEntries,
+        ...historyEntries.map((h) => {
+          const since = sinceToDate(h.since_date || h.since || "");
+          return {
+            ...(h.id ? { id: h.id } : {}),
+            name: h.name || h.type,
+            surface_codes: h.surface_codes || ["whole"],
+            ...(since ? { since_date: since } : {}),
+            notes: h.notes || h.note || "",
+          };
+        }),
+      ],
       overall_notes: data.notes || "",
     };
   });

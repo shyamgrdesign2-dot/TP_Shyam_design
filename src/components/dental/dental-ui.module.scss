@@ -58,14 +58,14 @@
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
-  color: tp.$slate-900;
+  color: tp.$slate-900 !important;
 }
 
 .shellSubtitle {
   font-family: "Inter", sans-serif;
   font-size: 11px;
   line-height: 14px;
-  color: tp.$slate-500;
+  color: tp.$slate-500 !important;
 }
 
 .shellBody {
@@ -132,11 +132,11 @@
 }
 
 .tabNavLabelOn {
-  color: #fff;
+  color: #fff !important;
 }
 
 .tabNavLabelOff {
-  color: rgb(255 255 255 / 0.75);
+  color: rgb(255 255 255 / 0.75) !important;
 }
 
 .tabNavCaret {
@@ -169,10 +169,10 @@
   cursor: pointer;
   transition: all 0.15s ease;
   background: transparent;
-  color: tp.$slate-500;
+  color: tp.$slate-500 !important;
 
   &:hover {
-    color: tp.$slate-700;
+    color: tp.$slate-700 !important;
   }
 }
 
@@ -192,11 +192,11 @@
   font-size: 10px;
   font-weight: 700;
   background: color-mix(in srgb, tp.$slate-200 80%, transparent);
-  color: tp.$slate-400;
+  color: tp.$slate-400 !important;
 }
 
 .tabPillCountActive {
-  background: var(--tp-blue-600);
+  background: var(--tp-blue-600) !important;
   color: #fff !important;
 }
 
@@ -235,21 +235,21 @@
 }
 
 .emptyIcon {
-  color: tp.$slate-300;
+  color: tp.$slate-300 !important;
 }
 
 .emptyTitle {
   font-family: "Inter", sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: tp.$slate-600;
+  color: tp.$slate-600 !important;
 }
 
 .emptyDesc {
   margin-top: 4px;
   font-family: "Inter", sans-serif;
   font-size: 15px;
-  color: tp.$slate-400;
+  color: tp.$slate-400 !important;
 }
 
 .emptyAction {
@@ -304,7 +304,7 @@
   white-space: nowrap;
   font-size: 16px;
   font-weight: 600;
-  color: tp.$slate-900;
+  color: tp.$slate-900 !important;
 }
 
 .drawerAction {
@@ -347,6 +347,8 @@
 }
 
 .tpTabBody {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -375,7 +377,7 @@
   font-family: "Inter", sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: tp.$slate-800;
+  color: tp.$slate-800 !important;
 }
 
 .tpPageBackIconWrap {
@@ -446,7 +448,7 @@
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 700;
-  color: white;
+  color: white !important;
   font-variant-numeric: tabular-nums;
   outline: none;
   transition: filter 0.15s;
