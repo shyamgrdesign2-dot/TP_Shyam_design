@@ -480,7 +480,10 @@ function DateHeader({
 
       <div className="flex items-center justify-between gap-2 px-[10px] py-[8px] w-full">
         <div className="flex min-w-0 flex-col gap-[2px]">
-          <div className="flex items-center gap-1.5">
+          {/* min-h keeps the date row a constant 24px tall whether or not the
+              copy affordance is present, so the header height stays fixed at
+              58px and the RxTabStrip can stick exactly below it. */}
+          <div className="flex min-h-[24px] items-center gap-1.5">
             <div className="font-['Inter',sans-serif] font-semibold text-tp-slate-700 text-[14px] tracking-[0.012px] whitespace-nowrap leading-[20px]">
               {dateLabel}
             </div>
@@ -558,7 +561,7 @@ function RxTabStrip({
 
 }) {
   return (
-    <div className="bg-white shrink-0 sticky top-[40px] w-full z-[3]">
+    <div className="bg-white shrink-0 sticky top-[58px] w-full z-[3]">
       <div className="flex items-center pb-[10px] pt-[10px] px-[8px] gap-0 w-full">
         <button
           onClick={() => onSwitch("digital")}
