@@ -84,6 +84,7 @@ join("\n");
 const MOCK_DICTATION_TRANSCRIPT =
 "76-year-old male, known case of CKD G5 on PD and Type 2 Diabetes Mellitus. Presents with mild pedal oedema for one week, fatigue for two weeks, reduced appetite for one week. Vitals stable. BP 138 / 86, pulse 84. Continue Furosemide 40mg, increase if oedema persists. Repeat KFT and electrolytes in one week. Strict fluid log. Allergic to iodinated contrast and sulfonamides — avoid both.";
 
+
 function useRecordingTimer(active) {
   const [ms, setMs] = useState(0);
   const msRef = useRef(0);
@@ -259,6 +260,7 @@ function AnimatedTranscript({
 
 }
 
+
 export function VoiceRxActiveAgent({
   mode, transcript, isAwaitingResponse, isHandoffExiting = false, onCancel, onSubmit, onCollapse, onExpand,
   isPanelVisible = true, onPauseChange,
@@ -275,16 +277,15 @@ export function VoiceRxActiveAgent({
 
   /**
    * Submit-phase split. The parent's `isAwaitingResponse` flips true as
-   * soon as the user clicks Submit, but the user wants the submit slot
-   * itself to spin for ~3 seconds while the rest of the active panel
-   * (live transcript, action dock, mic pill) STAYS in place. After the
-   * 3-second hold elapses, the panel transitions to the processing view
-   * (transcript zone swaps for the shiner card).
+   * soon as the user clicks Submit. During the first ~7s ("submitting"),
+   * the live transcript + dock + "Processing" pill all stay in place so
+   * the doctor sees their capture is safe. After 7s ("processing"), the
+   * transcript zone swaps for the shiner card with reveal animation.
    *
    *   processingPhase
    *     "idle"        — !isAwaitingResponse
-   *     "submitting"  — first 3s after isAwaitingResponse went true
-   *     "processing"  — after the 3s hold, until isAwaitingResponse falls
+   *     "submitting"  — first 7s after isAwaitingResponse went true
+   *     "processing"  — after the 7s hold, until isAwaitingResponse falls
    */
   const [processingPhase, setProcessingPhase] = useState("idle");
   useEffect(() => {
@@ -293,7 +294,7 @@ export function VoiceRxActiveAgent({
       return;
     }
     setProcessingPhase("submitting");
-    const t = window.setTimeout(() => setProcessingPhase("processing"), 3000);
+    const t = window.setTimeout(() => setProcessingPhase("processing"), 7000);
     return () => window.clearTimeout(t);
   }, [isAwaitingResponse]);
 
@@ -612,24 +613,17 @@ export function VoiceRxActiveAgent({
                 back / collapse / cancel during processing. */}
           {bottomLoaderActive ?
           <div className={cn("vrx-transcript-zone-in relative flex min-h-0 flex-1 flex-col items-stretch justify-center gap-[14px]", isCompactLayout ? "px-[16px] pt-[64px] pb-[12px]" : "px-[24px] pt-[80px] pb-[16px]", isHandoffExiting && "vrx-shiner-handoff-exit")}>
-              {/* Mock transformed transcript — for the demo, the shiner
-                 card always shows curated content so the visual is
-                 predictable regardless of the live mic state. */}
               <VoiceTranscriptProcessingCard
               mode={mode === "ambient_consultation" ? "ambient_consultation" : "dictation"}
               transcript={mode === "ambient_consultation" ? MOCK_AMBIENT_TRANSCRIPT : MOCK_DICTATION_TRANSCRIPT} />
-            
-              {/* Caption + progress bar sit RIGHT BELOW the shiner card so
-                 the two read as one tightly coupled "we're working" unit
-                 — earlier the loader anchored to the panel's bottom edge
-                 which left a large dead gap when the shiner was small. */}
+
+              {/* Caption + progress bar — tightly coupled below the shiner card */}
               <div className={cn("vrx-shiner-loader flex flex-col items-center gap-[10px]", isHandoffExiting && "vrx-bottom-loader--exit")}>
                 <CaptionCarousel />
                 <div className="vrx-progress-track relative h-[5px] w-[240px] overflow-hidden rounded-full bg-tp-slate-100/80 shadow-[0_0_0_1px_rgba(75,74,213,0.08),0_4px_14px_-6px_rgba(75,74,213,0.35)]">
                   <span
                   aria-hidden
                   className={cn("vrx-progress-fill absolute inset-y-0 left-0 block w-full rounded-full", styles.progressFill)} />
-                
                   <span aria-hidden className="vrx-progress-sheen absolute inset-y-0 left-0 block w-[40%] rounded-full" />
                 </div>
               </div>
@@ -728,7 +722,7 @@ export function VoiceRxActiveAgent({
                 type="button"
                 onClick={retryMic}
                 className="pointer-events-auto mt-[18px] inline-flex min-h-[36px] items-center gap-[6px] rounded-[10px] border border-[var(--tp-blue-500)] bg-transparent px-[14px] text-[14px] font-semibold text-[var(--tp-blue-500)] transition-colors hover:bg-[var(--tp-blue-50)] active:scale-[0.98]">
-                
+
                     <Mic size={14} strokeWidth={2.2} aria-hidden />
                     Allow microphone access
                   </button>
@@ -743,12 +737,7 @@ export function VoiceRxActiveAgent({
                 (slide-down + fade) and is replaced by the CaptionCarousel
                 loader sitting in its place at the bottom. */}
           {bottomLoaderActive ?
-          // Loader is now rendered INSIDE the centered transcript zone
-          // above (right beneath the shiner card) so the two read as
-          // a single unit. Keep the bottom block empty during the
-          // processing phase rather than reserving a tall slot.
           null :
-
           <div className={cn("vrx-bottom-block relative z-10 shrink-0 overflow-visible", dockExiting && "vrx-bottom-block--exit")}>
             {/* Footer blob removed — it sat INSIDE the card shell and was
                  dimming the "Listening" text + dots. The listening feedback
@@ -978,7 +967,7 @@ export function VoiceRxActiveAgent({
                 )}
                 role="status"
                 aria-live="polite">
-                
+
                   {criticalBlock ?
                 <span className="inline-flex h-[14px] w-[14px] items-center justify-center text-red-500">
                       <AlertCircle size={14} strokeWidth={2.4} />

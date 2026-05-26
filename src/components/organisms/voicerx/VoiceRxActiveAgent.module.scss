@@ -90,6 +90,62 @@
   animation: vrxRecRing 1.8s ease-out infinite;
 }
 
+// ── Six-second submit loader ───────────────────────────────────────────────────
+.submitOrbCore {
+  background: linear-gradient(
+    135deg,
+    var(--ai-pink, #D565EA) 0%,
+    var(--ai-violet, #673AAC) 50%,
+    var(--ai-indigo, #1A1994) 100%
+  );
+  box-shadow:
+    0 8px 24px rgba(103, 58, 172, 0.45),
+    0 2px 8px  rgba(103, 58, 172, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  animation: submitOrbBreath 2s ease-in-out infinite;
+}
+
+.submitOrbRipple1 {
+  background: radial-gradient(circle, rgba(103, 58, 172, 0.15) 0%, rgba(103, 58, 172, 0) 70%);
+  animation: submitOrbRippleOut 2s ease-out infinite;
+}
+
+.submitOrbRipple2 {
+  background: radial-gradient(circle, rgba(103, 58, 172, 0.08) 0%, rgba(103, 58, 172, 0) 70%);
+  animation: submitOrbRippleOut 2s ease-out 0.5s infinite;
+}
+
+.submitProgressFill {
+  background: linear-gradient(
+    90deg,
+    var(--ai-pink, #D565EA) 0%,
+    var(--ai-violet, #673AAC) 50%,
+    var(--ai-indigo, #1A1994) 100%
+  );
+  animation: submit6sFill 6s linear forwards;
+}
+
+@keyframes submitOrbBreath {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 8px 24px rgba(103, 58, 172, 0.45), 0 2px 8px rgba(103, 58, 172, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 12px 32px rgba(103, 58, 172, 0.60), 0 4px 12px rgba(103, 58, 172, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+}
+
+@keyframes submitOrbRippleOut {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes submit6sFill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
 // ── Transcript zone scroll-fade overlays ──────────────────────────────────────
 .transcriptFadeTop {
   background: linear-gradient(

@@ -194,29 +194,37 @@ export function DictationTranscript({ raw, animate = true }) {
  * Shimmer caption carousel — exported so other surfaces (e.g. the active
  * agent footer during the processing phase) can reuse the exact same
  * loader vocabulary instead of re-inventing it.
+ *
+ * Props:
+ *   phrases — array of strings to cycle through (defaults to CAPTION_PHRASES).
+ *             When the array reference changes (e.g. parent switches from
+ *             REFINING_PHRASES to WRITING_PHRASES) the index resets to 0
+ *             so the first phrase of the new set plays immediately.
  */
-export function CaptionCarousel() {
+export function CaptionCarousel({ phrases = CAPTION_PHRASES }) {
   const [idx, setIdx] = useState(0);
+  // Reset to the first phrase whenever the phrase set changes
+  const prevPhrasesRef = useRef(phrases);
   useEffect(() => {
-    const t = window.setInterval(() => setIdx((i) => (i + 1) % CAPTION_PHRASES.length), 2000);
+    if (prevPhrasesRef.current !== phrases) {
+      prevPhrasesRef.current = phrases;
+      setIdx(0);
+    }
+  }, [phrases]);
+  useEffect(() => {
+    setIdx(0);
+    const t = window.setInterval(() => setIdx((i) => (i + 1) % phrases.length), 2000);
     return () => window.clearInterval(t);
-  }, []);
-  // Each phrase enters from below (slide-up + fade in) and the previous
-  // one slides up out at the same time. Stacking absolutely on top of
-  // a fixed-height row so the layout doesn't jump as words change
-  // length.
+  }, [phrases]);
+  // Each phrase enters from below (slide-up + fade in). Single keyed span
+  // so React unmounts/remounts on idx change and the entrance animation
+  // re-runs for every new phrase.
   return (
     <div className="vrx-caption-stage flex w-full items-center justify-center px-[2px] py-[3px] text-[14px] font-semibold leading-[1.4] text-tp-slate-600">
-      {/* Single keyed span — React unmounts/remounts on idx change so
-           the entrance animation re-runs for every new phrase. Earlier
-           this used absolute-positioned children which collapsed the
-           parent flex to 0 width and clipped everything past the first
-           glyph; the simpler in-flow span sizes correctly. */}
       <span
-        key={idx}
+        key={`${idx}-${phrases.length}`}
         className={cn("vrx-process-caption vrx-caption-slide whitespace-nowrap", styles.captionShimmerSpan)}>
-        
-        {CAPTION_PHRASES[idx]}…
+        {phrases[idx]}…
       </span>
       {/* vrx-* styles live in app/globals.css */}
     </div>);
@@ -373,11 +381,16 @@ export function VoiceTranscriptProcessingCard({
         <div
           ref={transcriptScrollRef}
           className="relative flex min-h-0 flex-1 flex-col overflow-y-auto p-[14px]">
-          
-            {/* Bubbles render directly on the shiner card's slate-100
-               surface — no inner wrapper. The white doctor bubble +
-               violet patient bubble read crisply against it. */}
-            <DictationTranscript raw={transcript} />
+
+            {/* Transcript reveals with a slide-up fade as the shiner card
+                mounts. Ambient mode shows doctor/patient chat bubbles;
+                dictation mode shows the single-paragraph note. */}
+            <div className={styles.writingReveal}>
+              {isAmbient
+                ? <ConversationTranscript raw={transcript} />
+                : <DictationTranscript raw={transcript} animate={true} />
+              }
+            </div>
           </div> :
 
         <div
