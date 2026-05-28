@@ -629,9 +629,6 @@ function uniquePartList(raw) {
 // Clicking any summary row → opens that tooth's single view.
 // ──────────────────────────────────────────────────────────────
 function DentitionPanel({ state, hasApiExaminationData = false }) {
-  const scoreData = useMemo(() => computeDentalScore(state), [state]);
-  const [showFormula, setShowFormula] = useState(false);
-  const infoBtnRef = useRef(null);
   const summary = useMemo(() => {
     if (!state) return [];
     const map = new Map();
@@ -746,13 +743,6 @@ function DentitionPanel({ state, hasApiExaminationData = false }) {
     <>
       {summary.length > 0 || hasApiExaminationData ?
         <>
-          <ScoreCard
-            data={scoreData}
-            infoBtnRef={infoBtnRef}
-            showFormula={showFormula}
-            setShowFormula={setShowFormula} />
-
-
           <div className={ui.recordsHeader}>
             <h3 className={ui.recordsTitle}>Tooth records</h3>
             <span className={ui.recordsBadge}>{summary.length}</span>

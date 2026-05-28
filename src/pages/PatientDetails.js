@@ -52,7 +52,6 @@ import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
 import { lazyRetry } from "../utils/lazyRetry";
 import { searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
-import { TreatmentPlanEmbed } from "../components/dental/plan/TreatmentPlanPage";
 import { errorMessage } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
@@ -470,9 +469,8 @@ function PatientDetails() {
                 </Sider>
 
                 <Content>
-                    <div className={`w-100 vh-100 ${sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+                    <div className={`w-100 vh-100 overflow-y-auto`}>
                         { sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT &&
-                          sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN &&
                             <Welcome1
                                 locationPath={locationPath}
                                 isMobile={isMobile}
@@ -562,10 +560,6 @@ function PatientDetails() {
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? (
                             <div className="appointment-wrap PatientDetailswrap">
                                 <HealthCheckupReport patient_data={patient_data} showHealthCheckupReportDrawer={showHealthCheckupReportDrawer} setShowHealthCheckupReportDrawer={setShowHealthCheckupReportDrawer} />
-                            </div>
-                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? (
-                            <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
-                                <TreatmentPlanEmbed patientId={patient_data?.patient_unique_id} />
                             </div>
                         ) : null}
                     </div>
