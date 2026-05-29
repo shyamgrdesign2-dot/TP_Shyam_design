@@ -3712,3 +3712,65 @@ body {
   font-weight: 400;
   line-height: 22px;
 }
+
+/* Premium Dental Custom Tabs styling matching the prototype */
+.dental-tab-bar {
+  z-index: 10;
+  background: $white;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: rgba(0, 0, 0, 0.08) 0px 2px 8px -2px;
+}
+
+.dental-tab-inner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  height: 46px;
+  padding: 0 20px;
+}
+
+.dental-tab-btn {
+  cursor: pointer;
+  background: none;
+  border: none;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 10px 6px;
+  font-size: 14px;
+  transition: color 0.15s;
+  display: flex;
+  position: relative;
+  outline: none;
+
+  span {
+    font-family: "Inter", sans-serif;
+  }
+
+  &.inactive {
+    color: #92929D;
+    font-weight: 500;
+
+    &:hover {
+      color: $main2 !important;
+    }
+  }
+
+  &.active {
+    color: $theme !important;
+    font-weight: 600;
+  }
+}
+
+.dental-tab-underline {
+  background: $theme;
+  border-radius: 9999px;
+  height: 2.5px;
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+}
+

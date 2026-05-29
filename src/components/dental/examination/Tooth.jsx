@@ -498,7 +498,9 @@ export function injectShader(
   // Critical: ensure Three.js does not reuse a stale non-dental shader program
   // across tab/type switches. Without a dedicated key, onBeforeCompile can be
   // bypassed by program cache hits, causing missing dentition colors until remount.
-  mat.customProgramCacheKey = () => "tp-dental-zone-shader-v1";
+  // Using the unique tooth FDI number ensures separate program cache items per tooth type,
+  // preventing uniform coordinate sharing and coordinate mismatch issues.
+  mat.customProgramCacheKey = () => `tp-dental-zone-shader-v1-${toothFdi}`;
   mat.onBeforeCompile = (shader) => {
     ref.shader = shader;
     shader.uniforms.selectedZone = {
@@ -1830,7 +1832,9 @@ export function Tooth({
     Boolean(treatmentHistoryDetails?.Missing) ||
     Boolean(treatmentHistoryDetails?.Extraction);
 
+  // Effect 1: Shader Injection (triggered ONLY when clonedScene changes)
   useLayoutEffect(() => {
+    frameCount.current = 0;
     let cancelled = false;
     let rafOuter = 0;
     let rafInner = 0;
@@ -1917,55 +1921,6 @@ export function Tooth({
               isDenture: hasDenture,
             }),
           });
-          if (hasImplant) {
-            // Scale implant to fit proportionally within the tooth
-            const cervicalDiam = Math.max(size.x, size.z) * 0.75;
-            setImplantPlacement({
-              cervicalY,
-              centerX: center.x,
-              centerZ: center.z,
-              cervicalDiam,
-            });
-          }
-          // Compute annotation data after shader injection is complete
-          if (toothMeshRef.current) {
-            const meshBB = new THREE.Box3().setFromObject(toothMeshRef.current);
-            const mCenter = new THREE.Vector3();
-            const mSize = new THREE.Vector3();
-            meshBB.getCenter(mCenter);
-            meshBB.getSize(mSize);
-            let mCervicalY, mOcclusalMidY;
-            if (arch === "maxillary") {
-              mCervicalY = meshBB.min.y + mSize.y * 0.42;
-              const occlTop = meshBB.min.y + (mCervicalY - meshBB.min.y) * 0.45;
-              mOcclusalMidY = (mCervicalY + occlTop) / 2;
-            } else {
-              mCervicalY = meshBB.max.y - mSize.y * 0.42;
-              const occlTop = meshBB.max.y - (meshBB.max.y - mCervicalY) * 0.45;
-              mOcclusalMidY = (mCervicalY + occlTop) / 2;
-            }
-            const dirs = getDirsForTooth(toothFdi, quadrant, zoneYawRad);
-            // When mirrorX is active, the mesh world-space X is flipped.
-            // Negate X component of direction vectors so raycasts hit the correct surface.
-            const fx = mirrorX ? -1 : 1;
-            const flipDir = (d) =>
-              new THREE.Vector3(d.x * fx, d.y, d.z).normalize();
-            setAnnotationData({
-              zoneDirs: {
-                buccal: flipDir(dirs.buccal),
-                lingual: flipDir(dirs.lingual),
-                mesial: flipDir(dirs.mesial),
-                distal: flipDir(dirs.distal),
-              },
-              meshBounds: {
-                center: mCenter,
-                size: mSize,
-                cervicalY: mCervicalY,
-                occlusalMidY: mOcclusalMidY,
-                bb: meshBB,
-              },
-            });
-          }
         });
       });
     };
@@ -1975,6 +1930,90 @@ export function Tooth({
       cancelAnimationFrame(rafOuter);
       cancelAnimationFrame(rafInner);
     };
+  }, [clonedScene, gl, camera]);
+
+  // Effect 2: Layout & Annotations state updates
+  useLayoutEffect(() => {
+    if (!groupRef.current) return;
+    frameCount.current = 0; // Trigger coordinate recalculations on frame state shift
+    groupRef.current.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(groupRef.current);
+    const center = new THREE.Vector3();
+    const size = new THREE.Vector3();
+    bb.getCenter(center);
+    bb.getSize(size);
+    let cervicalY, cejY, occlusalTop;
+    if (arch === "maxillary") {
+      cervicalY = bb.min.y + size.y * 0.42;
+      cejY = bb.min.y + size.y * 0.5;
+      const crownH = cervicalY - bb.min.y;
+      occlusalTop = bb.min.y + crownH * 0.45;
+    } else {
+      cervicalY = bb.max.y - size.y * 0.42;
+      cejY = bb.max.y - size.y * 0.5;
+      const crownH = bb.max.y - cervicalY;
+      occlusalTop = bb.max.y - crownH * 0.45;
+    }
+    const zoneYawRad = zoneYawForTooth(toothPosition, quadrant);
+    boundsData.current = {
+      cervicalY,
+      cejY,
+      occlusalTop,
+      centerX: center.x,
+      centerZ: center.z,
+      quadrant,
+      zoneYawRad,
+      bb,
+      center,
+      size,
+    };
+    if (hasImplant) {
+      const cervicalDiam = Math.max(size.x, size.z) * 0.75;
+      setImplantPlacement({
+        cervicalY,
+        centerX: center.x,
+        centerZ: center.z,
+        cervicalDiam,
+      });
+    } else {
+      setImplantPlacement(null);
+    }
+    if (toothMeshRef.current) {
+      const meshBB = new THREE.Box3().setFromObject(toothMeshRef.current);
+      const mCenter = new THREE.Vector3();
+      const mSize = new THREE.Vector3();
+      meshBB.getCenter(mCenter);
+      meshBB.getSize(mSize);
+      let mCervicalY, mOcclusalMidY;
+      if (arch === "maxillary") {
+        mCervicalY = meshBB.min.y + mSize.y * 0.42;
+        const occlTop = meshBB.min.y + (mCervicalY - meshBB.min.y) * 0.45;
+        mOcclusalMidY = (mCervicalY + occlTop) / 2;
+      } else {
+        mCervicalY = meshBB.max.y - mSize.y * 0.42;
+        const occlTop = meshBB.max.y - (meshBB.max.y - mCervicalY) * 0.45;
+        mOcclusalMidY = (mCervicalY + occlTop) / 2;
+      }
+      const dirs = getDirsForTooth(toothFdi, quadrant, zoneYawRad);
+      const fx = mirrorX ? -1 : 1;
+      const flipDir = (d) =>
+        new THREE.Vector3(d.x * fx, d.y, d.z).normalize();
+      setAnnotationData({
+        zoneDirs: {
+          buccal: flipDir(dirs.buccal),
+          lingual: flipDir(dirs.lingual),
+          mesial: flipDir(dirs.mesial),
+          distal: flipDir(dirs.distal),
+        },
+        meshBounds: {
+          center: mCenter,
+          size: mSize,
+          cervicalY: mCervicalY,
+          occlusalMidY: mOcclusalMidY,
+          bb: meshBB,
+        },
+      });
+    }
   }, [
     clonedScene,
     arch,
@@ -2030,8 +2069,40 @@ export function Tooth({
     treatmentHistoryDetails,
     multiSelectActive,
   ]);
+  const frameCount = useRef(0);
   // Push zone uniforms every frame — guarantees highlighting even after shader recompile
   useFrame(() => {
+    if (groupRef.current && frameCount.current < 30) {
+      groupRef.current.updateWorldMatrix(true, true);
+      const bb = new THREE.Box3().setFromObject(groupRef.current);
+      const center = new THREE.Vector3();
+      const size = new THREE.Vector3();
+      bb.getCenter(center);
+      bb.getSize(size);
+      let cervicalY, cejY, occlusalTop;
+      if (arch === "maxillary") {
+        cervicalY = bb.min.y + size.y * 0.42;
+        cejY = bb.min.y + size.y * 0.5;
+        const crownH = cervicalY - bb.min.y;
+        occlusalTop = bb.min.y + crownH * 0.45;
+      } else {
+        cervicalY = bb.max.y - size.y * 0.42;
+        cejY = bb.max.y - size.y * 0.5;
+        const crownH = bb.max.y - cervicalY;
+        occlusalTop = bb.max.y - crownH * 0.45;
+      }
+      for (const ref of shaderRefs.current) {
+        const s = ref.shader;
+        if (s?.uniforms) {
+          if (s.uniforms.uCejY) s.uniforms.uCejY.value = cejY;
+          if (s.uniforms.uCervicalY) s.uniforms.uCervicalY.value = cervicalY;
+          if (s.uniforms.uOcclusalTop) s.uniforms.uOcclusalTop.value = occlusalTop;
+          if (s.uniforms.uCenterX) s.uniforms.uCenterX.value = center.x;
+          if (s.uniforms.uCenterZ) s.uniforms.uCenterZ.value = center.z;
+        }
+      }
+      frameCount.current++;
+    }
     const { selected, hovered } = zoneIndicesRef.current;
     const zf = zoneFindingsRef.current;
     for (const ref of shaderRefs.current) {
@@ -2058,6 +2129,12 @@ export function Tooth({
         arr[5] = zf[5];
         arr[6] = zf[6];
       }
+      if (s.uniforms.uIsImplant) s.uniforms.uIsImplant.value = hasImplant ? 1.0 : 0.0;
+      if (s.uniforms.uIsMissing) s.uniforms.uIsMissing.value = isMissingOrExtraction ? 1.0 : 0.0;
+      if (s.uniforms.uIsCrown) s.uniforms.uIsCrown.value = hasCrown ? 1.0 : 0.0;
+      if (s.uniforms.uIsRCT) s.uniforms.uIsRCT.value = hasRCT ? 1.0 : 0.0;
+      if (s.uniforms.uIsBridge) s.uniforms.uIsBridge.value = hasBridge ? 1.0 : 0.0;
+      if (s.uniforms.uIsDenture) s.uniforms.uIsDenture.value = hasDenture ? 1.0 : 0.0;
     }
   });
   const getWorldNormal = useCallback((e) => {

@@ -1028,6 +1028,12 @@
   cursor: default;
 }
 
+.accordionFitOpen {
+  flex: none;
+  box-shadow: 0 6px 20px -4px rgb(15 23 42 / 0.12);
+  cursor: default;
+}
+
 .accordionClosed {
   flex: none;
   box-shadow: 0 2px 8px -2px rgb(15 23 42 / 0.06);
@@ -1081,6 +1087,7 @@
   font-size: 14px;
   font-weight: 600;
   color: tp.$slate-800 !important;
+  margin-top: 0.5rem !important;
 }
 
 .secCount {

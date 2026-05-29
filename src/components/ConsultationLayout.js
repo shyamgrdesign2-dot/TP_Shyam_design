@@ -164,6 +164,7 @@ import {
 import { saveDentalExamination } from "../redux/dentalExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
 import { ASSETS } from "../assets";
+import { ToothIcon } from "./dental/ToothIcon";
 const {
   vitalsWhite,
   vitalsDark,
@@ -1973,48 +1974,54 @@ function ConsultationLayout({ children, headerProps }) {
               />
               {location.pathname === "/dental" ? (
                 <Content className="dental-content-wrapper w-100 d-flex flex-column" style={{ height: "100%", overflow: "hidden" }}>
-                  <div className="bg-white pt-2 px-4 border-bottom">
-                    <Tabs
-                      centered
-                      activeKey={activeDentalTab}
-                      onChange={(key) => setActiveDentalTab(key)}
-                      items={[
-                        {
-                          key: "clinical",
-                          label: (
-                            <div className="d-flex align-items-center gap-2 px-2">
-                              <ClipboardText size={18} variant={activeDentalTab === "clinical" ? "Bulk" : "Linear"} color={activeDentalTab === "clinical" ? "#4B4AD5" : "#92929D"} />
-                              <span style={{ fontWeight: activeDentalTab === "clinical" ? "600" : "500" }}>Clinical Examination</span>
-                            </div>
-                          ),
-                        },
-                        {
-                          key: "dental",
-                          label: (
-                            <div className="d-flex align-items-center gap-2 px-2">
-                              <TPMedicalIcon name="tooth" variant={activeDentalTab === "dental" ? "bulk" : "linear"} size={18} color={activeDentalTab === "dental" ? "#4B4AD5" : "#92929D"} />
-                              <span style={{ fontWeight: activeDentalTab === "dental" ? "600" : "500" }}>Dental Examination</span>
-                            </div>
-                          ),
-                        }
-                      ]}
-                    />
+                  <div className="dental-tab-bar">
+                    <div className="dental-tab-inner">
+                      <button
+                        type="button"
+                        className={`dental-tab-btn ${activeDentalTab === "clinical" ? "active" : "inactive"}`}
+                        onClick={() => setActiveDentalTab("clinical")}
+                      >
+                        <ClipboardText
+                          size={20}
+                          variant={activeDentalTab === "clinical" ? "Bulk" : "Linear"}
+                          color={activeDentalTab === "clinical" ? "#4B4AD5" : "#92929D"}
+                        />
+                        Clinical Examination
+                        {activeDentalTab === "clinical" && <span className="dental-tab-underline" />}
+                      </button>
+                      <button
+                        type="button"
+                        className={`dental-tab-btn ${activeDentalTab === "dental" ? "active" : "inactive"}`}
+                        onClick={() => setActiveDentalTab("dental")}
+                      >
+                        <ToothIcon
+                          name="tooth"
+                          variant={activeDentalTab === "dental" ? "bulk" : "linear"}
+                          size={20}
+                          color={activeDentalTab === "dental" ? "#4B4AD5" : "#92929D"}
+                        />
+                        Dental Examination
+                        {activeDentalTab === "dental" && <span className="dental-tab-underline" />}
+                      </button>
+                    </div>
                   </div>
-                  <div className="dental-tab-content flex-grow-1 overflow-auto p-2" style={{ backgroundColor: "#F8F8FB" }}>
+                  <div className="dental-tab-content flex-grow-1 overflow-auto" style={{ backgroundColor: "#F8F8FB" }}>
                     {activeDentalTab === "clinical" ? (
-                      <ClinicalExaminationContent
-                        allAvailableModules={allAvailableModules}
-                        showShimmer={showShimmer}
-                        setShowSCBanner={setShowSCBanner}
-                        showSCBanner={showSCBanner}
-                        handleDDxDrawer={handleDDxDrawer}
-                        generatedDDx={generatedDDx}
-                        getGenerateDDx={getGenerateDDx}
-                        isDDxLoading={isDDxLoading}
-                        handleDDxKnowMore={handleDDxKnowMore}
-                        isDDxGenerated={isDDxGenerated}
-                        loadPrevOpthalSignal={loadPrevOpthalSignal}
-                      />
+                      <div className="p-3">
+                        <ClinicalExaminationContent
+                          allAvailableModules={allAvailableModules}
+                          showShimmer={showShimmer}
+                          setShowSCBanner={setShowSCBanner}
+                          showSCBanner={showSCBanner}
+                          handleDDxDrawer={handleDDxDrawer}
+                          generatedDDx={generatedDDx}
+                          getGenerateDDx={getGenerateDDx}
+                          isDDxLoading={isDDxLoading}
+                          handleDDxKnowMore={handleDDxKnowMore}
+                          isDDxGenerated={isDDxGenerated}
+                          loadPrevOpthalSignal={loadPrevOpthalSignal}
+                        />
+                      </div>
                     ) : (
                       <ExaminationTab 
                         patientId={patient_data?.patient_unique_id} 

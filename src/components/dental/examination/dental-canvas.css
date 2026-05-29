@@ -13,7 +13,7 @@
   height: 100%;
   width: 100%;
   font-family: 'Inter', sans-serif;
-  color: #1a1a2e;
+  color: #1a1a2e !important;
   background: transparent;
 }
 .dental-canvas-root.dentition-mode { grid-template-columns: 1fr; }
@@ -53,7 +53,7 @@
   padding: 0 12px;
   font-size: 13px;
   font-weight: 600;
-  color: #1f3558;
+  color: #1f3558 !important;
   background-color: rgba(244, 244, 247, 1);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -85,7 +85,7 @@
 }
 .dental-canvas-root .tooth-fdi {
   font-weight: 700;
-  color: #334155;
+  color: #334155 !important;
   margin-left: 4px;
   font-size: 12px;
   background: unset;
@@ -120,9 +120,9 @@
 }
 .dental-canvas-root .zone-nav-current:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.1); }
 .dental-canvas-root .zone-nav-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.dental-canvas-root .zone-nav-label { font-size: 13px; font-weight: 700; color: #222; }
-.dental-canvas-root .zone-nav-surface { font-size: 12px; color: #888; font-weight: 500; }
-.dental-canvas-root .zone-nav-hint { font-size: 12px; color: #bbb; font-weight: 500; }
+.dental-canvas-root .zone-nav-label { font-size: 13px; font-weight: 700; color: #222 !important; }
+.dental-canvas-root .zone-nav-surface { font-size: 12px; color: #888 !important; font-weight: 500; }
+.dental-canvas-root .zone-nav-hint { font-size: 12px; color: #bbb !important; font-weight: 500; }
 
 
 
@@ -138,7 +138,7 @@
   backdrop-filter: blur(8px); white-space: nowrap;
 }
 .dental-canvas-root .summary-badge.tooth-badge {
-  background: rgba(74, 111, 165, 0.15); color: #4a6fa5; border: 1px solid rgba(74, 111, 165, 0.25);
+  background: rgba(74, 111, 165, 0.15); color: #4a6fa5 !important; border: 1px solid rgba(74, 111, 165, 0.25);
 }
 .dental-canvas-root .summary-zone-list {
   display: flex; flex-direction: column; gap: 2px; align-items: flex-end;
@@ -149,10 +149,10 @@
   padding: 1px 9px; border-radius: 6px;
 }
 .dental-canvas-root .summary-zone-name {
-  font-weight: 600; color: #666; margin-right: 2px;
+  font-weight: 600; color: #666 !important; margin-right: 2px;
 }
 .dental-canvas-root .summary-zone-findings {
-  font-weight: 400; color: #999;
+  font-weight: 400; color: #999 !important;
 }
 
 /* ── Tooth Selector (Dental Chart) ── */
@@ -762,7 +762,7 @@
   border-radius: 4px;
   font-family: Inter, sans-serif;
   background: rgba(107, 114, 128, 0.78);
-  color: #fff;
+  color: #fff !important;
   line-height: 1.3;
   backdrop-filter: blur(3px);
   letter-spacing: 0.01em;

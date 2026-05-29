@@ -91,20 +91,60 @@ const ArchTooth = memo(function ArchTooth({
       findings.some((f) => f.zoneId === z) ? 1 : 0,
     );
   }, [findings]);
+  const frameCount = useRef(0);
   // Push finding-tint uniform every frame
   useFrame(() => {
+    if (groupRef.current && frameCount.current < 30) {
+      groupRef.current.updateWorldMatrix(true, true);
+      const bb = new THREE.Box3().setFromObject(groupRef.current);
+      const center = new THREE.Vector3();
+      const size = new THREE.Vector3();
+      bb.getCenter(center);
+      bb.getSize(size);
+      let cervicalY, cejY, occlusalTop;
+      if (tooth.arch === "maxillary") {
+        cervicalY = bb.min.y + size.y * 0.42;
+        cejY = bb.min.y + size.y * 0.5;
+        const crownH = cervicalY - bb.min.y;
+        occlusalTop = bb.min.y + crownH * 0.45;
+      } else {
+        cervicalY = bb.max.y - size.y * 0.42;
+        cejY = bb.max.y - size.y * 0.5;
+        const crownH = bb.max.y - cervicalY;
+        occlusalTop = bb.max.y - crownH * 0.45;
+      }
+      for (const ref of shaderRefs.current) {
+        const s = ref.shader;
+        if (s?.uniforms) {
+          if (s.uniforms.uCejY) s.uniforms.uCejY.value = cejY;
+          if (s.uniforms.uCervicalY) s.uniforms.uCervicalY.value = cervicalY;
+          if (s.uniforms.uOcclusalTop) s.uniforms.uOcclusalTop.value = occlusalTop;
+          if (s.uniforms.uCenterX) s.uniforms.uCenterX.value = center.x;
+          if (s.uniforms.uCenterZ) s.uniforms.uCenterZ.value = center.z;
+        }
+      }
+      frameCount.current++;
+    }
     const zf = zoneFindingsRef.current;
     for (const ref of shaderRefs.current) {
       const s = ref.shader;
-      if (!s?.uniforms?.uZoneHasFinding) continue;
-      const arr = s.uniforms.uZoneHasFinding.value;
-      arr[0] = zf[0];
-      arr[1] = zf[1];
-      arr[2] = zf[2];
-      arr[3] = zf[3];
-      arr[4] = zf[4];
-      arr[5] = zf[5];
-      arr[6] = zf[6];
+      if (!s?.uniforms) continue;
+      if (s.uniforms.uZoneHasFinding) {
+        const arr = s.uniforms.uZoneHasFinding.value;
+        arr[0] = zf[0];
+        arr[1] = zf[1];
+        arr[2] = zf[2];
+        arr[3] = zf[3];
+        arr[4] = zf[4];
+        arr[5] = zf[5];
+        arr[6] = zf[6];
+      }
+      if (s.uniforms.uIsImplant) s.uniforms.uIsImplant.value = hasImplant ? 1.0 : 0.0;
+      if (s.uniforms.uIsMissing) s.uniforms.uIsMissing.value = isMissingOrExtraction ? 1.0 : 0.0;
+      if (s.uniforms.uIsCrown) s.uniforms.uIsCrown.value = hasCrown ? 1.0 : 0.0;
+      if (s.uniforms.uIsRCT) s.uniforms.uIsRCT.value = hasRCT ? 1.0 : 0.0;
+      if (s.uniforms.uIsBridge) s.uniforms.uIsBridge.value = hasBridge ? 1.0 : 0.0;
+      if (s.uniforms.uIsDenture) s.uniforms.uIsDenture.value = hasDenture ? 1.0 : 0.0;
     }
   });
   // Capture first mesh from cloned scene
@@ -117,10 +157,9 @@ const ArchTooth = memo(function ArchTooth({
       }
     });
   }, [clonedScene]);
-  // After mount: compute bounding box and inject the SAME shader as single-tooth view
-  // No guard ref — always re-inject when diagnosis flags change.
-  // Uses requestAnimationFrame to wait for <Center> layout.
+  // Effect 1: Shader Injection (triggered ONLY when clonedScene changes)
   useLayoutEffect(() => {
+    frameCount.current = 0;
     shaderInjectedRef.current = false;
     shaderRefs.current = [];
     let cancelled = false;
@@ -130,13 +169,6 @@ const ArchTooth = memo(function ArchTooth({
       if (cancelled) return false;
       if (shaderInjectedRef.current) return true;
       if (!groupRef.current) return false;
-      // Walk UP the ancestor chain first so groupRef.matrixWorld reflects
-      // the dentition parent-group offset (position: [-contentCenter, ...])
-      // and the arch-pose outer group. On first mount inside a useLayoutEffect
-      // the parent matrices are still identity (no frame has rendered yet),
-      // so updateMatrixWorld(true) alone yields a LOCAL-space bbox which makes
-      // uCejY/uCervicalY wildly wrong and the crown-root gradient saturates
-      // into the root tint across every tooth.
       groupRef.current.updateWorldMatrix(true, true);
       const bb = new THREE.Box3().setFromObject(groupRef.current);
       const sizeProbe = new THREE.Vector3();
@@ -209,67 +241,6 @@ const ArchTooth = memo(function ArchTooth({
         }),
       });
       shaderInjectedRef.current = true;
-      // Compute implant placement + store bb
-      implantBB.current = bb;
-      if (hasImplant) {
-        const cervicalDiam = Math.max(size.x, size.z) * 0.75;
-        setImplantPlacement({
-          cervicalY,
-          centerX: center.x,
-          centerZ: center.z,
-          cervicalDiam,
-        });
-      } else {
-        setImplantPlacement(null);
-      }
-      // Compute mesh bounds in outerGroupRef local space for Crown/RCT visuals
-      // This ensures PreparedStump + RootCanals render correctly regardless of arch position
-      if (outerGroupRef.current) {
-        outerGroupRef.current.updateMatrixWorld(true);
-        const outerInv = new THREE.Matrix4()
-          .copy(outerGroupRef.current.matrixWorld)
-          .invert();
-        const localCenter = center.clone().applyMatrix4(outerInv);
-        const localBBmin = bb.min.clone().applyMatrix4(outerInv);
-        const localBBmax = bb.max.clone().applyMatrix4(outerInv);
-        const localBB = new THREE.Box3(
-          new THREE.Vector3(
-            Math.min(localBBmin.x, localBBmax.x),
-            Math.min(localBBmin.y, localBBmax.y),
-            Math.min(localBBmin.z, localBBmax.z),
-          ),
-          new THREE.Vector3(
-            Math.max(localBBmin.x, localBBmax.x),
-            Math.max(localBBmin.y, localBBmax.y),
-            Math.max(localBBmin.z, localBBmax.z),
-          ),
-        );
-        const localSize = new THREE.Vector3();
-        localBB.getSize(localSize);
-        const localCervPt = new THREE.Vector3(
-          center.x,
-          cervicalY,
-          center.z,
-        ).applyMatrix4(outerInv);
-        setMeshBoundsData({
-          center: localCenter,
-          size: localSize,
-          cervicalY: localCervPt.y,
-          bb: localBB,
-        });
-        // Compute direction vectors in outerGroupRef local space
-        const dirs = getDirsForTooth(tooth.fdi, tooth.quadrant, zoneYawRad);
-        // Transform direction vectors to local space (rotation only, no translation)
-        const normalMatrix = new THREE.Matrix3().getNormalMatrix(outerInv);
-        const transformDir = (d) =>
-          d.clone().applyMatrix3(normalMatrix).normalize();
-        setZoneDirs({
-          buccal: transformDir(dirs.buccal),
-          lingual: transformDir(dirs.lingual),
-          mesial: transformDir(dirs.mesial),
-          distal: transformDir(dirs.distal),
-        });
-      }
       return true;
     };
     const runWithRetries = () => {
@@ -308,17 +279,103 @@ const ArchTooth = memo(function ArchTooth({
       cancelAnimationFrame(rafInner);
       window.clearTimeout(lateRetry);
     };
+  }, [clonedScene, gl, camera]);
+
+  // Effect 2: Layout & State updates (annotations, PreparedStump, RootCanals, Implant placing)
+  useLayoutEffect(() => {
+    if (!groupRef.current) return;
+    frameCount.current = 0; // Trigger coordinate recalculations on frame state shift
+    groupRef.current.updateWorldMatrix(true, true);
+    const bb = new THREE.Box3().setFromObject(groupRef.current);
+    const sizeProbe = new THREE.Vector3();
+    bb.getSize(sizeProbe);
+    if (sizeProbe.lengthSq() < 1e-8) return;
+    const center = new THREE.Vector3();
+    const size = new THREE.Vector3();
+    bb.getCenter(center);
+    bb.getSize(size);
+    let cervicalY;
+    if (tooth.arch === "maxillary") {
+      cervicalY = bb.min.y + size.y * 0.42;
+    } else {
+      cervicalY = bb.max.y - size.y * 0.42;
+    }
+    const quadNum = parseInt(tooth.fdi[0]);
+    const zoneYawRad =
+      quadNum === 1 || quadNum === 4
+        ? (-Math.PI * (tooth.position - 1)) / 14
+        : (Math.PI * (tooth.position - 1)) / 14;
+    implantBB.current = bb;
+    if (hasImplant) {
+      const cervicalDiam = Math.max(size.x, size.z) * 0.75;
+      setImplantPlacement({
+        cervicalY,
+        centerX: center.x,
+        centerZ: center.z,
+        cervicalDiam,
+      });
+    } else {
+      setImplantPlacement(null);
+    }
+    // Compute mesh bounds in outerGroupRef local space for Crown/RCT visuals
+    // This ensures PreparedStump + RootCanals render correctly regardless of arch position
+    if (outerGroupRef.current) {
+      outerGroupRef.current.updateMatrixWorld(true);
+      const outerInv = new THREE.Matrix4()
+        .copy(outerGroupRef.current.matrixWorld)
+        .invert();
+      const localCenter = center.clone().applyMatrix4(outerInv);
+      const localBBmin = bb.min.clone().applyMatrix4(outerInv);
+      const localBBmax = bb.max.clone().applyMatrix4(outerInv);
+      const localBB = new THREE.Box3(
+        new THREE.Vector3(
+          Math.min(localBBmin.x, localBBmax.x),
+          Math.min(localBBmin.y, localBBmax.y),
+          Math.min(localBBmin.z, localBBmax.z),
+        ),
+        new THREE.Vector3(
+          Math.max(localBBmin.x, localBBmax.x),
+          Math.max(localBBmin.y, localBBmax.y),
+          Math.max(localBBmin.z, localBBmax.z),
+        ),
+      );
+      const localSize = new THREE.Vector3();
+      localBB.getSize(localSize);
+      const localCervPt = new THREE.Vector3(
+        center.x,
+        cervicalY,
+        center.z,
+      ).applyMatrix4(outerInv);
+      setMeshBoundsData({
+        center: localCenter,
+        size: localSize,
+        cervicalY: localCervPt.y,
+        bb: localBB,
+      });
+      // Compute direction vectors in outerGroupRef local space
+      const dirs = getDirsForTooth(tooth.fdi, tooth.quadrant, zoneYawRad);
+      // Transform direction vectors to local space (rotation only, no translation)
+      const normalMatrix = new THREE.Matrix3().getNormalMatrix(outerInv);
+      const transformDir = (d) =>
+        d.clone().applyMatrix3(normalMatrix).normalize();
+      setZoneDirs({
+        buccal: transformDir(dirs.buccal),
+        lingual: transformDir(dirs.lingual),
+        mesial: transformDir(dirs.mesial),
+        distal: transformDir(dirs.distal),
+      });
+    }
   }, [
     clonedScene,
     tooth,
+    archPose,
+    toothScale,
     hasImplant,
     isMissingOrExtraction,
     hasCrown,
     hasRCT,
     hasBridge,
     hasDenture,
-    gl,
-    camera,
     treatmentHistoryDetails,
   ]);
   // Hover glow + oral-region highlight/dim on state change (avoid per-frame

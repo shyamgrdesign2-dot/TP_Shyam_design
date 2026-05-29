@@ -1,12 +1,12 @@
 import React from "react";
 export function ToothIcon({
   size = 20,
-  variant = "Linear",
+  variant = "linear",
   color = "#FFFFFF",
   strokeWidth = 1.5,
   className,
 }) {
-  if (variant === "Bulk") {
+  if (variant === "bulk") {
     return (
       <svg
         width={size}

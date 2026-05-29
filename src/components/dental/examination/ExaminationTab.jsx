@@ -1802,10 +1802,10 @@ function SingleToothPanel({ state, onSave }) {
 // AccordionWrap — rounded card with animated expand/collapse.
 // Uses a measured height transition so content visibly slides open/shut.
 // ──────────────────────────────────────────────────────────────
-function AccordionWrap({ open, header, children, onExpand }) {
+function AccordionWrap({ open, header, children, onExpand, fitContent }) {
   return (
     <div
-      className={`${ui.accordion} ${open ? ui.accordionOpen : ui.accordionClosed
+      className={`${ui.accordion} ${open ? (fitContent ? ui.accordionFitOpen : ui.accordionOpen) : ui.accordionClosed
         }`}
       onClick={open ? undefined : onExpand}>
 
@@ -1815,7 +1815,7 @@ function AccordionWrap({ open, header, children, onExpand }) {
         style={{
           gridTemplateRows: open ? "1fr" : "0fr",
           opacity: open ? 1 : 0,
-          flex: open ? "1 1 0%" : "0 0 0px"
+          flex: open ? (fitContent ? "0 0 auto" : "1 1 0%") : "0 0 0px"
         }}>
 
         <div className={ui.accordionGridInner}>{children}</div>
