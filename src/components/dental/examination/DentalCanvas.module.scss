@@ -49,12 +49,16 @@
 .scopeHost {
   position: absolute;
   bottom: 16px;
-  left: 16px;
   right: 16px;
   top: auto;
   z-index: 20;
   display: flex;
   justify-content: flex-end;
+  pointer-events: none;
+
+  & > * {
+    pointer-events: auto;
+  }
 }
 
 .scopeTrack {
@@ -135,3 +139,87 @@
   padding: 2px 7px;
   font-size: 9px;
 }
+
+/* ── Back-chevron nav ─────────────────────────────────────────────────────── */
+.toothNameBack {
+  padding-left: 6px;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.backChevron {
+  flex-shrink: 0;
+}
+
+/* ── Examine hint overlay ────────────────────────────────────────────────── */
+.examineHint {
+  position: absolute;
+  bottom: 86px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  font-family: "Inter", sans-serif;
+}
+
+.examineHintText {
+  font-size: 14px;
+  color: #b7c3d4;
+  font-weight: 500;
+  opacity: 0.72;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+/* ── Print button wrapper ─────────────────────────────────────────────────── */
+.printBtnWrap {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 21;
+}
+
+/* ── scopeHost z-index bump ──────────────────────────────────────────────── */
+/* Override the existing z-index: 20 with 21 so it sits above printBtnWrap  */
+.scopeHost {
+  z-index: 21;
+}
+
+/* ── Oral Examination button ─────────────────────────────────────────────── */
+.oralExamBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: "Inter", sans-serif;
+  background: #fff;
+  color: var(--tp-blue-500) !important;
+  border: 1.5px solid var(--tp-blue-500);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+
+  span {
+    color: var(--tp-blue-500) !important;
+  }
+
+  &:hover {
+    background-color: rgba(75, 74, 213, 0.06);
+  }
+}
+
+.oralExamBtnPlus {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--tp-blue-500);
+}
+

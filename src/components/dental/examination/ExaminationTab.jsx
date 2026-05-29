@@ -51,12 +51,17 @@ import {
   TEETH,
   PROCEDURE_CATALOG,
   QUADRANT_LABELS,
-  getDefaultTreatmentSurfaces
-} from
-  "./types";
+  getDefaultTreatmentSurfaces,
+  ORAL_FINDINGS,
+  ORAL_PROCEDURES,
+  ORAL_POSITION_GROUPS,
+  ORAL_POSITION_LABEL,
+  oralPositionShort,
+  reconcileOralPositions
+} from "./types";
 import { MiniToothCanvas } from "./MiniToothCanvas";
 import { MiniScopeCanvas } from "./MiniScopeCanvas";
-import { TPMedicalIcon } from "../tp-ui/medical-icons";
+import { TPMedicalIcon, TPTooltip, TPCheckbox } from "../tp-ui";
 import { saveDentalPreviewSnapshot } from "../tp-rxpad/rx-preview-store";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { useDentalExamination } from "../lib/useDentalExamination";
@@ -69,6 +74,7 @@ import {
 } from
   "../lib/billing-catalog";
 import { AddDentalBillItemDrawer } from "../AddDentalBillItemDrawer";
+import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
 // Score weights per diagnosis/finding severity (out of 100).
 const DIAG_WEIGHT = {
   Missing: 8,
@@ -341,6 +347,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
   }, [canvasState, syncState]);
 
   const isSingle = canvasState?.viewMode === "single-tooth";
+  const isOral = canvasState?.viewMode === "oral";
   const containerRef = useRef(null);
   // Separate persisted widths for dentition vs single-tooth. Both draggable 40-60.
   // Defer localStorage read to useEffect so SSR + first client render match.
@@ -407,7 +414,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
       );
     }
   }, [singleAsidePct]);
-  const asidePct = isSingle ? singleAsidePct : dentitionAsidePct;
+  const asidePct = (isSingle || isOral) ? singleAsidePct : dentitionAsidePct;
   const canvasPct = 100 - asidePct;
   // version is set by fetchDentalExamination.fulfilled and reset to 0 on .pending.
   // It is NOT overwritten by syncWholeState (which only touches toothState), so it
@@ -415,6 +422,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
   const hasApiExaminationData = version > 0;
   const isGetStarted =
     !isSingle &&
+    !isOral &&
     !!canvasState &&
     !hasApiExaminationData &&
     Object.values(canvasState.toothDiagnoses).every((s) => s.size === 0) &&
@@ -540,7 +548,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
             }`}
           style={{
             width: isGetStarted ? "auto" : `${asidePct}%`,
-            minWidth: isGetStarted ? undefined : isSingle ? "360px" : "320px",
+            minWidth: isGetStarted ? undefined : (isSingle || isOral) ? "360px" : "320px",
             flex: isGetStarted ? "none" : "1 1 auto",
             transition: dragging ?
               "none" :
@@ -550,13 +558,19 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
           <div
             className={ex.asideInner}
             style={{
-              animation: isSingle ?
+              animation: (isSingle || isOral) ?
                 "dentalCardExpand 380ms cubic-bezier(0.34, 1.2, 0.64, 1)" :
                 "dentalCardCollapse 320ms cubic-bezier(0.2, 0.8, 0.2, 1)",
               transformOrigin: "center top"
             }}>
 
-            {isSingle && canvasState ?
+            {isOral && canvasState ?
+              <div className={ex.singleCol}>
+                <div className={ex.singleCard}>
+                  <OralExamPanel state={canvasState} />
+                </div>
+              </div> :
+              isSingle && canvasState ?
               <div className={ex.singleCol}>
                 <div className={ex.singleCard}>
                   <SingleToothPanel state={canvasState} onSave={saveChart} />
@@ -739,119 +753,126 @@ function DentitionPanel({ state, hasApiExaminationData = false }) {
     const tooth = TEETH.find((t) => t.fdi === fdi);
     if (tooth) state.onSelectTooth(tooth);
   };
+  const hasOral = Array.isArray(state?.oralEntries) && state.oralEntries.length > 0;
   return (
     <>
-      {summary.length > 0 || hasApiExaminationData ?
+      {summary.length > 0 || hasOral ?
         <>
-          <div className={ui.recordsHeader}>
-            <h3 className={ui.recordsTitle}>Tooth records</h3>
-            <span className={ui.recordsBadge}>{summary.length}</span>
-          </div>
-          <div className={ui.recordsList}>
-            {summary.length > 0 ? (
-              summary.map((entry) => {
-                const tooth = TEETH.find((t) => t.fdi === entry.fdi);
-                const toothName = tooth ?
-                  `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` :
-                  "";
-                // Determine thumbnail color by most-severe diagnosis
-                let crownColor = "#E8DDD5",
-                  rootColor = "#C4AD97";
-                if (entry.diagnoses.includes("Missing")) {
-                  crownColor = "#d1d5db";
-                  rootColor = "#d1d5db";
-                } else if (
-                  entry.diagnoses.includes("Crown") ||
-                  entry.diagnoses.includes("Bridge")) {
-                  crownColor = "#d1d5db";
-                  rootColor = "#C4AD97";
-                } else if (entry.diagnoses.includes("RCT")) {
-                  crownColor = "#f87171";
-                  rootColor = "#C4AD97";
-                } else if (entry.diagnoses.includes("Implant")) {
-                  crownColor = "#9ca3af";
-                  rootColor = "#6B7280";
-                }
-                return (
-                  <button
-                    type="button"
-                    onClick={() => openTooth(entry.fdi)}
-                    onMouseEnter={() => state?.onSetHoveredTooth(entry.fdi)}
-                    onMouseLeave={() => state?.onSetHoveredTooth(null)}
-                    className={`${ui.toothRow} ${enterFdis.has(entry.fdi) ? ui.toothRowEnter : ""
-                      } ${state?.agentApplyPulseFdis?.has(String(entry.fdi)) ?
-                        ui.toothRowAgentPulse : ""
-                      } ${state?.hoveredToothFdi === entry.fdi ? ui.toothRowActive : ""
-                      }`}>
-
-                    <div className={ui.toothRowHeader}>
-                      <div className={ui.toothThumb}>
-                        {tooth &&
-                          <MiniToothCanvas
-                            tooth={tooth}
-                            size={52}
-                            diagnoses={new Set(entry.diagnoses)}
-                            isImplant={entry.diagnoses.includes("Implant")}
-                            findings={state?.findingsByTooth?.[entry.fdi] ?? []} />}
-
-
-                      </div>
-                      <div className={ui.toothHeaderText}>
-                        <span className={ui.toothName}>{toothName}</span>
-                        <span className={ui.toothFdiBelow}>T{entry.fdi}</span>
-                      </div>
-                      <span className={ui.toothChevron} aria-hidden={true}>
-                        <ExpandIcon size={17} />
-                      </span>
-                    </div>
-                    <div className={ui.toothRowDivider} aria-hidden={true} />
-                    <div className={ui.toothChips}>
-                      {entry.diagnosisParts.length > 0 &&
-                        <SummaryPillSegmented
-                          icon="clipboard-activity"
-                          parts={entry.diagnosisParts}
-                          title={entry.historyTitle}
-                          tone="violet" />}
-
-
-
-                      {entry.findingParts.length > 0 &&
-                        <SummaryPillSegmented
-                          icon="diagnosis"
-                          parts={entry.findingParts}
-                          title={entry.findingsTitle}
-                          tone="violet" />}
-
-
-
-                      {entry.procedureParts.length > 0 &&
-                        <SummaryPillSegmented
-                          icon="surgical-scissors-02"
-                          parts={entry.procedureParts}
-                          title={entry.procedureTitle}
-                          tone="violet" />}
-
-
-
-                      {Boolean((state?.toothNotes ?? {})[entry.fdi]?.trim()) &&
-                        <SummaryPill
-                          icon="note-2"
-                          label="Notes"
-                          title={(state?.toothNotes ?? {})[entry.fdi]?.trim()}
-                          tone="violet" />}
-
-
-                    </div>
-                  </button>);
-              })
-            ) : (
-              <div className={ui.emptyPlaceholder}>
-                <p className={ui.emptyPlaceholderText}>
-                  No active findings or procedures. Select a tooth from the 3D model to begin.
-                </p>
+          {hasOral && <OralRecordsList state={state} />}
+          {summary.length > 0 && (
+            <>
+              <div className={ui.recordsHeader}>
+                <h3 className={ui.recordsTitle}>Tooth records</h3>
+                <span className={ui.recordsBadge}>{summary.length}</span>
               </div>
-            )}
-          </div>
+              <div className={ui.recordsList}>
+                {summary.length > 0 ? (
+                  summary.map((entry) => {
+                    const tooth = TEETH.find((t) => t.fdi === entry.fdi);
+                    const toothName = tooth ?
+                      `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` :
+                      "";
+                    // Determine thumbnail color by most-severe diagnosis
+                    let crownColor = "#E8DDD5",
+                      rootColor = "#C4AD97";
+                    if (entry.diagnoses.includes("Missing")) {
+                      crownColor = "#d1d5db";
+                      rootColor = "#d1d5db";
+                    } else if (
+                      entry.diagnoses.includes("Crown") ||
+                      entry.diagnoses.includes("Bridge")) {
+                      crownColor = "#d1d5db";
+                      rootColor = "#C4AD97";
+                    } else if (entry.diagnoses.includes("RCT")) {
+                      crownColor = "#f87171";
+                      rootColor = "#C4AD97";
+                    } else if (entry.diagnoses.includes("Implant")) {
+                      crownColor = "#9ca3af";
+                      rootColor = "#6B7280";
+                    }
+                    return (
+                      <button
+                        key={entry.fdi}
+                        type="button"
+                        onClick={() => openTooth(entry.fdi)}
+                        onMouseEnter={() => state?.onSetHoveredTooth(entry.fdi)}
+                        onMouseLeave={() => state?.onSetHoveredTooth(null)}
+                        className={`${ui.toothRow} ${enterFdis.has(entry.fdi) ? ui.toothRowEnter : ""
+                          } ${state?.agentApplyPulseFdis?.has(String(entry.fdi)) ?
+                            ui.toothRowAgentPulse : ""
+                          } ${state?.hoveredToothFdi === entry.fdi ? ui.toothRowActive : ""
+                          }`}>
+
+                        <div className={ui.toothRowHeader}>
+                          <div className={ui.toothThumb}>
+                            {tooth &&
+                              <MiniToothCanvas
+                                tooth={tooth}
+                                size={52}
+                                diagnoses={new Set(entry.diagnoses)}
+                                isImplant={entry.diagnoses.includes("Implant")}
+                                findings={state?.findingsByTooth?.[entry.fdi] ?? []} />}
+
+
+                          </div>
+                          <div className={ui.toothHeaderText}>
+                            <span className={ui.toothName}>{toothName}</span>
+                            <span className={ui.toothFdiBelow}>T{entry.fdi}</span>
+                          </div>
+                          <span className={ui.toothChevron} aria-hidden={true}>
+                            <ExpandIcon size={17} />
+                          </span>
+                        </div>
+                        <div className={ui.toothRowDivider} aria-hidden={true} />
+                        <div className={ui.toothChips}>
+                          {entry.diagnosisParts.length > 0 &&
+                            <SummaryPillSegmented
+                              icon="clipboard-activity"
+                              parts={entry.diagnosisParts}
+                              title={entry.historyTitle}
+                              tone="violet" />}
+
+
+
+                          {entry.findingParts.length > 0 &&
+                            <SummaryPillSegmented
+                              icon="diagnosis"
+                              parts={entry.findingParts}
+                              title={entry.findingsTitle}
+                              tone="violet" />}
+
+
+
+                          {entry.procedureParts.length > 0 &&
+                            <SummaryPillSegmented
+                              icon="surgical-scissors-02"
+                              parts={entry.procedureParts}
+                              title={entry.procedureTitle}
+                              tone="violet" />}
+
+
+
+                          {Boolean((state?.toothNotes ?? {})[entry.fdi]?.trim()) &&
+                            <SummaryPill
+                              icon="note-2"
+                              label="Notes"
+                              title={(state?.toothNotes ?? {})[entry.fdi]?.trim()}
+                              tone="violet" />}
+
+
+                        </div>
+                      </button>);
+                  })
+                ) : (
+                  <div className={ui.emptyPlaceholder}>
+                    <p className={ui.emptyPlaceholderText}>
+                      No active findings or procedures. Select a tooth from the 3D model to begin.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </> : (
 
       /* First-time user onboarding — polished educational panel */<div
@@ -869,34 +890,34 @@ function DentitionPanel({ state, hasApiExaminationData = false }) {
                 </div>
                 <div>
                   <h3 className={ui.onboardTitle}>Getting Started</h3>
-                  <p className={ui.onboardSub}>4 simple steps to examine</p>
+                  <p className={ui.onboardSub}>4 quick steps — watch the video for details</p>
                 </div>
               </div>
               <div className={ui.stepList}>
                 {[
                   {
                     step: "1",
-                    title: "Select a tooth",
-                    desc: "Click any tooth on the 3D model to open its detail view",
+                    title: "Select tooth or Oral Exam",
+                    desc: "Tap any tooth on the 3D model, or use the + Oral Examination CTA to start.",
                     icon: "tooth"
                   },
                   {
                     step: "2",
                     title: "Record findings",
-                    desc: "Add treatment history, surface findings, and diagnoses",
+                    desc: "Add past procedures, surface findings & planned procedures.",
                     icon: "diagnosis"
                   },
                   {
                     step: "3",
-                    title: "Plan procedures",
-                    desc: "Create treatment plans and add clinical notes",
+                    title: "Add notes",
+                    desc: "Per-tooth notes or overall oral exam notes.",
                     icon: "surgical-scissors-02"
                   },
                   {
                     step: "4",
-                    title: "View dental score",
-                    desc: "Return to full view to see your score and tooth records",
-                    icon: "tooth"
+                    title: "Review & print",
+                    desc: "Open Preview Rx or End Visit to print the chart.",
+                    icon: "health-file-03"
                   }].
                   map((item, idx, arr) =>
                     <div className={ui.stepRow}>
@@ -1371,7 +1392,7 @@ function SingleToothPanel({ state, onSave }) {
   const sections = [
     {
       id: "procedures",
-      label: "Treatment History",
+      label: "Past Procedures",
       icon: "clipboard-activity",
       count: diagnosisCount + procedureCount
     },
@@ -4459,4 +4480,1000 @@ function PrimaryDiagnosisBody({ state }) {
       </div>
     </div>);
 
+}
+
+// ──────────────────────────────────────────────────────────────
+// useStickyActionEdge — sticky action-column shadow toggle
+// ──────────────────────────────────────────────────────────────
+function useStickyActionEdge(depKey) {
+  const wrapRef = useRef(null);
+  const [showEdge, setShowEdge] = useState(false);
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) {
+      setShowEdge(false);
+      return;
+    }
+    const update = () => {
+      const maxScroll = Math.max(0, wrap.scrollWidth - wrap.clientWidth);
+      const hasOverflow = wrap.scrollWidth > wrap.clientWidth + 1;
+      setShowEdge(hasOverflow && wrap.scrollLeft < maxScroll - 0.5);
+    };
+    update();
+    wrap.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(update);
+      ro.observe(wrap);
+      const t = wrap.querySelector("table");
+      if (t) ro.observe(t);
+    }
+    return () => {
+      wrap.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      ro?.disconnect();
+    };
+  }, [depKey]);
+  return { wrapRef, showEdge };
+}
+
+// ──────────────────────────────────────────────────────────────
+// OralPositionCell — multi-select dropdown for oral regions
+// ──────────────────────────────────────────────────────────────
+function OralPositionCell({ value = [], onChange, onHoverPreview }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const [query, setQuery] = useState("");
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+  const searchRef = useRef(null);
+
+  const scrollRef = useRef(null);
+  const [scrollMetrics, setScrollMetrics] = useState({ thumbTop: 0, thumbH: 0, visible: false });
+
+  const updateScrollMetrics = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    if (scrollHeight <= clientHeight + 1) {
+      setScrollMetrics((m) => (m.visible ? { thumbTop: 0, thumbH: 0, visible: false } : m));
+      return;
+    }
+    const trackPad = 8;
+    const trackH = clientHeight - trackPad * 2;
+    const thumbH = Math.max(28, (clientHeight / scrollHeight) * trackH);
+    const maxThumbTop = trackH - thumbH;
+    const thumbTop = trackPad + ((scrollTop / Math.max(1, scrollHeight - clientHeight)) * maxThumbTop);
+    setScrollMetrics({ thumbTop, thumbH, visible: true });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(updateScrollMetrics, 60);
+    return () => clearTimeout(t);
+  }, [open, query, updateScrollMetrics]);
+
+  const place = useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const w = Math.min(440, Math.max(r.width, 360));
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const left = Math.max(8, Math.min(r.left, vw - w - 8));
+    setPos({ top: r.bottom + 4, left, width: w });
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      return;
+    }
+    place();
+    const t = setTimeout(() => searchRef.current?.focus(), 30);
+    const onDoc = (e) => {
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const reposition = () => place();
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [open, place]);
+
+  const sel = new Set(value);
+
+  const toggle = (id) => {
+    const arr = reconcileOralPositions(value, id);
+    onChange(arr);
+    onHoverPreview?.(arr);
+  };
+
+  const shownPills = value;
+  const pillStyle = {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: "2px 8px",
+    borderRadius: 999,
+    background: "rgba(164,97,216,0.14)",
+    color: "#703A9E",
+    whiteSpace: "nowrap",
+    flexShrink: 0
+  };
+
+  const tooltipTitle = value.length === 0 ? "" : value.map((v) => ORAL_POSITION_LABEL[v] || v).join(", ");
+
+  return (
+    <>
+      <TPTooltip title={tooltipTitle} arrow placement="top" enterDelay={250}>
+        <button
+          ref={btnRef}
+          type="button"
+          onClick={() => {
+            const n = !open;
+            setOpen(n);
+            if (n) onHoverPreview?.(value);
+          }}
+          className={`${ui.surfaceTriggerBtn} ${open ? ui.surfaceTriggerActive : ""}`}>
+          <span className={ui.surfaceTriggerText} style={{ minWidth: 0, flex: 1 }}>
+            {value.length === 0 ? (
+              <span className={ui.surfacePlaceholder}>Select area</span>
+            ) : (
+              <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, rowGap: 4, minWidth: 0 }}>
+                {shownPills.map((v) => (
+                  <span key={v} style={pillStyle}>
+                    {oralPositionShort(v)}
+                  </span>
+                ))}
+              </span>
+            )}
+          </span>
+          <svg
+            width="10"
+            height="6"
+            viewBox="0 0 10 6"
+            fill="none"
+            style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }}>
+            <path d="M1 1L5 5L9 1" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </TPTooltip>
+
+      {open && pos && typeof document !== "undefined" && createPortal(
+        (() => {
+          const q = query.trim().toLowerCase();
+          const checkSvg = (
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+              <path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          );
+
+          const renderRow = (it, caption) => {
+            const on = sel.has(it.id);
+            return (
+              <li key={it.id}>
+                <button
+                  type="button"
+                  onClick={() => toggle(it.id)}
+                  onMouseEnter={() =>
+                    onHoverPreview?.([
+                      ...value.filter((v) => v !== it.id),
+                      ...(sel.has(it.id) ? [] : [it.id])
+                    ])
+                  }
+                  className={ui.surfaceZoneBtn}
+                  style={{ padding: "8px 12px", gap: 10 }}>
+                  <span className={`${ui.surfaceCheck} ${on ? ui.surfaceCheckOn : ""}`}>
+                    {on && checkSvg}
+                  </span>
+                  <span style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.3, gap: 2 }}>
+                    <span className={ui.surfaceMenuLabel} style={{ fontSize: 14, color: "#1e293b" }}>
+                      {it.label}
+                    </span>
+                    {caption ? <span style={{ fontSize: 12, color: "#94a3b8" }}>{caption}</span> : null}
+                  </span>
+                </button>
+              </li>
+            );
+          };
+
+          const groupHead = (label) => (
+            <div
+              key={label}
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+                color: "#64748b",
+                padding: "8px 12px 4px"
+              }}>
+              {label}
+            </div>
+          );
+
+          const filtered = ORAL_POSITION_GROUPS.map((g) => ({
+            group: g.group,
+            items: g.items.filter((it) => !q || it.label.toLowerCase().includes(q))
+          })).filter((g) => g.items.length);
+
+          return (
+            <div
+              ref={popRef}
+              className={ui.surfacePopover}
+              style={{ top: pos.top, left: pos.left, width: pos.width, display: "flex", flexDirection: "column", overflow: "hidden", position: "fixed" }}>
+              <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid #f1f5f9", background: "#fff" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", background: "#f8fafc" }}>
+                  <SearchNormal1 size={16} color="#94a3b8" variant="Linear" />
+                  <input
+                    ref={searchRef}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search sites, regions, surfaces…"
+                    style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#334155" }}
+                  />
+                  {query ? (
+                    <button
+                      type="button"
+                      aria-label="Clear search"
+                      onClick={() => {
+                        setQuery("");
+                        searchRef.current?.focus();
+                      }}
+                      style={{ border: "none", background: "transparent", color: "#94a3b8", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }}>
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <div style={{ position: "relative" }}>
+                <div
+                  ref={scrollRef}
+                  onScroll={updateScrollMetrics}
+                  className={ui.surfacePopoverScroll}
+                  style={{ padding: "10px 4px", maxHeight: "min(460px, 60vh)" }}>
+                  {filtered.length === 0 ? (
+                    <div style={{ padding: "20px 12px", textAlign: "center", color: "#94a3b8", fontSize: 12 }}>
+                      No matching areas
+                    </div>
+                  ) : q ? (
+                    <ul className={ui.surfaceZoneList} style={{ maxHeight: "none", overflow: "visible" }}>
+                      {filtered.flatMap((g) => g.items.map((it) => renderRow(it, g.group)))}
+                    </ul>
+                  ) : (
+                    <div style={{ columnCount: 2, columnGap: 8 }}>
+                      {filtered.map((g) => (
+                        <div key={`grp-${g.group}`} style={{ breakInside: "avoid", display: "block", marginBottom: 10, paddingInline: 8 }}>
+                          {groupHead(g.group)}
+                          <ul className={ui.surfaceZoneList} style={{ maxHeight: "none", overflow: "visible" }}>
+                            {g.items.map((it) => renderRow(it))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {scrollMetrics.visible && (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      top: 8,
+                      bottom: 8,
+                      right: 4,
+                      width: 6,
+                      background: "var(--tp-slate-100, #f1f5f9)",
+                      borderRadius: 999,
+                      pointerEvents: "none"
+                    }}
+                  />
+                )}
+                {scrollMetrics.visible && (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      top: scrollMetrics.thumbTop,
+                      height: scrollMetrics.thumbH,
+                      right: 4,
+                      width: 6,
+                      background: "var(--tp-slate-500, #64748b)",
+                      borderRadius: 999,
+                      pointerEvents: "none",
+                      transition: "top 60ms linear"
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })(),
+        document.body
+      )}
+    </>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// OralTable — record/edit grid with quick-add chips for a given kind
+// ──────────────────────────────────────────────────────────────
+function OralTable({ state, kind, catalog, list }) {
+  const { wrapRef, showEdge } = useStickyActionEdge(list.length);
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+
+  const [customDrawerOpen, setCustomDrawerOpen] = useState(false);
+  const [customDrawerInitial, setCustomDrawerInitial] = useState("");
+
+  const inputRef = useRef(null);
+  const popRef = useRef(null);
+
+  const has = (name) => list.some((e) => e.name === name);
+  const q = query.trim().toLowerCase();
+  const available = catalog.filter((c) => !has(c));
+  const quickChips = available.slice(0, 8);
+  const matches = q ? available.filter((c) => c.toLowerCase().includes(q)).slice(0, 30) : [];
+  const queryTrim = query.trim();
+
+  const catalogExact = !!queryTrim && catalog.some((c) => c.toLowerCase() === q);
+  const alreadyAdded = !!queryTrim && list.some((e) => e.name.toLowerCase() === q);
+  const showAddCustom = !!queryTrim && !catalogExact && !alreadyAdded;
+
+  const usesBillItemDrawer = kind === "procedure";
+  const placeholder = kind === "finding"
+    ? "Search & add oral finding"
+    : kind === "past"
+      ? "Search & add past procedure"
+      : "Search & add oral procedure";
+
+  const addAndClear = (name) => {
+    if (name) state.onAddOralEntry(kind, name);
+    setQuery("");
+    setSearchOpen(false);
+  };
+
+  const onAddCustom = () => {
+    if (!queryTrim) return;
+    setSearchOpen(false);
+    if (usesBillItemDrawer) {
+      setCustomDrawerInitial(queryTrim);
+      setCustomDrawerOpen(true);
+    } else {
+      addAndClear(queryTrim);
+    }
+  };
+
+  const place = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+  }, []);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    place();
+    const onDoc = (e) => {
+      if (inputRef.current && inputRef.current.contains(e.target)) return;
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      setSearchOpen(false);
+    };
+    const rp = () => place();
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("scroll", rp, true);
+    window.addEventListener("resize", rp);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("scroll", rp, true);
+      window.removeEventListener("resize", rp);
+    };
+  }, [searchOpen, place]);
+
+  const showDropdown = searchOpen && q.length > 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "4px 14px 12px" }}>
+      {list.length > 0 && (
+        <div ref={wrapRef} className={`${ui.tableWrap} ${showEdge ? ui.scrolledEdge : ""}`}>
+          <table className={ui.table}>
+            <colgroup>
+              <col style={{ minWidth: 150 }} />
+              <col style={{ width: 220, minWidth: 200 }} />
+              <col style={{ width: 120, minWidth: 110 }} />
+              <col style={{ minWidth: 130 }} />
+              <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
+            </colgroup>
+            <thead>
+              <tr className={ui.theadRow}>
+                <th className={ui.th}>NAME</th>
+                <th className={ui.th}>AREA</th>
+                <th className={ui.th}>SINCE</th>
+                <th className={ui.th}>NOTE</th>
+                <th className={ui.thSticky} />
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((e) => (
+                <tr key={e.id} className={ui.tbodyRow}>
+                  <td className={ui.tdPlain}>
+                    <span className={ui.symptomName}>{e.name}</span>
+                  </td>
+                  <td className={ui.tdPlain}>
+                    <OralPositionCell
+                      value={e.surfaces || []}
+                      onChange={(arr) => state.onUpdateOralEntry(e.id, { surfaces: arr })}
+                      onHoverPreview={(arr) => state.onSetOralHighlight?.(arr)}
+                    />
+                  </td>
+                  <td className={ui.tdPlain}>
+                    <SinceDropdown
+                      value={e.since || ""}
+                      onChange={(v) => state.onUpdateOralEntry(e.id, { since: v })}
+                    />
+                  </td>
+                  <td className={ui.tdPlain}>
+                    <input
+                      type="text"
+                      value={e.note || ""}
+                      onChange={(ev) => state.onUpdateOralEntry(e.id, { note: ev.target.value })}
+                      placeholder="Add note…"
+                      className={ui.symptomField}
+                    />
+                  </td>
+                  <td className={ui.tdStickyAct}>
+                    <button
+                      type="button"
+                      onClick={() => state.onRemoveOralEntry(e.id)}
+                      title="Remove"
+                      className={ui.removeRowBtn}>
+                      <Trash size={20} color="currentColor" strokeWidth={1.5} variant="Linear" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className={ui.searchRel}>
+        <span className={ui.searchIconAbs}>
+          <SearchNormal1 size={14} color="currentColor" variant="Linear" />
+        </span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(ev) => {
+            setQuery(ev.target.value);
+            setSearchOpen(true);
+          }}
+          onFocus={() => setSearchOpen(true)}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter" && q) {
+              const exact = catalog.find((c) => c.toLowerCase() === q);
+              addAndClear(exact || query.trim());
+            } else if (ev.key === "Escape") {
+              setSearchOpen(false);
+            }
+          }}
+          placeholder={placeholder}
+          className={ui.searchInput}
+        />
+      </div>
+
+      {showDropdown && pos && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popRef}
+          style={{
+            position: "fixed",
+            top: pos.top,
+            left: pos.left,
+            width: pos.width,
+            zIndex: 9999,
+            maxHeight: 260,
+            overflowY: "auto",
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            boxShadow: "0 10px 30px rgba(2,6,23,0.22)",
+            padding: 6
+          }}>
+          {matches.length > 0 ? (
+            matches.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => addAndClear(name)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  fontSize: "12.5px",
+                  padding: "7px 10px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "transparent",
+                  color: "#334155",
+                  cursor: "pointer",
+                  fontFamily: "Inter, sans-serif"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(99,102,241,0.08)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}>
+                {name}
+              </button>
+            ))
+          ) : (
+            !showAddCustom && (
+              <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 10px", fontFamily: "Inter, sans-serif" }}>
+                No matches
+              </div>
+            )
+          )}
+          {showAddCustom && (
+            <button
+              type="button"
+              className={ui.popoverAdd}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={onAddCustom}>
+              {usesBillItemDrawer ? (
+                <span className={ui.popoverAddInner}>
+                  <Add size={16} color="var(--tp-blue-600)" variant="Bold" />
+                  <span>Add "{queryTrim}" as custom dental service</span>
+                </span>
+              ) : (
+                <span className={ui.popoverAddInner}>
+                  <Add size={14} color="currentColor" variant="Linear" /> Add "{queryTrim}"
+                </span>
+              )}
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
+
+      {!showDropdown && quickChips.length > 0 && (
+        <div className={ui.chipRow}>
+          {quickChips.map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => addAndClear(name)}
+              className={ui.chipBtn}>
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {usesBillItemDrawer && (
+        <AddDentalBillItemDrawer
+          open={customDrawerOpen}
+          onOpenChange={setCustomDrawerOpen}
+          initialName={customDrawerInitial}
+          onSaved={(item) => {
+            addAndClear(item.name);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// OralExamPanel — sidebar accordions for Findings, Past work, etc.
+// ──────────────────────────────────────────────────────────────
+export function OralExamPanel({ state }) {
+  const entries = Array.isArray(state.oralEntries) ? state.oralEntries : [];
+  const pastProcedures = entries.filter((e) => e.kind === "past");
+  const findings = entries.filter((e) => e.kind === "finding");
+  const procedures = entries.filter((e) => e.kind === "procedure");
+  const notes = state.oralNotes || "";
+  const [activeSection, setActiveSection] = useState("past");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const hasAnyData = entries.length > 0 || notes.trim().length > 0;
+
+  useEffect(() => () => {
+    state.onSetOralHighlight?.([]);
+  }, []);
+
+  const jumpTo = (id) => {
+    if (activeSection === id) setActiveSection(null);
+    else setActiveSection(id);
+  };
+
+  const clearAll = () => {
+    entries.forEach((e) => state.onRemoveOralEntry(e.id));
+    state.onUpdateOralNotes?.("");
+    setShowClearConfirm(false);
+  };
+
+  return (
+    <div className={ui.panelRoot}>
+      <header className={ui.panelHeader}>
+        <div className={ui.panelHeaderRow}>
+          <div className={ui.panelHeaderLeft} style={{ minWidth: 0, flex: 1 }}>
+            <div className={ui.panelThumb} style={{ flexShrink: 0 }}>
+              <MiniScopeCanvas
+                patientType={state.patientType ?? "adult"}
+                scopeType="full-mouth"
+                fdis={state.selectionScopeFdis ?? []}
+                toothDiagnoses={state.toothDiagnoses}
+                findingsByTooth={state.findingsByTooth}
+                implantTeeth={state.implantTeeth}
+                size={40}
+              />
+            </div>
+            <div className={ui.panelTitleBlock} style={{ minWidth: 0 }}>
+              <div className={ui.panelTitleRow}>
+                <h3 className={ui.panelTitle} style={{ overflow: "visible", maxWidth: "none" }}>
+                  Oral Examination
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div className={ui.panelHeaderActions}>
+            <button type="button" className={ui.panelIconBtn} title="Template">
+              <Grid5 color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+            </button>
+            <button type="button" className={ui.panelIconBtn} title="Save">
+              <Ram color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+            </button>
+            <button
+              type="button"
+              title="Clear all oral examination data"
+              disabled={!hasAnyData}
+              onClick={() => setShowClearConfirm(true)}
+              className={ui.panelIconBtnDanger}>
+              <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+            </button>
+            <TPConfirmDialog
+              open={showClearConfirm}
+              onOpenChange={setShowClearConfirm}
+              title="Are you sure you want to clear oral examination?"
+              warning="This will remove all oral findings, procedures, and notes from this visit. This action cannot be undone."
+              secondaryLabel="Yes, Clear All"
+              secondaryTone="destructive"
+              onSecondary={clearAll}
+              primaryLabel="No, Keep It"
+            />
+            <div className={ui.panelDivider} />
+            <button
+              type="button"
+              onClick={() => state.onBackToDentition()}
+              className={ui.panelCloseBtn}
+              title="Close panel">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 256 256">
+                <rect width="256" height="256" fill="none" />
+                <polyline points="192 104 152 104 152 64" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
+                <line x1="208" y1="48" x2="152" y2="104" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
+                <polyline points="64 152 104 152 104 192" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
+                <line x1="48" y1="208" x2="104" y2="152" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
+                <polyline points="152 192 152 152 192 152" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
+                <line x1="208" y1="208" x2="152" y2="152" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
+                <polyline points="104 64 104 104 64 104" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
+                <line x1="48" y1="48" x2="104" y2="104" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+      <div className={ui.panelBody}>
+        <AccordionWrap
+          open={activeSection === "past"}
+          fitContent
+          onExpand={() => jumpTo("past")}
+          header={
+            <SectionHeader
+              title="Past Procedures"
+              count={pastProcedures.length}
+              medicalIcon="clipboard-activity"
+              onTemplate={activeSection === "past" ? () => {} : undefined}
+              onSave={activeSection === "past" ? () => {} : undefined}
+              onClear={
+                activeSection === "past"
+                  ? () => {
+                      pastProcedures.forEach((e) => state.onRemoveOralEntry(e.id));
+                    }
+                  : undefined
+              }
+              clearDisabled={pastProcedures.length === 0}
+              chevron={activeSection === "past" ? "up" : "down"}
+              onClick={() => jumpTo("past")}
+              onChevronClick={() => jumpTo("past")}
+            />
+          }>
+          <OralTable state={state} kind="past" catalog={ORAL_PROCEDURES} list={pastProcedures} />
+        </AccordionWrap>
+
+        <AccordionWrap
+          open={activeSection === "findings"}
+          fitContent
+          onExpand={() => jumpTo("findings")}
+          header={
+            <SectionHeader
+              title="Findings"
+              count={findings.length}
+              medicalIcon="diagnosis"
+              onTemplate={activeSection === "findings" ? () => {} : undefined}
+              onSave={activeSection === "findings" ? () => {} : undefined}
+              onClear={
+                activeSection === "findings"
+                  ? () => {
+                      findings.forEach((e) => state.onRemoveOralEntry(e.id));
+                    }
+                  : undefined
+              }
+              clearDisabled={findings.length === 0}
+              chevron={activeSection === "findings" ? "up" : "down"}
+              onClick={() => jumpTo("findings")}
+              onChevronClick={() => jumpTo("findings")}
+            />
+          }>
+          <OralTable state={state} kind="finding" catalog={ORAL_FINDINGS} list={findings} />
+        </AccordionWrap>
+
+        <AccordionWrap
+          open={activeSection === "procedures"}
+          fitContent
+          onExpand={() => jumpTo("procedures")}
+          header={
+            <SectionHeader
+              title="Procedures"
+              count={procedures.length}
+              medicalIcon="surgical-scissors-02"
+              onTemplate={activeSection === "procedures" ? () => {} : undefined}
+              onSave={activeSection === "procedures" ? () => {} : undefined}
+              onClear={
+                activeSection === "procedures"
+                  ? () => {
+                      procedures.forEach((e) => state.onRemoveOralEntry(e.id));
+                    }
+                  : undefined
+              }
+              clearDisabled={procedures.length === 0}
+              chevron={activeSection === "procedures" ? "up" : "down"}
+              onClick={() => jumpTo("procedures")}
+              onChevronClick={() => jumpTo("procedures")}
+            />
+          }>
+          <OralTable state={state} kind="procedure" catalog={ORAL_PROCEDURES} list={procedures} />
+        </AccordionWrap>
+
+        <AccordionWrap
+          open={activeSection === "notes"}
+          fitContent
+          onExpand={() => jumpTo("notes")}
+          header={
+            <SectionHeader
+              title="Overall Notes"
+              medicalIcon="note-2"
+              onTemplate={activeSection === "notes" ? () => {} : undefined}
+              onSave={activeSection === "notes" ? () => {} : undefined}
+              onClear={activeSection === "notes" ? () => state.onUpdateOralNotes?.("") : undefined}
+              chevron={activeSection === "notes" ? "up" : "down"}
+              onClick={() => jumpTo("notes")}
+              onChevronClick={() => jumpTo("notes")}
+            />
+          }>
+          <div className={ui.notesPad}>
+            <textarea
+              value={notes}
+              onChange={(e) => state.onUpdateOralNotes?.(e.target.value)}
+              placeholder="General notes for the oral examination…"
+              className={ui.notesArea}
+            />
+          </div>
+        </AccordionWrap>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// OralRecordsList — summary card with counts & tags per section
+// ──────────────────────────────────────────────────────────────
+export function OralRecordsList({ state }) {
+  const entries = Array.isArray(state?.oralEntries) ? state.oralEntries : [];
+  if (entries.length === 0) return null;
+
+  const pastProcs = entries.filter((e) => e.kind === "past").map((e) => e.name);
+  const findings = entries.filter((e) => e.kind === "finding").map((e) => e.name);
+  const procs = entries.filter((e) => e.kind === "procedure").map((e) => e.name);
+  const overallNotes = (state?.oralNotes || "").trim();
+
+  const itemTagStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#703A9E",
+    background: "rgba(164,97,216,0.16)",
+    padding: "3px 8px",
+    borderRadius: 6,
+    lineHeight: 1.4,
+    whiteSpace: "nowrap",
+    cursor: "default"
+  };
+
+  const fire = (detail) => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("oral-tags-filter", { detail }));
+    }
+  };
+
+  const onCardEnter = () => fire({ all: true });
+  const onCardLeave = () => {
+    fire(null);
+    state?.onSetOralHighlight?.([]);
+  };
+  const onCardClick = () => {
+    fire(null);
+    state?.onSetOralHighlight?.([]);
+    state.onEnterOralExam?.();
+  };
+
+  const onItemEnter = (kind, name) => {
+    const e = entries.find((x) => x.kind === kind && x.name === name);
+    if (e) state?.onSetOralHighlight?.(e.surfaces || []);
+    fire({ kind, name });
+  };
+
+  const onItemLeave = () => {
+    state?.onSetOralHighlight?.([]);
+    fire({ all: true });
+  };
+
+  const sectionRow = (icon, label, items, key, kind) =>
+    items.length === 0 ? null : (
+      <div
+        key={key}
+        style={{
+          display: "flex",
+          gap: 12,
+          alignItems: "flex-start",
+          padding: "12px 14px",
+          borderRadius: 10,
+          background: "#f8fafc",
+          border: "1px solid #eef2f7"
+        }}>
+        <span
+          style={{
+            display: "inline-flex",
+            height: 32,
+            width: 32,
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 8,
+            background: "rgba(164,97,216,0.12)",
+            flexShrink: 0
+          }}>
+          <TPMedicalIcon name={icon} variant="bulk" size={16} color="var(--tp-violet-600)" />
+        </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0, flex: 1, textAlign: "left" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", letterSpacing: "0.1px" }}>
+            {label} <span style={{ fontWeight: 500, color: "#94a3b8" }}>({items.length})</span>
+          </span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {items.map((it, i) => (
+              <span
+                key={`${key}-${i}`}
+                style={itemTagStyle}
+                title={it}
+                onMouseEnter={(ev) => {
+                  ev.stopPropagation();
+                  onItemEnter(kind, it);
+                }}
+                onMouseLeave={(ev) => {
+                  ev.stopPropagation();
+                  onItemLeave();
+                }}>
+                {it}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+  const notesRow = !overallNotes ? null : (
+    <div
+      key="notes"
+      style={{
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start",
+        padding: "12px 14px",
+        borderRadius: 10,
+        background: "#f8fafc",
+        border: "1px solid #eef2f7"
+      }}>
+      <span
+        style={{
+          display: "inline-flex",
+          height: 32,
+          width: 32,
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 8,
+          background: "rgba(164,97,216,0.12)",
+          flexShrink: 0
+        }}>
+        <TPMedicalIcon name="note-2" variant="bulk" size={16} color="var(--tp-violet-600)" />
+      </span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1, textAlign: "left" }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Oral Notes</span>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12,
+            color: "#475569",
+            lineHeight: 1.5,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical"
+          }}
+          title={overallNotes}>
+          {overallNotes}
+        </p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={ui.recordsList} style={{ marginTop: 4 }}>
+      <button
+        type="button"
+        onMouseEnter={onCardEnter}
+        onMouseLeave={onCardLeave}
+        onClick={onCardClick}
+        className={`${ui.toothRow}`}>
+        <div className={ui.toothRowHeader}>
+          <div className={ui.toothThumb}>
+            <MiniScopeCanvas
+              patientType="adult"
+              scopeType="full-mouth"
+              fdis={[]}
+              toothDiagnoses={{}}
+              findingsByTooth={{}}
+              implantTeeth={new Set()}
+              size={52}
+            />
+          </div>
+          <div className={ui.toothHeaderText}>
+            <span className={ui.toothName} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              Oral Examination
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#475569", background: "rgba(100,116,139,0.16)", padding: "1px 8px", borderRadius: 999, lineHeight: 1.4 }}>
+                {entries.length}
+              </span>
+            </span>
+          </div>
+          <span className={ui.toothChevron} aria-hidden="true">
+            <ExpandIcon size={17} />
+          </span>
+        </div>
+        <div className={ui.toothRowDivider} aria-hidden="true" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {sectionRow("clipboard-activity", "Past Procedures", pastProcs, "past", "past")}
+          {sectionRow("diagnosis", "Findings", findings, "fnd", "finding")}
+          {sectionRow("surgical-scissors-02", "Procedures", procs, "proc", "procedure")}
+          {notesRow}
+        </div>
+      </button>
+    </div>
+  );
 }

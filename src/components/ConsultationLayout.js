@@ -689,6 +689,7 @@ function ConsultationLayout({ children, headerProps }) {
   const [showShimmer, setShowShimmer] = useState(false);
 
   const getAllObstetricDetails = async () => {
+    if (!patient_data?.patient_unique_id) return;
     const obstetricResponse = await fetchObstetricDetails(
       patient_data.patient_unique_id,
     );
@@ -700,6 +701,7 @@ function ConsultationLayout({ children, headerProps }) {
   const baseUrl = env.lab_params_api_url;
 
   const getAllPatientDocs = async () => {
+    if (!patient_data?.patient_unique_id) return;
     const doctorUploadedDocs = await fetchAllPatientDocs(
       patient_data.patient_unique_id,
     );
@@ -786,11 +788,12 @@ function ConsultationLayout({ children, headerProps }) {
   }, []);
 
   useEffect(() => {
+    if (!patient_data?.patient_unique_id) return;
     const sendData = {
       patient_unique_id: patient_data?.patient_unique_id,
     };
     dispatch(viewPatient(sendData));
-  }, []);
+  }, [patient_data?.patient_unique_id]);
 
   useEffect(() => {
     getSymptomsCollectorData();

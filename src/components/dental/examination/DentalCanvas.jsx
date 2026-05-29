@@ -20,6 +20,7 @@ import { useDentalCanvasInteraction } from "./hooks/useDentalCanvasInteraction";
 import "./dental-canvas.css";
 import dc from "./DentalCanvas.module.scss";
 import { LottieIcon } from "../LottieIcon";
+import { DentalChartPrintButton } from "./DentalChartPrint";
 
 // ── Scope toolbar constants ────────────────────────────────────────────────────
 const DENTITION_SCOPE_BUTTONS = [
@@ -129,7 +130,16 @@ export function DentalCanvas({
     handleClearTreatmentHistoryDetails,
     handleSetHighlightZones,
     setHoveredToothFdi,
-    getScopeFdis
+    getScopeFdis,
+    oralEntries,
+    oralNotes,
+    oralHighlightFdis,
+    addOralEntry,
+    removeOralEntry,
+    updateOralEntry,
+    updateOralNotes,
+    enterOralExam,
+    setOralHighlight
   } = interaction;
 
   const isDentitionView = viewMode === "dentition";
@@ -163,6 +173,9 @@ export function DentalCanvas({
       currentToothEntries,
       currentTreatmentHistoryDetails,
       allEntries,
+      oralEntries,
+      oralNotes,
+      oralHighlightFdis,
       highlightZones,
       multiSelectZones,
       multiSelectActive,
@@ -184,6 +197,12 @@ export function DentalCanvas({
       onAddEntry: handleAddEntry,
       onUpdateEntry: handleUpdateEntry,
       onRemoveEntry: handleRemoveEntry,
+      onAddOralEntry: addOralEntry,
+      onRemoveOralEntry: removeOralEntry,
+      onUpdateOralEntry: updateOralEntry,
+      onUpdateOralNotes: updateOralNotes,
+      onEnterOralExam: enterOralExam,
+      onSetOralHighlight: setOralHighlight,
       onUpdateTreatmentHistoryDetail: handleUpdateTreatmentHistoryDetail,
       onRemoveTreatmentHistoryDetail: handleRemoveTreatmentHistoryDetail,
       onClearTreatmentHistoryDetails: handleClearTreatmentHistoryDetails,
@@ -214,6 +233,9 @@ export function DentalCanvas({
     onStateChange,
     currentToothEntries,
     allEntries,
+    oralEntries,
+    oralNotes,
+    oralHighlightFdis,
     highlightZones,
     multiSelectZones,
     multiSelectActive,
@@ -232,6 +254,12 @@ export function DentalCanvas({
     handleAddEntry,
     handleUpdateEntry,
     handleRemoveEntry,
+    addOralEntry,
+    removeOralEntry,
+    updateOralEntry,
+    updateOralNotes,
+    enterOralExam,
+    setOralHighlight,
     handleUpdateTreatmentHistoryDetail,
     handleRemoveTreatmentHistoryDetail,
     handleClearTreatmentHistoryDetails,
@@ -258,8 +286,7 @@ export function DentalCanvas({
             </div>
           ) : (
             <div
-              className="tooth-name"
-              style={{ paddingLeft: 6, gap: 3, cursor: "pointer" }}
+              className={`tooth-name ${dc.toothNameBack}`}
               onClick={handleBackToDentition}
               title="Back to full dentition view"
               role="button"
@@ -269,7 +296,7 @@ export function DentalCanvas({
                 height="14"
                 viewBox="0 0 24 24"
                 fill="none"
-                style={{ flexShrink: 0 }}
+                className={dc.backChevron}
               >
                 <path
                   d="M15 19.92L8.48 13.4c-.77-.77-.77-2.03 0-2.8L15 4.08"
@@ -287,11 +314,15 @@ export function DentalCanvas({
                 </>
               ) : (
                 <>
-                  {selectionScope.type === "full-mouth"
+                  {viewMode === "oral"
+                    ? "Oral Examination"
+                    : selectionScope.type === "full-mouth"
                     ? "Full Mouth View"
                     : `${selectionScope.label} View`}
                   <span className="tooth-fdi">
-                    {selectionScope.type === "full-mouth"
+                    {viewMode === "oral"
+                      ? "FULL"
+                      : selectionScope.type === "full-mouth"
                       ? "FULL"
                       : SCOPE_HEADER_BADGE[selectionScope.id] ??
                         selectionScope.id}
@@ -336,63 +367,34 @@ export function DentalCanvas({
           </div>
         )}
 
-        {isDentitionView && (
-          <div className={dc.scopeHost}>
-            <div
-              className={dc.scopeTrack}
-              role="toolbar"
-              aria-label="Choose dentition scope"
-            >
-              {DENTITION_SCOPE_BUTTONS.flatMap((btn, i, arr) => {
-                const active = dentitionScopeIsActive(btn.id, selectionScope);
-                const btnClass = isDentitionView ? dc.scopeBtn : dc.scopeBtnCompact;
-                const button = (
-                  <button
-                    type="button"
-                    title={btn.title}
-                    onClick={() => handleSelectScope(btn.id)}
-                    className={`${btnClass} ${active ? dc.scopeBtnActive : ""}`}
-                  >
-                    {btn.label}
-                  </button>
-                );
-                if (i === arr.length - 1) return [button];
-                return [button, <span className={dc.scopeDivider} aria-hidden={true} />];
-              })}
-            </div>
-          </div>
-        )}
+
 
         {isDentitionView && !hideExamineHint && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: "86px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 9,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "2px",
-              pointerEvents: "none",
-              fontFamily: "Inter, sans-serif"
-            }}
-          >
+          <div className={dc.examineHint}>
             <LottieIcon name="arrow-up" size={24} color="#d5dde8" />
-            <span
-              style={{
-                fontSize: "14px",
-                color: "#b7c3d4",
-                fontWeight: 500,
-                opacity: 0.72,
-                letterSpacing: "0.2px",
-                whiteSpace: "nowrap"
-              }}
-            >
+            <span className={dc.examineHintText}>
               Click any tooth to examine
             </span>
           </div>
+        )}
+
+        {isDentitionView && (
+          <>
+            <div className={dc.printBtnWrap}>
+              <DentalChartPrintButton patientId={patientId} />
+            </div>
+            <div className={dc.scopeHost}>
+              <button
+                type="button"
+                onClick={enterOralExam}
+                title="Record region-level oral findings & procedures"
+                className={dc.oralExamBtn}
+              >
+                <span className={dc.oralExamBtnPlus}>＋</span>
+                <span>Oral Examination</span>
+              </button>
+            </div>
+          </>
         )}
 
         {!isDentitionView && (
@@ -470,7 +472,7 @@ export function DentalCanvas({
           )}
 
           <Suspense fallback={null}>
-            {isDentitionView ? (
+            {isDentitionView || viewMode === "oral" ? (
               <DentitionView
                 patientType={patientType}
                 layoutMode="split"
@@ -484,12 +486,14 @@ export function DentalCanvas({
                 toothNotes={toothNotes}
                 agentPulseFdis={agentApplyPulseFdis}
                 treatmentHistoryDetailsByTooth={treatmentHistoryDetailsByTooth}
+                oralEntries={oralEntries}
               />
             ) : selectionScope.type !== "tooth" ? (
               <DentitionView
                 patientType={patientType}
                 visibleFdis={selectionScope.fdis}
                 disableSelection={true}
+                highlightFdis={oralHighlightFdis}
                 layoutMode={
                   selectionScope.type === "full-mouth" ? "natural" : "split"
                 }
@@ -503,6 +507,7 @@ export function DentalCanvas({
                 toothNotes={toothNotes}
                 agentPulseFdis={agentApplyPulseFdis}
                 treatmentHistoryDetailsByTooth={treatmentHistoryDetailsByTooth}
+                oralEntries={oralEntries}
               />
             ) : (
               <group position={[0, -0.17, 0]}>

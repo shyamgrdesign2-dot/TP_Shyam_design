@@ -1798,8 +1798,8 @@ export function Tooth({
   treatmentHistoryDetails = {},
   toothEntries,
 }) {
-  const gltf = useGLTF(modelPath);
-  const implantGltf = useGLTF("/models/implant.glb");
+  const gltf = useGLTF(modelPath, "/draco/");
+  const implantGltf = useGLTF("/models/implant.glb", "/draco/");
   const [mountGen] = useState(() => Math.random());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const clonedScene = useMemo(
@@ -2387,7 +2387,7 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
   arch,
   mirrorX,
 }) {
-  const gltf = useGLTF(toothDef.modelPath);
+  const gltf = useGLTF(toothDef.modelPath, "/draco/");
   const groupRef = useRef(null);
   const [ghostCervicalY, setGhostCervicalY] = useState(null);
   const [ghostHalfWidth, setGhostHalfWidth] = useState(null);
@@ -2547,4 +2547,4 @@ const ALL_MODEL_PATHS = [
   "/models/implant.glb",
 ];
 
-ALL_MODEL_PATHS.forEach((p) => useGLTF.preload(p));
+ALL_MODEL_PATHS.forEach((p) => useGLTF.preload(p, "/draco/"));

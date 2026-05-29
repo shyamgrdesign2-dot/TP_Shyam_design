@@ -23,44 +23,7 @@ const PEDIATRIC_QUADRANTS = {
   LR: ["85", "84", "83", "82", "81"],
   LL: ["71", "72", "73", "74", "75"],
 };
-const QUICK_SELECT_GROUPS = [
-  {
-    label: "UR",
-    getTeeth: (q) => q.UR,
-  },
-  {
-    label: "UL",
-    getTeeth: (q) => q.UL,
-  },
-  {
-    label: "LR",
-    getTeeth: (q) => q.LR,
-  },
-  {
-    label: "LL",
-    getTeeth: (q) => q.LL,
-  },
-  {
-    label: "Maxillary",
-    getTeeth: (q) => [...q.UR, ...q.UL],
-  },
-  {
-    label: "Mandibular",
-    getTeeth: (q) => [...q.LR, ...q.LL],
-  },
-  {
-    label: "R Arch",
-    getTeeth: (q) => [...q.UR, ...q.LR],
-  },
-  {
-    label: "L Arch",
-    getTeeth: (q) => [...q.UL, ...q.LL],
-  },
-  {
-    label: "Full",
-    getTeeth: (q) => [...q.UR, ...q.UL, ...q.LR, ...q.LL],
-  },
-];
+
 
 export function ToothPicker({
   value,
@@ -166,33 +129,7 @@ export function ToothPicker({
           {value.includes("full-mouth") ? "FM" : value.length}
         </div>
       </div>
-      <div className={styles.quickSelectWrapper}>
-        {QUICK_SELECT_GROUPS.map((g) => {
-          const teeth = g.getTeeth(quadrants);
-          const active =
-            teeth.length > 0 && teeth.every((t) => value.includes(t));
-          return (
-            <button
-              type="button"
-              onClick={() =>
-                onChange(
-                  active
-                    ? value.filter((v) => !teeth.includes(v))
-                    : [
-                        ...new Set([
-                          ...value.filter((v) => v !== "full-mouth"),
-                          ...teeth,
-                        ]),
-                      ],
-                )
-              }
-              className={`${styles.quickSelectButton} ${active ? styles.quickSelectActive : styles.quickSelectInactive}`}
-            >
-              {g.label}
-            </button>
-          );
-        })}
-      </div>
+
       <div className={styles.quadrantsWrapper}>
         {[
           ["Upper Right", quadrants.UR],

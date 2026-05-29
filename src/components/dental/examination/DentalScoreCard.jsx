@@ -50,16 +50,8 @@ function ScoreTooltip({ anchor, data }) {
     <div className={ui.tooltipRoot} style={{ top, left }}>
       {placeBelow && (
         <div
-          style={{
-            position: "absolute",
-            top: -ARROW,
-            left: arrowX,
-            width: 0,
-            height: 0,
-            borderLeft: `${ARROW}px solid transparent`,
-            borderRight: `${ARROW}px solid transparent`,
-            borderBottom: `${ARROW}px solid #0f172a`
-          }}
+          className={`${ui.tooltipArrow} ${ui.tooltipArrowUp}`}
+          style={{ top: -ARROW, left: arrowX }}
         />
       )}
       <div
@@ -81,16 +73,8 @@ function ScoreTooltip({ anchor, data }) {
       </div>
       {!placeBelow && (
         <div
-          style={{
-            position: "absolute",
-            bottom: -ARROW,
-            left: arrowX,
-            width: 0,
-            height: 0,
-            borderLeft: `${ARROW}px solid transparent`,
-            borderRight: `${ARROW}px solid transparent`,
-            borderTop: `${ARROW}px solid #0f172a`
-          }}
+          className={`${ui.tooltipArrow} ${ui.tooltipArrowDown}`}
+          style={{ bottom: -ARROW, left: arrowX }}
         />
       )}
     </div>,
@@ -172,18 +156,13 @@ export function DentalScoreCard({ data, infoBtnRef, showFormula, setShowFormula 
       ref={infoBtnRef}
       className={ui.scoreCard}
       style={{
-        background: `linear-gradient(140deg, ${colour.tint} 0%, ${colour.accent}2b 60%, ${colour.accent}4d 100%)`
+        "--score-tint": colour.tint,
+        "--score-accent": colour.accent,
+        "--score-accent-dark": colour.accentDark
       }}
     >
       <span
         className={ui.scoreRibbon}
-        style={{
-          background: "rgba(255,255,255,0.98)",
-          color: colour.accentDark,
-          borderBottomRightRadius: "14px",
-          backdropFilter: "blur(6px)",
-          WebkitBackdropFilter: "blur(6px)"
-        }}
       >
         Dental score
       </span>
@@ -215,10 +194,9 @@ export function DentalScoreCard({ data, infoBtnRef, showFormula, setShowFormula 
             />
           )}
         </svg>
-        <div className={ui.scoreCenter} style={{ gap: 4 }}>
+        <div className={ui.scoreCenter}>
           <span
             className={ui.scoreHuge}
-            style={{ fontSize: 42, lineHeight: 1, color: colour.accentDark }}
           >
             {displayScore}
           </span>
@@ -229,12 +207,6 @@ export function DentalScoreCard({ data, infoBtnRef, showFormula, setShowFormula 
             onMouseLeave={closeTooltip}
             onClick={openTooltip}
             className={ui.scoreRatingBtn}
-            style={{
-              background: `linear-gradient(135deg, ${colour.tint} 0%, ${colour.accent}22 100%)`,
-              color: colour.accentDark,
-              border: `1px solid ${colour.accent}33`,
-              letterSpacing: "0.6px"
-            }}
           >
             {rating.toUpperCase()}
             <InfoCircle size={14} color="currentColor" variant="Linear" />

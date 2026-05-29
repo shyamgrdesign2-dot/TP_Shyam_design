@@ -5,77 +5,110 @@ import {
   PEDIATRIC_TEETH,
   ARCH_POSITIONS,
   PEDIATRIC_ARCH_POSITIONS,
+  isOralRegionPosition,
+  ORAL_POSITION_LABEL
 } from "./types";
 import ArchTooth from "./ArchTooth";
 import DentitionTooltip from "./DentitionTooltip";
 
-/**
- * ScopeHotspot — 3D-space overlay button for selecting a quadrant scope.
- *
- * @param {{ label: string, position: number[], onClick: function, emphasized?: boolean }} props
- */
-const ScopeHotspot = memo(function ScopeHotspot({
-  label,
-  position,
-  onClick,
-  emphasized = false,
-}) {
+const GROUP_TAG_OFFSET = {
+  FULL: [0, 0, 0], WHOLE: [0, 0, 0], GENERALIZED: [0, 0, 0],
+  UPPER_ARCH: [0, 0.6, 0], LOWER_ARCH: [0, -0.6, 0],
+  RIGHT_ARCH: [-0.6, 0, 0], LEFT_ARCH: [0.6, 0, 0],
+  UR: [-0.8, 0.6, 0], UL: [0.8, 0.6, 0], LR: [-0.8, -0.6, 0], LL: [0.8, -0.6, 0],
+};
+
+const GROUP_TIP_SIDE = {
+  FULL: 'below', WHOLE: 'below', GENERALIZED: 'below',
+  UPPER_ARCH: 'above', LOWER_ARCH: 'below',
+  RIGHT_ARCH: 'left', LEFT_ARCH: 'right',
+  UR: 'above', UL: 'above',
+  LR: 'below', LL: 'below',
+};
+
+const TIP_PLACEMENTS = {
+  below: {
+    tip: { top: "calc(100% + 14px)", left: "50%", transform: "translateX(-50%)" },
+    leader: { bottom: "100%", left: "50%", width: 0, height: 14, borderLeft: "1px dashed rgba(148,163,184,0.5)", transform: "translateX(-50%)" },
+  },
+  above: {
+    tip: { bottom: "calc(100% + 14px)", left: "50%", transform: "translateX(-50%)" },
+    leader: { top: "100%", left: "50%", width: 0, height: 14, borderLeft: "1px dashed rgba(148,163,184,0.5)", transform: "translateX(-50%)" },
+  },
+  right: {
+    tip: { left: "calc(100% + 14px)", top: "50%", transform: "translateY(-50%)" },
+    leader: { right: "100%", top: "50%", height: 0, width: 14, borderTop: "1px dashed rgba(148,163,184,0.5)", transform: "translateY(-50%)" },
+  },
+  left: {
+    tip: { right: "calc(100% + 14px)", top: "50%", transform: "translateY(-50%)" },
+    leader: { left: "100%", top: "50%", height: 0, width: 14, borderTop: "1px dashed rgba(148,163,184,0.5)", transform: "translateY(-50%)" },
+  },
+};
+
+const OralRegionTag3D = memo(function OralRegionTag3D({ position, list, label, forceShowAll = false, onHover, hideTag = false, tooltipSide = "below" }) {
+  const [hover, setHover] = useState(false);
+  if (hideTag || !list || list.length === 0) return null;
+  const showTip = hover || forceShowAll;
+  const firstName = list[0]?.name ?? "";
+  const tagLabel = list.length > 1 ? `${firstName} +${list.length - 1}` : firstName;
+  const siteOf = (e) => ((e.surfaces || []).map((p) => ORAL_POSITION_LABEL[p] || p).join(", ") || "Whole mouth");
+  const metaOf = (e) => [siteOf(e), (e.since || "").trim() ? `since ${e.since.trim()}` : "", (e.note || "").trim()].filter(Boolean).join(" | ");
+  const setHov = (v) => {
+    setHover(v);
+    onHover?.(v);
+  };
+
+  const groups = { past: [], findings: [], procedures: [] };
+  list.forEach((e) => {
+    if (e.kind === "past") groups.past.push(e);
+    else if (e.kind === "procedure") groups.procedures.push(e);
+    else groups.findings.push(e);
+  });
+
+  const secBox = (title, items) => items.length ? (
+    <div className="oral-tag-sec">
+      <div className="oral-tag-sec-head">{title}</div>
+      <div className="oral-tag-rows">
+        {items.map((e) => {
+          const m = metaOf(e);
+          return (
+            <div key={e.id} className="oral-tag-row">
+              <span className="oral-tag-row-name">{e.name}</span>
+              {m ? <span className="oral-tag-row-meta"> ({m})</span> : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
+
+  const placement = TIP_PLACEMENTS[tooltipSide] || TIP_PLACEMENTS.below;
+
   return (
-    <Html
-      position={position}
-      transform={true}
-      occlude={true}
-      zIndexRange={[220, 80]}
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        style={{
-          cursor: "pointer",
-          minWidth: emphasized ? 64 : 44,
-          height: emphasized ? 30 : 28,
-          borderRadius: emphasized ? 16 : 14,
-          border: "1px solid rgba(255,255,255,0.42)",
-          background: emphasized
-            ? "rgba(30, 41, 59, 0.78)"
-            : "rgba(15, 23, 42, 0.66)",
-          color: "#f8fafc",
-          fontSize: emphasized ? 12 : 11,
-          fontWeight: 700,
-          padding: "0 12px",
-          boxShadow: "0 4px 14px rgba(2, 6, 23, 0.22)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          transition:
-            "transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "translateY(-1px)";
-          e.currentTarget.style.background = emphasized
-            ? "rgba(15, 23, 42, 0.88)"
-            : "rgba(30, 41, 59, 0.78)";
-          e.currentTarget.style.boxShadow = "0 6px 16px rgba(2, 6, 23, 0.3)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "translateY(0)";
-          e.currentTarget.style.background = emphasized
-            ? "rgba(30, 41, 59, 0.78)"
-            : "rgba(15, 23, 42, 0.66)";
-          e.currentTarget.style.boxShadow = "0 4px 14px rgba(2, 6, 23, 0.22)";
-        }}
-      >
-        {label}
-      </button>
+    <Html position={position} center zIndexRange={showTip ? [500, 300] : [40, 10]} style={{ pointerEvents: "auto", whiteSpace: "nowrap" }}>
+      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} className="oral-tag-wrap">
+        <div className="oral-region-tag">
+          {tagLabel}
+        </div>
+        {showTip && (
+          <div className="oral-tag-tip" style={placement.tip}>
+            <div className="oral-tag-leader" style={placement.leader} />
+            <div className="oral-tag-tip-header">
+              <span className="oral-tag-tip-badge">Oral</span>
+              <span className="oral-tag-tip-label">{label || "Oral Examination"}</span>
+            </div>
+            <div className="oral-tag-sections">
+              {secBox("Past Procedures", groups.past)}
+              {secBox("Findings", groups.findings)}
+              {secBox("Procedures", groups.procedures)}
+            </div>
+          </div>
+        )}
+      </div>
     </Html>
   );
 });
 
-/**
- * DentitionView — grid layout shell that arranges all arch teeth, scope
- * hotspots, guide lines, and the active tooltip.
- *
- * @param {{ patientType: string, visibleFdis: string[]|undefined, disableSelection?: boolean, layoutMode?: string, showGuides?: boolean, showScopeHotspots?: boolean, onSelectScope?: function, toothDiagnoses: object, findingsByTooth: object, implantTeeth: Set, onSelectTooth: function, onHoverTooth?: function, externalHoveredFdi?: string|null, allEntries?: Array, toothNotes?: object, agentPulseFdis?: Set, showTreatmentTags?: boolean }} props
- */
 export default function DentitionView({
   patientType,
   visibleFdis,
@@ -95,6 +128,9 @@ export default function DentitionView({
   agentPulseFdis,
   showTreatmentTags = true,
   treatmentHistoryDetailsByTooth = {},
+  highlightFdis,
+  oralEntries = [],
+  oralForceShowAll = false,
 }) {
   const USE_SPLIT_QUADRANT_EXPERIMENT = layoutMode === "split";
   const [hoveredTooth, setHoveredToothInternal] = useState(null);
@@ -106,6 +142,18 @@ export default function DentitionView({
     },
     [onHoverTooth],
   );
+
+  const [hoverOralFdis, setHoverOralFdis] = useState(null);
+  const [oralFilter, setOralFilter] = useState(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onFilter = (ev) => {
+      setOralFilter(ev?.detail ?? null);
+    };
+    window.addEventListener("oral-tags-filter", onFilter);
+    return () => window.removeEventListener("oral-tags-filter", onFilter);
+  }, []);
   // Merge externally-driven hover (e.g. from summary card hover).
   const effectiveHovered = externalHoveredFdi ?? hoveredTooth;
   const [pinnedTooth, setPinnedTooth] = useState(null);
@@ -239,6 +287,51 @@ export default function DentitionView({
       sum[2] / visibleTeeth.length,
     ];
   }, [activePositions, visibleTeeth]);
+
+  const oralTagGroups = useMemo(() => {
+    if (!oralEntries || oralEntries.length === 0) return [];
+    const groups = {};
+    oralEntries.forEach((e) => {
+      const regionPos = (e.surfaces || []).find((p) => isOralRegionPosition(p) && !["WHOLE", "GENERALIZED", "FULL"].includes(p));
+      const key = regionPos || "FULL";
+      (groups[key] = groups[key] || []).push(e);
+    });
+
+    const quadOf = { UR: "upper-right", UL: "upper-left", LR: "lower-right", LL: "lower-left" };
+    const archOf = {
+      RIGHT_ARCH: ["upper-right", "lower-right"],
+      LEFT_ARCH: ["upper-left", "lower-left"],
+      UPPER_ARCH: ["upper-right", "upper-left"],
+      LOWER_ARCH: ["lower-right", "lower-left"],
+    };
+
+    const fdisFor = (key) => {
+      if (quadOf[key]) return visibleTeeth.filter((t) => t.quadrant === quadOf[key]).map((t) => t.fdi);
+      if (archOf[key]) return visibleTeeth.filter((t) => archOf[key].includes(t.quadrant)).map((t) => t.fdi);
+      return visibleTeeth.map((t) => t.fdi);
+    };
+
+    return Object.entries(groups).map(([key, list]) => {
+      const fdis = fdisFor(key).filter((f) => activePositions[f]);
+      if (fdis.length === 0) return null;
+      const sum = fdis.reduce((a, f) => {
+        const p = activePositions[f].position;
+        return [a[0] + p[0], a[1] + p[1], a[2] + p[2]];
+      }, [0, 0, 0]);
+      const off = GROUP_TAG_OFFSET[key] || [0, 0, 0];
+      return {
+        key,
+        list,
+        fdis,
+        label: ORAL_POSITION_LABEL[key] || key,
+        position: [
+          sum[0] / fdis.length + off[0],
+          sum[1] / fdis.length + off[1],
+          sum[2] / fdis.length + 0.6 + off[2]
+        ]
+      };
+    }).filter(Boolean);
+  }, [oralEntries, visibleTeeth, activePositions]);
   // Keep the dentition stack slightly lower so it aligns with the split drag-handle midpoint.
   // Shift the arch group upward so lower teeth don't overlap the scope bar
   // that sits at the bottom of the canvas (absolute bottom: 16px).
@@ -311,6 +404,8 @@ export default function DentitionView({
             isHovered={effectiveHovered === tooth.fdi}
             isPinned={pinnedTooth === tooth.fdi}
             agentPulse={Boolean(agentPulseFdis?.has?.(tooth.fdi))}
+            highlightActive={Boolean((hoverOralFdis || highlightFdis) && (hoverOralFdis || highlightFdis).size > 0)}
+            inHighlight={Boolean((hoverOralFdis || highlightFdis) && (hoverOralFdis || highlightFdis).has(tooth.fdi))}
             onHover={setHoveredTooth}
             onClick={disableSelection ? () => {} : onSelectTooth}
             onPin={setPinnedTooth}
@@ -365,6 +460,48 @@ export default function DentitionView({
           treatmentHistoryDetails={treatmentHistoryDetailsByTooth?.[activeTooth.fdi] || {}}
         />
       )}
+
+      {oralTagGroups.map((g) => {
+        let list = g.list;
+        let hideTag = false;
+        let forceFiltered = false;
+        if (oralFilter) {
+          if (oralFilter.all) {
+            forceFiltered = true;
+          } else if (oralFilter.kind) {
+            list = g.list.filter((e) => e.kind === oralFilter.kind && (!oralFilter.name || e.name === oralFilter.name));
+            if (list.length === 0) hideTag = true;
+            else forceFiltered = true;
+          }
+        }
+        return (
+          <OralRegionTag3D
+            key={g.key}
+            position={g.position}
+            list={list}
+            label={g.label}
+            hideTag={hideTag}
+            tooltipSide={GROUP_TIP_SIDE[g.key] || "below"}
+            forceShowAll={forceFiltered || oralForceShowAll}
+            onHover={(on) => setHoverOralFdis(on ? new Set(g.fdis) : null)}
+          />
+        );
+      })}
     </group>
   );
 }
+
+function ScopeHotspot({ label, position, onClick, emphasized = false }) {
+  return (
+    <Html position={position} transform occlude zIndexRange={[220, 80]}>
+      <button
+        type="button"
+        onClick={onClick}
+        className={`scope-hotspot-btn${emphasized ? " scope-hotspot-btn--emphasized" : ""}`}
+      >
+        {label}
+      </button>
+    </Html>
+  );
+}
+

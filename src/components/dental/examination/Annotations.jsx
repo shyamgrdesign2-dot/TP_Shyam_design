@@ -228,11 +228,7 @@ export function Annotations({
             >
               <div
                 data-dental-annotation-ui="true"
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                }}
+                className="annot-wrap"
               >
                 <div
                   onClick={(e) => {
@@ -244,33 +240,13 @@ export function Annotations({
                       onSelectZone(point.zoneId);
                     }
                   }}
+                  className={`annot-badge${isExpanded ? " annot-badge--expanded" : ""}`}
                   style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    background:
-                      isExpanded || isSelected
-                        ? zoneColor
-                        : "rgba(70, 70, 75, 0.65)",
-                    color:
-                      isExpanded || isSelected
-                        ? "#fff"
-                        : "rgba(255,255,255,0.9)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    fontFamily: "'Inter', sans-serif",
-                    cursor: "pointer",
-                    boxShadow:
-                      isExpanded || isSelected
-                        ? `0 0 0 2px rgba(255,255,255,0.5)`
-                        : "0 1px 3px rgba(0,0,0,0.25)",
-                    border: `1.5px solid ${isExpanded || isSelected ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.35)"}`,
-                    transition: "all 0.2s ease",
-                    zIndex: isExpanded ? 10 : 1,
-                    letterSpacing: "-0.3px",
+                    "--annot-zone-color": zoneColor,
+                    "--annot-badge-bg": isExpanded || isSelected ? zoneColor : "rgba(70, 70, 75, 0.65)",
+                    "--annot-badge-color": isExpanded || isSelected ? "#fff" : "rgba(255,255,255,0.9)",
+                    "--annot-badge-shadow": isExpanded || isSelected ? `0 0 0 2px rgba(255,255,255,0.5)` : "0 1px 3px rgba(0,0,0,0.25)",
+                    "--annot-badge-border": `1.5px solid ${isExpanded || isSelected ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.35)"}`,
                   }}
                 >
                   {abbr}
@@ -278,63 +254,19 @@ export function Annotations({
                 {isExpanded && (
                   <div
                     data-dental-annotation-ui="true"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      position: "absolute",
-                      left: 24,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      zIndex: 20,
-                    }}
+                    className="annot-expanded"
                   >
-                    <div
-                      style={{
-                        width: 55,
-                        height: 0,
-                        borderTop: "1.5px dashed rgba(100, 100, 110, 0.5)",
-                        flexShrink: 0,
-                      }}
-                    />
+                    <div className="annot-connector" />
 
                     <div
                       data-dental-annotation-ui="true"
-                      style={{
-                        minWidth: 150,
-                        maxWidth: 200,
-                        background: "rgba(0, 0, 0, 0.78)",
-                        backdropFilter: "blur(14px)",
-                        WebkitBackdropFilter: "blur(14px)",
-                        borderRadius: 8,
-                        padding: "10px 13px",
-                        color: "#fff",
-                        fontFamily: "'Inter', sans-serif",
-                        boxShadow: "0 4px 18px rgba(0,0,0,0.45)",
-                        animation: "dentalCanvasAnnotFadeIn 0.15s ease-out",
-                        borderLeft: `3px solid ${zoneColor}`,
-                      }}
+                      className="annot-panel"
+                      style={{ "--annot-zone-color": zoneColor }}
                     >
                       <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 700,
-                          marginBottom: diagnoses.length > 0 ? 7 : 0,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          lineHeight: 1.3,
-                        }}
+                        className={`annot-panel-header${diagnoses.length > 0 ? " annot-panel-header--with-content" : ""}`}
                       >
-                        <span
-                          style={{
-                            width: 7,
-                            height: 7,
-                            borderRadius: "50%",
-                            background: zoneColor,
-                            flexShrink: 0,
-                          }}
-                        />
-
+                        <span className="annot-zone-dot" />
                         {zoneLabel}
                       </div>
                       {(() => {
@@ -357,47 +289,16 @@ export function Annotations({
                         const proceduresList = diagnoses
                           .filter((d) => d.startsWith("Pr:"))
                           .map((d) => d.slice(3).trim());
-                        const sectionLabelStyle = {
-                          fontSize: 9,
-                          fontWeight: 600,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.4px",
-                          color: "rgba(255,255,255,0.55)",
-                          marginBottom: 3,
-                        };
-                        const tagRowStyle = {
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 4,
-                        };
-                        const tagStyle = {
-                          fontSize: 11,
-                          padding: "2px 6px",
-                          borderRadius: 4,
-                          background: "rgba(255,255,255,0.12)",
-                          color: "#ddd",
-                          fontWeight: 500,
-                          lineHeight: 1.4,
-                        };
                         return (
                           <>
                             {historyList.length > 0 && (
                               <div
-                                style={{
-                                  marginBottom:
-                                    findingsList.length > 0 ||
-                                    proceduresList.length > 0 ||
-                                    notes
-                                      ? 7
-                                      : 0,
-                                }}
+                                className={`annot-sec${findingsList.length > 0 || proceduresList.length > 0 || notes ? " annot-sec--spaced" : ""}`}
                               >
-                                <div style={sectionLabelStyle}>
-                                  Treatment History
-                                </div>
-                                <div style={tagRowStyle}>
+                                <div className="annot-sec-label">Treatment History</div>
+                                <div className="annot-tag-row">
                                   {historyList.map((d, i) => (
-                                    <span style={tagStyle}>{d}</span>
+                                    <span key={i} className="annot-tag">{d}</span>
                                   ))}
                                 </div>
                               </div>
@@ -405,15 +306,12 @@ export function Annotations({
 
                             {findingsList.length > 0 && (
                               <div
-                                style={{
-                                  marginBottom:
-                                    proceduresList.length > 0 || notes ? 7 : 0,
-                                }}
+                                className={`annot-sec${proceduresList.length > 0 || notes ? " annot-sec--spaced" : ""}`}
                               >
-                                <div style={sectionLabelStyle}>Findings</div>
-                                <div style={tagRowStyle}>
+                                <div className="annot-sec-label">Findings</div>
+                                <div className="annot-tag-row">
                                   {findingsList.map((d, i) => (
-                                    <span style={tagStyle}>{d}</span>
+                                    <span key={i} className="annot-tag">{d}</span>
                                   ))}
                                 </div>
                               </div>
@@ -421,14 +319,12 @@ export function Annotations({
 
                             {proceduresList.length > 0 && (
                               <div
-                                style={{
-                                  marginBottom: notes ? 7 : 0,
-                                }}
+                                className={`annot-sec${notes ? " annot-sec--spaced" : ""}`}
                               >
-                                <div style={sectionLabelStyle}>Procedures</div>
-                                <div style={tagRowStyle}>
+                                <div className="annot-sec-label">Procedures</div>
+                                <div className="annot-tag-row">
                                   {proceduresList.map((d, i) => (
-                                    <span style={tagStyle}>{d}</span>
+                                    <span key={i} className="annot-tag">{d}</span>
                                   ))}
                                 </div>
                               </div>
@@ -437,18 +333,7 @@ export function Annotations({
                         );
                       })()}
                       {notes.trim() && (
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "#aaa",
-                            lineHeight: 1.4,
-                            borderTop: "1px solid rgba(255,255,255,0.1)",
-                            paddingTop: 6,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
+                        <div className="annot-notes">
                           {notes.trim()}
                         </div>
                       )}

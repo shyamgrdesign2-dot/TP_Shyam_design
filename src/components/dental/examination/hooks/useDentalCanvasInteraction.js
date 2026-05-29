@@ -21,7 +21,8 @@ import {
   PEDIATRIC_TEETH,
   QUADRANT_LABELS,
   getDefaultTreatmentSurfaces,
-  ALL_ZONES
+  ALL_ZONES,
+  isOralRegionPosition
 } from "../types";
 import { DENTAL_AI_SCAN_APPLY_EVENT } from "../../tp-rxpad/dental-ai/dental-ai-events";
 import { EXAM_CHART_STORAGE_PREFIX } from "../../plan/exam-suggestions";
@@ -219,6 +220,10 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
   const [toothDiagnoses, setToothDiagnoses] = useState(initialToothDiagnoses);
   const [toothNotes, setToothNotes] = useState({});
   const [allEntries, setAllEntries] = useState([]);
+  const [oralEntries, setOralEntries] = useState(() => Array.isArray(initialState?.oralEntries) ? initialState.oralEntries : []);
+  const [oralNotes, setOralNotes] = useState(() => initialState?.oralNotes ?? "");
+  const [oralHighlightFdis, setOralHighlightFdis] = useState(() => new Set());
+  const oralIdRef = useRef(0);
   const [treatmentHistoryDetailsByTooth, setTreatmentHistoryDetailsByTooth] =
     useState({});
   const [highlightZones, setHighlightZones] = useState([]);
@@ -324,6 +329,15 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
         return next;
       });
     }
+
+    const rawOralEntries = initialData.oralEntries;
+    if (Array.isArray(rawOralEntries)) {
+      setOralEntries(rawOralEntries);
+    }
+    const rawOralNotes = initialData.oralNotes;
+    if (typeof rawOralNotes === "string") {
+      setOralNotes(rawOralNotes);
+    }
   }, [initialData, patientId]);
 
   // ── Hydrate from localStorage ──────────────────────────────────────────────
@@ -367,6 +381,12 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
       if (saved.dentitionCameraByType) {
         setDentitionCameraByType(saved.dentitionCameraByType);
       }
+      if (Array.isArray(saved.oralEntries)) {
+        setOralEntries(saved.oralEntries);
+      }
+      if (typeof saved.oralNotes === "string") {
+        setOralNotes(saved.oralNotes);
+      }
     } catch {
       // ignore corrupted localStorage payload
     }
@@ -390,7 +410,9 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
       selectedToothFdi: selectedTooth.fdi,
       selectionScope,
       dentitionVerticalNudgeByType,
-      dentitionCameraByType
+      dentitionCameraByType,
+      oralEntries,
+      oralNotes
     };
     window.localStorage.setItem(
       `dental.canvas.state.${patientId}`,
@@ -403,7 +425,9 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     selectedTooth.fdi,
     selectionScope,
     dentitionVerticalNudgeByType,
-    dentitionCameraByType
+    dentitionCameraByType,
+    oralEntries,
+    oralNotes
   ]);
 
   // ── Persist clinical chart data ────────────────────────────────────────────
@@ -433,7 +457,9 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
           updatedAt: Date.now(),
           entries,
           toothDiagnoses: diagSerialized,
-          findingsByTooth: findingsSerialized
+          findingsByTooth: findingsSerialized,
+          oralEntries,
+          oralNotes
         })
       );
       window.dispatchEvent(
@@ -442,7 +468,7 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     } catch {
       // ignore quota / private mode
     }
-  }, [patientId, allEntries, toothDiagnoses, findingsByTooth]);
+  }, [patientId, allEntries, toothDiagnoses, findingsByTooth, oralEntries, oralNotes]);
 
   // ── Auto-dismiss hint when chart has data ──────────────────────────────────
   useEffect(() => {
@@ -842,6 +868,55 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     setAllEntries((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  const updateOralNotes = useCallback((v) => setOralNotes(v ?? ""), []);
+
+  const addOralEntry = useCallback((kind, name) => {
+    if (!name) return;
+    setOralEntries((prev) => {
+      if (prev.some((e) => e.kind === kind && e.name === name)) return prev;
+      const id = `oral-${Date.now().toString(36)}-${++oralIdRef.current}`;
+      return [...prev, { id, kind, name, surfaces: [], since: "", note: "" }];
+    });
+  }, []);
+
+  const removeOralEntry = useCallback((id) => {
+    setOralEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const updateOralEntry = useCallback((id, patch) => {
+    setOralEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...patch } : e))
+    );
+  }, []);
+
+  const enterOralExam = useCallback(() => {
+    setSelectionScope({
+      type: "full-mouth",
+      id: "FULL",
+      label: "Full mouth",
+      fdis: getScopeFdis("FULL")
+    });
+    setSelectedZone(null);
+    setOralHighlightFdis(new Set());
+    setViewMode("oral");
+  }, [getScopeFdis]);
+
+  const setOralHighlight = useCallback((positionIds) => {
+    const ids = Array.isArray(positionIds) ? positionIds : [];
+    const regionIds = ids.filter((p) => isOralRegionPosition(p));
+    if (regionIds.length === 0) {
+      setOralHighlightFdis(new Set());
+      return;
+    }
+    const fdis = new Set();
+    regionIds.forEach((r) => {
+      ((r === "WHOLE" || r === "GENERALIZED") ? getScopeFdis("FULL") : getScopeFdis(r)).forEach((f) =>
+        fdis.add(f)
+      );
+    });
+    setOralHighlightFdis(fdis);
+  }, [getScopeFdis]);
+
   // ── Treatment history details ──────────────────────────────────────────────
   const handleUpdateTreatmentHistoryDetail = useCallback(
     (name, patch) => {
@@ -1111,6 +1186,9 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     toothDiagnoses,
     toothNotes,
     allEntries,
+    oralEntries,
+    oralNotes,
+    oralHighlightFdis,
     treatmentHistoryDetailsByTooth,
     highlightZones,
     multiSelectZones,
@@ -1154,6 +1232,12 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     handleAddEntry,
     handleUpdateEntry,
     handleRemoveEntry,
+    addOralEntry,
+    removeOralEntry,
+    updateOralEntry,
+    updateOralNotes,
+    enterOralExam,
+    setOralHighlight,
     handleUpdateTreatmentHistoryDetail,
     handleRemoveTreatmentHistoryDetail,
     handleClearTreatmentHistoryDetails,

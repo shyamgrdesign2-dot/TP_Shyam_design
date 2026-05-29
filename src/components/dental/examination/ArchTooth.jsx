@@ -33,14 +33,16 @@ const ArchTooth = memo(function ArchTooth({
   isHovered,
   isPinned,
   agentPulse = false,
+  highlightActive = false,
+  inHighlight = false,
   onHover,
   onClick,
   onPin,
   treatmentHistoryDetails = {},
 }) {
   const { gl, camera } = useThree();
-  const gltf = useGLTF(tooth.modelPath);
-  const implantGltf = useGLTF("/models/implant.glb");
+  const gltf = useGLTF(tooth.modelPath, "/draco/");
+  const implantGltf = useGLTF("/models/implant.glb", "/draco/");
   const groupRef = useRef(null); // Center ref (for bounding box)
   const outerGroupRef = useRef(null); // mirrorX group (parentGroup for diagnosis visuals)
   const meshRef = useRef(null);
@@ -319,9 +321,12 @@ const ArchTooth = memo(function ArchTooth({
     camera,
     treatmentHistoryDetails,
   ]);
-  // Hover glow on state change (avoid per-frame traversals across all teeth).
+  // Hover glow + oral-region highlight/dim on state change (avoid per-frame
+  // traversals across all teeth). Region highlight: teeth in the active oral
+  // region glow teal; teeth outside it fade so the region stands out.
   useEffect(() => {
     if (!meshRef.current) return;
+    const dim = highlightActive && !inHighlight;
     meshRef.current.traverse((obj) => {
       const m = obj;
       if (m.isMesh && m.material && !Array.isArray(m.material)) {
@@ -330,13 +335,18 @@ const ArchTooth = memo(function ArchTooth({
         if (isHovered) {
           mat.emissiveIntensity = 0.32;
           mat.emissive.set("#4a9eff");
+        } else if (highlightActive && inHighlight) {
+          mat.emissiveIntensity = 0.38;
+          mat.emissive.set("#14b8a6");
         } else {
           mat.emissiveIntensity = 0;
           mat.emissive.set("#000000");
         }
+        mat.transparent = true;
+        mat.opacity = dim ? 0.22 : 1;
       }
     });
-  }, [isHovered]);
+  }, [isHovered, highlightActive, inHighlight]);
   /** Two clear wobble cycles (~1s) when AI applies scan — strong enough to notice, then stops. */
   const pulseStartRef = useRef(null);
   const hadPulseRef = useRef(false);
@@ -466,28 +476,11 @@ const ArchTooth = memo(function ArchTooth({
           }}
           zIndexRange={isHovered || isPinned ? [80, 40] : [30, 0]}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "3px",
-            }}
-          >
+          <div className="arch-history-row">
             {treatmentHistoryTags.map((d) => (
               <span
                 key={d}
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  padding: "2px 7px",
-                  borderRadius: "4px",
-                  fontFamily: "Inter, sans-serif",
-                  background: "rgba(107, 114, 128, 0.78)",
-                  color: "#fff",
-                  lineHeight: "1.3",
-                  backdropFilter: "blur(3px)",
-                  letterSpacing: "0.01em",
-                }}
+                className="arch-history-tag"
               >
                 {d}
               </span>

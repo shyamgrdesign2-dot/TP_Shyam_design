@@ -1,34 +1,38 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { ZONE_INFO, getZoneLabel, QUADRANT_LABELS } from "./types";
-import styles from "./DentitionTooltip.module.scss";
+import { getZoneLabel, QUADRANT_LABELS } from "./types";
+import tt from "./DentitionTooltip.module.scss";
 
 /**
  * DentitionTooltip — camera-relative tooltip that stays fixed on
  * screen regardless of tooth rotation. Only the leader line updates.
  *
- * @param {{ tooth: object, archPose: object, findings: Array, diagnoses: Set|undefined, isImplant: boolean, allEntries: Array|undefined, toothNotes: object|undefined }} props
+ * @param {{ tooth: object, archPose: object, findings: Array, diagnoses: Set|undefined, isImplant: boolean, allEntries: Array|undefined, toothNotes: object|undefined, treatmentHistoryDetails: object }} props
  */
 function DentitionTooltip({
   tooth,
   archPose,
-  findings,
+  findings = [],
   diagnoses,
   isImplant,
-  allEntries,
-  toothNotes,
+  allEntries = [],
+  toothNotes = {},
   treatmentHistoryDetails = {},
 }) {
   const tooltipRef = useRef(null);
   const connectorRef = useRef(null);
   const { camera, gl, size } = useThree();
-  // With the narrow side panel and wider 3D canvas, horizontal space on either
-  // side of the arch is limited. Place tooltip ABOVE maxillary teeth and BELOW
-  // mandibular teeth so it always lands in the whitespace outside the arch —
-  // never behind a tooth.
+
+  const violetAccent = {
+    stroke: "#8B5CF6",
+    badgeBg: "#8B5CF6",
+    badgeText: "#ffffff",
+  };
+
   const isMax = tooth.arch === "maxillary";
+
   // Anchor near the outer edge of the tooth rather than its center, then keep
   // a consistent visual gap in screen-space via dynamic transform.
   const tooltipAnchorWorld = useMemo(() => {
@@ -36,13 +40,19 @@ function DentitionTooltip({
     return new THREE.Vector3(
       archPose.position[0],
       archPose.position[1] + (isMax ? 0.72 : -0.72),
-      archPose.position[2],
+      archPose.position[2]
     );
   }, [archPose, isMax]);
 
   // Responsive sizing for smaller canvases.
   const isCompact = size.width < 980;
   const isTiny = size.width < 760;
+  const cardMinW = isTiny ? 200 : isCompact ? 220 : 240;
+  const cardMaxW = isTiny ? 260 : isCompact ? 290 : 320;
+  const cardPadding = isTiny ? "8px 10px" : "10px 13px";
+  const titleSize = isTiny ? 12 : 13;
+  const bodySize = isTiny ? 9 : 10;
+  const sectionPad = isTiny ? "6px 8px" : "7px 9px";
 
   useFrame(() => {
     const el = tooltipRef.current;
@@ -50,6 +60,7 @@ function DentitionTooltip({
     const connector = connectorRef.current;
     const canvasRect = gl.domElement.getBoundingClientRect();
     const projected = tooltipAnchorWorld.clone().project(camera);
+
     // Hide if clipped behind camera/frustum.
     if (projected.z < -1 || projected.z > 1) {
       el.style.opacity = "0";
@@ -58,20 +69,22 @@ function DentitionTooltip({
     }
     el.style.opacity = "1";
     if (connector) connector.style.opacity = "1";
+
     const anchorX = canvasRect.left + (projected.x * 0.5 + 0.5) * size.width;
     const anchorY = canvasRect.top + (-projected.y * 0.5 + 0.5) * size.height;
+
     const toothProjected = new THREE.Vector3(
       archPose.position[0],
       archPose.position[1],
-      archPose.position[2],
+      archPose.position[2]
     ).project(camera);
-    const toothCenterX =
-      canvasRect.left + (toothProjected.x * 0.5 + 0.5) * size.width;
-    const toothCenterY =
-      canvasRect.top + (-toothProjected.y * 0.5 + 0.5) * size.height;
+    const toothCenterX = canvasRect.left + (toothProjected.x * 0.5 + 0.5) * size.width;
+    const toothCenterY = canvasRect.top + (-toothProjected.y * 0.5 + 0.5) * size.height;
+
     const gapPx = 30;
     const edgePad = 10;
     const rect = el.getBoundingClientRect();
+
     // Normalize placement behavior so empty cards choose sides like filled cards.
     const layoutW = Math.max(rect.width, isTiny ? 220 : 240);
     const layoutH = Math.max(rect.height, isTiny ? 150 : 170);
@@ -79,23 +92,28 @@ function DentitionTooltip({
     const maxX = canvasRect.right - edgePad - layoutW;
     const minY = canvasRect.top + edgePad;
     const maxY = canvasRect.bottom - edgePad - layoutH;
+
     const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
     const baseTopX = -layoutW / 2;
     const baseBottomX = -layoutW / 2;
     const baseRightY = -layoutH / 2;
     const baseLeftY = -layoutH / 2;
+
     // For side placements, nudge away from tooth center so cards don't sit over crown.
     const sideVerticalBias = isMax
       ? -Math.max(24, layoutH * 0.2)
       : Math.max(24, layoutH * 0.2);
+
     const topNaturalLeft = anchorX + baseTopX;
     const bottomNaturalLeft = anchorX + baseBottomX;
     const rightNaturalTop = anchorY + baseRightY;
     const leftNaturalTop = anchorY + baseLeftY;
+
     const topAdjX = clamp(topNaturalLeft, minX, maxX) - topNaturalLeft;
     const bottomAdjX = clamp(bottomNaturalLeft, minX, maxX) - bottomNaturalLeft;
     const rightAdjY = clamp(rightNaturalTop, minY, maxY) - rightNaturalTop;
     const leftAdjY = clamp(leftNaturalTop, minY, maxY) - leftNaturalTop;
+
     const sides = [
       {
         side: "top",
@@ -134,35 +152,26 @@ function DentitionTooltip({
     const preferredOrder = isMax
       ? ["top", "right", "left", "bottom"]
       : ["bottom", "right", "left", "top"];
+
     const toothSafeRadius = isMax ? 72 : 50;
     const distToRect = (px, py, rx, ry, rw, rh) => {
       const dx = Math.max(rx - px, 0, px - (rx + rw));
       const dy = Math.max(ry - py, 0, py - (ry + rh));
       return Math.hypot(dx, dy);
     };
+
     const withSafety = sides.map((s) => {
       const rectLeft = anchorX + s.x;
       const rectTop = anchorY + s.y;
-      const safety = distToRect(
-        toothCenterX,
-        toothCenterY,
-        rectLeft,
-        rectTop,
-        layoutW,
-        layoutH,
-      );
+      const safety = distToRect(toothCenterX, toothCenterY, rectLeft, rectTop, layoutW, layoutH);
       const toothSafe = safety >= toothSafeRadius;
-      return {
-        ...s,
-        safety,
-        toothSafe,
-      };
+      return { ...s, safety, toothSafe };
     });
-    // Upper teeth should never pick "bottom" while a tooth-safe alternative exists.
-    // This avoids cards sitting on top of the hovered upper crowns.
+
     const preferredPool = isMax
       ? withSafety.filter((s) => s.side !== "bottom")
       : withSafety;
+
     const fitOptions = preferredPool
       .filter((s) => s.fits && s.toothSafe)
       .sort((a, b) => {
@@ -170,47 +179,33 @@ function DentitionTooltip({
         if (b.free !== a.free) return b.free - a.free;
         return preferredOrder.indexOf(a.side) - preferredOrder.indexOf(b.side);
       });
-    // Fallback ladder:
-    // 1) any fitting option in preferred pool
-    // 2) tooth-safe option from all sides
-    // 3) any option from all sides
+
     const fallbackFits = preferredPool
       .filter((s) => s.fits)
       .sort((a, b) => b.free - a.free);
+
     const toothSafeAll = withSafety
       .filter((s) => s.toothSafe)
       .sort((a, b) => {
         if (b.safety !== a.safety) return b.safety - a.safety;
         return b.free - a.free;
       });
+
     const anyAll = withSafety.slice().sort((a, b) => b.free - a.free);
-    const chosen =
-      fitOptions[0] ?? fallbackFits[0] ?? toothSafeAll[0] ?? anyAll[0];
+    const chosen = fitOptions[0] ?? fallbackFits[0] ?? toothSafeAll[0] ?? anyAll[0];
+
     el.style.transform = `translate(${chosen.x}px, ${chosen.y}px)`;
     el.style.transformOrigin = chosen.origin;
-    // Screen-space dashed connector that follows selected side and extends
-    // slightly behind the tooltip edge for a visually continuous link.
+
     if (connector) {
       const edgePoint = (() => {
         if (chosen.side === "top")
-          return {
-            x: chosen.x + rect.width / 2,
-            y: chosen.y + rect.height,
-          };
+          return { x: chosen.x + rect.width / 2, y: chosen.y + rect.height };
         if (chosen.side === "bottom")
-          return {
-            x: chosen.x + rect.width / 2,
-            y: chosen.y,
-          };
+          return { x: chosen.x + rect.width / 2, y: chosen.y };
         if (chosen.side === "right")
-          return {
-            x: chosen.x,
-            y: chosen.y + rect.height / 2,
-          };
-        return {
-          x: chosen.x + rect.width,
-          y: chosen.y + rect.height / 2,
-        };
+          return { x: chosen.x, y: chosen.y + rect.height / 2 };
+        return { x: chosen.x + rect.width, y: chosen.y + rect.height / 2 };
       })();
       const lenToEdge = Math.hypot(edgePoint.x, edgePoint.y);
       const ux = lenToEdge > 0.0001 ? edgePoint.x / lenToEdge : 0;
@@ -225,127 +220,156 @@ function DentitionTooltip({
     }
   });
 
-  // Derive data for full overview sections.
   const diagLabels = [];
   if (diagnoses) {
     for (const d of diagnoses) diagLabels.push(d);
   }
   if (isImplant && !diagLabels.includes("Implant")) diagLabels.push("Implant");
-  if (treatmentHistoryDetails) {
-    Object.keys(treatmentHistoryDetails).forEach((key) => {
-      if (!diagLabels.includes(key)) {
-        diagLabels.push(key);
-      }
-    });
-  }
-  const toothEntries = useMemo(
-    () => (allEntries ?? []).filter((e) => e.toothFdi === tooth.fdi),
-    [allEntries, tooth.fdi],
-  );
+
+  const toothEntries = useMemo(() => (allEntries ?? []).filter((e) => e.toothFdi === tooth.fdi), [allEntries, tooth.fdi]);
   const findingEntries = toothEntries.filter((e) => e.kind === "finding");
   const procedureEntries = toothEntries.filter((e) => e.kind === "procedure");
   const plannedEntries = toothEntries.filter((e) => e.kind === "planned");
   const symptomEntries = toothEntries.filter((e) => e.kind === "symptom");
   const noteText = toothNotes?.[tooth.fdi] ?? "";
-  // Findings summary = legacy findings + entity-centric finding entries.
-  const groupedFindings = useMemo(() => {
-    const m = new Map();
-    const push = (zoneId, label) => {
-      const list = m.get(zoneId) || [];
-      if (!list.includes(label)) list.push(label);
-      m.set(zoneId, list);
-    };
-    for (const f of findings) push(f.zoneId, f.type);
-    for (const entry of findingEntries) {
-      const surfaces = entry.surfaces.length > 0 ? entry.surfaces : ["whole"];
-      for (const surface of surfaces) push(surface, entry.name);
-    }
-    return Array.from(m.entries());
-  }, [findings, findingEntries]);
-  const treatmentHistory = [...diagLabels].filter(Boolean);
-  const procedureSummary = [
-    ...procedureEntries,
-    ...plannedEntries,
-    ...symptomEntries,
-  ];
 
-  // Has any content across all 4 sections?
+  const treatmentHistory = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    const add = (n) => {
+      if (!n) return;
+      const k = n.toLowerCase();
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(n);
+    };
+    diagLabels.forEach(add);
+    Object.keys(treatmentHistoryDetails || {}).forEach(add);
+    return out;
+  }, [diagLabels, treatmentHistoryDetails]);
+
+  const thMeta = (name) => {
+    const d = treatmentHistoryDetails?.[name];
+    if (!d) return "";
+    const surfs = d.surfaces || [];
+    const surfLabel = surfs.includes("whole")
+      ? "Whole tooth"
+      : surfs.map((z) => getZoneLabel(z, tooth.arch, tooth.position)).join(", ");
+    const bits = [];
+    if (surfLabel) bits.push(surfLabel);
+    if ((d.since || "").trim()) bits.push(`since ${d.since.trim()}`);
+    if ((d.note || "").trim()) bits.push(d.note.trim());
+    return bits.join(" | ");
+  };
+
+  const procedureSummary = [...procedureEntries, ...plannedEntries, ...symptomEntries];
+
+  const surfacesLabel = (surfs) => {
+    const arr = surfs || [];
+    if (arr.includes("whole")) return "Whole tooth";
+    return arr.map((z) => getZoneLabel(z, tooth.arch, tooth.position)).join(", ");
+  };
+
+  const findingRows = useMemo(() => {
+    const m = new Map();
+    const ensure = (name) => {
+      if (!m.has(name)) m.set(name, { surfaces: new Set(), since: "", note: "" });
+      return m.get(name);
+    };
+    for (const f of findings) {
+      if (!f?.type) continue;
+      const r = ensure(f.type);
+      if (f.zoneId) r.surfaces.add(f.zoneId);
+    }
+    for (const e of findingEntries) {
+      const r = ensure(e.name);
+      (e.surfaces || []).forEach((s) => r.surfaces.add(s));
+      if (!r.since && e.since) r.since = e.since;
+      if (!r.note && e.notes) r.note = e.notes;
+    }
+    return [...m.entries()].map(([name, r]) => {
+      const bits = [];
+      const surf = surfacesLabel([...r.surfaces]);
+      if (surf) bits.push(surf);
+      if ((r.since || "").trim()) bits.push(`since ${r.since.trim()}`);
+      if ((r.note || "").trim()) bits.push(r.note.trim());
+      return { name, meta: bits.join(" | ") };
+    });
+  }, [findings, findingEntries, tooth.arch, tooth.position]);
+
+  const procedureRows = useMemo(() => {
+    return procedureSummary.map((e) => {
+      const bits = [];
+      const surf = surfacesLabel(e.surfaces || []);
+      if (surf) bits.push(surf);
+      if (e.status) bits.push(e.status);
+      if ((e.since || "").trim()) bits.push(`since ${e.since.trim()}`);
+      if (e.plannedDate) bits.push(e.plannedDate);
+      if ((e.notes || "").trim()) bits.push(e.notes.trim());
+      return { id: e.id, name: e.name, meta: bits.join(" | ") };
+    });
+  }, [procedureSummary, tooth.arch, tooth.position]);
+
   const hasContent =
     treatmentHistory.length > 0 ||
-    groupedFindings.length > 0 ||
-    procedureSummary.length > 0 ||
+    findingRows.length > 0 ||
+    procedureRows.length > 0 ||
     noteText.length > 0;
+
+  // Dynamic accent colours passed as CSS custom properties
+  const accentVars = {
+    "--tt-badge-bg": violetAccent.badgeBg,
+    "--tt-badge-text": violetAccent.badgeText,
+    "--tt-stroke": violetAccent.stroke,
+  };
+
   return (
     <>
       <Html
-        position={[
-          tooltipAnchorWorld.x,
-          tooltipAnchorWorld.y,
-          tooltipAnchorWorld.z,
-        ]}
-        style={{
-          pointerEvents: "none",
-        }}
+        position={[tooltipAnchorWorld.x, tooltipAnchorWorld.y, tooltipAnchorWorld.z]}
+        style={{ pointerEvents: "none" }}
         zIndexRange={[500, 300]}
       >
         <div
           ref={connectorRef}
-          className={styles.connector}
+          className={tt.connector}
         />
-
         <div
           ref={tooltipRef}
-          className={`${styles.tooltipCard} ${isCompact ? styles.isCompact : ""} ${isTiny ? styles.isTiny : ""}`}
+          className={`${tt.tooltipCard} ${isCompact ? tt.isCompact : ""} ${isTiny ? tt.isTiny : ""}`}
+          style={{ borderLeft: `3px solid ${violetAccent.stroke}`, ...accentVars }}
         >
           <div
-            className={`${styles.tooltipHeader} ${hasContent ? styles.hasContent : ""}`}
+            className={`${tt.tooltipHeader} ${hasContent ? tt.hasContent : ""}`}
           >
-            <span className={styles.toothBadge}>
+            <span
+              className={tt.toothBadge}
+            >
               T{tooth.fdi}
             </span>
-            <span className={styles.toothLabel}>
+            <span className={tt.toothLabel}>
               {QUADRANT_LABELS[tooth.quadrant]} {tooth.name}
             </span>
           </div>
+
           {treatmentHistory.length > 0 && (
-            <div className={styles.section}>
-              <div className={styles.sectionHeading}>Treatment History</div>
-              <div className={styles.tagContainer}>
-                {treatmentHistory.map((d) => (
-                  <span key={d} className={styles.pillTag}>
-                    {d}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {groupedFindings.length > 0 && (
-            <div className={styles.section}>
-              <div className={styles.sectionHeading}>Findings</div>
-              <div className={styles.findingsList}>
-                {groupedFindings.map(([zid, types]) => {
-                  const zc = ZONE_INFO[zid]?.color || "#888";
-                  const zl =
-                    zid === "whole"
-                      ? "Whole Tooth"
-                      : getZoneLabel(zid, tooth.arch, tooth.position);
+            <div
+              className={tt.section}
+              style={{ marginBottom: (findingRows.length > 0 || procedureRows.length > 0 || noteText) ? "8px" : 0 }}
+            >
+              <div className={tt.sectionHeading}>Past Procedures</div>
+              <div className={tt.findingsList}>
+                {treatmentHistory.map((d) => {
+                  const meta = thMeta(d);
                   return (
-                    <div key={zid} className={styles.findingRow}>
-                      <span
-                        className={styles.findingDot}
-                        style={{ background: zc }}
-                      />
-
-                      <span
-                        className={styles.findingLabel}
-                        style={{ color: zc }}
-                      >
-                        {zl}
-                      </span>
-                      <span className={styles.findingValue}>
-                        {types.join(", ")}
-                      </span>
+                    <div
+                      key={d}
+                      className={tt.findingRow}
+                    >
+                      <span className={tt.findingLabel}>{d}</span>
+                      {meta ? (
+                        <span className={tt.findingValue}> ({meta})</span>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -353,43 +377,61 @@ function DentitionTooltip({
             </div>
           )}
 
-          {procedureSummary.length > 0 && (
-            <div className={styles.section}>
-              <div className={styles.sectionHeading}>Procedures</div>
-              <div className={styles.tagContainer}>
-                {procedureSummary.map((entry) => (
-                  <span
-                    key={entry.name}
-                    className={`${styles.pillTag} ${
-                      entry.kind === "planned"
-                        ? styles.planned
-                        : entry.kind === "symptom"
-                          ? styles.symptom
-                          : ""
-                    }`}
+          {findingRows.length > 0 && (
+            <div
+              className={tt.section}
+              style={{ marginBottom: (procedureRows.length > 0 || noteText) ? "8px" : 0 }}
+            >
+              <div className={tt.sectionHeading}>Findings</div>
+              <div className={tt.findingsList}>
+                {findingRows.map((r) => (
+                  <div
+                    key={r.name}
+                    className={tt.findingRow}
                   >
-                    {entry.name}
-                  </span>
+                    <span className={tt.findingLabel}>{r.name}</span>
+                    {r.meta ? (
+                      <span className={tt.findingValue}> ({r.meta})</span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {procedureRows.length > 0 && (
+            <div
+              className={tt.section}
+              style={{ marginBottom: noteText ? "8px" : 0 }}
+            >
+              <div className={tt.sectionHeading}>Procedures</div>
+              <div className={tt.findingsList}>
+                {procedureRows.map((r) => (
+                  <div
+                    key={r.id}
+                    className={tt.findingRow}
+                  >
+                    <span className={tt.findingLabel}>{r.name}</span>
+                    {r.meta ? (
+                      <span className={tt.findingValue}> ({r.meta})</span>
+                    ) : null}
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
           {noteText && (
-            <div className={styles.section}>
-              <div className={styles.sectionHeading}>Notes</div>
-              <div className={styles.noteText}>
-                "
-                {noteText.length > (isTiny ? 64 : 80)
-                  ? noteText.slice(0, isTiny ? 64 : 80) + "…"
-                  : noteText}
-                "
+            <div className={tt.section}>
+              <div className={tt.sectionHeading}>Notes</div>
+              <div className={tt.noteText}>
+                “{noteText.length > (isTiny ? 64 : 80) ? noteText.slice(0, isTiny ? 64 : 80) + "…" : noteText}”
               </div>
             </div>
           )}
 
           {!hasContent && (
-            <div className={styles.emptyHint}>
+            <div className={tt.emptyHint}>
               Click on the tooth to start adding details
             </div>
           )}

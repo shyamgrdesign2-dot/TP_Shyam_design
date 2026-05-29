@@ -326,12 +326,14 @@
   font-size: 15px;
   font-weight: 700;
   color: tp.$slate-900 !important;
+  margin: 0 !important;
 }
 
 .onboardSub {
   font-family: "Inter", sans-serif;
   font-size: 12px;
   color: tp.$slate-400 !important;
+  margin: 0 !important;
 }
 
 .stepList {
@@ -390,6 +392,7 @@
   font-size: 14px;
   font-weight: 600;
   color: tp.$slate-800 !important;
+  margin: 0 !important;
 }
 
 .stepCardDesc {
@@ -397,6 +400,7 @@
   font-size: 12px;
   color: tp.$slate-400 !important;
   line-height: 1.4;
+  margin: 0 !important;
 }
 
 .stepConnector {
@@ -544,6 +548,7 @@
   overflow: hidden;
   border-radius: 20px;
   padding: 8px 16px 10px;
+  background: linear-gradient(140deg, var(--score-tint) 0%, color-mix(in srgb, var(--score-accent) 17%, transparent) 60%, color-mix(in srgb, var(--score-accent) 30%, transparent) 100%);
 }
 
 .scoreRibbon {
@@ -559,7 +564,10 @@
   font-weight: 600;
   letter-spacing: 0.2px;
   border-bottom-right-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--score-accent-dark);
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .scoreSvgWrap {
@@ -583,8 +591,11 @@
 
 .scoreHuge {
   font-family: "Inter", sans-serif;
+  font-size: 42px;
+  line-height: 1;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  color: var(--score-accent-dark);
 }
 
 .scoreSub {
@@ -605,9 +616,13 @@
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+  letter-spacing: 0.6px;
   backdrop-filter: blur(6px);
   cursor: pointer;
   margin-top: 2px;
+  background: linear-gradient(135deg, var(--score-tint) 0%, color-mix(in srgb, var(--score-accent) 13%, transparent) 100%);
+  color: var(--score-accent-dark);
+  border: 1px solid color-mix(in srgb, var(--score-accent) 20%, transparent);
 }
 
 // ── Score tooltip (portal) ────────────────────────────────────────────────────
@@ -615,6 +630,25 @@
   position: fixed;
   z-index: 9999;
   pointer-events: none;
+}
+
+// CSS triangle arrows for the tooltip
+.tooltipArrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.tooltipArrowUp {
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid #0f172a;
+}
+
+.tooltipArrowDown {
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #0f172a;
 }
 
 .tooltipPanel {

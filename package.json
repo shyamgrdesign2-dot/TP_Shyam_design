@@ -109,6 +109,7 @@
     "prepare": "husky",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
+    "compress:models": "node scripts/compress-models.js",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org digicare-health-solutions-priv --project tatvapractice ./build && sentry-cli sourcemaps upload --org digicare-health-solutions-priv --project tatvapractice ./build"
   },
   "eslintConfig": {

@@ -6,8 +6,11 @@
  */
 
 export { TPSnackbar } from "./tp-snackbar";
+export { TPTooltip } from "./tp-tooltip";
+export { TPCheckbox } from "./tp-checkbox";
 
 export {
   TPMedicalIcon,
 } from "./medical-icons";
+
 
