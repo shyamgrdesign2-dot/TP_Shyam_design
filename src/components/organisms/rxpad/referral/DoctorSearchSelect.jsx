@@ -122,38 +122,34 @@ export function DoctorSearchSelect({
         </span>
       ) : null}
 
-      {open ? (
+      {/* Dropdown only shows when there are matching suggestions — no
+          "not found" state, since the typed text is itself a valid value. */}
+      {open && results.length > 0 ? (
         <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[1300] overflow-hidden rounded-[12px] border border-tp-slate-200 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
           <div
             ref={listRef}
             onScroll={updateScroll}
             className="max-h-[240px] overflow-y-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {results.length > 0 ? (
-              results.map((d) => {
-                const active = d.id === doctorId;
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => pick(d)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-[8px] px-3 py-2 text-left transition-colors ${
-                      active ? "bg-tp-blue-50" : "hover:bg-tp-slate-50"
-                    }`}
-                  >
-                    <span className="truncate text-[14px] font-medium text-tp-slate-700">
-                      {d.name}
-                    </span>
-                    <SpecialtyTag>{d.specialtyLabel}</SpecialtyTag>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="px-3 py-6 text-center text-[13px] text-tp-slate-400">
-                No doctors found
-              </div>
-            )}
+            {results.map((d) => {
+              const active = d.id === doctorId;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(d)}
+                  className={`flex w-full items-center justify-between gap-2 rounded-[8px] px-3 py-2 text-left transition-colors ${
+                    active ? "bg-tp-blue-50" : "hover:bg-tp-slate-50"
+                  }`}
+                >
+                  <span className="truncate text-[14px] font-medium text-tp-slate-700">
+                    {d.name}
+                  </span>
+                  <SpecialtyTag>{d.specialtyLabel}</SpecialtyTag>
+                </button>
+              );
+            })}
           </div>
 
           {/* Slim neutral scroll indicator */}
