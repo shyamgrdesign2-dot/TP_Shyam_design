@@ -58,6 +58,8 @@ export default function RxpadHeader({
   onCustomise,
   onEndVisit,
   onSaveDraft,
+  onTemplates,
+  showSave = true,
   voiceCaptureMode = null,
   patientName,
   patientMeta
@@ -199,14 +201,16 @@ export default function RxpadHeader({
                 <button
                     type="button"
                     aria-label="Template"
+                    onClick={onTemplates}
                     className="bg-[#f1f1f5] content-stretch flex h-[42px] items-center justify-center p-[8.4px] relative rounded-[10px] shrink-0 transition-colors hover:bg-[#e9e9ef]"
                     data-name="Template">
-                    
+
                   <Grid5 color="#454551" size={24} strokeWidth={1.5} variant="Linear" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={6} className="rounded-[6px] border-0 bg-tp-slate-900 px-2.5 py-1.5 text-[12px] leading-[1.45] text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.45)]">Templates</TooltipContent>
             </Tooltip>
+            {showSave &&
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -214,12 +218,13 @@ export default function RxpadHeader({
                     aria-label="Save"
                     className="bg-[#f1f1f5] content-stretch flex h-[42px] items-center justify-center p-[8.4px] relative rounded-[10px] shrink-0 transition-colors hover:bg-[#e9e9ef]"
                     data-name="Save">
-                    
+
                   <Ram color="#454551" size={24} strokeWidth={1.5} variant="Linear" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={6} className="rounded-[6px] border-0 bg-tp-slate-900 px-2.5 py-1.5 text-[12px] leading-[1.45] text-white shadow-[0_8px_20px_-10px_rgba(15,23,42,0.45)]">Save this filled Rx as a reusable template</TooltipContent>
             </Tooltip>
+            }
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

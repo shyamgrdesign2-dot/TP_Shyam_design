@@ -109,6 +109,14 @@ const TODAY = visit(
     { name: "LFT", instruction: "", notes: "" }],
 
     followUp: "2 Weeks",
+    // Resolved referral (display labels) — shows in this past visit's Rx.
+    referral: {
+      specialty: "Cardiology",
+      doctor: "Dr. Anil Mehta",
+      doctorMeta: "MD, DM (Cardiology) · Apollo Heart Institute",
+      date: "10 Feb '26",
+      notes: "Evaluate for exertional chest discomfort; ECG + 2D Echo prior to consult.",
+    },
     medicalHistory: [
     { name: "Type 2 Diabetes", type: "Medical condition", duration: "2 Year(s)", relation: "", enable: "Y", notes: "" },
     { name: "Hypertension", type: "Medical condition", duration: "5 Year(s)", relation: "", enable: "Y", notes: "" },

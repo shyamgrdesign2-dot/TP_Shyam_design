@@ -1,38 +1,29 @@
 "use client";
 
 /**
- * TypeRxFlow — type-only RxPad consultation.
+ * TypeRxFlow — point-and-click RxPad consultation.
  *
- * Mirrors VoiceRxFlow's shell + secondary sidebar + RxPad form +
- * Dr.Agent panel + Rx Preview + Customise sidebar, but **without** any
- * voice features:
+ * Same shell, top header, blue secondary sidebar, RxPad form, Rx Preview and
+ * Customise sidebar as VoiceRx — but with **no voice and no AI assistant**:
  *
- *   • No `voiceCaptureMode` state or voice lockdown
- *   • No `VoiceRxLiveBorder` voice-active edge aura
- *   • No `FullscreenAiOverlay` (only used during voice submission)
- *   • Dr.Agent panel renders without the "VoiceRx" header brand
- *   • The RxPad form renders read-write the whole time
- *   • Per-section dictation mics inside RxPad / sidebar are hidden via
- *     the global `data-typerx-mode` flag (CSS in globals.css hides
- *     `.voicerx-mic-btn` and `.voicerx-section-mic` while this flag is
- *     present on <body>).
+ *   • No Dr.Agent side panel and no floating "VoiceRx" FAB
+ *   • No `voiceCaptureMode`, no live border, no fullscreen AI overlay
+ *   • Per-section dictation mics are hidden via the global `data-typerx-mode`
+ *     flag (CSS in globals.css hides `.voicerx-mic-btn` / `.voicerx-section-mic`)
  *
- * Same data bus (`RxPadSyncProvider`) so the Dr.Agent panel still
- * syncs Copy → RxPad and the secondary sidebar still surfaces
- * historical updates. Same shell composition so future consultation
- * types (point-and-click, template-based, etc.) can clone this file.
+ * The result is pure point-and-click: the doctor fills the RxPad form by hand.
+ * Still wrapped in `RxPadSyncProvider` because the secondary sidebar reads it
+ * for historical updates.
  */
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { DrAgentFab } from "@/src/components/organisms/rxpad/dr-agent/shell/DrAgentFab";
-import { DrAgentPanel } from "@/src/components/organisms/rxpad/dr-agent/DrAgentPanel";
 import { RxPreviewSidebar } from "@/src/components/organisms/voicerx/RxPreviewSidebar";
 import { FlashSnackbar } from "@/src/components/molecules/FlashSnackbar";
 import { RxPad } from "@/src/components/organisms/rxpad/form/RxPad";
 import { RxCustomiseSidebar } from "@/src/components/organisms/rxpad/RxCustomiseSidebar";
-import { RxPadSyncProvider, useRxPadSync } from "@/src/components/organisms/rxpad/rxpad-sync-context";
+import { RxPadSyncProvider } from "@/src/components/organisms/rxpad/rxpad-sync-context";
 import { RX_CONTEXT_OPTIONS } from "@/src/components/organisms/rxpad/dr-agent/constants";
 import { SecondarySidebar as TPRxPadSecondarySidebar } from "@/src/components/organisms/rxpad/secondary-sidebar/SecondarySidebar";
 import { TPRxPadShell } from "@/src/components/organisms/rxpad/TPRxPadShell";
@@ -49,48 +40,19 @@ function TypeRxFlowInner() {
     [patientId]
   );
 
-  const { lastSignal } = useRxPadSync();
-
-  const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(true);
-  const [voicePanelOffset, setVoicePanelOffset] = useState(0);
-  const [hasNudge, setHasNudge] = useState(true);
   const rxScrollRef = useRef(null);
   const [scrollFade, setScrollFade] = useState({ left: false, right: false });
   const [customiseOpen, setCustomiseOpen] = useState(false);
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [rxPreviewOpen, setRxPreviewOpen] = useState(false);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
-  const bothOpen = isVoicePanelOpen && isSidebarExpanded;
 
-  // Flag the body so global CSS can hide every voice mic in this mode.
-  // The styling is opt-in: components that render mics check
-  // `body[data-typerx-mode="on"]` and disappear or short-circuit.
+  // Flag the body so global CSS hides every voice mic in this mode — TypeRx is
+  // point-and-click, so the per-section dictation affordances disappear.
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.body.setAttribute("data-typerx-mode", "on");
     return () => document.body.removeAttribute("data-typerx-mode");
   }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const updateOffset = () => {
-      const width = window.innerWidth;
-      if (width < 768) {
-        setVoicePanelOffset(0);
-        return;
-      }
-      if (bothOpen) {
-        const clamped = Math.min(Math.max(width * 0.28, 300), 380);
-        setVoicePanelOffset(Math.round(clamped));
-        return;
-      }
-      const clamped = Math.min(Math.max(width * 0.32, 300), 400);
-      setVoicePanelOffset(Math.round(clamped));
-    };
-    updateOffset();
-    window.addEventListener("resize", updateOffset);
-    return () => window.removeEventListener("resize", updateOffset);
-  }, [bothOpen]);
 
   useEffect(() => {
     const el = rxScrollRef.current;
@@ -112,27 +74,26 @@ function TypeRxFlowInner() {
     };
   }, []);
 
-  const handleSidebarSectionSelect = useCallback((sectionId) => {
-    setIsSidebarExpanded(!!sectionId && sectionId !== "drAgent");
-  }, []);
+  // Sidebar section selection has no extra panels to coordinate in TypeRx.
+  const handleSidebarSectionSelect = useCallback(() => {}, []);
 
-  useEffect(() => {
-    if (!lastSignal) return;
-    if (lastSignal.type === "sidebar_pill_tap" || lastSignal.type === "ai_trigger") {
-      if (!isVoicePanelOpen) {
-        setIsVoicePanelOpen(true);
-        setHasNudge(false);
+  const saveDraft = useCallback(() => {
+    if (typeof window !== "undefined" && patientId) {
+      try {
+        const raw = window.localStorage.getItem("tp.appointments.drafts") || "[]";
+        const drafts = JSON.parse(raw);
+        if (!drafts.includes(patientId)) drafts.push(patientId);
+        window.localStorage.setItem("tp.appointments.drafts", JSON.stringify(drafts));
+      } catch {
+        /* swallow */
       }
-    } else if (!isVoicePanelOpen) {
-      setHasNudge(true);
     }
-  }, [lastSignal, isVoicePanelOpen]);
-
-  const agentRailPad = bothOpen
-    ? "pr-[clamp(300px,28vw,380px)]"
-    : isVoicePanelOpen
-    ? "pr-[clamp(300px,32vw,400px)]"
-    : "";
+    router.push(
+      `/tp-appointment-screen?tab=draft&snackbar=saved-draft${
+        patientId ? `&patientId=${encodeURIComponent(patientId)}` : ""
+      }`
+    );
+  }, [patientId, router]);
 
   return (
     <TPRxPadShell
@@ -156,32 +117,14 @@ function TypeRxFlowInner() {
             qs.set("flash", "rx-saved");
             router.push(`/rxpad/end-visit?${qs.toString()}`);
           }}
-          onSaveDraft={() => {
-            if (typeof window !== "undefined" && patientId) {
-              try {
-                const raw = window.localStorage.getItem("tp.appointments.drafts") || "[]";
-                const drafts = JSON.parse(raw);
-                if (!drafts.includes(patientId)) drafts.push(patientId);
-                window.localStorage.setItem("tp.appointments.drafts", JSON.stringify(drafts));
-              } catch {
-                /* swallow */
-              }
-            }
-            router.push(
-              `/tp-appointment-screen?tab=draft&snackbar=saved-draft${patientId ? `&patientId=${encodeURIComponent(patientId)}` : ""}`
-            );
-          }}
+          onSaveDraft={saveDraft}
         />
       }
       sidebar={<TPRxPadSecondarySidebar patientId={patientId} onSectionSelect={handleSidebarSectionSelect} />}>
 
       <div className="relative flex h-[calc(100vh-62px)] min-h-0 min-w-0">
         <div ref={rxScrollRef} className="flex min-h-0 min-w-0 flex-1 overflow-x-auto">
-          <div className={cn(
-            "flex min-h-0 flex-1 flex-col overflow-y-auto bg-tp-slate-100",
-            bothOpen ? "min-w-[900px]" : "min-w-0",
-            agentRailPad
-          )}>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-tp-slate-100">
             <RxPad patientId={patientId} />
           </div>
         </div>
@@ -195,44 +138,9 @@ function TypeRxFlowInner() {
         <div
           aria-hidden
           className={cn(
-            "pointer-events-none absolute inset-y-0 z-[5] w-[18px] bg-gradient-to-l from-tp-slate-900/[0.10] to-transparent transition-opacity duration-200",
+            "pointer-events-none absolute inset-y-0 right-0 z-[5] w-[18px] bg-gradient-to-l from-tp-slate-900/[0.10] to-transparent transition-opacity duration-200",
             scrollFade.right ? "opacity-100" : "opacity-0"
           )}
-          style={{ right: isVoicePanelOpen ? voicePanelOffset : 0 }}
-        />
-        <div
-          className={cn(
-            "pointer-events-none fixed right-0 top-[62px] z-[135] hidden h-[calc(100vh-62px)] overflow-hidden md:block transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-            bothOpen ? "w-[clamp(300px,28vw,380px)]" : "w-[clamp(300px,32vw,400px)]",
-            isVoicePanelOpen ? "translate-x-0" : "translate-x-[110%]"
-          )}
-          aria-hidden={!isVoicePanelOpen}>
-
-          <div className="pointer-events-auto relative h-full w-full before:pointer-events-none before:absolute before:inset-y-0 before:-left-[12px] before:z-10 before:w-[12px] before:bg-gradient-to-r before:from-transparent before:to-tp-slate-900/[0.06] before:content-['']">
-            <DrAgentPanel
-              onClose={() => setIsVoicePanelOpen(false)}
-              onOpen={() => {
-                setIsVoicePanelOpen(true);
-                setHasNudge(false);
-              }}
-              isPanelVisible={isVoicePanelOpen}
-              initialPatientId={patientId}
-              mode="rxpad"
-              voiceRxMode={false}
-              headerBrandTitle="Dr.Agent"
-              autoOpenBottomSheet={false}
-            />
-          </div>
-        </div>
-        <DrAgentFab
-          onClick={() => {
-            setIsVoicePanelOpen(true);
-            setHasNudge(false);
-          }}
-          hasNudge={hasNudge}
-          isRecording={false}
-          isPanelOpen={isVoicePanelOpen}
-          isModuleRecording={false}
         />
       </div>
 
@@ -254,19 +162,7 @@ function TypeRxFlowInner() {
         primaryTone="primary"
         onPrimary={() => {
           setBackConfirmOpen(false);
-          if (typeof window !== "undefined" && patientId) {
-            try {
-              const raw = window.localStorage.getItem("tp.appointments.drafts") || "[]";
-              const drafts = JSON.parse(raw);
-              if (!drafts.includes(patientId)) drafts.push(patientId);
-              window.localStorage.setItem("tp.appointments.drafts", JSON.stringify(drafts));
-            } catch {
-              /* swallow */
-            }
-          }
-          router.push(
-            `/tp-appointment-screen?tab=draft&snackbar=saved-draft${patientId ? `&patientId=${encodeURIComponent(patientId)}` : ""}`
-          );
+          saveDraft();
         }}
       />
 

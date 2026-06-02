@@ -21,6 +21,7 @@ function emptySnapshot(patientId) {
     followUp: "",
     followUpDate: "",
     additionalNotes: "",
+    referral: null,
     vitals: [],
     history: [],
     labResults: [],

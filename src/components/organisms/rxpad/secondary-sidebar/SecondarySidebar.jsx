@@ -11,15 +11,16 @@ import { ContentPanel } from "./ContentPanel";
 import { useRxPadSync } from "@/src/components/organisms/rxpad/rxpad-sync-context";
 import { SECTIONS_WITH_DATA, SECTIONS_EMPTY } from "./types";
 
-/** All valid NavItemIds for validation */
-const ALL_NAV_IDS = new Set([...SECTIONS_WITH_DATA, ...SECTIONS_EMPTY]);
+/** All valid NavItemIds for validation (handwriting-flow extras included). */
+const ALL_NAV_IDS = new Set([...SECTIONS_WITH_DATA, ...SECTIONS_EMPTY, "followUps", "referral"]);
 
 /**
- * Section traversal order for swipe / overscroll navigation. Mirrors the
+ * Base section traversal order for swipe / overscroll navigation. Mirrors the
  * top-to-bottom order in NavPanel so swiping feels spatially consistent.
- * `drAgent` is excluded — it lives in its own panel.
+ * `drAgent` is excluded — it lives in its own panel. Per-flow `extraTabs`
+ * (handwriting flows) are appended at runtime.
  */
-const NAV_SEQUENCE = [
+const BASE_NAV_SEQUENCE = [
 "pastVisits",
 "vitals",
 "history",
@@ -36,11 +37,11 @@ const NAV_SEQUENCE = [
 "personalNotes"];
 
 
-function neighbourSection(current, dir) {
-  const idx = NAV_SEQUENCE.indexOf(current);
+function neighbourSection(current, dir, sequence) {
+  const idx = sequence.indexOf(current);
   if (idx === -1) return null;
   const target = dir === "next" ? idx + 1 : idx - 1;
-  return NAV_SEQUENCE[target] ?? null;
+  return sequence[target] ?? null;
 }
 
 
@@ -48,8 +49,16 @@ function neighbourSection(current, dir) {
 
 
 
-export function SecondarySidebar({ collapseExpandedOnly = false, onSectionSelect, patientId }) {
+export function SecondarySidebar({ collapseExpandedOnly = false, onSectionSelect, patientId, extraTabs = [] }) {
   const [activeId, setActiveId] = useState("pastVisits");
+  // Extra (handwriting) tabs sit just above Private Notes so swipe order
+  // matches the rail: … Follow-ups, Referral, Private Notes.
+  const extraSeq = extraTabs.filter((id) => !BASE_NAV_SEQUENCE.includes(id));
+  const pnSeqIdx = BASE_NAV_SEQUENCE.indexOf("personalNotes");
+  const navSequence =
+  pnSeqIdx === -1 ?
+  [...BASE_NAV_SEQUENCE, ...extraSeq] :
+  [...BASE_NAV_SEQUENCE.slice(0, pnSeqIdx), ...extraSeq, ...BASE_NAV_SEQUENCE.slice(pnSeqIdx)];
   const { lastSignal, publishSignal, acknowledgeHistoricalSection, activeVoiceModule } = useRxPadSync();
   const lastSignalIdRef = useRef(0);
 
@@ -145,14 +154,14 @@ export function SecondarySidebar({ collapseExpandedOnly = false, onSectionSelect
     (dir) => {
       const current = activeIdRef.current;
       if (!current) return;
-      const target = neighbourSection(current, dir);
+      const target = neighbourSection(current, dir, navSequence);
       if (!target) return;
       setActiveId(target);
       publishSignal({ type: "section_focus", sectionId: target });
       acknowledgeHistoricalSection(target);
       onSectionSelect?.(target);
     },
-    [acknowledgeHistoricalSection, onSectionSelect, publishSignal]
+    [acknowledgeHistoricalSection, onSectionSelect, publishSignal, navSequence]
   );
 
   return (
@@ -162,7 +171,8 @@ export function SecondarySidebar({ collapseExpandedOnly = false, onSectionSelect
         active={activeId}
         onSelect={handleSelect}
         voiceActiveSection={voiceActiveSection}
-        voiceLockedLabel={activeVoiceModule} />
+        voiceLockedLabel={activeVoiceModule}
+        extraTabs={extraTabs} />
       {activeId && !collapseExpandedOnly ?
       <ContentPanel
         activeId={activeId}

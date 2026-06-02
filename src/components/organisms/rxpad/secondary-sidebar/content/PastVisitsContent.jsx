@@ -17,6 +17,7 @@ import {
   Import,
   Printer } from
 "iconsax-reactjs";
+import { ReferralIcon } from "@/src/components/organisms/rxpad/referral/ReferralIcon";
 import { MoreVertical } from "@/src/components/atoms/icons/lucide";
 
 // Custom stethoscope-with-circle glyph used on the doctor stamp.
@@ -792,6 +793,35 @@ function FollowUpSection({ followUp }) {
 
 }
 
+function ReferralSection({ referral }) {
+  // Read-only, like Follow-up. Referral is part of the printed Rx — shown
+  // here so it's visible when reviewing the past visit. No copy affordance.
+  if (!referral) return null;
+  const { specialty, doctor, doctorMeta, date, notes } = referral;
+  if (!specialty && !doctor && !date && !notes) return null;
+  return (
+    <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
+      <div className="flex h-[30px] w-full min-w-0 shrink-0 items-center gap-1.5 rounded-[4px] bg-tp-slate-100/70 px-2 py-[3px] mb-[4px]">
+        <ReferralIcon size={16} color="var(--tp-slate-500)" variant="bulk" />
+        <span className="flex min-h-0 min-w-0 flex-1 items-center text-left font-sans font-semibold text-tp-slate-500 text-[14px] leading-none">Referral</span>
+      </div>
+      <div className="pl-[6px] flex flex-col gap-[2px] font-sans text-[14px] leading-[20px] text-tp-slate-500">
+        {doctor ? (
+          <span>
+            <span className="font-semibold text-tp-slate-600">{doctor}</span>
+            {specialty ? ` (${specialty})` : ""}
+          </span>
+        ) : specialty ? (
+          <span className="font-semibold text-tp-slate-600">{specialty}</span>
+        ) : null}
+        {doctorMeta ? <span className="text-[12px]">{doctorMeta}</span> : null}
+        {date ? <span>Referral date: {date}</span> : null}
+        {notes ? <span>{notes}</span> : null}
+      </div>
+    </div>
+  );
+}
+
 function AdditionalNotesSection({ notes, onCopy }) {
   return (
     <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
@@ -1166,6 +1196,7 @@ export function PastVisitsContent() {
                         ) : null}
 
                         <FollowUpSection followUp={entry.digitalRx.followUp} />
+                        <ReferralSection referral={entry.digitalRx.referral} />
                       </> :
                     null}
 

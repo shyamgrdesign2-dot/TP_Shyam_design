@@ -7,7 +7,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/src/hooks/utils";
 import styles from "./NavPanel.module.scss";
-import { ArrowDown2, DocumentText, Eye, Note1, Ruler } from "iconsax-reactjs";
+import { ArrowDown2, Calendar2, DocumentText, Eye, Note1, Ruler } from "iconsax-reactjs";
+import { ReferralIcon } from "@/src/components/organisms/rxpad/referral/ReferralIcon";
 
 import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
 import { Tooltip as TPTooltip } from "@/src/components/atoms/Tooltip";
@@ -140,6 +141,11 @@ const NAV_META = {
   // Internal id stays `personalNotes` so existing localStorage prefs +
   // sync state keep working; display label updated to "Private Notes".
   personalNotes: { label: "Private Notes", icon: { kind: "iconsax", Icon: DocumentText } },
+  // Handwriting-only tabs (TabRx / SnapRx / SmartSync) — injected via the
+  // `extraTabs` prop, not the global sidebar config, so they never appear in
+  // VoiceRx / TypeRx (which capture follow-up + referral in the RxPad form).
+  followUps: { label: "Follow-ups", icon: { kind: "iconsax", Icon: Calendar2 } },
+  referral: { label: "Referral", icon: { kind: "iconsax", Icon: ReferralIcon } },
   drAgent: { label: "Dr Agent", icon: { kind: "iconsax", Icon: DocumentText } }
 };
 
@@ -275,12 +281,24 @@ function DrAgentItem({ active, onClick }) {
 
 
 
-export function NavPanel({ active, onSelect, voiceActiveSection, voiceLockedLabel }) {
+export function NavPanel({ active, onSelect, voiceActiveSection, voiceLockedLabel, extraTabs = [] }) {
   const { isHistoricalSectionUnseen } = useRxPadSync();
   const sidebarConfig = useSidebarConfig();
   const navItems = sidebarConfig.
   filter((item) => item.enabled && NAV_META[item.id]).
   map((item) => ({ id: item.id, ...NAV_META[item.id] }));
+  // Per-flow extra tabs (handwriting flows). Inserted just ABOVE Private Notes
+  // (which stays last as a free-form scratchpad): … Follow-ups, Referral,
+  // Private Notes. Deduped against the config so a tab can't render twice.
+  const configIds = new Set(navItems.map((i) => i.id));
+  const extraItems = extraTabs.
+  filter((id) => NAV_META[id] && !configIds.has(id)).
+  map((id) => ({ id, ...NAV_META[id] }));
+  const pnIndex = navItems.findIndex((i) => i.id === "personalNotes");
+  const allNavItems =
+  pnIndex === -1 ?
+  [...navItems, ...extraItems] :
+  [...navItems.slice(0, pnIndex), ...extraItems, ...navItems.slice(pnIndex)];
   const scrollRef = useRef(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
 
@@ -323,7 +341,7 @@ export function NavPanel({ active, onSelect, voiceActiveSection, voiceLockedLabe
         
         {/* Dr.Agent removed from sidebar nav — lives only in its own panel */}
 
-        {navItems.map(({ id, label, icon }) => {
+        {allNavItems.map(({ id, label, icon }) => {
           const isLockedTarget = voiceActiveSection != null && voiceActiveSection !== id;
           return (
             <NavItem

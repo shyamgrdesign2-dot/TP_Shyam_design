@@ -23,6 +23,8 @@ import { OptalContent } from "./content/OptalContent";
 import { MedicalRecordsContent } from "./content/MedicalRecordsContent";
 import { LabResultsContent } from "./content/LabResultsContent";
 import { PersonalNotesContent } from "./content/PersonalNotesContent";
+import { FollowUpsContent } from "./content/FollowUpsContent";
+import { ReferralContent } from "./content/ReferralContent";
 import { EmptyStateContent } from "./content/EmptyStateContent";
 import { patientHasEmptyHistory } from "@/src/components/organisms/rxpad/digitization/mock-payload";
 
@@ -49,8 +51,15 @@ const SECTION_TITLES = {
   medicalRecords: "Medical Records",
   labResults: "Lab Results",
   // Internal id stays `personalNotes`; visible header reads "Private Notes".
-  personalNotes: "Private Notes"
+  personalNotes: "Private Notes",
+  // Handwriting-flow tabs.
+  followUps: "Follow-up",
+  referral: "Referral"
 };
+
+// Tabs that are editable scratchpads (not patient history) — they keep their
+// editor even for first-time/walk-in patients with no prior records.
+const NON_HISTORY_SECTIONS = new Set(["personalNotes", "followUps", "referral"]);
 
 // ─── Section header (gradient bar) ───────────────────────────────────────────
 
@@ -166,7 +175,7 @@ function SectionContent({ activeId, patientId }) {
   // historical section shows the empty state with the Add/Edit + voice
   // CTA. Private Notes is the doctor's own scratchpad (not patient
   // history) so it keeps its normal editor.
-  if (patientHasEmptyHistory(patientId) && activeId !== "personalNotes") {
+  if (patientHasEmptyHistory(patientId) && !NON_HISTORY_SECTIONS.has(activeId)) {
     return <EmptyStateContent sectionLabel={SECTION_TITLES[activeId]} sectionId={activeId} />;
   }
 
@@ -183,6 +192,8 @@ function SectionContent({ activeId, patientId }) {
     case "medicalRecords":return <MedicalRecordsContent />;
     case "labResults":return <LabResultsContent />;
     case "personalNotes":return <PersonalNotesContent />;
+    case "followUps":return <FollowUpsContent />;
+    case "referral":return <ReferralContent />;
     default:return <EmptyStateContent sectionLabel={SECTION_TITLES[activeId]} />;
   }
 }

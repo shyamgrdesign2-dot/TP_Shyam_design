@@ -3,6 +3,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar2, Notepad2 } from "iconsax-reactjs";
 import { Plus } from "@/src/components/atoms/icons/lucide";
+import { ReferralFields } from "@/src/components/organisms/rxpad/referral/ReferralFields";
+import { ReferralIcon } from "@/src/components/organisms/rxpad/referral/ReferralIcon";
+import { EMPTY_REFERRAL, resolveReferral } from "@/src/components/organisms/rxpad/referral/referral-data";
 
 import {
   diagnosisSuggestions,
@@ -351,6 +354,12 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
   const [followUpDate, setFollowUpDate] = useState("");
   const [followUpNotes, setFollowUpNotes] = useState("");
 
+  // Referral — a fixed section below Follow-up. Specialty → Doctor (filtered)
+  // → date → notes. No template / clear / voice (selection-based, not
+  // dictation-friendly). Flows to the printed Rx only; never pushed to the
+  // historical sidebar.
+  const [referral, setReferral] = useState(EMPTY_REFERRAL);
+
   // Follow-up template handlers — same `useModuleTemplateHandlers`
   // hook the table-shaped modules (Symptoms, Medications, etc.) use,
   // adapted for the single-row date+notes shape so the doctor can save
@@ -495,7 +504,9 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
       customModules: customSnapshots,
       followUp: followUpNotes ?? "",
       followUpDate: followUpDate ?? "",
-      additionalNotes: additionalNotes ?? ""
+      additionalNotes: additionalNotes ?? "",
+      // Resolved labels (or null) so the print/preview can render directly.
+      referral: resolveReferral(referral)
     };
     saveRxPreviewSnapshot(patientId, snapshot);
   }, [
@@ -510,6 +521,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
   followUpDate,
   followUpNotes,
   additionalNotes,
+  referral,
   customModules,
   customRowsBumper]
   );
@@ -1522,6 +1534,17 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             </div>
           </div>
           </div>
+        </TPRxPadSection>
+
+        {/* Referral — fixed section below Follow-up. Specialty → Doctor →
+             date → notes. No template / clear / voice. Prints into the Rx. */}
+        <TPRxPadSection
+          title="Referral"
+          icon={<ReferralIcon size={24} variant="bulk" color="var(--tp-violet-500)" />}
+          showHeaderActions={false}
+          moduleId="referral">
+
+          <ReferralFields value={referral} onChange={setReferral} />
         </TPRxPadSection>
       </div>
 

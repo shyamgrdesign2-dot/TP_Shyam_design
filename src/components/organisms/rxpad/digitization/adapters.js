@@ -276,6 +276,9 @@ export function pastVisits(history) {
       medications: p.medications.map(medicationToItem),
       advice: Array.isArray(p.advice) ? p.advice : (p.advice ? [p.advice] : []),
       followUp: p.followUp ? `After ${p.followUp}` : "",
+      // Resolved referral object (or null). Read-only in the past-visit Rx;
+      // never surfaced as a historical sidebar update.
+      referral: p.referral ?? null,
       labInvestigations: p.labInvestigation.map((li) => li.name).filter(Boolean),
       vitals: {
         bpSystolic: p.vitalsAndBodyComposition.systolic || undefined,

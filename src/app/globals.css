@@ -1865,3 +1865,13 @@ body[data-voice-lock="on"] :is(input, textarea,
   .ai-spark-thinking > img { animation: none; }
 }
 
+/* Native date input: show the dd/mm/yyyy hint in a lighter neutral colour
+   while empty (matching text-input placeholders), and the normal body colour
+   once a date is picked. WebKit/Chromium. */
+input[type="date"].tp-date-muted::-webkit-datetime-edit {
+  color: var(--tp-slate-700);
+}
+input[type="date"].tp-date-muted[data-empty="true"]::-webkit-datetime-edit {
+  color: var(--tp-slate-400);
+}
+

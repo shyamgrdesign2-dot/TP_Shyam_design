@@ -569,6 +569,11 @@ export function DrAgentPage() {
     router.push(url);
   }
 
+  function openTabRx(patientId) {
+    const url = patientId ? `/rxpad/tab?patientId=${encodeURIComponent(patientId)}` : "/rxpad/tab";
+    router.push(url);
+  }
+
   function openPrintPreview(patientId) {
     const url = patientId ?
     `/print-preview?patientId=${encodeURIComponent(patientId)}` :
@@ -1016,7 +1021,7 @@ export function DrAgentPage() {
                                       { id: "type-rx", label: "TypeRx", onClick: () => openTypeRx(row.id) },
                                       { id: "snap-rx", label: "SnapRx", onClick: () => {} },
                                       { id: "smart-sync", label: "SmartSync", onClick: () => {} },
-                                      { id: "tab-rx", label: "TabRx", onClick: () => {} }]
+                                      { id: "tab-rx", label: "TabRx", onClick: () => openTabRx(row.id) }]
                                       }
                                       variant="outline"
                                       theme="primary"

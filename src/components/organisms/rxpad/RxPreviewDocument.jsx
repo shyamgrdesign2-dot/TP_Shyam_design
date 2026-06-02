@@ -4,6 +4,7 @@ import { Building2 } from "@/src/components/atoms/icons/lucide";
 import { Calendar2, Notepad2 } from "iconsax-reactjs";
 
 import { RX_CONTEXT_OPTIONS } from "@/src/components/organisms/rxpad/dr-agent/constants";
+import { ReferralPrintBlock } from "@/src/components/organisms/rxpad/referral/ReferralPrintBlock";
 
 
 /**
@@ -168,6 +169,7 @@ export function RxPreviewDocument({ snapshot }) {
               null}
                 </section> :
             null}
+              <ReferralPrintBlock referral={snapshot.referral} />
               {snapshot.additionalNotes ?
             <section className="flex flex-col gap-[2px]">
                   <h3 className="flex items-center gap-[5px] text-[14px] font-semibold leading-[18px] text-tp-slate-900">
