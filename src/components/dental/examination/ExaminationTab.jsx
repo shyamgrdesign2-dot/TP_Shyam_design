@@ -3312,7 +3312,7 @@ function SurfaceCellDropdown({
                 </button>
               </li>
               <li className={ui.surfaceListRule} />
-              {activeSurfaces.map((z) => {
+              {activeSurfaces.filter((z) => z !== "whole").map((z) => {
                 const checked = shown.includes(z);
                 const label = getZoneLabel(z, arch, toothPosition);
                 return (
@@ -3396,7 +3396,7 @@ function SinceDropdown({
   const options = useMemo(() => {
     return internalValue && internalValue.match(/\d+/) ?
       getDynamicSinceOptions(internalValue) :
-      ["1 hour", "1 day", "1 week", "1 year"];
+      ["1 hour", "1 day", "1 week", "1 month", "1 year"];
   }, [internalValue]);
   useEffect(() => {
     if (!open) {
@@ -3657,7 +3657,8 @@ function SymptomSurfacePicker({
       selected.has(z) ? surfaces.filter((s) => s !== z) : [...surfaces, z]
     );
   };
-  const optionsList = mode === "symptom" ? activeSurfaces : ["whole", ...activeSurfaces];
+  const surfaceOptions = activeSurfaces.filter((z) => z !== "whole");
+  const optionsList = mode === "symptom" ? activeSurfaces : ["whole", ...surfaceOptions];
   return (
     <>
       <button
@@ -3720,58 +3721,69 @@ function SymptomSurfacePicker({
             }}>
 
             <ul className={ui.surfaceZoneList}>
-              {optionsList.map((z) => {
+              {optionsList.map((z, idx) => {
                 let checked = selected.has(z);
                 let label = getZoneLabel(z, arch, toothPosition);
                 let color = ZONE_INFO[z]?.color || "#888";
                 if (z === "whole") {
-                  label = "Whole Tooth";
+                  label = "Whole tooth";
                   color = "#64748b";
                   if (mode !== "treatment") {
-                    checked = activeSurfaces.every((az) => selected.has(az));
+                    checked = surfaceOptions.every((az) => selected.has(az));
                   }
                 }
                 return (
-                  <li>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        toggle(z);
-                      }}
-                      className={ui.surfaceZoneBtn}>
+                  <React.Fragment key={z}>
+                    <li>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          toggle(z);
+                        }}
+                        className={ui.surfaceZoneBtn}>
 
-                      <span
-                        className={`${ui.surfaceCheck} ${checked ? ui.surfaceCheckOn : ""
-                          }`}>
+                        <span
+                          className={`${ui.surfaceCheck} ${checked ? ui.surfaceCheckOn : ""
+                            }`}>
 
-                        {checked &&
-                          <svg
-                            width="8"
-                            height="8"
-                            viewBox="0 0 24 24"
-                            fill="none">
+                          {checked &&
+                            <svg
+                              width="8"
+                              height="8"
+                              viewBox="0 0 24 24"
+                              fill="none">
 
-                            <path
-                              d="M6 12l4.5 4.5L18 7.5"
-                              stroke="#fff"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round" />
+                              <path
+                                d="M6 12l4.5 4.5L18 7.5"
+                                stroke="#fff"
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round" />
 
-                          </svg>}
+                            </svg>}
 
-                      </span>
-                      <span
-                        className={ui.surfaceDot8}
+                        </span>
+                        <span
+                          className={ui.surfaceDot8}
+                          style={{
+                            background: color
+                          }} />
+
+
+                        <span className={ui.surfaceMenuLabel}>{label}</span>
+                      </button>
+                    </li>
+                    {z === "whole" && mode !== "symptom" &&
+                      <li
+                        aria-hidden={true}
                         style={{
-                          background: color
-                        }} />
-
-
-                      <span className={ui.surfaceMenuLabel}>{label}</span>
-                    </button>
-                  </li>);
+                          height: 1,
+                          background: "#e2e8f0",
+                          margin: "4px 0",
+                          listStyle: "none"
+                        }} />}
+                  </React.Fragment>);
 
               })}
             </ul>
@@ -4680,16 +4692,6 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
   };
 
   const shownPills = value;
-  const pillStyle = {
-    fontSize: 12,
-    fontWeight: 600,
-    padding: "2px 8px",
-    borderRadius: 999,
-    background: "rgba(164,97,216,0.14)",
-    color: "#703A9E",
-    whiteSpace: "nowrap",
-    flexShrink: 0
-  };
 
   const tooltipTitle = value.length === 0 ? "" : value.map((v) => ORAL_POSITION_LABEL[v] || v).join(", ");
 
@@ -4711,7 +4713,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
             ) : (
               <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, rowGap: 4, minWidth: 0 }}>
                 {shownPills.map((v) => (
-                  <span key={v} style={pillStyle}>
+                  <span key={v} className={ui.pillStyle}>
                     {oralPositionShort(v)}
                   </span>
                 ))}
@@ -5382,20 +5384,6 @@ export function OralRecordsList({ state }) {
   const procs = entries.filter((e) => e.kind === "procedure").map((e) => e.name);
   const overallNotes = (state?.oralNotes || "").trim();
 
-  const itemTagStyle = {
-    display: "inline-flex",
-    alignItems: "center",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#703A9E",
-    background: "rgba(164,97,216,0.16)",
-    padding: "3px 8px",
-    borderRadius: 6,
-    lineHeight: 1.4,
-    whiteSpace: "nowrap",
-    cursor: "default"
-  };
-
   const fire = (detail) => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("oral-tags-filter", { detail }));
@@ -5458,7 +5446,7 @@ export function OralRecordsList({ state }) {
             {items.map((it, i) => (
               <span
                 key={`${key}-${i}`}
-                style={itemTagStyle}
+                className={ui.itemTagStyle}
                 title={it}
                 onMouseEnter={(ev) => {
                   ev.stopPropagation();

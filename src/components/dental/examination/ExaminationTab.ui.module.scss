@@ -529,6 +529,7 @@
   font-size: 14px;
   font-weight: 600;
   vertical-align: bottom;
+  color: #703A9E !important;
 }
 
 .pillSegmentSep {
@@ -2355,3 +2356,27 @@
   max-width: 240px;
 }
 
+.pillStyle {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(164,97,216,0.14) !important;
+  color: #703A9E !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.itemTagStyle {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #703A9E !important;
+  background: rgba(164,97,216,0.16) !important;
+  padding: 3px 8px;
+  border-radius: 6px;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: default;
+}

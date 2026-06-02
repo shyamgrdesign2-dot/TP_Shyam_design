@@ -508,7 +508,7 @@
   padding: 2px 7px;
   border-radius: 4px;
   background: rgba(107, 114, 128, 0.78);
-  color: #fff;
+  color: #fff !important;
   font-family: Inter, sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -602,8 +602,8 @@
   line-height: 1.35;
 }
 
-.oral-tag-row-name { font-weight: 700; }
-.oral-tag-row-meta { color: #cbd5e1; font-weight: 400; }
+.oral-tag-row-name { font-weight: 700; color: #f1f5f9 !important; }
+.oral-tag-row-meta { color: #cbd5e1 !important; font-weight: 400; }
 
 /* ── Scope Hotspot button (ScopeHotspot in DentitionView) ───────────────── */
 .scope-hotspot-btn {
