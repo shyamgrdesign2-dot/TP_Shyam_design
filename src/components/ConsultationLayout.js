@@ -162,6 +162,7 @@ import {
   setJoinToken,
 } from "../redux/teleconsultNotificationSlice";
 import { saveDentalExamination } from "../redux/dentalExaminationSlice";
+import { saveOralExaminationThunk, patchOralExaminationThunk } from "../redux/oralExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
@@ -268,6 +269,7 @@ function ConsultationLayout({ children, headerProps }) {
     (state) => state.customModules,
   );
   const dentalExamination = useSelector((state) => state.dentalExamination);
+  const oralExamination = useSelector((state) => state.oralExamination);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
   const isGroundingAccessableForZydus =
@@ -1765,6 +1767,48 @@ function ConsultationLayout({ children, headerProps }) {
           }));
         } catch (dentalErr) {
           console.warn("[Dental] Save failed before end visit:", dentalErr);
+        }
+      }
+
+      // Save oral examination before ending visit when on dental route
+      if (location.pathname === "/dental" && patientId) {
+        const canvasOralEntries = oralExamination?.canvasOralEntries || [];
+        const canvasOralNotes = oralExamination?.canvasOralNotes || "";
+        const hasOralData = canvasOralEntries.length > 0 || canvasOralNotes.trim().length > 0;
+        if (hasOralData) {
+          try {
+            const oralData = {
+              findings: canvasOralEntries
+                .filter((e) => e.kind === "finding")
+                .map((e) => ({ id: e.id, name: e.name, area: e.surfaces || [], since_date: e.since || undefined, notes: e.note || "" })),
+              procedures: canvasOralEntries
+                .filter((e) => e.kind === "procedure")
+                .map((e) => ({ id: e.id, name: e.name, area: e.surfaces || [], procedure_date: e.since || undefined, status: e.status || "PLANNED", notes: e.note || "" })),
+              treatment_history: canvasOralEntries
+                .filter((e) => e.kind === "past")
+                .map((e) => ({ id: e.id, name: e.name, area: e.surfaces || [], since_date: e.since || undefined, notes: e.note || "" })),
+              overall_notes: canvasOralNotes,
+            };
+            const version = oralExamination?.version || 0;
+            if (version === 0) {
+              await dispatch(saveOralExaminationThunk({ patientId, data: oralData }));
+            } else {
+              await dispatch(patchOralExaminationThunk({
+                patientId,
+                data: {
+                  version,
+                  operations: [
+                    { type: "UPSERT_ORAL_FINDINGS", findings: oralData.findings },
+                    { type: "UPSERT_ORAL_PROCEDURES", procedures: oralData.procedures },
+                    { type: "UPSERT_ORAL_TREATMENT_HISTORY", treatment_history: oralData.treatment_history },
+                    { type: "UPSERT_ORAL_NOTES", overall_notes: oralData.overall_notes },
+                  ],
+                },
+              }));
+            }
+          } catch (oralErr) {
+            console.warn("[Oral] Save failed before end visit:", oralErr);
+          }
         }
       }
 

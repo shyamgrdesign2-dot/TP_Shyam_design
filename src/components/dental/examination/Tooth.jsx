@@ -2019,6 +2019,8 @@ export function Tooth({
     arch,
     quadrant,
     toothPosition,
+    toothFdi,
+    mirrorX,
     modelPath,
     hasImplant,
     isMissingOrExtraction,
@@ -2026,7 +2028,6 @@ export function Tooth({
     hasRCT,
     hasBridge,
     hasDenture,
-    treatmentHistoryDetails,
   ]);
   // Store current zone indices + finding flags in a ref so useFrame always has latest values
   const zoneIndicesRef = useRef({

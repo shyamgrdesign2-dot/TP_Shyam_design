@@ -65,6 +65,9 @@ import { TPMedicalIcon, TPTooltip, TPCheckbox } from "../tp-ui";
 import { saveDentalPreviewSnapshot } from "../tp-rxpad/rx-preview-store";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { useDentalExamination } from "../lib/useDentalExamination";
+import { useOralExamination } from "../../../hooks/useOralExamination";
+import { syncOralCanvasState } from "../../../redux/oralExaminationSlice";
+import { useDispatch } from "react-redux";
 import ex from "./ExaminationTab.module.scss";
 import ui from "./ExaminationTab.ui.module.scss";
 import { useBillingCatalog } from "../lib/useBillingCatalog";
@@ -273,29 +276,90 @@ function toDentalPreviewSections(state) {
   );
 }
 export function ExaminationTab({ patientId, patientAge = 30 }) {
+  const dispatch = useDispatch();
   const { syncState, toothState, version, loading, saveChart } = useDentalExamination(patientId);
+  const {
+    findings: oralFindings,
+    procedures: oralProcedures,
+    treatmentHistory: oralTreatmentHistory,
+    overallNotes: oralOverallNotes,
+    loading: oralLoading,
+    saving: oralSaving,
+    saveOralExam,
+  } = useOralExamination(patientId);
   const [canvasState, setCanvasState] = useState(null);
 
-  // Transform Redux state back to the structure DentalCanvas expects for initialization
+  // Transform Redux state back to the structure DentalCanvas expects for initialization.
+  // Returns null while either fetch is in-flight so the single hydration event in
+  // useDentalCanvasInteraction always receives complete dental + oral data together.
   const initialCanvasData = useMemo(() => {
-    if (!toothState || Object.keys(toothState).length === 0) return null;
+    if (loading || oralLoading) return null;
+
+    const hasDentalData = toothState && Object.keys(toothState).length > 0;
+    const hasOralData =
+      oralFindings.length > 0 ||
+      oralProcedures.length > 0 ||
+      oralTreatmentHistory.length > 0 ||
+      oralOverallNotes;
+
+    if (!hasDentalData && !hasOralData) return null;
+
     const out = {
       toothDiagnoses: {},
       implantTeeth: [],
       findingsByTooth: {},
       toothNotes: {},
-      treatmentHistoryDetailsByTooth: {}
+      treatmentHistoryDetailsByTooth: {},
+      oralEntries: [
+        ...oralTreatmentHistory.map((h) => ({
+          id: h.id,
+          kind: "past",
+          name: h.name,
+          surfaces: h.area || [],
+          since: h.since_date || "",
+          note: h.notes || "",
+        })),
+        ...oralFindings.map((f) => ({
+          id: f.id,
+          kind: "finding",
+          name: f.name,
+          surfaces: f.area || [],
+          since: f.since_date || "",
+          note: f.notes || "",
+        })),
+        ...oralProcedures.map((p) => ({
+          id: p.id,
+          kind: "procedure",
+          name: p.name,
+          surfaces: p.area || [],
+          since: p.procedure_date || "",
+          status: p.status,
+          note: p.notes || "",
+        })),
+      ],
+      oralNotes: oralOverallNotes || "",
     };
 
-    Object.entries(toothState).forEach(([fdi, data]) => {
-      if (data.diagnoses) out.toothDiagnoses[fdi] = data.diagnoses;
-      if (data.isImplant) out.implantTeeth.push(fdi);
-      if (data.findings) out.findingsByTooth[fdi] = data.findings;
-      if (data.notes) out.toothNotes[fdi] = data.notes;
-      if (data.treatmentHistory) out.treatmentHistoryDetailsByTooth[fdi] = data.treatmentHistory;
-    });
+    if (hasDentalData) {
+      Object.entries(toothState).forEach(([fdi, data]) => {
+        if (data.diagnoses) out.toothDiagnoses[fdi] = data.diagnoses;
+        if (data.isImplant) out.implantTeeth.push(fdi);
+        if (data.findings) out.findingsByTooth[fdi] = data.findings;
+        if (data.notes) out.toothNotes[fdi] = data.notes;
+        if (data.treatmentHistory) out.treatmentHistoryDetailsByTooth[fdi] = data.treatmentHistory;
+      });
+    }
+
     return out;
-  }, [toothState]);
+  }, [loading, oralLoading, toothState, oralFindings, oralProcedures, oralTreatmentHistory, oralOverallNotes]);
+
+  const handleSaveOralExam = useCallback(async () => {
+    if (!canvasState) return;
+    await saveOralExam({
+      canvasOralEntries: canvasState.oralEntries,
+      canvasOralNotes: canvasState.oralNotes,
+    });
+  }, [canvasState, saveOralExam]);
 
   // Sync canvas state to Redux for global "End Visit" access
   useEffect(() => {
@@ -344,7 +408,12 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
     }
 
     syncState({ toothState: newToothState, dentitionType: canvasState.patientType });
-  }, [canvasState, syncState]);
+
+    dispatch(syncOralCanvasState({
+      canvasOralEntries: canvasState.oralEntries || [],
+      canvasOralNotes: canvasState.oralNotes || "",
+    }));
+  }, [canvasState, syncState, dispatch]);
 
   const isSingle = canvasState?.viewMode === "single-tooth";
   const isOral = canvasState?.viewMode === "oral";
@@ -567,7 +636,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
             {isOral && canvasState ?
               <div className={ex.singleCol}>
                 <div className={ex.singleCard}>
-                  <OralExamPanel state={canvasState} />
+                  <OralExamPanel state={canvasState} onSave={handleSaveOralExam} saving={oralSaving} />
                 </div>
               </div> :
               isSingle && canvasState ?
@@ -1516,7 +1585,7 @@ function SingleToothPanel({ state, onSave }) {
                     </AlertDialogTitle>
                   </div>
                   <AlertDialogDescription className={ui.clearDialogDesc}>
-                    This will remove all treatment history, findings,
+                    This will remove all past procedures, findings,
                     procedures, and notes for{" "}
                     <span className={ui.clearDialogStrong}>
                       {entityLabel} ({entityBadge})
@@ -1650,7 +1719,7 @@ function SingleToothPanel({ state, onSave }) {
             onExpand={() => jumpTo("procedures")}
             header={
               <SectionHeader
-                title="Treatment History"
+                title="Past Procedures"
                 count={diagnosisCount + procedureCount}
                 medicalIcon="clipboard-activity"
                 onTemplate={
@@ -4407,7 +4476,7 @@ function PrimaryDiagnosisBody({ state }) {
               }
               if (!alreadyHasTypedTreatmentLabel) addDiagnosis(queryTrim);
             }}
-            placeholder="Search & Add Treatment History"
+            placeholder="Search & add past procedure"
             className={ui.searchInput} />
 
 
@@ -5075,7 +5144,7 @@ function OralTable({ state, kind, catalog, list }) {
 // ──────────────────────────────────────────────────────────────
 // OralExamPanel — sidebar accordions for Findings, Past work, etc.
 // ──────────────────────────────────────────────────────────────
-export function OralExamPanel({ state }) {
+export function OralExamPanel({ state, onSave, saving }) {
   const entries = Array.isArray(state.oralEntries) ? state.oralEntries : [];
   const pastProcedures = entries.filter((e) => e.kind === "past");
   const findings = entries.filter((e) => e.kind === "finding");
@@ -5128,7 +5197,12 @@ export function OralExamPanel({ state }) {
             <button type="button" className={ui.panelIconBtn} title="Template">
               <Grid5 color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
             </button>
-            <button type="button" className={ui.panelIconBtn} title="Save">
+            <button
+              type="button"
+              className={ui.panelIconBtn}
+              title="Save oral examination"
+              onClick={onSave}
+              disabled={saving}>
               <Ram color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
             </button>
             <button

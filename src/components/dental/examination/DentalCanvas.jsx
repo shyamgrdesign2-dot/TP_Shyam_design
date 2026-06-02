@@ -5,7 +5,7 @@
  * useDentalCanvasInteraction; all scene/camera R3F components live in
  * useThreeDentalScene (CameraController, ZoneCameraRotator).
  */
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Tooth } from "./Tooth";
@@ -141,6 +141,11 @@ export function DentalCanvas({
     enterOralExam,
     setOralHighlight
   } = interaction;
+
+  const toothEntriesForTooth = useMemo(
+    () => currentToothEntries.map((e) => ({ kind: e.kind, name: e.name, surfaces: e.surfaces })),
+    [currentToothEntries]
+  );
 
   const isDentitionView = viewMode === "dentition";
 
@@ -530,11 +535,7 @@ export function DentalCanvas({
                   multiSelectActive={multiSelectActive}
                   hideTags={true}
                   treatmentHistoryDetails={currentTreatmentHistoryDetails}
-                  toothEntries={currentToothEntries.map((e) => ({
-                    kind: e.kind,
-                    name: e.name,
-                    surfaces: e.surfaces
-                  }))}
+                  toothEntries={toothEntriesForTooth}
                 />
               </group>
             )}
