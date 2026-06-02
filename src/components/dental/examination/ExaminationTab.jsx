@@ -290,17 +290,18 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
   const [canvasState, setCanvasState] = useState(null);
 
   // Transform Redux state back to the structure DentalCanvas expects for initialization.
-  // Returns null while either fetch is in-flight so the single hydration event in
-  // useDentalCanvasInteraction always receives complete dental + oral data together.
+  // Only blocks on dental loading; oral entries are included once oral loading completes.
   const initialCanvasData = useMemo(() => {
-    if (loading || oralLoading) return null;
+    // Only block on dental loading — oral data arrives independently and is added once ready.
+    if (loading) return null;
 
     const hasDentalData = toothState && Object.keys(toothState).length > 0;
     const hasOralData =
-      oralFindings.length > 0 ||
-      oralProcedures.length > 0 ||
-      oralTreatmentHistory.length > 0 ||
-      oralOverallNotes;
+      !oralLoading &&
+      (oralFindings.length > 0 ||
+        oralProcedures.length > 0 ||
+        oralTreatmentHistory.length > 0 ||
+        !!oralOverallNotes);
 
     if (!hasDentalData && !hasOralData) return null;
 
@@ -310,7 +311,11 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
       findingsByTooth: {},
       toothNotes: {},
       treatmentHistoryDetailsByTooth: {},
-      oralEntries: [
+      allEntries: [],
+      // Oral entries are only populated once oral loading is complete; empty array during oral loading
+      // prevents the API hydration guard from consuming the "first non-null initialData" slot with
+      // empty oral data, leaving no chance for the real oral data to hydrate later.
+      oralEntries: oralLoading ? [] : [
         ...oralTreatmentHistory.map((h) => ({
           id: h.id,
           kind: "past",
@@ -337,7 +342,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
           note: p.notes || "",
         })),
       ],
-      oralNotes: oralOverallNotes || "",
+      oralNotes: oralLoading ? "" : (oralOverallNotes || ""),
     };
 
     if (hasDentalData) {
@@ -347,6 +352,33 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
         if (data.findings) out.findingsByTooth[fdi] = data.findings;
         if (data.notes) out.toothNotes[fdi] = data.notes;
         if (data.treatmentHistory) out.treatmentHistoryDetailsByTooth[fdi] = data.treatmentHistory;
+
+        // Findings → allEntries (kind="finding") so the Findings accordion list is populated
+        (data.findings || []).forEach((f) => {
+          out.allEntries.push({
+            id: f.id,
+            toothFdi: fdi,
+            kind: "finding",
+            name: f.type,
+            surfaces: [f.zoneId || "whole"],
+            notes: f.notes || "",
+            since: f.since_date || "",
+          });
+        });
+
+        // Procedures → allEntries (kind="planned") so the Procedures accordion list is populated
+        (data.procedures || []).forEach((p) => {
+          out.allEntries.push({
+            id: p.id,
+            toothFdi: fdi,
+            kind: "planned",
+            name: p.name,
+            surfaces: p.surface_codes || ["whole"],
+            status: p.status || "planned",
+            notes: p.notes || "",
+            plannedDate: p.procedure_date || "",
+          });
+        });
       });
     }
 
@@ -404,6 +436,22 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
       Object.entries(canvasState.treatmentHistoryDetailsByTooth).forEach(([fdi, history]) => {
         if (!newToothState[fdi]) newToothState[fdi] = {};
         newToothState[fdi].treatmentHistory = history;
+      });
+    }
+
+    // 6. allEntries: clinical findings + planned procedures from SingleToothPanel EntryTab
+    if (canvasState.allEntries?.length) {
+      canvasState.allEntries.forEach((entry) => {
+        const fdi = entry.toothFdi;
+        if (!fdi) return;
+        if (!newToothState[fdi]) newToothState[fdi] = {};
+        if (entry.kind === "finding") {
+          if (!newToothState[fdi].entryFindings) newToothState[fdi].entryFindings = [];
+          newToothState[fdi].entryFindings.push(entry);
+        } else if (entry.kind === "procedure" || entry.kind === "planned") {
+          if (!newToothState[fdi].procedures) newToothState[fdi].procedures = [];
+          newToothState[fdi].procedures.push(entry);
+        }
       });
     }
 
@@ -2295,11 +2343,12 @@ function EntryTab({ state, kind }) {
                   }} />
 
 
-                <col
-                  style={{
-                    width: 120,
-                    minWidth: 110
-                  }} />
+                {(kind === "finding" || kind === "symptom") &&
+                  <col
+                    style={{
+                      width: 120,
+                      minWidth: 110
+                    }} />}
 
 
                 {hasStatus &&
@@ -2330,9 +2379,8 @@ function EntryTab({ state, kind }) {
                   <th className={ui.thCenter} />
                   <th className={ui.th}>NAME</th>
                   <th className={ui.th}>SURFACES</th>
-                  <th className={ui.th}>
-                    {kind === "finding" ? "SINCE" : "DATE"}
-                  </th>
+                  {(kind === "finding" || kind === "symptom") &&
+                    <th className={ui.th}>SINCE</th>}
                   {hasStatus && <th className={ui.th}>STATUS</th>}
                   <th className={ui.th}>NOTE</th>
                   <th className={ui.thSticky} />
@@ -2341,10 +2389,9 @@ function EntryTab({ state, kind }) {
               <tbody>
                 {entries.map((e) => {
                   const isSurfaceActive = isCellActive(e.id, "surfaces");
-                  const isDateActive = isCellActive(
-                    e.id,
-                    kind === "finding" || kind === "symptom" ? "since" : "date"
-                  );
+                  const isDateActive = (kind === "finding" || kind === "symptom")
+                    ? isCellActive(e.id, "since")
+                    : false;
                   const isStatusActive = isCellActive(e.id, "status");
                   const isNoteActive = isCellActive(e.id, "note");
                   const activateSurfaceCell = () => {
@@ -2427,15 +2474,15 @@ function EntryTab({ state, kind }) {
                           multiSelectZones={state.multiSelectZones} />
 
                       </td>
-                      <td
-                        className={`${ui.td} ${ui.tdRel} ${isDateActive ? ui.tdActive : ui.tdHover
-                          }`}
-                        onClick={(ev) => ev.stopPropagation()}>
+                      {(kind === "finding" || kind === "symptom") &&
+                        <td
+                          className={`${ui.td} ${ui.tdRel} ${isDateActive ? ui.tdActive : ui.tdHover
+                            }`}
+                          onClick={(ev) => ev.stopPropagation()}>
 
-                        {isDateActive ?
-                          <span className={ui.cellFocusRing} /> :
-                          null}
-                        {kind === "finding" || kind === "symptom" ?
+                          {isDateActive ?
+                            <span className={ui.cellFocusRing} /> :
+                            null}
                           <SinceDropdown
                             value={e.since ?? ""}
                             onChange={(v) =>
@@ -2445,42 +2492,9 @@ function EntryTab({ state, kind }) {
 
                             onFocusActivate={() => setCellActive(e.id, "since")}
                             onBlurDeactivate={() =>
-                              clearCellActive(e.id, "since")} /> :
+                              clearCellActive(e.id, "since")} />
 
-
-
-                          <div className={ui.dateCellInner}>
-                            {!e.plannedDate &&
-                              <div className={ui.datePlaceholderRow}>
-                                <span className={ui.datePlaceholderText}>
-                                  DD/MM/YYYY
-                                </span>
-                                <Calendar
-                                  size={14}
-                                  color="#94a3b8"
-                                  variant="Linear" />
-
-                              </div>}
-
-
-                            <input
-                              type="date"
-                              value={e.plannedDate ?? ""}
-                              onChange={(ev) =>
-                                state.onUpdateEntry(e.id, {
-                                  plannedDate: ev.target.value || undefined
-                                })}
-
-                              onFocus={() => setCellActive(e.id, "date")}
-                              onBlur={() => clearCellActive(e.id, "date")}
-                              className={`${ui.dateInput} ${e.plannedDate ?
-                                  ui.dateInputFilled :
-                                  ui.dateInputEmpty
-                                }`} />
-
-                          </div>}
-
-                      </td>
+                        </td>}
                       {hasStatus &&
                         <td
                           className={`${ui.td} ${ui.tdRel} ${isStatusActive ? ui.tdActive : ""

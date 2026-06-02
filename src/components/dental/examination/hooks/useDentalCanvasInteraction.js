@@ -211,6 +211,7 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
 
   const hydratedStoragePatientIdRef = useRef(null);
   const hydratedApiPatientIdRef = useRef(null);
+  const hydratedOralApiPatientIdRef = useRef(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const [, setHoveredZone] = useState(null);
   const [findingsByTooth, setFindingsByTooth] = useState(initialFindings);
@@ -219,7 +220,9 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
   const [implantTeeth, setImplantTeeth] = useState(initialImplants);
   const [toothDiagnoses, setToothDiagnoses] = useState(initialToothDiagnoses);
   const [toothNotes, setToothNotes] = useState({});
-  const [allEntries, setAllEntries] = useState([]);
+  const [allEntries, setAllEntries] = useState(
+    () => Array.isArray(initialState?.allEntries) ? initialState.allEntries : []
+  );
   const [oralEntries, setOralEntries] = useState(() => Array.isArray(initialState?.oralEntries) ? initialState.oralEntries : []);
   const [oralNotes, setOralNotes] = useState(() => initialState?.oralNotes ?? "");
   const [oralHighlightFdis, setOralHighlightFdis] = useState(() => new Set());
@@ -256,7 +259,7 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     }
   }, [selectionScope.fdis.length, selectedTooth]);
 
-  // ── Hydrate all canvas state from API initialData (arrives after first fetch) ─
+  // ── Hydrate dental canvas state from API initialData (one-time per patient) ──
   useEffect(() => {
     if (!initialData || hydratedApiPatientIdRef.current === patientId) return;
     hydratedApiPatientIdRef.current = patientId;
@@ -330,10 +333,18 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
       });
     }
 
+  }, [initialData, patientId]);
+
+  // ── Hydrate oral entries from API initialData (fires once oral data is available) ─
+  // Separate from the dental hydration so that oral entries arriving after dental
+  // (due to independent fetch timing) are not blocked by the dental hydration guard.
+  useEffect(() => {
+    if (!initialData || hydratedOralApiPatientIdRef.current === patientId) return;
     const rawOralEntries = initialData.oralEntries;
-    if (Array.isArray(rawOralEntries)) {
-      setOralEntries(rawOralEntries);
-    }
+    // Only hydrate once we have actual oral data (non-empty array)
+    if (!Array.isArray(rawOralEntries) || rawOralEntries.length === 0) return;
+    hydratedOralApiPatientIdRef.current = patientId;
+    setOralEntries(rawOralEntries);
     const rawOralNotes = initialData.oralNotes;
     if (typeof rawOralNotes === "string") {
       setOralNotes(rawOralNotes);

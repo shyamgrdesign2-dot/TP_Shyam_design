@@ -29,6 +29,9 @@ export const transformToothStateToApi = (toothState) => {
 
   return Object.entries(toothState).map(([fdi, data]) => {
     const findings = Array.isArray(data.findings) ? data.findings : [];
+    // entryFindings: clinical findings added via SingleToothPanel EntryTab (kind="finding" in allEntries)
+    const entryFindings = Array.isArray(data.entryFindings) ? data.entryFindings : [];
+    const procedures = Array.isArray(data.procedures) ? data.procedures : [];
 
     // Primary diagnosis chips (Missing, Crown, RCT…) serialized as treatment_history entries
     // with DX_MARKER in notes so they can be round-tripped back to toothDiagnoses on load.
@@ -50,10 +53,11 @@ export const transformToothStateToApi = (toothState) => {
           notes: details.note || "",
         }));
 
-    return {
-      tooth_code: fdi,
-      quadrant: getQuadrantCode(fdi),
-      findings: findings.map((f) => {
+    // Combine canvas zone findings and EntryTab text findings, deduplicating by id
+    // to prevent duplicates when the same finding is hydrated into both paths on load.
+    const seenFindingIds = new Set();
+    const combinedFindings = [
+      ...findings.map((f) => {
         const since = sinceToDate(f.since_date || "");
         return {
           ...(f.id ? { id: f.id } : {}),
@@ -63,7 +67,29 @@ export const transformToothStateToApi = (toothState) => {
           ...(since ? { since_date: since } : {}),
         };
       }),
-      procedures: [],
+      ...entryFindings.map((f) => ({
+        ...(f.id ? { id: f.id } : {}),
+        name: f.name,
+        surface_codes: f.surfaces?.length ? f.surfaces : ["whole"],
+        notes: f.notes || "",
+      })),
+    ].filter((f) => {
+      if (f.id && seenFindingIds.has(f.id)) return false;
+      if (f.id) seenFindingIds.add(f.id);
+      return true;
+    });
+
+    return {
+      tooth_code: fdi,
+      quadrant: getQuadrantCode(fdi),
+      findings: combinedFindings,
+      procedures: procedures.map((p) => ({
+        ...(p.id ? { id: p.id } : {}),
+        name: p.name,
+        surface_codes: p.surfaces?.length ? p.surfaces : ["whole"],
+        status: (p.status || "PLANNED").toUpperCase(),
+        notes: p.notes || "",
+      })),
       treatment_history: [
         ...diagEntries,
         ...historyEntries.map((h) => {
