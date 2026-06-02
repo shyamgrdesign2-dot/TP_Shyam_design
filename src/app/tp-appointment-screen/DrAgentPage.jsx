@@ -560,7 +560,7 @@ export function DrAgentPage() {
   };
 
   function openTypeRx(patientId) {
-    const url = patientId ? `/Rxpad?patientId=${encodeURIComponent(patientId)}` : "/Rxpad";
+    const url = patientId ? `/rxpad/type?patientId=${encodeURIComponent(patientId)}` : "/rxpad/type";
     router.push(url);
   }
 

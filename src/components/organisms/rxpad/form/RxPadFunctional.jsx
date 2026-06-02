@@ -5,7 +5,7 @@ import { Calendar2, Notepad2 } from "iconsax-reactjs";
 import { Plus } from "@/src/components/atoms/icons/lucide";
 import { ReferralFields } from "@/src/components/organisms/rxpad/referral/ReferralFields";
 import { ReferralIcon } from "@/src/components/organisms/rxpad/referral/ReferralIcon";
-import { EMPTY_REFERRAL, resolveReferral } from "@/src/components/organisms/rxpad/referral/referral-data";
+import { defaultReferral, resolveReferral } from "@/src/components/organisms/rxpad/referral/referral-data";
 
 import {
   diagnosisSuggestions,
@@ -358,7 +358,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
   // → date → notes. No template / clear / voice (selection-based, not
   // dictation-friendly). Flows to the printed Rx only; never pushed to the
   // historical sidebar.
-  const [referral, setReferral] = useState(EMPTY_REFERRAL);
+  const [referral, setReferral] = useState(defaultReferral);
 
   // Follow-up template handlers — same `useModuleTemplateHandlers`
   // hook the table-shaped modules (Symptoms, Medications, etc.) use,

@@ -104,10 +104,26 @@ export const EMPTY_REFERRAL = {
   notes: "",
 };
 
-/** True when the doctor has entered anything worth printing. */
+/** Today's date as yyyy-mm-dd (local), for pre-filling the referral date. */
+export function todayISO() {
+  const d = new Date();
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+}
+
+/** A fresh referral with the date pre-filled to today. */
+export function defaultReferral() {
+  return { ...EMPTY_REFERRAL, date: todayISO() };
+}
+
+/**
+ * True when the referral is real enough to print. A referral is a referral TO a
+ * doctor, so a doctor must be selected — a lone (default) date or stray note
+ * doesn't surface in the Rx.
+ */
 export function hasReferral(value) {
   if (!value) return false;
-  return Boolean(value.doctorId || value.date || (value.notes && value.notes.trim()));
+  return Boolean(value.doctorId);
 }
 
 /** Format a yyyy-mm-dd string as e.g. "12 Jun '26". Returns "" if unset. */

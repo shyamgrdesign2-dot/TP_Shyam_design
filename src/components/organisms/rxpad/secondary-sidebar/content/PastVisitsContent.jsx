@@ -797,7 +797,7 @@ function ReferralSection({ referral }) {
   // Read-only, like Follow-up. Referral is part of the printed Rx — shown
   // here so it's visible when reviewing the past visit. No copy affordance.
   if (!referral) return null;
-  const { specialty, doctor, doctorMeta, date, notes } = referral;
+  const { specialty, doctor, date, notes } = referral;
   if (!specialty && !doctor && !date && !notes) return null;
   return (
     <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
@@ -814,7 +814,6 @@ function ReferralSection({ referral }) {
         ) : specialty ? (
           <span className="font-semibold text-tp-slate-600">{specialty}</span>
         ) : null}
-        {doctorMeta ? <span className="text-[12px]">{doctorMeta}</span> : null}
         {date ? <span>Referral date: {date}</span> : null}
         {notes ? <span>{notes}</span> : null}
       </div>

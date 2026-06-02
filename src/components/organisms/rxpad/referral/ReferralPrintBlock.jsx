@@ -20,39 +20,27 @@ export function ReferralPrintBlock({ referral, className = "" }) {
   const r = referral;
   if (!r || (!r.specialty && !r.doctor && !r.date && !r.notes)) return null;
 
+  // In-line format: "Referral" heading, then a single line —
+  //   Doctor name, specialty (referral date · notes)
+  // The doctor + specialty read as the main piece; the date and notes sit in
+  // the bracket, matching how the other Rx sections show their meta.
+  const bracket = [r.date, r.notes].filter(Boolean).join(" · ");
+
   return (
     <section className={`flex flex-col gap-[2px] ${className}`}>
       <h3 className="flex items-center gap-[5px] text-[14px] font-semibold leading-[18px] text-tp-slate-900">
         <ReferralIcon size={14} color="var(--tp-slate-500)" variant="bulk" />
         Referral
       </h3>
-      <div className="flex flex-col gap-[2px] text-[12px] leading-[16px] text-tp-slate-700">
+      <p className="text-[12px] leading-[16px] text-tp-slate-700">
         {r.doctor ? (
-          <p>
-            <span className="text-tp-slate-500">Referred to: </span>
-            <span className="font-medium text-tp-slate-900">{r.doctor}</span>
-            {r.specialty ? <span className="text-tp-slate-500"> ({r.specialty})</span> : null}
-          </p>
-        ) : r.specialty ? (
-          <p>
-            <span className="text-tp-slate-500">Specialty: </span>
-            <span className="font-medium text-tp-slate-900">{r.specialty}</span>
-          </p>
+          <span className="font-medium text-tp-slate-900">{r.doctor}</span>
         ) : null}
-        {r.doctorMeta ? <p className="text-tp-slate-500">{r.doctorMeta}</p> : null}
-        {r.date ? (
-          <p>
-            <span className="text-tp-slate-500">Referral date: </span>
-            {r.date}
-          </p>
+        {r.specialty ? (
+          <span className="text-tp-slate-500">{r.doctor ? ", " : ""}{r.specialty}</span>
         ) : null}
-        {r.notes ? (
-          <p>
-            <span className="text-tp-slate-500">Notes: </span>
-            {r.notes}
-          </p>
-        ) : null}
-      </div>
+        {bracket ? <span className="text-tp-slate-500">{(r.doctor || r.specialty) ? " " : ""}({bracket})</span> : null}
+      </p>
     </section>
   );
 }

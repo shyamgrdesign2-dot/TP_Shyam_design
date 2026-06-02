@@ -53,6 +53,22 @@ export function ReferralFields({ value = EMPTY_REFERRAL, onChange }) {
             value={v.date}
             data-empty={v.date ? "false" : "true"}
             onChange={(e) => set({ date: e.currentTarget.value })}
+            // Open the native date picker on a click/focus anywhere in the
+            // field, not only on the calendar icon.
+            onClick={(e) => {
+              try {
+                e.currentTarget.showPicker?.();
+              } catch {
+                /* showPicker needs a user gesture; clicks qualify */
+              }
+            }}
+            onFocus={(e) => {
+              try {
+                e.currentTarget.showPicker?.();
+              } catch {
+                /* noop */
+              }
+            }}
             className={`${FIELD_CLASS} tp-date-muted`}
             placeholder="Select referral date"
           />

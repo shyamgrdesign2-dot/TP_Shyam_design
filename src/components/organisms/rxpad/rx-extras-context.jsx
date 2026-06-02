@@ -15,7 +15,7 @@
  */
 
 import { createContext, useContext, useMemo, useState } from "react";
-import { EMPTY_REFERRAL } from "./referral/referral-data";
+import { EMPTY_REFERRAL, defaultReferral } from "./referral/referral-data";
 
 const DEFAULT = {
   followUpDate: "",
@@ -28,7 +28,7 @@ const RxExtrasContext = createContext(DEFAULT);
 
 export function RxExtrasProvider({ children }) {
   const [followUpDate, setFollowUpDate] = useState("");
-  const [referral, setReferral] = useState(EMPTY_REFERRAL);
+  const [referral, setReferral] = useState(defaultReferral);
 
   const value = useMemo(
     () => ({ followUpDate, setFollowUpDate, referral, setReferral }),
