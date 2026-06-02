@@ -29,6 +29,7 @@ import {
   Modal,
   Spin,
   Tour,
+  Tooltip,
 } from "antd";
 import { Row, Col, ButtonGroup } from "react-bootstrap";
 import dayjs from "dayjs";
@@ -2403,6 +2404,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                 {record.billStatus}
               </div>
             )}
+            <div className="d-flex py-1">
+            {record.pam_appointment_remark && <Tooltip
+                placement="right"
+                title={record.pam_appointment_remark}
+            >
+              <i className="icon-info ms-1" style={{fontSize: "18px"}}></i>
+            </Tooltip>}
+            </div>
         </div>
       ),
     },
