@@ -19,6 +19,7 @@ import CommonModal from './CommonModal';
 
 import VideoModal from './VideoModal';
 import SaveDraft from './SaveDraft';
+import FreeTrialButton from '../pages/monetization/components/FreeTrialButton';
 import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 import {
     VoiceRxModuleActionButton,
@@ -140,7 +141,7 @@ function normalizeVoiceHistoryForStore(history) {
     });
 }
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, showVoiceRxTrialChip = false, onVoiceRxTrialChipClick, isNewPrescriptionUi = false, hasExistingCarePlan = false }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
@@ -160,7 +161,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     } = useSelector((state) => state.caseManager);
     const dispatch = useDispatch();
     const isChikitsalayAccessable = useChikitsalay();
-    const { activeVoiceModule, headerDictation, setHeaderDictation } = useRxPadSync();
+    const { activeVoiceModule, headerDictation, setHeaderDictation, guardVoiceRxUsage } = useRxPadSync();
 
     const {customModules} = useSelector((state) => state.customModules);
 
@@ -325,6 +326,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceStopAndTranscribe = useCallback(async () => {
         const recorder = headerVoiceMediaRecorderRef.current;
         if (!recorder || recorder.state === 'inactive') return;
+        const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "header" });
+        if (!canUseVoiceRx) return;
         const targetId = headerVoiceTargetIdRef.current || headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
         setHeaderVoiceState("transcribing");
         publishHeaderDictation("transcribing", targetId);
@@ -410,11 +413,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         setHeaderVoiceState("idle");
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
-    }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [copyTranscriptToClipboard, dispatch, guardVoiceRxUsage, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const headerVoiceStartRecording = useCallback(async () => {
         if (headerVoiceStateRef.current !== "idle") return;
         if (activeVoiceModule) return;
+        const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "header" });
+        if (!canUseVoiceRx) return;
         const targetId = headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
         headerVoiceTargetIdRef.current = targetId;
         try {
@@ -434,7 +439,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         }
-    }, [activeVoiceModule, publishHeaderDictation, setHeaderVoiceState]);
+    }, [activeVoiceModule, guardVoiceRxUsage, publishHeaderDictation, setHeaderVoiceState]);
 
     const headerVoiceCancelRecording = useCallback(() => {
         const recorder = headerVoiceMediaRecorderRef.current;
@@ -2509,6 +2514,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     </Col>
                     <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
                         <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
+                            {isNewPrescriptionUi && showVoiceRxTrialChip ? (
+                                <FreeTrialButton
+                                    title={S_VOICE_RX}
+                                    showHideSubModal={onVoiceRxTrialChipClick}
+                                />
+                            ) : null}
                         {showVoiceRxModule && (
                                 <Tooltip
                                     placement="bottom"

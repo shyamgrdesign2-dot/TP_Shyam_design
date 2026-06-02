@@ -1075,7 +1075,21 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
   const handledCopyIdRef = useRef(null);
   const copyPayloadKeysRef = useRef(copyPayloadKeys);
   const copyPayloadMatcherRef = useRef(copyPayloadMatcher);
-  const { lastCopyRequest } = useRxPadSync();
+  const { lastCopyRequest, guardVoiceRxUsage } = useRxPadSync();
+
+  const setVoiceCaptureOpenGuarded = useCallback(
+    async (nextOpen) => {
+      if (!nextOpen) {
+        setVoiceCaptureOpen(false);
+        return;
+      }
+      const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "module", moduleName });
+      if (canUseVoiceRx) {
+        setVoiceCaptureOpen(true);
+      }
+    },
+    [guardVoiceRxUsage, moduleName]
+  );
 
   useEffect(() => {
     copyPayloadKeysRef.current = copyPayloadKeys;
@@ -1155,7 +1169,7 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
 
   return {
     voiceCaptureOpen,
-    setVoiceCaptureOpen,
+    setVoiceCaptureOpen: setVoiceCaptureOpenGuarded,
     voiceUpdated,
     handleVoiceCaptureComplete,
     sectionRef,
@@ -1175,6 +1189,7 @@ export function VoiceRxModuleCapture({
   onComplete,
 }) {
   const { patient_data } = useContext(CashManagerContext) || {};
+  const { guardVoiceRxUsage } = useRxPadSync();
   const dispatch = useDispatch();
   const { profile } = useSelector((state) => state.doctors);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
@@ -1231,8 +1246,10 @@ export function VoiceRxModuleCapture({
       : { rows: dummyDigitisedData, rawResponse: null, conversation: [], moduleApiName: moduleApiName || resolveModuleApiName(moduleName) };
   }, [customModuleName, dummyDigitisedData, getModuleSessionId, isTranscribeMode, moduleApiName, moduleName, patient_data?.patient_unique_id, previousContext, profile?.doctor_unique_id, requiredFields, voiceDigitization?.sessionId]);
 
-  const handleSubmit = useCallback(({ audioBlob, transcript, durationMs, submitClickedAt, submitClickedAtMs, micBeingUsed }) => {
+  const handleSubmit = useCallback(async ({ audioBlob, transcript, durationMs, submitClickedAt, submitClickedAtMs, micBeingUsed }) => {
     if (submitInFlightRef.current) return;
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "module", moduleName });
+    if (!canUseVoiceRx) return;
     submitInFlightRef.current = true;
     dispatch(beginVoiceAttempt());
     const voicecall = (voiceDigitization?.voiceCallCount || 0) + 1;
@@ -1343,7 +1360,7 @@ export function VoiceRxModuleCapture({
       .finally(() => {
         submitInFlightRef.current = false;
       });
-  }, [dispatch, getDigitisedData, getModuleSessionId, isTranscribeMode, moduleApiName, moduleName, onCancel, onComplete, patient_data, previousContext, profile, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated]);
+  }, [dispatch, getDigitisedData, getModuleSessionId, guardVoiceRxUsage, isTranscribeMode, moduleApiName, moduleName, onCancel, onComplete, patient_data, previousContext, profile, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated]);
 
   const hasTranscript = hasTranscriptContent(capturedTranscript);
   const isDiarized = hasDiarizedTranscript(capturedTranscript);

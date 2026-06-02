@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, S_VOICE_RX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../utils/constants";
 
 import { addUpdateVitals, clearListVitalsToday, getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
@@ -1068,7 +1068,7 @@ function PrescriptionNew() {
 
   const showHideSubModal = (object) => {
     object && setSubModalData(object)
-    setIsSubModalOpen(!isSubModalOpen);
+    setIsSubModalOpen((prev) => !prev);
   }
 
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
@@ -1248,6 +1248,93 @@ function PrescriptionNew() {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isVoiceRxAccessible = isFreeVoiceRxUser || tp_monetization_enable;
   const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible;
+  const VOICE_RX_planDetails = servicesList?.find((service) => service.service_name === S_VOICE_RX);
+  const isVoiceRxCreditExpired =
+    !isFreeVoiceRxUser &&
+    (VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION ||
+      (VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0));
+  const shouldShowVoiceRxTrialChip =
+    canUseVoiceRxModuleUi &&
+    !isFreeVoiceRxUser &&
+    VOICE_RX_planDetails?.service_type === "ai" &&
+    (VOICE_RX_planDetails?.plan_tier === FREE || VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION);
+
+  const openVoiceRxSubModal = useCallback(() => {
+    setSubModalData({ service_name: S_VOICE_RX });
+    setIsSubModalOpen(true);
+  }, []);
+
+  const guardVoiceRxUsage = useCallback(
+    async ({ phase = "start" } = {}) => {
+      if (!canUseVoiceRxModuleUi) {
+        openVoiceRxSubModal();
+        return false;
+      }
+      if (isFreeVoiceRxUser) return true;
+      if (isVoiceRxCreditExpired) {
+        openVoiceRxSubModal();
+        return false;
+      }
+      if (phase !== "submit") return true;
+
+      const sendData = {
+        b2c_id: profile?.b2c,
+        service_name: S_VOICE_RX,
+      };
+      const action = await dispatch(checkCredits(sendData));
+      if (action.meta.requestStatus !== "fulfilled") {
+        errorMessage(action?.payload?.message || action?.error || "An error occurred");
+        return false;
+      }
+      if (!action?.payload?.hasOwnProperty("service_name")) {
+        typeof action?.payload?.data?.error === "object"
+          ? errorMessage(action?.payload?.data?.error?.description)
+          : errorMessage(action?.payload?.data?.message);
+        return false;
+      }
+      if (
+        action?.payload?.plan_tier === FAILED_VERIFICATION ||
+        (action?.payload?.plan_tier === FREE && action?.payload?.credit_balance <= 0)
+      ) {
+        if (action?.payload?.credit_balance !== VOICE_RX_planDetails?.credit_balance) {
+          await dispatch(services(sendData.b2c_id));
+        }
+        openVoiceRxSubModal();
+        return false;
+      }
+      return true;
+    },
+    [
+      canUseVoiceRxModuleUi,
+      dispatch,
+      isFreeVoiceRxUser,
+      openVoiceRxSubModal,
+      profile?.b2c,
+      VOICE_RX_planDetails?.credit_balance,
+      VOICE_RX_planDetails?.plan_tier,
+      isVoiceRxCreditExpired,
+    ]
+  );
+
+  useEffect(() => {
+    if (
+      canUseVoiceRxModuleUi &&
+      !isFreeVoiceRxUser &&
+      VOICE_RX_planDetails !== undefined &&
+      (VOICE_RX_planDetails?.plan_tier === FREE ||
+        VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
+    ) {
+      const timer = setTimeout(() => {
+        openVoiceRxSubModal();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    canUseVoiceRxModuleUi,
+    isFreeVoiceRxUser,
+    openVoiceRxSubModal,
+    VOICE_RX_planDetails,
+  ]);
   const [voiceHydrationStatus, setVoiceHydrationStatus] = useState("idle");
   const [symptomCollectorStatus, setSymptomCollectorStatus] = useState("idle");
   const symptomCollectorRequestRef = useRef(0);
@@ -2896,7 +2983,7 @@ function PrescriptionNew() {
 
   return (
     <CashManagerContext.Provider value={contextApi}>
-      <RxPadSyncProvider>
+      <RxPadSyncProvider guardVoiceRxUsage={guardVoiceRxUsage}>
         <PrescriptionNewRxPadCopyListener />
         <>
         <input
@@ -2936,6 +3023,8 @@ function PrescriptionNew() {
               selectedCarePlan={selectedCarePlan}
               hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
               showVoiceRxModule={canUseVoiceRxModuleUi}
+              showVoiceRxTrialChip={shouldShowVoiceRxTrialChip}
+              onVoiceRxTrialChipClick={openVoiceRxSubModal}
               isNewPrescriptionUi
             />
             <div className={prescriptionRouteShellClassName}>

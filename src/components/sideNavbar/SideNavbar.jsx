@@ -5362,7 +5362,7 @@ export function SideNavbar({
   const [activeId, setActiveId] = useState(() => initialActiveId);
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
-  const { activeVoiceModule, headerDictation, claimActiveVoiceModule, releaseActiveVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal } = useRxPadSync();
+  const { activeVoiceModule, headerDictation, claimActiveVoiceModule, releaseActiveVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal, guardVoiceRxUsage } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const sideNavVoiceLockIdRef = useRef(`side-nav-voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const sideNavVoiceSessionIdRef = useRef(null);
@@ -6062,20 +6062,24 @@ export function SideNavbar({
     }
   }, [applySideNavVoiceResult, doctorId, getSideNavVoiceSessionId, medicalHistoryData, patientId, privateNotesValue, savePrivateNotesFromVoice, updateVoiceState]);
 
-  const handleVoiceClick = useCallback(() => {
+  const handleVoiceClick = useCallback(async () => {
     if (!activeId) return;
     if (!isSideNavVoiceSupported(activeId)) return;
     if (activeVoiceModule || headerDictationBusy) return;
     const existing = voiceBySection[activeId]?.status;
     if (existing === "recording" || existing === "transcribing" || existing === "digitizing") return;
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "side-navbar", sectionId: activeId });
+    if (!canUseVoiceRx) return;
     getSideNavVoiceSessionId();
     updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
-  }, [activeId, activeVoiceModule, getSideNavVoiceSessionId, headerDictationBusy, voiceBySection, updateVoiceState]);
+  }, [activeId, activeVoiceModule, getSideNavVoiceSessionId, guardVoiceRxUsage, headerDictationBusy, voiceBySection, updateVoiceState]);
 
-  const handleVoiceRecorderSubmit = useCallback(({ audioBlob } = {}) => {
+  const handleVoiceRecorderSubmit = useCallback(async ({ audioBlob } = {}) => {
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "side-navbar", sectionId: activeId });
+    if (!canUseVoiceRx) return;
     if (activeId) return transcribeSectionAudio(activeId, audioBlob);
     return Promise.resolve();
-  }, [activeId, transcribeSectionAudio]);
+  }, [activeId, guardVoiceRxUsage, transcribeSectionAudio]);
 
   const handleVoiceCancel = useCallback(() => {
     if (!activeId) return;
