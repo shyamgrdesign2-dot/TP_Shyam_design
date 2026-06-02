@@ -36,6 +36,7 @@ import { SecondaryNavPanel as TPSecondaryNavPanel } from "@/src/components/organ
 import { AppTopHeader } from "@/src/components/organisms/shared/AppTopHeader";
 import { DASHBOARD_NAV_ITEMS } from "@/src/components/organisms/shared/dashboard-nav-items";
 import { PatientActionsMenu } from "@/src/components/organisms/shared/PatientActionsMenu";
+import { ReferralIcon } from "@/src/components/organisms/rxpad/referral/ReferralIcon";
 import { AppointmentBanner } from "@/src/components/molecules/AppointmentBanner";
 import { TutorialPlayIcon } from "@/src/components/atoms/TutorialPlayIcon/TutorialPlayIcon";
 // Dr. Agent imports removed — agent feature retired, only VoiceRx lives in RxPad route.
@@ -108,7 +109,8 @@ const appointmentTabs = [
   label: "Pending Digitisation",
   count: 2,
   icon: DocumentSketch
-}];
+},
+{ id: "referral", label: "Referral", count: 3, icon: ReferralIcon }];
 
 
 
@@ -400,6 +402,51 @@ const queueAppointments = [
   status: "pending-digitisation",
   dateKey: "past-3-months",
   dischargeData: { admittedDate: "4 Mar'26", ward: "General Ward", bed: "Bed #8", currentStatus: "Stable", pending: { dischargeSummary: true, billing: true, notes: "Ready for discharge — pending physician sign-off" } }
+},
+// ── Referral inbox — patients other doctors referred TO this doctor.
+// No appointment is booked yet, so the kebab uses the All-Patients actions
+// (incl. "Book appointment").
+{
+  id: "ref-meera",
+  serial: 17,
+  name: "Meera Krishnan",
+  gender: "F",
+  age: 54,
+  contact: "+91-9811223344",
+  visitType: "Referral",
+  referralDate: "6 Mar'26",
+  referralNotes: "Evaluation of exertional chest discomfort; ECG borderline — please review and advise on further cardiac workup.",
+  referredBy: "Dr. Anil Mehta",
+  status: "referral",
+  dateKey: "today"
+},
+{
+  id: "ref-rohit",
+  serial: 18,
+  name: "Rohit Deshpande",
+  gender: "M",
+  age: 39,
+  contact: "+91-9822556677",
+  visitType: "Referral",
+  referralDate: "7 Mar'26",
+  referralNotes: "Persistent dermatitis not responding to topical steroids — referred for specialist opinion.",
+  referredBy: "Dr. Sneha Kapoor",
+  status: "referral",
+  dateKey: "today"
+},
+{
+  id: "ref-fatima",
+  serial: 19,
+  name: "Fatima Sheikh",
+  gender: "F",
+  age: 28,
+  contact: "+91-9844778899",
+  visitType: "Referral",
+  referralDate: "5 Mar'26",
+  referralNotes: "Post-fracture follow-up; requesting physiotherapy plan and review of healing progress.",
+  referredBy: "Dr. Vikram Rao",
+  status: "referral",
+  dateKey: "today"
 }];
 
 
@@ -411,6 +458,7 @@ const queueAppointments = [
 const ALL_VISIT_TYPES = ["Follow-up", "New"];
 
 function parseSlotTime(t) {
+  if (!t || typeof t !== "string" || !t.includes(":")) return 0;
   const [time, mer] = t.split(" ");
   const [h, m] = time.split(":").map(Number);
   const hour = mer === "pm" && h < 12 ? h + 12 : mer === "am" && h === 12 ? 0 : h;
@@ -432,7 +480,8 @@ const TAB_EMPTY_MESSAGES = {
   "finished": "You haven't finished any consultations yet",
   "cancelled": "Nothing here — you haven't cancelled any appointments",
   "draft": "You haven't saved any drafts yet",
-  "pending-digitisation": "No pending digitisations right now"
+  "pending-digitisation": "No pending digitisations right now",
+  "referral": "No patients have been referred to you yet"
 };
 
 const TAB_EMPTY_ICONS = {
@@ -440,7 +489,8 @@ const TAB_EMPTY_ICONS = {
   "finished": ClipboardTick,
   "cancelled": ClipboardClose,
   "draft": ClipboardText,
-  "pending-digitisation": DocumentSketch
+  "pending-digitisation": DocumentSketch,
+  "referral": ReferralIcon
 };
 
 export function DrAgentPage() {
@@ -530,7 +580,7 @@ export function DrAgentPage() {
         row.visitType.toLowerCase().includes(q));
 
     });
-    if (slotSort !== "none") {
+    if (slotSort !== "none" && activeTab !== "referral") {
       rows = [...rows].sort((a, b) => {
         const d = parseSlotTime(a.slotTime) - parseSlotTime(b.slotTime);
         return slotSort === "asc" ? d : -d;
@@ -851,10 +901,20 @@ export function DrAgentPage() {
                             <th className="px-3 py-3 text-left text-[12px] font-semibold uppercase text-tp-slate-700 min-w-[155px]">
                               Contact
                             </th>
-                            <th className="px-3 py-3 text-left text-[12px] font-semibold uppercase text-tp-slate-700 min-w-[120px]">
-                              Visit Type
+                            {activeTab === "referral" &&
+                            <th className="px-3 py-3 text-left text-[12px] font-semibold uppercase text-tp-slate-700 min-w-[140px]">
+                              Referred By
                             </th>
+                            }
                             <th className="px-3 py-3 text-left text-[12px] font-semibold uppercase text-tp-slate-700 min-w-[120px]">
+                              {activeTab === "referral" ? "Referral Date" : "Visit Type"}
+                            </th>
+                            <th className={cn(
+                                "px-3 py-3 text-left text-[12px] font-semibold uppercase text-tp-slate-700",
+                                activeTab === "referral" ? "min-w-[200px]" : "min-w-[120px]"
+                              )}>
+                              {activeTab === "referral" ?
+                              "Referral Notes" :
                               <button
                                   type="button"
                                   onClick={() => setSlotSort((s) => s === "none" ? "asc" : s === "asc" ? "desc" : "none")}
@@ -862,10 +922,11 @@ export function DrAgentPage() {
                                     "inline-flex items-center gap-1.5 -ml-0.5 rounded-[6px] px-0.5 py-0.5 transition-colors hover:bg-tp-slate-200/70",
                                     slotSort !== "none" && "text-tp-blue-600"
                                   )}>
-                                  
+
                                 <span className="uppercase">Slot</span>
                                 <ColumnSortIcon dir={slotSort} />
                               </button>
+                              }
                             </th>
                             <th className={cn(
                                 "relative sticky right-0 z-20 w-[1%] whitespace-nowrap rounded-tr-[12px] rounded-br-[12px] bg-tp-slate-100 pl-3 pr-2 py-3 text-left text-[12px] font-semibold uppercase text-tp-slate-700",
@@ -879,7 +940,7 @@ export function DrAgentPage() {
                         <tbody>
                           {visibleAppointments.length === 0 ?
                             <tr>
-                              <td colSpan={6} className="py-12 text-center">
+                              <td colSpan={activeTab === "referral" ? 7 : 6} className="py-12 text-center">
                                 <div className="flex h-full w-full flex-col items-center justify-center gap-3">
                                   {(() => {
                                     const EmptyIcon = TAB_EMPTY_ICONS[activeTab];
@@ -959,7 +1020,15 @@ export function DrAgentPage() {
                                   </div>
                                 </td>
 
+                                {activeTab === "referral" &&
                                 <td className="px-3 py-3 align-middle text-sm text-tp-slate-700">
+                                  <span className="whitespace-nowrap">{row.referredBy}</span>
+                                </td>
+                                }
+
+                                <td className="px-3 py-3 align-middle text-sm text-tp-slate-700">
+                                  {activeTab === "referral" ?
+                                  <span className="whitespace-nowrap">{row.referralDate}</span> :
                                   <div className="overflow-hidden">
                                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
                                       {row.visitType}
@@ -972,16 +1041,25 @@ export function DrAgentPage() {
                                       color={tag.tone === "danger" ? "error" : tag.tone === "warning" ? "warning" : tag.tone === "info" ? "blue" : "success"}
                                       variant="light"
                                       size="sm">
-                                      
+
                                             {tag.text}
                                           </TPTag>
                                     )}
                                       </div>
                                   }
                                   </div>
+                                  }
                                 </td>
 
                                 <td className="px-3 py-3 align-middle">
+                                  {activeTab === "referral" ?
+                                  <TextTooltip text={row.referralNotes}>
+                                    <p
+                                      className="min-w-[200px] max-w-[280px] cursor-default overflow-hidden text-ellipsis text-sm text-tp-slate-700"
+                                      style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                                      {row.referralNotes}
+                                    </p>
+                                  </TextTooltip> :
                                   <div className="overflow-hidden">
                                     <div className="whitespace-nowrap text-sm text-tp-slate-700">
                                       <span className="inline-flex items-center gap-1">
@@ -992,7 +1070,7 @@ export function DrAgentPage() {
                                           size={13}
                                           variant="Bulk"
                                           color="var(--tp-violet-500)" />
-                                        
+
                                           </VideoConsultTooltip>
                                       }
                                       </span>
@@ -1001,6 +1079,7 @@ export function DrAgentPage() {
                                       {row.slotDate}
                                     </p>
                                   </div>
+                                  }
                                 </td>
 
                                 <td className={cn(
@@ -1056,9 +1135,29 @@ export function DrAgentPage() {
                                     theme="primary"
                                     size="md"
                                     onClick={() => {}}>
-                                    
+
                                         Digitise Rx
                                       </Button>
+                                  }
+                                    {activeTab === "referral" &&
+                                  <div className="transition-all hover:scale-105 duration-200">
+                                        <TPSplitButton
+                                      primaryAction={{
+                                        label: "TabRx",
+                                        onClick: () => openTabRx(row.id)
+                                      }}
+                                      secondaryActions={[
+                                      { id: "tab-rx", label: "TabRx", onClick: () => openTabRx(row.id) },
+                                      { id: "voice-rx", label: "VoiceRx", onClick: () => openVoiceRx(row.id) },
+                                      { id: "type-rx", label: "TypeRx", onClick: () => openTypeRx(row.id) },
+                                      { id: "snap-rx", label: "SnapRx", onClick: () => {} },
+                                      { id: "smart-sync", label: "SmartSync", onClick: () => {} }]
+                                      }
+                                      variant="outline"
+                                      theme="primary"
+                                      size="md" />
+
+                                      </div>
                                   }
                                     {/* cancelled — no CTA, just three-dot below.
                                        Per-row Dr. Agent / VoiceRx icon was removed from the
@@ -1066,19 +1165,31 @@ export function DrAgentPage() {
                                        lives inside the in-visit (RxPad) route. */}
 
                                     <PatientActionsMenu
-                                    slots={[
-                                      "view",
-                                      "create-bill",
-                                      "add-labs",
-                                      "certificate",
-                                      "upload",
-                                      "admit-ipd",
-                                      "health-checkup",
-                                      ...(activeTab === "queue" ? ["cancel-appointment"] : []),
-                                      ...(activeTab !== "finished" && activeTab !== "cancelled"
-                                        ? ["end-visit"]
-                                        : []),
-                                    ]}
+                                    slots={
+                                      activeTab === "referral"
+                                        ? [
+                                            "upload",
+                                            "certificate",
+                                            "admit-ipd",
+                                            "advance-deposit",
+                                            "add-labs",
+                                            "create-bill",
+                                            "book-appointment",
+                                          ]
+                                        : [
+                                            "view",
+                                            "create-bill",
+                                            "add-labs",
+                                            "certificate",
+                                            "upload",
+                                            "admit-ipd",
+                                            "health-checkup",
+                                            ...(activeTab === "queue" ? ["cancel-appointment"] : []),
+                                            ...(activeTab !== "finished" && activeTab !== "cancelled"
+                                              ? ["end-visit"]
+                                              : []),
+                                          ]
+                                    }
                                     ariaLabel={`More actions for ${row.name}`}
                                     onSelect={(slot) => {
                                       if (slot === "view") openPatientDetails(row);
@@ -1302,6 +1413,50 @@ function CommonFilterPanel({
     </div>,
     document.body
   );
+}
+
+// ─── Generic text tooltip (portal-based) — shows full text on hover ──────────
+
+function TextTooltip({ text, children }) {
+  const [visible, setVisible] = useState(false);
+  const [style, setStyle] = useState({});
+  const triggerRef = useRef(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {setMounted(true);}, []);
+
+  function show() {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setStyle({
+        position: "fixed",
+        top: rect.top - 8,
+        left: rect.left,
+        transform: "translateY(-100%)",
+        zIndex: 9999
+      });
+    }
+    setVisible(true);
+  }
+  function hide() {setVisible(false);}
+
+  if (!text) return children;
+
+  return (
+    <>
+      <span ref={triggerRef} onMouseEnter={show} onMouseLeave={hide} className="block">
+        {children}
+      </span>
+      {visible && mounted &&
+      createPortal(
+        <div
+          style={style}
+          className="max-w-[320px] whitespace-normal rounded-[8px] bg-tp-slate-800 px-[10px] py-[6px] text-[12px] font-medium leading-[16px] text-white shadow-[0_8px_24px_-6px_rgba(15,23,42,0.45)]">
+          {text}
+        </div>,
+        document.body
+      )}
+    </>);
+
 }
 
 // ─── Symptom Tooltip (portal-based, z-index safe) ────────────────────────────

@@ -604,6 +604,8 @@ const CanvasEngine = React.forwardRef(
           y <= canvasRect.bottom + 10;
         if (!isWithinCanvas) return;
         if (isUiControl(e.target)) return;
+        // Ignore taps that land on an overlay (dialog/drawer) above the canvas.
+        if (e.target !== canvas && !(container && container.contains(e.target))) return;
 
         const syntheticEvent = {
           ...e,
@@ -624,22 +626,17 @@ const CanvasEngine = React.forwardRef(
         // Finger scrolls; pen and mouse draw.
         if (e.pointerType === "touch") return;
 
-        const canvasRect = canvas.getBoundingClientRect();
-        const x = e.clientX;
-        const y = e.clientY;
-        const isWithinCanvas =
-          x >= canvasRect.left - 10 &&
-          x <= canvasRect.right + 10 &&
-          y >= canvasRect.top - 10 &&
-          y <= canvasRect.bottom + 10;
-
         const target = e.target;
         const isCanvas = target === canvas;
         const isContainer =
           container && (target === container || container.contains(target));
 
         if (isUiControl(target)) return;
-        if (!isWithinCanvas && !isCanvas && !isContainer) return;
+        // Only start drawing when the event actually lands on the canvas (or its
+        // container). A coordinate-bounds check would wrongly fire for overlays
+        // (dialogs, drawers) sitting *on top* of the canvas area — which would
+        // capture the pointer and swallow their button clicks.
+        if (!isCanvas && !isContainer) return;
 
         if (handlePointerDownRef.current) handlePointerDownRef.current(e);
       };

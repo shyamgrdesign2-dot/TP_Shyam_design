@@ -97,9 +97,15 @@ export function searchDoctors(query) {
   );
 }
 
-/** Canonical empty referral value. Specialty is derived from the doctor. */
+/**
+ * Canonical empty referral value.
+ * - `doctorId`   — set when a doctor is picked from the directory (specialty
+ *   is derived from it).
+ * - `doctorName` — free-typed name kept when the doctor isn't in the directory.
+ */
 export const EMPTY_REFERRAL = {
   doctorId: "",
+  doctorName: "",
   date: "",
   notes: "",
 };
@@ -123,7 +129,7 @@ export function defaultReferral() {
  */
 export function hasReferral(value) {
   if (!value) return false;
-  return Boolean(value.doctorId);
+  return Boolean(value.doctorId || (value.doctorName && value.doctorName.trim()));
 }
 
 /** Format a yyyy-mm-dd string as e.g. "12 Jun '26". Returns "" if unset. */
@@ -142,9 +148,10 @@ export function formatReferralDate(date) {
 export function resolveReferral(value) {
   if (!hasReferral(value)) return null;
   const doctor = getDoctorByIdFlat(value.doctorId);
+  // Directory doctor wins; otherwise use the free-typed name (no specialty).
   return {
     specialty: doctor?.specialtyLabel ?? "",
-    doctor: doctor?.name ?? "",
+    doctor: doctor?.name ?? (value.doctorName ?? "").trim(),
     doctorMeta: doctor ? [doctor.qualification, doctor.hospital].filter(Boolean).join(" · ") : "",
     date: formatReferralDate(value.date),
     notes: (value.notes ?? "").trim(),

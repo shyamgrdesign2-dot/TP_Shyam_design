@@ -41,8 +41,9 @@ export function ReferralFields({ value = EMPTY_REFERRAL, onChange }) {
         <label className="flex min-w-[220px] flex-1 flex-col gap-1.5">
           <FieldLabel>Doctor</FieldLabel>
           <DoctorSearchSelect
-            value={v.doctorId}
-            onChange={(doctorId) => set({ doctorId })}
+            doctorId={v.doctorId}
+            doctorName={v.doctorName}
+            onChange={(patch) => set(patch)}
           />
         </label>
 

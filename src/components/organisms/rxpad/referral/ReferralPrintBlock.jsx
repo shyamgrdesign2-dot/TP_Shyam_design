@@ -22,7 +22,7 @@ function ReferralHeading() {
   return (
     <h3 className="flex items-center gap-[5px] text-[14px] font-semibold leading-[18px] text-tp-slate-900">
       <ReferralIcon size={14} color="var(--tp-slate-500)" variant="bulk" />
-      Referral
+      Referred to
     </h3>
   );
 }
@@ -59,7 +59,7 @@ export function ReferralPrintBlock({ referral, className = "", format = "table" 
         <p className="flex flex-wrap items-center gap-x-[6px] gap-y-[2px] text-[12px] leading-[16px] text-tp-slate-700">
           <span className="inline-flex items-center gap-[5px] font-semibold text-tp-slate-900">
             <ReferralIcon size={14} color="var(--tp-slate-500)" variant="bulk" />
-            Referral:
+            Referred to:
           </span>
           <span>
             <ReferralLine r={r} />

@@ -22,21 +22,24 @@ function SpecialtyTag({ children }) {
 }
 
 export function DoctorSearchSelect({
-  value,
+  doctorId = "",
+  doctorName = "",
   onChange,
   placeholder = "Search by doctor or specialty",
 }) {
-  const selected = getDoctorByIdFlat(value);
+  const selected = getDoctorByIdFlat(doctorId);
+  // Text shown in the field: the picked doctor's name, or the free-typed name.
+  const committed = selected?.name ?? doctorName ?? "";
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(selected?.name ?? "");
+  const [query, setQuery] = useState(committed);
   const wrapRef = useRef(null);
   const listRef = useRef(null);
   const [scroll, setScroll] = useState({ show: false, thumbH: 0, thumbT: 0 });
 
-  // Keep the input text in sync when the selection changes from outside.
+  // Keep the input text in sync when the value changes from outside.
   useEffect(() => {
-    setQuery(selected?.name ?? "");
-  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    setQuery(committed);
+  }, [committed]);
 
   // Close on click-outside / Escape.
   useEffect(() => {
@@ -84,7 +87,7 @@ export function DoctorSearchSelect({
   const showTag = selected && !open && query === selected.name;
 
   const pick = (doctor) => {
-    onChange?.(doctor.id);
+    onChange?.({ doctorId: doctor.id, doctorName: "" });
     setQuery(doctor.name);
     setOpen(false);
   };
@@ -102,10 +105,12 @@ export function DoctorSearchSelect({
           e.target.select();
         }}
         onChange={(e) => {
+          // Free text: keep whatever is typed as the doctor name. Picking a
+          // directory option (below) replaces it with that doctor + specialty.
           const next = e.target.value;
           setQuery(next);
           setOpen(true);
-          if (next.trim() === "") onChange?.("");
+          onChange?.({ doctorId: "", doctorName: next });
         }}
         className={`h-[42px] w-full rounded-[10px] border border-tp-slate-300 bg-white pl-3 ${
           showTag ? "pr-[120px]" : "pr-3"
@@ -126,7 +131,7 @@ export function DoctorSearchSelect({
           >
             {results.length > 0 ? (
               results.map((d) => {
-                const active = d.id === value;
+                const active = d.id === doctorId;
                 return (
                   <button
                     key={d.id}

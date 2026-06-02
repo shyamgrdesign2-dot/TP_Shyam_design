@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   Eye,
   BellRing,
+  Calendar,
   MoreVertical,
 } from "@/src/components/atoms/icons/lucide";
 
@@ -59,6 +60,7 @@ const ACTION_DEFS = {
   "add-labs": { label: "Add lab results", icon: FlaskConical },
   "health-checkup": { label: "Generate health checkup report", icon: Stethoscope },
   "create-bill": { label: "Create bill", icon: ReceiptText },
+  "book-appointment": { label: "Book appointment", icon: Calendar },
 
   // ── Appointment-specific actions ──
   "cancel-appointment": {
