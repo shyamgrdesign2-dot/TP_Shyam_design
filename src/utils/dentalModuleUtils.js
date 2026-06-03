@@ -1,4 +1,8 @@
-import { customizedPad } from "../redux/doctorsSlice";
+import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
+import {
+  mergeDentalPrintCaseOptions,
+  buildSavePrintSettingsPayload,
+} from "./dentalDefaultPrintSettings";
 
 /**
  * Utility thunk to verify conditions and add the Dental module 
@@ -40,5 +44,29 @@ export const verifyAndAddDentalModule = (userId, isDentalEnabled) => async (disp
     }
   } catch (err) {
     console.error("Error adding dental module automatically:", err);
+  }
+};
+
+/**
+ * Ensures Dental Examination (id 21) and Oral Examination (id 22) exist in the
+ * doctor's saved print settings, with default section toggles.
+ */
+export const verifyAndAddDentalPrintOptions = (isDentalEnabled) => async (dispatch, getState) => {
+  if (!isDentalEnabled) return;
+
+  try {
+    const { doctors } = getState();
+    const defaultPrintSettings = doctors?.defaultPrintSettings;
+    if (!defaultPrintSettings?.prescription) return;
+
+    const existing = defaultPrintSettings.prescription.case_option || [];
+    const { caseOptions, updateFlag } = mergeDentalPrintCaseOptions(existing);
+
+    if (updateFlag) {
+      const sendData = buildSavePrintSettingsPayload(defaultPrintSettings, caseOptions);
+      await dispatch(savePrintsettings(sendData));
+    }
+  } catch (err) {
+    console.error("Error syncing dental print case options:", err);
   }
 };

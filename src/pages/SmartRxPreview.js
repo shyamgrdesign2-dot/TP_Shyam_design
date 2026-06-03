@@ -61,6 +61,7 @@ function SmartRxPreview() {
     const {
         loading,
     } = useSelector((state) => state.caseManager);
+    const dentalExaminationData = useSelector((state) => state.dentalExamination);
     const dispatch = useDispatch();
 
     const navigate = useNavigate();
@@ -614,6 +615,7 @@ function SmartRxPreview() {
         selectedLang,
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
+        dentalExaminationData,
     });
 
     useEffect(() => {

@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import { Col, Radio, Row, Form, Table, Collapse, Checkbox, Button, Modal, Tooltip } from "antd";
+import { Col, Radio, Row, Form, Table, Collapse, Checkbox, Button, Modal, Tooltip, Switch } from "antd";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { MenuOutlined } from "@ant-design/icons";
 import { DndContext } from "@dnd-kit/core";
@@ -14,13 +15,20 @@ import { CSS } from "@dnd-kit/utilities";
 
 import PrintSettingsContext from "../../context/PrintSettingsContext";
 import PageBreakComponent from "./PageBreakComponent";
+import { transformToothStateToApi } from "../dental/lib/examination-helpers";
 
 import { isMobile } from "react-device-detect";
 import { useAccess } from "../../pages/vaccination/useAccess";
 import { graphsToPrintData } from "../../pages/growthChart/growthChartHelper";
 import { getDecodedToken } from "../../utils/localStorage";
 import { env } from "../../EnvironmentConfig";
-import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE } from "../../utils/constants";
+import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE, GB_DENTAL_MODULE } from "../../utils/constants";
+import {
+  DENTAL_EXAM_CASE_OPTION_ID,
+  ORAL_EXAM_CASE_OPTION_ID,
+} from "../../utils/dentalDefaultPrintSettings";
+import { loadExamChart, hasOralExamChartData } from "../../utils/examChartStorage";
+import { hasHistoricalData } from "../dental/examination/DentalChartPrint";
 // const CustomRow = ({ children, ...props }) => {
 //     const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
 //         id: props['data-row-key'],
@@ -202,7 +210,58 @@ const diagnosisCheckboxOptions = [
 
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
   const contextValue = useContext(PrintSettingsContext);
-  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile, isDigitisedPrintConfig } = contextValue || {};
+  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile, isDigitisedPrintConfig, dentalExaminationData, isDentalEnabled: isDentalEnabledContext } = contextValue || {};
+  const isDentalEnabledFeature = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = isDentalEnabledContext || isDentalEnabledFeature;
+
+  let dentalExamData = dentalExaminationData;
+  if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {
+    dentalExamData = {
+      ...dentalExamData,
+      tooth_states: transformToothStateToApi(dentalExamData.toothState)
+    };
+  }
+  const hasDentalExaminationData = Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.some((toothState) => {
+    const hasHistory = (toothState.treatment_history || []).length > 0;
+    const hasFindings = (toothState.findings || []).length > 0;
+    const hasProcedures = (toothState.procedures || []).length > 0;
+    const hasNotes = (toothState.overall_notes || "").trim().length > 0;
+    return hasHistory || hasFindings || hasProcedures || hasNotes;
+  });
+
+  const patientId = caseManagerData?.patient_data?.patient_unique_id;
+  const examChart = loadExamChart(patientId);
+  const hasOralExaminationData = hasOralExamChartData(examChart);
+  const historyAvailable = hasHistoricalData(patientId);
+
+  const hasDentalPrintOption = printSettings?.prescription?.case_option?.some(
+    (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID
+  );
+  const hasOralPrintOption = printSettings?.prescription?.case_option?.some(
+    (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID
+  );
+
+  const showDentalExamRow = isDentalEnabled || hasDentalExaminationData || hasDentalPrintOption;
+  const showOralExamRow = isDentalEnabled || hasOralExaminationData || hasOralPrintOption;
+
+  const onExamPrintToggleChange = (caseOptionIndex, key, value) => {
+    setPrintSettings((prev) => {
+      const caseOption = [...(prev?.prescription?.case_option || [])];
+      if (!caseOption[caseOptionIndex]) return prev;
+      caseOption[caseOptionIndex] = {
+        ...caseOption[caseOptionIndex],
+        [key]: value,
+      };
+      return {
+        ...prev,
+        prescription: {
+          ...prev.prescription,
+          case_option: caseOption,
+        },
+      };
+    });
+  };
+
   const { isVaccinationAccessable, isGrowthChartAccessable, isGynaecHistoryAccessable } = useAccess(
     caseManagerData?.patient_data?.patient_age
   );
@@ -697,6 +756,82 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
     // ];
   };
 
+  const sectionToggleCard = (title, description, checked, disabled, onChange) => (
+    <div
+      className="d-flex align-items-center justify-content-between"
+      style={{
+        padding: "12px 14px",
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        opacity: disabled ? 0.55 : 1,
+      }}
+      title={disabled ? description : undefined}
+    >
+      <div className="text-start pe-3">
+        <div style={{ fontWeight: 600, color: "#334155", fontSize: 14 }}>{title}</div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }}>{description}</div>
+      </div>
+      <Switch checked={checked} disabled={disabled} onChange={onChange} />
+    </div>
+  );
+
+  const dentalSectionsAccordionItems = (record, i) => [
+    {
+      key: "1",
+      label: (
+        <div className="text-start">
+          <div className="fw-semibold">Sections</div>
+          <div className="subtitle-customize">Control what appears in the dental examination printout</div>
+        </div>
+      ),
+      children: (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
+          {sectionToggleCard(
+            "Show dental chart",
+            "Include the odontogram in the printout",
+            record.showDentalChart !== false,
+            false,
+            (checked) => onExamPrintToggleChange(i, "showDentalChart", checked)
+          )}
+          {sectionToggleCard(
+            "Include past dental & oral history",
+            historyAvailable
+              ? "Adds tooth records and oral examination entries from previous visits. Each tooth shows the date it was last updated."
+              : "There is no past dental or oral history for this patient.",
+            record.includeHistorical === true && historyAvailable,
+            !historyAvailable,
+            (checked) => onExamPrintToggleChange(i, "includeHistorical", checked)
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const oralSectionsAccordionItems = (record, i) => [
+    {
+      key: "1",
+      label: (
+        <div className="text-start">
+          <div className="fw-semibold">Sections</div>
+          <div className="subtitle-customize">Control what appears in the oral examination printout</div>
+        </div>
+      ),
+      children: (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
+          {sectionToggleCard(
+            "Include past dental & oral history",
+            historyAvailable
+              ? "Adds tooth records and oral examination entries from previous visits. Each tooth shows the date it was last updated."
+              : "There is no past dental or oral history for this patient.",
+            record.includeHistorical === true && historyAvailable,
+            !historyAvailable,
+            (checked) => onExamPrintToggleChange(i, "includeHistorical", checked)
+          )}
+        </div>
+      ),
+    },
+  ];
+
   const growthChartAccordionItems = (record, i) => [
     {
       key: "1",
@@ -1131,6 +1266,34 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
               </div>
             </div>
           )}
+          {record.id === DENTAL_EXAM_CASE_OPTION_ID && (
+            <div style={{ marginLeft: -40, display: "flex" }}>
+              <div style={{ flex: 1 }}>
+                <div className="border mt-3 rounded-4 p-3 bg-white ">
+                  <Collapse
+                    items={dentalSectionsAccordionItems(record, printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                    defaultActiveKey={["1"]}
+                    className="prescriptiontab-accordian"
+                    expandIconPosition={"end"}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          {record.id === ORAL_EXAM_CASE_OPTION_ID && (
+            <div style={{ marginLeft: -40, display: "flex" }}>
+              <div style={{ flex: 1 }}>
+                <div className="border mt-3 rounded-4 p-3 bg-white ">
+                  <Collapse
+                    items={oralSectionsAccordionItems(record, printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                    defaultActiveKey={["1"]}
+                    className="prescriptiontab-accordian"
+                    expandIconPosition={"end"}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           </>
         );
       },
@@ -1302,7 +1465,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
                     (patientBills?.length > 0 && option.id === 17) ||
                     ((option.id === 19) && (Array.isArray(carePlanAssignments) ? carePlanAssignments.length > 0 : false)) ||
-                    (option.id === 20 && ophthalModuleData && Object.keys(ophthalModuleData).length > 0)
+                    (option.id === 20 && ophthalModuleData && Object.keys(ophthalModuleData).length > 0) ||
+                    (option.id === DENTAL_EXAM_CASE_OPTION_ID && showDentalExamRow) ||
+                    (option.id === ORAL_EXAM_CASE_OPTION_ID && showOralExamRow)
                 }).map(option => ({ ...option, key: option.id }));
                 return filtered;
               })()}
@@ -1419,7 +1584,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                   (zydusSelectedLabParams?.length > 0 && option.id === 18) ||
                   (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
                   (patientBills?.length > 0 && option.id === 17) ||
-                  (option.id === 20 && ((ophthalModuleData && Object.keys(ophthalModuleData).length > 0) || true))
+                  (option.id === 20 && ((ophthalModuleData && Object.keys(ophthalModuleData).length > 0) || true)) ||
+                  (option.id === DENTAL_EXAM_CASE_OPTION_ID && showDentalExamRow) ||
+                  (option.id === ORAL_EXAM_CASE_OPTION_ID && showOralExamRow)
                 );
               }) || [];
 

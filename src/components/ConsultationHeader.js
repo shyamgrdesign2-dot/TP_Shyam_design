@@ -54,6 +54,7 @@ const ConsultationHeader = ({
   onEndVisit,
   handleSelectLetterHead,
   hasDentalData = false,
+  onPreviewClick,
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -366,7 +367,7 @@ const ConsultationHeader = ({
           <Button
             type="button"
             className="btn-41 btn px-2 ant-btn-text btn-input align-items-center d-flex"
-            // onClick={previewBtnHandler}
+            onClick={onPreviewClick}
             icon={<i className="icon-Preview" />}
           >
             Preview

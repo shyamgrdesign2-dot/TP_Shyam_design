@@ -2402,6 +2402,28 @@ body {
   padding: 0.3rem 0.3rem;
 }
 
+.visit-exam-summary {
+  .visit-exam-inline-list {
+    padding: 0 0 4px 28px;
+  }
+
+  .visit-exam-line {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #171725;
+  }
+
+  .visit-exam-item-name {
+    font-weight: 500;
+  }
+
+  .visit-exam-item-meta {
+    color: #6b7280;
+    font-weight: 400;
+  }
+}
+
 .opthal-summary {
   display: flex;
   flex-direction: column;

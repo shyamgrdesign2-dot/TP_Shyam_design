@@ -21,7 +21,7 @@ import { getProfile, updateStatusMoengageB2C, changeHospital, customizedPad, swt
 import { clearTeleconsultNotification } from "../redux/teleconsultNotificationSlice";
 import ApiAbha from "../api/services/ApiAbha";
 import { viewDoctorWebsite } from "../redux/doctorWebsiteSlice";
-import { verifyAndAddDentalModule } from "../utils/dentalModuleUtils";
+import { verifyAndAddDentalModule, verifyAndAddDentalPrintOptions } from "../utils/dentalModuleUtils";
 
 import { useLocalStorage, clearLocalStorage, getDecodedToken } from "../utils/localStorage";
 import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP, GB_DENTAL_MODULE } from "../utils/constants";
@@ -128,7 +128,7 @@ function Header({ locationPath }) {
 
   const navigate = useNavigate();
 
-  const { profile, loading, videoList, siteId, empNo, hasLocation } = useSelector((state) => state.doctors);
+  const { profile, loading, videoList, siteId, empNo, hasLocation, defaultPrintSettings } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
   const dispatch = useDispatch();
 
@@ -168,6 +168,12 @@ function Header({ locationPath }) {
       dispatch(zydusRefIds())
     }
   }, [isZydusUserAccessableFromGB]);
+
+  useEffect(() => {
+    if (!isReceptionist && isDentalEnabled && defaultPrintSettings?.prescription) {
+      dispatch(verifyAndAddDentalPrintOptions(isDentalEnabled));
+    }
+  }, [isReceptionist, isDentalEnabled, defaultPrintSettings, dispatch]);
 
   useEffect(() => {
     if (profile && hasLocation === false && !isReceptionist) {
