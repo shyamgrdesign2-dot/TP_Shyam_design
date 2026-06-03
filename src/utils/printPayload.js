@@ -1,6 +1,27 @@
 import React from "react";
 import { pdf } from "@react-pdf/renderer";
 import ViewPDF from "./server/viewpdf";
+import { prefetchDentalToothImageMap } from "../components/dental/examination/dentalChartPdf";
+import { loadExamChart, getPatientIdForExamChart } from "./examChartStorage";
+import { DENTAL_EXAM_CASE_OPTION_ID } from "./dentalDefaultPrintSettings";
+import { hasDentalExamPayload } from "./cardiologyDentalOralExam";
+
+function shouldPrefetchDentalToothImages({
+  dentalExaminationData,
+  printSettings,
+  onlyShowDental,
+}) {
+  if (onlyShowDental) return true;
+  if (hasDentalExamPayload(dentalExaminationData)) return true;
+  const dentalOption = printSettings?.prescription?.case_option?.find(
+    (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID
+  );
+  return (
+    dentalOption?.enable === "Y" &&
+    dentalOption?.custom_status === "Y" &&
+    dentalOption?.showDentalChart !== false
+  );
+}
 
 const resolveSelectedLang = (payload, selectedLang) => {
   if (selectedLang !== undefined && selectedLang !== null) {
@@ -27,7 +48,7 @@ const normalizeArrayValue = (value, fallbackKey) => {
 
 export const renderPrintPayloadToBlob = async (
   payload,
-  { selectedLang, isGynaecHistoryAccessable, showSnapRxImages = false } = {}
+  { selectedLang, isGynaecHistoryAccessable, showSnapRxImages = false, onlyShowDental = false } = {}
 ) => {
   if (!payload) {
     return null;
@@ -63,8 +84,16 @@ export const renderPrintPayloadToBlob = async (
     labReportData,
     ophthalModuleData,
     zydusLabData,
-    abhaDetails
+    abhaDetails,
+    dentalData,
+    dentalExaminationData,
+    isDigitisedPrintConfig,
+    examChart: examChartFromPayload,
   } = payload;
+
+  const examChart =
+    examChartFromPayload ??
+    loadExamChart(getPatientIdForExamChart(caseManagerData));
 
   const combinedCaseManagerData = {
     ...caseManagerData,
@@ -81,6 +110,13 @@ export const renderPrintPayloadToBlob = async (
   };
 
   const resolvedLang = resolveSelectedLang(payload, selectedLang);
+  const toothImageMap = shouldPrefetchDentalToothImages({
+    dentalExaminationData,
+    printSettings,
+    onlyShowDental,
+  })
+    ? await prefetchDentalToothImageMap()
+    : {};
 
   const normalizedCustomModules = Array.isArray(customModules)
     ? customModules
@@ -123,6 +159,12 @@ export const renderPrintPayloadToBlob = async (
       zydusLabData={zydusLabData?.length > 0 ? {data: zydusLabData} : null}
       showSnapRxImages={showSnapRxImages}
       abhaDetails={abhaDetails}
+      dentalData={dentalData}
+      dentalExaminationData={dentalExaminationData}
+      isDigitisedPrintConfig={isDigitisedPrintConfig}
+      onlyShowDental={onlyShowDental}
+      toothImageMap={toothImageMap}
+      examChart={examChart}
     />
   ).toBlob();
 };

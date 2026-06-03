@@ -66,6 +66,7 @@ function PrescriptionPrintView() {
     } = useSelector((state) => state.caseManager);
     const { userId, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
     const { isOpdBillChecked } = useSelector((state) => state.billing);
+    const dentalExaminationData = useSelector((state) => state.dentalExamination);
     const { isOpdBillingAccessable } = useOpdBilling();
     const dispatch = useDispatch();
 
@@ -75,6 +76,9 @@ function PrescriptionPrintView() {
 
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID } = state;
+    const isDental = state?.from === "/dental" || 
+                     profile?.dp_name?.toLowerCase().includes("dental") || 
+                     profile?.dp_name?.toLowerCase().includes("dentist");
 
     // Detect a hard refresh on the first mount after document load.
     const isFirstMountAfterLoad = ppvMountCount === 0;
@@ -203,6 +207,7 @@ function PrescriptionPrintView() {
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
         zydusSelectedLabParams,
+        dentalExaminationData,
     });
 
     useEffect(() => {
@@ -482,7 +487,11 @@ function PrescriptionPrintView() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload } })
+            if (isDental) {
+                navigate("/dental", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload } })
+            } else {
+                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload } })
+            }
         } else {
             errorMessage(action.error)
         }

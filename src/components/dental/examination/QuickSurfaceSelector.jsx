@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { ZONE_INFO, getZoneLabel } from "./types";
+import { getZoneLabel } from "./types";
 import qs from "./QuickSurfaceSelector.module.scss";
 // Shapes extracted from the provided quick-surface SVG (viewBox 114 x 229).
 // These map directly to interactive zones, including "whole tooth" at the top.
@@ -81,8 +81,10 @@ export function QuickSurfaceSelector({
       y: e.clientY - rect.top - 4,
     });
   }, []);
-  const NEUTRAL_STROKE = "#94a3b8"; // slate-400
-  const NEUTRAL_FINDING_FILL = "#cbd5e1"; // slate-300
+  const NEUTRAL_STROKE = "#c4c9d1";
+  const NEUTRAL_FINDING_FILL = "#d2d6dc";
+  const SELECTED_FILL = "#8a9098";
+  const SELECTED_STROKE = "#4b5563";
   // Tooltip is visible only when:
   //  1. A zone is hovered
   //  2. That zone is NOT currently selected (selected zones don't need tooltip)
@@ -90,7 +92,6 @@ export function QuickSurfaceSelector({
   const showTooltip =
     hovered !== null && !disabled && !selectedZones.has(hovered);
   const zoneProps = (id) => {
-    const baseColor = ZONE_INFO[id].color;
     const isSel = selectedZones.has(id);
     const isHov = hovered === id;
     const hasFinding = zonesWithFindings?.has(id) ?? false;
@@ -99,9 +100,9 @@ export function QuickSurfaceSelector({
     let stroke;
     let strokeOpacity;
     if (isSel) {
-      fill = baseColor;
+      fill = SELECTED_FILL;
       fillOpacity = 1;
-      stroke = baseColor;
+      stroke = SELECTED_STROKE;
       strokeOpacity = 1;
     } else if (isHov) {
       fill = NEUTRAL_STROKE;
@@ -114,8 +115,8 @@ export function QuickSurfaceSelector({
       stroke = NEUTRAL_STROKE;
       strokeOpacity = 0.85;
     } else {
-      fill = NEUTRAL_STROKE;
-      fillOpacity = 0;
+      fill = "#ffffff";
+      fillOpacity = 1;
       stroke = NEUTRAL_STROKE;
       strokeOpacity = 0.85;
     }
@@ -164,13 +165,15 @@ export function QuickSurfaceSelector({
 
       <svg viewBox="0 0 114 229" className={qs.svg}>
         <path d={PATH_WHOLE} {...zoneProps("whole")} />
-        <path d={PATH_TL} {...zoneProps("buccal")} />
-        <path d={PATH_TR} {...zoneProps("lingual")} />
-        <path d={PATH_BL} {...zoneProps("mesial")} />
-        <path d={PATH_BR} {...zoneProps("distal")} />
-        <circle cx={57} cy={92} r={20} {...zoneProps("occlusal")} />
-        <path d={PATH_CERVICAL} {...zoneProps("cervical")} />
-        <path d={PATH_ROOT} {...zoneProps("root")} />
+        <g transform={arch === "maxillary" ? "matrix(1 0 0 -1 0 265)" : undefined}>
+          <path d={PATH_TL} {...zoneProps("buccal")} />
+          <path d={PATH_TR} {...zoneProps("lingual")} />
+          <path d={PATH_BL} {...zoneProps("mesial")} />
+          <path d={PATH_BR} {...zoneProps("distal")} />
+          <circle cx={57} cy={92} r={20} {...zoneProps("occlusal")} />
+          <path d={PATH_CERVICAL} {...zoneProps("cervical")} />
+          <path d={PATH_ROOT} {...zoneProps("root")} />
+        </g>
       </svg>
     </div>
   );

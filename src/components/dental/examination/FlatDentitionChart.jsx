@@ -190,12 +190,30 @@ function Tooth({ fdi, slotX, top, upper, st }) {
 // Compact PNG-based tooth cell for the Rx dental chart. Uses the captured
 // front-view images (/teeth/<fdi>.png); teeth with recorded data are
 // highlighted with a violet ring + violet number.
+// Flex weight per tooth ≈ its width/height aspect, so cells size proportionally
+// and every tooth renders at the SAME height (molars get wider cells, so they
+// no longer look small). The row uses width:100%, so it always fits the page.
+// Exact width/height of each trimmed tooth PNG → flex weight, so every tooth
+// renders at the SAME height (cells size proportionally) and the row fits width.
 const TOOTH_ASPECT = { "11": 0.371, "12": 0.371, "13": 0.341, "14": 0.354, "15": 0.373, "16": 0.505, "17": 0.513, "18": 0.515, "21": 0.371, "22": 0.371, "23": 0.341, "24": 0.354, "25": 0.373, "26": 0.505, "27": 0.513, "28": 0.515, "31": 0.3, "32": 0.287, "33": 0.307, "34": 0.334, "35": 0.342, "36": 0.668, "37": 0.55, "38": 0.658, "41": 0.3, "42": 0.287, "43": 0.307, "44": 0.334, "45": 0.342, "46": 0.668, "47": 0.55, "48": 0.658 };
 function toothCellAspect(fdi) { return TOOTH_ASPECT[fdi] || 0.45; }
-const TOOTH_STROKE = "drop-shadow(1.2px 0 0 #7c3aed) drop-shadow(-1.2px 0 0 #7c3aed) drop-shadow(0 1.2px 0 #7c3aed) drop-shadow(0 -1.2px 0 #7c3aed)";
+// Dark gray outer stroke around a PNG tooth (4 stacked drop-shadows trace its alpha edge).
+const TOOTH_STROKE = "drop-shadow(1px 0 0 #374151) drop-shadow(-1px 0 0 #374151) drop-shadow(0 1px 0 #374151) drop-shadow(0 -1px 0 #374151)";
+const STATIC_ASSET_BASE = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
+const toothCandidates = (fdi) => ([
+  `${STATIC_ASSET_BASE}/teeth/${fdi}.webp`,
+  `/teeth/${fdi}.webp`,
+  `teeth/${fdi}.webp`,
+  `${STATIC_ASSET_BASE}/teeth/${fdi}.png`,
+  `/teeth/${fdi}.png`,
+  `teeth/${fdi}.png`,
+]).filter(Boolean);
 
+// Widest half-arch aspect-sum (lower arch) — used to size a uniform tooth
+// height that still lets the widest row fit the available width.
 const MAX_HALF_ASPECT_SUM = 3.45;
 
+// Per-tooth surface zones recorded in the chart (for the read-only selector).
 function zonesByToothFromChart(chart) {
   const zonesByTooth = {};
   const add = (fdi, z) => { (zonesByTooth[fdi] = zonesByTooth[fdi] || new Set()).add(z); };
@@ -212,12 +230,24 @@ function zonesByToothFromChart(chart) {
 function ChartToothCell({ fdi, st, h, arch, zones }) {
   const hasData = st.hasAny || st.isMissing;
   const pos = Number(fdi[1]) || 6;
+  const [assetIdx, setAssetIdx] = useState(0);
+  const candidates = toothCandidates(fdi);
+  const toothSrc = candidates[Math.min(assetIdx, candidates.length - 1)];
+
+  useEffect(() => {
+    setAssetIdx(0);
+  }, [fdi]);
+
+  const onToothImageError = () => {
+    setAssetIdx((prev) => (prev + 1 < candidates.length ? prev + 1 : prev));
+  };
+
   const img = (
-    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", borderRadius: 7, background: hasData ? "rgba(124,58,237,0.10)" : "transparent", boxSizing: "border-box", padding: "2px 2px" }}>
-      <img src={`/teeth/${fdi}.webp`} alt={fdi} decoding="async" style={{ height: h, width: "auto", display: "block", opacity: st.isMissing ? 0.4 : 1, filter: hasData ? TOOTH_STROKE : undefined }} />
+    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", borderRadius: 7, background: hasData ? "#f1f2f4" : "transparent", boxSizing: "border-box", padding: "2px 2px" }}>
+      <img src={toothSrc} alt={fdi} decoding="async" onError={onToothImageError} style={{ height: h, width: "auto", display: "block", opacity: st.isMissing ? 0.4 : 1, filter: hasData ? TOOTH_STROKE : undefined }} />
     </div>
   );
-  const num = <span style={{ fontSize: 10, fontWeight: hasData ? 800 : 600, color: hasData ? "#1e293b" : "#94a3b8", fontFamily: "Inter, sans-serif" }}>{fdi}</span>;
+  const num = <span style={{ fontSize: 10, fontWeight: hasData ? 800 : 600, color: hasData ? "#111827" : "#9ca3af", fontFamily: "Inter, sans-serif" }}>{fdi}</span>;
   const selector = (
     <div style={{ width: 38, height: 78, position: "relative", overflow: "hidden", display: "flex", justifyContent: "center" }}>
       <div style={{ transform: "scale(0.48)", transformOrigin: "top center" }}>
@@ -241,12 +271,20 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
     if (chartProp) return;
     setChart(loadChart(patientId));
   }, [patientId, chartProp]);
-
+  // Uniform tooth height = widest-half-width / aspect-sum, so every tooth is the
+  // SAME height while the widest row still fits (responsive to the container).
+  // CENTRE_RESERVE = the same gap we use between maxillary and mandibular rows
+  // (8 px column gap) so the right↔left quadrant separation reads as the SAME
+  // visual rhythm as the upper↔lower jaw separation. No inner padding either —
+  // `space-evenly` alone distributes any leftover space cleanly.
   useEffect(() => {
     const measure = () => {
       const w = wrapRef.current?.clientWidth || 660;
+      // 1px divider + 8px total margin (4px each side) — matches column gap.
       const CENTRE_RESERVE = 9;
       const half = (w - CENTRE_RESERVE) / 2;
+      // 0.65 keeps the chart compact so the trailing molars (28, 38) don't
+      // overflow the container edge.
       const H = Math.max(40, Math.min(80, (half / MAX_HALF_ASPECT_SUM) * 0.65));
       setToothH(H);
     };
@@ -260,6 +298,10 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   const toothDiagnoses = chart?.toothDiagnoses ?? {};
   const findingsByTooth = chart?.findingsByTooth ?? {};
 
+  // Nothing recorded → don't render in regular contexts (saves space in the
+  // Rx Preview drawer when the doctor hasn't added any tooth data). The print
+  // path passes `alwaysRender` so the chart ALWAYS renders for print previews
+  // — that's the whole point of "Print Dental Chart".
   const anyData =
     Object.values(toothDiagnoses).some((a) => (a || []).length > 0) ||
     Object.values(findingsByTooth).some((a) => (a || []).length > 0);
@@ -269,6 +311,9 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   const cell = (fdi, arch) => (
     <ChartToothCell key={fdi} fdi={fdi} h={toothH} arch={arch} zones={zonesByTooth[fdi]} st={toothState(fdi, toothDiagnoses, findingsByTooth)} />
   );
+  // Right/left quadrant gap matches the upper/lower jaw gap (8px row gap)
+  // so the chart reads with one consistent rhythm. `space-evenly` keeps
+  // the inner-most tooth (11 / 41) from sitting flush against the divider.
   const row = (fdis, arch) => (
     <div style={{ display: "flex", alignItems: "stretch" }}>
       <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
@@ -294,6 +339,11 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   );
 }
 
+// OralExamReport — region-level oral findings & procedures for the Rx / printed
+// report. Reads the same saved exam chart and lists each region's entries.
+// `showDates` (passed in from RxPreviewDocument when `settings.includeHistorical`
+// is on) appends a per-entry date chip next to each entry's name so historical
+// merges read cleanly without one big section-level date covering everything.
 export function OralExamReport({ patientId, chart: chartProp, view = "list", showDates = false }) {
   const [chart, setChart] = useState(chartProp ?? null);
   useEffect(() => {
@@ -305,6 +355,10 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
   const notes = (chart?.oralNotes || "").trim();
   if (entries.length === 0 && !notes) return null;
 
+  // Per-entry date label — uses each entry's `updatedAt` if present, else the
+  // chart-level `updatedAt`, else today. Mental model: editing ANY oral entry
+  // in the current visit promotes its stamp to now (matches the per-tooth
+  // semantics on the dental side).
   const dt = (v) => {
     try {
       const d = new Date(v);
@@ -314,10 +368,14 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
   };
   const fallbackDate = chart?.updatedAt ?? new Date().toISOString();
   const entryDateLabel = (e) => dt(e?.updatedAt ?? fallbackDate);
+  // Reusable date chip — matches the dental tooth-date treatment exactly
+  // (10px / 500 slate-500). Wrap in a span so JSX can be reused inline.
   const DateChip = ({ value }) => (
     <span style={{ fontSize: 10, fontWeight: 500, color: "#64748b", marginLeft: 6, whiteSpace: "nowrap" }}>· {value}</span>
   );
 
+  // Group by primary site (first position) so the printed report matches the
+  // on-screen records layout (site as the header, items inside).
   const order = [];
   const byKey = {};
   const itemParts = (e) => {
@@ -332,10 +390,7 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
   entries.forEach((e) => {
     const positions = e.surfaces || [];
     const key = positions.length ? positions[0] : "WHOLE";
-    if (!byKey[key]) {
-      byKey[key] = { label: ORAL_POSITION_LABEL[key] || key, past: [], findings: [], procedures: [] };
-      order.push(key);
-    }
+    if (!byKey[key]) { byKey[key] = { label: ORAL_POSITION_LABEL[key] || key, past: [], findings: [], procedures: [] }; order.push(key); }
     if (e.kind === "past") byKey[key].past.push(itemParts(e));
     else if (e.kind === "procedure") byKey[key].procedures.push(itemParts(e));
     else byKey[key].findings.push(itemParts(e));
@@ -346,8 +401,11 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
   const heading = (
     <h3 style={{ fontSize: 12, fontWeight: 700, color: "#334155", margin: "0 0 6px", fontFamily: "Inter, sans-serif" }}>Oral Examination</h3>
   );
-
   if (view === "table") {
+    // Oral examination is NOT per-tooth — the doctor records by KIND first
+    // (Past Procedures / Findings / Procedures) and tags a region. Print
+    // matches that mental model: group by kind, region is a column inside
+    // each kind's flat table. No per-site grouping or region headings.
     const allPast = [];
     const allFindings = [];
     const allProcs = [];
@@ -364,7 +422,8 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
     const td = { padding: "6px 10px", fontSize: 12, color: "#475569", verticalAlign: "top", borderTop: "1px solid #e6ebf1", wordBreak: "break-word" };
     const tdName = { ...td, fontWeight: 600, color: "#334155" };
     const colW = ["32%", "26%", "16%", "26%"];
-
+    // When historical is on, name cell carries the per-entry date next to
+    // the entry name (no extra column — keeps the table tight).
     const kindTable = (label, list) => list.length ? (
       <div style={wrap}>
         <div style={kindHead}>{label}</div>
@@ -376,7 +435,6 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
         </table>
       </div>
     ) : null;
-
     return (
       <section style={{ marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }} data-oral-exam-report="true">
         {heading}
@@ -389,8 +447,10 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
       </section>
     );
   }
-
   if (view === "inline") {
+    // Mirror the table layout: group by KIND (Past Procedures / Findings /
+    // Procedures), with region + since + note collapsed into a single bracket
+    // per item. Colon separators (no em dashes).
     const allPast = [], allFindings = [], allProcs = [];
     entries.forEach((e) => {
       const item = itemParts(e);
@@ -398,7 +458,6 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
       else if (e.kind === "procedure") allProcs.push(item);
       else allFindings.push(item);
     });
-
     const inlineItemNode = (it, i) => {
       const bits = [];
       if (it.region) bits.push(it.region);
@@ -409,13 +468,11 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
         <span key={i}>{i > 0 ? ", " : ""}{it.name}{bracket}{showDates && <DateChip value={it.date} />}</span>
       );
     };
-
     const segs = [
       { label: "Past Procedures", list: allPast },
       { label: "Findings",        list: allFindings },
       { label: "Procedures",      list: allProcs },
     ].filter((s) => s.list.length);
-
     return (
       <section style={{ marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }} data-oral-exam-report="true">
         {heading}
@@ -428,7 +485,6 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
       </section>
     );
   }
-
   return (
     <section
       style={{ marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}

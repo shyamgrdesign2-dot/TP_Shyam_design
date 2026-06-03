@@ -9,7 +9,18 @@ import ObsHistoryTableView from './obsHistory/table';
 import OphthalmologyInlineView from './ophthalmology/inline';
 import OphthalmologyListView from './ophthalmology/list';
 import OphthalmologyTableView from './ophthalmology/table';
+import DentalInlineView from './dental/inline';
+import DentalListView from './dental/list';
+import DentalTableView from './dental/table';
 import ThenConnector from './ThenConnector';
+import { transformToothStateToApi } from '../dental/lib/examination-helpers';
+import { PdfDentalChart } from '../dental/examination/dentalChartPdf';
+import {
+    DENTAL_EXAM_CASE_OPTION_ID,
+    ORAL_EXAM_CASE_OPTION_ID,
+} from '../../utils/dentalDefaultPrintSettings';
+import { resolveExamChartForPrint, hasOralExamChartData } from '../../utils/examChartStorage';
+import { renderOralExamPdf } from './oral/renderOralExamPdf';
 
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
@@ -393,8 +404,25 @@ function enrichCaseManagerAiMedicationForPrint(medicine) {
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData } = props
-    const isRxDigitizeBool = !!(caseManagerData?.isRxDigitize || isDigitisedPrintConfig);
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp } = props
+    let dentalExaminationData = rawDentalData || props.dentalExaminationData;
+    if (dentalExaminationData && dentalExaminationData.toothState && typeof dentalExaminationData.toothState === "object") {
+        try {
+            dentalExaminationData = {
+                ...dentalExaminationData,
+                tooth_states: transformToothStateToApi(dentalExaminationData.toothState)
+            };
+        } catch (err) {
+            console.error("Failed to transform toothState inside ViewPDF:", err);
+        }
+    }
+    const isRxDigitizeBool = !!(
+        caseManagerData?.isRxDigitize ||
+        isDigitisedPrintConfig ||
+        caseManagerData?.doctor_data?.dp_id == 26 ||
+        (caseManagerData?.doctor_data?.dp_name &&
+          String(caseManagerData.doctor_data.dp_name).toLowerCase().includes("dental"))
+    );
     const baseFontFamily = printSettings?.page_format?.font_family || 'Roboto';
     const baseFontSize = PX_TO_PT * (printSettings?.page_format?.font_size || 10);
     const dentalPdfData = dentalData;
@@ -543,6 +571,38 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         )
         : [];
     const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
+    const examChart = resolveExamChartForPrint(caseManagerData, examChartProp);
+    const hasOralExaminationData = hasOralExamChartData(examChart);
+    const oralExamEnabledInCaseOptions = printSettings?.prescription?.case_option?.some(
+        (o) =>
+            o?.id === ORAL_EXAM_CASE_OPTION_ID &&
+            o?.enable === "Y" &&
+            o?.custom_status === "Y",
+    );
+    const shouldRenderOralInDentalBlock =
+        hasOralExaminationData && (onlyShowDental || !oralExamEnabledInCaseOptions);
+
+    const hasDentalExaminationData =
+        Array.isArray(dentalExaminationData?.tooth_states) &&
+        dentalExaminationData.tooth_states.some((toothState) => {
+            const historyItems = (toothState.treatment_history || [])
+                .map((item) => item.name || item.type || "")
+                .filter(Boolean);
+            const findingItems = (toothState.findings || [])
+                .map((item) => item.name || item.type || "")
+                .filter(Boolean);
+            const procedureItems = (toothState.procedures || [])
+                .map((item) => item.name || item.type || "")
+                .filter(Boolean);
+            const overallNotes = (toothState.overall_notes || "").trim();
+            return (
+                historyItems.length > 0 ||
+                findingItems.length > 0 ||
+                procedureItems.length > 0 ||
+                overallNotes.length > 0
+            );
+        });
+
     const hasDentalSectionData =
         dentalComplaintRowsFiltered.length > 0 ||
         dentalMedicationRowsFiltered.length > 0 ||
@@ -551,7 +611,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         dentalTreatmentRowsFiltered.length > 0 ||
         hasToothDiagramNotes ||
         dentalWorkDoneRowsFiltered.length > 0 ||
-        hasWorkDoneNotes;
+        hasWorkDoneNotes ||
+        hasDentalExaminationData ||
+        hasOralExaminationData;
     const shouldHideMedicationModuleBecauseDentalMedicationShown =
         isRxDigitizeBool && dentalMedicationRowsFiltered.length > 0;
     const dentalQuadrantSections = [
@@ -1242,6 +1304,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     return caseManagerData?.visit_advice || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                 case 20: // Ophthalmology Module
                     return hasOphthalModuleData;
+                case 21: // Dental Examination
+                    return hasDentalSectionData;
+                case 22: // Oral Examination
+                    return hasOralExaminationData;
                 default:
                     return false;
             }
@@ -1255,7 +1321,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             // (zydusLabData?.data?.length > 0) ||
             
             // Check smart sync data
-            (isSmartSyncPrescription && (caseManagerData.isCustomSSRX === "0" && smartRxData?.length > 0) && !isSnapRxWrittenPrescription)
+            (isSmartSyncPrescription && (caseManagerData.isCustomSSRX === "0" && smartRxData?.length > 0) && !isSnapRxWrittenPrescription) ||
+            hasDentalSectionData ||
+            hasOralExaminationData
             
         );
     };
@@ -1733,81 +1801,149 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             </View>
                                         )}
 
-                                        {hasTeethData && (
-                                            <View style={styles.dentalQuadrantGrid}>
-                                                {[0, 1].map((rowIndex) => (
-                                                    <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow} wrap={false}>
-                                                        {dentalQuadrantSections.slice(rowIndex * 2, rowIndex * 2 + 2).map((section, idx) => {
-                                                            const isLastCol = idx === 1;
-                                                            const isLastRow = rowIndex === 1;
-                                                            return (
-                                                                <View
-                                                                    key={section.key}
-                                                                    style={{
-                                                                        ...styles.dentalQuadrantCell,
-                                                                        borderRight: isLastCol ? "0px solid #171725" : styles.dentalQuadrantCell.borderRight,
-                                                                        borderBottom: isLastRow ? "0px solid #171725" : styles.dentalQuadrantCell.borderBottom,
-                                                                    }}
-                                                                >
-                                                                    <Text style={{ ...styles.dentalQuadrantTitle, fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>
-                                                                        {section.label}
+                                        {hasDentalExaminationData ? (
+                                             (() => {
+                                                 const dentalOption = printSettings?.prescription?.case_option?.find((o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID);
+                                                 if (dentalOption && dentalOption.enable === "N") {
+                                                     return null;
+                                                 }
+                                                 const showDentalChart = dentalOption?.showDentalChart !== false;
+                                                 const format = dentalOption?.format || "inline";
+                                                 let viewNode = null;
+                                                 if (format === "listview") {
+                                                     viewNode = (
+                                                         <DentalListView
+                                                             PX_TO_PT={PX_TO_PT}
+                                                             printSettings={printSettings}
+                                                             dentalExaminationData={dentalExaminationData}
+                                                             consultationDate={caseManagerData?.patient_data?.patient_consultaion_date}
+                                                         />
+                                                     );
+                                                 } else if (format === "table") {
+                                                     viewNode = (
+                                                         <DentalTableView
+                                                             PX_TO_PT={PX_TO_PT}
+                                                             printSettings={printSettings}
+                                                             dentalExaminationData={dentalExaminationData}
+                                                             consultationDate={caseManagerData?.patient_data?.patient_consultaion_date}
+                                                         />
+                                                     );
+                                                 } else {
+                                                     viewNode = (
+                                                         <DentalInlineView
+                                                             PX_TO_PT={PX_TO_PT}
+                                                             printSettings={printSettings}
+                                                             dentalExaminationData={dentalExaminationData}
+                                                             consultationDate={caseManagerData?.patient_data?.patient_consultaion_date}
+                                                         />
+                                                     );
+                                                 }
+                                                 return (
+                                                     <View wrap={false}>
+                                                         {showDentalChart ? (
+                                                             <PdfDentalChart
+                                                                 PX_TO_PT={PX_TO_PT}
+                                                                 printSettings={printSettings}
+                                                                 dentalExaminationData={dentalExaminationData}
+                                                                 toothImageMap={toothImageMap}
+                                                             />
+                                                         ) : null}
+                                                         {viewNode}
+                                                     </View>
+                                                 );
+                                             })()
+                                         ) : null}
+                                        {shouldRenderOralInDentalBlock
+                                            ? renderOralExamPdf({
+                                                examChart,
+                                                oralOption: printSettings?.prescription?.case_option?.find(
+                                                    (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+                                                ),
+                                                printSettings,
+                                                consultationDate:
+                                                    caseManagerData?.patient_data?.patient_consultaion_date,
+                                                PX_TO_PT,
+                                            })
+                                            : null}
+                                        {!hasDentalExaminationData ? (
+                                            <>
+                                                {hasTeethData && (
+                                                    <View style={styles.dentalQuadrantGrid}>
+                                                        {[0, 1].map((rowIndex) => (
+                                                            <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow} wrap={false}>
+                                                                {dentalQuadrantSections.slice(rowIndex * 2, rowIndex * 2 + 2).map((section, idx) => {
+                                                                    const isLastCol = idx === 1;
+                                                                    const isLastRow = rowIndex === 1;
+                                                                    return (
+                                                                        <View
+                                                                            key={section.key}
+                                                                            style={{
+                                                                                ...styles.dentalQuadrantCell,
+                                                                                borderRight: isLastCol ? "0px solid #171725" : styles.dentalQuadrantCell.borderRight,
+                                                                                borderBottom: isLastRow ? "0px solid #171725" : styles.dentalQuadrantCell.borderBottom,
+                                                                            }}
+                                                                        >
+                                                                            <Text style={{ ...styles.dentalQuadrantTitle, fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>
+                                                                                {section.label}
+                                                                            </Text>
+                                                                            {(dentalTeethBySection?.[section.key] || []).map((tooth, i) => (
+                                                                                <Text key={`${section.key}-${i}`} style={{ ...styles.dentalListItem, fontFamily: baseFontFamily, fontSize: baseFontSize }}>
+                                                                                    {`Tooth ${tooth?.toothNum ?? ""}: ${tooth?.diagnose ?? ""}`}
+                                                                                </Text>
+                                                                            ))}
+                                                                        </View>
+                                                                    );
+                                                                })}
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                )}
+
+                                                {dentalDiagnosisRows.length > 0 && (
+                                                    <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
+                                                        <View style={styles.dentalHeaderRow}>
+                                                            <View style={styles.dentalHeaderCell}>
+                                                                <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>Diagnosis Field</Text>
+                                                            </View>
+                                                            <View style={styles.dentalHeaderCell}>
+                                                                <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>Selected Values</Text>
+                                                            </View>
+                                                        </View>
+                                                        {dentalDiagnosisRows.map((row) => (
+                                                            <View key={`dx-${row.key}`} style={styles.dentalRow}>
+                                                                <View style={styles.dentalCellLabel}>
+                                                                    <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
+                                                                        {row.label}
                                                                     </Text>
-                                                                    {(dentalTeethBySection?.[section.key] || []).map((tooth, i) => (
-                                                                        <Text key={`${section.key}-${i}`} style={{ ...styles.dentalListItem, fontFamily: baseFontFamily, fontSize: baseFontSize }}>
-                                                                            {`Tooth ${tooth?.toothNum ?? ""}: ${tooth?.diagnose ?? ""}`}
-                                                                        </Text>
-                                                                    ))}
                                                                 </View>
-                                                            );
-                                                        })}
+                                                                <View style={styles.dentalCellValue}>
+                                                                    <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
+                                                                        {row.value}
+                                                                    </Text>
+                                                                </View>
+                                                            </View>
+                                                        ))}
                                                     </View>
-                                                ))}
-                                            </View>
-                                        )}
+                                                )}
 
-                                        {dentalDiagnosisRows.length > 0 && (
-                                            <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
-                                                <View style={styles.dentalHeaderRow}>
-                                                    <View style={styles.dentalHeaderCell}>
-                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>Diagnosis Field</Text>
-                                                    </View>
-                                                    <View style={styles.dentalHeaderCell}>
-                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>Selected Values</Text>
-                                                    </View>
-                                                </View>
-                                                {dentalDiagnosisRows.map((row) => (
-                                                    <View key={`dx-${row.key}`} style={styles.dentalRow}>
-                                                        <View style={styles.dentalCellLabel}>
-                                                            <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
-                                                                {row.label}
-                                                            </Text>
-                                                        </View>
-                                                        <View style={styles.dentalCellValue}>
-                                                            <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
-                                                                {row.value}
-                                                            </Text>
+                                                {hasToothDiagramNotes && (
+                                                    <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
+                                                        <View style={styles.dentalRow}>
+                                                            <View style={styles.dentalCellLabel}>
+                                                                <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
+                                                                    TOOTH DIAGRAM NOTES
+                                                                </Text>
+                                                            </View>
+                                                            <View style={styles.dentalCellValue}>
+                                                                <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
+                                                                    {dentalToothDiagramNotes}
+                                                                </Text>
+                                                            </View>
                                                         </View>
                                                     </View>
-                                                ))}
-                                            </View>
-                                        )}
-
-                                        {hasToothDiagramNotes && (
-                                            <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
-                                                <View style={styles.dentalRow}>
-                                                    <View style={styles.dentalCellLabel}>
-                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
-                                                            TOOTH DIAGRAM NOTES
-                                                        </Text>
-                                                    </View>
-                                                    <View style={styles.dentalCellValue}>
-                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
-                                                            {dentalToothDiagramNotes}
-                                                        </Text>
-                                                    </View>
-                                                </View>
-                                            </View>
-                                        )}
+                                                )}
+                                            </>
+                                        ) : null}
 
                                         {dentalTreatmentRowsFiltered.length > 0 && (
                                             <>
@@ -1911,6 +2047,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </View>
                                 )}
                                 {printSettings?.prescription?.case_option?.map((option, index) => {
+                                    if (onlyShowDental) {
+                                        return null;
+                                    }
                             const customModule = caseManagerData?.moduleContents?.find(e => {
                                 return e.module_id === option?.id
                             });
@@ -6486,6 +6625,19 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 </>
                                             ))
                                         }
+                                    </>
+                                ) : option?.id === ORAL_EXAM_CASE_OPTION_ID && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                    <>
+                                        {hasOralExaminationData
+                                            ? renderOralExamPdf({
+                                                examChart,
+                                                oralOption: option,
+                                                printSettings,
+                                                consultationDate:
+                                                    caseManagerData?.patient_data?.patient_consultaion_date,
+                                                PX_TO_PT,
+                                            })
+                                            : null}
                                     </>
                                 ) : option?.id === 16 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>

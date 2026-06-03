@@ -2165,6 +2165,7 @@ function TabRxHeader({
             zydusSelectedLabParams: zydusSelectedLabParams,
             labReportID: labReportID,
             carePlanAssignments,
+            from: window.location.pathname,
           },
         });
       } else {

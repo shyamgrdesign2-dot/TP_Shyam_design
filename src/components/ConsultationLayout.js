@@ -11,8 +11,10 @@ import {
 import moment from "moment";
 import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
+import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
+import { pdfjs, Document as PdfDocument, Page as PdfPage } from "react-pdf";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -34,6 +36,7 @@ import {
   GB_VIDEO_CONSULT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
+  MESSAGE_KEY,
 } from "../utils/constants";
 import { FETCH_SMART_RX } from "../utils/constants";
 
@@ -102,6 +105,7 @@ import {
   setIsDDxReadyToGenerate,
   setShowSCPopup,
   setSymptomCollector,
+  setSelectAutofill,
 } from "../redux/ddxSlice";
 import DifferentialDiagnosisDrawer from "../components/DifferentialDiagnosisDrawer";
 import CommonModal from "../common/CommonModal";
@@ -122,7 +126,7 @@ import {
 import ConsultationHeader from "./ConsultationHeader";
 import ConsultationSidebar from "./ConsultationSidebar";
 import TabRxCanvas from "../pages/tabRx/components/TabRxCanvas";
-import { uploadTabRxFiles } from "../pages/tabRx/services/tabRxService";
+import { uploadTabRxFiles, upsertTabRxRx } from "../pages/tabRx/services/tabRxService";
 import { getMetadata, getTemplates } from "../pages/tabRx/services/templateService";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
@@ -134,10 +138,13 @@ import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { checkCredits } from "../redux/monetizationSlice";
 import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import SCPopup from "../components/SCPopup";
-import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
+import { fetchSymptomsCollectorData, setAddToRx } from "../api/services/ApiGenRx";
 import {
   getCarePlanNames,
   getCarePlanAssignments,
+  assignCarePlan,
+  hasExistingCarePlanForConsultation,
+  updateCarePlanName,
 } from "../pages/smartSync/services/carePlanService";
 import TabCarePlanList from "../components/tab_design/TabCarePlanList";
 import GroundingBox from "../components/GroundingBox";
@@ -164,8 +171,14 @@ import {
 import { saveDentalExamination } from "../redux/dentalExaminationSlice";
 import { saveOralExaminationThunk, patchOralExaminationThunk } from "../redux/oralExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
+import { renderPrintPayloadToBlob } from "../utils/printPayload";
+import { loadExamChart, getPatientIdForExamChart } from "../utils/examChartStorage";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
+
+const worker = require("pdfjs-dist/build/pdf.worker.min.js");
+pdfjs.GlobalWorkerOptions.workerSrc = worker;
+
 const {
   vitalsWhite,
   vitalsDark,
@@ -197,6 +210,8 @@ const {
   carePlanActiveSolid: carePlanIconDark,
   notesWhite,
   docsWhite,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
 } = ASSETS.images;
 
 function ConsultationLayout({ children, headerProps }) {
@@ -262,6 +277,7 @@ function ConsultationLayout({ children, headerProps }) {
     isDDxReadyToGenerate,
     isAutofillSelected,
     selectedSymptomsCollector,
+    symptomCollector,
   } = useSelector((state) => state.ddx);
   const { profile } = useSelector((state) => state.doctors);
   const { isLoading } = useSelector((state) => state.uploadDoc);
@@ -334,6 +350,25 @@ function ConsultationLayout({ children, headerProps }) {
     caseManagerData !== undefined
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
+
+  const [currentTcmId, setCurrentTcmId] = useState(tcmId);
+  const [isPreviewDrawerOpen, setIsPreviewDrawerOpen] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewPdfFile, setPreviewPdfFile] = useState(null);
+  const [previewDivWidth, setPreviewDivWidth] = useState(550);
+  const [previewNumPages, setPreviewNumPages] = useState(0);
+
+  const previewDivRef = useRef(null);
+
+  useEffect(() => {
+    if (previewDivRef.current) {
+      setPreviewDivWidth(previewDivRef.current.offsetWidth);
+    }
+  }, [isPreviewDrawerOpen, previewDivRef.current]);
+
+  useEffect(() => {
+    setCurrentTcmId(tcmId);
+  }, [tcmId]);
 
   useEffect(() => {
     dispatch(resetVitalsState());
@@ -1813,9 +1848,9 @@ function ConsultationLayout({ children, headerProps }) {
       }
 
       const sendData = {
-        action: tcmId === 0 ? 'add' : 'edit',
+        action: currentTcmId === 0 ? 'add' : 'edit',
         patient_unique_id: patientId,
-        tcm_id: tcmId,
+        tcm_id: currentTcmId,
         pam_id: pamId,
         consultation_date: consultationDate,
         symptoms: symptomsData,
@@ -1832,13 +1867,118 @@ function ConsultationLayout({ children, headerProps }) {
         moduleContents: customModuleContents,
       };
 
-      const action = await (tcmId === 0
+      const action = await (currentTcmId === 0
         ? dispatch(addCaseManager(sendData))
         : dispatch(editCaseManager(sendData)));
 
       if (action.meta.requestStatus === "fulfilled") {
-        message.success("Visit ended successfully");
-        navigate("/all_patients");
+        try {
+          // Ensure care plan is linked to the definitive consultation id
+          const decodedToken = getDecodedToken();
+          const tokenData = decodedToken?.result;
+          const generatedTcmId = action?.payload?.tcm_id ?? currentTcmId;
+          setCurrentTcmId(generatedTcmId);
+
+          const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
+            patient_data?.patient_unique_id,
+            generatedTcmId,
+            'submit',
+          );
+
+          if (generatedTcmId > 0 && selectedCarePlan) {
+            if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
+              await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
+            } else if (
+              !hasExistingCarePlan &&
+              selectedCarePlan?.plan_id &&
+              patient_data?.patient_unique_id &&
+              tokenData?.user_id &&
+              tokenData?.clinic_id
+            ) {
+              await assignCarePlan({
+                plan_id: selectedCarePlan.plan_id,
+                um_id: tokenData.user_id,
+                patient_unique_id: patient_data.patient_unique_id,
+                hm_id: tokenData.clinic_id,
+                tcm_id: parseInt(generatedTcmId),
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Care plan sync after submit failed:', error);
+        }
+
+        // Fetch care plan assignments to include in print state
+        let carePlanAssignments = [];
+        try {
+          if (patient_data?.patient_unique_id) {
+            const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
+            carePlanAssignments = Array.isArray(assignmentsResp?.data) ? assignmentsResp.data : (Array.isArray(assignmentsResp) ? assignmentsResp : (assignmentsResp?.assignments || []));
+          }
+        } catch (cpFetchErr) {
+          console.error('Failed to fetch care plan assignments for print state:', cpFetchErr);
+        }
+
+        message.open({
+          key: MESSAGE_KEY,
+          type: "",
+          className: "message-appointment",
+          content: (
+            <div className="d-flex align-items-center">
+              <img src={visitEnd} className="me-3" />
+              <div>
+                <div className="title-common text-start fontroboto">{`${patient_data?.pm_first_name}'s visit ended successfully.`}</div>
+                <div className="fontroboto text-start fw-normal mt-1">
+                  View completed visits in finished tab.
+                </div>
+              </div>
+              <img
+                src={imgCloseVisit}
+                className="ms-3"
+                onClick={() => message.destroy()}
+              />
+            </div>
+          ),
+          duration: 5,
+        });
+
+        // if (tcmId === 0) {
+        //   try {
+        //     await upsertTabRxRx({
+        //       patient_unique_id: patient_data?.patient_unique_id,
+        //       tcm_id: action.payload?.tcm_id,
+        //       pam_id: action.payload?.pam_id,
+        //     });
+        //   } catch (upsertErr) {
+        //     console.error('Failed to upsert TabRxRx:', upsertErr);
+        //   }
+        // }
+
+        if (isAutofillSelected) {
+          try {
+            await setAddToRx({
+              _id: symptomCollector?._id,
+              addToRx: true,
+            });
+            dispatch(setSelectAutofill(false));
+          } catch (autofillErr) {
+            console.error('Failed to set add to Rx auto-fill:', autofillErr);
+          }
+        }
+
+        const activeDentalData = (dentalExamination?.toothState && Object.keys(dentalExamination.toothState).length > 0)
+          ? transformToothStateToApi(dentalExamination.toothState)
+          : [];
+
+        navigate("/tab-rx-prescription", {
+          replace: true,
+          state: {
+            ...action.payload,
+            patient_data: patient_data,
+            page: location?.pathname === "/dental" ? "dental" : "tabrx",
+            dentalExaminationData: activeDentalData,
+          },
+        });
       } else {
         errorMessage(action.error);
       }
@@ -1847,6 +1987,112 @@ function ConsultationLayout({ children, headerProps }) {
       errorMessage("Failed to end visit");
     } finally {
       setIsEndVisitLoading(false);
+    }
+  };
+
+  const handlePreviewRx = async () => {
+    setIsPreviewLoading(true);
+    setIsPreviewDrawerOpen(true);
+    try {
+      const patientId = patient_data?.patient_unique_id;
+
+      // 1. Save dental examination if there is dental data
+      const activeDentalData = (dentalExamination?.toothState && Object.keys(dentalExamination.toothState).length > 0)
+        ? transformToothStateToApi(dentalExamination.toothState)
+        : [];
+
+      if (patientId && activeDentalData.length > 0) {
+        try {
+          await dispatch(saveDentalExamination({
+            patientId,
+            data: {
+              dentition_type: dentalExamination.dentitionType || "adult",
+              tooth_states: activeDentalData,
+              version: dentalExamination.version || 0,
+            },
+          }));
+        } catch (dentalErr) {
+          console.warn("[Dental] Save failed before preview:", dentalErr);
+        }
+      }
+
+      // 2. Save/Update Case Manager to get the latest print_url
+      const sendData = {
+        action: currentTcmId === 0 ? 'add' : 'edit',
+        patient_unique_id: patientId,
+        tcm_id: currentTcmId,
+        pam_id: pamId,
+        consultation_date: consultationDate,
+        symptoms: symptomsData,
+        examination: examinationData,
+        surgeries: surgeriesData,
+        diagnosis: diagnosisData,
+        medicine: medicationData,
+        advice: adviceData,
+        investigation: investigationData,
+        vitals: vitalsData,
+        follow_up_date: followUpDate,
+        visit_advice: additionalNote,
+        medical_history: medicalHistoryData,
+        moduleContents: customModuleContents,
+      };
+
+      const action = await (currentTcmId === 0
+        ? dispatch(addCaseManager(sendData))
+        : dispatch(editCaseManager(sendData)));
+
+      if (action.meta.requestStatus === "fulfilled") {
+        const savedTcmId = action?.payload?.tcm_id ?? currentTcmId;
+        setCurrentTcmId(savedTcmId);
+
+        const print_url = action?.payload?.print_url || action?.payload?.print_rx_url;
+        if (!print_url) {
+          throw new Error("Print URL not returned from server.");
+        }
+
+        // 3. Fetch print settings JSON payload from print_url
+        let fetchUrl = print_url;
+        try {
+          const urlObj = new URL(fetchUrl, window.location.origin);
+          urlObj.searchParams.set("pam_id", pamId.toString());
+          urlObj.searchParams.set("output", "json");
+          fetchUrl = urlObj.toString();
+        } catch (e) {
+          fetchUrl += (fetchUrl.includes("?") ? "&" : "?") + `pam_id=${pamId}&output=json`;
+        }
+
+        const response = await axios.get(fetchUrl);
+        const payload = response?.data?.data || null;
+
+        if (!payload) {
+          throw new Error("Failed to fetch print payload JSON.");
+        }
+
+        // 4. Generate local PDF blob showing ONLY dental details!
+        const normalizedDentalData = { tooth_states: activeDentalData };
+        const pdfBlob = await renderPrintPayloadToBlob({
+          ...payload,
+          dentalExaminationData: normalizedDentalData,
+          examChart: loadExamChart(getPatientIdForExamChart(payload?.caseManagerData)),
+        }, {
+          selectedLang: "English",
+          isGynaecHistoryAccessable: false,
+          onlyShowDental: true,
+        });
+
+        if (pdfBlob) {
+          setPreviewPdfFile(pdfBlob);
+        } else {
+          throw new Error("Failed to render PDF blob.");
+        }
+      } else {
+        throw new Error(action.error?.message || "Failed to save consultation.");
+      }
+    } catch (err) {
+      console.error("Failed to generate PDF preview:", err);
+      message.error(err?.message || "Failed to generate prescription preview.");
+    } finally {
+      setIsPreviewLoading(false);
     }
   };
 
@@ -1942,6 +2188,7 @@ function ConsultationLayout({ children, headerProps }) {
             onEndVisit={handleEndVisit}
             handleSelectLetterHead={() => setIsSelectLetterHead(!isSelectLetterHead)}
             hasDentalData={location.pathname === "/dental" && Object.keys(dentalExamination?.toothState ?? {}).length > 0}
+            onPreviewClick={handlePreviewRx}
             {...headerProps}
           />
           <div 
@@ -2251,6 +2498,64 @@ function ConsultationLayout({ children, headerProps }) {
                     patientAge={patient_data?.patient_age}
                   />
                 </div>
+            </div>
+          </Drawer>
+        )}
+        {isPreviewDrawerOpen && (
+          <Drawer
+            className="scroll-y-hidden"
+            closeIcon={false}
+            placement="right"
+            onClose={() => setIsPreviewDrawerOpen(false)}
+            open={isPreviewDrawerOpen}
+            width={isMobile ? "100%" : "60%"}
+            push={false}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div className="search-modalCard h-100 d-flex flex-column" style={{ backgroundColor: "#fff" }}>
+              <div className='modalCard-header h-60 align-items-center justify-content-between d-flex flex-shrink-0'>
+                <div className='align-items-center d-flex h-100'>
+                  <div className='border-end h-100 text-center me-3'>
+                    <div
+                      onClick={() => setIsPreviewDrawerOpen(false)}
+                      className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'
+                    >
+                      <i className='icon-right'></i>
+                    </div>
+                  </div>
+                  <div className="title-common">
+                    Preview Rx
+                  </div>
+                </div>
+              </div>
+              <div ref={previewDivRef} className="flex-grow-1 overflow-auto h-100 position-relative d-flex flex-column align-items-center" style={{ backgroundColor: "#F8F8FB", padding: "20px 0" }}>
+                {isPreviewLoading ? (
+                  <Spin size="large" tip="Generating Preview..." style={{ marginTop: "100px" }} />
+                ) : previewPdfFile ? (
+                  <PdfDocument
+                    loading={<Spin style={{ marginTop: "100px" }} />}
+                    error={<div style={{ marginTop: "100px", color: "#ff4d4f" }}>Failed to load PDF file.</div>}
+                    file={previewPdfFile}
+                    onLoadSuccess={({ numPages }) => setPreviewNumPages(numPages)}
+                  >
+                    {Array.apply(null, Array(previewNumPages))
+                      .map((x, i) => i + 1)
+                      .map((page) => (
+                        <div key={page} style={{ marginBottom: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", borderRadius: "8px", overflow: "hidden" }}>
+                          <PdfPage
+                            loading={null}
+                            width={previewDivWidth > 40 ? previewDivWidth - 40 : 550}
+                            pageNumber={page}
+                            renderTextLayer={false}
+                            renderAnnotationLayer={false}
+                          />
+                        </div>
+                      ))}
+                  </PdfDocument>
+                ) : (
+                  <div className="text-muted" style={{ marginTop: "100px" }}>No preview available</div>
+                )}
+              </div>
             </div>
           </Drawer>
         )}
