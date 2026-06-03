@@ -8,6 +8,8 @@ import { useSelector } from "react-redux";
 
 import { NORMAL } from "../utils/constants";
 import ViewPDF from '../components/print_settings/ViewPDF';
+import { prefetchDentalToothImageMap } from '../components/dental/examination/dentalChartPdf';
+import { loadExamChart, getPatientIdForExamChart } from '../utils/examChartStorage';
 import { renderPDF } from '../components/print_settings/renderPDF';
 import { PDF } from '../components/print_settings/PDF';
 import { pdfjs, Document, Page } from "react-pdf";
@@ -21,7 +23,7 @@ const showDateFormat = 'DD MMM, YY'
 
 function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig, dentalExaminationData } = useContext(PrintSettingsContext);
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
 
     const {isGynaecHistoryAccessable} = useAccess();
@@ -207,6 +209,8 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 return;
             }
 
+            const toothImageMap = await prefetchDentalToothImageMap();
+
             const renderPdfWithSmartRx = (smartRxData) => pdf(<ViewPDF
                 mode={mode}
                 caseManagerData={caseManagerData}
@@ -236,6 +240,9 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 ophthalModuleData={ophthalModuleData}
                 abhaDetails={props.abhaDetails}
                 dentalData={props.dentalData}
+                dentalExaminationData={dentalExaminationData}
+                toothImageMap={toothImageMap}
+                examChart={loadExamChart(getPatientIdForExamChart(caseManagerData))}
             />).toBlob();
 
             const setPdfUrlSafe = (url) => {

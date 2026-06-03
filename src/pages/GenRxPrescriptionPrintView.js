@@ -60,6 +60,7 @@ function GenRxPrescriptionPrintView() {
   const sessionRxUrlRef = useRef(null);
 
   const { loading } = useSelector((state) => state.caseManager);
+  const dentalExaminationData = useSelector((state) => state.dentalExamination);
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
   const dispatch = useDispatch();
 
@@ -204,6 +205,7 @@ function GenRxPrescriptionPrintView() {
     selectedLang,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
+    dentalExaminationData,
   });
 
   useEffect(() => {

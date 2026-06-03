@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
+import { transformToothStateToApi } from "../components/dental/lib/examination-helpers";
+import { loadExamChart, getPatientIdForExamChart } from "../utils/examChartStorage";
+
+const hasDentalData = (data) => {
+  if (!data) return false;
+  if (Array.isArray(data)) return data.length > 0;
+  if (data.tooth_states && Array.isArray(data.tooth_states)) {
+    return data.tooth_states.length > 0;
+  }
+  if (data.toothState && typeof data.toothState === "object") {
+    return Object.keys(data.toothState).length > 0;
+  }
+  return false;
+};
 
 export const usePrintPayloadPdf = ({
   printUrl,
@@ -10,6 +24,9 @@ export const usePrintPayloadPdf = ({
   payloadOverride,
   skipFetch = false,
   zydusSelectedLabParams = null,
+  dentalexaminationData = null,
+  dentalExaminationData = null,
+  onlyShowDental = false,
 }) => {
   const [payload, setPayload] = useState(null);
   const [printBlob, setPrintBlob] = useState(null);
@@ -91,11 +108,47 @@ export const usePrintPayloadPdf = ({
       setIsGenerating(true);
       setError(null);
       try {
-        const blob = await renderPrintPayloadToBlob({...payload, zydusLabData: zydusSelectedLabParams}, {
+        let rawDental = null;
+        if (hasDentalData(dentalexaminationData)) {
+          rawDental = dentalexaminationData;
+        } else if (hasDentalData(dentalExaminationData)) {
+          rawDental = dentalExaminationData;
+        } else if (hasDentalData(payload?.dentalExaminationData)) {
+          rawDental = payload.dentalExaminationData;
+        } else if (hasDentalData(payload?.dentalexaminationData)) {
+          rawDental = payload.dentalexaminationData;
+        }
+
+        let resolvedToothStates = [];
+        if (rawDental) {
+          if (Array.isArray(rawDental)) {
+            resolvedToothStates = rawDental;
+          } else if (rawDental.tooth_states && Array.isArray(rawDental.tooth_states)) {
+            resolvedToothStates = rawDental.tooth_states;
+          } else if (rawDental.toothState && typeof rawDental.toothState === "object") {
+            try {
+              resolvedToothStates = transformToothStateToApi(rawDental.toothState);
+            } catch (err) {
+              console.error("Failed to transform toothState inside usePrintPayloadPdf hook:", err);
+            }
+          }
+        }
+        const normalizedDentalData = { tooth_states: resolvedToothStates };
+
+        const examChart = loadExamChart(getPatientIdForExamChart(payload?.caseManagerData));
+
+        const blob = await renderPrintPayloadToBlob({
+          ...payload,
+          zydusLabData: zydusSelectedLabParams,
+          dentalExaminationData: normalizedDentalData,
+          examChart,
+        }, {
           selectedLang,
           isGynaecHistoryAccessable,
           showSnapRxImages,
+          onlyShowDental,
         });
+
         if (!blob) {
           throw new Error("Failed to generate PDF blob.");
         }
@@ -125,7 +178,7 @@ export const usePrintPayloadPdf = ({
     return () => {
       isCancelled = true;
     };
-  }, [payload, selectedLang, isGynaecHistoryAccessable, skipFetch]);
+  }, [payload, selectedLang, isGynaecHistoryAccessable, skipFetch, dentalexaminationData, dentalExaminationData]);
 
   return { payload, printBlob, isGenerating, error };
 };

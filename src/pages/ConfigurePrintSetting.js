@@ -38,6 +38,10 @@ import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefault
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
+import { transformToothStateToApi } from "../components/dental/lib/examination-helpers";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_DENTAL_MODULE } from "../utils/constants";
+import { mergeDentalPrintCaseOptions } from "../utils/dentalDefaultPrintSettings";
 
 
 function ConfigurePrintSetting() {
@@ -46,9 +50,10 @@ function ConfigurePrintSetting() {
     const printSettingsRef = useRef(null);
 
     const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
+    const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
 
     const { state } = useLocation();
-    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
+    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, dentalExaminationData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
     const isAfterDigitization = page === "digitise";
     const snapRxSessionId = stateSessionId ?? stateSessionIdAlt ?? caseManagerData?.session_id;
 
@@ -508,7 +513,7 @@ function ConfigurePrintSetting() {
             ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
         }
         : dataSourceForPreview;
-    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData };
+    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData, dentalExaminationData, isDentalEnabled };
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
@@ -670,6 +675,33 @@ function ConfigurePrintSetting() {
                 }
             }
 
+            // Add Case Option ID 21 for Dental Examination when module has data (skip for written Rx snap/smart)
+            let hasDentalExaminationData = false;
+            let dentalExamData = dentalExaminationData;
+            if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {
+                dentalExamData = {
+                    ...dentalExamData,
+                    tooth_states: transformToothStateToApi(dentalExamData.toothState)
+                };
+            }
+            if (Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.length > 0) {
+                hasDentalExaminationData = dentalExamData.tooth_states.some((toothState) => {
+                    const hasHistory = (toothState.treatment_history || []).length > 0;
+                    const hasFindings = (toothState.findings || []).length > 0;
+                    const hasProcedures = (toothState.procedures || []).length > 0;
+                    const hasNotes = (toothState.overall_notes || "").trim().length > 0;
+                    return hasHistory || hasFindings || hasProcedures || hasNotes;
+                });
+            }
+
+            if (!isWrittenRxSnapSmart && isDentalEnabled && copyPrintSettings?.prescription?.case_option) {
+                const merged = mergeDentalPrintCaseOptions(copyPrintSettings.prescription.case_option);
+                copyPrintSettings.prescription.case_option = merged.caseOptions;
+            } else if (!isWrittenRxSnapSmart && hasDentalExaminationData && copyPrintSettings?.prescription?.case_option) {
+                const merged = mergeDentalPrintCaseOptions(copyPrintSettings.prescription.case_option);
+                copyPrintSettings.prescription.case_option = merged.caseOptions;
+            }
+
             setPrintSettings(copyPrintSettings);
             copyPrintSettings?.logo_enable === 'Y' && copyPrintSettings.logo_image && setFileLogo({ imageShow: true, showFile: copyPrintSettings.logo_image });
             copyPrintSettings?.water_mark_enable === 'Y' && copyPrintSettings.water_mark_image && setFileWatermark({ imageShow: true, showFile: copyPrintSettings.water_mark_image });
@@ -680,7 +712,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    },[defaultPrintSettings, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl]);
+    },[defaultPrintSettings, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, isDentalEnabled, dentalExaminationData]);
 
     useEffect(() => {
         if (!fileFooter?.showFile) return;

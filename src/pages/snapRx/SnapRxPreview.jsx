@@ -58,6 +58,7 @@ function SnapRxPreview() {
   const printRef = useRef();
 
   const { loading } = useSelector((state) => state.caseManager);
+  const dentalExaminationData = useSelector((state) => state.dentalExamination);
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
@@ -372,6 +373,7 @@ function SnapRxPreview() {
     selectedLang,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
+    dentalExaminationData,
   });
 
   useEffect(() => {

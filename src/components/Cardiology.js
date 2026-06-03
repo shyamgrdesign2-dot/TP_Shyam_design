@@ -37,6 +37,7 @@ import {
   GB_TAB_RX_CVT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
+  GB_DENTAL_MODULE,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -76,6 +77,17 @@ import PrimaryActionButton from "./PrimaryActionButton";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
+import { getRxExamination } from "../api/services/ApiDental";
+import { getOralExaminationHistory } from "../api/services/ApiOral";
+import {
+  extractDentalApiPayload,
+  formatDentalExamItem,
+  formatOralEntryMeta,
+  getToothFullName,
+  hasDentalExamPayload,
+  pickOralExamForVisit,
+} from "../utils/cardiologyDentalOralExam";
+import { hasOralExamChartData } from "../utils/examChartStorage";
 import { ASSETS } from "../assets";
 const {
   symptoms: Symptomsicon,
@@ -561,6 +573,8 @@ function Cardiology(props) {
   const [genRxData, setGenRxData] = useState(null);
   const [isGenRxTableView, setIsGenRxTableView] = useState(false);
   const [genRxQueries, setGenRxQueries] = useState(null);
+  const [visitDentalExam, setVisitDentalExam] = useState(null);
+  const [visitOralExam, setVisitOralExam] = useState(null);
   const [hasVideoConsult, setHasVideoConsult] = useState(false);
   const [isLoadingVideoStatus, setIsLoadingVideoStatus] = useState(false);
   const [ambientConversations, setAmbientConversations] = useState([]);
@@ -589,9 +603,72 @@ function Cardiology(props) {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalDoctor =
+    profile?.dp_id === 26 ||
+    String(profile?.dp_name || "").toLowerCase().includes("dental");
+  const showVisitDentalOralExam = isDentalEnabled || isDentalDoctor;
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
+
+  useEffect(() => {
+    if (!showVisitDentalOralExam) {
+      setVisitDentalExam(null);
+      setVisitOralExam(null);
+      return undefined;
+    }
+
+    const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
+    const patientId = patient_data?.patient_unique_id;
+    if (!tcmId || !patientId) {
+      setVisitDentalExam(null);
+      setVisitOralExam(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadVisitExaminations = async () => {
+      try {
+        const [dentalRes, oralHistRes] = await Promise.all([
+          getRxExamination(patientId, tcmId).catch(() => null),
+          getOralExaminationHistory(patientId).catch(() => null),
+        ]);
+        if (cancelled) return;
+
+        const dentalPayload = extractDentalApiPayload(dentalRes);
+        setVisitDentalExam(
+          hasDentalExamPayload(dentalPayload) ? dentalPayload : null
+        );
+
+        const oralPayload = extractDentalApiPayload(oralHistRes);
+        const oralChart = pickOralExamForVisit(
+          oralPayload,
+          tcmId,
+          viewCaseManagerData?.patient_data?.patient_consultaion_date
+        );
+        setVisitOralExam(hasOralExamChartData(oralChart) ? oralChart : null);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to load dental/oral examination for visit:", err);
+          setVisitDentalExam(null);
+          setVisitOralExam(null);
+        }
+      }
+    };
+
+    loadVisitExaminations();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showVisitDentalOralExam,
+    viewCaseManagerData?.tcm_id,
+    viewCaseManagerData?.patient_data?.patient_consultaion_date,
+    tcmData?.tcm_id,
+    patient_data?.patient_unique_id,
+  ]);
 
   useEffect(() => {
     setIsGenRxTableView(false);
@@ -1777,9 +1854,16 @@ function Cardiology(props) {
           isEditRx: true,
           ...(videoConsultData ? { videoConsultData } : {}),
         };
-        navigate("/prescription", {
-          state: prescriptionState,
-        });
+        const isDental = profile?.dp_id === 26 || (profile?.dp_name && profile?.dp_name.toLowerCase() === 'dental');
+        if (isDental || isDentalEnabled) {
+          navigate("/dental", {
+            state: prescriptionState,
+          });
+        } else {
+          navigate("/prescription", {
+            state: prescriptionState,
+          });
+        }
     }
   };
 
@@ -2934,6 +3018,159 @@ function Cardiology(props) {
     dentalWorkDoneRowsFiltered.length > 0 ||
     hasWorkDoneNotes;
 
+  const renderVisitDentalOralExaminations = () => {
+    if (!showVisitDentalOralExam) return null;
+
+    const consultationDate = viewCaseManagerData?.patient_data?.patient_consultaion_date;
+    const dateLabel = consultationDate
+      ? moment(consultationDate).format("D MMM YYYY")
+      : "";
+
+    const toothStates = Array.isArray(visitDentalExam?.tooth_states)
+      ? visitDentalExam.tooth_states
+      : [];
+    const teethWithData = toothStates.filter((toothState) => {
+      const hasHistory = (toothState.treatment_history || []).length > 0;
+      const hasFindings = (toothState.findings || []).length > 0;
+      const hasProcedures = (toothState.procedures || []).length > 0;
+      const hasNotes = String(toothState.overall_notes || "").trim().length > 0;
+      return hasHistory || hasFindings || hasProcedures || hasNotes;
+    });
+
+    const oralEntries = Array.isArray(visitOralExam?.oralEntries)
+      ? visitOralExam.oralEntries
+      : [];
+    const oralNotes = String(visitOralExam?.oralNotes || "").trim();
+    const hasOralData = oralEntries.length > 0 || oralNotes.length > 0;
+
+    if (teethWithData.length === 0 && !hasOralData) {
+      return null;
+    }
+
+    const oralGroups = [
+      { label: "Past Procedures", kind: "past" },
+      { label: "Findings", kind: "finding" },
+      { label: "Procedures", kind: "procedure" },
+    ]
+      .map((group) => ({
+        ...group,
+        list: oralEntries.filter((entry) =>
+          group.kind === "past"
+            ? entry.kind === "past"
+            : group.kind === "procedure"
+              ? entry.kind === "procedure"
+              : entry.kind !== "past" && entry.kind !== "procedure"
+        ),
+      }))
+      .filter((group) => group.list.length > 0);
+
+    return (
+      <div className="opthal-summary visit-exam-summary mb-3">
+        {teethWithData.length > 0 && (
+          <div className="opthal-section">
+            <div className="opthal-section-header">
+              <img className="opthal-section-icon" src={Examinationsicon} alt="" />
+              <div className="opthal-section-title">
+                Dental Examination{dateLabel ? ` (${dateLabel})` : ""}
+              </div>
+            </div>
+            <div className="visit-exam-inline-list">
+              {teethWithData.map((toothState) => {
+                const toothCode = toothState.tooth_code;
+                const fullName = getToothFullName(toothCode);
+                const categories = [];
+                if ((toothState.treatment_history || []).length > 0) {
+                  categories.push({
+                    label: "Past Procedures",
+                    items: (toothState.treatment_history || []).map((item) =>
+                      formatDentalExamItem(item, toothCode)
+                    ),
+                  });
+                }
+                if ((toothState.findings || []).length > 0) {
+                  categories.push({
+                    label: "Findings",
+                    items: (toothState.findings || []).map((item) =>
+                      formatDentalExamItem(item, toothCode)
+                    ),
+                  });
+                }
+                if ((toothState.procedures || []).length > 0) {
+                  categories.push({
+                    label: "Procedures",
+                    items: (toothState.procedures || []).map((item) =>
+                      formatDentalExamItem(item, toothCode)
+                    ),
+                  });
+                }
+                const notes = String(toothState.overall_notes || "").trim();
+                if (notes) {
+                  categories.push({
+                    label: "Notes",
+                    items: [{ name: notes, details: "" }],
+                  });
+                }
+                return (
+                  <p className="visit-exam-line" key={`dental-tooth-${toothCode}`}>
+                    <strong>{fullName}: </strong>
+                    {categories.map((cat, catIdx) => (
+                      <span key={cat.label}>
+                        {catIdx > 0 ? "; " : ""}
+                        <strong>{cat.label}: </strong>
+                        {cat.items.map((item, itemIdx) => (
+                          <span key={`${cat.label}-${itemIdx}`}>
+                            {itemIdx > 0 ? ", " : ""}
+                            <span className="visit-exam-item-name">{item.name}</span>
+                            {item.details ? (
+                              <span className="visit-exam-item-meta">{item.details}</span>
+                            ) : null}
+                          </span>
+                        ))}
+                      </span>
+                    ))}
+                  </p>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {hasOralData && (
+          <div className="opthal-section">
+            <div className="opthal-section-header">
+              <img className="opthal-section-icon" src={Examinationsicon} alt="" />
+              <div className="opthal-section-title">
+                Oral Examination{dateLabel ? ` (${dateLabel})` : ""}
+              </div>
+            </div>
+            <div className="visit-exam-inline-list">
+              {oralGroups.map((group) => (
+                <p className="visit-exam-line" key={group.label}>
+                  <strong>{group.label}: </strong>
+                  {group.list.map((entry, idx) => (
+                    <span key={`${group.label}-${idx}`}>
+                      {idx > 0 ? ", " : ""}
+                      <span className="visit-exam-item-name">{entry.name}</span>
+                      <span className="visit-exam-item-meta">
+                        {formatOralEntryMeta(entry)}
+                      </span>
+                    </span>
+                  ))}
+                </p>
+              ))}
+              {oralNotes ? (
+                <p className="visit-exam-line">
+                  <strong>Notes: </strong>
+                  {oralNotes}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderDentalDigitisedSection = () => {
     if (!hasDentaldata || !hasDentalSectionData) return null;
 
@@ -3254,6 +3491,7 @@ function Cardiology(props) {
           </>
         )}
         {renderOpthalSummary()}
+        {renderVisitDentalOralExaminations()}
         {((data?.tests && hasValidContent(data, "tests")) ||
           (data?.labInvestigation && hasValidContent(data, "labInvestigation"))) && (
           <>
@@ -4199,6 +4437,7 @@ function Cardiology(props) {
                     </div>
                   )}
                   {renderOpthalSummary()}
+                  {renderVisitDentalOralExaminations()}
                   <div className="p-3">
                     {viewCaseManagerData.advice.length > 0 && (
                       <div className="d-flex align-items-start mb-4">

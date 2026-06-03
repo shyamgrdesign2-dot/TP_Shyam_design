@@ -165,7 +165,10 @@ function TabRxPrescriptionPrintView() {
     zydusSelectedLabParams,
     smartRxFilesData,
   } = state || {};
-
+  const isDental = state?.page === "dental"
+  // const dentalExaminationData = state?.dentalExaminationData || state?.dentalData || null;
+  const dentalExaminationData = useSelector((state) => state.dentalExamination);
+  console.log('dentalExaminationData', dentalExaminationData)
   const [selectedLang, setSelectedLang] = useState(
     defaultPrintSettings?.default_language &&
       defaultPrintSettings?.default_language !== "English"
@@ -179,6 +182,7 @@ function TabRxPrescriptionPrintView() {
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
   const [showProgressbar, setShowProgressbar] = useState(false);
+  // const [dentalExaminationData, setDentalExaminationData] = useState(null);
   const progressRef = useRef(null);
   const [printUrl, setPrintUrl] = useState(
     state !== undefined
@@ -263,8 +267,9 @@ function TabRxPrescriptionPrintView() {
         setSmartRxFile([]);
       }
     };
-
+    if(!isDental){
     fetchTabRxFiles();
+    }
   }, [smartRxFilesData, state]);
 
   const getCaseManagerData = async () => {
@@ -443,12 +448,14 @@ function TabRxPrescriptionPrintView() {
     printBlob: generatedPrintBlob,
     isGenerating: isPdfGenerating,
     error: printPayloadError,
+
   } = usePrintPayloadPdf({
     printUrl,
     selectedLang,
     isGynaecHistoryAccessable,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
+    dentalExaminationData,
   });
 
 
@@ -690,6 +697,16 @@ function TabRxPrescriptionPrintView() {
   const onEditPrescriptionClick = async () => {
     // Best-effort: sync care plan assignment/update based on available info
     await syncCarePlanAssignmentIfNeeded();
+    if (isDental) {
+      navigate("/dental", {
+        replace: true,
+        state: {
+          patient_data: patient_data,
+          caseManagerData: viewCaseManagerData || state?.caseManagerData || state
+        }
+      });
+      return;
+    }
     if (showDigitalRx) {
       navigate("/tabrx-digitization", {
         state: {
@@ -900,6 +917,7 @@ function TabRxPrescriptionPrintView() {
           },
           pam_id: pam_id,
           smartRxFile,
+          dentalExaminationData,
           from: "/tab-rx-prescription",
         },
       });

@@ -109,8 +109,8 @@ const PrimaryActionButton = ({
   // const isTabRxVisible = isTabRxEnabledFromGB ;
   
   const isDental = dpid === 26 || (department && department.toLowerCase() === 'dental');
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE) || true;
-  const isDentalAndEnabled = isDentalEnabled;
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalAndEnabled = isDental ||  isDentalEnabled;
 
   if (isDentalAndEnabled) {
     // 1. If Dental & Enabled, Consult (redirecting to Dental) is always primary
