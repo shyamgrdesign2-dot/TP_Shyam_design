@@ -1,3 +1,5 @@
+import { pickOralExamForVisit, mapOralApiToChart } from "./cardiologyDentalOralExam";
+
 const EXAM_CHART_PREFIX = "dental.exam.chart.";
 
 export function loadExamChart(patientId) {
@@ -20,13 +22,117 @@ export function getPatientIdForExamChart(caseManagerData) {
   );
 }
 
-/** Prefer explicit payload chart; fall back to browser localStorage. */
+function resolveOralChartFromCaseManager(caseManagerData) {
+  if (!caseManagerData) return null;
+  const tcmId = caseManagerData?.tcm_id;
+  const consultationDate =
+    caseManagerData?.patient_data?.patient_consultaion_date ||
+    caseManagerData?.patient_consultaion_date;
+  const sources = [
+    caseManagerData?.oralExamination,
+    caseManagerData?.oral_examination,
+    caseManagerData?.oralExamHistory,
+    caseManagerData?.oral_examination_history,
+    caseManagerData?.oralExaminationHistory,
+  ].filter(Boolean);
+  for (const src of sources) {
+    const chart = pickOralExamForVisit(src, tcmId, consultationDate);
+    if (hasOralExamChartData(chart)) return chart;
+  }
+  return null;
+}
+
+/** Prefer explicit payload chart, then API fields on case manager, then localStorage. */
 export function resolveExamChartForPrint(caseManagerData, examChartOverride) {
+  if (examChartOverride && hasOralExamChartData(examChartOverride)) {
+    return examChartOverride;
+  }
+  const fromCaseManager = resolveOralChartFromCaseManager(caseManagerData);
+  if (fromCaseManager) return fromCaseManager;
+  const patientId = getPatientIdForExamChart(caseManagerData);
+  const fromStorage = loadExamChart(patientId);
+  if (hasOralExamChartData(fromStorage)) return fromStorage;
   if (examChartOverride && typeof examChartOverride === "object") {
     return examChartOverride;
   }
-  const patientId = getPatientIdForExamChart(caseManagerData);
-  return loadExamChart(patientId);
+  return fromStorage;
+}
+
+/**
+ * Same resolution as Quixote's resolveExamChartForPrint(caseManagerData), with
+ * navigation/Redux fallbacks for print-URL payloads that omit patient id and oral data.
+ */
+export function resolveExamChartForPrintWithContext({
+  caseManagerData,
+  examChartOverride,
+  oralExamination,
+  patientUniqueId,
+  tcmId,
+} = {}) {
+  const enrichedCaseManager = caseManagerData
+    ? {
+        ...caseManagerData,
+        ...(tcmId != null && tcmId !== "" ? { tcm_id: tcmId } : {}),
+        patient_data: {
+          ...(caseManagerData.patient_data || {}),
+          ...(patientUniqueId != null && patientUniqueId !== ""
+            ? { patient_unique_id: patientUniqueId }
+            : {}),
+        },
+      }
+    : patientUniqueId || tcmId
+      ? {
+          ...(tcmId != null && tcmId !== "" ? { tcm_id: tcmId } : {}),
+          patient_data: {
+            ...(patientUniqueId != null && patientUniqueId !== ""
+              ? { patient_unique_id: patientUniqueId }
+              : {}),
+          },
+        }
+      : null;
+
+  let chart = resolveExamChartForPrint(enrichedCaseManager, examChartOverride);
+  if (hasOralExamChartData(chart)) return chart;
+
+  chart = buildExamChartFromOralExaminationState(oralExamination);
+  if (hasOralExamChartData(chart)) return chart;
+
+  const pid =
+    patientUniqueId != null && patientUniqueId !== ""
+      ? String(patientUniqueId)
+      : getPatientIdForExamChart(enrichedCaseManager);
+  if (pid) {
+    const fromStorage = loadExamChart(pid);
+    if (hasOralExamChartData(fromStorage)) return fromStorage;
+  }
+
+  return chart || null;
+}
+
+/** Build print chart from Redux oral examination state (canvas + API fields). */
+export function buildExamChartFromOralExaminationState(oralExamination) {
+  if (!oralExamination || typeof oralExamination !== "object") return null;
+
+  if (
+    Array.isArray(oralExamination.canvasOralEntries) &&
+    oralExamination.canvasOralEntries.length > 0
+  ) {
+    const chart = {
+      oralEntries: oralExamination.canvasOralEntries,
+      oralNotes: oralExamination.canvasOralNotes || "",
+    };
+    return hasOralExamChartData(chart) ? chart : null;
+  }
+
+  const mapped = mapOralApiToChart({
+    findings: oralExamination.findings,
+    procedures: oralExamination.procedures,
+    treatment_history:
+      oralExamination.treatment_history || oralExamination.treatmentHistory,
+    overall_notes:
+      oralExamination.overall_notes || oralExamination.overallNotes,
+  });
+  return hasOralExamChartData(mapped) ? mapped : null;
 }
 
 export function hasOralExamChartData(chart) {

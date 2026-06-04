@@ -4,6 +4,24 @@ export function getDentalServiceItems(items) {
   return items.filter((i) => i.type === "dental");
 }
 
+/** Map billing API bill item → local dental catalog shape after ServiceItemPopup save. */
+export function mapApiBillItemToDentalCatalog(apiItem) {
+  if (!apiItem?.name) return null;
+  const price = Number(apiItem.price ?? apiItem.amount) || 0;
+  const discountType =
+    apiItem.discountType === "percentage" ? "percent" : "inr";
+  return {
+    id: String(apiItem.id ?? apiItem.masterId ?? `dent-api-${Date.now()}`),
+    name: String(apiItem.name).trim(),
+    type: "dental",
+    price,
+    priceUnit: "per_unit",
+    discount: Number(apiItem.discount) || 0,
+    discountUnit: discountType,
+    gstPct: Number(apiItem.gst) || 0,
+  };
+}
+
 /** First occurrence wins; stable; trims names for dedupe key. */
 export function getUniqueDentalBillItems(items) {
   const seen = new Set();

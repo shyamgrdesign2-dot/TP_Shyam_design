@@ -171,7 +171,7 @@ import { saveDentalExamination, selectDentalExamination } from "../redux/dentalE
 import { saveOralExaminationThunk, patchOralExaminationThunk } from "../redux/oralExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
-import { loadExamChart, getPatientIdForExamChart } from "../utils/examChartStorage";
+import { resolveExamChartForPrintWithContext } from "../utils/examChartStorage";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
 
@@ -2060,11 +2060,13 @@ function ConsultationLayout({ children, headerProps }) {
         const pdfBlob = await renderPrintPayloadToBlob({
           ...payload,
           dentalExaminationData: normalizedDentalData,
-          examChart: loadExamChart(getPatientIdForExamChart(payload?.caseManagerData)),
+          oralExamination,
+          patientUniqueId: patient_data?.patient_unique_id,
+          tcmId: savedTcmId,
         }, {
           selectedLang: "English",
           isGynaecHistoryAccessable: false,
-          onlyShowDental: true,
+          onlyShowDental: false,
         });
 
         if (pdfBlob) {

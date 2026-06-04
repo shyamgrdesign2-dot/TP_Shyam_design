@@ -1,7 +1,7 @@
 import { Input, Drawer } from "antd";
 import { ASSETS } from "../../../../assets";
 import { Button } from "react-bootstrap";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { upsertBillItem } from "../../service";
 import { useSelector } from "react-redux";
 import { calculateTotalAmount } from "../../utils/helper";
@@ -11,6 +11,14 @@ import {
   trackEvent,
 } from "../../../../utils/utils";
 
+const BILL_ITEM_TYPE_OPTIONS = [
+  { label: "Clinical services", value: "Service" },
+  { label: "Consumables", value: "Consumables" },
+  { label: "Dental services", value: "Dental_Service" },
+];
+
+const DENTAL_ONLY_TYPE = "Dental_Service";
+
 const ServiceItemPopup = ({
   onCancel,
   editIndex,
@@ -18,17 +26,26 @@ const ServiceItemPopup = ({
   setDataSource,
   addRow,
   setSearchQuery,
+  onSaved,
+  dentalOnly = false,
 }) => {
   const { advancedSettings } = useSelector((state) => state.billing);
   const [serviceItem, setServiceItem] = useState({
     id: item?.id || item?.masterId,
     name: item?.name,
-    type: item?.type || "Service",
+    type: dentalOnly ? DENTAL_ONLY_TYPE : item?.type || "Service",
     price: item?.price || item?.amount,
     discount: item?.discount,
     discountType: item?.discountType || advancedSettings?.defaultDiscountType || "flat",
     gst: item?.gst,
   });
+
+  useEffect(() => {
+    if (!dentalOnly) return;
+    setServiceItem((prev) =>
+      prev.type === DENTAL_ONLY_TYPE ? prev : { ...prev, type: DENTAL_ONLY_TYPE }
+    );
+  }, [dentalOnly]);
   const { profile } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
   const {
@@ -70,7 +87,8 @@ const ServiceItemPopup = ({
     });
 
     if (billItemRes?.id) {
-      setDataSource((prev) => {
+      onSaved?.(billItemRes, finalItem);
+      setDataSource?.((prev) => {
         const updatedData = [...prev];
         const updateIndex = editIndex > -1 ? editIndex : item?.index;
 
@@ -120,7 +138,7 @@ const ServiceItemPopup = ({
         }
         return updatedData;
       });
-      setSearchQuery && setSearchQuery("");
+      setSearchQuery?.("");
       onCancel();
     }
   };
@@ -131,12 +149,31 @@ const ServiceItemPopup = ({
   };
   const totalAmount = calculateTotalAmount(previewItem);
 
+  const typeOptions = dentalOnly
+    ? BILL_ITEM_TYPE_OPTIONS.filter((o) => o.value === DENTAL_ONLY_TYPE)
+    : BILL_ITEM_TYPE_OPTIONS;
+
+  const serviceNameLabel =
+    dentalOnly || serviceItem.type === DENTAL_ONLY_TYPE
+      ? "Dental service name"
+      : serviceItem.type === "Service"
+        ? "Clinical service name"
+        : serviceItem.type === "Consumables"
+          ? "Consumable name"
+          : "Dental service name";
+
   return (
     <Drawer
       title={
         <div className="d-flex align-items-center gap-2">
           <span style={{ fontWeight: 600, fontSize: '16px', color: '#1A1A1A' }}>
-            {editIndex === -1 ? "Add new bill item" : "Edit bill item"}
+            {dentalOnly
+              ? editIndex === -1
+                ? "Add dental service"
+                : "Edit dental service"
+              : editIndex === -1
+                ? "Add new bill item"
+                : "Edit bill item"}
           </span>
           <i className="fi fi-rr-info text-muted" style={{ fontSize: '14px', cursor: 'pointer' }}></i>
         </div>
@@ -165,21 +202,35 @@ const ServiceItemPopup = ({
             <label className="d-flex align-items-center gap-2 text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500 }}>
               Type <i className="fi fi-rr-info" style={{ fontSize: '12px' }}></i>
             </label>
-            <div style={{ background: '#F2F4F7', borderRadius: '8px', padding: '4px', display: 'flex' }}>
-              {[{label: 'Clinical services', value: 'Service'}, {label: 'Consumables', value: 'Consumables'}, {label: 'Dental services', value: 'Dental_Service'}].map((typeOption) => (
+            <div
+              style={{
+                background: '#F2F4F7',
+                borderRadius: '8px',
+                padding: '4px',
+                display: 'inline-flex',
+                alignSelf: dentalOnly ? 'flex-start' : 'stretch',
+                width: dentalOnly ? 'fit-content' : '100%',
+              }}
+            >
+              {typeOptions.map((typeOption) => (
                 <div
                   key={typeOption.value}
-                  onClick={() => handleServiceItem("type", typeOption.value)}
+                  onClick={
+                    dentalOnly
+                      ? undefined
+                      : () => handleServiceItem("type", typeOption.value)
+                  }
                   style={{
-                    flex: 1,
+                    flex: dentalOnly ? '0 0 auto' : 1,
                     textAlign: 'center',
-                    padding: '8px 4px',
+                    padding: dentalOnly ? '8px 12px' : '8px 4px',
+                    whiteSpace: dentalOnly ? 'nowrap' : undefined,
                     fontSize: '13px',
                     fontWeight: serviceItem.type === typeOption.value ? 600 : 500,
                     color: serviceItem.type === typeOption.value ? '#1A1A1A' : '#667085',
                     background: serviceItem.type === typeOption.value ? '#FFFFFF' : 'transparent',
                     borderRadius: '6px',
-                    cursor: 'pointer',
+                    cursor: dentalOnly ? 'default' : 'pointer',
                     boxShadow: serviceItem.type === typeOption.value ? '0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06)' : 'none',
                     transition: 'all 0.2s'
                   }}
@@ -193,7 +244,7 @@ const ServiceItemPopup = ({
           {/* Clinical service name */}
           <div className="d-flex flex-column gap-2">
             <label className="text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500, color: '#475467' }}>
-              {serviceItem.type === 'Service' ? 'Clinical service name' : serviceItem.type === 'Consumables' ? 'Consumable name' : 'Dental service name'} <span className="text-danger">*</span>
+              {serviceNameLabel} <span className="text-danger">*</span>
             </label>
             <Input
               value={serviceItem.name}

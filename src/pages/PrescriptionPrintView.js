@@ -68,6 +68,7 @@ function PrescriptionPrintView() {
     const { userId, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
     const { isOpdBillChecked } = useSelector((state) => state.billing);
     const dentalExaminationData = useSelector(selectDentalExamination);
+    const oralExamination = useSelector((state) => state.oralExamination);
     const { isOpdBillingAccessable } = useOpdBilling();
     const dispatch = useDispatch();
 
@@ -209,6 +210,9 @@ function PrescriptionPrintView() {
         skipFetch: shouldSkipAutoFetch,
         zydusSelectedLabParams,
         dentalExaminationData,
+        oralExamination,
+        patientUniqueId: patient_data?.patient_unique_id,
+        tcmId: state?.tcm_id,
     });
 
     useEffect(() => {

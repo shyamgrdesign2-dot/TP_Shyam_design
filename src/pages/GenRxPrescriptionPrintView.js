@@ -62,6 +62,7 @@ function GenRxPrescriptionPrintView() {
 
   const { loading } = useSelector((state) => state.caseManager);
   const dentalExaminationData = useSelector(selectDentalExamination);
+  const oralExamination = useSelector((state) => state.oralExamination);
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
   const dispatch = useDispatch();
 
@@ -207,6 +208,9 @@ function GenRxPrescriptionPrintView() {
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
     dentalExaminationData,
+    oralExamination,
+    patientUniqueId: patient_data?.patient_unique_id,
+    tcmId: state?.tcm_id,
   });
 
   useEffect(() => {
