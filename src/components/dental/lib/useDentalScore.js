@@ -1,6 +1,6 @@
 /**
  * useDentalScore — pure scoring logic for the dental examination module.
- * No React, no axios. Imported by DentalScoreCard and ExaminationTab.
+ * No React, no axios. Imported by ExaminationTab.
  */
 import { ZONE_INFO, TEETH, QUADRANT_LABELS } from "../examination/types";
 
