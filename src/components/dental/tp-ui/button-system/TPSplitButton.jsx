@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import {
   getButtonTokens,
+  getSplitButtonSeparator,
   BUTTON_SIZE_TOKENS,
 } from "../../lib/button-system/tokens";
 import { TPButtonIcon } from "./TPButtonIcon";
@@ -91,25 +92,8 @@ export const TPSplitButton = forwardRef(function TPSplitButton(
   const textColor = isDisabled ? tokens.disabledText : tokens.text;
   const borderColor = isDisabled ? tokens.disabledBorder : tokens.border;
 
-  const separatorColor =
-    variant === "solid" && surface === "light"
-      ? "rgba(255,255,255,0.35)"
-      : variant === "solid" && surface === "dark"
-      ? "rgba(0,0,0,0.15)"
-      : variant === "tonal" && surface === "light"
-      ? borderColor
-      : variant === "outline" || variant === "ghost"
-      ? theme === "neutral"
-        ? "#A2A2A8"
-        : borderColor
-      : "currentColor";
-
-  const separatorOpacity =
-    variant === "solid"
-      ? 0.5
-      : theme === "neutral" && variant === "outline"
-      ? 0.65
-      : 0.5;
+  const { color: separatorColor, opacity: separatorOpacity } =
+    getSplitButtonSeparator(variant, theme, surface, borderColor);
 
   const buttonBg =
     variant === "solid"

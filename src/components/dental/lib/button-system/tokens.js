@@ -134,6 +134,37 @@ export function getButtonStyle(variant, theme, surface, state, tokens, dims) {
   };
 }
 
+/**
+ * Resolves the split-button separator color and opacity.
+ *
+ * @param {string} variant    - "solid" | "outline" | "ghost" | "tonal"
+ * @param {string} theme      - "primary" | "error" | "neutral"
+ * @param {string} surface    - "light" | "dark"
+ * @param {string} borderColor - resolved border color from getButtonTokens
+ * @returns {{ color: string, opacity: number }}
+ */
+export function getSplitButtonSeparator(variant, theme, surface, borderColor) {
+  const color =
+    variant === "solid" && surface === "light"
+      ? "rgba(255,255,255,0.35)"
+      : variant === "solid" && surface === "dark"
+      ? "rgba(0,0,0,0.15)"
+      : variant === "tonal" && surface === "light"
+      ? borderColor
+      : variant === "outline" || variant === "ghost"
+      ? theme === "neutral" ? "#A2A2A8" : borderColor
+      : "currentColor";
+
+  const opacity =
+    variant === "solid"
+      ? 0.5
+      : theme === "neutral" && variant === "outline"
+      ? 0.65
+      : 0.5;
+
+  return { color, opacity };
+}
+
 /** Size dimensions (from hard constraints). Icon-Text gap: 6px. Linear icon strokeWidth: 1.5. */
 export const BUTTON_SIZE_TOKENS = {
   sm: { height: 36, paddingX: 14, iconSize: 18, iconTextGap: 6, fontSize: 12 },
