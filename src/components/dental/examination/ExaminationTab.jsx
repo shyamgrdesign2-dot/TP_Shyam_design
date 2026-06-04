@@ -49,6 +49,9 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
     oralProcedures,
     oralTreatmentHistory,
     oralOverallNotes,
+    canvasState,
+    syncState,
+    dispatch,
   });
 
   const handleSaveOralExam = useCallback(async () => {
@@ -58,76 +61,6 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
       canvasOralNotes: canvasState.oralNotes,
     });
   }, [canvasState, saveOralExam]);
-
-  // Sync canvas state to Redux for global "End Visit" access
-  useEffect(() => {
-    if (!canvasState) return;
-
-    const newToothState = {};
-
-    // 1. Findings
-    if (canvasState.findingsByTooth) {
-      Object.entries(canvasState.findingsByTooth).forEach(([fdi, findings]) => {
-        if (!newToothState[fdi]) newToothState[fdi] = {};
-        newToothState[fdi].findings = findings;
-      });
-    }
-
-    // 2. Diagnoses (Set -> Array for Redux)
-    if (canvasState.toothDiagnoses) {
-      Object.entries(canvasState.toothDiagnoses).forEach(([fdi, diags]) => {
-        if (!newToothState[fdi]) newToothState[fdi] = {};
-        newToothState[fdi].diagnoses = Array.from(diags);
-      });
-    }
-
-    // 3. Implants
-    if (canvasState.implantTeeth) {
-      canvasState.implantTeeth.forEach((fdi) => {
-        if (!newToothState[fdi]) newToothState[fdi] = {};
-        newToothState[fdi].isImplant = true;
-      });
-    }
-
-    // 4. Notes
-    if (canvasState.toothNotes) {
-      Object.entries(canvasState.toothNotes).forEach(([fdi, note]) => {
-        if (!newToothState[fdi]) newToothState[fdi] = {};
-        newToothState[fdi].notes = note;
-      });
-    }
-
-    // 5. Treatment History
-    if (canvasState.treatmentHistoryDetailsByTooth) {
-      Object.entries(canvasState.treatmentHistoryDetailsByTooth).forEach(([fdi, history]) => {
-        if (!newToothState[fdi]) newToothState[fdi] = {};
-        newToothState[fdi].treatmentHistory = history;
-      });
-    }
-
-    // 6. allEntries: clinical findings + planned procedures from SingleToothPanel EntryTab
-    if (canvasState.allEntries?.length) {
-      canvasState.allEntries.forEach((entry) => {
-        const fdi = entry.toothFdi;
-        if (!fdi) return;
-        if (!newToothState[fdi]) newToothState[fdi] = {};
-        if (entry.kind === "finding") {
-          if (!newToothState[fdi].entryFindings) newToothState[fdi].entryFindings = [];
-          newToothState[fdi].entryFindings.push(entry);
-        } else if (entry.kind === "procedure" || entry.kind === "planned") {
-          if (!newToothState[fdi].procedures) newToothState[fdi].procedures = [];
-          newToothState[fdi].procedures.push(entry);
-        }
-      });
-    }
-
-    syncState({ toothState: newToothState, dentitionType: canvasState.patientType });
-
-    dispatch(syncOralCanvasState({
-      canvasOralEntries: canvasState.oralEntries || [],
-      canvasOralNotes: canvasState.oralNotes || "",
-    }));
-  }, [canvasState, syncState, dispatch]);
 
   const isSingle = canvasState?.viewMode === "single-tooth";
   const isOral = canvasState?.viewMode === "oral";
