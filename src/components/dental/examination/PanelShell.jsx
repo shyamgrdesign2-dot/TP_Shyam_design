@@ -9,7 +9,7 @@ import ui from "./ExaminationTab.ui.module.scss";
  * The clear button and its confirmation dialog differ between panels, so the
  * caller supplies `clearSection` as a ReactNode (Eraser button + dialog).
  */
-export function PanelShell({ thumbnail, title, badge, onSave, saveDisabled, onClose, clearSection, children }) {
+export function PanelShell({ thumbnail, title, titleStyle, badge, onSave, saveDisabled, onClose, clearSection, children }) {
   return (
     <div className={ui.panelRoot}>
       <header className={ui.panelHeader}>
@@ -18,7 +18,7 @@ export function PanelShell({ thumbnail, title, badge, onSave, saveDisabled, onCl
             <div className={ui.panelThumb}>{thumbnail}</div>
             <div className={ui.panelTitleBlock}>
               <div className={ui.panelTitleRow}>
-                <h3 className={ui.panelTitle}>{title}</h3>
+                <h3 className={ui.panelTitle} style={titleStyle}>{title}</h3>
                 {badge && <span className={ui.panelBadge}>{badge}</span>}
               </div>
             </div>

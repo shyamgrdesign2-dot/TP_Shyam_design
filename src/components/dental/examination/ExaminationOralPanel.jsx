@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Trash, Grid5, Ram, Eraser, Add, SearchNormal1 } from "iconsax-reactjs";
+import { Trash, Eraser, Add, SearchNormal1 } from "iconsax-reactjs";
 import {
   ORAL_FINDINGS,
   ORAL_PROCEDURES,
@@ -32,6 +32,7 @@ import {
   SinceDropdown
 } from "./examination-shared-ui";
 import ui from "./ExaminationTab.ui.module.scss";
+import { PanelShell } from "./PanelShell";
 
 // ──────────────────────────────────────────────────────────────
 // OralPositionCell — multi-select dropdown for oral regions
@@ -606,81 +607,45 @@ export function OralExamPanel({ state, onSave, saving }) {
   };
 
   return (
-    <div className={ui.panelRoot}>
-      <header className={ui.panelHeader}>
-        <div className={ui.panelHeaderRow}>
-          <div className={ui.panelHeaderLeft} style={{ minWidth: 0, flex: 1 }}>
-            <div className={ui.panelThumb} style={{ flexShrink: 0 }}>
-              <MiniScopeCanvas
-                patientType={state.patientType ?? "adult"}
-                scopeType="full-mouth"
-                fdis={state.selectionScopeFdis ?? []}
-                toothDiagnoses={state.toothDiagnoses}
-                findingsByTooth={state.findingsByTooth}
-                implantTeeth={state.implantTeeth}
-                size={40}
-              />
-            </div>
-            <div className={ui.panelTitleBlock} style={{ minWidth: 0 }}>
-              <div className={ui.panelTitleRow}>
-                <h3 className={ui.panelTitle} style={{ overflow: "visible", maxWidth: "none" }}>
-                  Oral Examination
-                </h3>
-              </div>
-            </div>
-          </div>
-          <div className={ui.panelHeaderActions}>
-            <button type="button" className={ui.panelIconBtn} title="Template">
-              <Grid5 color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
-            </button>
-            <button
-              type="button"
-              className={ui.panelIconBtn}
-              title="Save oral examination"
-              onClick={onSave}
-              disabled={saving}>
-              <Ram color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
-            </button>
-            <button
-              type="button"
-              title="Clear all oral examination data"
-              disabled={!hasAnyData}
-              onClick={() => setShowClearConfirm(true)}
-              className={ui.panelIconBtnDanger}>
-              <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
-            </button>
-            <TPConfirmDialog
-              open={showClearConfirm}
-              onOpenChange={setShowClearConfirm}
-              title="Are you sure you want to clear oral examination?"
-              warning="This will remove all oral findings, procedures, and notes from this visit. This action cannot be undone."
-              secondaryLabel="Yes, Clear All"
-              secondaryTone="destructive"
-              onSecondary={clearAll}
-              primaryLabel="No, Keep It"
-            />
-            <div className={ui.panelDivider} />
-            <button
-              type="button"
-              onClick={() => state.onBackToDentition()}
-              className={ui.panelCloseBtn}
-              title="Close panel">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 256 256">
-                <rect width="256" height="256" fill="none" />
-                <polyline points="192 104 152 104 152 64" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
-                <line x1="208" y1="48" x2="152" y2="104" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
-                <polyline points="64 152 104 152 104 192" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
-                <line x1="48" y1="208" x2="104" y2="152" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
-                <polyline points="152 192 152 152 192 152" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
-                <line x1="208" y1="208" x2="152" y2="152" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
-                <polyline points="104 64 104 104 64 104" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
-                <line x1="48" y1="48" x2="104" y2="104" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </header>
-      <div className={ui.panelBody}>
+    <PanelShell
+      thumbnail={
+        <MiniScopeCanvas
+          patientType={state.patientType ?? "adult"}
+          scopeType="full-mouth"
+          fdis={state.selectionScopeFdis ?? []}
+          toothDiagnoses={state.toothDiagnoses}
+          findingsByTooth={state.findingsByTooth}
+          implantTeeth={state.implantTeeth}
+          size={40}
+        />
+      }
+      title="Oral Examination"
+      titleStyle={{ overflow: "visible", maxWidth: "none" }}
+      onSave={onSave}
+      saveDisabled={saving}
+      onClose={() => state.onBackToDentition()}
+      clearSection={
+        <>
+          <button
+            type="button"
+            title="Clear all oral examination data"
+            disabled={!hasAnyData}
+            onClick={() => setShowClearConfirm(true)}
+            className={ui.panelIconBtnDanger}>
+            <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+          </button>
+          <TPConfirmDialog
+            open={showClearConfirm}
+            onOpenChange={setShowClearConfirm}
+            title="Are you sure you want to clear oral examination?"
+            warning="This will remove all oral findings, procedures, and notes from this visit. This action cannot be undone."
+            secondaryLabel="Yes, Clear All"
+            secondaryTone="destructive"
+            onSecondary={clearAll}
+            primaryLabel="No, Keep It"
+          />
+        </>
+      }>
         <AccordionWrap
           open={activeSection === "past"}
           fitContent
@@ -787,8 +752,7 @@ export function OralExamPanel({ state, onSave, saving }) {
             />
           </div>
         </AccordionWrap>
-      </div>
-    </div>
+    </PanelShell>
   );
 }
 
