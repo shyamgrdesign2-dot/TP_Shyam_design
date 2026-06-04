@@ -2304,7 +2304,7 @@ function ConsultationLayout({ children, headerProps }) {
                     ) : (
                       <ExaminationTab 
                         patientId={patient_data?.patient_unique_id} 
-                        patientAge={patient_data?.patient_age} 
+                        patientAge={patient_data?.ageYears} 
                       />
                     )}
                   </div>
