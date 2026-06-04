@@ -17,7 +17,6 @@ import { DentalCanvas } from "./DentalCanvas";
 import { saveDentalPreviewSnapshot } from "../tp-rxpad/rx-preview-store";
 import { useDentalExamination } from "../lib/useDentalExamination";
 import { useOralExamination } from "../../../hooks/useOralExamination";
-import { syncOralCanvasState } from "../../../redux/oralExaminationSlice";
 import { useDispatch } from "react-redux";
 import ex from "./ExaminationTab.module.scss";
 import { useExaminationLayout } from "./useExaminationLayout";
