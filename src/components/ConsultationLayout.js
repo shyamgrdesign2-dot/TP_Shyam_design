@@ -1957,7 +1957,7 @@ function ConsultationLayout({ children, headerProps }) {
           ? transformToothStateToApi(dentalExamination.toothState)
           : [];
 
-        navigate("/prescription_print_view", {
+        navigate("/tab-rx-prescription", {
           replace: true,
           state: {
             ...action.payload,
