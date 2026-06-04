@@ -63,6 +63,7 @@ function SmartRxPreview() {
         loading,
     } = useSelector((state) => state.caseManager);
     const dentalExaminationData = useSelector(selectDentalExamination);
+    const oralExamination = useSelector((state) => state.oralExamination);
     const dispatch = useDispatch();
 
     const navigate = useNavigate();
@@ -617,6 +618,9 @@ function SmartRxPreview() {
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
         dentalExaminationData,
+        oralExamination,
+        patientUniqueId: patient_data?.patient_unique_id,
+        tcmId: state?.tcm_id,
     });
 
     useEffect(() => {

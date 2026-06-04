@@ -147,17 +147,52 @@ export const fetchAdvanceSetting = async function () {
   return res;
 };
 
-export const searchBillItem = async function (searchQuery) {
+export const searchBillItem = async function (searchQuery, options = {}) {
   let res = {};
+  const trimmed = String(searchQuery ?? "").trim();
+  if (!trimmed) return res;
   try {
-    res = await api.get(
-      `/api/v1/billing/billItem?search=${searchQuery}`,
-      baseUrl
-    );
+    const params = new URLSearchParams({ search: trimmed });
+    if (options.type) {
+      params.set("type", options.type);
+    }
+    res = await api.get(`/api/v1/billing/billItem?${params.toString()}`, baseUrl);
   } catch (e) {
     console.error("Error while fetching search bill items: ", e);
   }
   return res;
+};
+
+/** Bill items whose type is dental (API: Dental_Service; local catalog: dental). */
+export function isDentalBillItemType(type) {
+  const normalized = String(type ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  return normalized === "dental" || normalized === "dental_service";
+}
+
+export function normalizeBillItemSearchResponse(response) {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  return [];
+}
+
+export const searchDentalBillItems = async function (searchQuery) {
+  const trimmed = String(searchQuery ?? "").trim();
+  let response;
+  if (!trimmed) {
+    const queryParams = new URLSearchParams({
+      type: "Dental_Service",
+      page: "1",
+      limit: "100",
+    });
+    response = await listBillItem(queryParams);
+  } else {
+    response = await searchBillItem(trimmed, { type: "Dental_Service" });
+  }
+  const items = normalizeBillItemSearchResponse(response);
+  return items.filter((item) => isDentalBillItemType(item?.type));
 };
 
 export const listBillItem = async function (queryParams) {

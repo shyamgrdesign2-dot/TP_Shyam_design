@@ -9,7 +9,7 @@ import { useSelector } from "react-redux";
 import { NORMAL } from "../utils/constants";
 import ViewPDF from '../components/print_settings/ViewPDF';
 import { prefetchDentalToothImageMap } from '../components/dental/examination/dentalChartPdf';
-import { loadExamChart, getPatientIdForExamChart } from '../utils/examChartStorage';
+import { resolveExamChartForPrint } from '../utils/examChartStorage';
 import { renderPDF } from '../components/print_settings/renderPDF';
 import { PDF } from '../components/print_settings/PDF';
 import { pdfjs, Document, Page } from "react-pdf";
@@ -242,7 +242,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 dentalData={props.dentalData}
                 dentalExaminationData={dentalExaminationData}
                 toothImageMap={toothImageMap}
-                examChart={loadExamChart(getPatientIdForExamChart(caseManagerData))}
+                examChart={resolveExamChartForPrint(caseManagerData)}
             />).toBlob();
 
             const setPdfUrlSafe = (url) => {

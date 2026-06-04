@@ -2,7 +2,7 @@ import React from "react";
 import { pdf } from "@react-pdf/renderer";
 import ViewPDF from "./server/viewpdf";
 import { prefetchDentalToothImageMap } from "../components/dental/examination/dentalChartPdf";
-import { loadExamChart, getPatientIdForExamChart } from "./examChartStorage";
+import { resolveExamChartForPrintWithContext } from "./examChartStorage";
 import { DENTAL_EXAM_CASE_OPTION_ID } from "./dentalDefaultPrintSettings";
 import { hasDentalExamPayload } from "./cardiologyDentalOralExam";
 
@@ -89,11 +89,18 @@ export const renderPrintPayloadToBlob = async (
     dentalExaminationData,
     isDigitisedPrintConfig,
     examChart: examChartFromPayload,
+    oralExamination,
+    patientUniqueId,
+    tcmId,
   } = payload;
 
-  const examChart =
-    examChartFromPayload ??
-    loadExamChart(getPatientIdForExamChart(caseManagerData));
+  const examChart = resolveExamChartForPrintWithContext({
+    caseManagerData,
+    examChartOverride: examChartFromPayload,
+    oralExamination,
+    patientUniqueId,
+    tcmId,
+  });
 
   const combinedCaseManagerData = {
     ...caseManagerData,

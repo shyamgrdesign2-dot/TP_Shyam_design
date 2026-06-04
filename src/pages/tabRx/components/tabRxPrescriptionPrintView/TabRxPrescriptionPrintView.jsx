@@ -169,7 +169,7 @@ function TabRxPrescriptionPrintView() {
   const isDental = state?.page === "dental"
   // const dentalExaminationData = state?.dentalExaminationData || state?.dentalData || null;
   const dentalExaminationData = useSelector(selectDentalExamination);
-  console.log('dentalExaminationData', dentalExaminationData)
+  const oralExamination = useSelector((state) => state.oralExamination);
   const [selectedLang, setSelectedLang] = useState(
     defaultPrintSettings?.default_language &&
       defaultPrintSettings?.default_language !== "English"
@@ -457,6 +457,9 @@ function TabRxPrescriptionPrintView() {
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
     dentalExaminationData,
+    oralExamination,
+    patientUniqueId: patient_data?.patient_unique_id,
+    tcmId: state?.tcm_id,
   });
 
 

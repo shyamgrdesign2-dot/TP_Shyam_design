@@ -52,9 +52,12 @@ import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { useBillingCatalog } from "../lib/useBillingCatalog";
 import {
   getUniqueDentalBillItems,
+  mapApiBillItemToDentalCatalog,
+  sortDentalBillItemsForSearch,
   sortStringsForTypeahead
 } from "../lib/billing-catalog";
-import { AddDentalBillItemDrawer } from "../AddDentalBillItemDrawer";
+import { searchDentalBillItems } from "../../../pages/opdBilling/service";
+import ServiceItemPopup from "../../../pages/opdBilling/components/serviceItemPopup/ServiceItemPopup";
 import {
   AccordionWrap,
   SectionHeader,
@@ -572,9 +575,15 @@ function EntryTab({ state, kind }) {
   const { activeSurfaceFindings, activeProcedures, activeSurfaces } = useDentalMasters();
   const [activeCell, setActiveCell] = useState(null);
   const [query, setQuery] = useState("");
-  const { items: billingItems } = useBillingCatalog();
-  const [plannedCustomOpen, setPlannedCustomOpen] = useState(false);
-  const [plannedCustomInitial, setPlannedCustomInitial] = useState("");
+  const { items: billingItems, addItem: addBillingCatalogItem } = useBillingCatalog();
+  const [serviceItemPopupOpen, setServiceItemPopupOpen] = useState(false);
+  const [serviceItemPopupSeed, setServiceItemPopupSeed] = useState({
+    name: "",
+    type: "Dental_Service"
+  });
+  const [dentalBillSearchHits, setDentalBillSearchHits] = useState([]);
+  const [dentalBillSearchLoading, setDentalBillSearchLoading] = useState(false);
+  const usesDentalBillSearch = kind === "planned";
   // Portal Dropdown Search States
   const [searchOpen, setSearchOpen] = useState(false);
   const [pos, setPos] = useState(null);
@@ -657,7 +666,7 @@ function EntryTab({ state, kind }) {
       kind === "symptom" ?
         DENTAL_SYMPTOM_CATALOG :
         kind === "planned" ?
-          dentalProcedureNames :
+          (usesDentalBillSearch ? [] : dentalProcedureNames) :
           kind === "procedure" ?
             isGroupedScope ?
               groupedProcedureCatalog :
@@ -729,10 +738,72 @@ function EntryTab({ state, kind }) {
     return sorted.slice(0, 12);
   }, [query, catalog, entries]);
   const queryTrim = query.trim();
-  const catalogHasExactName =
-    queryTrim.length > 0 &&
-    catalog.some((c) => c.toLowerCase() === queryTrim.toLowerCase());
+  const catalogHasExactName = usesDentalBillSearch
+    ? queryTrim.length > 0 &&
+      dentalBillSearchHits.some(
+        (i) => i?.name?.trim().toLowerCase() === queryTrim.toLowerCase()
+      )
+    : queryTrim.length > 0 &&
+      catalog.some((c) => c.toLowerCase() === queryTrim.toLowerCase());
+
+  useEffect(() => {
+    if (!usesDentalBillSearch || !searchOpen) {
+      if (!searchOpen) {
+        setDentalBillSearchHits([]);
+        setDentalBillSearchLoading(false);
+      }
+      return;
+    }
+    let cancelled = false;
+    const debounceMs = queryTrim ? 300 : 0;
+    const timer = window.setTimeout(async () => {
+      setDentalBillSearchLoading(true);
+      try {
+        const hits = await searchDentalBillItems(queryTrim);
+        if (!cancelled) setDentalBillSearchHits(hits);
+      } catch {
+        if (!cancelled) setDentalBillSearchHits([]);
+      } finally {
+        if (!cancelled) setDentalBillSearchLoading(false);
+      }
+    }, debounceMs);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [usesDentalBillSearch, queryTrim, searchOpen]);
+
+  const plannedSearchRows = useMemo(() => {
+    if (!usesDentalBillSearch) return [];
+    const selected = new Set(entries.map((e) => e.name.toLowerCase()));
+    const apiPool = sortDentalBillItemsForSearch(
+      dentalBillSearchHits.filter(
+        (i) =>
+          i?.name &&
+          !selected.has(String(i.name).trim().toLowerCase())
+      ),
+      queryTrim
+    );
+    return apiPool.slice(0, 50).map((item) => ({
+      source: "api",
+      name: item.name.trim(),
+      item
+    }));
+  }, [usesDentalBillSearch, queryTrim, dentalBillSearchHits, entries]);
+
+  const openDentalServiceItemPopup = (name) => {
+    const trimmed = String(name ?? "").trim();
+    if (!trimmed) return;
+    setServiceItemPopupSeed({
+      name: trimmed,
+      type: "Dental_Service"
+    });
+    setServiceItemPopupOpen(true);
+    setSearchOpen(false);
+  };
+
   const quickSelectChips = useMemo(() => {
+    if (kind === "planned") return [];
     const defaults =
       kind === "finding" ?
         isGroupedScope ?
@@ -750,9 +821,7 @@ function EntryTab({ state, kind }) {
             "Plaque",
             "Calculus"] :
 
-        kind === "planned" ?
-          dentalProcedureNames.slice(0, 8) :
-          isGroupedScope ?
+        isGroupedScope ?
             [
               "Quadrant scaling and root planing",
               "Full-mouth scaling and polishing",
@@ -805,6 +874,14 @@ function EntryTab({ state, kind }) {
     });
     setQuery("");
   };
+
+  const handleDentalBillItemSaved = (billItemRes) => {
+    const catalogItem = mapApiBillItemToDentalCatalog(billItemRes);
+    if (catalogItem) addBillingCatalogItem(catalogItem);
+    if (billItemRes?.name) addEntryFromName(String(billItemRes.name).trim());
+    setServiceItemPopupOpen(false);
+  };
+
   if (isMissing) {
     return (
       <div className={ui.missingWrap}>
@@ -1092,19 +1169,29 @@ function EntryTab({ state, kind }) {
               onFocus={() => setSearchOpen(true)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && queryTrim) {
-                  const match = catalog.find(
-                    (c) => c.toLowerCase() === queryTrim.toLowerCase()
-                  );
-                  if (match) {
-                    addEntryFromName(match);
-                    setSearchOpen(false);
-                  } else if (kind === "planned") {
-                    setPlannedCustomInitial(queryTrim);
-                    setPlannedCustomOpen(true);
-                    setSearchOpen(false);
-                  } else if (kind === "finding" && !catalogHasExactName) {
-                    addEntryFromName(queryTrim);
-                    setSearchOpen(false);
+                  if (kind === "planned") {
+                    const apiMatch = plannedSearchRows[0];
+                    if (apiMatch) {
+                      if (apiMatch.item) {
+                        const catalogItem = mapApiBillItemToDentalCatalog(apiMatch.item);
+                        if (catalogItem) addBillingCatalogItem(catalogItem);
+                      }
+                      addEntryFromName(apiMatch.name);
+                      setSearchOpen(false);
+                    } else {
+                      openDentalServiceItemPopup(queryTrim);
+                    }
+                  } else {
+                    const match = catalog.find(
+                      (c) => c.toLowerCase() === queryTrim.toLowerCase()
+                    );
+                    if (match) {
+                      addEntryFromName(match);
+                      setSearchOpen(false);
+                    } else if (kind === "finding" && !catalogHasExactName) {
+                      addEntryFromName(queryTrim);
+                      setSearchOpen(false);
+                    }
                   }
                 }
               }}
@@ -1129,7 +1216,9 @@ function EntryTab({ state, kind }) {
             {searchOpen &&
               pos &&
               typeof document !== "undefined" && (
-                filteredCatalog.length > 0 || query.trim()) &&
+                usesDentalBillSearch ?
+                  true :
+                  (filteredCatalog.length > 0 || query.trim())) &&
               createPortal(
                 <div
                   ref={searchPopoverRef}
@@ -1141,31 +1230,60 @@ function EntryTab({ state, kind }) {
                   }}>
 
                   {(kind === "planned" || kind === "procedure") && (
-                    filteredCatalog.length > 0 || query.trim()) &&
+                    usesDentalBillSearch ?
+                      true :
+                      (filteredCatalog.length > 0 || query.trim())) &&
                     <div className={ui.popoverSectionHeader}>
                       <p className={ui.popoverSectionTitle}>
                         {kind === "planned" ? "Dental service" : "Procedure"}
                       </p>
                     </div>}
 
+                  {usesDentalBillSearch && dentalBillSearchLoading ?
+                    <p className={ui.popoverSectionTitle} style={{ padding: "8px 12px" }}>
+                      Searching dental services…
+                    </p> :
+                    null}
 
-                  {filteredCatalog.map((c) =>
-                    <button
-                      type="button"
-                      onClick={() => addEntryFromName(c)}
-                      className={ui.popoverItem}>
+                  {usesDentalBillSearch && !dentalBillSearchLoading && plannedSearchRows.length === 0 ?
+                    <p className={ui.popoverSectionTitle} style={{ padding: "8px 12px", color: "#94a3b8" }}>
+                      {queryTrim ? "No dental services found" : "No dental services configured"}
+                    </p> :
+                    null}
 
-                      {c}
-                    </button>
-                  )}
+                  {usesDentalBillSearch ?
+                    plannedSearchRows.map((row) =>
+                      <button
+                        key={`${row.source}-${row.name}`}
+                        type="button"
+                        onClick={() => {
+                          if (row.source === "api" && row.item) {
+                            const catalogItem = mapApiBillItemToDentalCatalog(row.item);
+                            if (catalogItem) addBillingCatalogItem(catalogItem);
+                          }
+                          addEntryFromName(row.name);
+                          setSearchOpen(false);
+                        }}
+                        className={ui.popoverItem}>
+
+                        {row.name}
+                      </button>
+                    ) :
+                    filteredCatalog.map((c) =>
+                      <button
+                        type="button"
+                        onClick={() => addEntryFromName(c)}
+                        className={ui.popoverItem}>
+
+                        {c}
+                      </button>
+                    )}
                   {queryTrim && !catalogHasExactName &&
                     <button
                       className={ui.popoverAdd}
                       onClick={() => {
                         if (kind === "planned") {
-                          setPlannedCustomInitial(query.trim());
-                          setPlannedCustomOpen(true);
-                          setSearchOpen(false);
+                          openDentalServiceItemPopup(query.trim());
                         } else {
                           addEntryFromName(query.trim());
                         }
@@ -1214,14 +1332,13 @@ function EntryTab({ state, kind }) {
 
         </div>
       </div>
-      {kind === "planned" &&
-        <AddDentalBillItemDrawer
-          open={plannedCustomOpen}
-          onOpenChange={setPlannedCustomOpen}
-          initialName={plannedCustomInitial}
-          onSaved={(item) => {
-            addEntryFromName(item.name);
-          }} />}
+      {kind === "planned" && serviceItemPopupOpen &&
+        <ServiceItemPopup
+          onCancel={() => setServiceItemPopupOpen(false)}
+          editIndex={-1}
+          item={serviceItemPopupSeed}
+          dentalOnly
+          onSaved={handleDentalBillItemSaved} />}
 
 
     </>);

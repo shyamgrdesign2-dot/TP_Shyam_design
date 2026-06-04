@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { transformToothStateToApi } from "../components/dental/lib/examination-helpers";
-import { loadExamChart, getPatientIdForExamChart } from "../utils/examChartStorage";
+import { resolveExamChartForPrintWithContext } from "../utils/examChartStorage";
 
 const hasDentalData = (data) => {
   if (!data) return false;
@@ -26,6 +26,9 @@ export const usePrintPayloadPdf = ({
   zydusSelectedLabParams = null,
   dentalexaminationData = null,
   dentalExaminationData = null,
+  oralExamination = null,
+  patientUniqueId = null,
+  tcmId = null,
   onlyShowDental = false,
 }) => {
   const [payload, setPayload] = useState(null);
@@ -135,13 +138,22 @@ export const usePrintPayloadPdf = ({
         }
         const normalizedDentalData = { tooth_states: resolvedToothStates };
 
-        const examChart = loadExamChart(getPatientIdForExamChart(payload?.caseManagerData));
+        const examChart = resolveExamChartForPrintWithContext({
+          caseManagerData: payload?.caseManagerData,
+          examChartOverride: payload?.examChart,
+          oralExamination,
+          patientUniqueId,
+          tcmId,
+        });
 
         const blob = await renderPrintPayloadToBlob({
           ...payload,
           zydusLabData: zydusSelectedLabParams,
           dentalExaminationData: normalizedDentalData,
           examChart,
+          oralExamination,
+          patientUniqueId,
+          tcmId,
         }, {
           selectedLang,
           isGynaecHistoryAccessable,
@@ -178,7 +190,20 @@ export const usePrintPayloadPdf = ({
     return () => {
       isCancelled = true;
     };
-  }, [payload, selectedLang, isGynaecHistoryAccessable, skipFetch, dentalexaminationData, dentalExaminationData]);
+  }, [
+    payload,
+    selectedLang,
+    isGynaecHistoryAccessable,
+    skipFetch,
+    dentalexaminationData,
+    dentalExaminationData,
+    oralExamination,
+    patientUniqueId,
+    tcmId,
+    onlyShowDental,
+    showSnapRxImages,
+    zydusSelectedLabParams,
+  ]);
 
   return { payload, printBlob, isGenerating, error };
 };
