@@ -22,8 +22,6 @@ import { createPortal } from "react-dom";
 import {
   InfoCircle,
   Trash,
-  Grid5,
-  Ram,
   Eraser,
   Add,
   SearchNormal1
@@ -64,6 +62,7 @@ import {
   SinceDropdown
 } from "./examination-shared-ui";
 import ui from "./ExaminationTab.ui.module.scss";
+import { PanelShell } from "./PanelShell";
 
 /** Accent colors per tooth-level diagnosis — makes each chip visually distinct */
 const PRIMARY_DIAG_COLOR = {
@@ -201,215 +200,70 @@ export function SingleToothPanel({ state, onSave }) {
     });
   };
   return (
-    <div className={ui.panelRoot}>
-      <header className={ui.panelHeader}>
-        <div className={ui.panelHeaderRow}>
-          <div className={ui.panelHeaderLeft}>
-            <div className={ui.panelThumb}>
-              {isGroupedScope ?
-                <MiniScopeCanvas
-                  patientType={state.patientType ?? "adult"}
-                  scopeType={
-                    state.selectionScopeType === "full-mouth" ?
-                      "full-mouth" :
-                      state.selectionScopeType === "arch" ?
-                        "arch" :
-                        "quadrant"}
-
-                  fdis={state.selectionScopeFdis ?? []}
-                  toothDiagnoses={state.toothDiagnoses}
-                  findingsByTooth={state.findingsByTooth}
-                  implantTeeth={state.implantTeeth}
-                  size={40} /> :
-
-
-                <MiniToothCanvas
-                  tooth={state.selectedTooth}
-                  size={40}
-                  diagnoses={state.currentToothDiagnoses}
-                  isImplant={state.isImplant}
-                  findings={state.findings} />}
-
-
-            </div>
-            <div className={ui.panelTitleBlock}>
-              <div className={ui.panelTitleRow}>
-                <h3 className={ui.panelTitle}>{entityLabel}</h3>
-                <span className={ui.panelBadge}>{entityBadge}</span>
-              </div>
-            </div>
-          </div>
-          <div className={ui.panelHeaderActions}>
-            <button type="button" className={ui.panelIconBtn} title="Template">
-              <Grid5
-                color="currentColor"
-                size={16}
-                strokeWidth={1.5}
-                variant="Linear" />
-
-            </button>
-            <button type="button" className={ui.panelIconBtn} title="Save" onClick={onSave}>
-              <Ram
-                color="currentColor"
-                size={16}
-                strokeWidth={1.5}
-                variant="Linear" />
-
-            </button>
-            <AlertDialog
-              open={showClearConfirm}
-              onOpenChange={setShowClearConfirm}>
-
-              <AlertDialogTrigger asChild={true}>
-                <button
-                  type="button"
-                  title="Clear all data for this tooth"
-                  disabled={!hasAnyData}
-                  className={ui.panelIconBtnDanger}>
-
-                  <Eraser
-                    color="currentColor"
-                    size={16}
-                    strokeWidth={1.5}
-                    variant="Linear" />
-
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className={ui.clearDialogContent}>
-                <AlertDialogHeader>
-                  <div className={ui.clearDialogTitleRow}>
-                    <div className={ui.clearDialogIcon}>
-                      <Trash color="#ef4444" size={18} variant="Bulk" />
-                    </div>
-                    <AlertDialogTitle className={ui.clearDialogTitle}>
-                      Clear all data?
-                    </AlertDialogTitle>
-                  </div>
-                  <AlertDialogDescription className={ui.clearDialogDesc}>
-                    This will remove all past procedures, findings,
-                    procedures, and notes for{" "}
-                    <span className={ui.clearDialogStrong}>
-                      {entityLabel} ({entityBadge})
-                    </span>
-                    . This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className={ui.clearDialogFooter}>
-                  <AlertDialogCancel className={ui.clearDialogCancel}>
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={clearAllToothData}
-                    className={ui.clearDialogAction}>
-
-                    Clear all
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <div className={ui.panelDivider} />
+    <PanelShell
+      thumbnail={isGroupedScope ?
+        <MiniScopeCanvas
+          patientType={state.patientType ?? "adult"}
+          scopeType={
+            state.selectionScopeType === "full-mouth" ?
+              "full-mouth" :
+              state.selectionScopeType === "arch" ?
+                "arch" :
+                "quadrant"}
+          fdis={state.selectionScopeFdis ?? []}
+          toothDiagnoses={state.toothDiagnoses}
+          findingsByTooth={state.findingsByTooth}
+          implantTeeth={state.implantTeeth}
+          size={40} /> :
+        <MiniToothCanvas
+          tooth={state.selectedTooth}
+          size={40}
+          diagnoses={state.currentToothDiagnoses}
+          isImplant={state.isImplant}
+          findings={state.findings} />}
+      title={entityLabel}
+      badge={entityBadge}
+      onSave={onSave}
+      onClose={tryBack}
+      clearSection={
+        <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+          <AlertDialogTrigger asChild={true}>
             <button
               type="button"
-              onClick={tryBack}
-              className={ui.panelCloseBtn}
-              title="Close panel">
-
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                viewBox="0 0 256 256">
-
-                <rect width="256" height="256" fill="none" />
-                <polyline
-                  points="192 104 152 104 152 64"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="16" />
-
-
-                <line
-                  x1="208"
-                  y1="48"
-                  x2="152"
-                  y2="104"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="16" />
-
-
-                <polyline
-                  points="64 152 104 152 104 192"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="16" />
-
-
-                <line
-                  x1="48"
-                  y1="208"
-                  x2="104"
-                  y2="152"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="16" />
-
-
-                <polyline
-                  points="152 192 152 152 192 152"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="16" />
-
-
-                <line
-                  x1="208"
-                  y1="208"
-                  x2="152"
-                  y2="152"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="16" />
-
-
-                <polyline
-                  points="104 64 104 104 64 104"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="16" />
-
-
-                <line
-                  x1="48"
-                  y1="48"
-                  x2="104"
-                  y2="104"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="16" />
-
-              </svg>
+              title="Clear all data for this tooth"
+              disabled={!hasAnyData}
+              className={ui.panelIconBtnDanger}>
+              <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
             </button>
-          </div>
-        </div>
-      </header>
-      <div className={ui.panelBody}>
+          </AlertDialogTrigger>
+          <AlertDialogContent className={ui.clearDialogContent}>
+            <AlertDialogHeader>
+              <div className={ui.clearDialogTitleRow}>
+                <div className={ui.clearDialogIcon}>
+                  <Trash color="#ef4444" size={18} variant="Bulk" />
+                </div>
+                <AlertDialogTitle className={ui.clearDialogTitle}>
+                  Clear all data?
+                </AlertDialogTitle>
+              </div>
+              <AlertDialogDescription className={ui.clearDialogDesc}>
+                This will remove all past procedures, findings,
+                procedures, and notes for{" "}
+                <span className={ui.clearDialogStrong}>
+                  {entityLabel} ({entityBadge})
+                </span>
+                . This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className={ui.clearDialogFooter}>
+              <AlertDialogCancel className={ui.clearDialogCancel}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={clearAllToothData} className={ui.clearDialogAction}>
+                Clear all
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      }>
         <div
           ref={(el) => {
             sectionRefs.current.procedures = el;
@@ -564,8 +418,7 @@ export function SingleToothPanel({ state, onSave }) {
             </div>
           </AccordionWrap>
         </div>
-      </div>
-    </div>);
+    </PanelShell>);
 
 }
 // ──────────────────────────────────────────────────────────────
