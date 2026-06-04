@@ -107,8 +107,8 @@ const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      immutableCheck: false,
-      serializableCheck: false,
+      immutableCheck: process.env.NODE_ENV !== "production",
+      serializableCheck: process.env.NODE_ENV !== "production",
     }),
 });
 

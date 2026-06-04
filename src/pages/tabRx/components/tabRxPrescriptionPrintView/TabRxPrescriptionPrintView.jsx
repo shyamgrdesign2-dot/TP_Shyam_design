@@ -20,6 +20,7 @@ import {
 } from "../../../../utils/utils";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../../../../redux/dentalExaminationSlice";
 import { useAccess } from "../../../vaccination/useAccess";
 
 import { viewCaseManager } from "../../../../redux/caseManagerSlice";
@@ -167,7 +168,7 @@ function TabRxPrescriptionPrintView() {
   } = state || {};
   const isDental = state?.page === "dental"
   // const dentalExaminationData = state?.dentalExaminationData || state?.dentalData || null;
-  const dentalExaminationData = useSelector((state) => state.dentalExamination);
+  const dentalExaminationData = useSelector(selectDentalExamination);
   console.log('dentalExaminationData', dentalExaminationData)
   const [selectedLang, setSelectedLang] = useState(
     defaultPrintSettings?.default_language &&

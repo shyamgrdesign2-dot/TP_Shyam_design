@@ -47,10 +47,14 @@ export function PlanProvider({
     activatePlan,
     startTreatment,
     markCompleted,
+    revertToEstimates,
+    revertToProgress,
     addService,
     updateService,
     removeService,
-    clearError
+    markServiceDone,
+    revertServiceToProgress,
+    clearError,
   } = useDentalPlan(patientId);
 
   // 2. Local UI state (Drawer, Snackbar)
@@ -106,55 +110,12 @@ export function PlanProvider({
 
   const hasInProgressPlan = inProgressPlans.length > 0;
 
-  // 4. Bridge dispatch to API calls
-  // This maintains backward compatibility with components calling dispatch()
-  const dispatch = useCallback(
-    async (action) => {
-      try {
-        switch (action.type) {
-          case "ADD_PLAN":
-            await createPlan(action.plan);
-            break;
-          case "UPDATE_PLAN":
-            await updatePlan(action.planId, action.patch);
-            break;
-          case "DELETE_PLAN":
-            await deletePlan(action.planId);
-            break;
-          case "DUPLICATE_PLAN":
-            await duplicatePlan(action.planId);
-            break;
-          case "ACTIVATE_PLAN":
-            await activatePlan(action.planId, { status: "active" });
-            break;
-          case "START_TREATMENT":
-            await startTreatment(action.planId, { status: "in-progress" });
-            break;
-          case "MARK_PLAN_COMPLETED":
-            await markCompleted(action.planId, { status: "completed" });
-            break;
-          case "ADD_SERVICE":
-            await addService(action.planId, action.service);
-            break;
-          case "UPDATE_SERVICE":
-            await updateService(action.planId, action.serviceId, action.patch);
-            break;
-          case "REMOVE_SERVICE":
-            await removeService(action.planId, action.serviceId);
-            break;
-          case "SET_DRAWER":
-            setDrawer(action.drawer);
-            break;
-          // Note: Sittings & Procedures might need separate API handling or local persistence
-          default:
-            console.warn("Unhandled action type in PlanProvider dispatch:", action.type);
-        }
-      } catch (err) {
-        console.error("Plan action failed:", err);
-        showSnackbar(`Error: ${err.message || "Action failed"}`);
-      }
-    },
-    [
+  const value = useMemo(
+    () => ({
+      patientId,
+      embedInPatientShell,
+      state: { plans, drawer, loading, error: apiError },
+      // API actions — call directly instead of via string-keyed dispatch
       createPlan,
       updatePlan,
       deletePlan,
@@ -162,19 +123,14 @@ export function PlanProvider({
       activatePlan,
       startTreatment,
       markCompleted,
+      revertToEstimates,
+      revertToProgress,
       addService,
       updateService,
       removeService,
-      showSnackbar
-    ]
-  );
-
-  const value = useMemo(
-    () => ({
-      patientId,
-      embedInPatientShell,
-      state: { plans, drawer, loading, error: apiError }, // Mimic old state structure
-      dispatch,
+      markServiceDone,
+      revertServiceToProgress,
+      // UI state
       estimatePlans,
       inProgressPlans,
       completedPlans,
@@ -187,7 +143,7 @@ export function PlanProvider({
       navigateTab: onNavigateTab,
       showSnackbar,
       snackbar,
-      closeSnackbar
+      closeSnackbar,
     }),
     [
       patientId,
@@ -196,7 +152,20 @@ export function PlanProvider({
       drawer,
       loading,
       apiError,
-      dispatch,
+      createPlan,
+      updatePlan,
+      deletePlan,
+      duplicatePlan,
+      activatePlan,
+      startTreatment,
+      markCompleted,
+      revertToEstimates,
+      revertToProgress,
+      addService,
+      updateService,
+      removeService,
+      markServiceDone,
+      revertServiceToProgress,
       estimatePlans,
       inProgressPlans,
       completedPlans,
@@ -207,7 +176,7 @@ export function PlanProvider({
       onNavigateTab,
       showSnackbar,
       snackbar,
-      closeSnackbar
+      closeSnackbar,
     ]
   );
 

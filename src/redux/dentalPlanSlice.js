@@ -400,3 +400,9 @@ const dentalPlanSlice = createSlice({
 
 export const { setCurrentPlan, clearPlanError } = dentalPlanSlice.actions;
 export default dentalPlanSlice.reducer;
+
+export const selectDentalPlan         = (state) => state.dentalPlan;
+export const selectDentalPlans        = (state) => state.dentalPlan.plans;
+export const selectDentalPlansLoading = (state) => state.dentalPlan.loading;
+export const selectDentalPlansError   = (state) => state.dentalPlan.error;
+export const selectCurrentDentalPlan  = (state) => state.dentalPlan.currentPlan;

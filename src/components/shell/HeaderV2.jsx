@@ -102,7 +102,8 @@ import {
     getTemplates,
 } from "../../pages/tabRx/services/templateService";
 import { setDefaultCustomSyncPadTemplate } from "../../pages/smartSync/services/uploadService";
-import { saveDentalExamination } from "../../redux/dentalExaminationSlice";
+import { saveDentalExamination, selectDentalExamination } from "../../redux/dentalExaminationSlice";
+import { selectDentalPlan } from "../../redux/dentalPlanSlice";
 import { transformToothStateToApi } from "../dental/lib/examination-helpers";
 import { ASSETS } from "../../assets";
 const {
@@ -166,8 +167,8 @@ function HeaderV2({
     const { measurements } = useSelector((state) => state.growthChart);
     const { isObstetricDetailsUpdated } = useSelector((state) => state.obstetric);
     const { templates, loading } = useSelector((state) => state.caseManager);
-    const dentalExamination = useSelector((state) => state.dentalExamination);
-    const { plans: dentalPlans } = useSelector((state) => state.dentalPlan);
+    const dentalExamination = useSelector(selectDentalExamination);
+    const { plans: dentalPlans } = useSelector(selectDentalPlan);
     const dispatch = useDispatch();
 
     const { customModules } = useSelector((state) => state.customModules);

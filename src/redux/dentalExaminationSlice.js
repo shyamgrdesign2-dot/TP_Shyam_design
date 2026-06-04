@@ -109,3 +109,11 @@ const dentalExaminationSlice = createSlice({
 
 export const { updateToothData, syncWholeState, clearDentalChart, resetDentalError } = dentalExaminationSlice.actions;
 export default dentalExaminationSlice.reducer;
+
+export const selectDentalExamination   = (state) => state.dentalExamination;
+export const selectToothState          = (state) => state.dentalExamination.toothState;
+export const selectDentalExamVersion   = (state) => state.dentalExamination.version;
+export const selectDentalDentitionType = (state) => state.dentalExamination.dentitionType;
+export const selectDentalExamLoading   = (state) => state.dentalExamination.loading;
+export const selectDentalExamSaving    = (state) => state.dentalExamination.saving;
+export const selectDentalExamError     = (state) => state.dentalExamination.error;

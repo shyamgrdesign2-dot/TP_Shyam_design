@@ -1,7 +1,6 @@
-const SINCE_LABEL_TO_DAYS = { "1 hour": 0, "1 day": 1, "1 week": 7, "1 month": 30, "1 year": 365 };
+import { DX_MARKER } from "../../../utils/dentalApiMappers";
 
-// Must match the DX_MARKER in dentalApiMappers.js
-const DX_MARKER = "__dx__";
+const SINCE_LABEL_TO_DAYS = { "1 hour": 0, "1 day": 1, "1 week": 7, "1 month": 30, "1 year": 365 };
 
 const sinceToDate = (since) => {
   if (!since) return null;

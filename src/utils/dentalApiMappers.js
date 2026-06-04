@@ -39,7 +39,7 @@ export const getDentalApiError = (response, fallback) =>
   response?.error || response?.message || fallback;
 
 // Marker stored in notes field to identify serialized primary-diagnosis chips.
-const DX_MARKER = "__dx__";
+export const DX_MARKER = "__dx__";
 
 export const toDentalToothState = (payload = {}) => {
   const toothState = {};

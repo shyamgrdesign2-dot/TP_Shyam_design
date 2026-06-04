@@ -77,8 +77,8 @@ import PrimaryActionButton from "./PrimaryActionButton";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
-import { getRxExamination } from "../api/services/ApiDental";
-import { getOralExaminationHistory } from "../api/services/ApiOral";
+import { getExaminationTodayOnly } from "../api/services/ApiDental";
+import { getOralExaminationTodayOnly } from "../api/services/ApiOral";
 import {
   extractDentalApiPayload,
   formatDentalExamItem,
@@ -607,7 +607,7 @@ function Cardiology(props) {
   const isDentalDoctor =
     profile?.dp_id === 26 ||
     String(profile?.dp_name || "").toLowerCase().includes("dental");
-  const showVisitDentalOralExam = isDentalEnabled || isDentalDoctor;
+  const showVisitDentalOralExam = isDentalEnabled || isDentalDoctor || true;
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
@@ -632,8 +632,8 @@ function Cardiology(props) {
     const loadVisitExaminations = async () => {
       try {
         const [dentalRes, oralHistRes] = await Promise.all([
-          getRxExamination(patientId, tcmId).catch(() => null),
-          getOralExaminationHistory(patientId).catch(() => null),
+          getExaminationTodayOnly(patientId).catch(() => null),
+          getOralExaminationTodayOnly(patientId).catch(() => null),
         ]);
         if (cancelled) return;
 

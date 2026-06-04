@@ -14,6 +14,7 @@ import { errorMessage, getClinic, isIPad, sendMessageToParent, trackEvent } from
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../redux/dentalExaminationSlice";
 import { useAccess } from "./vaccination/useAccess";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
@@ -66,7 +67,7 @@ function PrescriptionPrintView() {
     } = useSelector((state) => state.caseManager);
     const { userId, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
     const { isOpdBillChecked } = useSelector((state) => state.billing);
-    const dentalExaminationData = useSelector((state) => state.dentalExamination);
+    const dentalExaminationData = useSelector(selectDentalExamination);
     const { isOpdBillingAccessable } = useOpdBilling();
     const dispatch = useDispatch();
 

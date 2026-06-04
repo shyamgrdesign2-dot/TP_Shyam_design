@@ -17,7 +17,8 @@ import {
   markDentalServiceCompleted,
   revertDentalServiceToProgress,
   setCurrentPlan,
-  clearPlanError
+  clearPlanError,
+  selectDentalPlan,
 } from "../../../redux/dentalPlanSlice";
 
 /**
@@ -27,7 +28,7 @@ import {
 export function useDentalPlan(patientId) {
   const dispatch = useDispatch();
   const { plans, loading, error, currentPlan } = useSelector(
-    (state) => state.dentalPlan
+    selectDentalPlan
   );
 
   // Load plans on mount or when patientId changes

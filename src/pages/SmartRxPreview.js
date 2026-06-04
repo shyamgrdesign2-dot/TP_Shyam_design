@@ -19,6 +19,7 @@ import config from "../../src/config";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../redux/dentalExaminationSlice";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
@@ -61,7 +62,7 @@ function SmartRxPreview() {
     const {
         loading,
     } = useSelector((state) => state.caseManager);
-    const dentalExaminationData = useSelector((state) => state.dentalExamination);
+    const dentalExaminationData = useSelector(selectDentalExamination);
     const dispatch = useDispatch();
 
     const navigate = useNavigate();

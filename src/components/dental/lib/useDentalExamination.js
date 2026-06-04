@@ -5,7 +5,8 @@ import {
   updateToothData,
   syncWholeState,
   clearDentalChart,
-  saveDentalExamination
+  saveDentalExamination,
+  selectDentalExamination,
 } from "../../../redux/dentalExaminationSlice";
 
 import { transformToothStateToApi } from "./examination-helpers";
@@ -17,7 +18,7 @@ import { transformToothStateToApi } from "./examination-helpers";
 export function useDentalExamination(patientId) {
   const dispatch = useDispatch();
   const { toothState, version, dentitionType, loading, saving, error, lastSaved } = useSelector(
-    (state) => state.dentalExamination
+    selectDentalExamination
   );
 
   // Load examination data on mount or when patientId changes

@@ -31,6 +31,8 @@ export const getToothMap = (dentition = "adult") =>
 // 3. Examinations
 export const getExamination = (patientId) =>
   api.get(`/api/v1/dental/patients/${patientId}/examination`, dentalBaseUrl);
+export const getExaminationTodayOnly = (patientId) =>
+  api.get(`/api/v1/dental/patients/${patientId}/examination?todayOnly=true`, dentalBaseUrl);
 export const updateExaminationFull = (patientId, data) =>
   api.put(`/api/v1/dental/patients/${patientId}/examination`, data, dentalBaseUrl);
 export const updateExaminationPartial = (patientId, data) =>

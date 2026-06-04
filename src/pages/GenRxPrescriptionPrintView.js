@@ -21,6 +21,7 @@ import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGU
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../redux/dentalExaminationSlice";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
@@ -60,7 +61,7 @@ function GenRxPrescriptionPrintView() {
   const sessionRxUrlRef = useRef(null);
 
   const { loading } = useSelector((state) => state.caseManager);
-  const dentalExaminationData = useSelector((state) => state.dentalExamination);
+  const dentalExaminationData = useSelector(selectDentalExamination);
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
   const dispatch = useDispatch();
 

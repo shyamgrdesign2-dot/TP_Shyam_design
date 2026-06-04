@@ -28,6 +28,7 @@ import {
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../../redux/dentalExaminationSlice";
 
 import { viewCaseManager } from "../../redux/caseManagerSlice";
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../../api/services/DefaultLanguageService";
@@ -58,7 +59,7 @@ function SnapRxPreview() {
   const printRef = useRef();
 
   const { loading } = useSelector((state) => state.caseManager);
-  const dentalExaminationData = useSelector((state) => state.dentalExamination);
+  const dentalExaminationData = useSelector(selectDentalExamination);
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
