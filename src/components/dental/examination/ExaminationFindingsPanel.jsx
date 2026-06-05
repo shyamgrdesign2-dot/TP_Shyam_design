@@ -1,30 +1,5 @@
-/**
- * ExaminationFindingsPanel — the single-tooth findings/procedures view extracted
- * from ExaminationTab. Owns the per-tooth clinical entry workflow:
- *   • SingleToothPanel    — tooth header + primary diagnosis + entry tabs + save
- *   • EntryTab            — shared builder + table for Findings and Procedures
- *   • DiagnosisNameCell / EditableNameCell / SurfaceCellDropdown / SurfaceMultiSelect /
- *     SurfaceDots         — table cell editors
- *   • SymptomSurfacePicker / DentalSymptomsBody — symptom workflow
- *   • PrimaryDiagnosisBody — tooth-level diagnosis section
- *
- * Shares AccordionWrap / SectionHeader / SinceDropdown with the oral panel via
- * examination-shared-ui (avoids a circular import back into ExaminationTab).
- */
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from "react";
-import { createPortal } from "react-dom";
-import {
-  Trash,
-  Eraser,
-  Add,
-  SearchNormal1
-} from "iconsax-reactjs";
+import React, { useRef, useState } from "react";
+import { Trash, Eraser } from "iconsax-reactjs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,34 +11,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "../ui/alert-dialog";
-import {
-  ZONE_INFO,
-  getZoneLabel,
-  QUADRANT_LABELS,
-  getDefaultTreatmentSurfaces
-} from "./types";
+import { QUADRANT_LABELS } from "./types";
 import { MiniToothCanvas } from "./MiniToothCanvas";
 import { MiniScopeCanvas } from "./MiniScopeCanvas";
-import { useDentalMasters } from "../../../hooks/useDentalMasters";
-import { useBillingCatalog } from "../lib/useBillingCatalog";
-import {
-  getUniqueDentalBillItems,
-  mapApiBillItemToDentalCatalog,
-  sortDentalBillItemsForSearch,
-  sortStringsForTypeahead
-} from "../lib/billing-catalog";
-import { searchDentalBillItems } from "../../../pages/opdBilling/service";
-import ServiceItemPopup from "../../../pages/opdBilling/components/serviceItemPopup/ServiceItemPopup";
-import {
-  AccordionWrap,
-  SectionHeader,
-  SinceDropdown
-} from "./examination-shared-ui";
+import { AccordionWrap, SectionHeader } from "./examination-shared-ui";
 import ui from "./ExaminationTab.ui.module.scss";
 import { PanelShell } from "./PanelShell";
-import { SurfaceMultiSelect } from "./surface-pickers";
-import { DiagnosisNameCell, EditableNameCell, SurfaceCellDropdown } from "./entry-cells";
-import { DentalSymptomsBody, DENTAL_SYMPTOM_CATALOG } from "./symptoms-panel";
+import { DentalSymptomsBody } from "./symptoms-panel";
 import { PrimaryDiagnosisBody } from "./diagnosis-panel";
 import { EntryTab } from "./entry-tab";
 
