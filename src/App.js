@@ -193,10 +193,6 @@ const TabRxDigitization = React.lazy(() =>
   lazyRetry(() => import("./pages/tabRx/components/Digitization"))
 );
 
-const ConsultationTestPage = React.lazy(() =>
-  lazyRetry(() => import("./components/ConsultationTestPage"))
-);
-
 const ConsultationLayout = React.lazy(() =>
   lazyRetry(() => import("./components/ConsultationLayout"))
 );
