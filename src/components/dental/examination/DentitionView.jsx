@@ -101,11 +101,17 @@ export default function DentitionView({
   const activeFdi = effectiveHovered || pinnedTooth;
   const isPediatricOnly = patientType === "pediatric";
   const isMixed = patientType === "mixed";
-  const activeTeeth = isMixed
-    ? [...TEETH, ...PEDIATRIC_TEETH]
-    : isPediatricOnly
-      ? PEDIATRIC_TEETH
-      : TEETH;
+  const activeTeeth = useMemo(() => {
+    if (isMixed) {
+      return [...TEETH, ...PEDIATRIC_TEETH];
+    }
+  
+    if (isPediatricOnly) {
+      return PEDIATRIC_TEETH;
+    }
+  
+    return TEETH;
+  }, [isMixed, isPediatricOnly]);
   const activePositions = useMemo(() => {
     if (isMixed) {
       const mixed = {};
