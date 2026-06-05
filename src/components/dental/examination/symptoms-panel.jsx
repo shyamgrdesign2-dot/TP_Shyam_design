@@ -3,7 +3,7 @@ import { Trash, Add, SearchNormal1 } from "iconsax-reactjs";
 import { SymptomSurfacePicker, getSymId } from "./surface-pickers";
 import ui from "./ExaminationTab.ui.module.scss";
 
-const DENTAL_SYMPTOM_CATALOG = [
+export const DENTAL_SYMPTOM_CATALOG = [
   "Tooth pain",
   "Sensitivity to cold",
   "Sensitivity to hot",
