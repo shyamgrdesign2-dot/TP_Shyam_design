@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Add } from "iconsax-reactjs";
-import { TOOTH_DIAGNOSES } from "./types";
+import { Add, InfoCircle } from "iconsax-reactjs";
+import { TOOTH_DIAGNOSES, ZONE_INFO, getZoneLabel } from "./types";
+import { useDentalMasters } from "../../../hooks/useDentalMasters";
+import { SurfaceDots } from "./surface-pickers";
 import ui from "./ExaminationTab.ui.module.scss";
 
 export function DiagnosisNameCell({ name, color, activeRows, onSwap }) {
@@ -374,5 +376,258 @@ export function EditableNameCell({ value, catalog, onCommit, onFocusActivate }) 
           document.body
         )}
     </div>);
+
+}
+
+export function SurfaceCellDropdown({
+  entry,
+  arch,
+  toothPosition,
+  isActive,
+  mode,
+  onActivate,
+  onDeactivate,
+  onToggleZone,
+  onHover,
+  multiSelectZones
+}) {
+  const { activeSurfaces } = useDentalMasters();
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const anchorRef = useRef(null);
+  const popoverRef = useRef(null);
+  const wasActiveRef = useRef(false);
+  useEffect(() => {
+    if (isActive && !wasActiveRef.current) setOpen(true);
+    if (!isActive) setOpen(false);
+    wasActiveRef.current = isActive;
+  }, [isActive]);
+  useEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    const reposition = () => {
+      const el = anchorRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setPos({
+        top: r.bottom + 4,
+        left: r.left,
+        width: Math.max(r.width, 240)
+      });
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => {
+      const a = anchorRef.current,
+        p = popoverRef.current;
+      const t = e.target;
+      if (
+        t?.tagName === "CANVAS" ||
+        t?.closest("[data-dental-annotation-ui='true']") ||
+        t?.closest("[data-surface-selector-ui='true']"))
+
+        return;
+      if (a && !a.contains(t) && p && !p.contains(t)) {
+        setOpen(false);
+        onDeactivate?.();
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open, onDeactivate]);
+  const shown = isActive ? Array.from(multiSelectZones) : entry.surfaces;
+  const isWholeTooth = shown.includes("whole");
+  const toggle = (z) => {
+    if (!isActive) {
+      onActivate();
+      return;
+    }
+    onToggleZone(z);
+  };
+  const clickWholeTooth = () => {
+    if (!isActive) onActivate();
+    onToggleZone("whole");
+  };
+  return (
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        onClick={() => {
+          if (open) {
+            setOpen(false);
+            onDeactivate?.();
+            return;
+          }
+          onActivate();
+          setOpen(true);
+        }}
+        className={ui.surfaceTriggerBtn}>
+
+        <span className={ui.surfaceTriggerText}>
+          {shown.length === 0 ?
+            <span className={ui.surfacePlaceholder}>Select surface</span> :
+            isWholeTooth ?
+              <span className={ui.surfaceInlineRow}>
+                <span
+                  className={ui.surfaceDot8}
+                  style={{
+                    background: ZONE_INFO.whole.color
+                  }} />
+
+                Whole tooth
+              </span> :
+
+              <SurfaceDots
+                surfaces={shown}
+                arch={arch}
+                toothPosition={toothPosition} />}
+
+
+        </span>
+        <svg
+          width="10"
+          height="6"
+          viewBox="0 0 10 6"
+          fill="none"
+          style={{
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.15s"
+          }}>
+
+          <path
+            d="M1 1L5 5L9 1"
+            stroke="#94a3b8"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round" />
+
+        </svg>
+      </button>
+      {open &&
+        pos &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            className={ui.surfacePopover}
+            style={{
+              top: pos.top,
+              left: pos.left,
+              width: pos.width
+            }}>
+
+            <div className={ui.surfacePopoverPad}>
+              <div className={ui.surfaceHint}>
+                <InfoCircle
+                  size={13}
+                  color="var(--tp-amber-700)"
+                  variant="Bold" />
+
+
+                <span className={ui.surfaceHintText}>
+                  Tap the <span className={ui.surfaceHintBold}>3D tooth</span>{" "}
+                  to select surfaces, or pick from the list below
+                </span>
+              </div>
+            </div>
+            <ul className={ui.surfaceZoneList}>
+              <li>
+                <button
+                  type="button"
+                  onClick={clickWholeTooth}
+                  className={ui.surfaceZoneBtn}>
+
+                  <span
+                    className={`${ui.surfaceCheck} ${isWholeTooth ? ui.surfaceCheckOn : ""
+                      }`}>
+
+                    {isWholeTooth &&
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                        <path
+                          d="M2 5L4 7L8 3"
+                          stroke="#fff"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round" />
+
+                      </svg>}
+
+                  </span>
+                  <span
+                    className={ui.surfaceDot8}
+                    style={{
+                      background: ZONE_INFO.whole.color
+                    }} />
+
+
+                  <span
+                    className={`${ui.surfaceMenuLabel} ${ui.surfaceMenuStrong}`}>
+
+                    Whole tooth
+                  </span>
+                </button>
+              </li>
+              <li className={ui.surfaceListRule} />
+              {activeSurfaces.filter((z) => z !== "whole").map((z) => {
+                const checked = shown.includes(z);
+                const label = getZoneLabel(z, arch, toothPosition);
+                return (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => toggle(z)}
+                      onMouseEnter={() => onHover([z])}
+                      onMouseLeave={() => onHover(shown)}
+                      className={ui.surfaceZoneBtn}>
+
+                      <span
+                        className={`${ui.surfaceCheck} ${checked ? ui.surfaceCheckOn : ""
+                          }`}>
+
+                        {checked &&
+                          <svg
+                            width="9"
+                            height="9"
+                            viewBox="0 0 10 10"
+                            fill="none">
+
+                            <path
+                              d="M2 5L4 7L8 3"
+                              stroke="#fff"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round" />
+
+                          </svg>}
+
+                      </span>
+                      <span
+                        className={ui.surfaceDot8}
+                        style={{
+                          background: ZONE_INFO[z].color
+                        }} />
+
+
+                      <span className={ui.surfaceMenuLabel}>{label}</span>
+                    </button>
+                  </li>);
+
+              })}
+            </ul>
+          </div>,
+          document.body
+        )}
+    </>);
 
 }
