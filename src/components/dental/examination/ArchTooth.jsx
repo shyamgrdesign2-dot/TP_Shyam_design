@@ -281,6 +281,29 @@ const ArchTooth = memo(function ArchTooth({
     };
   }, [clonedScene, gl, camera]);
 
+  // Effect 1b: Update material transparency in real-time when diagnoses change.
+  // Effect 1 only runs when clonedScene mounts. When the user toggles RCT /
+  // Crown on an already-rendered arch tooth the `transparent` flag needs to be
+  // patched directly so Three.js alpha-blending is toggled without a full
+  // shader recompile.
+  useEffect(() => {
+    const materials = [];
+    clonedScene.traverse((obj) => {
+      const m = obj;
+      if (m.isMesh && m.material) {
+        if (Array.isArray(m.material)) materials.push(...m.material);
+        else materials.push(m.material);
+      }
+    });
+    for (const mat of materials) {
+      const needsTransparency = hasCrown || hasRCT;
+      if (mat.transparent !== needsTransparency) {
+        mat.transparent = needsTransparency;
+        mat.needsUpdate = true;
+      }
+    }
+  }, [clonedScene, hasCrown, hasRCT]);
+
   // Effect 2: Layout & State updates (annotations, PreparedStump, RootCanals, Implant placing)
   useLayoutEffect(() => {
     if (!groupRef.current) return;

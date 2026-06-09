@@ -204,6 +204,22 @@ export function Tooth({
     hasImplant, isMissingOrExtraction, hasCrown, hasRCT, hasBridge, hasDenture,
   ]);
 
+  // Effect 3: Update material transparency in real-time when diagnoses change.
+  // Effect 1 only runs when clonedScene mounts (new tooth). When the user
+  // toggles RCT / Crown on an already-loaded tooth we must update the
+  // material's `transparent` flag directly so Three.js alpha-blending is
+  // enabled/disabled correctly without a full shader recompile.
+  useEffect(() => {
+    const materials = collectZoneMaterials(clonedScene);
+    for (const mat of materials) {
+      const needsTransparency = hasCrown || hasRCT;
+      if (mat.transparent !== needsTransparency) {
+        mat.transparent = needsTransparency;
+        mat.needsUpdate = true;
+      }
+    }
+  }, [clonedScene, hasCrown, hasRCT]);
+
   const zoneIndicesRef = useRef({ selected: -1, hovered: -1 });
   const zoneFindingsRef = useRef([0, 0, 0, 0, 0, 0, 0]);
   const wholeToothStateRef = useRef({ selected: false, marked: false });

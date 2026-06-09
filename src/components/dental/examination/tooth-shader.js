@@ -16,13 +16,10 @@ const _warmedShaderVariants = new Set();
  */
 export function tintShader(material, flags = {}) {
   const mat = material;
-  if (
-    flags.isCrown ||
-    flags.isMissing ||
-    flags.isDenture ||
-    flags.isRCT ||
-    flags.isBridge
-  ) {
+  // Only Crown/Bridge actually need transparency (to show stump/ghost underneath).
+  // RCT, Missing, and Denture should remain opaque — their visual distinction
+  // is conveyed through color tints, not alpha reduction.
+  if (flags.isCrown || flags.isBridge) {
     mat.transparent = true;
     mat.depthWrite = false;
   }
@@ -46,12 +43,11 @@ export function tintShader(material, flags = {}) {
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <dithering_fragment>",
       `#include <dithering_fragment>
-       // Missing: red tint + alpha reduction
+       // Missing: red tint — NO alpha reduction; tooth stays opaque
        if (uIsMissing > 0.5) {
          float lum = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
          vec3 redTint = vec3(lum * 0.95 + 0.15, lum * 0.75 + 0.05, lum * 0.72 + 0.03);
          gl_FragColor.rgb = mix(gl_FragColor.rgb, redTint, 0.45);
-         gl_FragColor.a *= 0.55;
        }
        // Crown: semi-transparent grayish porcelain
        if (uIsCrown > 0.5) {
@@ -61,9 +57,8 @@ export function tintShader(material, flags = {}) {
          vec3 crownTinted = crownGrayTint * (lumC * 0.55 + 0.45);
          gl_FragColor.rgb = mix(gl_FragColor.rgb, crownTinted, 0.55);
        }
-       // RCT: desaturated warm
+       // RCT: desaturated warm tint — NO alpha reduction; tooth stays opaque
        if (uIsRCT > 0.5) {
-         gl_FragColor.a *= 0.85;
          float lumR = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
          vec3 rctTint = vec3(0.92, 0.90, 0.87) * (lumR * 0.7 + 0.3);
          gl_FragColor.rgb = mix(gl_FragColor.rgb, rctTint, 0.45);
@@ -74,12 +69,11 @@ export function tintShader(material, flags = {}) {
          float lumB = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
          gl_FragColor.rgb = mix(gl_FragColor.rgb, bridgeTint * (lumB * 0.6 + 0.5), 0.5);
        }
-       // Denture: pink-hued translucent
+       // Denture: pink-hued tint — NO alpha reduction; tooth stays opaque
        if (uIsDenture > 0.5) {
          vec3 dentureTint = vec3(0.96, 0.78, 0.80);
          float lumD = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
          gl_FragColor.rgb = mix(gl_FragColor.rgb, dentureTint * (lumD * 0.6 + 0.5), 0.45);
-         gl_FragColor.a *= 0.75;
        }
        // Implant: cool desaturated (preview-only; real implant uses separate mesh)
        if (uIsImplant > 0.5) {
@@ -411,11 +405,12 @@ export function injectShader(
 
        // ══ TOOTH-LEVEL DIAGNOSIS VISUAL EFFECTS ══
 
+       // Missing/Extraction: red tint + hatch pattern — tooth stays opaque so
+       // the ghost silhouette is clearly visible (not invisible against background).
        if (uIsMissing > 0.5) {
          float lum = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
          vec3 redTint = vec3(lum * 0.95 + 0.15, lum * 0.75 + 0.05, lum * 0.72 + 0.03);
          gl_FragColor.rgb = mix(gl_FragColor.rgb, redTint, 0.45);
-         gl_FragColor.a *= 0.55;
          vec2 uv2 = vec2(vWorldPos.x + vWorldPos.z, vWorldPos.y) * 3.0;
          float line1 = abs(fract(uv2.x + uv2.y) - 0.5);
          float line2 = abs(fract(uv2.x - uv2.y) - 0.5);
@@ -457,8 +452,11 @@ export function injectShader(
          }
        }
 
+       // RCT: warm desaturated tint — keep mostly opaque (0.88 alpha) so root canals
+       // (rendered by the RootCanals component inside the tooth) remain faintly visible
+       // through the tooth surface, without making the tooth look nearly invisible.
        if (uIsRCT > 0.5) {
-         gl_FragColor.a *= 0.68;
+         gl_FragColor.a *= 0.88;
          float lum = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
          vec3 rctTint = vec3(0.92, 0.90, 0.87) * (lum * 0.7 + 0.3);
          gl_FragColor.rgb = mix(gl_FragColor.rgb, rctTint, 0.35);
@@ -500,7 +498,12 @@ export function injectShader(
   mat.opacity = 1;
   mat.depthWrite = true;
   mat.side = THREE.FrontSide;
-  if (isMissing || isRCT || isDenture || isCrown) {
+  // Crown: transparent so the prepared stump underneath is visible.
+  // RCT: slightly transparent (0.88 alpha via shader) so root canal geometry
+  //      inside the tooth remains faintly visible through the surface.
+  // Missing/Denture must remain OPAQUE — their identity is conveyed through
+  // color tinting only, not alpha reduction.
+  if (isCrown || isRCT) {
     mat.transparent = true;
   }
   if (isCrown || isBridge || isDenture) {
