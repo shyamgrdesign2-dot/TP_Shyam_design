@@ -33,6 +33,8 @@ import {
 } from "./examination-shared-ui";
 import ui from "./ExaminationTab.ui.module.scss";
 import { PanelShell } from "./PanelShell";
+import { ExaminationTemplateActions } from "./ExaminationTemplateActions";
+import { useExaminationTemplates } from "./hooks/useExaminationTemplates";
 
 // ──────────────────────────────────────────────────────────────
 // OralPositionCell — multi-select dropdown for oral regions
@@ -591,6 +593,35 @@ export function OralExamPanel({ state, onSave, saving }) {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const hasAnyData = entries.length > 0 || notes.trim().length > 0;
 
+  const pastTpl = useExaminationTemplates({ type: "treatment-history", domain: "oral" });
+  const findingsTpl = useExaminationTemplates({ type: "findings", domain: "oral" });
+  const procTpl = useExaminationTemplates({ type: "procedures", domain: "oral" });
+  const notesTpl = useExaminationTemplates({ type: "notes", domain: "oral" });
+  const examTpl = useExaminationTemplates({ type: "examination", domain: "oral" });
+
+  const applyOralEntries = useCallback((kind, items = []) => {
+    items.forEach((f) =>
+      state.onAddOralEntry(kind, f.name, {
+        surfaces: f.area || [],
+        since: f.since_date || f.procedure_date || "",
+        note: f.notes || "",
+      })
+    );
+  }, [state]);
+
+  const toOralRow = (e) => {
+    const row = { name: e.name, area: e.surfaces, notes: e.note || "" };
+    if (e.since) row.since_date = e.since;
+    return row;
+  };
+
+  const toProcedureRow = (e) => ({
+    name: e.name,
+    area: e.surfaces,
+    notes: e.note || "",
+    status: "PLANNED",
+  });
+
   useEffect(() => () => {
     state.onSetOralHighlight?.([]);
   }, []);
@@ -624,6 +655,35 @@ export function OralExamPanel({ state, onSave, saving }) {
       onSave={onSave}
       saveDisabled={saving}
       onClose={() => state.onBackToDentition()}
+      templateSection={
+        <ExaminationTemplateActions
+          title="Oral Examination Templates"
+          templates={examTpl.templates}
+          saving={examTpl.saving}
+          hasData={hasAnyData}
+          onSelect={(t) => examTpl.applyTemplate(t, (full) => {
+            const p = full.payload || {};
+            applyOralEntries("past", p.treatment_history);
+            applyOralEntries("finding", p.findings);
+            applyOralEntries("procedure", p.procedures);
+            if (p.overall_notes) state.onUpdateOralNotes?.(p.overall_notes);
+          })}
+          onDelete={examTpl.onDelete}
+          onSaveNew={(name) => examTpl.onSaveNew(name, {
+            findings: findings.map(toOralRow),
+            procedures: procedures.map(toProcedureRow),
+            treatment_history: pastProcedures.map(toOralRow),
+            overall_notes: notes,
+          })}
+          onUpdate={(sel) => examTpl.onUpdate(sel, {
+            findings: findings.map(toOralRow),
+            procedures: procedures.map(toProcedureRow),
+            treatment_history: pastProcedures.map(toOralRow),
+            overall_notes: notes,
+          })}
+          btnClassName={ui.panelIconBtn}
+        />
+      }
       clearSection={
         <>
           <button
@@ -655,8 +715,21 @@ export function OralExamPanel({ state, onSave, saving }) {
               title="Past Procedures"
               count={pastProcedures.length}
               medicalIcon="clipboard-activity"
-              onTemplate={activeSection === "past" ? () => {} : undefined}
-              onSave={activeSection === "past" ? () => {} : undefined}
+              templateActions={
+                activeSection === "past"
+                  ? <ExaminationTemplateActions
+                      title="Past Procedures Templates"
+                      templates={pastTpl.templates}
+                      saving={pastTpl.saving}
+                      hasData={pastProcedures.length > 0}
+                      onSelect={(t) => pastTpl.applyTemplate(t, (full) => applyOralEntries("past", full.payload?.treatment_history))}
+                      onDelete={pastTpl.onDelete}
+                      onSaveNew={(name) => pastTpl.onSaveNew(name, { treatment_history: pastProcedures.map(toOralRow) })}
+                      onUpdate={(sel) => pastTpl.onUpdate(sel, { treatment_history: pastProcedures.map(toOralRow) })}
+                      btnClassName={ui.secToolBtn}
+                    />
+                  : undefined
+              }
               onClear={
                 activeSection === "past"
                   ? () => {
@@ -682,8 +755,21 @@ export function OralExamPanel({ state, onSave, saving }) {
               title="Findings"
               count={findings.length}
               medicalIcon="diagnosis"
-              onTemplate={activeSection === "findings" ? () => {} : undefined}
-              onSave={activeSection === "findings" ? () => {} : undefined}
+              templateActions={
+                activeSection === "findings"
+                  ? <ExaminationTemplateActions
+                      title="Findings Templates"
+                      templates={findingsTpl.templates}
+                      saving={findingsTpl.saving}
+                      hasData={findings.length > 0}
+                      onSelect={(t) => findingsTpl.applyTemplate(t, (full) => applyOralEntries("finding", full.payload?.findings))}
+                      onDelete={findingsTpl.onDelete}
+                      onSaveNew={(name) => findingsTpl.onSaveNew(name, { findings: findings.map(toOralRow) })}
+                      onUpdate={(sel) => findingsTpl.onUpdate(sel, { findings: findings.map(toOralRow) })}
+                      btnClassName={ui.secToolBtn}
+                    />
+                  : undefined
+              }
               onClear={
                 activeSection === "findings"
                   ? () => {
@@ -709,8 +795,21 @@ export function OralExamPanel({ state, onSave, saving }) {
               title="Procedures"
               count={procedures.length}
               medicalIcon="surgical-scissors-02"
-              onTemplate={activeSection === "procedures" ? () => {} : undefined}
-              onSave={activeSection === "procedures" ? () => {} : undefined}
+              templateActions={
+                activeSection === "procedures"
+                  ? <ExaminationTemplateActions
+                      title="Procedures Templates"
+                      templates={procTpl.templates}
+                      saving={procTpl.saving}
+                      hasData={procedures.length > 0}
+                      onSelect={(t) => procTpl.applyTemplate(t, (full) => applyOralEntries("procedure", full.payload?.procedures))}
+                      onDelete={procTpl.onDelete}
+                      onSaveNew={(name) => procTpl.onSaveNew(name, { procedures: procedures.map(toProcedureRow) })}
+                      onUpdate={(sel) => procTpl.onUpdate(sel, { procedures: procedures.map(toProcedureRow) })}
+                      btnClassName={ui.secToolBtn}
+                    />
+                  : undefined
+              }
               onClear={
                 activeSection === "procedures"
                   ? () => {
@@ -735,8 +834,21 @@ export function OralExamPanel({ state, onSave, saving }) {
             <SectionHeader
               title="Overall Notes"
               medicalIcon="note-2"
-              onTemplate={activeSection === "notes" ? () => {} : undefined}
-              onSave={activeSection === "notes" ? () => {} : undefined}
+              templateActions={
+                activeSection === "notes"
+                  ? <ExaminationTemplateActions
+                      title="Notes Templates"
+                      templates={notesTpl.templates}
+                      saving={notesTpl.saving}
+                      hasData={notes.trim().length > 0}
+                      onSelect={(t) => notesTpl.applyTemplate(t, (full) => { const n = full.payload?.overall_notes; if (n) state.onUpdateOralNotes?.(n); })}
+                      onDelete={notesTpl.onDelete}
+                      onSaveNew={(name) => notesTpl.onSaveNew(name, { overall_notes: notes })}
+                      onUpdate={(sel) => notesTpl.onUpdate(sel, { overall_notes: notes })}
+                      btnClassName={ui.secToolBtn}
+                    />
+                  : undefined
+              }
               onClear={activeSection === "notes" ? () => state.onUpdateOralNotes?.("") : undefined}
               chevron={activeSection === "notes" ? "up" : "down"}
               onClick={() => jumpTo("notes")}

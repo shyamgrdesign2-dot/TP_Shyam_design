@@ -9,7 +9,7 @@ import ui from "./ExaminationTab.ui.module.scss";
  * The clear button and its confirmation dialog differ between panels, so the
  * caller supplies `clearSection` as a ReactNode (Eraser button + dialog).
  */
-export function PanelShell({ thumbnail, title, titleStyle, badge, onSave, saveDisabled, onClose, clearSection, children }) {
+export function PanelShell({ thumbnail, title, titleStyle, badge, onSave, saveDisabled, onClose, clearSection, templateSection, children }) {
   return (
     <div className={ui.panelRoot}>
       <header className={ui.panelHeader}>
@@ -24,12 +24,14 @@ export function PanelShell({ thumbnail, title, titleStyle, badge, onSave, saveDi
             </div>
           </div>
           <div className={ui.panelHeaderActions}>
-            <button type="button" className={ui.panelIconBtn} title="Template">
-              <Grid5 color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
-            </button>
-            <button type="button" className={ui.panelIconBtn} title="Save" onClick={onSave} disabled={saveDisabled}>
+            {templateSection ?? (
+              <button type="button" className={ui.panelIconBtn} title="Template">
+                <Grid5 color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+              </button>
+            )}
+            {/* <button type="button" className={ui.panelIconBtn} title="Save" onClick={onSave} disabled={saveDisabled}>
               <Ram color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
-            </button>
+            </button> */}
             {clearSection}
             <div className={ui.panelDivider} />
             <button type="button" onClick={onClose} className={ui.panelCloseBtn} title="Close panel">

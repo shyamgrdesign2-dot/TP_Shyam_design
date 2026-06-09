@@ -50,6 +50,7 @@ export function SectionHeader({
   medicalIcon,
   onTemplate,
   onSave,
+  templateActions,
   onClear,
   clearDisabled,
   onClick,
@@ -78,36 +79,26 @@ export function SectionHeader({
       <h4 className={ui.secTitle}>{titleWithCount}</h4>
       <div className={ui.secGrow} />
       <div className={ui.secActions} onClick={stop}>
-        {onTemplate &&
-          <button
-            type="button"
-            title="Templates"
-            onClick={onTemplate}
-            className={ui.secToolBtn}>
-
-            <Grid5
-              color="currentColor"
-              size={16}
-              strokeWidth={1.5}
-              variant="Linear" />
-
-          </button>}
-
-
-        {onSave &&
-          <button
-            type="button"
-            title="Save as template"
-            onClick={onSave}
-            className={ui.secToolBtn}>
-
-            <Ram
-              color="currentColor"
-              size={16}
-              strokeWidth={1.5}
-              variant="Linear" />
-
-          </button>}
+        {templateActions ?? (
+          <>
+            {onTemplate &&
+              <button
+                type="button"
+                title="Templates"
+                onClick={onTemplate}
+                className={ui.secToolBtn}>
+                <Grid5 color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+              </button>}
+            {onSave &&
+              <button
+                type="button"
+                title="Save as template"
+                onClick={onSave}
+                className={ui.secToolBtn}>
+                <Ram color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+              </button>}
+          </>
+        )}
 
 
         {onClear &&

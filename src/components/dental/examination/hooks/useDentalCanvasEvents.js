@@ -161,6 +161,28 @@ export function useDentalCanvasEvents(s) {
     [selectedTooth.fdi]
   );
 
+  // Add-only variant: used by template apply to avoid accidental toggle-off
+  // when the diagnosis was already active from a prior apply.
+  const setToothDiagnosis = useCallback(
+    (diagnosis) => {
+      const fdi = selectedTooth.fdi;
+      setToothDiagnoses((prev) => {
+        const current = new Set(prev[fdi] || []);
+        if (current.has(diagnosis)) return prev;
+        const next = applyDiagnosisSelection(current, diagnosis);
+        if (!current.has("Implant") && next.has("Implant")) {
+          setImplantTeeth((ip) => {
+            const n = new Set(ip);
+            n.add(fdi);
+            return n;
+          });
+        }
+        return { ...prev, [fdi]: next };
+      });
+    },
+    [selectedTooth.fdi]
+  );
+
   // Keep deferred ref in sync so toggleImplant can route through the matrix.
   toggleToothDiagnosisRef.current = toggleToothDiagnosis;
 
@@ -432,12 +454,17 @@ export function useDentalCanvasEvents(s) {
 
   const updateOralNotes = useCallback((v) => setOralNotes(v ?? ""), []);
 
-  const addOralEntry = useCallback((kind, name) => {
+  const addOralEntry = useCallback((kind, name, extra) => {
     if (!name) return;
     setOralEntries((prev) => {
       if (prev.some((e) => e.kind === kind && e.name === name)) return prev;
       const id = `oral-${Date.now().toString(36)}-${++oralIdRef.current}`;
-      return [...prev, { id, kind, name, surfaces: [], since: "", note: "" }];
+      return [...prev, {
+        id, kind, name,
+        surfaces: extra?.surfaces ?? [],
+        since: extra?.since ?? "",
+        note: extra?.note ?? "",
+      }];
     });
   }, []);
 
@@ -738,6 +765,7 @@ export function useDentalCanvasEvents(s) {
     handleDentitionControlsEnd,
     toggleImplant,
     toggleToothDiagnosis,
+    setToothDiagnosis,
     updateToothNotes,
     handleSelectTooth,
     handleBackToDentition,

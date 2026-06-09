@@ -196,7 +196,7 @@ export const toDentalTemplate = (raw = {}) => ({
   type: raw.type || "",
   createdAt: raw.createdAt || raw.created_at,
   updatedAt: raw.updatedAt || raw.updated_at,
-  payload: raw,
+  payload: raw.payload ?? raw,
 });
 
 export const toDentalTemplates = (response) => {
