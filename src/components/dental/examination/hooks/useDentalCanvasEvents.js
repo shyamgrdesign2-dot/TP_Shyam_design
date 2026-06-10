@@ -34,6 +34,7 @@ export function useDentalCanvasEvents(s) {
     selectedTooth,
     zoneHitPoints,
     multiSelectActive,
+    multiSelectZones,
     currentToothDiagnoses,
     controlsRef,
     agentPulseClearTimerRef,
@@ -325,10 +326,14 @@ export function useDentalCanvasEvents(s) {
 
   const handleToggleZoneMultiSelect = useCallback(
     (zone) => {
-      setSelectedZone((prev) =>
-        multiSelectActive ? zone : prev === zone ? null : zone
-      );
-      if (!multiSelectActive) return;
+      if (!multiSelectActive) {
+        setSelectedZone((prev) => (prev === zone ? null : zone));
+        return;
+      }
+      const isRemoving = zone === "whole"
+        ? multiSelectZones.has("whole")
+        : multiSelectZones.has(zone);
+      setSelectedZone(isRemoving ? null : zone);
       setMultiSelectZones((prev) => {
         if (zone === "whole") {
           return prev.has("whole") ? new Set() : new Set(["whole"]);
@@ -340,7 +345,7 @@ export function useDentalCanvasEvents(s) {
         return next;
       });
     },
-    [multiSelectActive]
+    [multiSelectActive, multiSelectZones]
   );
 
   const handleToggleZoneFromQuickSelector = useCallback(
@@ -350,7 +355,12 @@ export function useDentalCanvasEvents(s) {
         setSelectedZone((prev) => (prev === zone ? null : zone));
         return;
       }
-      setSelectedZone(zone);
+      // Determine add vs remove before updating state so selectedZone clears
+      // immediately when a zone is deselected (fixes 3D model residual highlight).
+      const isRemoving = zone === "whole"
+        ? multiSelectZones.has("whole")
+        : multiSelectZones.has(zone);
+      setSelectedZone(isRemoving ? null : zone);
       setMultiSelectZones((prev) => {
         if (zone === "whole") {
           return prev.has("whole") ? new Set() : new Set(["whole"]);
@@ -362,7 +372,7 @@ export function useDentalCanvasEvents(s) {
         return next;
       });
     },
-    [multiSelectActive]
+    [multiSelectActive, multiSelectZones]
   );
 
   const handleClearMultiSelect = useCallback(() => {

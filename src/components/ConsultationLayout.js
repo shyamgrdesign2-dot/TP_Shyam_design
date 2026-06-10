@@ -1789,6 +1789,8 @@ function ConsultationLayout({ children, headerProps }) {
           }));
         } catch (dentalErr) {
           console.warn("[Dental] Save failed before end visit:", dentalErr);
+          message.error("Failed to save dental examination. Please retry.");
+          return;
         }
       }
 

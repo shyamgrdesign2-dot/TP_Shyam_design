@@ -517,8 +517,9 @@ export function DentalCanvas({
                 oralEntries={oralEntries}
               />
             ) : (
-              <group position={[0, -0.17, 0]}>
+              <group position={[0, 0.04, 0]}>
                 <Tooth
+                  key={selectedTooth.fdi}
                   selectedZone={selectedZone}
                   onSelectZone={handleSelectZone}
                   onClearSelectedZone={handleClearSelectedZone}

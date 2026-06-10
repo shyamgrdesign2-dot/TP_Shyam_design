@@ -72,14 +72,71 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
     return () => clearTimeout(t);
   }, [open, query, updateScrollMetrics]);
 
+  const normalizeDelta = useCallback((e) => {
+    if (e.deltaMode === 1) return e.deltaY * 40;
+    if (e.deltaMode === 2) return e.deltaY * window.innerHeight;
+    return e.deltaY;
+  }, []);
+
+  const handlePopupWheel = useCallback((e) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const canScroll = scrollHeight > clientHeight + 1;
+    const delta = normalizeDelta(e);
+    const atTop    = scrollTop <= 0 && delta < 0;
+    const atBottom = scrollTop + clientHeight >= scrollHeight - 1 && delta > 0;
+    e.preventDefault();
+    if (canScroll && !atTop && !atBottom) {
+      el.scrollBy({ top: delta });
+    } else {
+      let parent = btnRef.current?.parentElement;
+      while (parent && parent !== document.body) {
+        const cs = getComputedStyle(parent);
+        if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && parent.scrollHeight > parent.clientHeight) {
+          parent.scrollBy({ top: delta });
+          break;
+        }
+        parent = parent.parentElement;
+      }
+    }
+  }, [normalizeDelta]);
+
+  // Attach wheel listener as non-passive so preventDefault() actually works.
+  // React onWheel is passive in React 17+ and cannot call preventDefault().
+  useEffect(() => {
+    if (!open || !pos) return;
+    const el = popRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', handlePopupWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handlePopupWheel);
+  }, [open, pos, handlePopupWheel]);
+
   const place = useCallback(() => {
     const el = btnRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
     const w = Math.min(440, Math.max(r.width, 360));
-    const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
     const left = Math.max(8, Math.min(r.left, vw - w - 8));
-    setPos({ top: r.bottom + 4, left, width: w });
+
+    const SEARCH_H = 76; // search bar header approx height
+    const GAP = 4;
+    const MARGIN = 8;
+    const spaceBelow = vh - r.bottom - GAP - MARGIN;
+    const spaceAbove = r.top - GAP - MARGIN;
+
+    if (spaceBelow >= spaceAbove) {
+      // More space below — open downward
+      const maxScrollH = Math.max(120, Math.min(460, spaceBelow - SEARCH_H));
+      setPos({ top: r.bottom + GAP, left, width: w, maxScrollH });
+    } else {
+      // More space above — flip upward
+      const maxScrollH = Math.max(120, Math.min(460, spaceAbove - SEARCH_H));
+      const popupH = maxScrollH + SEARCH_H;
+      setPos({ top: Math.max(MARGIN, r.top - GAP - popupH), left, width: w, maxScrollH });
+    }
   }, []);
 
   useEffect(() => {
@@ -94,7 +151,10 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
       if (popRef.current && popRef.current.contains(e.target)) return;
       setOpen(false);
     };
-    const reposition = () => place();
+    const reposition = (ev) => {
+      if (ev.target instanceof Node && scrollRef.current && scrollRef.current.contains(ev.target)) return;
+      place();
+    };
     document.addEventListener("mousedown", onDoc);
     window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
@@ -216,7 +276,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
             <div
               ref={popRef}
               className={ui.surfacePopover}
-              style={{ top: pos.top, left: pos.left, width: pos.width, display: "flex", flexDirection: "column", overflow: "hidden", position: "fixed" }}>
+              style={{ top: pos.top, left: pos.left, width: pos.width, display: "flex", flexDirection: "column", overflow: "hidden", position: "fixed", overscrollBehavior: "contain" }}>
               <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid #f1f5f9", background: "#fff" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", background: "#f8fafc" }}>
                   <SearchNormal1 size={16} color="#94a3b8" variant="Linear" />
@@ -246,7 +306,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
                   ref={scrollRef}
                   onScroll={updateScrollMetrics}
                   className={ui.surfacePopoverScroll}
-                  style={{ padding: "10px 4px", maxHeight: "min(460px, 60vh)" }}>
+                  style={{ padding: "10px 4px", maxHeight: pos.maxScrollH ?? "min(460px, 60vh)", overflowY: "auto", overflowX: "hidden" }}>
                   {filtered.length === 0 ? (
                     <div style={{ padding: "20px 12px", textAlign: "center", color: "#94a3b8", fontSize: 12 }}>
                       No matching areas

@@ -13,6 +13,7 @@ import React, {
   useEffect,
   useState
 } from "react";
+import { Spin } from "antd";
 import { DentalCanvas } from "./DentalCanvas";
 import { saveDentalPreviewSnapshot } from "../tp-rxpad/rx-preview-store";
 import { useDentalExamination } from "../lib/useDentalExamination";
@@ -28,7 +29,7 @@ import { useExaminationOrchestrator } from "./hooks/useExaminationOrchestrator";
 
 export function ExaminationTab({ patientId, patientAge = 30 }) {
   const dispatch = useDispatch();
-  const { syncState, toothState, version, loading, saveChart } = useDentalExamination(patientId);
+  const { syncState, toothState, version, loading, saveChart, error } = useDentalExamination(patientId);
   const {
     findings: oralFindings,
     procedures: oralProcedures,
@@ -94,10 +95,22 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
   }, [canvasState, patientId]);
   const hideGetStarted = false;
 
-  if (loading) {
+  if (loading || oralLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff' }}>
-        Loading Dental Examination...
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+        <Spin size="large" />
+        <span style={{ color: '#64748b', fontSize: 13 }}>Loading Dental Examination…</span>
+      </div>
+    );
+  }
+
+  if (error && !loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', flexDirection: 'column', gap: '12px' }}>
+        <p>Failed to load dental examination. Please try again.</p>
+        <button type="button" onClick={() => window.location.reload()} style={{ padding: '8px 16px', background: '#3b82f6', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}>
+          Retry
+        </button>
       </div>
     );
   }
@@ -152,12 +165,18 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
 
 
         <div className={ex.canvasInner}>
-          <DentalCanvas
-            patientId={patientId}
-            patientAge={patientAge}
-            initialData={initialCanvasData}
-            onStateChange={setCanvasState} />
-
+          <React.Suspense fallback={
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+              <Spin size="large" />
+              <span style={{ color: '#94a3b8', fontSize: 13 }}>Loading 3D view…</span>
+            </div>
+          }>
+            <DentalCanvas
+              patientId={patientId}
+              patientAge={patientAge}
+              initialData={initialCanvasData}
+              onStateChange={setCanvasState} />
+          </React.Suspense>
         </div>
       </div>
       {!isGetStarted && !hideGetStarted &&

@@ -61,10 +61,10 @@ function PrintRunner({ patientId, mode, includePatient, onDone }) {
   const snapshot = isPlain
     ? emptySnapshot(patientId)
     : (getComposedRxPreviewSnapshot(patientId) ?? emptySnapshot(patientId));
+  const hidePatient = !includePatient;
   const settings = isPlain
-    ? { view: "list", showDentalChart: true, chartOverride: BLANK_CHART, hideOral: true }
-    : { view: "list", showDentalChart: true };
-  void includePatient;
+    ? { view: "list", showDentalChart: true, chartOverride: BLANK_CHART, hideOral: true, hidePatient }
+    : { view: "list", showDentalChart: true, hidePatient };
   return createPortal(
     <div className={`dcp-print-root ${dcp.printRoot}`}>
       <style>{PRINT_STYLE}</style>

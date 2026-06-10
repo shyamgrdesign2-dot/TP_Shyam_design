@@ -380,6 +380,7 @@ export function RxPreviewDocument({ snapshot, extraNotes, settings }) {
   const showDentalChart = settings?.showDentalChart !== false;
   const chartOverride = settings?.chartOverride;
   const hideOral = settings?.hideOral === true;
+  const hidePatient = settings?.hidePatient === true;
   void settings?.includeHistorical;
 
   const mergedAdditionalNotes = (() => {
@@ -580,7 +581,7 @@ export function RxPreviewDocument({ snapshot, extraNotes, settings }) {
       {!snapshot ? (
         <article className={rx.sheet}>
           {renderLetterhead()}
-          {renderPatientDetails()}
+          {!hidePatient && renderPatientDetails()}
           <div className={rx.sheetBody}>
             <div className={rx.emptyPad}>
               <p className={rx.emptyText}>
@@ -591,7 +592,7 @@ export function RxPreviewDocument({ snapshot, extraNotes, settings }) {
           {renderFooter()}
         </article>
       ) : (
-        <PaginatedRx blocks={blocks} renderHead={renderLetterhead} renderPatient={renderPatientDetails} renderFoot={renderFooter} />
+        <PaginatedRx blocks={blocks} renderHead={renderLetterhead} renderPatient={hidePatient ? () => null : renderPatientDetails} renderFoot={renderFooter} />
       )}
     </div>
   );

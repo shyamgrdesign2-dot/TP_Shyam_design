@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { getZoneLabel } from "./types";
+import { ZONE_INFO } from "./tooth-geometry";
 import qs from "./QuickSurfaceSelector.module.scss";
 // Shapes extracted from the provided quick-surface SVG (viewBox 114 x 229).
 // These map directly to interactive zones, including "whole tooth" at the top.
@@ -83,8 +84,6 @@ export function QuickSurfaceSelector({
   }, []);
   const NEUTRAL_STROKE = "#c4c9d1";
   const NEUTRAL_FINDING_FILL = "#d2d6dc";
-  const SELECTED_FILL = "#8a9098";
-  const SELECTED_STROKE = "#4b5563";
   // Tooltip is visible only when:
   //  1. A zone is hovered
   //  2. That zone is NOT currently selected (selected zones don't need tooltip)
@@ -100,9 +99,10 @@ export function QuickSurfaceSelector({
     let stroke;
     let strokeOpacity;
     if (isSel) {
-      fill = SELECTED_FILL;
-      fillOpacity = 1;
-      stroke = SELECTED_STROKE;
+      const zoneColor = ZONE_INFO[id]?.color ?? "#8a9098";
+      fill = zoneColor;
+      fillOpacity = 0.85;
+      stroke = zoneColor;
       strokeOpacity = 1;
     } else if (isHov) {
       fill = NEUTRAL_STROKE;
@@ -135,7 +135,10 @@ export function QuickSurfaceSelector({
       onMouseLeave: () => setHovered(null),
       onClick: (e) => {
         e.stopPropagation();
-        if (!disabled) onToggleZone(id);
+        if (!disabled) {
+          setHovered(null);
+          onToggleZone(id);
+        }
       },
     };
   };
