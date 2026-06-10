@@ -129,11 +129,11 @@ const getNotesText = (item) => {
   return formatCellText(item.notes || item.note);
 };
 
-export function DentalTableView({ PX_TO_PT, printSettings, dentalExaminationData, consultationDate }) {
+export function DentalTableView({ PX_TO_PT, printSettings, dentalExaminationData, consultationDate, showPastHistory = true }) {
   const toothStates = Array.isArray(dentalExaminationData?.tooth_states) ? dentalExaminationData.tooth_states : [];
 
   const teethWithData = toothStates.filter((toothState) => {
-    const hasHistory = (toothState.treatment_history || []).length > 0;
+    const hasHistory = showPastHistory && (toothState.treatment_history || []).length > 0;
     const hasFindings = (toothState.findings || []).length > 0;
     const hasProcedures = (toothState.procedures || []).length > 0;
     const hasNotes = (toothState.overall_notes || "").trim().length > 0;
@@ -302,7 +302,7 @@ export function DentalTableView({ PX_TO_PT, printSettings, dentalExaminationData
               </View>
 
               {/* Sections inside Card */}
-              {renderTableSection("PAST PROCEDURES", history, toothCode)}
+              {showPastHistory ? renderTableSection("PAST PROCEDURES", history, toothCode) : null}
               {renderTableSection("FINDINGS", findings, toothCode)}
               {renderTableSection("PROCEDURES", procedures, toothCode)}
 

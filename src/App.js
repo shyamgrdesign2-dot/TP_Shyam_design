@@ -791,7 +791,7 @@ function App() {
                   {!isMobileOrPWA && (
                     <>
                       <DemoExpirationBanner />
-                      <PlanExpirationBanner />
+                      {/* <PlanExpirationBanner /> */}
                       <ExpiredPlanCard />
                     </>
                   )}

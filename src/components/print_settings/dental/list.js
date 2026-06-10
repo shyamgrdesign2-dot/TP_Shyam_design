@@ -166,11 +166,11 @@ const BulletItem = ({ text, details, PX_TO_PT, printSettings, level = 1 }) => {
   );
 };
 
-export function DentalListView({ PX_TO_PT, printSettings, dentalExaminationData, consultationDate }) {
+export function DentalListView({ PX_TO_PT, printSettings, dentalExaminationData, consultationDate, showPastHistory = true }) {
   const toothStates = Array.isArray(dentalExaminationData?.tooth_states) ? dentalExaminationData.tooth_states : [];
 
   const teethWithData = toothStates.filter((toothState) => {
-    const hasHistory = (toothState.treatment_history || []).length > 0;
+    const hasHistory = showPastHistory && (toothState.treatment_history || []).length > 0;
     const hasFindings = (toothState.findings || []).length > 0;
     const hasProcedures = (toothState.procedures || []).length > 0;
     const hasNotes = (toothState.overall_notes || "").trim().length > 0;
@@ -236,7 +236,7 @@ export function DentalListView({ PX_TO_PT, printSettings, dentalExaminationData,
               />
 
               {/* Level 2 & 3: Past Procedures (Treatment History) */}
-              {history.length > 0 && (
+              {showPastHistory && history.length > 0 && (
                 <>
                   <BulletItem
                     text="Past Procedures"

@@ -794,9 +794,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
             (checked) => onExamPrintToggleChange(i, "showDentalChart", checked)
           )}
           {sectionToggleCard(
-            "Include past dental & oral history",
+            "Include past dental history",
             historyAvailable
-              ? "Adds tooth records and oral examination entries from previous visits. Each tooth shows the date it was last updated."
+              ? "Adds dental examination entries from past visits."
               : "There is no past dental or oral history for this patient.",
             record.includeHistorical === true && historyAvailable,
             !historyAvailable,
@@ -819,9 +819,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
       children: (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
           {sectionToggleCard(
-            "Include past dental & oral history",
+            "Include past oral history",
             historyAvailable
-              ? "Adds tooth records and oral examination entries from previous visits. Each tooth shows the date it was last updated."
+              ? "Adds oral examination entries from past visits."
               : "There is no past dental or oral history for this patient.",
             record.includeHistorical === true && historyAvailable,
             !historyAvailable,

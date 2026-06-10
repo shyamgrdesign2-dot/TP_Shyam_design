@@ -17,13 +17,28 @@ export function renderDentalExamPdf({
   PX_TO_PT,
   toothImageMap = {},
 }) {
-  if (!hasDentalExamPayload(dentalExaminationData)) {
-    return null;
-  }
   if (dentalOption && dentalOption.enable === "N") {
     return null;
   }
   const showDentalChart = dentalOption?.showDentalChart !== false;
+  const chartOnly = dentalOption?.chartOnly === true;
+  const showPastHistory = dentalOption?.includeHistorical === true;
+  const hasPayload = hasDentalExamPayload(dentalExaminationData);
+  if (!hasPayload && !showDentalChart) {
+    return null;
+  }
+  if (showDentalChart && (chartOnly || !hasPayload)) {
+    return (
+      <View wrap={false}>
+        <PdfDentalChart
+          PX_TO_PT={PX_TO_PT}
+          printSettings={printSettings}
+          dentalExaminationData={dentalExaminationData}
+          toothImageMap={toothImageMap}
+        />
+      </View>
+    );
+  }
   const format = dentalOption?.format || "listview";
   let viewNode = null;
   if (format === "listview") {
@@ -33,6 +48,7 @@ export function renderDentalExamPdf({
         printSettings={printSettings}
         dentalExaminationData={dentalExaminationData}
         consultationDate={consultationDate}
+        showPastHistory={showPastHistory}
       />
     );
   } else if (format === "table") {
@@ -42,6 +58,7 @@ export function renderDentalExamPdf({
         printSettings={printSettings}
         dentalExaminationData={dentalExaminationData}
         consultationDate={consultationDate}
+        showPastHistory={showPastHistory}
       />
     );
   } else {
@@ -51,6 +68,7 @@ export function renderDentalExamPdf({
         printSettings={printSettings}
         dentalExaminationData={dentalExaminationData}
         consultationDate={consultationDate}
+        showPastHistory={showPastHistory}
       />
     );
   }
