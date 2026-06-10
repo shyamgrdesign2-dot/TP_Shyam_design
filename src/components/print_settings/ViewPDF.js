@@ -17,6 +17,7 @@ import OphthalmologyInlineView from './ophthalmology/inline';
 import OphthalmologyListView from './ophthalmology/list';
 import OphthalmologyTableView from './ophthalmology/table';
 import ThenConnector from './ThenConnector';
+import { CrossConsult } from './crossConsult/CrossConsult';
 
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
@@ -5926,6 +5927,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 </View>
                                             )
                                         )}
+                                        <CrossConsult
+                                            option={option}
+                                            crossConsultData={
+                                                caseManagerData?.cross_consult ??
+                                                caseManagerData?.crossConsult
+                                            }
+                                            PX_TO_PT={PX_TO_PT}
+                                            styles={styles}
+                                            printSettings={printSettings}
+                                        />
                                     </>
                                 ) : option?.id === 18 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>

@@ -48,6 +48,8 @@ export const TAB_ZYDUS_ENCOUNTER = 11;
 export const TAB_ZYDUS_APPOINTMENT = 12;
 export const TAB_CLINIC_APPOINTMENT = 0;
 export const TAB_CLINIC_QUEUE = 7;
+export const TAB_REFERRAL = 13;
+export const TAB_REFERRAL_AP_STATUS = 8;
 
 export const TAB_CAMPAIGN = 0;
 export const TAB_DRAFT = 1;

@@ -56,6 +56,8 @@ import MedicalHistoryBox from "../../components/MedicalHistoryBox";
 import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
+import TabReferralPanel from "../../components/tab_design/TabReferralPanel";
+import { EMPTY_REFERRAL_DATA } from "../../components/referral/ReferralPanelForm";
 
 // 
 // 
@@ -530,6 +532,7 @@ function TabRx() {
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [isGrowthChart, setIsGrowthChart] = useState(false);
@@ -971,6 +974,8 @@ function TabRx() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
+    referralData,
+    setReferralData,
   };
 
   const [collapsed, setCollapsed] = useState(false);
@@ -1305,6 +1310,28 @@ function TabRx() {
         ) !== -1
       ) {
         setAdditionalNote(caseManagerData.visit_advice);
+      }
+      const crossConsultRaw =
+        caseManagerData.cross_consult ?? caseManagerData.crossConsult;
+      if (
+        crossConsultRaw &&
+        customizedPadLeftList.findIndex(
+          (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0,
+        ) !== -1
+      ) {
+        const list = Array.isArray(crossConsultRaw)
+          ? crossConsultRaw
+          : crossConsultRaw?.content ?? crossConsultRaw?.referrals ?? [];
+        const item = Array.isArray(list) ? list[0] : crossConsultRaw;
+        if (item?.um_id) {
+          setReferralData({
+            um_id: item.um_id,
+            um_name: item.um_name ?? "",
+            dp_id: item.dp_id ?? item.department_id ?? null,
+            department_name: item.department_name ?? "",
+            reason_for_cross_consult: item.reason_for_cross_consult ?? "",
+          });
+        }
       }
       setPillupSwitch(caseManagerData?.pillup_fulfilment == 1 ? true : false);
     }
@@ -2290,6 +2317,13 @@ function TabRx() {
                     userId={userId}
                     clinicId={decodedToken?.result?.clinic_id}
                     carePlanPlaceholder={carePlanPlaceholder}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 13 ? (
+                  <TabReferralPanel
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    referralData={referralData}
+                    onReferralChange={setReferralData}
                     isTabRx={true}
                   />
                 ) : (

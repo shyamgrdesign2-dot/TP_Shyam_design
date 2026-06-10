@@ -29,6 +29,7 @@ import {
   Modal,
   Spin,
   Tour,
+  Tooltip,
 } from "antd";
 import { Row, Col, ButtonGroup } from "react-bootstrap";
 import dayjs from "dayjs";
@@ -91,6 +92,8 @@ import {
   GB_VOICE_RX_NEW_UI,
   TAB_CLINIC_QUEUE,
   TAB_CLINIC_APPOINTMENT,
+  TAB_REFERRAL,
+  TAB_REFERRAL_AP_STATUS,
   CLINIC_TARGET_STATUS,
   GB_CVT_EXT_HOS,
 } from "../utils/constants";
@@ -215,6 +218,40 @@ const dateFormat = "YYYY-MM-DD";
 const showDateFormat = "DD-MM-YYYY";
 const FINISHED_PRINT_MESSAGE_KEY = "finished-print-rx-generate";
 
+const getListAppointmentStatus = ({
+  selectedTab,
+  isDigitisationTab,
+  allUnDigitisedIds,
+}) => {
+  if (isDigitisationTab && allUnDigitisedIds?.length > 0) return 3;
+  if (selectedTab === TAB_REFERRAL) return TAB_REFERRAL_AP_STATUS;
+  return selectedTab;
+};
+
+const renderReferralNotesCell = (record) => {
+  const notes = String(
+    record?.reason_for_cross_consult || record?.referralNotes || ""
+  ).trim();
+  if (!notes) {
+    return <span>—</span>;
+  }
+  return (
+    <Tooltip
+      title={notes}
+      placement="top"
+      color="#2d2d3a"
+      overlayInnerStyle={{
+        maxWidth: 360,
+        fontSize: 13,
+        lineHeight: 1.45,
+        padding: "8px 12px",
+      }}
+    >
+      <span className="referral-notes-clamp">{notes}</span>
+    </Tooltip>
+  );
+};
+
 function AppointmentData({ locationPath, appointmentAgentsData }) {
   const navigate = useNavigate();
 
@@ -253,6 +290,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     finishedData,
     zydusAappointmentData,
     draftRxCount,
+    referralCount,
     allUnDigitisedAppointmentsList
   } = useSelector((state) => state.records);
   const { appointmentStatusByAppointmentId, activeTeleconsultAppointmentId, activeTeleconsultConsultationId } = useSelector(
@@ -787,6 +825,16 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
 
+    updatedItems.push({
+      key: TAB_REFERRAL,
+      label: (
+        <div className="d-flex align-items-center">
+          <i className="icon-Report"></i>
+          Referral ({referralCount})
+        </div>
+      ),
+    });
+
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
 
@@ -834,6 +882,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     draftRxCount,
     selectedTab,
     zydusAppointmentVisibleCount,
+    referralCount,
   ]);
 
   const [isDigitisationTab, setIsDigitisationTab] = useState(false);
@@ -892,7 +941,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   useEffect(() => {
     if (
       selectedTab !== TAB_ZYDUS_ENCOUNTER &&
-      selectedTab !== TAB_ZYDUS_APPOINTMENT
+      selectedTab !== TAB_ZYDUS_APPOINTMENT &&
+      selectedTab !== TAB_REFERRAL
     ) {
       const firstIndex = appointmentsData?.findIndex(
         (record) => record.symptomsGathered
@@ -952,10 +1002,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           var sendData = {
             startDate: date.startDate,
             endDate: date.endDate,
-            apStatue:
-              isDigitisationTab && allUnDigitisedIds?.length > 0
-                ? 3
-                : selectedTab,
+            apStatue: getListAppointmentStatus({
+              selectedTab,
+              isDigitisationTab,
+              allUnDigitisedIds,
+            }),
             filterVisitType: visitTypeFilters,
             page: pageNo,
             search: searchQuery,
@@ -1024,10 +1075,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         var sendData = {
           startDate: date.startDate,
           endDate: date.endDate,
-          apStatue:
-            isDigitisationTab && allUnDigitisedIds?.length > 0
-              ? 3
-              : selectedTab,
+          apStatue: getListAppointmentStatus({
+            selectedTab,
+            isDigitisationTab,
+            allUnDigitisedIds,
+          }),
           filterVisitType: visitTypeFilters,
           page: pageNo,
           search: searchQuery,
@@ -1178,6 +1230,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           endDate: moment().format(dateFormat),
         });
         dispatch(changeSortOrder("descend"));
+      } else if (key === TAB_REFERRAL) {
+        dispatch(changeSortOrder("descend"));
+        setIsDigitisationTab(false);
+        setSelectedCalanderOptions(6);
+        setDate({
+          startDate: moment("2000-01-01").format(dateFormat),
+          endDate: moment().format(dateFormat),
+        });
       } else {
         dispatch(changeSortOrder("ascend"));
         setIsDigitisationTab(false);
@@ -1607,6 +1667,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         (item) => item.key !== "endvisit" && item.key !== "cancelappt"
       );
     } else if (selectedTab === TAB_CANCELLED) {
+      return items.filter(
+        (item) =>
+          item.key !== "endvisitreason" &&
+          item.key !== "endvisit" &&
+          item.key !== "cancelappt"
+      );
+    } else if (selectedTab === TAB_REFERRAL) {
       return items.filter(
         (item) =>
           item.key !== "endvisitreason" &&
@@ -2583,7 +2650,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       title:
         selectedTab != TAB_ZYDUS_ENCOUNTER &&
         selectedTab != TAB_ZYDUS_APPOINTMENT &&
-        selectedTab != TAB_FINISHED
+        selectedTab != TAB_FINISHED &&
+        selectedTab !== TAB_REFERRAL
+          ? "Contact"
+          : selectedTab === TAB_REFERRAL
           ? "Contact"
           : "Contact & Mrn",
       dataIndex: "pm_contact_no",
@@ -2608,17 +2678,59 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         </div>
       ),
     },
-    ...(isMunshiHospital() ? [{
-      title: "Referred By",
-      dataIndex: "dr_reference_name",
-      key: "dr_reference_name",
-      ellipsis: true,
-      render: (text, record) => (
-        <div>
-          <span>{record.dr_reference_name || "-"}</span>
-        </div>
-      ),
-    }] : []),
+    ...(selectedTab === TAB_REFERRAL
+      ? [
+          {
+            title: "Referred By",
+            dataIndex: "referredBy",
+            key: "referredBy",
+            ellipsis: true,
+            render: (text, record) => (
+              <span>
+                {record.referred_by ||
+                  record.referredBy ||
+                  record.dr_reference_name ||
+                  "-"}
+              </span>
+            ),
+          },
+          {
+            title: "Referral Date",
+            dataIndex: "date_of_referral",
+            key: "date_of_referral",
+            ellipsis: true,
+            render: (text, record) => (
+              <span>
+                {record.date_of_referral || record.referralDate || "-"}
+              </span>
+            ),
+          },
+          {
+            title: "Referral Notes",
+            dataIndex: "reason_for_cross_consult",
+            key: "reason_for_cross_consult",
+            width: 280,
+            render: (text, record) => renderReferralNotesCell(record),
+          },
+        ]
+      : []),
+    ...(isMunshiHospital() && selectedTab !== TAB_REFERRAL
+      ? [
+          {
+            title: "Referred By",
+            dataIndex: "dr_reference_name",
+            key: "dr_reference_name",
+            ellipsis: true,
+            render: (text, record) => (
+              <div>
+                <span>{record.dr_reference_name || "-"}</span>
+              </div>
+            ),
+          },
+        ]
+      : []),
+    ...(selectedTab !== TAB_REFERRAL
+      ? [
     {
       title: selectedTab !== TAB_ZYDUS_APPOINTMENT ? "Visit Type" : "Status",
       dataIndex:
@@ -2796,6 +2908,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         );
       },
     },
+      ]
+      : []),
     ...(!(isChikitsalayAccessable && selectedTab === TAB_CLINIC_APPOINTMENT) ? [{
       title: selectedTab != TAB_ZYDUS_APPOINTMENT ? "Action" : "",
       key: "action",
@@ -2806,7 +2920,33 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             size="middle"
             style={{ display: "flex", justifyContent: "space-between" }}
           >
-            {(selectedTab === TAB_CLINIC_QUEUE && isChikitsalayAccessable) ? 
+            {selectedTab === TAB_REFERRAL &&
+            (isSnapRxAccessable ||
+              isSmartSyncAccessableFromGB ||
+              isFreeVoiceRxUser ||
+              tp_monetization_enable) &&
+            shouldShowVoiceRx() ? (
+              <PrimaryActionButton
+                isSmartRxAccessible={isSmartSyncAccessableFromGB}
+                isSnapRxAccessible={isSnapRxAccessable}
+                isVoiceRxAccessible={isFreeVoiceRxUser || tp_monetization_enable}
+                isVoiceRxPaid={isVoiceRxPaid}
+                onSmartRxClick={onSmartRxClick}
+                onSnapRxClick={handleSnapRxClick}
+                onVoiceRxClick={onVoiceRxClick}
+                onTabRxClick={onTabRxClick}
+                onConsultClick={onConsultClick}
+                patient={record}
+                buttonStyle="walkin"
+              />
+            ) : selectedTab === TAB_REFERRAL ? (
+              <button
+                className="btn btn-outline-primary btn-smart-rx"
+                onClick={() => onTabRxClick(record)}
+              >
+                TabRx
+              </button>
+            ) : (selectedTab === TAB_CLINIC_QUEUE && isChikitsalayAccessable) ? 
               <button
               className="btn btn-outline-primary btn-resume-draft-rx"
               onClick={() => onConsultClick(record)}
@@ -3076,6 +3216,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           ? "You haven't finished any consultations or ended the visit yet."
           : selectedTab === TAB_DRAFT_RX
           ? "You haven't saved any drafts yet."
+          : selectedTab === TAB_REFERRAL
+          ? "No referral patients found."
           : "Nothing here! You haven’t cancelled any appointments here."}
       </div>
     </div>
@@ -3664,7 +3806,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                 selectedTab != TAB_ZYDUS_APPOINTMENT ? (
                   <Input
                     value={searchQuery}
-                    placeholder="Search patient by name and mobile number"
+                    placeholder={
+                      selectedTab === TAB_REFERRAL
+                        ? "Search by patient name / ID / mobile number"
+                        : "Search patient by name and mobile number"
+                    }
                     className="inputheight38"
                     prefix={<i className="icon-search" />}
                     suffix={
@@ -3723,6 +3869,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           selectedTab !== TAB_QUEUE &&
                           selectedTab !== TAB_ZYDUS_ENCOUNTER &&
                           selectedTab !== TAB_ZYDUS_APPOINTMENT &&
+                          selectedTab !== TAB_REFERRAL &&
                           disabledDate
                         }
                         defaultValue={dayjs(
@@ -3754,13 +3901,17 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       <Select
                         placeholder="Select Period"
                         className="ms-3 appointmentselect"
-                        value={isDigitisationTab ? 6 : selectedCalanderOptions}
+                        value={
+                          isDigitisationTab || selectedTab === TAB_REFERRAL
+                            ? 6
+                            : selectedCalanderOptions
+                        }
                         options={
                           selectedTab === TAB_QUEUE
                             ? calanderOptions.filter((e) =>
                                 [1, 2, 3].includes(e.value)
                               )
-                            : isDigitisationTab
+                            : isDigitisationTab || selectedTab === TAB_REFERRAL
                             ? calanderOptions.filter((e) => e.value === 6)
                             : calanderOptions.filter((e) =>
                                 [1, 4, 5].includes(e.value)

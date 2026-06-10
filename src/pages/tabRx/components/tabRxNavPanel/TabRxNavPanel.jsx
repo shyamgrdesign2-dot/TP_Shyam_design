@@ -1,6 +1,7 @@
-import React, { useRef } from "react";
+import React from "react";
 import "./TabRxNavPanel.scss";
 import { ASSETS } from "../../../../assets";
+import { ReferralIcon } from "../../../snapRx/components/ReferralIcon";
 const {
   ddxTabVector: ddxVector,
   groundingWhite: groundingImgWhite,
@@ -436,6 +437,30 @@ const TabRxNavPanel = ({
                                             />
                                         </div>
                                         <label className="item-label">Care Plan</label>
+                                    </div>
+                                </button>
+                            );
+                        }
+
+                        if (e.tmdpm_id === 25 && e.tmdpm_status === 0) {
+                            return (
+                                <button
+                                    key={i}
+                                    type="button"
+                                    className={`nav-item ${collapsedFlag === 13 ? "active" : ""}`}
+                                    onClick={() => openCollapsed(13)}
+                                >
+                                    <div className="item-content">
+                                        <div className="icon-container">
+                                            <ReferralIcon
+                                                color={
+                                                    collapsedFlag === 13
+                                                        ? "rgba(49,48,151,1)"
+                                                        : "#fff"
+                                                }
+                                            />
+                                        </div>
+                                        <label className="item-label">Referral</label>
                                     </div>
                                 </button>
                             );

@@ -63,4 +63,8 @@ SnapRxDigitization.getFilesOnMobile = function ({
   );
 };
 
+SnapRxDigitization.createCrossConsult = function (data) {
+  return api.post(`/api/v1/digitization/cross-consult`, data, baseUrl);
+};
+
 export default SnapRxDigitization;

@@ -25,6 +25,7 @@ import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
 import InvestigationBox from "../components/InvestigationBox";
 import TabFollowUpBox from "../components/tab_design/TabFollowUpBox";
+import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
 
 import VitalsBox from "../components/VitalsBox";
 import VitalsList from "../components/VitalsList";
@@ -1003,6 +1004,7 @@ function PrescriptionNew() {
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
@@ -1150,6 +1152,8 @@ function PrescriptionNew() {
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     startTime,
     customModuleContents,
     setCustomModuleContents,
@@ -1759,6 +1763,28 @@ function PrescriptionNew() {
         ) !== -1
       ) {
         setAdditionalNote(caseManagerData.visit_advice);
+      }
+      const crossConsultRaw =
+        caseManagerData.cross_consult ?? caseManagerData.crossConsult;
+      if (
+        crossConsultRaw &&
+        customizedPadLeftList.findIndex(
+          (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
+        ) !== -1
+      ) {
+        const list = Array.isArray(crossConsultRaw)
+          ? crossConsultRaw
+          : crossConsultRaw?.content ?? crossConsultRaw?.referrals ?? [];
+        const item = Array.isArray(list) ? list[0] : crossConsultRaw;
+        if (item?.um_id) {
+          setReferralData({
+            um_id: item.um_id,
+            um_name: item.um_name ?? "",
+            dp_id: item.dp_id ?? item.department_id ?? null,
+            department_name: item.department_name ?? "",
+            reason_for_cross_consult: item.reason_for_cross_consult ?? "",
+          });
+        }
       }
       if (caseManagerData?.moduleContents?.length) {
         // Don't filter out modules - they should all be rendered even if deleted

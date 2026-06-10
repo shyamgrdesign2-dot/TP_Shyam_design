@@ -97,6 +97,7 @@ import {
 import useTabletViewport from "../../../../hooks/useTabletViewport";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { getTabRxFiles, upsertTabRxRx } from "../../services/tabRxService";
+import { syncCrossConsultReferral } from "../../../../utils/crossConsultHelpers";
 import {
     getMetadata,
     setMetadata,
@@ -202,6 +203,7 @@ function TabRxHeaderV2({
         setFollowUpDate,
         additionalNote,
         setAdditionalNote,
+        referralData,
         startTime,
         customModuleContents,
         setCustomModuleContents,
@@ -1869,6 +1871,16 @@ function TabRxHeaderV2({
                     }
                 } catch (error) {
                     console.error('Care plan sync after submit failed:', error);
+                }
+
+                try {
+                    await syncCrossConsultReferral(referralData, {
+                        tcmId: parseInt(action?.payload?.tcm_id ?? tcmId),
+                        patientUniqueId: patient_data?.patient_unique_id,
+                        referredBy: profile?.um_name,
+                    });
+                } catch (error) {
+                    console.error('[cross-consult] Failed', error?.message || error);
                 }
 
                 message.open({

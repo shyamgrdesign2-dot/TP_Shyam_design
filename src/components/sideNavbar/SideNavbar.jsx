@@ -63,6 +63,8 @@ import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers"
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
+import { ReferralIcon } from "../../pages/snapRx/components/ReferralIcon";
+import ReferralPanelForm from "../referral/ReferralPanelForm";
 import "./sideNavbar.css";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartTooltip, Legend, Filler);
@@ -81,6 +83,7 @@ const NAV_ITEMS = [
   { id: "growth", label: "Growth", icon: { kind: "iconsax", Icon: Ruler } },
   { id: "optal", label: "Ophthal", icon: { kind: "iconsax", Icon: Eye } },
   { id: "personalNotes", label: "Private Notes", icon: { kind: "iconsax", Icon: DocumentText } },
+  { id: "referral", label: "Referral", icon: { kind: "custom", Component: ReferralIcon } },
   { id: "zydusLabReports", label: "Zydus Reports", icon: { kind: "medical", name: "lab" } },
 ];
 
@@ -111,6 +114,8 @@ function getCustomizedPadNavId(item, access = {}) {
       return "medicalRecords";
     case 19:
       return "labResults";
+    case 25:
+      return "referral";
     default:
       return null;
   }
@@ -128,6 +133,7 @@ const SECTION_TITLES = {
   growth: "Growth",
   optal: "Ophthal History",
   personalNotes: "Private Notes",
+  referral: "Referral",
   zydusLabReports: "Zydus Reports",
 };
 
@@ -2600,12 +2606,20 @@ function MedicalMaskIcon({ name, active }) {
 
 function IconPill({ item, active, signalUnread = false }) {
   const isMedical = item.icon.kind === "medical";
+  const isCustom = item.icon.kind === "custom";
   const Icon = item.icon.Icon;
+  const CustomIcon = item.icon.Component;
 
   return (
     <span className={`snv-icon-pill ${active ? "snv-icon-pill-active" : ""}`}>
       {isMedical ? (
         <MedicalMaskIcon name={item.icon.name} active={active} />
+      ) : isCustom ? (
+        <CustomIcon
+          size={20}
+          variant={active ? "bulk" : "linear"}
+          color={active ? "var(--tp-blue-500)" : "#ffffff"}
+        />
       ) : (
         <Icon
           size={20}
@@ -5046,6 +5060,14 @@ function GrowthContent({ data, emptyState }) {
   );
 }
 
+function ReferralContent({ value, onChange }) {
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      <ReferralPanelForm value={value} onChange={onChange} variant="sideNav" />
+    </div>
+  );
+}
+
 function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voiceDisabled }) {
   return (
     <div className="snv-content-scroll snv-private-notes-content" data-snv-scroll-root="true">
@@ -5077,7 +5099,7 @@ function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voice
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, referralValue, onReferralChange, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
   const emptyState = EMPTY_SECTION_CONFIG[activeId] ? (
     <SideNavEmptyState
       sectionId={activeId}
@@ -5139,6 +5161,13 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           voiceDisabled={privateNotesVoiceDisabled}
         />
       );
+    case "referral":
+      return (
+        <ReferralContent
+          value={referralValue}
+          onChange={onReferralChange}
+        />
+      );
     case "zydusLabReports":
       return (
         <ZydusLabParametersList
@@ -5194,7 +5223,7 @@ function sectionVoiceLabel(activeId) {
 }
 
 function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, hidePlusIcon, voiceEnabled, voiceLocked }) {
-  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal") return null;
+  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "referral" || activeId === "optal") return null;
   const status = voiceState?.status || "idle";
   const busy = status === "recording" || status === "transcribing" || status === "digitizing";
   const disabled = busy || voiceLocked;
@@ -5226,7 +5255,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, voiceSessionId, medicalRecordActions }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, referralValue, onReferralChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, voiceSessionId, medicalRecordActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -5282,6 +5311,8 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           onPrivateNotesChange={onPrivateNotesChange}
           onPrivateNotesVoiceClick={onVoiceClick}
           privateNotesVoiceDisabled={privateNotesVoiceDisabled}
+          referralValue={referralValue}
+          onReferralChange={onReferralChange}
           onCopyPayload={onCopyPayload}
           showVoiceRx={showVoiceRx}
           vitalsUpdating={vitalsUpdating}
@@ -5404,6 +5435,8 @@ export function SideNavbar({
     pamId,
     privateNotesData,
     setPrivateNotesData,
+    referralData,
+    setReferralData,
   } = useContext(CashManagerContext) || {};
   const getSideNavVoiceSessionId = useCallback(() => {
     if (tcmId && Number(tcmId) !== 0) return tcmId;
@@ -5729,6 +5762,9 @@ export function SideNavbar({
       notes,
     });
   }, [privateNotesData, setPrivateNotesData]);
+  const handleReferralChange = useCallback((nextReferral) => {
+    setReferralData?.(nextReferral);
+  }, [setReferralData]);
   const savePrivateNotesFromVoice = useCallback(async (notes) => {
     const cleanNotes = String(notes || "").trim();
     if (!cleanNotes) {
@@ -6110,6 +6146,8 @@ export function SideNavbar({
           actionHidePlusIcons={actionHidePlusIcons}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={handlePrivateNotesChange}
+          referralValue={referralData}
+          onReferralChange={handleReferralChange}
           onCopyPayload={handlePastVisitCopyPayload}
           voiceEnabled={showVoiceRx && SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)}
           voiceLocked={!!activeVoiceModule || headerDictationBusy}

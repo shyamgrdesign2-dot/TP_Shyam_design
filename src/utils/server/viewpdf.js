@@ -52,6 +52,7 @@ import ThenConnector from "../../components/print_settings/ThenConnector";
 import { getDecodedToken } from "../localStorage";
 import { ASSETS } from "../../assets";
 import { getUploadedFilePublicUrl } from "../../pages/smartSync/services/templateUtils";
+import { CrossConsult } from "../../components/print_settings/crossConsult/CrossConsult";
 
 const getSmartSyncUploadedFileUri = (file) =>
   getUploadedFilePublicUrl(file) || file?.fileUrl || file?.showFile || null;
@@ -15251,6 +15252,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   </View>
                                 </View>
                               ))}
+                              <CrossConsult
+                                option={option}
+                                crossConsultData={
+                                  caseManagerData?.cross_consult ??
+                                  caseManagerData?.crossConsult ??
+                                  digitizedData?.cross_consult ??
+                                  digitizedData?.crossConsult
+                                }
+                                PX_TO_PT={PX_TO_PT}
+                                styles={styles}
+                                printSettings={printSettings}
+                              />
                           </>
                         ) : option?.is_custom_module === true &&
                           option?.enable === "Y" &&
