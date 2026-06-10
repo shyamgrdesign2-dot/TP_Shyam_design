@@ -2,8 +2,8 @@ import { Button, Drawer, Dropdown, Popover, Tooltip } from "antd";
 import "./RecordCard.scss";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { deleteDocById, fetchAllPatientDocs } from "../../service";
-import { setAllUploadedDocs } from "../../../../redux/uploadDocSlice";
+import { deleteDocById, fetchAllPatientDocs, fetchDocsUploadedByPatient } from "../../service";
+import { setAllUploadedDocs, setPatientUploadedDocs } from "../../../../redux/uploadDocSlice";
 import { useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { isMobile } from "react-device-detect";
@@ -33,6 +33,9 @@ const {
 } = ASSETS.images;
 const closeIcon = ASSETS.mobile.close2;
 
+const isZydusMedicalRecord = (doc) => doc?.category_id === -2 || doc?.category_id === -3;
+const getMedicalRecordKey = (doc) => `${doc?.category_id || ""}-${doc?.id || doc?.document_id || doc?.url || ""}`;
+
 const RecordCard = ({
   cardData,
   medicalReportDrawer,
@@ -46,7 +49,7 @@ const RecordCard = ({
   const location = useLocation();
   const { state } = location;
   const { patient_data } = state;
-  const { uploadDocCategories, patientUploadedDocs } = useSelector(
+  const { uploadDocCategories, allUploadedDocs } = useSelector(
     (state) => state.uploadDoc
   );
   const {
@@ -122,12 +125,20 @@ const RecordCard = ({
 
   const handleDelete = async () => {
     await deleteDocById(id);
-    const doctorUploadedDocs = await fetchAllPatientDocs(
-      patient_data.patient_unique_id
+    const [doctorUploadedDocs, latestPatientUploadedDocs] = await Promise.all([
+      fetchAllPatientDocs(patient_data.patient_unique_id),
+      fetchDocsUploadedByPatient(patient_data.patient_unique_id),
+    ]);
+    const refreshedDocKeys = new Set(
+      [...doctorUploadedDocs, ...latestPatientUploadedDocs].map(getMedicalRecordKey)
     );
+    const zydusUploadedDocs = allUploadedDocs.filter((doc) => (
+      isZydusMedicalRecord(doc) && !refreshedDocKeys.has(getMedicalRecordKey(doc))
+    ));
+    dispatch(setPatientUploadedDocs(latestPatientUploadedDocs));
     dispatch(
       setAllUploadedDocs(
-        mergeDocuments(doctorUploadedDocs, patientUploadedDocs)
+        mergeDocuments([...doctorUploadedDocs, ...zydusUploadedDocs], latestPatientUploadedDocs)
       )
     );
     toggleDeletePopup();
