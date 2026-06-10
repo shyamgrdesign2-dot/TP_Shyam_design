@@ -77,6 +77,17 @@ function EditableTableModule({
   voiceActive,
   afterSearch,
   getOptionTag,
+  // Optional render-prop hook: when supplied, replaces the default single-line
+  // search-dropdown row. Receives ({ option, index, isHighlighted, isExpanded,
+  // setExpanded, onSelect }) and returns the row's JSX. `setExpanded` and the
+  // expansion state are owned by EditableTableModule so only one option can
+  // expand at a time and the state clears when the menu closes.
+  renderSearchRow,
+  // Optional render-prop hook: rendered absolutely inside each grounded-key
+  // cell's relative wrapper. Receives ({ row, column, value, onSelect }) where
+  // onSelect(nextValue) commits the new value into the cell. Used by the
+  // medication module to surface stock + alternatives directly in the cell.
+  renderCellOverlay,
   moduleDataAttr,
   highlightedRowIds,
   highlightedRowTooltips,
@@ -105,6 +116,9 @@ function EditableTableModule({
   // final transcript replaces only that cell's value.
   const [recordingCell, setRecordingCell] = useState(null);
   const [editingCellValues, setEditingCellValues] = useState({});
+  // One-at-a-time expansion of search-dropdown rows (e.g. medication
+  // alternatives). Cleared whenever the menu closes or the colKey switches.
+  const [expandedOptionKey, setExpandedOptionKey] = useState(null);
   const [isActionSticky, setIsActionSticky] = useState(false);
   const [menuIndicator, setMenuIndicator] = useState({
     hasOverflow: false,
@@ -521,6 +535,12 @@ function EditableTableModule({
   );
 
   const closeMenu = useCallback(() => setActiveMenu(null), []);
+
+  // Reset any expanded-row state whenever the menu closes / re-anchors so the
+  // host renderer never sees a stale expansion.
+  useEffect(() => {
+    if (!activeMenu) setExpandedOptionKey(null);
+  }, [activeMenu?.colKey, activeMenu?.rowId, activeMenu?.mode]);
 
   const optionsForMenu = useMemo(() => {
     if (!activeMenu) return [];
@@ -1101,6 +1121,19 @@ function EditableTableModule({
                               ? `This medication is not from your Zydus inventory list. Click to search and add the medicine.`
                               : `Auto-filled from voice. Tap and pick a match from the ${title.toLowerCase()} list to verify this row.`
                           }>
+                        {/* Outer cell wrapper — positioned ancestor for any
+                            renderCellOverlay decorations (e.g. VC pill on the
+                            input row + the medication's generic/stock lines
+                            rendered as block children below). */}
+                        <div className="relative">
+                        {/* Blue focus ring on the OUTER wrapper so it wraps the
+                            full cell (input row + any block content the
+                            renderCellOverlay adds below). Suppressed during
+                            cell recording so it doesn't compete with the
+                            shiner. */}
+                        {activeCell?.rowId === row.id && activeCell?.colKey === column.key && !isCellRecording ?
+                          <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> :
+                          null}
                         <div className={`relative h-[52px] ${isCellRecording ? "vrx-cell-shiner overflow-hidden rounded-[8px]" : ""}`}>
                           {/* Shining gradient border while this cell is
                                    the dictation target — clearly anchors the
@@ -1112,12 +1145,6 @@ function EditableTableModule({
                                 duration={2.2}
                                 shineColor={["#D565EA", "#673AAC", "#1A1994"]}
                                 baseColor="rgba(226,226,234,0.95)" /> :
-                              null}
-                          {/* Blue focus ring — suppressed during cell
-                                   recording so it doesn't compete with the
-                                   shiner. */}
-                          {activeCell?.rowId === row.id && activeCell?.colKey === column.key && !isCellRecording ?
-                              <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> :
                               null}
                           {/* Inline per-cell mic — surfaces on free-form
                                    text cells (NOTE on built-in modules; every
@@ -1528,6 +1555,30 @@ function EditableTableModule({
                             </TPTooltip> :
                               null}
                         </div>
+                          {/* Host-supplied overlay for the grounded-key cell —
+                              e.g. medication generic / stock / find-alt lines
+                              that sit below the input, plus any decorations
+                              anchored to the outer relative wrapper. */}
+                          {renderCellOverlay && column.key === groundedKey ?
+                            (() => {
+                              // Render as a real component so its hooks have
+                              // their own scope (see SearchRowComponent above).
+                              const CellOverlay = renderCellOverlay;
+                              return (
+                                <CellOverlay
+                                  row={row}
+                                  column={column}
+                                  value={value}
+                                  onSelect={(next) => {
+                                    setCellValue(row.id, column.key, String(next ?? ""));
+                                    if (groundedKey && ungroundedRowIds?.has(row.id)) {
+                                      onGroundRow?.(row.id);
+                                    }
+                                  }} />);
+
+                            })() :
+                            null}
+                        </div>
                         </UngroundedTooltipWrap>
                       </td>);
 
@@ -1776,56 +1827,83 @@ function EditableTableModule({
                       <span>No results found</span>
                     </div> :
                 null}
-                  {regularOptionEntries.map(({ option, index }) =>
-                <button
-                  key={`${activeMenu.mode}-${activeMenu.colKey ?? "search"}-${option}`}
-                  type="button"
-                  data-rx-menu-index={index}
-                  className={[
-                  "w-full rounded-[8px] px-[10px] py-[7px] text-left text-[14px] font-medium font-['Inter',sans-serif] flex items-center gap-2",
-                  index === activeMenu.highlightedIndex ?
-                  "bg-tp-slate-100 text-tp-slate-700" :
-                  "text-tp-slate-700 hover:bg-tp-slate-100"].
-                  join(" ")}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    const value = getOptionValue(option).trim();
-                    if (!value) {
-                      closeMenu();
-                      return;
-                    }
-                    if (activeMenu.mode === "search") {
-                      const nextRowIndex = rows.length;
-                      addRow(value);
-                      setSearchText("");
-                      closeMenu();
-                      window.requestAnimationFrame(() => {
-                        focusCell(nextRowIndex, 0);
-                      });
-                      return;
-                    }
-                    if (activeMenu.rowId && activeMenu.colKey) {
-                      setCellValue(activeMenu.rowId, activeMenu.colKey, value);
-                      endDropdownEditing(`${activeMenu.rowId}:${activeMenu.colKey}`);
-                      // Picking a DB-suggested option for the
-                      // grounded column clears the ungrounded flag
-                      // — now we know this row maps to a real
-                      // formulary entry.
-                      if (
-                      groundedKey &&
-                      activeMenu.colKey === groundedKey &&
-                      ungroundedRowIds?.has(activeMenu.rowId))
-                      {
-                        onGroundRow?.(activeMenu.rowId);
+                  {regularOptionEntries.map(({ option, index }) => {
+                    const optionValue = getOptionValue(option);
+                    const rowKey = `${activeMenu.mode}-${activeMenu.colKey ?? "search"}-${optionValue}`;
+                    // Shared commit handler — used by the default row and by any
+                    // alternative the host renderer (e.g. medication's "Show
+                    // alternatives") chooses to commit instead of the parent.
+                    const commitSelection = (rawValue) => {
+                      const value = String(rawValue ?? optionValue ?? "").trim();
+                      if (!value) {
+                        closeMenu();
+                        return;
                       }
+                      if (activeMenu.mode === "search") {
+                        const nextRowIndex = rows.length;
+                        addRow(value);
+                        setSearchText("");
+                        closeMenu();
+                        window.requestAnimationFrame(() => {
+                          focusCell(nextRowIndex, 0);
+                        });
+                        return;
+                      }
+                      if (activeMenu.rowId && activeMenu.colKey) {
+                        setCellValue(activeMenu.rowId, activeMenu.colKey, value);
+                        endDropdownEditing(`${activeMenu.rowId}:${activeMenu.colKey}`);
+                        // Picking a DB-suggested option for the
+                        // grounded column clears the ungrounded flag
+                        // — now we know this row maps to a real
+                        // formulary entry.
+                        if (
+                        groundedKey &&
+                        activeMenu.colKey === groundedKey &&
+                        ungroundedRowIds?.has(activeMenu.rowId))
+                        {
+                          onGroundRow?.(activeMenu.rowId);
+                        }
+                      }
+                      closeMenu();
+                    };
+
+                    if (renderSearchRow) {
+                      // Invoke as a real React component (capitalised tag) so
+                      // any hooks inside it live in their own scope, not
+                      // ours — otherwise the hook order shifts as the option
+                      // list changes and React's Rules-of-Hooks fires.
+                      const SearchRowComponent = renderSearchRow;
+                      return (
+                        <SearchRowComponent
+                          key={rowKey}
+                          option={option}
+                          index={index}
+                          isHighlighted={index === activeMenu.highlightedIndex}
+                          isExpanded={expandedOptionKey === optionValue}
+                          setExpanded={(expanded) =>
+                            setExpandedOptionKey(expanded ? optionValue : null)}
+                          onSelect={commitSelection}
+                          tag={activeMenu.mode === "search" ? getOptionTag?.(optionValue) : null} />);
                     }
-                    closeMenu();
-                  }}>
-                  
-                      <span className="flex-1 truncate">{getOptionLabel(option)}</span>
-                      {activeMenu.mode === "search" && getOptionTag?.(getOptionValue(option))}
-                    </button>
-                )}
+
+                    return (
+                      <button
+                        key={rowKey}
+                        type="button"
+                        data-rx-menu-index={index}
+                        className={[
+                          "w-full rounded-[8px] px-[10px] py-[7px] text-left text-[14px] font-medium font-['Inter',sans-serif] flex items-center gap-2",
+                          index === activeMenu.highlightedIndex ?
+                          "bg-tp-slate-100 text-tp-slate-700" :
+                          "text-tp-slate-700 hover:bg-tp-slate-100"
+                        ].join(" ")}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => commitSelection(optionValue)}>
+
+                        <span className="flex-1 truncate">{getOptionLabel(option)}</span>
+                        {activeMenu.mode === "search" && getOptionTag?.(getOptionValue(option))}
+                      </button>);
+                  })}
                 </div>
                 {menuIndicator.hasOverflow ?
               <>
@@ -1882,24 +1960,8 @@ function EditableTableModule({
                       </span>
                     </button> :
               <span />}
-                  {activeMenu.mode === "search" ?
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  const nextRowIndex = rows.length;
-                  addRow("");
-                  setSearchText("");
-                  closeMenu();
-                  window.requestAnimationFrame(() => {
-                    focusCell(nextRowIndex, 0);
-                  });
-                }}
-                className="inline-flex items-center gap-[6px] rounded-[8px] border border-dashed border-tp-slate-200 px-[10px] py-[6px] text-[12px] font-semibold text-tp-slate-500 transition-colors hover:border-tp-slate-300 hover:bg-tp-slate-50 hover:text-tp-slate-600 max-lg:order-2 max-lg:w-full max-lg:justify-center">
-                <Plus size={13} strokeWidth={2} />
-                Add new line item
-              </button> :
-              null}
+                  {/* "Add new line item" removed — every section relies on
+                      the search + "Add custom" affordances instead. */}
                   {activeMenu.mode === "search" ?
               <div className="flex items-center gap-3 max-lg:order-3 max-lg:flex-wrap">
                       <span className="inline-flex items-center gap-1">

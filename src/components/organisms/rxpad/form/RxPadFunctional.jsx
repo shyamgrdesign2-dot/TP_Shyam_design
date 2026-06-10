@@ -32,6 +32,8 @@ import { TPMedicalIcon } from "@/src/components/atoms/MedicalIcon";
 import { Tooltip as TPTooltip } from "@/src/components/atoms/Tooltip";
 import { toast as tpToast } from "@/src/components/molecules/Toaster";
 import { RxPadSection as TPRxPadSection } from "@/src/components/organisms/rxpad/form/RxPadSection";
+import { MedicationSearchRow } from "./MedicationSearchRow";
+import { MedicationCellInventory } from "./MedicationCellInventory";
 
 /* ── Types, constants, and utilities ── */
 
@@ -1288,6 +1290,15 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             groundedKey="medicine"
             ungroundedRowIds={ungroundedRowIds}
             onGroundRow={groundRow}
+            // Inventory-aware dropdown row: surfaces MOG / VC source, stock
+            // status, and an inline "Show alternatives" expansion for low /
+            // out-of-stock items.
+            renderSearchRow={MedicationSearchRow}
+            // In-cell adornment: small stock chip + "Find alt." trigger that
+            // opens a popover of in-stock alternatives anchored to the cell.
+            renderCellOverlay={({ value, onSelect }) =>
+              <MedicationCellInventory value={value} onSelect={onSelect} />
+            }
             cannedChips={[
             "Paracetamol 650mg",
             "Amoxicillin 500mg",
