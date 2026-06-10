@@ -139,18 +139,6 @@ function normalizeVoiceHistoryForStore(history) {
     });
 }
 
-function buildInvestigationTemplatePayload(investigations) {
-    return investigations.map(({ investigation_name, note, change, id, service_code, pms_default, typesenseId }) => ({
-        investigation_name,
-        ...(note !== undefined && { note }),
-        ...(change !== undefined && { change }),
-        ...(id != null && String(id).trim() !== "" && { id }),
-        ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
-        ...(pms_default !== undefined && { pms_default }),
-        ...(typesenseId !== undefined && { typesenseId }),
-    }));
-}
-
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
@@ -973,7 +961,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 diagnosis: templateDiagnosis.map(({ tds_id, tds_name, icd_code, status, pms_default, change }) => ({ tds_id, tds_name, icd_code, status, pms_default, ...(change !== undefined && { change }) })),
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
-                investigation: buildInvestigationTemplatePayload(templateInvestigations),
+                investigation: templateInvestigations.map(({ investigation_name, change, id, service_code }) => ({ investigation_name, ...(change !== undefined && { change }), ...(id != null && String(id).trim() !== "" && { id }), ...(service_code != null && String(service_code).trim() !== "" && { service_code }) })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -1109,7 +1097,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 diagnosis: templateDiagnosis.map(({ tds_id, tds_name, status, pms_default }) => ({ tds_id, tds_name, status, pms_default })),
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
-                investigation: buildInvestigationTemplatePayload(templateInvestigations),
+                investigation: templateInvestigations.map(({ investigation_name, change, id, service_code }) => ({ investigation_name, ...(change !== undefined && { change }), ...(id != null && String(id).trim() !== "" && { id }), ...(service_code != null && String(service_code).trim() !== "" && { service_code }) })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
