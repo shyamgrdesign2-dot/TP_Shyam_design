@@ -1,77 +1,46 @@
 "use client";
-// Print Dental Chart button + runner. Rendering is delegated to RxPreviewDocument
-// so the printed sheet looks IDENTICAL to the on-screen Rx Preview drawer.
-// Plain mode prints a blank odontogram on the letterhead; Historical mode prints
-// the full Rx (clinical sections + tooth records + oral records + filled chart).
+// Print Dental Chart button — renders the same prescription PDF pipeline as
+// Preview Rx (buildConsultationPreviewPrintPayload + renderPrintPayloadToBlob),
+// scoped to dental/oral content only, then opens the system print dialog.
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
+import { message } from "antd";
+import { isMobile, isTablet } from "react-device-detect";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { TPTooltip, TPMedicalIcon } from "../tp-ui";
-import { RxPreviewDocument } from "../tp-rxpad/RxPreviewDocument";
-import { getComposedRxPreviewSnapshot } from "../tp-rxpad/rx-preview-composer";
+import CashManagerContext from "../../../context/CashManagerContext";
+import { selectDentalExamination } from "../../../redux/dentalExaminationSlice";
+import { transformToothStateToApi } from "../lib/examination-helpers";
+import { buildConsultationPreviewPrintPayload } from "../../../utils/buildConsultationPreviewPrintPayload";
+import { renderPrintPayloadToBlob } from "../../../utils/printPayload";
+import { printBlobInNewTab } from "../../../pages/opdBilling/utils/helper";
+import { GB_DENTAL_MODULE } from "../../../utils/constants";
+import { isIPad } from "../../../utils/utils";
 import dcp from "./DentalChartPrint.module.scss";
 
-// Print stylesheet: hide everything else and push each <article> from
-// RxPreviewDocument onto its own A4 page so the printout matches the on-screen
-// Rx Preview drawer 1:1.
-const PRINT_STYLE = `
-@media print {
-  body > *:not(.dcp-print-root) { display: none !important; }
-  .dcp-print-root { position: static !important; opacity: 1 !important; z-index: auto !important; width: 100% !important; pointer-events: auto !important; left: auto !important; top: auto !important; }
-  .dcp-print-root > div { max-width: 100% !important; gap: 0 !important; }
-  .dcp-print-root article { box-shadow: none !important; border-radius: 0 !important; aspect-ratio: auto !important; height: auto !important; min-height: 0 !important; break-after: page !important; page-break-after: always !important; overflow: visible !important; }
-  .dcp-print-root article:last-child { break-after: auto !important; page-break-after: avoid !important; }
-  @page { size: A4 portrait; margin: 10mm; }
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-}`;
+function triggerPdfPrint(pdfBlob) {
+  const isMobileDevice = isMobile || isTablet || isIPad();
+  if (isMobileDevice) {
+    printBlobInNewTab(pdfBlob);
+    return;
+  }
 
-// Empty Rx snapshot shape — used by the "plain" mode so the printed page has
-// only the dental chart (no historical/clinical sections) but still matches the
-// Preview Rx letterhead + patient + footer pattern exactly.
-function emptySnapshot(patientId) {
-  return {
-    patientId,
-    updatedAt: new Date().toISOString(),
-    symptoms: [], examinations: [], diagnoses: [], labInvestigations: [],
-    medications: [], advice: [],
-    vitals: [], labResults: [],
-    dentalExamination: [],
+  const blobURL = URL.createObjectURL(pdfBlob);
+  document.querySelectorAll("iframe").forEach((iframe) => {
+    iframe.parentNode?.removeChild(iframe);
+  });
+  const iframe = document.createElement("iframe");
+  document.body.appendChild(iframe);
+  iframe.style.display = "none";
+  iframe.src = blobURL;
+  iframe.onload = () => {
+    setTimeout(() => {
+      iframe.focus();
+      iframe.contentWindow?.print();
+      URL.revokeObjectURL(blobURL);
+    }, 500);
   };
-}
-
-// Renders the Rx-preview document off-screen at A4 width and fires the system
-// print dialog. The printed output mirrors the Preview Rx drawer; "historical"
-// includes all dental + oral history sections above the chart, "plain" prints
-// just the chart on the letterhead.
-const BLANK_CHART = { updatedAt: 0, entries: [], toothDiagnoses: {}, findingsByTooth: {}, oralEntries: [], oralNotes: "" };
-
-function PrintRunner({ patientId, mode, includePatient, onDone }) {
-  useEffect(() => {
-    const after = () => onDone();
-    window.addEventListener("afterprint", after);
-    // Open the system print dialog as soon as the off-screen replica paints.
-    const delay = mode === "historical" ? 400 : 80;
-    const t = setTimeout(() => { try { window.print(); } catch {} }, delay);
-    const fallback = setTimeout(onDone, 60000);
-    return () => { clearTimeout(t); clearTimeout(fallback); window.removeEventListener("afterprint", after); };
-  }, [onDone, mode]);
-  // Historical: full Rx snapshot (clinical sections + dental + oral via chart store).
-  // Plain: empty snapshot + blank chart override → only the letterhead + patient + odontogram.
-  const isPlain = mode !== "historical";
-  const snapshot = isPlain
-    ? emptySnapshot(patientId)
-    : (getComposedRxPreviewSnapshot(patientId) ?? emptySnapshot(patientId));
-  const hidePatient = !includePatient;
-  const settings = isPlain
-    ? { view: "list", showDentalChart: true, chartOverride: BLANK_CHART, hideOral: true, hidePatient }
-    : { view: "list", showDentalChart: true, hidePatient };
-  return createPortal(
-    <div className={`dcp-print-root ${dcp.printRoot}`}>
-      <style>{PRINT_STYLE}</style>
-      <RxPreviewDocument snapshot={snapshot} settings={settings} />
-    </div>,
-    document.body
-  );
 }
 
 // Returns true if the patient has any chart data worth printing in "historical"
@@ -115,9 +84,60 @@ export function hasHistoricalData(patientId) {
 export function DentalChartPrintButton({ patientId }) {
   const [open, setOpen] = useState(false);
   const [includePatient, setIncludePatient] = useState(true);
-  const [printReq, setPrintReq] = useState(null);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [historicalAvailable, setHistoricalAvailable] = useState(false);
   const rootRef = useRef(null);
+
+  const {
+    patient_data,
+    tcmId,
+    pamId,
+    consultationDate,
+    symptomsData,
+    examinationData,
+    surgeriesData,
+    diagnosisData,
+    adviceData,
+    investigationData,
+    medicationData,
+    vitalsData,
+    medicalHistoryData,
+    followUpDate,
+    additionalNote,
+    customModuleContents,
+  } = useContext(CashManagerContext) || {};
+
+  const {
+    profile,
+    defaultPrintSettings,
+    frequencyList,
+    timingList,
+    userId,
+  } = useSelector((state) => state.doctors);
+  const { customModules, hospitalSearchResults } = useSelector(
+    (state) => state.customModules,
+  );
+  const dentalExamination = useSelector(selectDentalExamination);
+  const oralExamination = useSelector((state) => state.oralExamination);
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+
+  const allAvailableModules = useMemo(() => {
+    const modulesWithUserId = (customModules || []).map((module) => ({
+      ...module,
+      userId: userId || module.userId,
+    }));
+    const combined = [...modulesWithUserId];
+    const existingIds = new Set(modulesWithUserId.map((m) => m.module_id));
+    if (hospitalSearchResults?.modules) {
+      hospitalSearchResults.modules.forEach((module) => {
+        if (!existingIds.has(module.module_id)) {
+          combined.push(module);
+        }
+      });
+    }
+    return combined;
+  }, [customModules, hospitalSearchResults, userId]);
+
   useEffect(() => {
     if (!open) return;
     setHistoricalAvailable(hasHistoricalData(patientId));
@@ -126,10 +146,75 @@ export function DentalChartPrintButton({ patientId }) {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open, patientId]);
 
+  const runPrint = async (mode) => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    setOpen(false);
+
+    try {
+      const activeDentalData =
+        dentalExamination?.toothState &&
+        Object.keys(dentalExamination.toothState).length > 0
+          ? transformToothStateToApi(dentalExamination.toothState)
+          : [];
+
+      const payload = buildConsultationPreviewPrintPayload({
+        patient_data,
+        profile,
+        userId,
+        caseManagerData: null,
+        currentTcmId: tcmId,
+        pamId,
+        consultationDate,
+        symptomsData,
+        examinationData,
+        surgeriesData,
+        diagnosisData,
+        adviceData,
+        investigationData,
+        medicationData,
+        vitalsData,
+        medicalHistoryData,
+        followUpDate,
+        additionalNote,
+        customModuleContents,
+        defaultPrintSettings,
+        frequencyList,
+        timingList,
+        customModules: allAvailableModules,
+        activeDentalData,
+        oralExamination,
+        isDentalEnabled,
+        dentalChartPrintMode: mode,
+        includePatientInfo: includePatient,
+      });
+
+      if (!payload) {
+        throw new Error("Print settings are not loaded yet. Please try again.");
+      }
+
+      const pdfBlob = await renderPrintPayloadToBlob(payload, {
+        selectedLang: "English",
+        isGynaecHistoryAccessable: false,
+        onlyShowDental: true,
+      });
+
+      if (!pdfBlob) {
+        throw new Error("Failed to render dental chart PDF.");
+      }
+
+      triggerPdfPrint(pdfBlob);
+    } catch (err) {
+      console.error("Failed to print dental chart:", err);
+      message.error(err?.message || "Failed to print dental chart.");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   const choose = (mode) => {
     if (mode === "historical" && !historicalAvailable) return;
-    setOpen(false);
-    setPrintReq({ mode, includePatient });
+    runPrint(mode);
   };
 
   const item = (icon, label, sub, mode, opts = {}) => {
@@ -138,7 +223,7 @@ export function DentalChartPrintButton({ patientId }) {
       <button
         type="button"
         onClick={() => choose(mode)}
-        disabled={disabled}
+        disabled={disabled || isPrinting}
         className={dcp.menuItem}
       >
         <span className={dcp.menuItemIcon}>
@@ -178,7 +263,7 @@ export function DentalChartPrintButton({ patientId }) {
           <div className={dcp.dropdownTitle}>Print</div>
           {item("tooth", "Plain dental chart", "Blank odontogram template", "plain")}
           {item("clipboard-activity", "Historical dental chart", "With recorded findings & history", "historical", { disabled: !historicalAvailable, disabledReason: "There is no historical data to print for this patient." })}
-          <label className={dcp.includeLabel}>
+          {/* <label className={dcp.includeLabel}>
             <input
               type="checkbox"
               checked={includePatient}
@@ -186,19 +271,22 @@ export function DentalChartPrintButton({ patientId }) {
               className={dcp.checkboxInput}
             />
             <span className={dcp.includeLabelText}>Include patient information</span>
-          </label>
+          </label> */}
         </div>
       )}
       <TPTooltip title="Print dental chart" arrow placement="top">
-        <button type="button" aria-label="Print dental chart" onClick={() => setOpen((o) => !o)} className={dcp.printTriggerBtn}>
+        <button
+          type="button"
+          aria-label="Print dental chart"
+          onClick={() => setOpen((o) => !o)}
+          disabled={isPrinting}
+          className={dcp.printTriggerBtn}
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path d="M6 9V3.5C6 3.22 6.22 3 6.5 3h11c.28 0 .5.22.5.5V9M6 18H4.5C3.67 18 3 17.33 3 16.5v-5C3 10.67 3.67 10 4.5 10h15c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5H18M7 15h10v5.5c0 .28-.22.5-.5.5h-9a.5.5 0 0 1-.5-.5V15Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </TPTooltip>
-      {printReq && (
-        <PrintRunner patientId={patientId} mode={printReq.mode} includePatient={printReq.includePatient} onDone={() => setPrintReq(null)} />
-      )}
     </div>
   );
 }

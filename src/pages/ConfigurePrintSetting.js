@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { Col, Tabs, Row } from "antd";
 import { useSelector, useDispatch } from "react-redux";
@@ -69,9 +69,13 @@ function ConfigurePrintSetting() {
     const todayVaccines = useTodayVaccines(caseManagerData);
     const growthChartDetails = useGrowthChart(caseManagerData);
     const obstetricDetails = useObstetric(caseManagerData?.patient_data?.patient_unique_id, caseManagerData?.doctor_Data?.um_id);
-    const medicalHistoryCheckboxOptions = caseManagerData?.medical_history?.map(e => {
-        return { label: e?.title, value: e?.tmmhs_id }
-    })
+    const medicalHistoryCheckboxOptions = useMemo(
+        () => caseManagerData?.medical_history?.map((e) => ({
+            label: e?.title,
+            value: e?.tmmhs_id,
+        })),
+        [caseManagerData?.medical_history]
+    );
     const [labParamsData, setLabParamsData] = useState([]);
     const [prescriptionDataFromApi, setPrescriptionDataFromApi] = useState(null);
     const [patientBills, setPatientBills] = useState([]);
@@ -505,15 +509,84 @@ function ConfigurePrintSetting() {
     }, [caseManagerData?.tcm_id]);
 
     const usePrescriptionDataFromApi = (!!(rxId || isAmbientRx) && !(smartRxFile?.length > 0 && !isAfterDigitization)) || ((smartRxFile?.length > 0 || caseManagerData?.isRxDigitize) && isAfterDigitization);
-    const dataSourceForPreview = usePrescriptionDataFromApi && prescriptionDataFromApi != null ? prescriptionDataFromApi : caseManagerData;
-    const obstetricData = obstetricDetails?.data || obstetricDetails;
-    const enrichedCaseManagerData = dataSourceForPreview
-        ? {
+    const dataSourceForPreview = useMemo(
+        () => (usePrescriptionDataFromApi && prescriptionDataFromApi != null ? prescriptionDataFromApi : caseManagerData),
+        [usePrescriptionDataFromApi, prescriptionDataFromApi, caseManagerData]
+    );
+    const enrichedCaseManagerData = useMemo(() => {
+        const obstetricData = obstetricDetails?.data || obstetricDetails;
+        if (!dataSourceForPreview) return dataSourceForPreview;
+        return {
             ...dataSourceForPreview,
-            ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
-        }
-        : dataSourceForPreview;
-    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData, dentalExaminationData, isDentalEnabled };
+            ...(obstetricData && {
+                obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData,
+            }),
+        };
+    }, [dataSourceForPreview, obstetricDetails]);
+    const growthChartDetailsForPdf = useMemo(
+        () => ({
+            growthChartData: growthChartDetails?.growthChartData,
+            growthChartImageData: growthChartDetails?.growthChartImageData,
+            todayGrowthChartData: growthChartDetails?.todayGrowthChartData,
+        }),
+        [
+            growthChartDetails?.growthChartData,
+            growthChartDetails?.growthChartImageData,
+            growthChartDetails?.todayGrowthChartData,
+        ]
+    );
+    const contextApi = useMemo(
+        () => ({
+            smartRxFile: isAfterDigitization ? undefined : smartRxFile,
+            isDigitisedPrintConfig: isAfterDigitization,
+            divWidth,
+            caseManagerData: enrichedCaseManagerData,
+            certificateData,
+            printSettings,
+            setPrintSettings,
+            fileHeader,
+            setFileHeader,
+            fileFooter,
+            setFileFooter,
+            fileLogo,
+            setFileLogo,
+            fileWatermark,
+            setFileWatermark,
+            fileSignature,
+            setFileSignature,
+            medicalHistoryCheckboxOptions,
+            labParamsData,
+            zydusSelectedLabParams,
+            customModules,
+            carePlanAssignments,
+            ophthalModuleData: opthalModuleData,
+            dentalData,
+            dentalExaminationData,
+            isDentalEnabled,
+        }),
+        [
+            isAfterDigitization,
+            smartRxFile,
+            divWidth,
+            enrichedCaseManagerData,
+            certificateData,
+            printSettings,
+            fileHeader,
+            fileFooter,
+            fileLogo,
+            fileWatermark,
+            fileSignature,
+            medicalHistoryCheckboxOptions,
+            labParamsData,
+            zydusSelectedLabParams,
+            customModules,
+            carePlanAssignments,
+            opthalModuleData,
+            dentalData,
+            dentalExaminationData,
+            isDentalEnabled,
+        ]
+    );
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
@@ -794,7 +867,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetailsForPdf} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>

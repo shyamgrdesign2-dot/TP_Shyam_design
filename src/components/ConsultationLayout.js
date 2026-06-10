@@ -36,6 +36,7 @@ import {
   GB_VIDEO_CONSULT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
+  GB_DENTAL_MODULE,
   MESSAGE_KEY,
 } from "../utils/constants";
 import { FETCH_SMART_RX } from "../utils/constants";
@@ -171,7 +172,8 @@ import { saveDentalExamination, selectDentalExamination } from "../redux/dentalE
 import { saveOralExaminationThunk, patchOralExaminationThunk } from "../redux/oralExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
-import { resolveExamChartForPrintWithContext } from "../utils/examChartStorage";
+import { buildConsultationPreviewPrintPayload } from "../utils/buildConsultationPreviewPrintPayload";
+import { resolveDentalOralForPrint } from "../utils/resolveDentalOralPrintData";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
 
@@ -221,6 +223,7 @@ function ConsultationLayout({ children, headerProps }) {
     timingList,
     userId,
     opthalModuleAutoAdded,
+    defaultPrintSettings,
   } = useSelector((state) => state.doctors);
 
   // Local state to manage customizedPadRightList with deleted modules for edit case
@@ -237,6 +240,7 @@ function ConsultationLayout({ children, headerProps }) {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
@@ -1982,102 +1986,78 @@ function ConsultationLayout({ children, headerProps }) {
   const handlePreviewRx = async () => {
     setIsPreviewLoading(true);
     setIsPreviewDrawerOpen(true);
+    setPreviewPdfFile(null);
     try {
-      const patientId = patient_data?.patient_unique_id;
+      const activeDentalData =
+        dentalExamination?.toothState &&
+        Object.keys(dentalExamination.toothState).length > 0
+          ? transformToothStateToApi(dentalExamination.toothState)
+          : [];
 
-      // 1. Save dental examination if there is dental data
-      const activeDentalData = (dentalExamination?.toothState && Object.keys(dentalExamination.toothState).length > 0)
-        ? transformToothStateToApi(dentalExamination.toothState)
-        : [];
+      const payload = buildConsultationPreviewPrintPayload({
+        patient_data,
+        profile,
+        userId,
+        caseManagerData,
+        currentTcmId,
+        pamId,
+        consultationDate,
+        symptomsData,
+        examinationData,
+        surgeriesData,
+        diagnosisData,
+        adviceData,
+        investigationData,
+        medicationData,
+        vitalsData,
+        medicalHistoryData,
+        followUpDate,
+        additionalNote,
+        customModuleContents,
+        defaultPrintSettings,
+        frequencyList,
+        timingList,
+        customModules: allAvailableModules,
+        activeDentalData,
+        oralExamination,
+        isDentalEnabled,
+      });
 
-      if (patientId && activeDentalData.length > 0) {
-        try {
-          await dispatch(saveDentalExamination({
-            patientId,
-            data: {
-              dentition_type: dentalExamination.dentitionType || "adult",
-              tooth_states: activeDentalData,
-              version: dentalExamination.version || 0,
-            },
-          }));
-        } catch (dentalErr) {
-          console.warn("[Dental] Save failed before preview:", dentalErr);
-        }
+      if (!payload) {
+        throw new Error("Print settings are not loaded yet. Please try again.");
       }
 
-      // 2. Save/Update Case Manager to get the latest print_url
-      const sendData = {
-        action: currentTcmId === 0 ? 'add' : 'edit',
-        patient_unique_id: patientId,
-        tcm_id: currentTcmId,
-        pam_id: pamId,
-        consultation_date: consultationDate,
-        symptoms: symptomsData,
-        examination: examinationData,
-        surgeries: surgeriesData,
-        diagnosis: diagnosisData,
-        medicine: medicationData,
-        advice: adviceData,
-        investigation: investigationData,
-        vitals: vitalsData,
-        follow_up_date: followUpDate,
-        visit_advice: additionalNote,
-        medical_history: medicalHistoryData,
-        moduleContents: customModuleContents,
-      };
-
-      const action = await (currentTcmId === 0
-        ? dispatch(addCaseManager(sendData))
-        : dispatch(editCaseManager(sendData)));
-
-      if (action.meta.requestStatus === "fulfilled") {
-        const savedTcmId = action?.payload?.tcm_id ?? currentTcmId;
-        setCurrentTcmId(savedTcmId);
-
-        const print_url = action?.payload?.print_url || action?.payload?.print_rx_url;
-        if (!print_url) {
-          throw new Error("Print URL not returned from server.");
-        }
-
-        // 3. Fetch print settings JSON payload from print_url
-        let fetchUrl = print_url;
-        try {
-          const urlObj = new URL(fetchUrl, window.location.origin);
-          urlObj.searchParams.set("pam_id", pamId.toString());
-          urlObj.searchParams.set("output", "json");
-          fetchUrl = urlObj.toString();
-        } catch (e) {
-          fetchUrl += (fetchUrl.includes("?") ? "&" : "?") + `pam_id=${pamId}&output=json`;
-        }
-
-        const response = await axios.get(fetchUrl);
-        const payload = response?.data?.data || null;
-
-        if (!payload) {
-          throw new Error("Failed to fetch print payload JSON.");
-        }
-
-        // 4. Generate local PDF blob showing ONLY dental details!
-        const normalizedDentalData = { tooth_states: activeDentalData };
-        const pdfBlob = await renderPrintPayloadToBlob({
-          ...payload,
-          dentalExaminationData: normalizedDentalData,
-          oralExamination,
-          patientUniqueId: patient_data?.patient_unique_id,
-          tcmId: savedTcmId,
-        }, {
-          selectedLang: "English",
-          isGynaecHistoryAccessable: false,
-          onlyShowDental: false,
+      const { dentalExaminationData: resolvedDental, examChart: resolvedOralChart } =
+        await resolveDentalOralForPrint({
+          patientId: patient_data?.patient_unique_id,
+          tcmId: currentTcmId,
+          consultationDate,
+          printSettings: payload.printSettings,
+          inMemoryDental: { tooth_states: activeDentalData },
+          inMemoryOral: oralExamination,
+          caseManagerData: payload.caseManagerData,
+          allowFullApiFallback: false,
         });
 
-        if (pdfBlob) {
-          setPreviewPdfFile(pdfBlob);
-        } else {
-          throw new Error("Failed to render PDF blob.");
-        }
+      const pdfBlob = await renderPrintPayloadToBlob(
+        {
+          ...payload,
+          dentalExaminationData: resolvedDental,
+          examChart: resolvedOralChart,
+          oralExamination,
+          patientUniqueId: patient_data?.patient_unique_id,
+          tcmId: currentTcmId,
+        },
+        {
+        selectedLang: "English",
+        isGynaecHistoryAccessable,
+        onlyShowDental: false,
+      });
+
+      if (pdfBlob) {
+        setPreviewPdfFile(pdfBlob);
       } else {
-        throw new Error(action.error?.message || "Failed to save consultation.");
+        throw new Error("Failed to render PDF preview.");
       }
     } catch (err) {
       console.error("Failed to generate PDF preview:", err);

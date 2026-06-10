@@ -8,6 +8,7 @@ import Welcome1 from '../common/Welcome1'
 import VitalsBodyComposition from '../components/VitalsBodyComposition';
 // import LabParameters from '../components/LabParameters';
 import MedicalHistory from '../components/MedicalHistory';
+import DentalOralExaminationHistory from '../components/DentalOralExaminationHistory';
 import CarePlanBox from '../components/CarePlanBox';
 // import Vaccination from '../components/Vaccination';
 import Cardiology from '../components/Cardiology';
@@ -495,6 +496,7 @@ function PatientDetails() {
                                         )}
                                         
                                         <MedicalHistory loading={loading} medicalHistoryData={viewCaseManagerData?.medical_history} doctorId={viewCaseManagerData?.doctor_data?.um_id} />
+                                        <DentalOralExaminationHistory />
                                         
                                         {isVaccinationAccessable && <VisitVaccination />}
                                         {isGrowthChartAccessable && <VisitGrowthChart />}

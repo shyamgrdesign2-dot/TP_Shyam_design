@@ -1,20 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
-import { transformToothStateToApi } from "../components/dental/lib/examination-helpers";
-import { resolveExamChartForPrintWithContext } from "../utils/examChartStorage";
-
-const hasDentalData = (data) => {
-  if (!data) return false;
-  if (Array.isArray(data)) return data.length > 0;
-  if (data.tooth_states && Array.isArray(data.tooth_states)) {
-    return data.tooth_states.length > 0;
-  }
-  if (data.toothState && typeof data.toothState === "object") {
-    return Object.keys(data.toothState).length > 0;
-  }
-  return false;
-};
+import { resolveDentalOralForPrint } from "../utils/resolveDentalOralPrintData";
 
 export const usePrintPayloadPdf = ({
   printUrl,
@@ -30,6 +17,7 @@ export const usePrintPayloadPdf = ({
   patientUniqueId = null,
   tcmId = null,
   onlyShowDental = false,
+  allowFullApiFallback = true,
 }) => {
   const [payload, setPayload] = useState(null);
   const [printBlob, setPrintBlob] = useState(null);
@@ -111,40 +99,37 @@ export const usePrintPayloadPdf = ({
       setIsGenerating(true);
       setError(null);
       try {
-        let rawDental = null;
-        if (hasDentalData(dentalexaminationData)) {
-          rawDental = dentalexaminationData;
-        } else if (hasDentalData(dentalExaminationData)) {
-          rawDental = dentalExaminationData;
-        } else if (hasDentalData(payload?.dentalExaminationData)) {
-          rawDental = payload.dentalExaminationData;
-        } else if (hasDentalData(payload?.dentalexaminationData)) {
-          rawDental = payload.dentalexaminationData;
-        }
+        const caseManagerData = payload?.caseManagerData;
+        const resolvedPatientId =
+          patientUniqueId ||
+          caseManagerData?.patient_data?.patient_unique_id;
+        const resolvedTcmId = tcmId || caseManagerData?.tcm_id;
+        const consultationDate =
+          caseManagerData?.patient_data?.patient_consultaion_date ||
+          caseManagerData?.consultation_date;
 
-        let resolvedToothStates = [];
-        if (rawDental) {
-          if (Array.isArray(rawDental)) {
-            resolvedToothStates = rawDental;
-          } else if (rawDental.tooth_states && Array.isArray(rawDental.tooth_states)) {
-            resolvedToothStates = rawDental.tooth_states;
-          } else if (rawDental.toothState && typeof rawDental.toothState === "object") {
-            try {
-              resolvedToothStates = transformToothStateToApi(rawDental.toothState);
-            } catch (err) {
-              console.error("Failed to transform toothState inside usePrintPayloadPdf hook:", err);
-            }
-          }
-        }
-        const normalizedDentalData = { tooth_states: resolvedToothStates };
+        const inMemoryDental = allowFullApiFallback
+          ? (payload?.dentalExaminationData ||
+              payload?.dentalexaminationData ||
+              dentalExaminationData ||
+              dentalexaminationData)
+          : (dentalExaminationData ||
+              dentalexaminationData ||
+              payload?.dentalExaminationData ||
+              payload?.dentalexaminationData);
 
-        const examChart = resolveExamChartForPrintWithContext({
-          caseManagerData: payload?.caseManagerData,
-          examChartOverride: payload?.examChart,
-          oralExamination,
-          patientUniqueId,
-          tcmId,
-        });
+        const { dentalExaminationData: normalizedDentalData, examChart } =
+          await resolveDentalOralForPrint({
+            patientId: resolvedPatientId,
+            tcmId: resolvedTcmId,
+            consultationDate,
+            printSettings: payload?.printSettings,
+            inMemoryDental,
+            inMemoryOral: oralExamination,
+            caseManagerData,
+            examChartOverride: payload?.examChart,
+            allowFullApiFallback,
+          });
 
         const blob = await renderPrintPayloadToBlob({
           ...payload,
@@ -152,8 +137,8 @@ export const usePrintPayloadPdf = ({
           dentalExaminationData: normalizedDentalData,
           examChart,
           oralExamination,
-          patientUniqueId,
-          tcmId,
+          patientUniqueId: resolvedPatientId,
+          tcmId: resolvedTcmId,
         }, {
           selectedLang,
           isGynaecHistoryAccessable,
@@ -203,6 +188,7 @@ export const usePrintPayloadPdf = ({
     onlyShowDental,
     showSnapRxImages,
     zydusSelectedLabParams,
+    allowFullApiFallback,
   ]);
 
   return { payload, printBlob, isGenerating, error };

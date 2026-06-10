@@ -568,7 +568,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         )
         : [];
     const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
-    const examChart = resolveExamChartForPrint(caseManagerData, examChartProp);
+    const examChart =
+        examChartProp !== undefined
+            ? hasOralExamChartData(examChartProp)
+                ? examChartProp
+                : null
+            : resolveExamChartForPrint(caseManagerData, examChartProp);
     const hasOralExaminationData = hasOralExamChartData(examChart);
     const oralExamEnabledInCaseOptions = printSettings?.prescription?.case_option?.some(
         (o) =>
@@ -576,8 +581,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             o?.enable === "Y" &&
             o?.custom_status === "Y",
     );
+    const oralPrintOption = printSettings?.prescription?.case_option?.find(
+        (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+    );
+    const isOralPrintOptionEnabled =
+        oralPrintOption?.enable === "Y" && oralPrintOption?.custom_status === "Y";
     const shouldRenderOralInDentalBlock =
-        hasOralExaminationData && (onlyShowDental || !oralExamEnabledInCaseOptions);
+        hasOralExaminationData &&
+        (onlyShowDental ? isOralPrintOptionEnabled : !oralExamEnabledInCaseOptions);
 
     const hasDentalExaminationData =
         Array.isArray(dentalExaminationData?.tooth_states) &&
@@ -599,6 +610,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 overallNotes.length > 0
             );
         });
+
+    const dentalPrintOption = printSettings?.prescription?.case_option?.find(
+        (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID,
+    );
+    const shouldShowDentalChartOnly =
+        onlyShowDental &&
+        dentalPrintOption?.enable === "Y" &&
+        dentalPrintOption?.custom_status === "Y" &&
+        dentalPrintOption?.showDentalChart !== false;
 
     const hasDentalSectionData =
         dentalComplaintRowsFiltered.length > 0 ||
@@ -1319,7 +1339,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             // Check smart sync data
             (isSmartSyncPrescription && (caseManagerData.isCustomSSRX === "0" && smartRxData?.length > 0) && !isSnapRxWrittenPrescription) ||
             hasDentalExaminationData ||
-            hasOralExaminationData
+            hasOralExaminationData ||
+            shouldShowDentalChartOnly
             
         );
     };
@@ -2003,6 +2024,33 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             </>
                                         )}
                                     </View>
+                                )}
+                                {onlyShowDental && (
+                                    <>
+                                        {(hasDentalExaminationData || shouldShowDentalChartOnly)
+                                            ? renderDentalExamPdf({
+                                                dentalExaminationData,
+                                                dentalOption: dentalPrintOption,
+                                                printSettings,
+                                                consultationDate:
+                                                    caseManagerData?.patient_data?.patient_consultaion_date,
+                                                PX_TO_PT,
+                                                toothImageMap,
+                                            })
+                                            : null}
+                                        {shouldRenderOralInDentalBlock
+                                            ? renderOralExamPdf({
+                                                examChart,
+                                                oralOption: printSettings?.prescription?.case_option?.find(
+                                                    (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+                                                ),
+                                                printSettings,
+                                                consultationDate:
+                                                    caseManagerData?.patient_data?.patient_consultaion_date,
+                                                PX_TO_PT,
+                                            })
+                                            : null}
+                                    </>
                                 )}
                                 {printSettings?.prescription?.case_option?.map((option, index) => {
                                     if (onlyShowDental) {
