@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import Card from "react-bootstrap/Card";
 import { Spin } from "antd";
-import moment from "moment";
 import { useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -9,15 +8,17 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { getExamination } from "../api/services/ApiDental";
 import { getOralExamination } from "../api/services/ApiOral";
 import { GB_DENTAL_MODULE } from "../utils/constants";
+import { ORAL_POSITION_LABEL } from "./dental/examination/types";
 import {
   extractDentalApiPayload,
-  formatDentalExamItem,
-  formatOralEntryMeta,
-  getToothFullName,
   hasDentalExamPayload,
   mapOralApiToChart,
   normalizeOralHistoryList,
 } from "../utils/cardiologyDentalOralExam";
+import {
+  buildToothCategories,
+  getTeethWithDentalData,
+} from "./print_settings/dental/dentalPrintHelpers";
 import { hasOralExamChartData } from "../utils/examChartStorage";
 import { ASSETS } from "../assets";
 
@@ -29,26 +30,23 @@ const ORAL_GROUP_DEFS = [
   { label: "Procedures", kind: "procedure" },
 ];
 
-function resolveVisitDateLabel(item) {
-  const raw =
-    item?.consultation_date ||
-    item?.consultationDate ||
-    item?.patient_consultaion_date ||
-    item?.date ||
-    item?.created_at ||
-    item?.updated_at;
-  return raw ? moment(raw).format("D MMM YYYY") : "";
-}
+function mergeOralVisitsChart(visits) {
+  const oralEntries = [];
+  const noteParts = [];
 
-function getTeethWithData(dentalExam) {
-  const toothStates = Array.isArray(dentalExam?.tooth_states) ? dentalExam.tooth_states : [];
-  return toothStates.filter((toothState) => {
-    const hasHistory = (toothState.treatment_history || []).length > 0;
-    const hasFindings = (toothState.findings || []).length > 0;
-    const hasProcedures = (toothState.procedures || []).length > 0;
-    const hasNotes = String(toothState.overall_notes || "").trim().length > 0;
-    return hasHistory || hasFindings || hasProcedures || hasNotes;
+  (visits || []).forEach((visit) => {
+    const chart = mapOralApiToChart(visit);
+    if (Array.isArray(chart.oralEntries)) {
+      oralEntries.push(...chart.oralEntries);
+    }
+    const notes = String(chart.oralNotes || "").trim();
+    if (notes) noteParts.push(notes);
   });
+
+  return {
+    oralEntries,
+    oralNotes: noteParts.join("\n"),
+  };
 }
 
 function getOralGroups(oralEntries) {
@@ -64,54 +62,69 @@ function getOralGroups(oralEntries) {
   })).filter((group) => group.list.length > 0);
 }
 
-function renderDentalSection(dentalExam) {
-  const teethWithData = getTeethWithData(dentalExam);
+function formatOralRecordMeta(entry) {
+  const since = String(entry?.since || "").trim();
+  const note = String(entry?.note || "").trim();
+  const region = (entry?.surfaces || [])
+    .map((s) => ORAL_POSITION_LABEL[s] || s)
+    .join(", ");
+  const parts = [region, since ? `since ${since}` : "", note].filter(Boolean);
+  return parts.length ? ` (${parts.join(" | ")})` : "";
+}
+
+function RecordSectionHeader({ title }) {
+  return <div className="dental-oral-record-header">{title}</div>;
+}
+
+function renderOralRecordSection(oralVisits) {
+  const { oralEntries, oralNotes } = mergeOralVisitsChart(oralVisits);
+  const oralGroups = getOralGroups(oralEntries);
+  if (oralGroups.length === 0 && !oralNotes) return null;
+
+  return (
+    <div className="dental-oral-record-section">
+      <RecordSectionHeader title="Oral Record" />
+      <div className="dental-oral-record-content">
+        {oralGroups.map((group) => (
+          <p className="dental-oral-record-line" key={group.label}>
+            <strong>{group.label}: </strong>
+            {group.list.map((entry, idx) => (
+              <span key={`${group.label}-${idx}`}>
+                {idx > 0 ? ", " : ""}
+                <span className="dental-oral-record-item-name">{entry.name}</span>
+                <span className="dental-oral-record-item-meta">
+                  {formatOralRecordMeta(entry)}
+                </span>
+              </span>
+            ))}
+          </p>
+        ))}
+        {oralNotes ? (
+          <p className="dental-oral-record-line">
+            <strong>Notes: </strong>
+            {oralNotes}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function renderToothRecordSection(dentalExam) {
+  const toothStates = Array.isArray(dentalExam?.tooth_states) ? dentalExam.tooth_states : [];
+  const teethWithData = getTeethWithDentalData(toothStates, true);
   if (teethWithData.length === 0) return null;
 
   return (
-    <div className="opthal-section">
-      <div className="opthal-section-header">
-        <img className="opthal-section-icon" src={Examinationsicon} alt="" />
-        <div className="opthal-section-title">Dental Examination</div>
-      </div>
-      <div className="visit-exam-inline-list">
+    <div className="dental-oral-record-section">
+      <RecordSectionHeader title="Tooth Record" />
+      <div className="dental-oral-record-content">
         {teethWithData.map((toothState) => {
-          const toothCode = toothState.tooth_code;
-          const fullName = getToothFullName(toothCode);
-          const categories = [];
-          if ((toothState.treatment_history || []).length > 0) {
-            categories.push({
-              label: "Past Procedures",
-              items: (toothState.treatment_history || []).map((item) =>
-                formatDentalExamItem(item, toothCode)
-              ),
-            });
-          }
-          if ((toothState.findings || []).length > 0) {
-            categories.push({
-              label: "Findings",
-              items: (toothState.findings || []).map((item) =>
-                formatDentalExamItem(item, toothCode)
-              ),
-            });
-          }
-          if ((toothState.procedures || []).length > 0) {
-            categories.push({
-              label: "Procedures",
-              items: (toothState.procedures || []).map((item) =>
-                formatDentalExamItem(item, toothCode)
-              ),
-            });
-          }
-          const notes = String(toothState.overall_notes || "").trim();
-          if (notes) {
-            categories.push({
-              label: "Notes",
-              items: [{ name: notes, details: "" }],
-            });
-          }
+          const { toothCode, fullName, categories } = buildToothCategories(toothState, true);
+          if (!categories.length) return null;
+
           return (
-            <p className="visit-exam-line" key={`dental-tooth-${toothCode}`}>
+            <p className="dental-oral-record-line" key={`tooth-${toothCode}`}>
               <strong>{fullName}: </strong>
               {categories.map((cat, catIdx) => (
                 <span key={cat.label}>
@@ -120,9 +133,9 @@ function renderDentalSection(dentalExam) {
                   {cat.items.map((item, itemIdx) => (
                     <span key={`${cat.label}-${itemIdx}`}>
                       {itemIdx > 0 ? ", " : ""}
-                      <span className="visit-exam-item-name">{item.name}</span>
+                      <span className="dental-oral-record-item-name">{item.name}</span>
                       {item.details ? (
-                        <span className="visit-exam-item-meta">{item.details}</span>
+                        <span className="dental-oral-record-item-meta">{item.details}</span>
                       ) : null}
                     </span>
                   ))}
@@ -131,47 +144,6 @@ function renderDentalSection(dentalExam) {
             </p>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function renderOralVisitSection(visit, visitKey) {
-  const chart = mapOralApiToChart(visit);
-  if (!hasOralExamChartData(chart)) return null;
-
-  const oralEntries = Array.isArray(chart.oralEntries) ? chart.oralEntries : [];
-  const oralNotes = String(chart.oralNotes || "").trim();
-  const oralGroups = getOralGroups(oralEntries);
-  const dateLabel = resolveVisitDateLabel(visit);
-
-  return (
-    <div className="opthal-section" key={visitKey}>
-      <div className="opthal-section-header">
-        <img className="opthal-section-icon" src={Examinationsicon} alt="" />
-        <div className="opthal-section-title">
-          Oral Examination{dateLabel ? ` (${dateLabel})` : ""}
-        </div>
-      </div>
-      <div className="visit-exam-inline-list">
-        {oralGroups.map((group) => (
-          <p className="visit-exam-line" key={`${visitKey}-${group.label}`}>
-            <strong>{group.label}: </strong>
-            {group.list.map((entry, idx) => (
-              <span key={`${visitKey}-${group.label}-${idx}`}>
-                {idx > 0 ? ", " : ""}
-                <span className="visit-exam-item-name">{entry.name}</span>
-                <span className="visit-exam-item-meta">{formatOralEntryMeta(entry)}</span>
-              </span>
-            ))}
-          </p>
-        ))}
-        {oralNotes ? (
-          <p className="visit-exam-line">
-            <strong>Notes: </strong>
-            {oralNotes}
-          </p>
-        ) : null}
       </div>
     </div>
   );
@@ -244,7 +216,7 @@ function DentalOralExaminationHistory() {
 
   if (!showDentalOralHistory) return null;
 
-  const hasDentalData = getTeethWithData(dentalExam).length > 0;
+  const hasDentalData = getTeethWithDentalData(dentalExam?.tooth_states, true).length > 0;
   const hasOralData = oralVisits.length > 0;
   const hasHistoryContent = hasDentalData || hasOralData;
 
@@ -265,14 +237,9 @@ function DentalOralExaminationHistory() {
               className={`${!isExpand ? "overflow-hidden" : "overflow-auto"}`}
               style={{ height: isExpand ? 529 : 190 }}
             >
-              <div className="opthal-summary visit-exam-summary mb-0">
-                {hasDentalData && renderDentalSection(dentalExam)}
-                {oralVisits.map((visit, idx) =>
-                  renderOralVisitSection(
-                    visit,
-                    `oral-visit-${resolveVisitDateLabel(visit) || idx}`
-                  )
-                )}
+              <div className="dental-oral-record-summary mb-0">
+                {hasOralData && renderOralRecordSection(oralVisits)}
+                {hasDentalData && renderToothRecordSection(dentalExam)}
               </div>
             </div>
           ) : (
