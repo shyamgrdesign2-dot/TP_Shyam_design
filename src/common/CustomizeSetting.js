@@ -23,6 +23,7 @@ import EditCustomModuleDrawer from '../components/customModulesV2/EditCustomModu
 import CommonModal from './CommonModal';
 import { ASSETS } from "../assets";
 import { env } from "../EnvironmentConfig";
+import { useCrossConsult } from '../hooks/useCrossConsult';
 const {
   tutorialIcon: tutorial,
   playCover2: playcover2,
@@ -90,6 +91,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
   const { setSymptomsData, setExaminationData, setDiagnosisData, setAdviceData, setInvestigationData, setMedicationData, setVitalsData, setMedicalHistoryData, setPrivateNotesData, setFollowUpDate, setAdditionalNote } = useContext(CashManagerContext);
   const { loading, customizedPadLeftList, customizedPadRightList, videoList, profile, userId, defaultPrintSettings } = useSelector((state) => state.doctors);
   const dispatch = useDispatch();
+  const isCrossConsultEnabled = useCrossConsult();
   const [dataSourceLeft, setDataSourceLeft] = useState([]);
   const [dataSourceRight, setDataSourceRight] = useState([]);
 
@@ -107,7 +109,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     if (customizedPadLeftList.length > 0) {
       let updatedData = customizedPadLeftList
       // Hide Care Plan completely when GB flag is OFF
-      .filter(e => e.tmdpm_id === 22 ? isCarePlanEnabled : true)
+      .filter(e => e.tmdpm_id === 22 ? isCarePlanEnabled : e.tmdpm_id === 25 ? isTabRx && isCrossConsultEnabled : true)
       .filter(e => e.tmdpm_id === 7 && e.tmdpm_status === 0 ? isVaccinationEnabled : e.tmdpm_id === 16 && e.tmdpm_status === 0 ? isGrowthChartEnabled : e.tmdpm_id === 17 && e.tmdpm_status === 0 ? isGynaecHistoryAccessable : true).map((e, i) => {
         return { ...e };
       });

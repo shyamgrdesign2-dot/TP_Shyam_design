@@ -237,6 +237,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 ophthalModuleData={ophthalModuleData}
                 abhaDetails={props.abhaDetails}
                 dentalData={props.dentalData}
+                crossConsultData={props.crossConsultData}
             />).toBlob();
 
             const setPdfUrlSafe = (url) => {
@@ -306,7 +307,8 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         props.advanceReceipts,
         props.patientWalletBalance,
         props.abhaDetails,
-        props.dentalData
+        props.dentalData,
+        props.crossConsultData
     ]);
 
     const onDocumentLoadSuccess = ({ numPages }) => {

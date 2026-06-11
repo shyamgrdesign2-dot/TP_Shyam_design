@@ -38,6 +38,7 @@ import { fetchAgents } from "./appointmentAgent/service";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
+import SnapRxDigitization from "../api/services/SnapRxDigitization";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
 
 
@@ -78,6 +79,7 @@ function ConfigurePrintSetting() {
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
     const [abhaDetails, setAbhaDetails] = useState(null);
+    const [crossConsultData, setCrossConsultData] = useState(null);
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
@@ -107,6 +109,9 @@ function ConfigurePrintSetting() {
     useEffect(() => {
         growthChartDetails.getGrowthChartDetails();
         getPatientBills();
+        if (caseManagerData?.crossconsultrefNo) {
+            fetchCrossConsultData();
+        }
         fetchAbhaDetails();
     }, []);
 
@@ -734,6 +739,19 @@ function ConfigurePrintSetting() {
         }
     };
 
+    const fetchCrossConsultData = async () => {
+        try {
+            const response = await SnapRxDigitization.getCrossConsultData(
+                caseManagerData.crossconsultrefNo
+            );
+            if (response?.data) {
+                setCrossConsultData(response?.data);
+            }
+        } catch (error) {
+            console.error("Error fetching cross consult data:", error);
+        }
+    };
+
     return (
         <PrintSettingsContext.Provider value={contextApi}>
             <>
@@ -751,9 +769,9 @@ function ConfigurePrintSetting() {
                                     className="print-tabs" 
                                 />
                                 {selectedTab === TAB_PRESCRIPTION ? (
-                                    <PrescriptionLayout todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={[...patientBills, ...advanceReceipts]} />
+                                    <PrescriptionLayout todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={[...patientBills, ...advanceReceipts]} crossConsultData={crossConsultData} />
                                 ) : selectedTab === TAB_HEADER_FOOTER ? (
-                                    <HeaderFooterLayout todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} />
+                                    <HeaderFooterLayout todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} crossConsultData={crossConsultData} />
                                 ) : selectedTab === TAB_PAGE_FORMAT && (
                                     <PageFormatLayout />
                                 )}
@@ -764,7 +782,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} crossConsultData={crossConsultData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>

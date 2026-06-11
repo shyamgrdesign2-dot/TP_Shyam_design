@@ -67,4 +67,8 @@ SnapRxDigitization.createCrossConsult = function (data) {
   return api.post(`/api/v1/digitization/cross-consult`, data, baseUrl);
 };
 
+SnapRxDigitization.getCrossConsultData = function (id) {
+  return api.get(`/api/v1/digitization/cross-consult/${id}`, baseUrl);
+};
+
 export default SnapRxDigitization;

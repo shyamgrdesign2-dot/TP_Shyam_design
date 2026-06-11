@@ -2,6 +2,7 @@ import React from "react";
 import "./TabRxNavPanel.scss";
 import { ASSETS } from "../../../../assets";
 import { ReferralIcon } from "../../../snapRx/components/ReferralIcon";
+import { useCrossConsult } from "../../../../hooks/useCrossConsult";
 const {
   ddxTabVector: ddxVector,
   groundingWhite: groundingImgWhite,
@@ -70,6 +71,7 @@ const TabRxNavPanel = ({
     handleAddLabParamsDrawer,
     isCarePlanEnabled,
 }) => {
+    const isCrossConsultEnabled = useCrossConsult();
     return (
         <div
             className={`tabrx-nav-panel ${isApexAISelected ? "ai-mode" : ""}`}
@@ -442,7 +444,7 @@ const TabRxNavPanel = ({
                             );
                         }
 
-                        if (e.tmdpm_id === 25 && e.tmdpm_status === 0) {
+                        if (e.tmdpm_id === 25 && e.tmdpm_status === 0 && isCrossConsultEnabled) {
                             return (
                                 <button
                                     key={i}

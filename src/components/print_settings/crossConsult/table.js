@@ -12,10 +12,9 @@ function CrossConsultTableView({
   PX_TO_PT,
   styles,
   printSettings,
-  crossConsultData = [],
+  crossConsultData,
 }) {
-  const referrals = Array.isArray(crossConsultData) ? crossConsultData : [];
-  if (!referrals.length) return null;
+  if (!crossConsultData?.um_name) return null;
 
   const fontFamily = printSettings?.page_format?.font_family;
   const fontSize = PX_TO_PT * (printSettings?.page_format?.font_size || 12);
@@ -52,61 +51,59 @@ function CrossConsultTableView({
             </Text>
           ))}
         </View>
-        {referrals.map((item, i) => (
-          <View style={styles.row} key={i} wrap={false}>
-            <View style={[styles.cell, { flexDirection: "column" }]}>
+        <View style={styles.row} wrap={false}>
+          <View style={[styles.cell, { flexDirection: "column" }]}>
+            <Text
+              style={{
+                fontFamily,
+                fontSize,
+                fontWeight: 700,
+                color: "#171725",
+              }}
+            >
+              {crossConsultData.um_name}
+            </Text>
+            {crossConsultData?.department_name ? (
               <Text
                 style={{
                   fontFamily,
                   fontSize,
-                  fontWeight: 700,
-                  color: "#171725",
+                  fontWeight: 400,
+                  color: "#8B8B9A",
+                  marginTop: 2,
                 }}
               >
-                {item?.doctorName || "-"}
+                {crossConsultData.department_name}
               </Text>
-              {item?.specialty ? (
-                <Text
-                  style={{
-                    fontFamily,
-                    fontSize,
-                    fontWeight: 400,
-                    color: "#8B8B9A",
-                    marginTop: 2,
-                  }}
-                >
-                  {item.specialty}
-                </Text>
-              ) : null}
-            </View>
-            <Text
-              style={[
-                styles.cell,
-                {
-                  fontFamily,
-                  fontSize,
-                  fontWeight: 400,
-                  color: "#171725",
-                },
-              ]}
-            >
-              {item?.referralDate || "-"}
-            </Text>
-            <Text
-              style={[
-                styles.cell,
-                {
-                  fontFamily,
-                  fontSize,
-                  fontWeight: 400,
-                  color: "#171725",
-                },
-              ]}
-            >
-              {formatNotes(item?.notes)}
-            </Text>
+            ) : null}
           </View>
-        ))}
+          <Text
+            style={[
+              styles.cell,
+              {
+                fontFamily,
+                fontSize,
+                fontWeight: 400,
+                color: "#171725",
+              },
+            ]}
+          >
+            {crossConsultData?.date_of_referral || "-"}
+          </Text>
+          <Text
+            style={[
+              styles.cell,
+              {
+                fontFamily,
+                fontSize,
+                fontWeight: 400,
+                color: "#171725",
+              },
+            ]}
+          >
+            {formatNotes(crossConsultData?.reason_for_cross_consult)}
+          </Text>
+        </View>
       </View>
     </View>
   );

@@ -417,7 +417,7 @@ const getSmartSyncUploadedFileUri = (file) =>
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, crossConsultData } = props
     const isRxDigitizeBool = !!(caseManagerData?.isRxDigitize || isDigitisedPrintConfig);
     const isCvtExtHosAccessableFromGB =
         isCvtExtHosFromProps ?? caseManagerData?.isCvtExtHosAccessableFromGB ?? false;
@@ -5927,16 +5927,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 </View>
                                             )
                                         )}
-                                        <CrossConsult
-                                            option={option}
-                                            crossConsultData={
-                                                caseManagerData?.cross_consult ??
-                                                caseManagerData?.crossConsult
-                                            }
-                                            PX_TO_PT={PX_TO_PT}
-                                            styles={styles}
-                                            printSettings={printSettings}
-                                        />
                                     </>
                                 ) : option?.id === 18 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
@@ -6772,7 +6762,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             )
                                         )}
                                     </>
-                                ) : null}
+                                ) : option?.id === 26 && option?.enable === 'Y' && option?.custom_status === 'Y' ?
+                                    <CrossConsult
+                                        option={option}
+                                        crossConsultData={crossConsultData}
+                                        PX_TO_PT={PX_TO_PT}
+                                        styles={styles}
+                                        printSettings={printSettings}
+                                    />
+                                : null}
                                 </View>
                             )
                         

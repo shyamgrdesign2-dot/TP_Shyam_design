@@ -107,6 +107,7 @@ export const GB_VOICE_RX_FREE = "free-voice-rx";
 export const GB_ZYDUS_WHATSAPP = "zydus-doctor-whatsapp-enablement";
 export const GB_ZYDUS_ACCOUNT_USERS = "zydus-account-users";
 export const GB_CHIKITSALAY = "chikitsalay";
+export const GB_CROSS_CONSULT = "cross-consult";
 export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
 export const CLINIC_TARGET_STATUS = {
   SERVING: "SERVING",
