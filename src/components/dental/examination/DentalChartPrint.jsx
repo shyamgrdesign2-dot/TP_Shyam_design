@@ -81,7 +81,7 @@ export function hasHistoricalData(patientId) {
   } catch { return false; }
 }
 
-export function DentalChartPrintButton({ patientId }) {
+export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
   const [open, setOpen] = useState(false);
   const [includePatient, setIncludePatient] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -261,9 +261,9 @@ export function DentalChartPrintButton({ patientId }) {
       {open && (
         <div className={dcp.dropdownPanel}>
           <div className={dcp.dropdownTitle}>Print</div>
-          {item("tooth", "Plain dental chart", "Blank odontogram template", "plain")}
-          {item("clipboard-activity", "Historical dental chart", "With recorded findings & history", "historical", { disabled: !historicalAvailable, disabledReason: "There is no historical data to print for this patient." })}
-          {/* <label className={dcp.includeLabel}>
+          {item("tooth", `Plain ${patientType} dental chart`, "Blank odontogram template", "plain")}
+          {item("clipboard-activity", `Historical ${patientType} dental chart`, "With recorded findings & history", "historical", { disabled: !historicalAvailable, disabledReason: "There is no historical data to print for this patient." })}
+          <label className={dcp.includeLabel}>
             <input
               type="checkbox"
               checked={includePatient}
@@ -271,7 +271,7 @@ export function DentalChartPrintButton({ patientId }) {
               className={dcp.checkboxInput}
             />
             <span className={dcp.includeLabelText}>Include patient information</span>
-          </label> */}
+          </label>
         </div>
       )}
       <TPTooltip title="Print dental chart" arrow placement="top">

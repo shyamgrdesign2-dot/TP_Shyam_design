@@ -146,16 +146,13 @@ export function useDentalCanvasPersistence(s) {
     if (!raw) return;
     try {
       const saved = JSON.parse(raw);
-      const nextType =
-        saved.patientType === "adult" ||
-        saved.patientType === "pediatric" ||
-        saved.patientType === "mixed"
-          ? saved.patientType
-          : undefined;
-      if (nextType) setPatientType(nextType);
-      const source = getTeethForPatientType(nextType ?? patientType);
+      // patientType is NOT restored from localStorage.
+      // useDentalCanvasState already initialises it from API dentitionType (highest priority)
+      // or from the patient's age (fallback for new patients). localStorage is too stale
+      // to be a reliable source and causes wrong dentition type for patients with no API data.
+      const source = getTeethForPatientType(patientType);
       const candidateFdi = saved.selectedToothFdi;
-      const fallbackFdi = getDefaultFdiForPatientType(nextType ?? patientType);
+      const fallbackFdi = getDefaultFdiForPatientType(patientType);
       const tooth =
         source.find((t) => t.fdi === candidateFdi) ??
         source.find((t) => t.fdi === fallbackFdi) ??

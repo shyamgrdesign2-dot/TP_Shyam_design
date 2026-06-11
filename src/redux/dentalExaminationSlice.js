@@ -15,7 +15,7 @@ const initialState = {
   saving: false,
   error: null,
   lastSaved: null,
-  dentitionType: "adult", // Default
+  dentitionType: null, // null until API responds; "adult"|"pediatric"|"mixed" after
 };
 
 export const fetchDentalExamination = createAsyncThunk(
@@ -78,12 +78,13 @@ const dentalExaminationSlice = createSlice({
         state.loading = true;
         state.error = null;
         state.toothState = {};
-        state.version = 0; // reset so version>0 reliably signals the API returned existing data
+        state.version = 0;
+        state.dentitionType = null; // reset so stale type from previous patient doesn't bleed through
       })
       .addCase(fetchDentalExamination.fulfilled, (state, action) => {
         state.loading = false;
         const payload = action.payload;
-        state.dentitionType = payload?.dentition_type || "adult";
+        state.dentitionType = payload?.dentition_type ?? null; // null means API returned no saved type
         state.version = payload?.version || 0;
 
         state.toothState = toDentalToothState(payload);

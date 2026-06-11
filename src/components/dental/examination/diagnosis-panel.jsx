@@ -228,7 +228,7 @@ export function PrimaryDiagnosisBody({ state }) {
                 <th className={ui.thCenter} />
                 <th className={ui.th}>NAME</th>
                 <th className={ui.th}>SURFACES</th>
-                <th className={ui.th}>SINCE</th>
+                <th className={ui.th}>WHEN</th>
                 <th className={ui.th}>NOTE</th>
                 <th className={ui.thSticky} />
               </tr>

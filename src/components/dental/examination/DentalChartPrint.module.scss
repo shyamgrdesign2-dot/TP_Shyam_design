@@ -37,7 +37,7 @@
   padding: 4px 10px 8px;
   font-size: 12px;
   font-weight: 700;
-  color: #94a3b8;
+  color: #94a3b8 !important;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -89,21 +89,21 @@
 .menuItemLabel {
   font-size: 14px;
   font-weight: 700;
-  color: #1e293b;
+  color: #1e293b !important;
   font-family: "Inter", sans-serif;
 }
 
 .menuItemSub {
   font-size: 12px;
   font-weight: 400;
-  color: #64748b;
+  color: #64748b !important;
   font-family: "Inter", sans-serif;
   line-height: 1.4;
 }
 
 .menuItemChevron {
   flex-shrink: 0;
-  color: #94a3b8;
+  color: #94a3b8 !important;
 }
 
 /* ── Tooltip wrapper for disabled items ─────────────────────────────────── */
@@ -124,7 +124,7 @@
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: #475569;
+  color: #475569 !important;
 }
 
 .includeLabelText {
@@ -144,7 +144,7 @@
   align-items: center;
   justify-content: center;
   transition: all 120ms ease;
-  background-color: #fff;
+  background-color: #fff !important;
   margin: 0;
 
   &:checked {
@@ -177,7 +177,7 @@
   border-radius: 10px;
   border: none;
   background: transparent;
-  color: #334155;
+  color: #334155 !important;
   cursor: pointer;
   transition: background-color 120ms ease;
 

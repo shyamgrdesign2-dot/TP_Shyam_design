@@ -49,17 +49,17 @@ export function useDentalExamination(patientId) {
       saveDentalExamination({
         patientId,
         data: {
-          dentition_type: dentitionType,
+          dentition_type: dentitionType || "adult",
           tooth_states: tooth_states,
-          version: version,
         },
       })
     );
-  }, [patientId, toothState, version, dentitionType, dispatch]);
+  }, [patientId, toothState, dentitionType, dispatch]);
 
   return {
     toothState,
     version,
+    dentitionType,
     loading,
     saving,
     error,

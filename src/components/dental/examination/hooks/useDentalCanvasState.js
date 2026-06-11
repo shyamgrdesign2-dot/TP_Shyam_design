@@ -61,7 +61,10 @@ export function useDentalCanvasState({ patientId, patientAge = 30, initialData }
 
   // ── Core state ─────────────────────────────────────────────────────────────
   const [patientType, setPatientType] = useState(
-    patientAge < 12 ? "pediatric" : patientAge < 18 ? "mixed" : "adult"
+    // API-sourced dentitionType takes priority — canvas only mounts after loading completes
+    // so initialData is already the final value. Falls back to age-based for new patients.
+    initialData?.dentitionType ??
+      (patientAge < 12 ? "pediatric" : patientAge < 18 ? "mixed" : "adult")
   );
   const activeTeeth = useMemo(
     () => getTeethForPatientType(patientType),

@@ -388,7 +388,7 @@ export function DentalCanvas({
         {isDentitionView && (
           <>
             <div className={dc.printBtnWrap}>
-              <DentalChartPrintButton patientId={patientId} />
+              <DentalChartPrintButton patientId={patientId} patientType={patientType} />
             </div>
             <div className={dc.scopeHost}>
               <button

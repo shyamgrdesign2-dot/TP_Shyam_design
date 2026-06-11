@@ -15,6 +15,7 @@ export function useExaminationOrchestrator({
   oralProcedures,
   oralTreatmentHistory,
   oralOverallNotes,
+  dentitionType,
   canvasState,
   syncState,
   dispatch,
@@ -22,7 +23,6 @@ export function useExaminationOrchestrator({
   // Transform Redux state back to the structure DentalCanvas expects for initialization.
   // Only blocks on dental loading; oral entries are included once oral loading completes.
   const initialCanvasData = useMemo(() => {
-    // Only block on dental loading — oral data arrives independently and is added once ready.
     if (loading) return null;
 
     const hasDentalData = toothState && Object.keys(toothState).length > 0;
@@ -33,7 +33,10 @@ export function useExaminationOrchestrator({
         oralTreatmentHistory.length > 0 ||
         !!oralOverallNotes);
 
-    if (!hasDentalData && !hasOralData) return null;
+    // dentitionType is null only when the API returned no saved record (new patient).
+    // If the API provided a dentition_type (even with no tooth entries), dentitionType is non-null
+    // and we must surface initialCanvasData so the canvas opens with the saved type.
+    if (!hasDentalData && !hasOralData && dentitionType == null) return null;
 
     const out = {
       toothDiagnoses: {},
@@ -42,6 +45,8 @@ export function useExaminationOrchestrator({
       toothNotes: {},
       treatmentHistoryDetailsByTooth: {},
       allEntries: [],
+      // null → undefined so useDentalCanvasState falls back to age-based when not set by API
+      dentitionType: dentitionType ?? undefined,
       // Oral entries are only populated once oral loading is complete; empty array during oral loading
       // prevents the API hydration guard from consuming the "first non-null initialData" slot with
       // empty oral data, leaving no chance for the real oral data to hydrate later.
@@ -113,7 +118,7 @@ export function useExaminationOrchestrator({
     }
 
     return out;
-  }, [loading, oralLoading, toothState, oralFindings, oralProcedures, oralTreatmentHistory, oralOverallNotes]);
+  }, [loading, oralLoading, toothState, oralFindings, oralProcedures, oralTreatmentHistory, oralOverallNotes, dentitionType]);
 
   // Sync canvas state to Redux for global "End Visit" access
   useEffect(() => {

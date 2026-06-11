@@ -29,7 +29,7 @@ import { useExaminationOrchestrator } from "./hooks/useExaminationOrchestrator";
 
 export function ExaminationTab({ patientId, patientAge = 30 }) {
   const dispatch = useDispatch();
-  const { syncState, toothState, version, loading, saveChart, error } = useDentalExamination(patientId);
+  const { syncState, toothState, dentitionType, loading, saveChart, error } = useDentalExamination(patientId);
   const {
     findings: oralFindings,
     procedures: oralProcedures,
@@ -49,6 +49,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
     oralProcedures,
     oralTreatmentHistory,
     oralOverallNotes,
+    dentitionType,
     canvasState,
     syncState,
     dispatch,
@@ -66,10 +67,9 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
   const isOral = canvasState?.viewMode === "oral";
   const { containerRef, asidePct, canvasPct, dragging, setDragging } =
     useExaminationLayout({ isSingle, isOral });
-  // version is set by fetchDentalExamination.fulfilled and reset to 0 on .pending.
-  // It is NOT overwritten by syncWholeState (which only touches toothState), so it
-  // reliably reflects whether the GET API returned saved examination data for this patient.
-  const hasApiExaminationData = version > 0;
+  // initialCanvasData is non-null only when the API returned a saved record (dental/oral data
+  // or a dentition_type). Null means brand-new patient with no prior examination.
+  const hasApiExaminationData = !!initialCanvasData;
   const isGetStarted =
     !isSingle &&
     !isOral &&
