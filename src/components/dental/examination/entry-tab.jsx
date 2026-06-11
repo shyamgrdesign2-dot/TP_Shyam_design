@@ -315,7 +315,7 @@ export function EntryTab({ state, kind }) {
       since: undefined,
       plannedDate: undefined,
       status:
-        kind === "procedure" || kind === "planned" ? "planned" : undefined,
+        kind === "procedure" || kind === "planned" ? "PLANNED" : undefined,
       notes: undefined
     });
     setQuery("");
@@ -528,7 +528,7 @@ export function EntryTab({ state, kind }) {
                             <span className={ui.cellFocusRing} /> :
                             null}
                           <select
-                            value={e.status ?? "planned"}
+                            value={e.status ?? "PLANNED"}
                             onChange={(ev) =>
                               state.onUpdateEntry(e.id, {
                                 status: ev.target.value
@@ -538,9 +538,9 @@ export function EntryTab({ state, kind }) {
                             onBlur={() => clearCellActive(e.id, "status")}
                             className={ui.selectNative}>
 
-                            <option value="planned">Planned</option>
-                            <option value="in-progress">In progress</option>
-                            <option value="completed">Completed</option>
+                            <option value="PLANNED">Planned</option>
+                            <option value="IN_PROGRESS">In progress</option>
+                            <option value="COMPLETED">Completed</option>
                           </select>
                         </td>}
 

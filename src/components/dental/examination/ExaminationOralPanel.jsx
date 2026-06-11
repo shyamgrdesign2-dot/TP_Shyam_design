@@ -373,6 +373,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
 // OralTable — record/edit grid with quick-add chips for a given kind
 // ──────────────────────────────────────────────────────────────
 function OralTable({ state, kind, catalog, list }) {
+  const hasStatus = kind === "procedure";
   const { wrapRef, showEdge } = useStickyActionEdge(list.length);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -463,7 +464,7 @@ function OralTable({ state, kind, catalog, list }) {
               <tr className={ui.theadRow}>
                 <th className={ui.th}>NAME</th>
                 <th className={ui.th}>AREA</th>
-                <th className={ui.th}>SINCE</th>
+                <th className={ui.th}>{kind === "past" ? "WHEN" : hasStatus ? "STATUS" : "SINCE"}</th>
                 <th className={ui.th}>NOTE</th>
                 <th className={ui.thSticky} />
               </tr>
@@ -482,10 +483,21 @@ function OralTable({ state, kind, catalog, list }) {
                     />
                   </td>
                   <td className={ui.tdPlain}>
-                    <SinceDropdown
-                      value={e.since || ""}
-                      onChange={(v) => state.onUpdateOralEntry(e.id, { since: v })}
-                    />
+                    {hasStatus ? (
+                      <select
+                        value={e.status ?? "PLANNED"}
+                        onChange={(ev) => state.onUpdateOralEntry(e.id, { status: ev.target.value })}
+                        className={ui.selectNative}>
+                        <option value="PLANNED">Planned</option>
+                        <option value="IN_PROGRESS">In progress</option>
+                        <option value="COMPLETED">Completed</option>
+                      </select>
+                    ) : (
+                      <SinceDropdown
+                        value={e.since || ""}
+                        onChange={(v) => state.onUpdateOralEntry(e.id, { since: v })}
+                      />
+                    )}
                   </td>
                   <td className={ui.tdPlain}>
                     <input

@@ -81,7 +81,7 @@ export const toDentalToothState = (payload = {}) => {
         name: procedure.name,
         surface_codes: procedure.surface_codes || ["whole"],
         procedure_date: procedure.procedure_date,
-        status: SERVICE_STATUS_FROM_API[procedure.status] || procedure.status,
+        status: procedure.status || "PLANNED",
         notes: procedure.notes || "",
         version: procedure.version,
       })),

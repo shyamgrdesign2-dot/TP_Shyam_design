@@ -109,7 +109,7 @@ export function useExaminationOrchestrator({
             kind: "planned",
             name: p.name,
             surfaces: p.surface_codes || ["whole"],
-            status: p.status || "planned",
+            status: p.status || "PLANNED",
             notes: p.notes || "",
             plannedDate: p.procedure_date || "",
           });
