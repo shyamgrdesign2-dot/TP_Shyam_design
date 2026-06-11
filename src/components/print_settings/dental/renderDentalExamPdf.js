@@ -5,6 +5,7 @@ import DentalListView from "./list";
 import DentalTableView from "./table";
 import { PdfDentalChart } from "../../dental/examination/dentalChartPdf";
 import { hasDentalExamPayload } from "../../../utils/cardiologyDentalOralExam";
+import { resolveDentalGroupBy } from "./dentalPrintHelpers";
 
 /**
  * Renders dental examination + optional odontogram for prescription PDF.
@@ -23,6 +24,7 @@ export function renderDentalExamPdf({
   const showDentalChart = dentalOption?.showDentalChart !== false;
   const chartOnly = dentalOption?.chartOnly === true;
   const showPastHistory = dentalOption?.includeHistorical === true;
+  const groupBy = resolveDentalGroupBy(dentalOption?.groupDentalExaminationBy);
   const hasPayload = hasDentalExamPayload(dentalExaminationData);
   if (!hasPayload && !showDentalChart) {
     return null;
@@ -49,6 +51,7 @@ export function renderDentalExamPdf({
         dentalExaminationData={dentalExaminationData}
         consultationDate={consultationDate}
         showPastHistory={showPastHistory}
+        groupBy={groupBy}
       />
     );
   } else if (format === "table") {
@@ -59,6 +62,7 @@ export function renderDentalExamPdf({
         dentalExaminationData={dentalExaminationData}
         consultationDate={consultationDate}
         showPastHistory={showPastHistory}
+        groupBy={groupBy}
       />
     );
   } else {
@@ -69,6 +73,7 @@ export function renderDentalExamPdf({
         dentalExaminationData={dentalExaminationData}
         consultationDate={consultationDate}
         showPastHistory={showPastHistory}
+        groupBy={groupBy}
       />
     );
   }

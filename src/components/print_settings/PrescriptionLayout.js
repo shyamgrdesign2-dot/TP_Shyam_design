@@ -786,6 +786,43 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
       ),
       children: (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
+          <div
+            style={{
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid #e2e8f0",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#94a3b8",
+                letterSpacing: "0.04em",
+                marginBottom: 10,
+              }}
+            >
+              GROUP DENTAL EXAMINATION BY
+            </div>
+            <Radio.Group
+              value={record.groupDentalExaminationBy === "tooth" ? "tooth" : "type"}
+              onChange={(e) => onExamPrintToggleChange(i, "groupDentalExaminationBy", e.target.value)}
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
+              <Radio value="type">
+                <span style={{ fontWeight: 600, color: "#334155" }}>By Type</span>
+              </Radio>
+              <Radio value="tooth">
+                <span style={{ fontWeight: 600, color: "#334155" }}>By Tooth</span>
+              </Radio>
+            </Radio.Group>
+            {record.groupDentalExaminationBy !== "tooth" ? (
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 8, lineHeight: 1.45 }}>
+                Each kind is a heading (Past Procedures, Findings, Procedures, Notes) with the
+                teeth listed underneath.
+              </div>
+            ) : null}
+          </div>
           {sectionToggleCard(
             "Show dental chart",
             "Include the odontogram in the printout",

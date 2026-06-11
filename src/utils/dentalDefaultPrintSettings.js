@@ -7,6 +7,9 @@
 export const DENTAL_EXAM_CASE_OPTION_ID = 21;
 export const ORAL_EXAM_CASE_OPTION_ID = 22;
 
+export const DENTAL_GROUP_BY_TYPE = "type";
+export const DENTAL_GROUP_BY_TOOTH = "tooth";
+
 export const DEFAULT_DENTAL_EXAM_CASE_OPTION = {
   id: DENTAL_EXAM_CASE_OPTION_ID,
   title: "Dental Examination",
@@ -15,6 +18,7 @@ export const DEFAULT_DENTAL_EXAM_CASE_OPTION = {
   custom_status: "Y",
   showDentalChart: true,
   includeHistorical: false,
+  groupDentalExaminationBy: DENTAL_GROUP_BY_TYPE,
 };
 
 export const DEFAULT_ORAL_EXAM_CASE_OPTION = {
@@ -33,6 +37,10 @@ export function normalizeDentalExamOption(option = {}) {
     id: DENTAL_EXAM_CASE_OPTION_ID,
     showDentalChart: option.showDentalChart !== false,
     includeHistorical: option.includeHistorical === true,
+    groupDentalExaminationBy:
+      option.groupDentalExaminationBy === DENTAL_GROUP_BY_TOOTH
+        ? DENTAL_GROUP_BY_TOOTH
+        : DENTAL_GROUP_BY_TYPE,
   };
 }
 

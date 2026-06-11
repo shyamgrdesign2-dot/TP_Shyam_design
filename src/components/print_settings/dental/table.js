@@ -1,8 +1,13 @@
 import React from "react";
 import { Text, View, Svg, Path } from "@react-pdf/renderer";
 import moment from "moment";
+import {
+  DENTAL_GROUP_BY_TOOTH,
+  buildDentalGroupsByTooth,
+  buildDentalGroupsByType,
+  resolveDentalGroupBy,
+} from "./dentalPrintHelpers";
 
-// Vector graphic tooth icon for high premium feel in print PDF
 const ToothIconPdf = ({ size = 12, color = "#171725" }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
@@ -22,125 +27,179 @@ const ToothIconPdf = ({ size = 12, color = "#171725" }) => (
   </Svg>
 );
 
-const TOOTH_NAMES = {
-  1: "Central Incisor",
-  2: "Lateral Incisor",
-  3: "Canine",
-  4: "First Premolar",
-  5: "Second Premolar",
-  6: "First Molar",
-  7: "Second Molar",
-  8: "Third Molar",
-};
+function TableSectionHeader({ title, PX_TO_PT, fontFamily, baseFontSize }) {
+  return (
+    <View
+      style={{
+        backgroundColor: "#f8fafc",
+        padding: `${PX_TO_PT * 5}px ${PX_TO_PT * 10}px`,
+        borderBottom: "1px solid #e2e8f0",
+      }}
+    >
+      <Text
+        style={{
+          fontFamily,
+          fontWeight: "700",
+          fontSize: PX_TO_PT * (baseFontSize - 1),
+          color: "#475569",
+        }}
+      >
+        {title}
+      </Text>
+    </View>
+  );
+}
 
-const getToothFullName = (toothCode) => {
-  const codeStr = String(toothCode || "").trim();
-  if (!codeStr) return "Unknown Tooth";
+function TableByTooth({
+  teethWithData,
+  PX_TO_PT,
+  fontFamily,
+  baseFontSize,
+  renderTableSection,
+}) {
+  return teethWithData.map((tooth) => {
+    const historyItems = tooth.categories.find((c) => c.label === "Past Procedures")?.items || [];
+    const findingItems = tooth.categories.find((c) => c.label === "Findings")?.items || [];
+    const procedureItems = tooth.categories.find((c) => c.label === "Procedures")?.items || [];
+    const notesText = tooth.categories.find((c) => c.label === "Notes")?.items?.[0]?.name || "";
 
-  const q = parseInt(codeStr[0], 10);
-  const pos = parseInt(codeStr[1], 10);
+    return (
+      <View
+        key={tooth.toothCode}
+        style={{
+          border: "1px solid #e2e8f0",
+          borderRadius: 6,
+          marginBottom: PX_TO_PT * 10,
+          overflow: "hidden",
+        }}
+        wrap={false}
+      >
+        <View
+          style={{
+            backgroundColor: "#f1f5f9",
+            padding: `${PX_TO_PT * 6}px ${PX_TO_PT * 10}px`,
+            borderBottom: "1px solid #e2e8f0",
+          }}
+        >
+          <Text
+            style={{
+              fontFamily,
+              fontWeight: "700",
+              fontSize: PX_TO_PT * baseFontSize,
+              color: "#171725",
+            }}
+          >
+            {tooth.fullName}
+          </Text>
+        </View>
 
-  if (isNaN(q) || isNaN(pos) || pos < 1 || pos > 8) {
-    return `Tooth ${codeStr}`;
-  }
+        {historyItems.length > 0
+          ? renderTableSection("PAST PROCEDURES", historyItems, tooth.toothCode, false)
+          : null}
+        {findingItems.length > 0
+          ? renderTableSection("FINDINGS", findingItems, tooth.toothCode, false)
+          : null}
+        {procedureItems.length > 0
+          ? renderTableSection("PROCEDURES", procedureItems, tooth.toothCode, false)
+          : null}
 
-  const qMap = {
-    1: { name: "Upper Right", arch: "maxillary" },
-    2: { name: "Upper Left", arch: "maxillary" },
-    3: { name: "Lower Left", arch: "mandibular" },
-    4: { name: "Lower Right", arch: "mandibular" },
-    5: { name: "Upper Right", arch: "maxillary" },
-    6: { name: "Upper Left", arch: "maxillary" },
-    7: { name: "Lower Left", arch: "mandibular" },
-    8: { name: "Lower Right", arch: "mandibular" },
-  };
-
-  const quadrant = qMap[q];
-  const toothName = TOOTH_NAMES[pos] || `Tooth ${pos}`;
-
-  if (!quadrant) {
-    return `${toothName} (T${codeStr})`;
-  }
-
-  return `${quadrant.name} ${toothName} (T${codeStr})`;
-};
-
-const mapSurfaceCode = (code, toothCode) => {
-  const codeLower = String(code || "").toLowerCase();
-
-  let pos = 1;
-  let q = 2;
-  if (toothCode) {
-    const codeStr = String(toothCode);
-    q = parseInt(codeStr[0], 10);
-    pos = parseInt(codeStr[1], 10);
-  }
-
-  const isAnterior = pos <= 3;
-  const isUpper = q === 1 || q === 2 || q === 5 || q === 6;
-
-  switch (codeLower) {
-    case "occlusal":
-      return isAnterior ? "Incisal" : "Occlusal";
-    case "buccal":
-      return isAnterior ? "Labial" : "Buccal";
-    case "lingual":
-      return isUpper ? "Palatal" : "Lingual";
-    case "mesial":
-      return "Mesial";
-    case "distal":
-      return "Distal";
-    case "cervical":
-      return "Cervical";
-    case "root":
-      return "Root";
-    case "whole":
-      return "Whole Tooth";
-    default:
-      return codeLower.charAt(0).toUpperCase() + codeLower.slice(1);
-  }
-};
-
-const formatCellText = (text) => {
-  const clean = String(text || "").trim();
-  if (!clean || clean === "__dx__") {
-    return "—";
-  }
-  return clean;
-};
-
-const getSurfacesText = (item, toothCode) => {
-  if (Array.isArray(item.surface_codes) && item.surface_codes.length > 0) {
-    const cleanSurfaces = item.surface_codes
-      .filter((s) => s && s.toLowerCase() !== "whole" && s.toLowerCase() !== "whole tooth")
-      .map((s) => mapSurfaceCode(s, toothCode));
-    if (cleanSurfaces.length > 0) {
-      return cleanSurfaces.join(", ");
-    }
-  }
-  return "—";
-};
-
-const getSinceText = (item) => {
-  return formatCellText(item.since_date || item.since || item.procedure_date || item.plannedDate);
-};
-
-const getNotesText = (item) => {
-  return formatCellText(item.notes || item.note);
-};
-
-export function DentalTableView({ PX_TO_PT, printSettings, dentalExaminationData, consultationDate, showPastHistory = true }) {
-  const toothStates = Array.isArray(dentalExaminationData?.tooth_states) ? dentalExaminationData.tooth_states : [];
-
-  const teethWithData = toothStates.filter((toothState) => {
-    const hasHistory = showPastHistory && (toothState.treatment_history || []).length > 0;
-    const hasFindings = (toothState.findings || []).length > 0;
-    const hasProcedures = (toothState.procedures || []).length > 0;
-    const hasNotes = (toothState.overall_notes || "").trim().length > 0;
-    return hasHistory || hasFindings || hasProcedures || hasNotes;
+        {notesText ? (
+          <View style={{ padding: `${PX_TO_PT * 6}px ${PX_TO_PT * 10}px`, backgroundColor: "#ffffff" }}>
+            <Text
+              style={{
+                fontFamily,
+                fontWeight: "600",
+                fontSize: PX_TO_PT * (baseFontSize - 1),
+                color: "#475569",
+                marginBottom: PX_TO_PT * 2,
+              }}
+            >
+              NOTES
+            </Text>
+            <Text
+              style={{
+                fontFamily,
+                fontWeight: "400",
+                fontSize: PX_TO_PT * (baseFontSize - 1),
+                color: "#334155",
+                lineHeight: 1.35,
+              }}
+            >
+              {notesText}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    );
   });
+}
 
-  if (teethWithData.length === 0) {
+function TableByType({ typeGroups, PX_TO_PT, fontFamily, baseFontSize, renderTableSection }) {
+  return (
+    <View
+      style={{
+        border: "1px solid #e2e8f0",
+        borderRadius: 6,
+        overflow: "hidden",
+        marginBottom: PX_TO_PT * 10,
+      }}
+    >
+      {typeGroups.map((group, groupIdx) => {
+        const rows = group.entries.flatMap((entry) =>
+          entry.items.map((item) => ({
+            toothName: entry.fullName,
+            item,
+          }))
+        );
+        const isLast = groupIdx === typeGroups.length - 1;
+
+        return (
+          <View
+            key={group.label}
+            style={{ borderBottom: isLast ? "none" : "1px solid #e2e8f0" }}
+          >
+            <TableSectionHeader
+              title={group.label.toUpperCase()}
+              PX_TO_PT={PX_TO_PT}
+              fontFamily={fontFamily}
+              baseFontSize={baseFontSize}
+            />
+            {renderTableSection(group.label, rows, null, true)}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+export function DentalTableView({
+  PX_TO_PT,
+  printSettings,
+  dentalExaminationData,
+  consultationDate,
+  showPastHistory = true,
+  groupBy = "type",
+}) {
+  const toothStates = Array.isArray(dentalExaminationData?.tooth_states)
+    ? dentalExaminationData.tooth_states
+    : [];
+  const resolvedGroupBy = resolveDentalGroupBy(groupBy);
+
+  const teethWithData =
+    resolvedGroupBy === DENTAL_GROUP_BY_TOOTH
+      ? buildDentalGroupsByTooth(toothStates, showPastHistory)
+      : [];
+  const typeGroups =
+    resolvedGroupBy !== DENTAL_GROUP_BY_TOOTH
+      ? buildDentalGroupsByType(toothStates, showPastHistory)
+      : [];
+
+  const hasContent =
+    resolvedGroupBy === DENTAL_GROUP_BY_TOOTH
+      ? teethWithData.length > 0
+      : typeGroups.length > 0;
+
+  if (!hasContent) {
     return null;
   }
 
@@ -151,32 +210,24 @@ export function DentalTableView({ PX_TO_PT, printSettings, dentalExaminationData
   const baseFontSize = printSettings?.page_format?.font_size || 12;
   const fontFamily = printSettings?.page_format?.font_family || "Roboto";
 
-  const renderTableSection = (title, items, toothCode) => {
+  const renderTableSection = (title, items, toothCode, includeToothColumn) => {
     if (!items || items.length === 0) return null;
 
-    return (
-      <View style={{ borderBottom: "1px solid #e2e8f0" }}>
-        {/* Section Header */}
-        <View
-          style={{
-            backgroundColor: "#f8fafc",
-            padding: `${PX_TO_PT * 5}px ${PX_TO_PT * 10}px`,
-            borderBottom: "1px solid #e2e8f0",
-          }}
-        >
-          <Text
-            style={{
-              fontFamily,
-              fontWeight: "700",
-              fontSize: PX_TO_PT * (baseFontSize - 1),
-              color: "#475569",
-            }}
-          >
-            {title}
-          </Text>
-        </View>
+    const normalizedRows = includeToothColumn
+      ? items
+      : items.map((item) => ({ toothName: null, item }));
 
-        {/* Table Column Headers */}
+    return (
+      <View style={{ borderBottom: includeToothColumn ? "none" : "1px solid #e2e8f0" }}>
+        {!includeToothColumn ? (
+          <TableSectionHeader
+            title={title}
+            PX_TO_PT={PX_TO_PT}
+            fontFamily={fontFamily}
+            baseFontSize={baseFontSize}
+          />
+        ) : null}
+
         <View
           style={{
             flexDirection: "row",
@@ -185,23 +236,68 @@ export function DentalTableView({ PX_TO_PT, printSettings, dentalExaminationData
             backgroundColor: "#ffffff",
           }}
         >
-          <Text style={{ flex: 0.35, fontFamily, fontWeight: "700", fontSize: PX_TO_PT * (baseFontSize - 2), color: "#94a3b8" }}>
+          {includeToothColumn ? (
+            <Text
+              style={{
+                flex: 0.35,
+                fontFamily,
+                fontWeight: "700",
+                fontSize: PX_TO_PT * (baseFontSize - 2),
+                color: "#94a3b8",
+              }}
+            >
+              TOOTH
+            </Text>
+          ) : null}
+          <Text
+            style={{
+              flex: includeToothColumn ? 0.2 : 0.35,
+              fontFamily,
+              fontWeight: "700",
+              fontSize: PX_TO_PT * (baseFontSize - 2),
+              color: "#94a3b8",
+            }}
+          >
             NAME
           </Text>
-          <Text style={{ flex: 0.25, fontFamily, fontWeight: "700", fontSize: PX_TO_PT * (baseFontSize - 2), color: "#94a3b8" }}>
+          <Text
+            style={{
+              flex: includeToothColumn ? 0.15 : 0.25,
+              fontFamily,
+              fontWeight: "700",
+              fontSize: PX_TO_PT * (baseFontSize - 2),
+              color: "#94a3b8",
+            }}
+          >
             SURFACES
           </Text>
-          <Text style={{ flex: 0.2, fontFamily, fontWeight: "700", fontSize: PX_TO_PT * (baseFontSize - 2), color: "#94a3b8" }}>
+          <Text
+            style={{
+              flex: 0.15,
+              fontFamily,
+              fontWeight: "700",
+              fontSize: PX_TO_PT * (baseFontSize - 2),
+              color: "#94a3b8",
+            }}
+          >
             SINCE
           </Text>
-          <Text style={{ flex: 0.2, fontFamily, fontWeight: "700", fontSize: PX_TO_PT * (baseFontSize - 2), color: "#94a3b8" }}>
+          <Text
+            style={{
+              flex: includeToothColumn ? 0.15 : 0.2,
+              fontFamily,
+              fontWeight: "700",
+              fontSize: PX_TO_PT * (baseFontSize - 2),
+              color: "#94a3b8",
+            }}
+          >
             NOTES
           </Text>
         </View>
 
-        {/* Data Rows */}
-        {items.map((item, idx) => {
-          const isLastRow = idx === items.length - 1;
+        {normalizedRows.map((row, idx) => {
+          const item = row.item;
+          const isLastRow = idx === normalizedRows.length - 1;
           return (
             <View
               key={idx}
@@ -213,17 +309,62 @@ export function DentalTableView({ PX_TO_PT, printSettings, dentalExaminationData
               }}
               wrap={false}
             >
-              <Text style={{ flex: 0.35, fontFamily, fontWeight: "500", fontSize: PX_TO_PT * (baseFontSize - 1), color: "#334155" }}>
+              {includeToothColumn ? (
+                <Text
+                  style={{
+                    flex: 0.35,
+                    fontFamily,
+                    fontWeight: "500",
+                    fontSize: PX_TO_PT * (baseFontSize - 1),
+                    color: "#334155",
+                  }}
+                >
+                  {row.toothName || "—"}
+                </Text>
+              ) : null}
+              <Text
+                style={{
+                  flex: includeToothColumn ? 0.2 : 0.35,
+                  fontFamily,
+                  fontWeight: "500",
+                  fontSize: PX_TO_PT * (baseFontSize - 1),
+                  color: "#334155",
+                }}
+              >
                 {item.name || item.type || "—"}
               </Text>
-              <Text style={{ flex: 0.25, fontFamily, fontWeight: "400", fontSize: PX_TO_PT * (baseFontSize - 1), color: "#334155" }}>
-                {getSurfacesText(item, toothCode)}
+              <Text
+                style={{
+                  flex: includeToothColumn ? 0.15 : 0.25,
+                  fontFamily,
+                  fontWeight: "400",
+                  fontSize: PX_TO_PT * (baseFontSize - 1),
+                  color: "#334155",
+                }}
+              >
+                {item.surfaces}
               </Text>
-              <Text style={{ flex: 0.2, fontFamily, fontWeight: "400", fontSize: PX_TO_PT * (baseFontSize - 1), color: "#334155" }}>
-                {getSinceText(item)}
+              <Text
+                style={{
+                  flex: 0.15,
+                  fontFamily,
+                  fontWeight: "400",
+                  fontSize: PX_TO_PT * (baseFontSize - 1),
+                  color: "#334155",
+                }}
+              >
+                {item.since}
               </Text>
-              <Text style={{ flex: 0.2, fontFamily, fontWeight: "400", fontSize: PX_TO_PT * (baseFontSize - 1), color: "#334155" }}>
-                {getNotesText(item)}
+              <Text
+                style={{
+                  flex: includeToothColumn ? 0.15 : 0.2,
+                  fontFamily,
+                  fontWeight: "400",
+                  fontSize: PX_TO_PT * (baseFontSize - 1),
+                  color: "#334155",
+                }}
+              >
+                {item.notes}
               </Text>
             </View>
           );
@@ -234,7 +375,6 @@ export function DentalTableView({ PX_TO_PT, printSettings, dentalExaminationData
 
   return (
     <View style={{ marginTop: PX_TO_PT * 12, marginBottom: PX_TO_PT * 10 }}>
-      {/* Title Block */}
       <View
         style={{
           flexDirection: "row",
@@ -259,67 +399,24 @@ export function DentalTableView({ PX_TO_PT, printSettings, dentalExaminationData
         </Text>
       </View>
 
-      {/* Cards for each Tooth */}
       <View>
-        {teethWithData.map((toothState) => {
-          const toothCode = toothState.tooth_code;
-          const fullName = getToothFullName(toothCode);
-
-          const history = toothState.treatment_history || [];
-          const findings = toothState.findings || [];
-          const procedures = toothState.procedures || [];
-          const notes = (toothState.overall_notes || "").trim();
-
-          return (
-            <View
-              key={toothCode}
-              style={{
-                border: "1px solid #e2e8f0",
-                borderRadius: 6,
-                marginBottom: PX_TO_PT * 10,
-                overflow: "hidden",
-              }}
-              wrap={false}
-            >
-              {/* Card Header (Tooth Name) */}
-              <View
-                style={{
-                  backgroundColor: "#f1f5f9",
-                  padding: `${PX_TO_PT * 6}px ${PX_TO_PT * 10}px`,
-                  borderBottom: "1px solid #e2e8f0",
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily,
-                    fontWeight: "700",
-                    fontSize: PX_TO_PT * baseFontSize,
-                    color: "#171725",
-                  }}
-                >
-                  {fullName}
-                </Text>
-              </View>
-
-              {/* Sections inside Card */}
-              {showPastHistory ? renderTableSection("PAST PROCEDURES", history, toothCode) : null}
-              {renderTableSection("FINDINGS", findings, toothCode)}
-              {renderTableSection("PROCEDURES", procedures, toothCode)}
-
-              {/* Notes Row if present */}
-              {notes.length > 0 && (
-                <View style={{ padding: `${PX_TO_PT * 6}px ${PX_TO_PT * 10}px`, backgroundColor: "#ffffff" }}>
-                  <Text style={{ fontFamily, fontWeight: "600", fontSize: PX_TO_PT * (baseFontSize - 1), color: "#475569", marginBottom: PX_TO_PT * 2 }}>
-                    NOTES
-                  </Text>
-                  <Text style={{ fontFamily, fontWeight: "400", fontSize: PX_TO_PT * (baseFontSize - 1), color: "#334155", lineHeight: 1.35 }}>
-                    {notes}
-                  </Text>
-                </View>
-              )}
-            </View>
-          );
-        })}
+        {resolvedGroupBy === DENTAL_GROUP_BY_TOOTH ? (
+          <TableByTooth
+            teethWithData={teethWithData}
+            PX_TO_PT={PX_TO_PT}
+            fontFamily={fontFamily}
+            baseFontSize={baseFontSize}
+            renderTableSection={renderTableSection}
+          />
+        ) : (
+          <TableByType
+            typeGroups={typeGroups}
+            PX_TO_PT={PX_TO_PT}
+            fontFamily={fontFamily}
+            baseFontSize={baseFontSize}
+            renderTableSection={renderTableSection}
+          />
+        )}
       </View>
     </View>
   );

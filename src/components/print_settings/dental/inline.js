@@ -1,8 +1,13 @@
 import React from "react";
 import { Text, View, Svg, Path } from "@react-pdf/renderer";
 import moment from "moment";
+import {
+  DENTAL_GROUP_BY_TOOTH,
+  buildDentalGroupsByTooth,
+  buildDentalGroupsByType,
+  resolveDentalGroupBy,
+} from "./dentalPrintHelpers";
 
-// Vector graphic tooth icon for high premium feel in print PDF
 const ToothIconPdf = ({ size = 12, color = "#171725" }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
@@ -22,123 +27,98 @@ const ToothIconPdf = ({ size = 12, color = "#171725" }) => (
   </Svg>
 );
 
-const TOOTH_NAMES = {
-  1: "Central Incisor",
-  2: "Lateral Incisor",
-  3: "Canine",
-  4: "First Premolar",
-  5: "Second Premolar",
-  6: "First Molar",
-  7: "Second Molar",
-  8: "Third Molar",
-};
+function InlineByTooth({ teethWithData, PX_TO_PT, printSettings, baseFontSize, fontFamily }) {
+  return teethWithData.map((tooth) => (
+    <Text
+      key={tooth.toothCode}
+      style={{
+        fontFamily,
+        fontSize: PX_TO_PT * baseFontSize,
+        color: "#171725",
+        lineHeight: 1.45,
+        marginBottom: PX_TO_PT * 5,
+      }}
+    >
+      <Text style={{ fontWeight: "700" }}>{tooth.fullName}: </Text>
+      {tooth.categories.map((cat, catIdx) => (
+        <React.Fragment key={cat.label}>
+          {catIdx > 0 && <Text style={{ color: "#3e3e4a" }}>; </Text>}
+          <Text style={{ fontWeight: "700" }}>{cat.label}: </Text>
+          {cat.items.map((item, itemIdx) => (
+            <React.Fragment key={itemIdx}>
+              {itemIdx > 0 && <Text style={{ color: "#3e3e4a" }}>, </Text>}
+              <Text style={{ fontWeight: "500" }}>{item.name}</Text>
+              {item.details ? (
+                <Text style={{ color: "#6b7280", fontWeight: "400" }}> {item.details}</Text>
+              ) : null}
+            </React.Fragment>
+          ))}
+        </React.Fragment>
+      ))}
+    </Text>
+  ));
+}
 
-const getToothFullName = (toothCode) => {
-  const codeStr = String(toothCode || "").trim();
-  if (!codeStr) return "Unknown Tooth";
+function InlineByType({ typeGroups, PX_TO_PT, printSettings, baseFontSize, fontFamily }) {
+  return typeGroups.map((group) => (
+    <Text
+      key={group.label}
+      style={{
+        fontFamily,
+        fontSize: PX_TO_PT * baseFontSize,
+        color: "#171725",
+        lineHeight: 1.45,
+        marginBottom: PX_TO_PT * 5,
+      }}
+    >
+      <Text style={{ fontWeight: "700" }}>{group.label}: </Text>
+      {group.entries.map((entry, entryIdx) => (
+        <React.Fragment key={`${group.label}-${entry.toothCode}`}>
+          {entryIdx > 0 && <Text style={{ color: "#3e3e4a" }}>; </Text>}
+          <Text style={{ fontWeight: "700" }}>{entry.fullName}: </Text>
+          {entry.items.map((item, itemIdx) => (
+            <React.Fragment key={itemIdx}>
+              {itemIdx > 0 && <Text style={{ color: "#3e3e4a" }}>, </Text>}
+              <Text style={{ fontWeight: "500" }}>{item.name}</Text>
+              {item.details ? (
+                <Text style={{ color: "#6b7280", fontWeight: "400" }}> {item.details}</Text>
+              ) : null}
+            </React.Fragment>
+          ))}
+        </React.Fragment>
+      ))}
+    </Text>
+  ));
+}
 
-  const q = parseInt(codeStr[0], 10);
-  const pos = parseInt(codeStr[1], 10);
+export function DentalInlineView({
+  PX_TO_PT,
+  printSettings,
+  dentalExaminationData,
+  consultationDate,
+  showPastHistory = true,
+  groupBy = "type",
+}) {
+  const toothStates = Array.isArray(dentalExaminationData?.tooth_states)
+    ? dentalExaminationData.tooth_states
+    : [];
+  const resolvedGroupBy = resolveDentalGroupBy(groupBy);
 
-  if (isNaN(q) || isNaN(pos) || pos < 1 || pos > 8) {
-    return `Tooth ${codeStr}`;
-  }
+  const teethWithData =
+    resolvedGroupBy === DENTAL_GROUP_BY_TOOTH
+      ? buildDentalGroupsByTooth(toothStates, showPastHistory)
+      : [];
+  const typeGroups =
+    resolvedGroupBy !== DENTAL_GROUP_BY_TOOTH
+      ? buildDentalGroupsByType(toothStates, showPastHistory)
+      : [];
 
-  const qMap = {
-    1: { name: "Upper Right", arch: "maxillary" },
-    2: { name: "Upper Left", arch: "maxillary" },
-    3: { name: "Lower Left", arch: "mandibular" },
-    4: { name: "Lower Right", arch: "mandibular" },
-    5: { name: "Upper Right", arch: "maxillary" },
-    6: { name: "Upper Left", arch: "maxillary" },
-    7: { name: "Lower Left", arch: "mandibular" },
-    8: { name: "Lower Right", arch: "mandibular" },
-  };
+  const hasContent =
+    resolvedGroupBy === DENTAL_GROUP_BY_TOOTH
+      ? teethWithData.length > 0
+      : typeGroups.length > 0;
 
-  const quadrant = qMap[q];
-  const toothName = TOOTH_NAMES[pos] || `Tooth ${pos}`;
-
-  if (!quadrant) {
-    return `${toothName} (T${codeStr})`;
-  }
-
-  return `${quadrant.name} ${toothName} (T${codeStr})`;
-};
-
-const mapSurfaceCode = (code, toothCode) => {
-  const codeLower = String(code || "").toLowerCase();
-
-  let pos = 1;
-  let q = 2;
-  if (toothCode) {
-    const codeStr = String(toothCode);
-    q = parseInt(codeStr[0], 10);
-    pos = parseInt(codeStr[1], 10);
-  }
-
-  const isAnterior = pos <= 3;
-  const isUpper = q === 1 || q === 2 || q === 5 || q === 6;
-
-  switch (codeLower) {
-    case "occlusal":
-      return isAnterior ? "Incisal" : "Occlusal";
-    case "buccal":
-      return isAnterior ? "Labial" : "Buccal";
-    case "lingual":
-      return isUpper ? "Palatal" : "Lingual";
-    case "mesial":
-      return "Mesial";
-    case "distal":
-      return "Distal";
-    case "cervical":
-      return "Cervical";
-    case "root":
-      return "Root";
-    case "whole":
-      return "Whole Tooth";
-    default:
-      return codeLower.charAt(0).toUpperCase() + codeLower.slice(1);
-  }
-};
-
-const formatItemData = (item, toothCode) => {
-  const name = item.name || item.type || "";
-
-  let surfacesStr = "";
-  if (Array.isArray(item.surface_codes) && item.surface_codes.length > 0) {
-    const cleanSurfaces = item.surface_codes
-      .filter((s) => s && s.toLowerCase() !== "whole" && s.toLowerCase() !== "whole tooth")
-      .map((s) => mapSurfaceCode(s, toothCode));
-    if (cleanSurfaces.length > 0) {
-      surfacesStr = cleanSurfaces.join(", ");
-    }
-  }
-
-  const dateStr = item.since_date || item.since || item.procedure_date || item.plannedDate || "";
-  const notesStr = (item.notes || item.note || "").trim();
-  const cleanNotes = notesStr === "__dx__" ? "" : notesStr;
-  const statusStr = (item.status || "").trim();
-
-  const parts = [surfacesStr, dateStr, statusStr, cleanNotes].filter(Boolean);
-
-  return {
-    name,
-    details: parts.length > 0 ? `(${parts.join(" | ")})` : "",
-  };
-};
-
-export function DentalInlineView({ PX_TO_PT, printSettings, dentalExaminationData, consultationDate, showPastHistory = true }) {
-  const toothStates = Array.isArray(dentalExaminationData?.tooth_states) ? dentalExaminationData.tooth_states : [];
-
-  const teethWithData = toothStates.filter((toothState) => {
-    const hasHistory = showPastHistory && (toothState.treatment_history || []).length > 0;
-    const hasFindings = (toothState.findings || []).length > 0;
-    const hasProcedures = (toothState.procedures || []).length > 0;
-    const hasNotes = (toothState.overall_notes || "").trim().length > 0;
-    return hasHistory || hasFindings || hasProcedures || hasNotes;
-  });
-
-  if (teethWithData.length === 0) {
+  if (!hasContent) {
     return null;
   }
 
@@ -151,7 +131,6 @@ export function DentalInlineView({ PX_TO_PT, printSettings, dentalExaminationDat
 
   return (
     <View style={{ marginTop: PX_TO_PT * 12, marginBottom: PX_TO_PT * 10 }}>
-      {/* Title Block */}
       <View
         style={{
           flexDirection: "row",
@@ -176,73 +155,24 @@ export function DentalInlineView({ PX_TO_PT, printSettings, dentalExaminationDat
         </Text>
       </View>
 
-      {/* Inline Content */}
       <View>
-        {teethWithData.map((toothState) => {
-          const toothCode = toothState.tooth_code;
-          const fullName = getToothFullName(toothCode);
-
-          const history = toothState.treatment_history || [];
-          const findings = toothState.findings || [];
-          const procedures = toothState.procedures || [];
-          const notes = (toothState.overall_notes || "").trim();
-
-          const categories = [];
-          if (showPastHistory && history.length > 0) {
-            categories.push({
-              label: "Past Procedures",
-              items: history.map((item) => formatItemData(item, toothCode)),
-            });
-          }
-          if (findings.length > 0) {
-            categories.push({
-              label: "Findings",
-              items: findings.map((item) => formatItemData(item, toothCode)),
-            });
-          }
-          if (procedures.length > 0) {
-            categories.push({
-              label: "Procedures",
-              items: procedures.map((item) => formatItemData(item, toothCode)),
-            });
-          }
-          if (notes.length > 0) {
-            categories.push({
-              label: "Notes",
-              items: [{ name: notes, details: "" }],
-            });
-          }
-
-          return (
-            <Text
-              key={toothCode}
-              style={{
-                fontFamily,
-                fontSize: PX_TO_PT * baseFontSize,
-                color: "#171725",
-                lineHeight: 1.45,
-                marginBottom: PX_TO_PT * 5,
-              }}
-            >
-              <Text style={{ fontWeight: "700" }}>{fullName}: </Text>
-              {categories.map((cat, catIdx) => (
-                <React.Fragment key={cat.label}>
-                  {catIdx > 0 && <Text style={{ color: "#3e3e4a" }}>; </Text>}
-                  <Text style={{ fontWeight: "700" }}>{cat.label}: </Text>
-                  {cat.items.map((item, itemIdx) => (
-                    <React.Fragment key={itemIdx}>
-                      {itemIdx > 0 && <Text style={{ color: "#3e3e4a" }}>, </Text>}
-                      <Text style={{ fontWeight: "500" }}>{item.name}</Text>
-                      {item.details && (
-                        <Text style={{ color: "#6b7280", fontWeight: "400" }}> {item.details}</Text>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </React.Fragment>
-              ))}
-            </Text>
-          );
-        })}
+        {resolvedGroupBy === DENTAL_GROUP_BY_TOOTH ? (
+          <InlineByTooth
+            teethWithData={teethWithData}
+            PX_TO_PT={PX_TO_PT}
+            printSettings={printSettings}
+            baseFontSize={baseFontSize}
+            fontFamily={fontFamily}
+          />
+        ) : (
+          <InlineByType
+            typeGroups={typeGroups}
+            PX_TO_PT={PX_TO_PT}
+            printSettings={printSettings}
+            baseFontSize={baseFontSize}
+            fontFamily={fontFamily}
+          />
+        )}
       </View>
     </View>
   );
