@@ -778,8 +778,9 @@ export function useDrAgentPanel({
         clinicalCompletedAtMs,
         transcriptCompletedAtMs,
         digitizeCompletedAtMs,
-      }).then(({ source }) => {
-        dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
+	      }).then(({ source }) => {
+	        guardVoiceRxUsage?.({ phase: "mark-used", surface: "agent-quick-edit" });
+	        dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
           type: voiceRxResult?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
           source,
           durationMs: meta?.durationMs ?? 0,
@@ -1089,8 +1090,9 @@ export function useDrAgentPanel({
           clinicalCompletedAtMs,
           transcriptCompletedAtMs,
           digitizeCompletedAtMs,
-        }).then(({ source }) => {
-          dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
+	        }).then(({ source }) => {
+	          guardVoiceRxUsage?.({ phase: "mark-used", surface: "agent" });
+	          dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
             type: prior?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
             source,
             durationMs: meta?.durationMs ?? 0,

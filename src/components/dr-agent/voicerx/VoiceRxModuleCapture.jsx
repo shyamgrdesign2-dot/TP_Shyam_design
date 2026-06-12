@@ -1311,8 +1311,9 @@ export function VoiceRxModuleCapture({
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
           clinicalCompletedAtMs,
-        }).then(({ source }) => {
-          dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
+	        }).then(({ source }) => {
+	          guardVoiceRxUsage?.({ phase: "mark-used", surface: "module", moduleName });
+	          dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
             type: !isTranscribeMode && hasModulePreviousContext(previousContext) ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
             source,
             durationMs,

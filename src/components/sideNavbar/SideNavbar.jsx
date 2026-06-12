@@ -6045,13 +6045,14 @@ export function SideNavbar({
       } else {
         applySideNavVoiceResult(sectionId, result);
       }
-      updateVoiceState(sectionId, {
-        status: "done",
-        transcript: isPrivateNotesVoice ? result.transcript : "",
-        digitizedSummary: isPrivateNotesVoice ? result.transcript : JSON.stringify(result, null, 2),
-        error: "",
-      });
-    } catch (error) {
+	      updateVoiceState(sectionId, {
+	        status: "done",
+	        transcript: isPrivateNotesVoice ? result.transcript : "",
+	        digitizedSummary: isPrivateNotesVoice ? result.transcript : JSON.stringify(result, null, 2),
+	        error: "",
+	      });
+	      guardVoiceRxUsage?.({ phase: "mark-used", surface: "side-navbar", sectionId });
+	    } catch (error) {
       if (voiceDelayTimerRef.current) {
         window.clearTimeout(voiceDelayTimerRef.current);
         voiceDelayTimerRef.current = null;
@@ -6060,7 +6061,7 @@ export function SideNavbar({
       toast.error(error?.message || "Voice processing failed.");
       updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
     }
-  }, [applySideNavVoiceResult, doctorId, getSideNavVoiceSessionId, medicalHistoryData, patientId, privateNotesValue, savePrivateNotesFromVoice, updateVoiceState]);
+	  }, [applySideNavVoiceResult, doctorId, getSideNavVoiceSessionId, guardVoiceRxUsage, medicalHistoryData, patientId, privateNotesValue, savePrivateNotesFromVoice, updateVoiceState]);
 
   const handleVoiceClick = useCallback(async () => {
     if (!activeId) return;

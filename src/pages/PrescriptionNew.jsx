@@ -1266,6 +1266,10 @@ function PrescriptionNew() {
 
   const guardVoiceRxUsage = useCallback(
     async ({ phase = "start" } = {}) => {
+      if (phase === "mark-used") {
+        setUseVoiceRx(true);
+        return true;
+      }
       if (!canUseVoiceRxModuleUi) {
         openVoiceRxSubModal();
         return false;
@@ -1278,7 +1282,7 @@ function PrescriptionNew() {
       if (phase !== "submit") return true;
 
       const sendData = {
-        b2c_id: profile?.b2c,
+        b2c_id: profile?.b2c ?? planDetails?.profile_b2c,
         service_name: S_VOICE_RX,
       };
       const action = await dispatch(checkCredits(sendData));
@@ -1309,7 +1313,9 @@ function PrescriptionNew() {
       dispatch,
       isFreeVoiceRxUser,
       openVoiceRxSubModal,
+      planDetails?.profile_b2c,
       profile?.b2c,
+      setUseVoiceRx,
       VOICE_RX_planDetails?.credit_balance,
       VOICE_RX_planDetails?.plan_tier,
       isVoiceRxCreditExpired,
