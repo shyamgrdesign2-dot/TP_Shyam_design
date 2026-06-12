@@ -1294,6 +1294,7 @@ export function VoiceRxModuleCapture({
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
           clinicalCompletedAtMs,
+          transcript: digitisedResult?.transcript ?? digitisedResult?.conversation ?? "",
         }).then(({ source }) => {
           dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
             type: !isTranscribeMode && hasModulePreviousContext(previousContext) ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
@@ -1336,6 +1337,7 @@ export function VoiceRxModuleCapture({
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
           clinicalCompletedAtMs: Date.now(),
+          transcript: error?.transcript ?? error?.conversation ?? "",
         });
         toast.error(error.message || (isTranscribeMode ? "Module voice transcription failed" : "Module voice digitisation failed"));
         onCancel?.();

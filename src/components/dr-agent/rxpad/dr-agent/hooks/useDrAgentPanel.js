@@ -599,6 +599,7 @@ export function useDrAgentPanel({
     const clinicalStartedAtMs = Date.now();
     let transcriptCompletedAtMs = null;
     let digitizeCompletedAtMs = null;
+    let voiceRxLogTranscript = "";
 
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
       patientId: patientId || "1111",
@@ -641,6 +642,7 @@ export function useDrAgentPanel({
       });
       transcriptCompletedAtMs = Date.now();
       const finalTranscript = clinicalHasTranscriptContent(apiTranscript) ? apiTranscript : meta?.transcript || "";
+      voiceRxLogTranscript = finalTranscript;
       const finalTranscriptText = clinicalTranscriptToText(finalTranscript);
       progress?.onPhase?.("transcript_ready", { transcript: finalTranscript });
 
@@ -769,6 +771,7 @@ export function useDrAgentPanel({
         clinicalCompletedAtMs,
         transcriptCompletedAtMs,
         digitizeCompletedAtMs,
+        transcript: voiceRxLogTranscript,
       }).then(({ source }) => {
         dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
           type: voiceRxResult?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
@@ -809,6 +812,7 @@ export function useDrAgentPanel({
         clinicalCompletedAtMs: Date.now(),
         transcriptCompletedAtMs,
         digitizeCompletedAtMs,
+        transcript: voiceRxLogTranscript,
       });
       message.error(error?.message || "Voice edit failed.");
       setMessagesByPatient((prev) => {
@@ -911,6 +915,7 @@ export function useDrAgentPanel({
       const clinicalStartedAtMs = Date.now();
       let transcriptCompletedAtMs = null;
       let digitizeCompletedAtMs = null;
+      let voiceRxLogTranscript = "";
       const waitForButtonLoaderWindow = () => {
         const remaining = VOICE_RX_SUBMIT_BUTTON_MIN_MS - (Date.now() - submittedAt);
         if (remaining <= 0) return Promise.resolve();
@@ -938,6 +943,7 @@ export function useDrAgentPanel({
         }
 
         const finalTranscript = clinicalHasTranscriptContent(apiTranscript) ? apiTranscript : liveText || "";
+        voiceRxLogTranscript = finalTranscript;
         const finalTranscriptText = clinicalTranscriptToText(finalTranscript);
         setVoiceRxProcessingTranscript(finalTranscript);
 
@@ -1078,6 +1084,7 @@ export function useDrAgentPanel({
           clinicalCompletedAtMs,
           transcriptCompletedAtMs,
           digitizeCompletedAtMs,
+          transcript: voiceRxLogTranscript,
         }).then(({ source }) => {
           dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
             type: prior?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
@@ -1118,6 +1125,7 @@ export function useDrAgentPanel({
           clinicalCompletedAtMs: Date.now(),
           transcriptCompletedAtMs,
           digitizeCompletedAtMs,
+          transcript: voiceRxLogTranscript,
         });
         message.error(error?.message || "Voice consultation failed.");
         // Remove the optimistic user echo so the chat doesn't dangle.
