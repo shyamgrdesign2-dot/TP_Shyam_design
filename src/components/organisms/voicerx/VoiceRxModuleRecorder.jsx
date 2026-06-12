@@ -724,13 +724,13 @@ export function VoiceRxModuleRecorder({
         variant === "stack" ? styles.recorderBgStack : styles.recorderBg
       )}>
       
-      {/* ── Recording-limit STRIP — overlays as a full-width banner pinned to
-           the TOP of the recorder card. Solid white scrim under the bar so
-           the underlying violet blob doesn't bleed through. Absolute
-           positioning means it never pushes the submit CTA / input boxes off
-           the card; the card itself grows because the inner content adds
-           top padding when the strip is up. */}
-      {showLimitWarning && (
+      {/* ── ROW-VARIANT recording-limit STRIP ─────────────────────────────
+           Absolute full-width banner at top of the wide short card. Works
+           well as a one-line banner above the horizontal action cluster.
+           STACK variant renders the strip in-flow inside its content stack
+           instead (see below) so it sits right above the transcript area
+           where the user expects it. */}
+      {showLimitWarning && variant === "row" && (
         <div className={cn(
           "absolute inset-x-0 top-0 z-30",
           styles.recordingLimitStripScrim
@@ -759,12 +759,21 @@ export function VoiceRxModuleRecorder({
           <div
           className={cn(
             "relative z-10 flex flex-col px-4 pt-6 pb-[48px]",
-            // Push the existing content down to make room for the absolute
-            // top strip when the warning is active — internal layout
-            // doesn't shift, the OUTER card simply grows.
-            showLimitWarning && "pt-[78px]",
             fillHeight && "h-full"
           )}>
+
+            {/* STACK-VARIANT recording-limit STRIP — in-flow at the top of
+                 the content stack, directly above the transcript block. Lives
+                 inside the recorder card content so it feels like part of
+                 the recorder, not a floating banner. The parent overlay
+                 container grows (via onWarningChange → 40% → 58%) so this
+                 added height never compresses the transcript / wave / CTAs
+                 underneath. */}
+            {showLimitWarning && (
+              <div className="mb-3 w-full flex-shrink-0">
+                <RecordingLimitWarning remainingMs={limitRemainingMs} className="w-full" />
+              </div>
+            )}
 
             {/* Transcript / empty-state — fills the upper portion. */}
             <div className="flex min-h-0 flex-1 items-end justify-center overflow-hidden pb-4">

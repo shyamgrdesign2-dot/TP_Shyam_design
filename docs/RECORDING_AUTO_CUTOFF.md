@@ -202,8 +202,8 @@ its container**. The container ITSELF grows:
 | Surface | Mechanism |
 |---|---|
 | `VoiceRxActiveAgent` (main panel) | Absolute strip at `top-[54px]`, content unchanged. The transcript zone is centred vertically and absorbs the strip naturally — nothing to grow. |
-| `VoiceRxModuleRecorder` row variant (Rx form modules) | Absolute strip at `top-0`, inner content adds `pt-[80px]`. Card grows ~46px, submit/mic/transcript stay put. |
-| `VoiceRxModuleRecorder` stack variant (sidebar + Quick Edit overlays) | Absolute strip at `top-0`, inner content adds `pt-[78px]`. PLUS the parent overlay container itself grows from `40%` → `58%` via `onWarningChange` so the recorder isn't clipped by its own overlay frame. |
+| `VoiceRxModuleRecorder` row variant (Rx form modules) | Absolute strip at `top-0` of the recorder card (the card is short + wide so an absolute banner reads naturally). Inner content adds `pt-[80px]` so the card grows ~46px, submit/mic/transcript stay put. |
+| `VoiceRxModuleRecorder` stack variant (sidebar + Quick Edit overlays) | Strip is **in-flow** — a real flex child at the top of the recorder card's inner content stack, directly above the transcript block. Lives inside the recorder content (not floating at the edge), so it visibly belongs to the recorder. The parent overlay container grows `40%` → `58%` via `onWarningChange` so the added strip height never compresses the transcript / wave / CTAs below. |
 
 Rule of thumb: any time you add a bar/banner inside a fixed-height overlay,
 bubble its visibility up so the overlay can grow. Otherwise the bar overlaps
