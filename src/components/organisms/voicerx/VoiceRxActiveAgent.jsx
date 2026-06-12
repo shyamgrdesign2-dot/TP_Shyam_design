@@ -30,6 +30,7 @@ import { useNetConnection } from "./use-net-connection";
 
 import { playVoiceRxErrorSound, playVoiceRxStartSound } from "./audio";
 import { ConfirmDialog as TPConfirmDialog } from "@/src/components/molecules/ConfirmDialog";
+import { useRecordingLimit, RecordingLimitWarning } from "./recording-limit";
 import {
   Popover,
   PopoverContent,
@@ -83,7 +84,6 @@ join("\n");
 
 const MOCK_DICTATION_TRANSCRIPT =
 "76-year-old male, known case of CKD G5 on PD and Type 2 Diabetes Mellitus. Presents with mild pedal oedema for one week, fatigue for two weeks, reduced appetite for one week. Vitals stable. BP 138 / 86, pulse 84. Continue Furosemide 40mg, increase if oedema persists. Repeat KFT and electrolytes in one week. Strict fluid log. Allergic to iodinated contrast and sulfonamides — avoid both.";
-
 
 function useRecordingTimer(active) {
   const [ms, setMs] = useState(0);
@@ -264,7 +264,8 @@ function AnimatedTranscript({
 export function VoiceRxActiveAgent({
   mode, transcript, isAwaitingResponse, isHandoffExiting = false, onCancel, onSubmit, onCollapse, onExpand,
   isPanelVisible = true, onPauseChange,
-  patientName
+  patientName,
+  onAutoSubmit,   // called when recording is auto-submitted at the cap
 }) {
   const rootRef = useRef(null);
   const [manualMute, setManualMute] = useState(false);
@@ -394,6 +395,18 @@ export function VoiceRxActiveAgent({
   }, [isAwaitingResponse, online, micError, manualMute]);
 
   const isListening = statusLabel === "Listening";
+
+  // ── Recording-limit auto-submit ───────────────────────────────────────────
+  // Mirror the manual-submit action exactly: play the submit sound and pass
+  // durationMs so the chat bubble gets the correct elapsed label.
+  const { remainingMs, showWarning: showLimitWarning, autoFired } = useRecordingLimit({
+    elapsedMs,
+    isListening,
+    isSubmitting: isAwaitingResponse,
+    onSubmit: () => { playSubmitSound(); onSubmit?.({ durationMs: elapsedMs }); },
+    onAutoSubmit,
+  });
+  const wasAutoSubmitted = isAwaitingResponse && autoFired;
 
   // Inline empty-state shown over the transcript when something goes wrong.
   // Kind drives whether submit is blocked (offline → block; mic issue →
@@ -605,6 +618,20 @@ export function VoiceRxActiveAgent({
               a mic-issue, still submit their captured transcript). */}
         <div className="relative flex min-h-0 flex-1 flex-col">
 
+          {/* ── Recording-limit countdown bar ──
+                Absolutely positioned so it appears just below the
+                absolute header (≈46px tall) without pushing the
+                transcript zone down. z-20 keeps it above the fade
+                overlays but below the z-30 header. */}
+          {showLimitWarning && (
+            <div className={cn(
+              "absolute left-4 right-4 z-20",
+              isCompactLayout ? "top-[50px]" : "top-[54px]"
+            )}>
+              <RecordingLimitWarning remainingMs={remainingMs} />
+            </div>
+          )}
+
           {/* ── Transcript zone: VERTICALLY CENTERED ──
                 When a submit is in flight (`isAwaitingResponse`), the
                 transcript area swaps for the post-submit processing card.
@@ -617,8 +644,33 @@ export function VoiceRxActiveAgent({
               mode={mode === "ambient_consultation" ? "ambient_consultation" : "dictation"}
               transcript={mode === "ambient_consultation" ? MOCK_AMBIENT_TRANSCRIPT : MOCK_DICTATION_TRANSCRIPT} />
 
-              {/* Caption + progress bar — tightly coupled below the shiner card */}
+              {/* Caption + progress bar — tightly coupled below the shiner card.
+                   When the session ended via auto-submit, the contextual note
+                   sits at the TOP of this loader stack (above the caption +
+                   progress bar) so the user sees the "why" before the "how it's
+                   going". */}
               <div className={cn("vrx-shiner-loader flex flex-col items-center gap-[10px]", isHandoffExiting && "vrx-bottom-loader--exit")}>
+                {wasAutoSubmitted && (
+                  <div className={styles.autoSubmitNote}>
+                    <div className={styles.autoSubmitNoteHeader}>
+                      <span className={styles.autoSubmitNoteBadge} aria-hidden>
+                        <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+                          <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Max time reached
+                      </span>
+                      <p className={styles.autoSubmitNoteTitle}>
+                        Session limit reached
+                      </p>
+                    </div>
+                    <p className={styles.autoSubmitNoteText}>
+                      <strong>Everything you said is safely captured.</strong>{" "}
+                      We're preparing your notes now — start a{" "}
+                      <strong>new session</strong> anytime to continue this consultation.
+                    </p>
+                  </div>
+                )}
                 <CaptionCarousel />
                 <div className="vrx-progress-track relative h-[5px] w-[240px] overflow-hidden rounded-full bg-tp-slate-100/80 shadow-[0_0_0_1px_rgba(75,74,213,0.08),0_4px_14px_-6px_rgba(75,74,213,0.35)]">
                   <span

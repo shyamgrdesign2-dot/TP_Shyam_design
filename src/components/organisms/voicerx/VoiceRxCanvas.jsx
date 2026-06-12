@@ -88,6 +88,7 @@ export function VoiceRxCanvas({
   transcriptSegments,
   emrCard,
   inlineRecorderSlot,
+  isAutoSubmitted = false,
   onCopyToRx,
   onBack,
   onMinimize,
@@ -152,6 +153,14 @@ export function VoiceRxCanvas({
 
       /* ignore — session-only dismiss is acceptable */}
   };
+
+  // Transcript-tab sticky note (auto-submit context) — session-only dismiss.
+  // Re-shows whenever a NEW auto-submit session begins (isAutoSubmitted flips
+  // from false → true).
+  const [transcriptAutoNoteDismissed, setTranscriptAutoNoteDismissed] = useState(false);
+  useEffect(() => {
+    if (isAutoSubmitted) setTranscriptAutoNoteDismissed(false);
+  }, [isAutoSubmitted]);
 
   // The coachmark also dismisses (permanently) the moment the doctor
   // ACTS on the canvas — either Copy all to EMR or Quick Edit. The tip
@@ -324,6 +333,32 @@ export function VoiceRxCanvas({
         }
       </div>
 
+      {/* Transcript-tab sticky note — only shown when the session ended via
+           auto-submit (time limit). The Clinical Notes tab gets the same idea
+           through its existing coachmark; this is the equivalent surface for
+           the Transcript tab, which otherwise has no footer. Two short lines:
+           what happened, what to do next. Dismissible via the X. */}
+      {activeTab === "transcript" && isAutoSubmitted && !transcriptAutoNoteDismissed &&
+      <div className="shrink-0 border-t border-tp-slate-200 bg-white px-3 py-[10px]">
+        <div className={cn("flex items-start gap-[8px] rounded-[10px] px-[10px] py-[8px]", styles.autoSubmitTranscriptNote)}>
+          <span className="mt-[1px] flex-shrink-0 text-amber-600" aria-hidden>
+            <InfoCircle size={16} variant="Bulk" color="currentColor" />
+          </span>
+          <p className="min-w-0 flex-1 text-[12px] leading-[1.5] text-tp-slate-700">
+            <span className="font-semibold text-amber-700">Session ended at the time limit. </span>
+            Your transcript is safely saved — start a new session anytime to keep recording.
+          </p>
+          <button
+            type="button"
+            onClick={() => setTranscriptAutoNoteDismissed(true)}
+            aria-label="Dismiss session-limit note"
+            className="mt-[2px] inline-flex h-[20px] w-[20px] flex-shrink-0 items-center justify-center rounded-[6px] text-amber-600/70 transition-colors hover:bg-amber-100/60 hover:text-amber-800">
+            <X size={12} strokeWidth={2} />
+          </button>
+        </div>
+      </div>
+      }
+
       {/* Footer — Clinical Notes tab gets a single secondary "Copy all to EMR"
            CTA. Transcript tab hides the footer entirely. */}
       {activeTab === "emr" &&
@@ -347,7 +382,10 @@ export function VoiceRxCanvas({
             </span>
             <p className="min-w-0 flex-1 text-[12px] leading-[1.5] text-tp-slate-700">
               <span className="font-semibold text-amber-700">Note: </span>
-              We aren&apos;t always perfect. Copy these notes to your RxPad and edit as needed.
+              {isAutoSubmitted
+                ? "We hit the session limit and saved your notes automatically. Copy what you need, then start a new session to add more."
+                : "We aren’t always perfect. Copy these notes to your RxPad and edit as needed."
+              }
             </p>
             <button
             type="button"

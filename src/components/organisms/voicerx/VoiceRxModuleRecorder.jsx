@@ -10,6 +10,7 @@ import { ConfirmDialog as TPConfirmDialog } from "@/src/components/molecules/Con
 import { useRxPadSync } from "@/src/components/organisms/rxpad/rxpad-sync-context";
 import { cn } from "@/src/hooks/utils";
 import { playVoiceRxErrorSound, playVoiceRxStartSound } from "@/src/components/organisms/voicerx/audio";
+import { useRecordingLimit, RecordingLimitWarning } from "./recording-limit";
 import styles from "./VoiceRxModuleRecorder.module.scss";
 
 // Minimal ambient typings for Web Speech API (not in lib.dom.d.ts).
@@ -306,6 +307,13 @@ export function VoiceRxModuleRecorder({
   liveTranscript;
   const hasTranscript = displayTranscript.trim().length > 0;
   const transcriptScrollRef = useRef(null);
+
+  // ── Recording-limit countdown bar ──────────────────────────────────────────
+  const { remainingMs: limitRemainingMs, showWarning: showLimitWarning } = useRecordingLimit({
+    elapsedMs,
+    isListening,
+    onSubmit: () => onSubmit?.(displayTranscript),
+  });
   const compactControls = variant === "stack" || isCompactLayout;
 
   useEffect(() => {
@@ -711,7 +719,12 @@ export function VoiceRxModuleRecorder({
             "relative z-10 flex flex-col px-4 pt-6 pb-[48px]",
             fillHeight && "h-full"
           )}>
-          
+
+            {/* Recording-limit countdown — amber bar slides in 10s before cap */}
+            {showLimitWarning && (
+              <RecordingLimitWarning remainingMs={limitRemainingMs} className="mb-2 w-full" />
+            )}
+
             {/* Transcript / empty-state — fills the upper portion. */}
             <div className="flex min-h-0 flex-1 items-end justify-center overflow-hidden pb-4">
               <div className="w-full max-w-[340px]">
@@ -762,6 +775,9 @@ export function VoiceRxModuleRecorder({
                right so the read-only content hugs the leading edge while
                the action cluster sits at the trailing edge. */}
         <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center px-4 text-center">
+          {showLimitWarning && (
+            <RecordingLimitWarning remainingMs={limitRemainingMs} className="mb-3 w-full text-left" />
+          )}
           {transcriptBlock}
         </div>
         {/* Vertical divider — faint, not a cut. */}

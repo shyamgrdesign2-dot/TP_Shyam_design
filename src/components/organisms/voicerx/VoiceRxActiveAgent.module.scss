@@ -90,6 +90,83 @@
   animation: vrxRecRing 1.8s ease-out infinite;
 }
 
+
+// ── Auto-submit context note (TOP of the processing loader stack) ──────────────
+// Vertical rhythm, top → bottom:
+//   1. Small amber "MAX TIME REACHED" pill
+//   2. Heading "Session limit reached"
+//   3. Body — 2-3 lines, with highlighted words for the user's eye to land on
+// Reads as a calm "here's what happened" — not an alert — because the cut-off
+// is already over. Highlighted phrases reassure (safely captured, new session)
+// without raising the pulse.
+.autoSubmitNote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 300px;
+  padding: 12px 14px 14px;
+  background: rgba(249, 115, 22, 0.05);
+  border: 1px solid rgba(249, 115, 22, 0.18);
+  border-radius: 12px;
+  animation: autoSubmitNoteIn 400ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both;
+}
+
+// Header block stacks badge → title so the badge reads as a "label" on top.
+.autoSubmitNoteHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.autoSubmitNoteTitle {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--tp-warning-700, #c2410c);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.autoSubmitNoteText {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--tp-warning-700, #c2410c);
+  margin: 0;
+  // Highlighted words — bold + slightly darker amber so the eye picks up
+  // "safely captured" and "new session" first.
+  strong {
+    font-weight: 600;
+    color: #7c2d12;  // amber-900
+  }
+}
+
+// Centred clock pill — sits on top of the heading as a small label.
+.autoSubmitNoteBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px 4px 7px;
+  background: rgba(249, 115, 22, 0.10);
+  color: var(--tp-warning-700, #c2410c);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+
+  svg { color: var(--tp-warning-600, #ea580c); }
+}
+
+@keyframes autoSubmitNoteIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
 // ── Six-second submit loader ───────────────────────────────────────────────────
 .submitOrbCore {
   background: linear-gradient(

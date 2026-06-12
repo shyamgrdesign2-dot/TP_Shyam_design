@@ -34,3 +34,15 @@
   );
   border: 1px solid rgba(245, 158, 11, 0.30);
 }
+
+// Sticky note shown on the Transcript tab when the session ended via
+// auto-submit (time limit reached). Same amber accent family as the
+// Clinical Notes coachmark so the two surfaces feel like siblings.
+.autoSubmitTranscriptNote {
+  background: linear-gradient(
+    180deg,
+    rgba(245, 158, 11, 0.10) 0%,
+    rgba(245, 158, 11, 0.04) 100%
+  );
+  border: 1px solid rgba(245, 158, 11, 0.30);
+}

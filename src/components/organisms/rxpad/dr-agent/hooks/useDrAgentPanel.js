@@ -417,24 +417,22 @@ export function useDrAgentPanel({
   }, [onVoiceCaptureModeChange, setAiFillInProgress, resetLiveTranscript]);
 
   const submitVoiceRxRecording = useCallback((meta) => {
-    const transcript = voiceRxLiveTranscript.trim();
+    // In demo mode the chat bubble always uses the curated scripted transcript
+    // regardless of what the mic captured — it guarantees the mode-specific UI
+    // (Doctor/Patient turns for ambient, paragraph for dictation) renders correctly.
+    // We also use it as a fallback if the mic produced nothing (e.g. auto-submit
+    // fires before the doctor speaks, or Speech API isn't available).
+    const demoTranscript =
+    voiceRxDialogChoice === "ambient_consultation" ?
+    VOICE_RX_AMBIENT_CHUNKS.join("").trim() :
+    VOICE_RX_DICTATION_CHUNKS.join("").trim();
+
+    const transcript = voiceRxLiveTranscript.trim() || demoTranscript;
     if (!transcript) {
       setVoiceRxRecording(false);
       onVoiceCaptureModeChange?.(null);
       return;
     }
-
-    // For the DEMO, always echo the curated scripted transcript into
-    // chat so the transcript card can reliably render its mode-specific
-    // UI: Doctor/Patient alternating bubbles for ambient, single-voice
-    // clinical paragraph for dictation. Live speech recognition may have
-    // produced fragmented text without "Doctor:" / "Patient:" markers;
-    // those can't drive the conversation bubbles, so we substitute the
-    // matching scripted content here.
-    const demoTranscript =
-    voiceRxDialogChoice === "ambient_consultation" ?
-    VOICE_RX_AMBIENT_CHUNKS.join("").trim() :
-    VOICE_RX_DICTATION_CHUNKS.join("").trim();
 
     // 1. Echo user transcript into chat (label + quoted body via voiceTranscript).
     //    Attach the mode (ambient vs dictation) and the elapsed duration so
