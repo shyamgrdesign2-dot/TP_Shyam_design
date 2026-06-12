@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator } from "../utils/utils";
+import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator, getMedicineStockLabel } from "../utils/utils";
 
 import { MenuOutlined } from '@ant-design/icons';
 
@@ -31,7 +31,8 @@ import {
   updateFrequentlyMedication,
   getAllDoses
 } from "../redux/medicationSlice";
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, MEDICINE_STOCK_STATUS, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import MedicineOutOfStockAlternatives from "./medications/MedicineOutOfStockAlternatives";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 
@@ -253,19 +254,8 @@ function MedicationsBox({ showVoiceRxModule }) {
   const isPrescriptionNewContext = showVoiceRxModule !== undefined;
   const renderLowStockBadge = useCallback((med) => {
     if (!isChikitsalayAccessable) return null;
-    const available = Number(med?.quantity);
-    if (!Number.isFinite(available)) return null;
 
-    let label = null;
-    if (available <= 0) {
-      label = "No stock";
-    } else {
-      const required = 200;
-      if (available <= required) {
-        label = `Qty: ${available}`;
-      }
-    }
-
+    const label = getMedicineStockLabel(med);
     if (!label) return null;
     const isQtyLabel = label.startsWith("Qty:");
     return (
@@ -274,7 +264,7 @@ function MedicationsBox({ showVoiceRxModule }) {
         style={{
           padding: "2px 8px",
           borderRadius: 6,
-          background: isQtyLabel ? "#FC5A5A" : "#ED8A00",
+          background: isQtyLabel ? "#ED8A00" : "#FC5A5A",
           color: "#fff",
           fontSize: 12,
           fontWeight: 600,
@@ -619,7 +609,9 @@ function MedicationsBox({ showVoiceRxModule }) {
       ...current,
       ...selected,
       objectID: keyParsed.objectID,
+      reference_id: keyParsed.reference_id,
       quantity: keyParsed.quantity,
+      stock_status: keyParsed.stock_status,
       tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type,
       um_id: selected.um_id ?? keyParsed.um_id,
       tmm_dosage: current.tmm_dosage,
@@ -723,7 +715,9 @@ function MedicationsBox({ showVoiceRxModule }) {
           return {
             ...e,
             objectID: keyParsed.objectID,
+            reference_id: keyParsed.reference_id,
             quantity: keyParsed.quantity,
+            stock_status: keyParsed.stock_status,
             tmm_hm_type: e.tmm_hm_type ?? keyParsed.tmm_hm_type,
             um_id: e.um_id ?? keyParsed.um_id,
             // tmm_unit_name: unitObj && unitObj !== undefined ? unitObj.tmu_title : "",
@@ -1326,6 +1320,66 @@ function MedicationsBox({ showVoiceRxModule }) {
     return mainArray
   }
 
+  const handleSelectMedicineAlternative = useCallback(
+    (medItem, alternative) => {
+      const groupIndexes = [];
+      for (let i = medItem.index; i < medicationData.length; i++) {
+        if (
+          getMedicationGroupKey(medicationData[i]) ===
+          getMedicationGroupKey(medicationData[medItem.index])
+        ) {
+          groupIndexes.push(i);
+        } else {
+          break;
+        }
+      }
+
+      groupIndexes.forEach((idx) => {
+        medicationData[idx] = {
+          ...medicationData[idx],
+          tmm_id: alternative.tmm_id,
+          tmm_medicine_name: alternative.tmm_medicine_name,
+          tmm_generic: alternative.tmm_generic,
+          quantity:
+            alternative.strip_quantity ?? alternative.quantity ?? 0,
+          stock_status: alternative.stock_status,
+          reference_id: alternative.reference_id,
+          objectID: alternative.objectID,
+          ...(alternative.tmm_hm_type != null && {
+            tmm_hm_type: alternative.tmm_hm_type,
+          }),
+          ...(alternative.um_id != null && { um_id: alternative.um_id }),
+        };
+      });
+      setMedicationData((prev) => [...prev]);
+    },
+    [medicationData, setMedicationData]
+  );
+
+  const renderSelectedMedicineStock = useCallback(
+    (med) => {
+      if (!isChikitsalayAccessable) return null;
+      if (med?.stock_status === MEDICINE_STOCK_STATUS.NO_STOCK || med?.stock_status === MEDICINE_STOCK_STATUS.LOW_STOCK) {
+        return (
+          <MedicineOutOfStockAlternatives
+            med={med}
+            renderHmTypeBadge={renderHmTypeBadge}
+            onSelectAlternative={(alternative) =>
+              handleSelectMedicineAlternative(med, alternative)
+            }
+          />
+        );
+      }
+      return renderLowStockBadge(med);
+    },
+    [
+      handleSelectMedicineAlternative,
+      isChikitsalayAccessable,
+      renderHmTypeBadge,
+      renderLowStockBadge,
+    ]
+  );
+
   const taperDoseAdd = async (item) => {
     const clinic_name = getClinicName(profile?.hospital_data);
     window.Moengage.track_event("TP_Medicine_Tappered_Web", {
@@ -1554,10 +1608,10 @@ function MedicationsBox({ showVoiceRxModule }) {
                               <Tooltip placement="bottom" title={item.tmm_generic}>
                                 <div className="text-truncate fw-normal me-1">{item.tmm_generic}</div>
                               </Tooltip>
-                              {renderLowStockBadge(item)}
+                              {renderSelectedMedicineStock(item)}
                             </div>
                           </Col>
-                          <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined}>
+                          <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined} style={{ height: isChikitsalayAccessable ? "stretch" : undefined }}>
                             {!item.pms_default && !(isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item)) &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
@@ -1577,7 +1631,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                             }
                             {innerMedication(item.index).map(e1 => ({ ...e1, index: medicationData.findIndex(e => e.unique_id == e1.unique_id) })).map((item, ii) => {
                               return (
-                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationInnerRow : ""}`}>
+                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationInnerRow : ""}`} style={{ height: isChikitsalayAccessable ? "stretch" : undefined }}>
                                   <Col lg={5} md={5} sm={5} xs={5} className={`border-end border-start ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationUnitCell : ""}`}>
                                     <AutoComplete
                                       defaultValue={item.tmm_dosage_unit_name}
@@ -1662,12 +1716,12 @@ function MedicationsBox({ showVoiceRxModule }) {
                                   <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
                                     <TextArea
                                       className="notesinput border-0 h-100 align-self-center"
-                                      placeholder="Notes"
+                                      placeholder={isChikitsalayAccessable ? "" : "Notes"}
                                       defaultValue={item.tmm_remarks}
                                       value={item.tmm_remarks}
                                       autoSize={{
                                         minRows: 1,
-                                        maxRows: 2,
+                                        maxRows: isChikitsalayAccessable ? 3 : 2,
                                       }}
                                       onChange={(e) => onChangeNoteChild(e, item?.index)}
                                     />
@@ -1699,7 +1753,7 @@ function MedicationsBox({ showVoiceRxModule }) {
         </DragDropContext>
       </div>
     );
-  }, [medicationData, frequencyPopOver, parentSearchOptions, renderHmTypeBadge, renderLowStockBadge, voiceMedicineEdit, isVoiceRxModuleEnabled, isPrescriptionNewContext]);
+  }, [medicationData, frequencyPopOver, parentSearchOptions, renderHmTypeBadge, renderSelectedMedicineStock, voiceMedicineEdit, isVoiceRxModuleEnabled, isPrescriptionNewContext]);
 
   //Child Component
   // const TABLE_MEDICATION = useMemo(() => {

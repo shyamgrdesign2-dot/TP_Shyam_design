@@ -111,6 +111,12 @@ export const CLINIC_TARGET_STATUS = {
   SERVING: "SERVING",
   COMPLETED: "COMPLETED",
 }
+
+export const MEDICINE_STOCK_STATUS = {
+  AVAILABLE: "AVAILABLE",
+  NO_STOCK: "NO_STOCK",
+  LOW_STOCK: "LOW_STOCK",
+};
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,

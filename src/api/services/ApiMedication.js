@@ -1,5 +1,6 @@
 import api from "./axiosService";
 import config from '../../config';
+import { MEDICINE_STOCK_STATUS } from "../../utils/constants";
 
 const baseUrl = { customBaseUrl: config.medication_api_url }
 const doseBaseUrl = { customBaseUrl: config.lab_params_api_url };
@@ -64,6 +65,56 @@ ApiMedication.getEvitalsInventory = function (referenceIds) {
     { referenceIds },
     eVitalsInventoryBaseUrl
   );
+};
+
+ApiMedication.getMedicineAlternatives = function (medicineId) {
+  return api.post(
+    `/api/v1/medicines/get-alternatives`,
+    { medicineId },
+    fuzzySearchBaseUrl
+  );
+};
+
+ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
+  const referenceIds = searchResults
+    .map((item) => item?.reference_id)
+    .filter((id) => id !== undefined && id !== null && String(id).trim() !== "")
+    .map((id) => String(id));
+
+  const withNoStock = searchResults.map((item) => ({
+    ...item,
+    quantity: 0,
+    stock_status: MEDICINE_STOCK_STATUS.NO_STOCK,
+  }));
+
+  if (referenceIds.length === 0) {
+    return withNoStock;
+  }
+
+  try {
+    const inv = await ApiMedication.getEvitalsInventory(referenceIds);
+    const invRows = Array.isArray(inv)
+      ? inv
+      : inv?.status && Array.isArray(inv.data)
+        ? inv.data
+        : Array.isArray(inv?.data)
+          ? inv.data
+          : [];
+    const invByRef = new Map(
+      invRows.map((row) => [String(row.referenceId), row])
+    );
+
+    return searchResults.map((item) => {
+      const invRow = invByRef.get(String(item?.reference_id ?? ""));
+      return {
+        ...item,
+        quantity: Number(invRow?.quantity ?? 0),
+        stock_status: invRow?.stock_status ?? MEDICINE_STOCK_STATUS.NO_STOCK,
+      };
+    });
+  } catch (e) {
+    return withNoStock;
+  }
 };
 
 ApiMedication.getQuantity = function (data) {
