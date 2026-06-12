@@ -112,3 +112,14 @@
 .recRingAnim {
   animation: vrxRecRing 1.8s ease-out infinite;
 }
+
+// ── Recording-limit STRIP scrim ────────────────────────────────────────────
+// Solid white wrapper around the warning bar so the violet voice-blob
+// behind it doesn't bleed through the amber palette. Adds a slim bottom
+// border so the strip reads as a banner separated from the recorder body.
+.recordingLimitStripScrim {
+  padding: 8px 10px 8px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 2px 8px -4px rgba(15, 23, 42, 0.08);
+}

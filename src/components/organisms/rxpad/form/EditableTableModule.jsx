@@ -96,6 +96,7 @@ function EditableTableModule({
   onGroundRow,
   onVoiceSubmit,
   voiceProcessingTranscript,
+  voiceProcessingWasAutoSubmitted = false,
   voiceAddedCount,
   templateModuleId,
   templateModuleName,
@@ -105,6 +106,11 @@ function EditableTableModule({
   hideSearch = false,
 }) {
   const isTablet = useTabletMode();
+  // Flagged by VoiceRxModuleRecorder.onAutoSubmit just before its onSubmit
+  // fires, so we can tell the parent whether this submit came from the
+  // recording cap (auto) or a manual button press. Read + cleared in the
+  // recorder's onSubmit handler below.
+  const autoSubmittedRef = useRef(false);
   const [searchText, setSearchText] = useState("");
   const [activeMenu, setActiveMenu] = useState(null);
   const [draggingRowId, setDraggingRowId] = useState(null);
@@ -1614,9 +1620,12 @@ function EditableTableModule({
             <VoiceRxModuleRecorder
               sectionLabel={title}
               onCancel={() => onVoiceClose?.()}
+              onAutoSubmit={() => { autoSubmittedRef.current = true; }}
               onSubmit={(transcript) => {
+                const auto = autoSubmittedRef.current;
+                autoSubmittedRef.current = false;
                 onVoiceClose?.();
-                onVoiceSubmit?.(transcript);
+                onVoiceSubmit?.(transcript, auto);
               }}
               radiusClassName="rounded-[14px]" />
 
@@ -1648,7 +1657,10 @@ function EditableTableModule({
           })() :
           null}
         {voiceProcessingTranscript != null ?
-          <VoiceRxSectionProcessing transcript={voiceProcessingTranscript} sectionLabel={title} /> :
+          <VoiceRxSectionProcessing
+            transcript={voiceProcessingTranscript}
+            sectionLabel={title}
+            wasAutoSubmitted={voiceProcessingWasAutoSubmitted} /> :
           null}
         {hideSearch ?
           /* ── Custom-module mode: "+ Add new line" link ── */

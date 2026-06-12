@@ -12,10 +12,12 @@ import { DictationTranscript } from "@/src/components/organisms/voicerx/VoiceTra
  */
 export function VoiceRxSectionProcessing({
   transcript,
-  sectionLabel
-
-
-
+  sectionLabel,
+  // True when this loading state was reached via the recording-cap auto-submit,
+  // not a manual Submit press. Renders an amber session-limit context note
+  // above the shiner card so the doctor sees the "why" before the "how it's
+  // going" caption carousel.
+  wasAutoSubmitted = false
 }) {
   const captions = useMemo(() => [
   `Analysing your ${sectionLabel.toLowerCase()} dictation…`,
@@ -70,6 +72,33 @@ export function VoiceRxSectionProcessing({
 
   return (
     <div className="flex w-full min-h-0 flex-col items-center justify-center gap-[14px]">
+      {/* Session-limit context — shown only when the recording cap forced the
+           submit. Same amber palette / tone as the VoiceRxActiveAgent loader
+           note so all three surfaces (main panel, per-module recorder,
+           sidebar overlay) feel like one family. */}
+      {wasAutoSubmitted &&
+      <div
+        role="note"
+        className="flex w-full max-w-[300px] flex-col items-center gap-[6px] rounded-[12px] border border-[rgba(249,115,22,0.18)] bg-[rgba(249,115,22,0.05)] px-[14px] py-[12px] text-center">
+
+        <span className="inline-flex items-center gap-[5px] rounded-full bg-[rgba(249,115,22,0.10)] py-[4px] pl-[7px] pr-[9px] text-[10px] font-semibold uppercase leading-none tracking-[0.02em] text-[#c2410c]" aria-hidden>
+          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" style={{ color: "#ea580c" }}>
+            <circle cx={12} cy={12} r={9} stroke="currentColor" strokeWidth={1.8} />
+            <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Max time reached
+        </span>
+        <p className="m-0 text-[13px] font-semibold leading-[1.3] tracking-[-0.01em] text-[#c2410c]">
+          Session limit reached
+        </p>
+        <p className="m-0 text-[11px] leading-[1.55] text-[#c2410c]">
+          <strong className="font-semibold text-[#7c2d12]">Everything is safely captured.</strong>{" "}
+          Preparing your notes now — start a{" "}
+          <strong className="font-semibold text-[#7c2d12]">new session</strong> anytime to keep going.
+        </p>
+      </div>
+      }
+
       {/* Shiner card — content vertically + horizontally centered so the
            transcript sits in the middle of the box rather than top-
            anchored. Spacing below the box tightened so caption +

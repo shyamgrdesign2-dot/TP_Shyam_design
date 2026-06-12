@@ -125,11 +125,28 @@ function formatElapsed(ms) {
   return `${m}:${s}`;
 }
 
+/**
+ * @param {object} props
+ * @param {string} [props.sectionLabel]
+ * @param {function} [props.onCancel]
+ * @param {function} [props.onSubmit]
+ * @param {function} [props.onAutoSubmit] — called once when the recording cap
+ *        forces the upcoming onSubmit. Use to render a session-limit note in
+ *        the parent's loading state.
+ * @param {string} [props.radiusClassName]
+ * @param {"row"|"stack"} [props.variant]
+ * @param {boolean} [props.fillHeight]
+ */
 export function VoiceRxModuleRecorder({
   sectionLabel,
   showSectionInStatus = true,
   onCancel,
   onSubmit,
+  onAutoSubmit,
+  // Called whenever the recording-limit countdown bar's visibility flips.
+  // Parents use this to GROW their overlay container (Quick Edit / sidebar
+  // overlay) so the strip fits without compressing the recorder content.
+  onWarningChange,
   transcript: scriptedTranscript,
   radiusClassName = "rounded-b-[16px]",
   variant = "row",
@@ -309,11 +326,21 @@ export function VoiceRxModuleRecorder({
   const transcriptScrollRef = useRef(null);
 
   // ── Recording-limit countdown bar ──────────────────────────────────────────
+  // `onAutoSubmit` flags the parent (EditableTableModule / detail-shared)
+  // that the upcoming `onSubmit` was triggered by the time limit, not by a
+  // manual button press. The parent uses that bit to render the matching
+  // session-limit note in its loading-state UI.
   const { remainingMs: limitRemainingMs, showWarning: showLimitWarning } = useRecordingLimit({
     elapsedMs,
     isListening,
     onSubmit: () => onSubmit?.(displayTranscript),
+    onAutoSubmit,
   });
+  // Bubble visibility up so fixed-height overlay containers can grow taller
+  // when the strip appears (and shrink back when it leaves).
+  useEffect(() => {
+    onWarningChange?.(showLimitWarning);
+  }, [showLimitWarning, onWarningChange]);
   const compactControls = variant === "stack" || isCompactLayout;
 
   useEffect(() => {
@@ -697,6 +724,21 @@ export function VoiceRxModuleRecorder({
         variant === "stack" ? styles.recorderBgStack : styles.recorderBg
       )}>
       
+      {/* ── Recording-limit STRIP — overlays as a full-width banner pinned to
+           the TOP of the recorder card. Solid white scrim under the bar so
+           the underlying violet blob doesn't bleed through. Absolute
+           positioning means it never pushes the submit CTA / input boxes off
+           the card; the card itself grows because the inner content adds
+           top padding when the strip is up. */}
+      {showLimitWarning && (
+        <div className={cn(
+          "absolute inset-x-0 top-0 z-30",
+          styles.recordingLimitStripScrim
+        )}>
+          <RecordingLimitWarning remainingMs={limitRemainingMs} className="w-full" />
+        </div>
+      )}
+
       {variant === "stack" ?
       // ── STACK variant — used inside sidebar historical panels.
       //    Transcript fills the top, wave + CTAs below, pill at the
@@ -711,19 +753,18 @@ export function VoiceRxModuleRecorder({
           <div
           aria-hidden
           className={cn("pointer-events-none absolute inset-x-0 bottom-0 z-0 overflow-hidden flex justify-center", styles.blobWrapperStack)}>
-          
+
             <div className={cn("tp-voice-blob tp-voice-blob--reactive h-[120px] w-[280px]", styles.blobMargin)} />
           </div>
           <div
           className={cn(
             "relative z-10 flex flex-col px-4 pt-6 pb-[48px]",
+            // Push the existing content down to make room for the absolute
+            // top strip when the warning is active — internal layout
+            // doesn't shift, the OUTER card simply grows.
+            showLimitWarning && "pt-[78px]",
             fillHeight && "h-full"
           )}>
-
-            {/* Recording-limit countdown — amber bar slides in 10s before cap */}
-            {showLimitWarning && (
-              <RecordingLimitWarning remainingMs={limitRemainingMs} className="mb-2 w-full" />
-            )}
 
             {/* Transcript / empty-state — fills the upper portion. */}
             <div className="flex min-h-0 flex-1 items-end justify-center overflow-hidden pb-4">
@@ -767,7 +808,11 @@ export function VoiceRxModuleRecorder({
           // every screen width. Min heights bumped in step so the
           // cluster never feels crammed even when both sidebars are
           // open and the form column is squeezed.
+          // When the recording-limit strip is up, add extra top padding so
+          // the strip overlays clean without covering the transcript /
+          // submit cluster — the OUTER card grows, internal layout stays put.
           "relative z-10 flex items-center gap-0 py-[34px]",
+          showLimitWarning && "pt-[80px]",
           isUltraCompact ? "min-h-[160px]" : "min-h-[180px]"
         )}>
         {/* LEFT: transcript / empty-state (mic status, "Allow microphone
@@ -775,9 +820,6 @@ export function VoiceRxModuleRecorder({
                right so the read-only content hugs the leading edge while
                the action cluster sits at the trailing edge. */}
         <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center px-4 text-center">
-          {showLimitWarning && (
-            <RecordingLimitWarning remainingMs={limitRemainingMs} className="mb-3 w-full text-left" />
-          )}
           {transcriptBlock}
         </div>
         {/* Vertical divider — faint, not a cut. */}

@@ -126,6 +126,90 @@ export function playVoiceRxStartSound() {
   }
 }
 
+/**
+ * Time-limit heads-up cue — fires once when the recording-limit countdown bar
+ * first appears (T-15s by default). Soft two-note descending warble in the
+ * amber/warm range. Quieter than the error sound — it's a "heads up", not
+ * a "something broke".
+ */
+export function playVoiceRxWarningSound() {
+  try {
+    if (!shouldPlay()) return;
+    const AC = getAudioContextCtor();
+    if (!AC) return;
+
+    const audioCtx = new AC();
+    const now = audioCtx.currentTime;
+    const master = audioCtx.createGain();
+    master.gain.setValueAtTime(0, now);
+    master.gain.linearRampToValueAtTime(0.10, now + 0.01);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.50);
+    master.connect(audioCtx.destination);
+
+    // Two-tone descending bell (E5 → B4) — warm, "attention please".
+    const tones = [
+      [659.25, 0],
+      [493.88, 0.16],
+    ];
+
+    for (const [freq, delay] of tones) {
+      const osc = audioCtx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now + delay);
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0, now + delay);
+      gain.gain.linearRampToValueAtTime(0.9, now + delay + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.34);
+      osc.connect(gain).connect(master);
+      osc.start(now + delay);
+      osc.stop(now + delay + 0.36);
+    }
+
+    scheduleClose(audioCtx, 800);
+  } catch {
+    /* audio synthesis unavailable */
+  }
+}
+
+/**
+ * Critical-zone cue — fires once when the countdown enters the last
+ * LIMIT_CRITICAL_MS window (T-5s by default). Single brief tick — subtle,
+ * not alarming, so the doctor's eye snaps to the now-red bar without breaking
+ * focus on whatever they're saying.
+ */
+export function playVoiceRxCriticalSound() {
+  try {
+    if (!shouldPlay()) return;
+    const AC = getAudioContextCtor();
+    if (!AC) return;
+
+    const audioCtx = new AC();
+    const now = audioCtx.currentTime;
+    const master = audioCtx.createGain();
+    master.gain.setValueAtTime(0, now);
+    master.gain.linearRampToValueAtTime(0.08, now + 0.005);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    master.connect(audioCtx.destination);
+
+    // Single short tick, sine — calmer than triangle/sawtooth.
+    const osc = audioCtx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, now);            // A5
+    osc.frequency.exponentialRampToValueAtTime(660, now + 0.18);
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.9, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.20);
+    osc.connect(gain).connect(master);
+    osc.start(now);
+    osc.stop(now + 0.22);
+
+    scheduleClose(audioCtx, 400);
+  } catch {
+    /* audio synthesis unavailable */
+  }
+}
+
 export function playVoiceRxErrorSound() {
   try {
     const AC = getAudioContextCtor();

@@ -184,8 +184,12 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
 
     null);
   const [voiceAddedCounts, setVoiceAddedCounts] = useState({});
+  // Set by VoiceRxModuleRecorder.onAutoSubmit just before its onSubmit fires.
+  // Read + cleared in each recorder's onSubmit handler so we know whether the
+  // upcoming handleVoiceSubmit call was triggered by the recording-cap timer.
+  const voiceAutoSubmittedRef = useRef(false);
 
-  const handleVoiceSubmit = useCallback((moduleId, _transcript) => {
+  const handleVoiceSubmit = useCallback((moduleId, _transcript, autoSubmitted = false) => {
     // Module-specific mock transcripts — shown in the shiner processing
     // card while the "AI is structuring" overlay is visible. These match
     // the mock data that will be filled into each module.
@@ -201,7 +205,7 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
       followUp: "Follow up in one week to recheck blood pressure and review lab results. If headache persists, consider referral to neurology."
     };
     const mockTranscript = MOCK_TRANSCRIPTS[moduleId] ?? _transcript;
-    setVoiceModuleProcessing({ moduleId, transcript: mockTranscript });
+    setVoiceModuleProcessing({ moduleId, transcript: mockTranscript, wasAutoSubmitted: !!autoSubmitted });
     window.setTimeout(() => {
       // Module-specific mock data — always filled regardless of what
       // the user actually dictated (demo / POC behaviour).
@@ -1112,12 +1116,13 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
           onVoiceClick={() => handleVoiceToggle(id)}
           onVoiceClose={() => setVoiceModuleId(null)}
           voiceActive={voiceModuleId === id}
-          onVoiceSubmit={(t) => handleVoiceSubmit(id, t)}
+          onVoiceSubmit={(t, auto) => handleVoiceSubmit(id, t, auto)}
           voiceProcessingTranscript={
             voiceModuleProcessing?.moduleId === id
               ? voiceModuleProcessing.transcript
               : undefined
-          } />);
+          }
+          voiceProcessingWasAutoSubmitted={voiceModuleProcessing?.moduleId === id ? voiceModuleProcessing.wasAutoSubmitted : false} />);
 
 
     }
@@ -1139,8 +1144,9 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             onVoiceClick={() => handleVoiceToggle("symptoms")}
             onVoiceClose={() => setVoiceModuleId(null)}
             voiceActive={voiceModuleId === "symptoms"}
-            onVoiceSubmit={(t) => handleVoiceSubmit("symptoms", t)}
+            onVoiceSubmit={(t, auto) => handleVoiceSubmit("symptoms", t, auto)}
             voiceProcessingTranscript={voiceModuleProcessing?.moduleId === "symptoms" ? voiceModuleProcessing.transcript : undefined}
+            voiceProcessingWasAutoSubmitted={voiceModuleProcessing?.moduleId === "symptoms" ? voiceModuleProcessing.wasAutoSubmitted : false}
             voiceAddedCount={voiceAddedCounts["symptoms"]}
             searchPlaceholder="Search & Add Symptoms"
             searchSuggestions={symptomSuggestions}
@@ -1178,8 +1184,9 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             onVoiceClick={() => handleVoiceToggle("examinations")}
             onVoiceClose={() => setVoiceModuleId(null)}
             voiceActive={voiceModuleId === "examinations"}
-            onVoiceSubmit={(t) => handleVoiceSubmit("examinations", t)}
+            onVoiceSubmit={(t, auto) => handleVoiceSubmit("examinations", t, auto)}
             voiceProcessingTranscript={voiceModuleProcessing?.moduleId === "examinations" ? voiceModuleProcessing.transcript : undefined}
+            voiceProcessingWasAutoSubmitted={voiceModuleProcessing?.moduleId === "examinations" ? voiceModuleProcessing.wasAutoSubmitted : false}
             voiceAddedCount={voiceAddedCounts["examinations"]}
             searchPlaceholder="Search & Add Examinations"
             searchSuggestions={examinationSuggestions}
@@ -1202,8 +1209,9 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             onVoiceClick={() => handleVoiceToggle("diagnosis")}
             onVoiceClose={() => setVoiceModuleId(null)}
             voiceActive={voiceModuleId === "diagnosis"}
-            onVoiceSubmit={(t) => handleVoiceSubmit("diagnosis", t)}
+            onVoiceSubmit={(t, auto) => handleVoiceSubmit("diagnosis", t, auto)}
             voiceProcessingTranscript={voiceModuleProcessing?.moduleId === "diagnosis" ? voiceModuleProcessing.transcript : undefined}
+            voiceProcessingWasAutoSubmitted={voiceModuleProcessing?.moduleId === "diagnosis" ? voiceModuleProcessing.wasAutoSubmitted : false}
             voiceAddedCount={voiceAddedCounts["diagnosis"]}
             searchPlaceholder="Search & Add Diagnosis"
             searchSuggestions={diagnosisSuggestions}
@@ -1259,8 +1267,9 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             onVoiceClick={() => handleVoiceToggle("medication")}
             onVoiceClose={() => setVoiceModuleId(null)}
             voiceActive={voiceModuleId === "medication"}
-            onVoiceSubmit={(t) => handleVoiceSubmit("medication", t)}
+            onVoiceSubmit={(t, auto) => handleVoiceSubmit("medication", t, auto)}
             voiceProcessingTranscript={voiceModuleProcessing?.moduleId === "medication" ? voiceModuleProcessing.transcript : undefined}
+            voiceProcessingWasAutoSubmitted={voiceModuleProcessing?.moduleId === "medication" ? voiceModuleProcessing.wasAutoSubmitted : false}
             voiceAddedCount={voiceAddedCounts["medication"]}
             searchPlaceholder="Search & Add Medication (Rx)"
             searchSuggestions={medicationSuggestions}
@@ -1337,8 +1346,9 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             onVoiceClick={() => handleVoiceToggle("advice")}
             onVoiceClose={() => setVoiceModuleId(null)}
             voiceActive={voiceModuleId === "advice"}
-            onVoiceSubmit={(t) => handleVoiceSubmit("advice", t)}
+            onVoiceSubmit={(t, auto) => handleVoiceSubmit("advice", t, auto)}
             voiceProcessingTranscript={voiceModuleProcessing?.moduleId === "advice" ? voiceModuleProcessing.transcript : undefined}
+            voiceProcessingWasAutoSubmitted={voiceModuleProcessing?.moduleId === "advice" ? voiceModuleProcessing.wasAutoSubmitted : false}
             voiceAddedCount={voiceAddedCounts["advice"]}
             searchPlaceholder="Search & Add Advice"
             cannedChips={ADVICE_SUGGESTIONS}
@@ -1370,8 +1380,9 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             onVoiceClick={() => handleVoiceToggle("lab")}
             onVoiceClose={() => setVoiceModuleId(null)}
             voiceActive={voiceModuleId === "lab"}
-            onVoiceSubmit={(t) => handleVoiceSubmit("lab", t)}
+            onVoiceSubmit={(t, auto) => handleVoiceSubmit("lab", t, auto)}
             voiceProcessingTranscript={voiceModuleProcessing?.moduleId === "lab" ? voiceModuleProcessing.transcript : undefined}
+            voiceProcessingWasAutoSubmitted={voiceModuleProcessing?.moduleId === "lab" ? voiceModuleProcessing.wasAutoSubmitted : false}
             voiceAddedCount={voiceAddedCounts["lab"]}
             searchPlaceholder="Search & Add Lab Investigation"
             cannedChips={LAB_INVESTIGATION_BASE_OPTIONS}
@@ -1430,8 +1441,9 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             onVoiceClick={() => handleVoiceToggle("surgery")}
             onVoiceClose={() => setVoiceModuleId(null)}
             voiceActive={voiceModuleId === "surgery"}
-            onVoiceSubmit={(t) => handleVoiceSubmit("surgery", t)}
+            onVoiceSubmit={(t, auto) => handleVoiceSubmit("surgery", t, auto)}
             voiceProcessingTranscript={voiceModuleProcessing?.moduleId === "surgery" ? voiceModuleProcessing.transcript : undefined}
+            voiceProcessingWasAutoSubmitted={voiceModuleProcessing?.moduleId === "surgery" ? voiceModuleProcessing.wasAutoSubmitted : false}
             voiceAddedCount={voiceAddedCounts["surgery"]}
             searchPlaceholder="Search & Add Surgery"
             cannedChips={SURGERY_SUGGESTIONS} />);
@@ -1471,14 +1483,20 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
             <VoiceRxModuleRecorder
               sectionLabel="Additional Notes"
               onCancel={() => setVoiceModuleId(null)}
+              onAutoSubmit={() => { voiceAutoSubmittedRef.current = true; }}
               onSubmit={(transcript) => {
+                const auto = voiceAutoSubmittedRef.current;
+                voiceAutoSubmittedRef.current = false;
                 setVoiceModuleId(null);
-                handleVoiceSubmit("additionalNotes", transcript);
+                handleVoiceSubmit("additionalNotes", transcript, auto);
               }}
               radiusClassName="rounded-[14px]" /> :
             null}
           {voiceModuleProcessing?.moduleId === "additionalNotes" ?
-            <VoiceRxSectionProcessing transcript={voiceModuleProcessing.transcript} sectionLabel="Additional Notes" /> :
+            <VoiceRxSectionProcessing
+              transcript={voiceModuleProcessing.transcript}
+              sectionLabel="Additional Notes"
+              wasAutoSubmitted={voiceModuleProcessing.wasAutoSubmitted} /> :
             null}
           <div className={voiceModuleId === "additionalNotes" || voiceModuleProcessing?.moduleId === "additionalNotes" ? "hidden" : ""}>
             <textarea
@@ -1508,14 +1526,20 @@ export function RxPadFunctional({ patientId = "__patient__", sectionConfig }) {
           <VoiceRxModuleRecorder
             sectionLabel="Follow-up"
             onCancel={() => setVoiceModuleId(null)}
+            onAutoSubmit={() => { voiceAutoSubmittedRef.current = true; }}
             onSubmit={(transcript) => {
+              const auto = voiceAutoSubmittedRef.current;
+              voiceAutoSubmittedRef.current = false;
               setVoiceModuleId(null);
-              handleVoiceSubmit("followUp", transcript);
+              handleVoiceSubmit("followUp", transcript, auto);
             }}
             radiusClassName="rounded-[14px]" /> :
           null}
           {voiceModuleProcessing?.moduleId === "followUp" ?
-          <VoiceRxSectionProcessing transcript={voiceModuleProcessing.transcript} sectionLabel="Follow-up" /> :
+          <VoiceRxSectionProcessing
+            transcript={voiceModuleProcessing.transcript}
+            sectionLabel="Follow-up"
+            wasAutoSubmitted={voiceModuleProcessing.wasAutoSubmitted} /> :
           null}
           <div className={voiceModuleId === "followUp" || voiceModuleProcessing?.moduleId === "followUp" ? "hidden" : ""}>
           <div className="space-y-2">

@@ -111,8 +111,13 @@ transition inside the countdown bar. No other runtime additions.
 |---|---|
 | `src/components/organisms/voicerx/VoiceRxActiveAgent.jsx` | Imports the shared hook + component. Auto-submit wires through the existing `onSubmit({ durationMs })` so the demo / processing flow runs end-to-end. Renders the bar inside the panel body using absolute positioning so it tucks under the mode-heading chip without pushing the transcript zone down. Renders the "Session limit reached" note at the **top of the shiner loader** (above the caption + progress bar) when `wasAutoSubmitted` is true. |
 | `src/components/organisms/voicerx/VoiceRxActiveAgent.module.scss` | `.autoSubmitNote*` rules — vertical stack: `MAX TIME REACHED` pill on top, "Session limit reached" heading, body with `<strong>` highlights on "safely captured" and "new session". |
-| `src/components/organisms/voicerx/VoiceRxModuleRecorder.jsx` | Imports the shared hook + component. Renders the bar above the transcript block in both `stack` and `row` variants. Auto-submit fires `onSubmit(displayTranscript)`. |
-| `src/components/organisms/voicerx/VoiceRxCanvas.jsx` | Coachmark copy on the Clinical Notes tab branches on `isAutoSubmitted`. New **dismissible** Transcript-tab sticky footer (gated on `isAutoSubmitted && !transcriptAutoNoteDismissed`) explaining the cutoff, with a session-only X dismiss. State resets when a new auto-submit session begins. |
+| `src/components/organisms/voicerx/VoiceRxModuleRecorder.jsx` | Imports the shared hook + component. Renders the bar as a **full-width absolute strip** pinned to the top of the recorder card (`z-30`) with a solid white scrim — internal layout never shifts, the card itself simply GROWS via conditional top padding (`pt-[80px]` row, `pt-[78px]` stack) when the warning is up. Exposes `onAutoSubmit` (for session-limit context) and `onWarningChange` (for parent overlays to grow taller). |
+| `src/components/organisms/voicerx/audio.js` | Two new tones: `playVoiceRxWarningSound` (descending bell, fires once when the bar first appears at T-15s) and `playVoiceRxCriticalSound` (single descending tick, fires once when the bar enters the red zone at T-5s). Both wired inside `useRecordingLimit`. |
+| `src/components/organisms/rxpad/form/RxPadFunctional.jsx` | `handleVoiceSubmit(moduleId, transcript, autoSubmitted)` — new third arg. Stored as `voiceModuleProcessing.wasAutoSubmitted`. Threaded into every child module call site. |
+| `src/components/organisms/rxpad/form/EditableTableModule.jsx` + `CustomModuleTable.jsx` | Local `autoSubmittedRef` flagged on `onAutoSubmit`, read on `onSubmit`, forwarded via the new `onVoiceSubmit(transcript, autoSubmitted)` signature. New prop `voiceProcessingWasAutoSubmitted` threaded to `VoiceRxSectionProcessing`. |
+| `src/components/organisms/rxpad/form/VoiceRxSectionProcessing.jsx` | New `wasAutoSubmitted` prop — renders the amber session-limit pill/title/body above the shiner card. |
+| `src/components/organisms/rxpad/secondary-sidebar/detail-shared.jsx` | Tracks `recorderWarningVisible` via `onWarningChange` — **grows the bottom overlay from 40% → 58%** with a smooth `transition-[height]` so the strip lands at the top without compressing the recorder. Also threads `wasAutoSubmitted` into the post-submit `VoiceTranscriptProcessingCard`. |
+| `src/components/organisms/voicerx/VoiceRxCanvas.jsx` | Coachmark copy on the Clinical Notes tab branches on `isAutoSubmitted`. New **dismissible** Transcript-tab sticky footer (gated on `isAutoSubmitted && !transcriptAutoNoteDismissed`) explaining the cutoff, with a session-only X dismiss. State resets when a new auto-submit session begins. Quick-Edit overlay tracks `quickEditWarningVisible` via `onWarningChange` and **grows from 40% → 58%** for the same reason as the sidebar overlay; passes `wasAutoSubmitted` to its `VoiceRxSectionProcessing`. |
 | `src/components/organisms/voicerx/VoiceRxCanvas.module.scss` | `.autoSubmitTranscriptNote` palette (matches the existing coachmark). |
 | `src/components/organisms/rxpad/dr-agent/shell/BackFace.jsx` | Stateful: tracks `wasAutoSubmitted`, threads it as `isAutoSubmitted` into `VoiceRxCanvas`. Resets when a new session begins (`voiceRxResult` clears). |
 | `src/components/organisms/rxpad/dr-agent/hooks/useDrAgentPanel.js` | `submitVoiceRxRecording` now falls back to the curated demo transcript when the live transcript is empty (so auto-submit reaches the processing → results flow even with no mic input, e.g. in headless QA). |
@@ -188,6 +193,34 @@ so we can pick the right analytics surface (mixpanel / amplitude / GA)
 in a follow-up.
 
 ---
+
+### Layout pattern — never compress, always grow
+
+When the recording-limit strip appears, **existing content never shifts inside
+its container**. The container ITSELF grows:
+
+| Surface | Mechanism |
+|---|---|
+| `VoiceRxActiveAgent` (main panel) | Absolute strip at `top-[54px]`, content unchanged. The transcript zone is centred vertically and absorbs the strip naturally — nothing to grow. |
+| `VoiceRxModuleRecorder` row variant (Rx form modules) | Absolute strip at `top-0`, inner content adds `pt-[80px]`. Card grows ~46px, submit/mic/transcript stay put. |
+| `VoiceRxModuleRecorder` stack variant (sidebar + Quick Edit overlays) | Absolute strip at `top-0`, inner content adds `pt-[78px]`. PLUS the parent overlay container itself grows from `40%` → `58%` via `onWarningChange` so the recorder isn't clipped by its own overlay frame. |
+
+Rule of thumb: any time you add a bar/banner inside a fixed-height overlay,
+bubble its visibility up so the overlay can grow. Otherwise the bar overlaps
+content that the user still needs to interact with.
+
+## Audio cues
+
+| Event | Sound | Helper |
+|---|---|---|
+| Bar first appears at T-15s | Two-tone descending bell (E5 → B4), ~340ms | `playVoiceRxWarningSound()` |
+| Bar enters critical zone at T-5s | Single descending tick (A5 → E5), ~200ms | `playVoiceRxCriticalSound()` |
+| Auto-submit fires at T-0s | Existing submit chime | `playSubmitSound()` |
+
+All three respect `prefers-reduced-motion` and fail silently if the Web
+Audio API is unavailable. The hook fires each cue **exactly once** per
+session via a `useRef` guard; the guards reset when the recorder unmounts
+or a new session begins.
 
 ## How to verify in dev
 

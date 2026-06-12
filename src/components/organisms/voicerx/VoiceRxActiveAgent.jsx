@@ -622,10 +622,12 @@ export function VoiceRxActiveAgent({
                 Absolutely positioned so it appears just below the
                 absolute header (≈46px tall) without pushing the
                 transcript zone down. z-20 keeps it above the fade
-                overlays but below the z-30 header. */}
+                overlays but below the z-30 header. Wrapped in a solid
+                white scrim with a soft drop-shadow so the violet wash
+                behind it doesn't bleed through the amber palette. */}
           {showLimitWarning && (
             <div className={cn(
-              "absolute left-4 right-4 z-20",
+              "absolute left-4 right-4 z-20 rounded-[14px] bg-white p-[6px] shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18),0_2px_6px_-2px_rgba(15,23,42,0.08)]",
               isCompactLayout ? "top-[50px]" : "top-[54px]"
             )}>
               <RecordingLimitWarning remainingMs={remainingMs} />

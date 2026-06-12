@@ -6,7 +6,7 @@
  * relative to the parent scroll container. The rounded border is achieved via
  * `border` + `border-radius` only.
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { cn as clsx } from "@/src/hooks/utils";
 import { ArrowSquareDown, ArrowSquareUp } from "iconsax-reactjs";
 import { rxSidebarTokens, tpSectionCardStyle } from "./tokens";
@@ -115,6 +115,15 @@ export function ActionButton({
 }) {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceProcessingTranscript, setVoiceProcessingTranscript] = useState(null);
+  // True only when the current processing-state was reached via the
+  // recording-cap auto-submit. Drives the amber session-limit note above the
+  // shiner card so the doctor sees the "why" before the "how it's going".
+  const [voiceProcessingWasAutoSubmitted, setVoiceProcessingWasAutoSubmitted] = useState(false);
+  // Bubbled up by VoiceRxModuleRecorder via onWarningChange — when true, the
+  // overlay container GROWS so the recording-limit strip fits without
+  // squishing the recorder content underneath.
+  const [recorderWarningVisible, setRecorderWarningVisible] = useState(false);
+  const autoSubmittedRef = useRef(false);
   const [toastMessage, setToastMessage] = useState(null);
   const rxSync = useRxPadSync();
   const micDisabled = rxSync.micUnavailable && !isVoiceActive;
@@ -163,14 +172,23 @@ export function ActionButton({
            on top, wave + CTAs below, pill at the bottom edge). */}
     {isVoiceActive ?
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-stretch"
-        style={{ height: "40%" }}>
-        
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-stretch transition-[height] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        // When the recording-limit strip is up, grow the overlay so the
+        // strip lands at the top WITHOUT compressing the recorder content
+        // underneath. Smooth height transition keeps the change calm.
+        style={{ height: recorderWarningVisible ? "58%" : "40%" }}>
+
         <div className="pointer-events-auto w-full" data-voice-allow>
           <VoiceRxModuleRecorder
             sectionLabel={sectionLabel}
-            onCancel={() => setIsVoiceActive(false)}
+            onCancel={() => { setRecorderWarningVisible(false); setIsVoiceActive(false); }}
+            onWarningChange={setRecorderWarningVisible}
+            onAutoSubmit={() => { autoSubmittedRef.current = true; }}
             onSubmit={(transcript) => {
+              const auto = autoSubmittedRef.current;
+              autoSubmittedRef.current = false;
+              setVoiceProcessingWasAutoSubmitted(auto);
+              setRecorderWarningVisible(false);
               setIsVoiceActive(false);
               if (sectionId) {
                 const MOCK_TRANSCRIPTS = {
@@ -207,6 +225,24 @@ export function ActionButton({
              available height and push the caption off-screen, so the
              doctor saw "just the shimmer" with no textual cue. */}
         <div className="pointer-events-auto w-full p-2 h-full flex flex-col gap-[8px] bg-tp-slate-50/90 backdrop-blur-[4px]">
+          {voiceProcessingWasAutoSubmitted &&
+          <div
+            role="note"
+            className="mx-auto flex w-full max-w-[300px] flex-col items-center gap-[4px] rounded-[10px] border border-[rgba(249,115,22,0.18)] bg-[rgba(249,115,22,0.05)] px-[12px] py-[8px] text-center">
+
+            <span className="inline-flex items-center gap-[5px] rounded-full bg-[rgba(249,115,22,0.10)] py-[3px] pl-[7px] pr-[9px] text-[10px] font-semibold uppercase leading-none tracking-[0.02em] text-[#c2410c]" aria-hidden>
+              <svg width={11} height={11} viewBox="0 0 24 24" fill="none" style={{ color: "#ea580c" }}>
+                <circle cx={12} cy={12} r={9} stroke="currentColor" strokeWidth={1.8} />
+                <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Session limit reached
+            </span>
+            <p className="m-0 text-[11px] leading-[1.5] text-[#c2410c]">
+              <strong className="font-semibold text-[#7c2d12]">Safely captured.</strong>{" "}
+              Start a <strong className="font-semibold text-[#7c2d12]">new session</strong> to keep going.
+            </p>
+          </div>
+          }
           <div className="min-h-0 flex-1">
             <VoiceTranscriptProcessingCard
               mode="dictation"
@@ -215,6 +251,7 @@ export function ActionButton({
               structuringMs={0}
               onComplete={() => {
                 setVoiceProcessingTranscript(null);
+                setVoiceProcessingWasAutoSubmitted(false);
                 setToastMessage(`${sectionLabel} filled from voice dictation`);
                 if (sectionId) {
                   rxSync?.pushHistoricalUpdates?.({

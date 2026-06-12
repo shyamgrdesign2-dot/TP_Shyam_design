@@ -32,6 +32,7 @@ export function CustomModuleTable({
   voiceActive,
   onVoiceSubmit,
   voiceProcessingTranscript,
+  voiceProcessingWasAutoSubmitted = false,
 }) {
   const [rows, setRows] = useState(() => loadCustomRows(patientId, moduleDef.id));
 
@@ -124,6 +125,7 @@ export function CustomModuleTable({
       voiceActive={voiceActive}
       onVoiceSubmit={onVoiceSubmit}
       voiceProcessingTranscript={voiceProcessingTranscript}
+      voiceProcessingWasAutoSubmitted={voiceProcessingWasAutoSubmitted}
     />
   );
 }

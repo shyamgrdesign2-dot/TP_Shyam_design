@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import NumberFlow from "@number-flow/react";
 import { cn } from "@/src/hooks/utils";
+import { playVoiceRxWarningSound, playVoiceRxCriticalSound } from "./audio";
 import styles from "./recording-limit.module.scss";
 
 // ── Recording duration cap ────────────────────────────────────────────────────
@@ -41,10 +42,23 @@ export const LIMIT_CRITICAL_MS = 5 * 1000;
  */
 export function useRecordingLimit({ elapsedMs, isListening, isSubmitting = false, onSubmit, onAutoSubmit }) {
   const autoFiredRef = useRef(false);
+  // Sound-cue guards — fire exactly once per transition (T-15 → warn,
+  // T-5 → critical) so we don't re-play on every elapsedMs tick.
+  const warnSoundFiredRef = useRef(false);
+  const criticalSoundFiredRef = useRef(false);
 
   useEffect(() => {
     if (!isSubmitting) autoFiredRef.current = false;
   }, [isSubmitting]);
+
+  // Reset sound guards whenever a new active session begins so the cues fire
+  // again on subsequent recordings.
+  useEffect(() => {
+    if (!isListening) {
+      warnSoundFiredRef.current = false;
+      criticalSoundFiredRef.current = false;
+    }
+  }, [isListening]);
 
   useEffect(() => {
     if (!isListening || isSubmitting) return;
@@ -58,6 +72,22 @@ export function useRecordingLimit({ elapsedMs, isListening, isSubmitting = false
   const remainingMs = Math.max(0, MAX_RECORDING_MS - elapsedMs);
   const showWarning = isListening && !isSubmitting && remainingMs > 0 && remainingMs <= LIMIT_WARN_BEFORE;
   const isCritical = remainingMs > 0 && remainingMs <= LIMIT_CRITICAL_MS;
+
+  // Audio cues — warning at T-15s (when the bar first appears), critical at
+  // T-5s (when the bar swaps to red). Both fire once per session.
+  useEffect(() => {
+    if (showWarning && !warnSoundFiredRef.current) {
+      warnSoundFiredRef.current = true;
+      playVoiceRxWarningSound();
+    }
+  }, [showWarning]);
+
+  useEffect(() => {
+    if (isCritical && isListening && !isSubmitting && !criticalSoundFiredRef.current) {
+      criticalSoundFiredRef.current = true;
+      playVoiceRxCriticalSound();
+    }
+  }, [isCritical, isListening, isSubmitting]);
 
   return { remainingMs, showWarning, isCritical, autoFired: autoFiredRef.current };
 }

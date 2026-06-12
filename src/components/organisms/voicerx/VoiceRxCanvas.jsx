@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download as DownloadIcon, Mic, MoreVertical, X } from "@/src/components/atoms/icons/lucide";
 import { Copy as CopyGlyph, Dislike, DocumentText, InfoCircle, Like1, Microphone2 } from "iconsax-reactjs";
 import { HoverTooltip } from "@/src/components/atoms/Tooltip";
@@ -117,6 +117,14 @@ export function VoiceRxCanvas({
   //                isn't visible while the new note is being merged.
   //   idle (post)→ overlay closes; updated note re-appears with no flash.
   const [regenPhase, setRegenPhase] = useState("idle");
+  // True when the active Quick-Edit regen was triggered by the recording cap
+  // (auto-submit), so VoiceRxSectionProcessing shows the session-limit note.
+  const [regenWasAutoSubmitted, setRegenWasAutoSubmitted] = useState(false);
+  // Bubbled up from the Quick-Edit VoiceRxModuleRecorder — when true, the
+  // overlay GROWS so the recording-limit strip fits without compressing the
+  // recorder content underneath.
+  const [quickEditWarningVisible, setQuickEditWarningVisible] = useState(false);
+  const quickEditAutoRef = useRef(false);
   const navLocked = quickEditActive || regenPhase !== "idle";
   const overlayActive = quickEditActive || regenPhase === "processing";
   const transcriptCount = Array.isArray(transcriptSegments) ? transcriptSegments.length : 0;
@@ -442,14 +450,19 @@ export function VoiceRxCanvas({
               merged notes re-appear. */}
       {overlayActive ? (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-stretch"
-          style={{ height: "40%" }}>
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-stretch transition-[height] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          // Overlay grows when the recording-limit strip is visible so the
+          // strip lands at the top of the recorder WITHOUT compressing the
+          // mic / submit / transcript zone below. Same pattern as the
+          // sidebar overlay in detail-shared.jsx.
+          style={{ height: quickEditWarningVisible ? "58%" : "40%" }}>
           <div className="pointer-events-auto w-full" data-voice-allow>
             {regenPhase === "processing" ? (
               <div className={cn("flex h-full w-full items-center justify-center px-4 py-4", recorderStyles.recorderBgStack)}>
                 <VoiceRxSectionProcessing
                   transcript={transcript}
-                  sectionLabel="Clinical Notes" />
+                  sectionLabel="Clinical Notes"
+                  wasAutoSubmitted={regenWasAutoSubmitted} />
               </div>
             ) : (
               <VoiceRxModuleRecorder
@@ -458,13 +471,20 @@ export function VoiceRxCanvas({
                 variant="stack"
                 fillHeight
                 radiusClassName="rounded-none"
-                onCancel={() => setQuickEditActive(false)}
+                onCancel={() => { setQuickEditWarningVisible(false); setQuickEditActive(false); }}
+                onWarningChange={setQuickEditWarningVisible}
+                onAutoSubmit={() => { quickEditAutoRef.current = true; }}
                 onSubmit={(submittedTranscript) => {
+                  const auto = quickEditAutoRef.current;
+                  quickEditAutoRef.current = false;
+                  setRegenWasAutoSubmitted(auto);
+                  setQuickEditWarningVisible(false);
                   setQuickEditActive(false);
                   setRegenPhase("processing");
                   onQuickEditSubmit?.();
                   window.setTimeout(() => {
                     setRegenPhase("idle");
+                    setRegenWasAutoSubmitted(false);
                     toast.success("Clinical notes updated successfully");
                   }, 12000);
                   void submittedTranscript;
