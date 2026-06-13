@@ -96,6 +96,7 @@ import {
   setTableValues as setOpthalTableValues,
 } from "../../../../redux/ophthalmologyExamSlice";
 import useTabletViewport from "../../../../hooks/useTabletViewport";
+import { useChikitsalay } from "../../../../pages/chikitsalay/useChikitsalay";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { ASSETS } from "../../../../assets";
 const {
@@ -140,6 +141,7 @@ function TabRxHeader({
   const { isObstetricDetailsUpdated } = useSelector((state) => state.obstetric);
   const { templates, loading } = useSelector((state) => state.caseManager);
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
 
   const { customModules } = useSelector((state) => state.customModules);
 
@@ -426,7 +428,12 @@ function TabRxHeader({
     window.Moengage.track_event("one_click_template_select", {
       template_name: tmoc_template_name,
     });
-    const action = await dispatch(oneClickSingleTemplateDetails(tmoc_id));
+    const action = await dispatch(
+      oneClickSingleTemplateDetails({
+        templateId: tmoc_id,
+        isChikitsalayAccessable,
+      })
+    );
     if (action.meta.requestStatus === "fulfilled") {
       const data = action.payload;
       if (data !== undefined) {

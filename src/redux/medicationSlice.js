@@ -90,14 +90,25 @@ export const getMedicationTemplates = createAsyncThunk(
 
 export const singleTemplateDetails = createAsyncThunk(
   "medication/singleTemplateDetails",
-  async (templateId) => {
-    let result = {};
-    result = await ApiMedication.singleTemplateDetails(templateId);
+  async (arg) => {
+    const templateId =
+      typeof arg === "object" && arg !== null
+        ? arg.templateId ?? arg.tmtd_id ?? arg
+        : arg;
+    const isChikitsalayAccessable =
+      typeof arg === "object" && arg !== null
+        ? !!arg.isChikitsalayAccessable
+        : false;
+
+    const result = await ApiMedication.singleTemplateDetails(templateId, {
+      mergeInventory: isChikitsalayAccessable,
+    });
+
     if (result.status) {
       return result.data;
-    } else {
-      throw Error(result.error);
     }
+
+    throw Error(result.error);
   }
 );
 
@@ -199,13 +210,17 @@ export const searchMedication = createAsyncThunk(
 export const getLoadPreviousRx = createAsyncThunk(
   "medication/getLoadPreviousRx",
   async (data) => {
-    let result = {};
-    result = await ApiMedication.getLoadPreviousRx(data);
+    const { isChikitsalayAccessable, ...requestData } = data ?? {};
+
+    const result = await ApiMedication.getLoadPreviousRx(requestData, {
+      mergeInventory: !!isChikitsalayAccessable,
+    });
+
     if (result.status) {
       return result.data;
-    } else {
-      throw Error(result.error);
     }
+
+    throw Error(result.error);
   }
 );
 

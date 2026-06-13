@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
 import ApiCaseManager from "../api/services/ApiCaseManager";
+import ApiMedication from "../api/services/ApiMedication";
 
 const initialState = {
     templates: [],
@@ -63,14 +64,26 @@ export const oneClickTemplatesList = createAsyncThunk(
 
 export const oneClickSingleTemplateDetails = createAsyncThunk(
     "caseManager/oneClickSingleTemplateDetails",
-    async (templateId) => {
-        let result = {};
-        result = await ApiCaseManager.oneClickSingleTemplateDetails(templateId);
+    async (arg) => {
+        const templateId =
+            typeof arg === "object" && arg !== null
+                ? arg.templateId ?? arg.tmoc_id ?? arg
+                : arg;
+        const isChikitsalayAccessable =
+            typeof arg === "object" && arg !== null
+                ? !!arg.isChikitsalayAccessable
+                : false;
+
+        const result = await ApiCaseManager.oneClickSingleTemplateDetails(
+            templateId,
+            { mergeInventory: isChikitsalayAccessable }
+        );
+
         if (result.status) {
             return result.data;
-        } else {
-            throw Error(result.error);
         }
+
+        throw Error(result.error);
     }
 );
 
@@ -103,14 +116,24 @@ export const editCaseManager = createAsyncThunk(
 export const viewCaseManager = createAsyncThunk(
     "caseManager/viewCaseManager",
     async (data) => {
-        let result = {};
-        result = await ApiCaseManager.viewCaseManager(data);
-        if (result.status) {
-            result.data.patient_data["patient_unique_id"] = data.patient_unique_id;
-            return result.data;
-        } else {
+        const {
+            isChikitsalayAccessable,
+            configurePrintSetting,
+            ...requestData
+        } = data ?? {};
+
+        const result = await ApiCaseManager.viewCaseManager(requestData);
+
+        if (!result.status) {
             throw Error(result.error);
         }
+
+        result.data.patient_data["patient_unique_id"] = requestData.patient_unique_id;
+
+        return ApiMedication.mergeCaseManagerMedicineInventory(
+            result.data,
+            isChikitsalayAccessable
+        );
     }
 );
 

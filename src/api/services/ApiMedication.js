@@ -26,8 +26,27 @@ ApiMedication.getMedicationTemplates = function () {
   return api.get(`/api/v1/medicine/listTemplate`, baseUrl);
 };
 
-ApiMedication.singleTemplateDetails = function (templateId) {
-  return api.get(`/api/v1/medicine/singleTemplateDetails/${templateId}`, baseUrl);
+ApiMedication.singleTemplateDetails = async function (
+  templateId,
+  { mergeInventory = false } = {}
+) {
+  const result = await api.get(
+    `/api/v1/medicine/singleTemplateDetails/${templateId}`,
+    baseUrl
+  );
+
+  if (!mergeInventory || !result?.status) {
+    return result;
+  }
+
+  const templateMedicines = Array.isArray(result.data) ? result.data : [];
+  const mergedData =
+    await ApiMedication.mergeSearchResultsWithInventory(templateMedicines);
+
+  return {
+    ...result,
+    data: mergedData,
+  };
 };
 
 ApiMedication.getMedicineDetails = function (query) {
@@ -117,6 +136,31 @@ ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
   }
 };
 
+ApiMedication.mergeCaseManagerMedicineInventory = async function (
+  caseManagerData,
+  isChikitsalayAccessable = false
+) {
+  if (!isChikitsalayAccessable || !caseManagerData) {
+    return caseManagerData;
+  }
+
+  const medicines = Array.isArray(caseManagerData.medicine)
+    ? caseManagerData.medicine
+    : [];
+
+  if (medicines.length === 0) {
+    return caseManagerData;
+  }
+
+  const mergedMedicine =
+    await ApiMedication.mergeSearchResultsWithInventory(medicines);
+
+  return {
+    ...caseManagerData,
+    medicine: mergedMedicine,
+  };
+};
+
 ApiMedication.getQuantity = function (data) {
   return api.post(`/api/v1/cvt/get-medicine-quantity`, data, quantityBaseUrl);
 };
@@ -147,8 +191,28 @@ ApiMedication.editMedicine = function (data) {
   return api.post(`/api/v1/medicine/editMedicine`, data, baseUrl);
 };
 
-ApiMedication.getLoadPreviousRx = function (data) {
-  return api.post(`/api/v1/medicine/getLoadPreviousRx`, data, baseUrl);
+ApiMedication.getLoadPreviousRx = async function (
+  data,
+  { mergeInventory = false } = {}
+) {
+  const result = await api.post(
+    `/api/v1/medicine/getLoadPreviousRx`,
+    data,
+    baseUrl
+  );
+
+  if (!mergeInventory || !result?.status) {
+    return result;
+  }
+
+  const previousRxMedicines = Array.isArray(result.data) ? result.data : [];
+  const mergedData =
+    await ApiMedication.mergeSearchResultsWithInventory(previousRxMedicines);
+
+  return {
+    ...result,
+    data: mergedData,
+  };
 };
 
 ApiMedication.getAllDoses = function () {

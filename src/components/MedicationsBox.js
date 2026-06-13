@@ -1083,6 +1083,7 @@ function MedicationsBox({ showVoiceRxModule }) {
     var sendData = {
       patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
       tcm_id: tcmId,
+      isChikitsalayAccessable,
     };
     const action = await dispatch(getLoadPreviousRx(sendData));
     if (action.meta.requestStatus === "fulfilled") {
@@ -1129,7 +1130,12 @@ function MedicationsBox({ showVoiceRxModule }) {
     window.Moengage.track_event("medication_template_used", {
       "template_name": tmtd_id.tmtd_template_name
     });
-    const action = await dispatch(singleTemplateDetails(tmtd_id));
+    const action = await dispatch(
+      singleTemplateDetails({
+        templateId: tmtd_id,
+        isChikitsalayAccessable,
+      })
+    );
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action.payload.map((e) => {
 

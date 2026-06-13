@@ -211,7 +211,7 @@ function MedicineOutOfStockAlternatives({
         placement="bottomLeft"
         arrow={false}
         overlayClassName="pp-0 medicine-oos-alternatives-popover"
-        overlayStyle={popoverWidth ? { width: popoverWidth } : undefined}
+        // overlayStyle={popoverWidth ? { width: popoverWidth } : undefined}
         content={popoverContent}
       >
         <div className="medicine-oos-trigger" role="button" tabIndex={0}>
