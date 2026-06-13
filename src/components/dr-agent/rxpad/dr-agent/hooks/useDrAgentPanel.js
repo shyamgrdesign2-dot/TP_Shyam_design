@@ -49,6 +49,10 @@ import {
   buildVoiceHistoryEntry,
   uploadAndLogVoiceRx2,
 } from "../../../voicerx/voiceRx2Logging";
+import {
+  createVoiceV2AbortError,
+  VOICE_V2_ABORT_REASONS,
+} from "../../../voicerx/api/stacks-api-tracking";
 
 import { useLiveTranscript } from "../../../voicerx/use-live-transcript";
 import { uid, getQueryHint, detectSpecialties } from "../utils/panelUtils";
@@ -229,8 +233,20 @@ export function useDrAgentPanel({
   const voiceRxSessionRef = useRef(null);
   const voiceRxAbortRef = useRef(null);
   const voiceSubmitInFlightRef = useRef(false);
+  const soapRetryInFlightRef = useRef(false);
   const pendingInitialVoiceUserMsgIdRef = useRef(null);
   const hasAutoHydratedRef = useRef(false);
+  const abortActiveVoiceRxRequest = useCallback((reason) => {
+    if (!voiceRxAbortRef.current) return;
+    try {
+      if (reason) {
+        voiceRxAbortRef.current.abort(createVoiceV2AbortError(reason));
+      } else {
+        voiceRxAbortRef.current.abort();
+      }
+    } catch { /* ignore */ }
+    voiceRxAbortRef.current = null;
+  }, []);
   // ── Patient Context ──
   const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId ?? patientId ?? CONTEXT_PATIENT_ID);
 
@@ -612,7 +628,7 @@ export function useDrAgentPanel({
     voiceRxSessionRef.current = context;
 
     if (voiceRxAbortRef.current) {
-      try { voiceRxAbortRef.current.abort(); } catch { /* ignore */ }
+      abortActiveVoiceRxRequest();
     }
     const abortController = new AbortController();
     voiceRxAbortRef.current = abortController;
@@ -790,7 +806,13 @@ export function useDrAgentPanel({
         })));
       });
     } catch (error) {
-      if (error?.name === "AbortError") return;
+      if (error?.name === "AbortError") {
+        setMessagesByPatient((prev) => {
+          const list = prev[selectedPatientId] || [];
+          return { ...prev, [selectedPatientId]: list.filter((m) => m.id !== userMsg.id) };
+        });
+        return;
+      }
       console.error("[voice-rx] quick-edit pipeline failed", error);
       const failedPhase = error?.phase === "digitise-data" ? "digitise-data" : "transcribe-audio";
       uploadAndLogVoiceRx2({
@@ -830,17 +852,14 @@ export function useDrAgentPanel({
       if (voiceRxAbortRef.current === abortController) voiceRxAbortRef.current = null;
       voiceSubmitInFlightRef.current = false;
     }
-  }, [voiceRxResult, voiceRxDialogChoice, selectedPatientId, setMessagesByPatient, patientId, doctorId, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated, dispatch, patientData, profile]);
+  }, [abortActiveVoiceRxRequest, voiceRxResult, voiceRxDialogChoice, selectedPatientId, setMessagesByPatient, patientId, doctorId, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated, dispatch, patientData, profile]);
 
   const cancelVoiceRxRecording = useCallback(() => {
     if (voiceRxTimeoutRef.current) {
       clearTimeout(voiceRxTimeoutRef.current);
       voiceRxTimeoutRef.current = null;
     }
-    if (voiceRxAbortRef.current) {
-      try { voiceRxAbortRef.current.abort(); } catch { /* ignore */ }
-      voiceRxAbortRef.current = null;
-    }
+    abortActiveVoiceRxRequest(VOICE_V2_ABORT_REASONS.USER_DISCARDED_VOICE_RX);
     setVoiceRxRecording(false);
     setVoiceRxScriptedTranscript("");
     setVoiceRxSubmittedTranscript("");
@@ -864,7 +883,7 @@ export function useDrAgentPanel({
       setVoiceRxResult(priorVoiceResultRef.current);
       priorVoiceResultRef.current = null;
     }
-  }, [onVoiceCaptureModeChange, selectedPatientId, setAiFillInProgress, resetLiveTranscript]);
+  }, [abortActiveVoiceRxRequest, onVoiceCaptureModeChange, selectedPatientId, setAiFillInProgress, resetLiveTranscript]);
 
   const submitVoiceRxRecording = useCallback((meta) => {
     if (voiceSubmitInFlightRef.current) return;
@@ -928,7 +947,7 @@ export function useDrAgentPanel({
     voiceRxSessionRef.current = context;
 
     if (voiceRxAbortRef.current) {
-      try { voiceRxAbortRef.current.abort(); } catch { /* ignore */ }
+      abortActiveVoiceRxRequest();
     }
     const abortController = new AbortController();
     voiceRxAbortRef.current = abortController;
@@ -1125,6 +1144,10 @@ export function useDrAgentPanel({
         });
       } catch (error) {
         if (error?.name === "AbortError") {
+          setMessagesByPatient((prev) => {
+            const list = prev[selectedPatientId] || [];
+            return { ...prev, [selectedPatientId]: list.filter((m) => m.id !== userMsg.id) };
+          });
           if (pendingInitialVoiceUserMsgIdRef.current === userMsg.id) {
             pendingInitialVoiceUserMsgIdRef.current = null;
           }
@@ -1193,7 +1216,8 @@ export function useDrAgentPanel({
     profile,
     voiceDigitization?.sessionId,
     voiceDigitization?.voiceCallCount,
-    voiceDigitization?.voiceLogCreated
+    voiceDigitization?.voiceLogCreated,
+    abortActiveVoiceRxRequest
   ]);
 
   // Cleanup any pending simulated response on unmount
@@ -1204,12 +1228,11 @@ export function useDrAgentPanel({
         voiceRxTimeoutRef.current = null;
       }
       if (voiceRxAbortRef.current) {
-        try { voiceRxAbortRef.current.abort(); } catch { /* ignore */ }
-        voiceRxAbortRef.current = null;
+        abortActiveVoiceRxRequest();
       }
       setAiFillInProgress(false);
     };
-  }, [setAiFillInProgress]);
+  }, [abortActiveVoiceRxRequest, setAiFillInProgress]);
 
   // Custom events for external sticky fab control
   useEffect(() => {
@@ -1913,6 +1936,8 @@ export function useDrAgentPanel({
 
   const retryVoiceRxSoap = useCallback(async () => {
     if (!voiceRxResult) return;
+    if (soapRetryInFlightRef.current || voiceRxResult.soapStatus === "pending") return;
+    soapRetryInFlightRef.current = true;
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
       patientId: patientId || "1111",
       doctorId: doctorId || "3333",
@@ -1942,6 +1967,8 @@ export function useDrAgentPanel({
         soapError: error?.message || "SOAP generation failed.",
       } : prev);
       toast.error("SOAP note could not be generated.");
+    } finally {
+      soapRetryInFlightRef.current = false;
     }
   }, [dispatch, doctorId, patientId, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
 

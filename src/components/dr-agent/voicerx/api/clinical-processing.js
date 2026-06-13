@@ -16,21 +16,34 @@ function sleep(ms) {
 
 function createTimeoutSignal(timeoutMs) {
 	const controller = new AbortController();
-	const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+	const timeoutId = setTimeout(() => {
+		const error = new Error(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`);
+		error.name = 'AbortError';
+		error.status = 408;
+		controller.abort(error);
+	}, timeoutMs);
 	return { signal: controller.signal, clear: () => clearTimeout(timeoutId) };
+}
+
+function abortSignal(controller, reason) {
+	if (reason !== undefined) {
+		controller.abort(reason);
+		return;
+	}
+	controller.abort();
 }
 
 function combineSignals(signals) {
 	const activeSignals = signals.filter(Boolean);
 	if (!activeSignals.length) return undefined;
 	const controller = new AbortController();
-	const abort = () => controller.abort();
+	const abort = (signal) => abortSignal(controller, signal.reason);
 	for (const signal of activeSignals) {
 		if (signal.aborted) {
-			controller.abort();
+			abort(signal);
 			break;
 		}
-		signal.addEventListener('abort', abort, { once: true });
+		signal.addEventListener('abort', () => abort(signal), { once: true });
 	}
 	return controller.signal;
 }
@@ -47,9 +60,7 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 	} catch (error) {
 		if (error?.name === 'AbortError') {
 			if (options?.signal?.aborted) throw error;
-			const timeoutError = new Error(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`);
-			timeoutError.status = 408;
-			throw timeoutError;
+			throw timeout.signal.reason || error;
 		}
 		throw error;
 	} finally {
