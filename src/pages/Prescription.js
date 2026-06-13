@@ -183,7 +183,6 @@ function Prescription() {
   const { privateNotesList } = useSelector((state) => state.medicalhistory);
   const {
     obstetricDetails: allObstetricDetails,
-    isObstetricDetailsFetched,
     isNavigateToObstetric,
   } = useSelector((state) => state.obstetric);
   const obstetricDetails = allObstetricDetails?.currentPregnancy || {};

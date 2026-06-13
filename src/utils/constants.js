@@ -3,7 +3,7 @@ import { env } from "../EnvironmentConfig";
 
 /** Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js */
 export const TP_ASSETS_BASE =
-  "https://pmdoctorportal.blob.core.windows.net/tp-assets/assets";
+  "https://pmdoctorportal.tatvacare.in/tp-assets/assets";
 
 const codeIcon = `${TP_ASSETS_BASE}/images/code.svg`;
 const validateHealthcareIcon = `${TP_ASSETS_BASE}/images/validate-heathcare.svg`;
