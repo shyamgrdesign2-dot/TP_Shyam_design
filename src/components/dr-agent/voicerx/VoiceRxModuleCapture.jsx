@@ -4,6 +4,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { Eraser, Grid5, Ram, Refresh2, Setting2 } from "iconsax-reactjs";
 import { VoiceRecorderCore } from "./VoiceRecorderCore";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./api/clinical-api";
+import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "./api/stacks-api-tracking";
 import {
   CaptionCarousel,
   ConversationTranscript,
@@ -960,6 +961,7 @@ async function requestTranscribeAndDigitise({
   const abortController = new AbortController();
   const timeoutId = window.setTimeout(() => abortController.abort(), MODULE_DIGITISE_TIMEOUT_MS);
   let response;
+  const startedAtMs = Date.now();
   try {
     response = await fetch(joinAgentModuleApiUrl(MODULE_DIGITISE_ENDPOINT), {
       method: "POST",
@@ -969,18 +971,57 @@ async function requestTranscribeAndDigitise({
     });
   } catch (error) {
     if (error?.name === "AbortError") {
-      throw new Error("Module voice digitise timed out after 120 seconds.");
+      const timeoutError = new Error("Module voice digitise timed out after 120 seconds.");
+      decorateVoiceV2ApiError(timeoutError, { statusCode: 408 });
+      trackVoiceV2ApiResponse({
+        apiName: "agentsModule",
+        endpoint: MODULE_DIGITISE_ENDPOINT,
+        statusCode: 408,
+        response: null,
+        error: timeoutError,
+        startedAtMs,
+        extra: { patient_id: patientId, doctor_id: doctorId, session_id: sessionId, module_name: moduleApiName },
+      });
+      throw timeoutError;
     }
+    trackVoiceV2ApiResponse({
+      apiName: "agentsModule",
+      endpoint: MODULE_DIGITISE_ENDPOINT,
+      response: null,
+      error,
+      startedAtMs,
+      extra: { patient_id: patientId, doctor_id: doctorId, session_id: sessionId, module_name: moduleApiName },
+    });
     throw error;
   } finally {
     window.clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
-    throw new Error(`Module voice digitise failed with ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    const error = new Error(`Module voice digitise failed with ${response.status}. ${detail}`.trim());
+    decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+    trackVoiceV2ApiResponse({
+      apiName: "agentsModule",
+      endpoint: MODULE_DIGITISE_ENDPOINT,
+      statusCode: response.status,
+      response: detail,
+      error,
+      startedAtMs,
+      extra: { patient_id: patientId, doctor_id: doctorId, session_id: sessionId, module_name: moduleApiName },
+    });
+    throw error;
   }
 
   const responseJson = await response.json();
+  trackVoiceV2ApiResponse({
+    apiName: "agentsModule",
+    endpoint: MODULE_DIGITISE_ENDPOINT,
+    statusCode: response.status,
+    response: responseJson,
+    startedAtMs,
+    extra: { patient_id: patientId, doctor_id: doctorId, session_id: sessionId, module_name: moduleApiName },
+  });
   const rows = normalizeModuleRows(responseJson, moduleApiName);
   if (moduleApiName === "medical_history") {
     console.groupCollapsed("[VoiceRx MedicalHistory] requestTranscribeAndDigitise result");

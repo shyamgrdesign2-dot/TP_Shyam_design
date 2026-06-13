@@ -229,6 +229,7 @@ export function useDrAgentPanel({
   const voiceRxSessionRef = useRef(null);
   const voiceRxAbortRef = useRef(null);
   const voiceSubmitInFlightRef = useRef(false);
+  const pendingInitialVoiceUserMsgIdRef = useRef(null);
   const hasAutoHydratedRef = useRef(false);
   // ── Patient Context ──
   const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId ?? patientId ?? CONTEXT_PATIENT_ID);
@@ -524,6 +525,7 @@ export function useDrAgentPanel({
     setVoiceRxScriptedTranscript("");
     setVoiceRxSubmittedTranscript("");
     setVoiceRxProcessingTranscript("");
+    pendingInitialVoiceUserMsgIdRef.current = null;
     resetLiveTranscript();
     setVoiceRxAwaitingResponse(false);
     setVoiceRxRecording(true);
@@ -843,6 +845,14 @@ export function useDrAgentPanel({
     setVoiceRxScriptedTranscript("");
     setVoiceRxSubmittedTranscript("");
     setVoiceRxProcessingTranscript("");
+    if (pendingInitialVoiceUserMsgIdRef.current) {
+      const pendingUserMsgId = pendingInitialVoiceUserMsgIdRef.current;
+      pendingInitialVoiceUserMsgIdRef.current = null;
+      setMessagesByPatient((prev) => {
+        const list = prev[selectedPatientId] || [];
+        return { ...prev, [selectedPatientId]: list.filter((m) => m.id !== pendingUserMsgId) };
+      });
+    }
     resetLiveTranscript();
     setVoiceRxAwaitingResponse(false);
     setAiFillInProgress(false);
@@ -854,7 +864,7 @@ export function useDrAgentPanel({
       setVoiceRxResult(priorVoiceResultRef.current);
       priorVoiceResultRef.current = null;
     }
-  }, [onVoiceCaptureModeChange, setAiFillInProgress, resetLiveTranscript]);
+  }, [onVoiceCaptureModeChange, selectedPatientId, setAiFillInProgress, resetLiveTranscript]);
 
   const submitVoiceRxRecording = useCallback((meta) => {
     if (voiceSubmitInFlightRef.current) return;
@@ -888,6 +898,15 @@ export function useDrAgentPanel({
       feedbackGiven: null,
       voiceEntryAnimation: true
     };
+    const existingMessages = messagesByPatient[selectedPatientId] || [];
+    const hasPriorVoiceSubmission = existingMessages.some((m) => m.role === "user" && !!m.voiceTranscript);
+    const history = Array.isArray(voiceDigitization?.history) ? voiceDigitization.history : [];
+    const hasDoctorAgentHistory = history.some(
+      (entry) => entry?.isDoctorAgent === true || entry?.sourceSurface === "doctor-agent"
+    );
+    const hasRestorableVoiceAtSubmit = hasDoctorAgentHistory || hasObjectData(voiceDigitization?.clinicNotes) || hasObjectData(voiceDigitization?.digitizeData);
+    const isInitialVoiceSubmit = voiceRxMode && !hasPriorVoiceSubmission && !hasRestorableVoiceAtSubmit && !priorVoiceResultRef.current;
+    pendingInitialVoiceUserMsgIdRef.current = isInitialVoiceSubmit ? userMsg.id : null;
     setMessagesByPatient((prev) => ({
       ...prev,
       [selectedPatientId]: [...(prev[selectedPatientId] || []), userMsg]
@@ -1105,7 +1124,12 @@ export function useDrAgentPanel({
           })));
         });
       } catch (error) {
-        if (error?.name === "AbortError") return;
+        if (error?.name === "AbortError") {
+          if (pendingInitialVoiceUserMsgIdRef.current === userMsg.id) {
+            pendingInitialVoiceUserMsgIdRef.current = null;
+          }
+          return;
+        }
         const failedPhase = error?.phase === "digitising" ? "digitise-data" : (error?.phase || "transcribe-audio");
         console.error("[voice-rx] pipeline failed", error);
         uploadAndLogVoiceRx2({
@@ -1141,6 +1165,9 @@ export function useDrAgentPanel({
           const list = prev[selectedPatientId] || [];
           return { ...prev, [selectedPatientId]: list.filter((m) => m.id !== userMsg.id) };
         });
+        if (pendingInitialVoiceUserMsgIdRef.current === userMsg.id) {
+          pendingInitialVoiceUserMsgIdRef.current = null;
+        }
       } finally {
         if (voiceRxAbortRef.current === abortController) voiceRxAbortRef.current = null;
         voiceSubmitInFlightRef.current = false;
@@ -1156,6 +1183,9 @@ export function useDrAgentPanel({
     setMessagesByPatient,
     onVoiceCaptureModeChange,
     resetLiveTranscript,
+    voiceRxMode,
+    messagesByPatient,
+    voiceDigitization,
     patientId,
     doctorId,
     dispatch,
@@ -1881,6 +1911,40 @@ export function useDrAgentPanel({
     }, 2500);
   }, [summary.symptomCollectorData, handleSend, setMessagesByPatient, selectedPatientId]);
 
+  const retryVoiceRxSoap = useCallback(async () => {
+    if (!voiceRxResult) return;
+    const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
+      patientId: patientId || "1111",
+      doctorId: doctorId || "3333",
+      sessionId: voiceDigitization?.sessionId,
+    });
+    voiceRxSessionRef.current = context;
+    setVoiceRxResult((prev) => prev ? { ...prev, soapStatus: "pending", soapError: null } : prev);
+    try {
+      const soapResult = await generateSoapNote({
+        context,
+        previousContext: htmlToSoapSections(voiceDigitization?.soapHtml || voiceRxResult?.soapHtml) || voiceRxResult?.soap || voiceDigitization?.soap || null,
+      });
+      if (soapResult?.status !== "fulfilled" || !soapResult.data) {
+        throw new Error(soapResult?.error || "SOAP generation failed.");
+      }
+      const soapHtml = soapToHtml(soapResult.data);
+      setVoiceRxResult((prev) => prev ? { ...prev, soap: soapResult.data, soapHtml, soapStatus: "fulfilled", soapError: null } : prev);
+      dispatch(updateVoiceSoap(soapResult.data));
+      if (soapHtml) dispatch(updateVoiceSoapHtml(soapHtml));
+      toast.success("SOAP note refreshed");
+    } catch (error) {
+      setVoiceRxResult((prev) => prev ? {
+        ...prev,
+        soap: null,
+        soapHtml: "",
+        soapStatus: "rejected",
+        soapError: error?.message || "SOAP generation failed.",
+      } : prev);
+      toast.error("SOAP note could not be generated.");
+    }
+  }, [dispatch, doctorId, patientId, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
+
   // Flip only while actively recording — submit flips back immediately so the chat loader
   // (VoiceRxLoaderCard) + RxPad processing overlay become visible.
   // Stay on the back face for the entire voice flow:
@@ -1933,6 +1997,7 @@ export function useDrAgentPanel({
     setVoiceRxRecording,
     beginVoiceAddOn,
     submitQuickEdit,
+    retryVoiceRxSoap,
     flipDeg,
     voiceRxAwaitingResponse,
     voiceRxHandoffExiting,

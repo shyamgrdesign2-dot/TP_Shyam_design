@@ -48,6 +48,7 @@ import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../../assets";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
+import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
 import { uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
@@ -2561,6 +2562,15 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
   const abortController = new AbortController();
   const timeoutId = window.setTimeout(() => abortController.abort(), SIDE_NAV_MODULE_TIMEOUT_MS);
   let response;
+  const startedAtMs = Date.now();
+  const trackingExtra = {
+    patient_id: patientId,
+    doctor_id: doctorId,
+    session_id: sessionId,
+    module_name: moduleName,
+    sectionId,
+    sourceSurface: "side-navbar",
+  };
   try {
     response = await fetch(joinAgentModuleApiUrl(SIDE_NAV_MODULE_ENDPOINT), {
       method: "POST",
@@ -2570,18 +2580,57 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
     });
   } catch (error) {
     if (error?.name === "AbortError") {
-      throw new Error("Section voice digitise timed out after 120 seconds.");
+      const timeoutError = new Error("Section voice digitise timed out after 120 seconds.");
+      decorateVoiceV2ApiError(timeoutError, { statusCode: 408 });
+      trackVoiceV2ApiResponse({
+        apiName: "agentsModule",
+        endpoint: SIDE_NAV_MODULE_ENDPOINT,
+        statusCode: 408,
+        response: null,
+        error: timeoutError,
+        startedAtMs,
+        extra: trackingExtra,
+      });
+      throw timeoutError;
     }
+    trackVoiceV2ApiResponse({
+      apiName: "agentsModule",
+      endpoint: SIDE_NAV_MODULE_ENDPOINT,
+      response: null,
+      error,
+      startedAtMs,
+      extra: trackingExtra,
+    });
     throw error;
   } finally {
     window.clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
-    throw new Error(`Section voice digitise failed with ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    const error = new Error(`Section voice digitise failed with ${response.status}. ${detail}`.trim());
+    decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+    trackVoiceV2ApiResponse({
+      apiName: "agentsModule",
+      endpoint: SIDE_NAV_MODULE_ENDPOINT,
+      statusCode: response.status,
+      response: detail,
+      error,
+      startedAtMs,
+      extra: trackingExtra,
+    });
+    throw error;
   }
 
   const responseJson = await response.json();
+  trackVoiceV2ApiResponse({
+    apiName: "agentsModule",
+    endpoint: SIDE_NAV_MODULE_ENDPOINT,
+    statusCode: response.status,
+    response: responseJson,
+    startedAtMs,
+    extra: trackingExtra,
+  });
   return {
     ...normalizeSideNavModuleResponse(responseJson, sectionId),
     conversation: extractSideNavModuleConversation(responseJson),

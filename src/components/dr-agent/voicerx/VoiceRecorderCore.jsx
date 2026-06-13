@@ -598,6 +598,7 @@ export function VoiceRecorderCore({
   const [isCompactLayout, setIsCompactLayout] = useState(!isFullscreen && variant === "stack");
   const [isUltraCompact, setIsUltraCompact] = useState(false);
   const [submitProcessing, setSubmitProcessing] = useState(false);
+  const submitProcessingRef = useRef(false);
 
   // Fullscreen: processing phase → bottom loader transition
   const [processingPhase, setProcessingPhase] = useState("idle");
@@ -858,7 +859,7 @@ export function VoiceRecorderCore({
   // ── Derived: canSubmit ──────────────────────────────────────────────────────
 
   const canSubmit = isFullscreen
-    ? (!isAwaitingResponse && !networkPaused && !micError && (externalTranscript?.trim()?.length > 0 || elapsedMs >= 2000))
+    ? (!isAwaitingResponse && !submitProcessing && !networkPaused && !micError && (externalTranscript?.trim()?.length > 0 || elapsedMs >= 2000))
     : (!submitProcessing && !criticalBlock && (overlayHasTranscript || elapsedMs >= 2000));
 
   // ── Derived: status label ───────────────────────────────────────────────────
@@ -909,7 +910,8 @@ export function VoiceRecorderCore({
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleSubmitClick = useCallback(async () => {
-    if (submitProcessing || (isFullscreen && isAwaitingResponse) || !canSubmit) return;
+    if (submitProcessingRef.current || submitProcessing || (isFullscreen && isAwaitingResponse) || !canSubmit) return;
+    submitProcessingRef.current = true;
     if (isFullscreen) playSubmitSound();
     setSubmitProcessing(true);
     const submitClickedAtMs = Date.now();
@@ -923,6 +925,7 @@ export function VoiceRecorderCore({
     } catch (e) {
       console.error("Voice submit failed", e);
     } finally {
+      submitProcessingRef.current = false;
       setSubmitProcessing(false);
     }
   }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, flushFinalChunks, onSubmit, externalTranscript, liveDisplayText, elapsedMs, activeDevice?.label]);
@@ -1076,7 +1079,7 @@ export function VoiceRecorderCore({
     </div>
   );
 
-  const submitBtn = isFullscreen && isAwaitingResponse ? (
+  const submitBtn = isFullscreen && (isAwaitingResponse || submitProcessing) ? (
     <div role="status" aria-label="Processing consultation"
       className={[s.processingLoader, "relative flex h-[42px] items-center justify-center gap-[8px] rounded-[12px]"].join(" ")}>
       <span aria-hidden className={s.processingSpinner} />

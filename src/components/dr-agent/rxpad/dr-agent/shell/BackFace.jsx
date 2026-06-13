@@ -50,6 +50,7 @@ export function BackFace({
   onMinimize,
   onAddDetailsByVoice,
   onQuickEditSubmit,
+  onRetrySoap,
   onCopyResult,
   onCopyAll,
   onCopySoap,
@@ -98,7 +99,7 @@ export function BackFace({
               <SoapNoteCard
                 status={effectiveSoapStatus}
                 html={effectiveSoapHtml}
-                error={voiceRxResult.soapError}
+                onRetry={onRetrySoap}
                 onChange={(html) => dispatch(updateVoiceSoapHtml(html))}
               />
             }
