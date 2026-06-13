@@ -21,9 +21,8 @@ const showDateFormat = 'DD MMM, YY'
 
 function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig, isCvtExtHosAccessableFromGB } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig, isCvtExtHosAccessableFromGB, drawingCanvases, isDrawingCanvasesLoading } = useContext(PrintSettingsContext);
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
-
     const {isGynaecHistoryAccessable} = useAccess();
     const { isPediatricAccessable } = useAccess();
     const dispatch = useDispatch();
@@ -237,6 +236,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 ophthalModuleData={ophthalModuleData}
                 abhaDetails={props.abhaDetails}
                 dentalData={props.dentalData}
+                drawingCanvases={drawingCanvases}
             />).toBlob();
 
             const setPdfUrlSafe = (url) => {
@@ -272,7 +272,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         }
         // Only generate PDF if caseManagerData exists and has patient_data
         // This prevents generating PDF with empty/incomplete data
-        if (caseManagerData && caseManagerData.patient_data) {
+        if (caseManagerData && caseManagerData.patient_data && !isDrawingCanvasesLoading) {
             makePDFUrl()
         }
         return () => {
@@ -306,7 +306,9 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         props.advanceReceipts,
         props.patientWalletBalance,
         props.abhaDetails,
-        props.dentalData
+        props.dentalData,
+        drawingCanvases,
+        isDrawingCanvasesLoading
     ]);
 
     const onDocumentLoadSuccess = ({ numPages }) => {

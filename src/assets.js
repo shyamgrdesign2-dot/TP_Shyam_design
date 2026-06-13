@@ -704,6 +704,7 @@ export const ASSETS = {
     vaccineSecondary: `${BASE_URL}/images/vaccine-secondary.svg`,
     validateHeathcare: `${BASE_URL}/images/validate-heathcare.svg`,
     verticleUpDown: `${BASE_URL}/images/verticle-up-down.svg`,
+    viewMore: `${BASE_URL}/images/view-more.png`,
     video: `${BASE_URL}/images/video.svg`,
     videoGreen: `${BASE_URL}/images/video-green.svg`,
     videoIcon: `${BASE_URL}/images/video_icon.svg`,

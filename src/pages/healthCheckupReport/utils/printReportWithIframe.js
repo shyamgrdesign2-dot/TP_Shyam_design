@@ -77,6 +77,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
             </td>
           </tr>
         </tbody>
+        <tfoot><tr><td></td></tr></tfoot>
       </table>
 
       <table class="print-content-table print-repeat-pages-table">
@@ -94,6 +95,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
             </td>
           </tr>
         </tbody>
+        <tfoot><tr><td></td></tr></tfoot>
       </table>
     </div>
   `;
@@ -120,7 +122,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     }
 
     .print-padding-wrapper {
-      padding: 10mm 1cm 3cm 2cm !important;
+      padding: 10mm 1cm 5mm 2cm !important;
       box-sizing: border-box !important;
       width: 100% !important;
       max-width: 100% !important;
@@ -163,11 +165,24 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     .print-content-table > tbody {
       display: table-row-group;
     }
+    /* tfoot repeats at the bottom of every printed page (like thead at the top) — creates 25mm
+       clearance for the hospital's pre-printed letterhead footer on each page */
+    .print-first-page-table > tfoot,
+    .print-content-table > tfoot {
+      display: table-footer-group;
+    }
     .print-first-page-table > tbody > tr > td,
     .print-content-table > thead > tr > td,
     .print-content-table > tbody > tr > td {
       border: none;
       padding: 0;
+    }
+    .print-first-page-table > tfoot > tr > td,
+    .print-content-table > tfoot > tr > td {
+      height: 3cm;
+      padding: 0 !important;
+      border: none !important;
+      background: transparent !important;
     }
 
     /*
@@ -292,13 +307,12 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     mmProbe.remove();
 
     /*
-     * Exact print content area: A4 297mm − 10mm top padding − 30mm bottom padding = 257mm.
-     * The previous +5 slack allowed up to 262mm, and overflowTolerancePx added another ~6mm,
-     * meaning firstPageTable could be 268mm tall while the print page only holds 257mm.
-     * Chrome then paginates firstPageTable across pages 1 & 2, pushing repeatPagesTable
-     * (and its header) to page 3 — the "header missing on page 2" bug.
+     * Print content area: A4 297mm − 10mm wrapper top padding = 287mm.
+     * The 3cm (30mm) bottom clearance for the hospital letterhead footer is provided by the
+     * <tfoot> on print-first-page-table, included in getBoundingClientRect().height.
+     * So the table (content + 30mm tfoot) must fit within 287mm → actual content ≤ 257mm.
      */
-    const availableFirstPageHeight = (297 - 10 - 30) * pxPerMm;
+    const availableFirstPageHeight = (297 - 10) * pxPerMm;
     const sourceNodes = Array.from(source.childNodes).filter((node) => {
       if (node.nodeType === Node.TEXT_NODE) return Boolean(node.textContent && node.textContent.trim());
       return true;

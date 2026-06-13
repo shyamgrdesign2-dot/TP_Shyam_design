@@ -1,0 +1,21 @@
+.drawing-canvas {
+  width: 100%;
+  background: #ffffff;
+}
+
+.drawing-canvas__body {
+  padding: 24px 16px 16px;
+  box-sizing: border-box;
+  min-height: calc(100vh - 60px);
+}
+
+.drawing-canvas__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.drawing-canvas__grid-item {
+  min-width: 0;
+}
+

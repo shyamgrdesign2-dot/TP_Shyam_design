@@ -366,6 +366,8 @@ function Welcome1(props) {
                             <h1 className='mt-2 mb-3'>{'ABHA Records'}</h1>
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? (
                             <h1 className='mt-2 mb-3'>{'Health Check-up Report'}</h1>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES ? (
+                            <h1 className='mt-2 mb-3'>{'Canvases'}</h1>
                         ) : (
                             <h1 className='mt-2 mb-3'>{'Medical Records'}</h1>
                         )}

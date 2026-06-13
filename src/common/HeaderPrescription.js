@@ -27,7 +27,7 @@ import voiceModuleStyles from '../components/dr-agent/voicerx/VoiceRxModuleCaptu
 import { DictationIcon, VoiceRxIcon } from '../components/dr-agent/voicerx/voice-consult-icons';
 import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncContext';
 
-import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType, trackEvent } from "../utils/utils";
 import { transcribeAnyAudio } from '../components/dr-agent/voicerx/api/agent-audio-service';
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
@@ -70,6 +70,7 @@ import {
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
 import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
+import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
 const {
   alerticon: alertIcon,
@@ -158,6 +159,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         loading,
     } = useSelector((state) => state.caseManager);
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
     const { activeVoiceModule, headerDictation, setHeaderDictation } = useRxPadSync();
 
     const {customModules} = useSelector((state) => state.customModules);
@@ -166,7 +168,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isTablet = useTabletViewport();
     const headerOverlayZIndex = isNewPrescriptionUi ? 1305 : undefined;
     const shouldUseMobileTemplateContent = isMobile && !isTablet;
-    const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft } = useContext(CashManagerContext);
+    const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft, rxDrawingCanvasIds } = useContext(CashManagerContext);
     const { isAutofillSelected, selectedSymptomsCollector, symptomCollector } = useSelector(
         (state) => state.ddx
     );
@@ -521,6 +523,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
             });
     }, [dispatch, patient_data?.patient_unique_id, medicationData, investigationData, profile?.hospital_data]);
+
+    const hasRxDrawingCanvasIds =
+        (Array.isArray(rxDrawingCanvasIds) && rxDrawingCanvasIds.length > 0) ||
+        (typeof rxDrawingCanvasIds === "string" && rxDrawingCanvasIds.split(",").filter(Boolean).length > 0);
 
     const trackSaveDraftEvent = useCallback(() => {
         window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.save, {
@@ -1518,6 +1524,28 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [ophthalmologyExam]);
 
+    const hasSymptomsWithSince = useMemo(
+        () =>
+            symptomsData.length > 0 &&
+            symptomsData.every(
+                (symptom) => String(symptom?.since ?? "").trim() !== ""
+            ),
+        [symptomsData]
+    );
+
+    const endVisitTooltipMessage = useMemo(() => {
+        if (isChikitsalayAccessable) {
+            if (!hasSymptomsWithSince && diagnosisData.length === 0) {
+                return "Please fill Symptoms and Diagnosis to end the consultation.";
+            } else if (!hasSymptomsWithSince) {
+                return "Please fill Symptoms and Since to end the consultation.";
+            } else if (diagnosisData.length === 0) {
+                return "Please fill Diagnosis to end the consultation.";
+            }
+        }
+        return "Please fill your prescription to end visit.";
+    }, [isChikitsalayAccessable, hasSymptomsWithSince, diagnosisData]);
+
     const opthalTablesById = useMemo(() => {
         return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
             section.tables.forEach((table) => {
@@ -1642,7 +1670,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             item.medicine_name ||
             item.voice_rx_original_name ||
             item.name ||
-            "Intel"
+            ""
         );
 
         const hasMedicineId = (item = {}) => {
@@ -1714,6 +1742,20 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const onSaveAsDraft = async () => {
         if (saveDraftLoading) return;
         trackSaveDraftEvent();
+        const selectedCanvasCount = Array.isArray(rxDrawingCanvasIds) ? rxDrawingCanvasIds.length
+          : typeof rxDrawingCanvasIds === "string" ? rxDrawingCanvasIds.split(",").filter(Boolean).length : 0;
+        if (selectedCanvasCount > 0) {
+          trackEvent("drawing_canvas_saved_in_draft", {
+            specialty: profile?.dp_name,
+            specialty_id: profile?.dp_id,
+            doctor_unique_id: profile?.doctor_unique_id,
+            doctor_name: profile?.um_name,
+            patient_id: patient_data?.patient_unique_id,
+            consultation_id: tcmId,
+            selected_canvas_count: selectedCanvasCount,
+            prescription_type: isTabPrescription ? "tab_rx" : "normal_rx",
+          });
+        }
         setSaveDraftLoading(true);
 
         let cleanedSymptoms = symptomsData;
@@ -1790,6 +1832,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
             labReportID: labReportID,
             zydusSelectedLabParams: zydusSelectedLabParams,
+            canvas_filename: rxDrawingCanvasIds,
           };
       
           const decodedToken = getDecodedToken();
@@ -2048,7 +2091,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     .filter(Boolean),
                 pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
                 labReportID: labReportID,
-                zydusSelectedLabParams: zydusSelectedLabParams
+                zydusSelectedLabParams: zydusSelectedLabParams,
+                canvas_filename: rxDrawingCanvasIds
             };
 
             const decodedToken = getDecodedToken();
@@ -2081,6 +2125,20 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 :
                 window.Moengage.track_event("TP_Consultation_edited", consultationEventPayload)
 
+            const finalSelectedCanvasCount = Array.isArray(rxDrawingCanvasIds) ? rxDrawingCanvasIds.length
+              : typeof rxDrawingCanvasIds === "string" ? rxDrawingCanvasIds.split(",").filter(Boolean).length : 0;
+            if (finalSelectedCanvasCount > 0) {
+              trackEvent("drawing_canvas_saved_in_final_rx", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: patient_data?.patient_unique_id,
+                consultation_id: tcmId,
+                selected_canvas_count: finalSelectedCanvasCount,
+                prescription_type: isTabPrescription ? "tab_rx" : "normal_rx",
+              });
+            }
             const caseManagerPromise = isDraft 
                 ? dispatch(draftToConsultation(sendData))
                 : tcmId == 0
@@ -2712,14 +2770,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isTablet ? 'Draft' : 'Save as Draft'} />}
 
                             {(() => {
-                              // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes).
+                              // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes/drawing canvas).
                               const hasPrescriptionModuleData = (
                                 symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 ||
                                 diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 ||
                                 medicationData.length > 0 || privateNotesData || followUpDate || additionalNote ||
                                 givenVaccines.length > 0 || updatedDueVaccines?.length > 0 ||
                                 customModuleContents?.some((e) => e?.content?.length && e?.content?.some(c => c.title || c.notes)) ||
-                                hasOpthalValues() || hasCustomModuleContent()
+                                hasOpthalValues() || hasCustomModuleContent() || hasRxDrawingCanvasIds
                               );
                               // Sidebar-only signals (vitals/medical history/measurements/gynec/obstetric/lab params/zydus labs).
                               const hasSidebarOnlyData = (
@@ -2729,10 +2787,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                               );
                               // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
                               const canEndVisit = isVoiceRxNewFromGB
-                                ? hasPrescriptionModuleData
+                                ? hasPrescriptionModuleData : isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0
                                 : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
-                                <Tooltip placement="bottom" title={canEndVisit ? "" : "Please fill your prescription to end visit."} zIndex={headerOverlayZIndex}>
+                                <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
                                     <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
                                         <i className='icon-exit me-2'></i>
                                         {isTablet ? "End" : "End Visit"}

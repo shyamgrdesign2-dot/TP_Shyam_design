@@ -445,8 +445,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const getAllDocumentCategories = useCallback(async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
-  }, [dispatch]);
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
+  }, [dispatch, isChikitsalayAccessable]);
 
   const handleFileUpload = (event, record) => {
     const files = event.target.files;
@@ -526,6 +528,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     payloadOverride: null,
     skipFetch: !pendingFinishedPrint?.printUrl || pendingFinishedPrint?.printChannel === "in_app",
     isCvtExtHosAccessableFromGB,
+    patientId: pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    tcmId: pendingFinishedPrint?.caseManagerData?.tcm_id,
   });
 
   useEffect(() => {

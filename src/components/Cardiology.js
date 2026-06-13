@@ -969,6 +969,7 @@ function Cardiology(props) {
     payloadOverride: null,
     skipFetch: !printUrlWithLang,
     isCvtExtHosAccessableFromGB,
+    patientId: patient_data?.patient_unique_id
   });
 
   const parseObjectValue = useCallback((value) => {

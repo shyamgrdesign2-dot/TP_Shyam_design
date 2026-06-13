@@ -497,7 +497,7 @@ function MedicationsBox({ showVoiceRxModule }) {
           ),
         });
       } else {
-        searchMLQuery &&
+        searchMLQuery && !isChikitsalayAccessable &&
           data.push({
             key: JSON.stringify({
               unique_id: uuidv4(),
@@ -523,7 +523,7 @@ function MedicationsBox({ showVoiceRxModule }) {
           ),
         });
       } else {
-        activeSearchQuery &&
+        activeSearchQuery && !isChikitsalayAccessable &&
           data.push({
             key: JSON.stringify({
               unique_id: uuidv4(),

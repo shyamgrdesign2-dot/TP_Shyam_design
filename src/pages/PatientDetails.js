@@ -52,11 +52,13 @@ import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
 import { lazyRetry } from "../utils/lazyRetry";
 import { searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
-import { errorMessage } from "../utils/utils";
+import { errorMessage, trackEvent } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { ASSETS } from "../assets";
+import VisitDrawingCanvases from "./drawingCanvas/components/VisitDrawingCanvases";
+
 const variables = ASSETS.scss.variables;
 const alertIcon = ASSETS.images.alerticon;
 const BillingDashboard = React.lazy(() =>
@@ -428,6 +430,18 @@ function PatientDetails() {
         setSidebarKey(key)
     }, [sidebarKey])
 
+    useEffect(() => {
+        if (sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES) {
+            trackEvent("drawing_canvas_patient_history_viewed", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: patient_data?.patient_unique_id,
+            });
+        }
+    }, [sidebarKey, profile, patient_data?.patient_unique_id]);
+
     const handleUploadDocPopup = () => {
         setShowUploadDocPopup((prev) => !prev);
     };
@@ -575,6 +589,17 @@ function PatientDetails() {
                             <div className="appointment-wrap PatientDetailswrap">
                                 <HealthCheckupReport patient_data={patient_data} showHealthCheckupReportDrawer={showHealthCheckupReportDrawer} setShowHealthCheckupReportDrawer={setShowHealthCheckupReportDrawer} />
                             </div>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES ? (
+                            <VisitDrawingCanvases 
+                                patientId={patient_data?.patient_unique_id}
+                                trackingAttrs={{
+                                    specialty: profile?.dp_name,
+                                    specialty_id: profile?.dp_id,
+                                    doctor_unique_id: profile?.doctor_unique_id,
+                                    doctor_name: profile?.um_name,
+                                    patient_id: patient_data?.patient_unique_id,
+                                }}
+                            />
                         ) : null}
                     </div>
                 </Content>

@@ -103,7 +103,7 @@ const handleFileUpload = (event) => {
             position: "sticky",
             top: "0px",
             zIndex: 2,
-            height: "90px",
+            height: "60px",
           }}
         >
           <div className="align-items-center d-flex">

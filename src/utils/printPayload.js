@@ -1,5 +1,6 @@
 import React from "react";
 import { pdf } from "@react-pdf/renderer";
+import { ensureDrawingCanvasCaseOption } from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
 import ViewPDF from "./server/viewpdf";
 
 const resolveSelectedLang = (payload, selectedLang) => {
@@ -65,6 +66,7 @@ export const renderPrintPayloadToBlob = async (
     zydusLabData,
     abhaDetails,
     isCvtExtHosAccessableFromGB,
+    drawingCanvases
   } = payload;
 
   const combinedCaseManagerData = {
@@ -83,6 +85,11 @@ export const renderPrintPayloadToBlob = async (
 
   const resolvedLang = resolveSelectedLang(payload, selectedLang);
 
+  const resolvedPrintSettings =
+    Array.isArray(drawingCanvases) && drawingCanvases.length > 0
+      ? ensureDrawingCanvasCaseOption(printSettings)
+      : printSettings;
+
   const normalizedCustomModules = Array.isArray(customModules)
     ? customModules
     : Array.isArray(customModules?.modules)
@@ -99,7 +106,7 @@ export const renderPrintPayloadToBlob = async (
       initialRows={initialRows}
       frequencyList={frequencyList}
       timingList={timingList}
-      printSettings={printSettings}
+      printSettings={resolvedPrintSettings}
       fileHeader={fileHeader}
       fileFooter={fileFooter}
       fileLogo={fileLogo}
@@ -125,6 +132,7 @@ export const renderPrintPayloadToBlob = async (
       showSnapRxImages={showSnapRxImages}
       abhaDetails={abhaDetails}
       isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
+      drawingCanvases={drawingCanvases}
     />
   ).toBlob();
 };

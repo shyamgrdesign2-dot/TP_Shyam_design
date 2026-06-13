@@ -30,14 +30,14 @@ import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import { useTncConsent } from "./hooks/useTncConsent";
 import FullPageLoader from "./pages/vaccination/components/Loader";
 import { lazyRetry } from "./utils/lazyRetry";
-import PatientDetails from "./pages/PatientDetails";
-import MobilePatientDetails from "./pages/mobile/PatientDetails/PatientDetails";
 import useRouteTracking from "./hooks/useRouteTracking";
 import { isProdEnv, isProductionEnv } from "./utils/environment";
 import {
   getNormalizedPhoneNumber,
   syncPhoneAndCheckZydusAccountUser,
 } from "./utils/zydusAccountRouting";
+import { useVersionCheck } from "./hooks/useVersionCheck";
+import UpdateBanner from "./common/UpdateBanner";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -198,6 +198,12 @@ const TabRxPrescriptionPrintView = React.lazy(() =>
 const TabRxDigitization = React.lazy(() =>
   lazyRetry(() => import("./pages/tabRx/components/Digitization"))
 );
+const PatientDetails = React.lazy(() =>
+  lazyRetry(() => import("./pages/PatientDetails"))
+);
+const MobilePatientDetails = React.lazy(() =>
+  lazyRetry(() => import("./pages/mobile/PatientDetails/PatientDetails"))
+);
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -252,6 +258,7 @@ function App() {
   const isReceptionist = urlParams.has("receptionist");
 
   useRouteTracking();
+  const { updateAvailable } = useVersionCheck();
 
   const openUrlsSilently = async (urls) => {
     return Promise.all(
@@ -794,6 +801,7 @@ function App() {
 
   return (
     <GrowthBookProvider growthbook={growthbook}>
+      <UpdateBanner updateAvailable={updateAvailable} />
       <ErrorBoundary
         FallbackComponent={ErrorFallback}
         onError={(error) => {

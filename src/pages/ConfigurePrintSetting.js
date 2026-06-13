@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Col, Tabs, Row } from "antd";
 import { useSelector, useDispatch } from "react-redux";
@@ -28,7 +28,7 @@ import { getModules } from "../redux/customModuleSlice";
 import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
-import { updateFooterImageHeight } from "../utils/utils";
+import { updateFooterImageHeight, trackEvent } from "../utils/utils";
 import { getGenRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "./snapRx/services/snapRxService";
 import { env } from "../EnvironmentConfig";
@@ -39,6 +39,9 @@ import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefault
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
+import { listPatientCanvasMapping } from "./drawingCanvas/service";
+import { ensureDrawingCanvasCaseOption } from "./drawingCanvas/utils/drawingCanvasPrintUtils";
+import { exportToBlob } from "@excalidraw/excalidraw";
 
 
 function ConfigurePrintSetting() {
@@ -78,6 +81,33 @@ function ConfigurePrintSetting() {
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
     const [abhaDetails, setAbhaDetails] = useState(null);
+
+    const [drawingCanvases, setDrawingCanvases] = useState([]);
+    const [isDrawingCanvasesLoading, setIsDrawingCanvasesLoading] = useState(false);
+    const normalizeCanvasIds = useCallback((value) => {
+        if (Array.isArray(value)) {
+            return value.map((id) => String(id).trim()).filter(Boolean);
+        }
+        if (typeof value === "string") {
+            return value
+                .split(",")
+                .map((id) => id.trim())
+                .filter(Boolean);
+        }
+        return [];
+    }, []);
+
+    const getCanvasMappingId = useCallback((record) => {
+        if (!record || typeof record !== "object") return null;
+        return (
+            record.mapping_id ??
+            record.canvas_id ??
+            record.canvasId ??
+            record.id ??
+            null
+        );
+    }, []);
+
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
@@ -501,6 +531,91 @@ function ConfigurePrintSetting() {
         };
     }, [caseManagerData?.tcm_id]);
 
+    useEffect(() => {
+        const fetchAndParseCanvases = async () => {
+            const patientId = caseManagerData?.patient_data?.patient_unique_id;
+            const tcmId = caseManagerData?.tcm_id;
+            if (!patientId || !tcmId) return;
+
+            try {
+                setIsDrawingCanvasesLoading(true);
+                const res = await listPatientCanvasMapping(patientId, tcmId);
+                
+                const recordsArray = res?.records || res?.data?.records;
+                if (res?.status && Array.isArray(recordsArray)) {
+                    const canvasRecords = recordsArray;
+                    const parsedCanvases = [];
+
+                    for (const record of canvasRecords) {
+                        try {
+                            if (!record?.canvas_url) continue;
+                            const response = await fetch(record.canvas_url);
+                            const textData = await response.text();
+                            
+                            if (textData) {
+                                const parsedData = JSON.parse(textData);
+                                if (parsedData?.elements) {
+                                    const blob = await exportToBlob({
+                                        elements: parsedData.elements,
+                                        appState: { ...parsedData.appState, exportBackground: true },
+                                        files: parsedData.files,
+                                    });
+                                    if (blob) {
+                                        const url = URL.createObjectURL(blob);
+                                        parsedCanvases.push({
+                                            id: getCanvasMappingId(record),
+                                            name: record.canvas_name || "Untitled Canvas",
+                                            imageUrl: url,
+                                            created_at: record.created_at || record.createdAt || record.canvas_created_at,
+                                        });
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.error(`Failed to parse canvas mapping: ${record.canvas_name}`, err);
+                            trackEvent("drawing_canvas_corrupt_scene_detected", {
+                                specialty: profile?.dp_name,
+                                specialty_id: profile?.dp_id,
+                                doctor_unique_id: profile?.doctor_unique_id,
+                                doctor_name: profile?.um_name,
+                                patient_id: patientId,
+                                consultation_id: tcmId,
+                                canvas_id: getCanvasMappingId(record),
+                                render_context: "print_preview",
+                            });
+                        }
+                    }
+                    setDrawingCanvases(parsedCanvases);
+                }
+            } catch (error) {
+                console.error("Error fetching canvas mappings", error);
+                trackEvent("drawing_canvas_api_failed", {
+                    specialty: profile?.dp_name,
+                    specialty_id: profile?.dp_id,
+                    doctor_unique_id: profile?.doctor_unique_id,
+                    doctor_name: profile?.um_name,
+                    patient_id: patientId,
+                    consultation_id: tcmId,
+                    api_name: "listPatientCanvasMapping",
+                    error_code: error?.code || "EXCEPTION",
+                    error_message: error?.message || "Error fetching canvas mappings",
+                });
+            } finally {
+                setIsDrawingCanvasesLoading(false);
+            }
+        };
+
+        fetchAndParseCanvases();
+        
+        return () => {
+            // Cleanup blob URLs on unmount to prevent memory leaks
+            drawingCanvases.forEach(canvas => {
+                if (canvas?.imageUrl) URL.revokeObjectURL(canvas.imageUrl);
+            });
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [caseManagerData?.patient_data?.patient_unique_id, caseManagerData?.tcm_id]);
+
     const usePrescriptionDataFromApi = (!!(rxId || isAmbientRx) && !(smartRxFile?.length > 0 && !isAfterDigitization)) || ((smartRxFile?.length > 0 || caseManagerData?.isRxDigitize) && isAfterDigitization);
     const dataSourceForPreview = usePrescriptionDataFromApi && prescriptionDataFromApi != null ? prescriptionDataFromApi : caseManagerData;
     const obstetricData = obstetricDetails?.data || obstetricDetails;
@@ -510,7 +625,29 @@ function ConfigurePrintSetting() {
             ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
         }
         : dataSourceForPreview;
-    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, isCvtExtHosAccessableFromGB, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData };
+    const filteredDrawingCanvases = useMemo(() => {
+        const rawCanvasFilename = enrichedCaseManagerData?.canvas_filename;
+        const hasCanvasFilenameField =
+            Array.isArray(rawCanvasFilename) || typeof rawCanvasFilename === "string";
+        const selectedCanvasIds = normalizeCanvasIds(rawCanvasFilename);
+
+        // - empty canvas_filename => no canvases rendered
+        // - ids in canvas_filename => only those canvases rendered
+        // - missing/unknown canvas_filename => fallback to fetched canvases
+        if (hasCanvasFilenameField && selectedCanvasIds.length === 0) {
+            return [];
+        }
+        if (selectedCanvasIds.length > 0) {
+            const selectedSet = new Set(selectedCanvasIds.map(String));
+            return drawingCanvases.filter((canvas) => {
+                if (canvas?.id == null) return false;
+                return selectedSet.has(String(canvas.id));
+            });
+        }
+        return drawingCanvases;
+    }, [drawingCanvases, enrichedCaseManagerData?.canvas_filename, normalizeCanvasIds]);
+
+    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData, drawingCanvases: filteredDrawingCanvases, isDrawingCanvasesLoading, isCvtExtHosAccessableFromGB };
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
@@ -548,6 +685,29 @@ function ConfigurePrintSetting() {
             hasOphthalValue(opthalModuleData.pd)
         )
     );
+
+    const hasDrawingCanvasData = Array.isArray(drawingCanvases) && drawingCanvases.length > 0;
+
+    // Track print preview opened when drawing canvas data is available
+    const printPreviewTrackedRef = React.useRef(false);
+    useEffect(() => {
+        if (hasDrawingCanvasData && !printPreviewTrackedRef.current) {
+            printPreviewTrackedRef.current = true;
+            const canvasOption = printSettings?.prescription?.case_option?.find((o) => o.id === 25);
+            const sectionPosition = printSettings?.prescription?.case_option?.findIndex((o) => o.id === 25);
+            trackEvent("drawing_canvas_print_preview_opened", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: caseManagerData?.patient_data?.patient_unique_id,
+                consultation_id: caseManagerData?.tcm_id,
+                selected_canvas_count: filteredDrawingCanvases?.length || 0,
+                section_position: sectionPosition >= 0 ? sectionPosition : null,
+            });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasDrawingCanvasData]);
 
     // Fetch appointment agent link
     useEffect(() => {
@@ -672,6 +832,12 @@ function ConfigurePrintSetting() {
                 }
             }
 
+            // Drawing canvas (id 25): add when patient has linked canvases with renderable scene data.
+            if (hasDrawingCanvasData) {
+                const withCanvasOption = ensureDrawingCanvasCaseOption(copyPrintSettings);
+                copyPrintSettings.prescription = withCanvasOption.prescription;
+            }
+
             setPrintSettings(copyPrintSettings);
             copyPrintSettings?.logo_enable === 'Y' && copyPrintSettings.logo_image && setFileLogo({ imageShow: true, showFile: copyPrintSettings.logo_image });
             copyPrintSettings?.water_mark_enable === 'Y' && copyPrintSettings.water_mark_image && setFileWatermark({ imageShow: true, showFile: copyPrintSettings.water_mark_image });
@@ -682,7 +848,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    },[defaultPrintSettings, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl]);
+    },[defaultPrintSettings, hasOphthalModuleData, hasDrawingCanvasData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl]);
 
     useEffect(() => {
         if (!fileFooter?.showFile) return;

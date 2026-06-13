@@ -107,6 +107,7 @@ import CommonModal from "../../common/CommonModal";
 import DDxKnowMore from "../../components/DDxKnowMore";
 import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
+import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 import { useVoiceRxNavigation } from "../../utils/voiceRxNavigation";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
@@ -265,6 +266,7 @@ function TabRx() {
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -1051,7 +1053,9 @@ function TabRx() {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   // Fetch custom modules on component mount

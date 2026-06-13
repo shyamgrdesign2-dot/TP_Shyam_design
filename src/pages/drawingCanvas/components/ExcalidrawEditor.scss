@@ -1,0 +1,282 @@
+$primary-purple: #4b4ad5;
+$light-gray: #f1f1f5;
+$dark-text: #454551;
+$muted-text: #454551;
+$border-color: #f1f1f5;
+$divider-color: #d0d5dd;
+
+.excalidraw-editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #fff;
+  position: relative;
+
+  .excalidraw-header {
+    background-color: white;
+    padding: 0 16px 0 0;
+    border-bottom: 0.5px solid $border-color;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 60px;
+    width: 100%;
+    box-sizing: border-box;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 100%;
+
+      .back-btn-wrapper {
+        width: 75px;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-right: 0.5px solid $border-color;
+        cursor: pointer;
+        transition: background-color 0.2s;
+
+        &:hover {
+          background-color: #f8f8fb;
+        }
+
+        i {
+          font-size: 18px;
+          color: #171725;
+        }
+      }
+
+      .canvas-title-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .canvas-name {
+          font-family: 'Poppins', sans-serif;
+          font-weight: 600;
+          font-size: 16px;
+          color: $dark-text;
+          margin: 0;
+        }
+
+        .edit-icon {
+          color: #92929d;
+          font-size: 14px;
+          cursor: pointer;
+
+          &:hover {
+            color: $primary-purple;
+          }
+        }
+      }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 10.5px;
+        background-color: $light-gray;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        border: none;
+        outline: none;
+        padding: 0;
+        transition: background-color 0.2s;
+
+        &.play-btn {
+          background-color: transparent;
+          border: none;
+          padding: 3px;
+
+          .play-circle {
+            width: 34px;
+            height: 34px;
+            background-color: #9b72cf;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            i {
+              color: #fff;
+              font-size: 14px;
+              margin-left: 2px;
+            }
+          }
+        }
+
+        img {
+          width: 20px;
+          height: 20px;
+          object-fit: contain;
+        }
+
+        i {
+          font-size: 20px;
+          color: $dark-text;
+        }
+
+        &:hover:not(.play-btn) {
+          background-color: darken($light-gray, 5%);
+        }
+      }
+
+      .divider {
+        width: 1.05px;
+        height: 42px;
+        background: linear-gradient(180deg, rgba(208, 213, 221, 0.2) 0%, #d0d5dd 50%, rgba(208, 213, 221, 0.2) 100%);
+        opacity: 0.8;
+      }
+
+      .show-in-rx-container {
+        display: flex;
+        height: 40px;
+        padding: 8px 12px;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        border-radius: 10px;
+        background: #F1F1F5;
+
+        span {
+          font-family: 'Inter', sans-serif;
+          font-weight: 600;
+          font-size: 14px;
+          color: $dark-text;
+        }
+
+        /* Custom Switch styles */
+        .ant-switch {
+          height: 22px !important;
+          width: 37px !important;
+          /* Style for when the Switch is OFF */
+        }
+
+        .ant-switch.ant-switch-checked {
+          height: 22px !important;
+          width: 37px !important;
+          /* Style for when the Switch is ON */
+        }
+      }
+
+      .pill-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+        min-width: 88px;
+        padding: 8px 16px !important;
+        border-radius: 10.5px;
+        font-size: 14.7px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1.05px solid transparent;
+        outline: none;
+        line-height: normal;
+        transition: all 0.2s;
+
+        &,
+        span {
+          font-weight: 600 !important;
+        }
+
+        &.print-btn {
+          border: 1.05px solid $primary-purple !important;
+          color: $primary-purple !important;
+          background-color: #fff !important;
+
+          &,
+          span {
+            color: $primary-purple !important;
+          }
+
+          &:hover {
+            background-color: rgba(75, 74, 213, 0.05) !important;
+          }
+        }
+
+        &.save-btn-canvas {
+          background-color: $primary-purple !important;
+          color: white !important;
+          border: none !important;
+
+          &,
+          span {
+            color: white !important;
+          }
+
+          &:hover {
+            background-color: darken($primary-purple, 5%) !important;
+          }
+        }
+      }
+
+      .help-btn,
+      .settings-btn {
+        background-color: transparent !important;
+
+        span {
+          color: #92929d !important;
+          font-size: 18px;
+        }
+
+        &:hover {
+          background-color: #f1f1f5 !important;
+
+          span {
+            color: $primary-purple !important;
+          }
+        }
+      }
+    }
+  }
+
+  .excalidraw-wrapper {
+    position: absolute;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    overflow: hidden;
+
+    /* Styles from demo App.css to hide Library and Help header */
+    .excalidraw .layer-ui__library,
+    .excalidraw .sidebar-trigger[title="Library"],
+    .excalidraw [title="Library"],
+    .excalidraw [aria-label="Library"],
+    /* Hand (pan) tool — hidden when canvas zoom/pan is disabled */
+    .excalidraw label:has([data-testid="toolbar-hand"]),
+    /* Excalidraw "More tools" dropdown */
+    .excalidraw [data-testid="dropdown-menu-button"],
+    .excalidraw .zoom-actions,
+    .excalidraw .layer-ui__wrapper__footer-right,
+    .excalidraw .HelpDialog__header {
+      display: none !important;
+    }
+
+    .excalidraw .App-menu_top__left {
+      visibility: hidden !important;
+    }
+  }
+
+  .tick-icon {
+    color: #3D8C40 !important;
+  }
+
+  .cross-icon {
+    color: #B73A3A !important;
+  }
+}

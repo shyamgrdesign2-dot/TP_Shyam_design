@@ -677,6 +677,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     abhaDetails,
     isDigitisedPrintConfig,
     isCvtExtHosAccessableFromGB,
+    drawingCanvases,
   } = props;
   const isPediatricAccessable =
     caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID ||
@@ -16957,6 +16958,34 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
               )
             )}
           </View>
+
+          {/* Rendering the Excalidraw Canvases */}
+          {shouldRenderSection(25) && drawingCanvases && drawingCanvases.length > 0 && (
+            <View style={{ marginTop: PX_TO_PT * 20 }} wrap={true}>
+              {drawingCanvases.map((canvasObj, i) => (
+                <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                  <Text
+                    style={{
+                      fontSize: PX_TO_PT * 14,
+                      fontWeight: 700,
+                      color: "#171725",
+                      marginBottom: PX_TO_PT * 10,
+                      fontFamily: "Roboto",
+                    }}
+                  >
+                    {canvasObj.name}
+                  </Text>
+                  <Image
+                    src={canvasObj.imageUrl}
+                    style={{
+                      width: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* </View> */}
           {/* <View

@@ -34,6 +34,48 @@ const {
   alerticon: alertIcon,
 } = ASSETS.images;
 
+const CANVAS_ICON_PRIMARY_URL =
+  "https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/brush-square.svg";
+
+const CANVAS_LEFT_MODULE = {
+  tmdpm_id: 24,
+  tmdpm_type: "L",
+  tmdpm_name: "Canvas",
+  tmdpm_short_name: "Canvas",
+  tmdpm_status: 0,
+  tmdpm_icon_url: CANVAS_ICON_PRIMARY_URL,
+};
+
+const isCanvasLeftModule = (record) =>
+  record?.tmdpm_id === CANVAS_LEFT_MODULE.tmdpm_id ||
+  String(record?.tmdpm_name || "").toLowerCase() === "canvas";
+
+const PadLeftModuleIcon = ({ record }) => {
+  const isCanvas = isCanvasLeftModule(record);
+  const fallbackUrl = record?.tmdpm_icon_url;
+  const [iconSrc, setIconSrc] = useState(
+    isCanvas ? CANVAS_ICON_PRIMARY_URL : fallbackUrl
+  );
+
+  useEffect(() => {
+    setIconSrc(isCanvas ? CANVAS_ICON_PRIMARY_URL : fallbackUrl);
+  }, [isCanvas, fallbackUrl]);
+
+  return (
+    <img
+      src={iconSrc}
+      alt={record?.tmdpm_name || ""}
+      className="me-3"
+      style={{ marginLeft: -12, width: 28, height: 28, objectFit: "contain" }}
+      onError={() => {
+        if (isCanvas && fallbackUrl && iconSrc !== fallbackUrl) {
+          setIconSrc(fallbackUrl);
+        }
+      }}
+    />
+  );
+};
+
 const CustomRow = ({ children, ...props }) => {
   const {
     attributes,
@@ -102,16 +144,37 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
   const [selectedModuleForEdit, setSelectedModuleForEdit] = useState(null);
   const [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState(null);
+  const shouldHideCanvasInDrawer = isTabRx || page === "smart-rx-page";
 
-  useEffect(() => {
-    if (customizedPadLeftList.length > 0) {
-      let updatedData = customizedPadLeftList
-      // Hide Care Plan completely when GB flag is OFF
-      .filter(e => e.tmdpm_id === 22 ? isCarePlanEnabled : true)
-      .filter(e => e.tmdpm_id === 7 && e.tmdpm_status === 0 ? isVaccinationEnabled : e.tmdpm_id === 16 && e.tmdpm_status === 0 ? isGrowthChartEnabled : e.tmdpm_id === 17 && e.tmdpm_status === 0 ? isGynaecHistoryAccessable : true).map((e, i) => {
-        return { ...e };
-      });
+  const buildLeftDataSource = useCallback(
+    (leftList) => {
+      if (!Array.isArray(leftList) || leftList.length === 0) {
+        return [];
+      }
+
+      let updatedData = leftList
+        .filter((e) => (e.tmdpm_id === 22 ? isCarePlanEnabled : true))
+        .filter((e) =>
+          e.tmdpm_id === 7 && e.tmdpm_status === 0
+            ? isVaccinationEnabled
+            : e.tmdpm_id === 16 && e.tmdpm_status === 0
+              ? isGrowthChartEnabled
+              : e.tmdpm_id === 17 && e.tmdpm_status === 0
+                ? isGynaecHistoryAccessable
+                : true
+        )
+        .map((e) => ({ ...e }));
+
+      if (shouldHideCanvasInDrawer) {
+        updatedData = updatedData.filter(
+          (item) =>
+            item?.tmdpm_id !== CANVAS_LEFT_MODULE.tmdpm_id &&
+            String(item?.tmdpm_name || "").toLowerCase() !== "canvas"
+        );
+      }
+
       updatedData = updatedData.filter((item) => item?.tmdpm_id !== 20);
+
       const hasVaccination = updatedData.some((item) => item?.tmdpm_id === 7);
       if (!hasVaccination) {
         updatedData.push({
@@ -120,22 +183,69 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           tmdpm_name: "Vaccination",
           tmdpm_short_name: "Vaccination",
           tmdpm_status: 1,
-          tmdpm_icon_url:
-            `${env.php_base_url}/img/microservices/left/vaccination.svg`,
+          tmdpm_icon_url: `${env.php_base_url}/img/microservices/left/vaccination.svg`,
         });
       }
-      setDataSourceLeft(updatedData);
-    }
-    dispatch(listVideo());
-  }, [handleDrawerCustomize]);
+
+      return updatedData;
+    },
+    [
+      isCarePlanEnabled,
+      isVaccinationEnabled,
+      isGrowthChartEnabled,
+      isGynaecHistoryAccessable,
+      shouldHideCanvasInDrawer,
+    ]
+  );
 
   useEffect(() => {
-    if (customizedPadRightList.length > 0) {
-      const updatedData = customizedPadRightList.map((e) => ({ ...e }));
-      setDataSourceRight(updatedData);
+    const syncLeftModules = async () => {
+      if (!Array.isArray(customizedPadLeftList) || customizedPadLeftList.length === 0) {
+        setDataSourceLeft([]);
+        return;
+      }
+
+      const hasCanvas = customizedPadLeftList.some(
+        (item) =>
+          item?.tmdpm_id === CANVAS_LEFT_MODULE.tmdpm_id ||
+          String(item?.tmdpm_name || "").toLowerCase() === "canvas"
+      );
+
+      let leftList = customizedPadLeftList;
+      if (!hasCanvas && !shouldHideCanvasInDrawer) {
+        leftList = [...customizedPadLeftList, CANVAS_LEFT_MODULE];
+        dispatch(
+          customizedPad({
+            data: {
+              default: false,
+              reset: false,
+              left: leftList,
+              right: customizedPadRightList,
+            },
+          })
+        );
+      }
+
+      setDataSourceLeft(buildLeftDataSource(leftList));
+    };
+
+    syncLeftModules();
+    dispatch(listVideo());
+  }, [
+    customizedPadLeftList,
+    customizedPadRightList,
+    shouldHideCanvasInDrawer,
+    buildLeftDataSource,
+    dispatch,
+  ]);
+
+  useEffect(() => {
+    if (!Array.isArray(customizedPadRightList) || customizedPadRightList.length === 0) {
+      setDataSourceRight([]);
+      return;
     }
-    
-  }, [handleDrawerCustomize]);
+    setDataSourceRight(customizedPadRightList.map((e) => ({ ...e })));
+  }, [customizedPadRightList]);
 
   // Update module names in dataSourceRight when customModules change
   useEffect(() => {
@@ -174,7 +284,12 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       colSpan: 0,
       dataIndex: 'tmdpm_name',
       key: 'tmdpm_name',
-      render: (text, record) => <div className='align-items-center d-flex'><img src={record.tmdpm_icon_url} className='me-3' style={{ marginLeft: -12 }} />{(isGynaecHistoryAccessable && record.tmdpm_name === "Medical History") ? "Gynec History" : record.tmdpm_name}</div>
+      render: (text, record) => (
+        <div className='align-items-center d-flex'>
+          <PadLeftModuleIcon record={record} />
+          {(isGynaecHistoryAccessable && record.tmdpm_name === "Medical History") ? "Gynec History" : record.tmdpm_name}
+        </div>
+      )
     },
     {
       title: 'ENABLE/DISABLE',
@@ -461,7 +576,16 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       colSpan: 0,
       dataIndex: 'tmdpm_name',
       key: 'tmdpm_name',
-      render: (text, record) => <div className='align-items-center d-flex'><img src={record.is_custom_module ? customModuleIcon : record.tmdpm_icon_url} className='me-3' style={{ marginLeft: -12 }} />{record?.tmdpm_id === INVESTIGATION_MODULE_ID ? INVESTIGATION_TITLE : record.tmdpm_name}</div>
+      render: (text, record) => (
+        <div className='align-items-center d-flex'>
+          <img
+            src={record.is_custom_module ? customModuleIcon : record.tmdpm_icon_url}
+            className='me-3'
+            style={{ marginLeft: -12, width: 28, height: 28, objectFit: "contain" }}
+          />
+          {record?.tmdpm_id === INVESTIGATION_MODULE_ID ? INVESTIGATION_TITLE : record.tmdpm_name}
+        </div>
+      )
     },
     {
       title: 'ENABLE/DISABLE',

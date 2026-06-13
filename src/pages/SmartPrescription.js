@@ -102,6 +102,7 @@ import {
   setUploadDocCategories,
 } from "../redux/uploadDocSlice";
 import UploadDocumentList from "./medicalRecords/components/uploadDocumentList/UploadDocumentList";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import {
   generateUniqueFileName,
   getCorrectedFileName,
@@ -202,6 +203,7 @@ function SmartPrescription() {
       item?.enablePrint)
   );
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
@@ -503,7 +505,9 @@ function SmartPrescription() {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   const handleVideoConsult = async () => {

@@ -3,7 +3,7 @@ import { env } from "../EnvironmentConfig";
 
 /** Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js */
 export const TP_ASSETS_BASE =
-  "https://pmdoctorportal.blob.core.windows.net/tp-assets/assets";
+  "https://pmdoctorportal.tatvacare.in/tp-assets/assets";
 
 const codeIcon = `${TP_ASSETS_BASE}/images/code.svg`;
 const validateHealthcareIcon = `${TP_ASSETS_BASE}/images/validate-heathcare.svg`;
@@ -38,6 +38,7 @@ export const PATIENT_DETAILS_SIDEBAR_KEYS = {
   BILL_PAYMENT: 4,
   ABHA_RECORDS: 5,
   HEALTH_CHECKUP_REPORT: 6,
+  CANVASES: 7,
 };
 
 export const TAB_QUEUE = 0;
@@ -174,6 +175,16 @@ export const MAX_DOCUMENT_FILE_SIZE = 15728640; // 15 MB
 export const MAX_VIDEO_FILE_SIZE = 31457280; // 30 MB
 export const MAX_FILES_PER_UPLOAD = 5;
 export const VIDEO_THUMBNAIL_TIME = 1; // Extract thumbnail at 1 second
+export const CLINIC_UPLOAD_CATEGORIES = [
+  { category_id: 7, category_name: "Clinics_Pathology" },
+  { category_id: 8, category_name: "Clinics_Radiology" },
+];
+
+export const isClinicUploadCategory = (category_name) =>
+  CLINIC_UPLOAD_CATEGORIES.some(
+    (category) =>
+      category.category_name === category_name
+  );
 
 export const EXTRA_OPTIONS = [
   {

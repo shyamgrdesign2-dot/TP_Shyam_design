@@ -39,6 +39,7 @@ import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
 import TextArea from "antd/es/input/TextArea";
 import { ASSETS } from "../assets";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
   moduleRowsToPreviousContext,
@@ -68,6 +69,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   const { isAutofillSelected, selectedSymptomsCollector } = useSelector(
     (state) => state.ddx
   );
+  const isChikitsalayAccessable = useChikitsalay();
   const dispatch = useDispatch();
 
   const { symptomsData, setSymptomsData, examinationData } = useContext(CashManagerContext);
@@ -777,7 +779,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                           <AutoComplete
                             defaultValue={item.since}
                             value={item.since}
-                            placeholder="Since"
+                            placeholder={isChikitsalayAccessable ? <div><span style={{ opacity: 0.6}}>Since</span> <span className="text-danger">*</span></div> : "Since"}
                             bordered={false}
                             defaultOpen={false}
                             onSearch={(query) => onSearchSinceChid(query, index)}
@@ -1065,7 +1067,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Symptomsicon} alt="Symptoms" />
-            <div className="title-common">Symptoms</div>
+            <div className="title-common">Symptoms {isChikitsalayAccessable ? <span className="text-danger">*</span> : ""}</div>
           </div>
           <div className="d-flex align-items-center">
             {isVoiceRxModuleEnabled && (
