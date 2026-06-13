@@ -94,21 +94,80 @@ ApiMedication.getMedicineAlternatives = function (medicineId) {
   );
 };
 
-ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
-  const referenceIds = searchResults
-    .map((item) => item?.reference_id)
-    .filter((id) => id !== undefined && id !== null && String(id).trim() !== "")
-    .map((id) => String(id));
+const getInventoryReferenceKey = (row) =>
+  String(row?.referenceId ?? row?.reference_id ?? "");
 
-  const withNoStock = searchResults.map((item) => ({
-    ...item,
-    quantity: 0,
-    stock_status: MEDICINE_STOCK_STATUS.NO_STOCK,
-  }));
+const getMedicineReferenceId = (item) => {
+  const refId = item?.reference_id ?? item?.referenceId;
+  if (refId === undefined || refId === null) return "";
+  return String(refId).trim();
+};
+
+ApiMedication.enrichMedicinesWithReferenceId = async function (medicines) {
+  return Promise.all(
+    medicines.map(async (item) => {
+      if (getMedicineReferenceId(item)) {
+        return item;
+      }
+
+      const name = String(item?.tmm_medicine_name ?? "").trim();
+      if (!name) {
+        return item;
+      }
+
+      try {
+        const result = await ApiMedication.getFuzzySearch(name, 5);
+        const rows = Array.isArray(result) ? result : result ? [result] : [];
+        const match =
+          rows.find((row) => String(row?.tmm_id) === String(item?.tmm_id)) ||
+          rows[0];
+
+        if (!getMedicineReferenceId(match)) {
+          return item;
+        }
+
+        return {
+          ...item,
+          reference_id: match.reference_id ?? match.referenceId,
+          objectID: match.objectID ?? item.objectID,
+          tmm_hm_type: match.tmm_hm_type ?? item.tmm_hm_type,
+          um_id: match.um_id ?? item.um_id,
+        };
+      } catch {
+        return item;
+      }
+    })
+  );
+};
+
+ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
+  const hasMissingReferenceId = searchResults.some(
+    (item) => !getMedicineReferenceId(item)
+  );
+  const items = hasMissingReferenceId
+    ? await ApiMedication.enrichMedicinesWithReferenceId(searchResults)
+    : searchResults;
+
+  const referenceIds = items
+    .map((item) => getMedicineReferenceId(item))
+    .filter((id) => id !== "");
 
   if (referenceIds.length === 0) {
-    return withNoStock;
+    return items;
   }
+
+  const applyNoStock = (list) =>
+    list.map((item) => {
+      const refId = getMedicineReferenceId(item);
+      if (!refId) {
+        return item;
+      }
+      return {
+        ...item,
+        quantity: 0,
+        stock_status: MEDICINE_STOCK_STATUS.NO_STOCK,
+      };
+    });
 
   try {
     const inv = await ApiMedication.getEvitalsInventory(referenceIds);
@@ -120,11 +179,16 @@ ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
           ? inv.data
           : [];
     const invByRef = new Map(
-      invRows.map((row) => [String(row.referenceId), row])
+      invRows.map((row) => [getInventoryReferenceKey(row), row])
     );
 
-    return searchResults.map((item) => {
-      const invRow = invByRef.get(String(item?.reference_id ?? ""));
+    return items.map((item) => {
+      const refId = getMedicineReferenceId(item);
+      if (!refId) {
+        return item;
+      }
+
+      const invRow = invByRef.get(refId);
       return {
         ...item,
         quantity: Number(invRow?.quantity ?? 0),
@@ -132,7 +196,7 @@ ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
       };
     });
   } catch (e) {
-    return withNoStock;
+    return applyNoStock(items);
   }
 };
 
