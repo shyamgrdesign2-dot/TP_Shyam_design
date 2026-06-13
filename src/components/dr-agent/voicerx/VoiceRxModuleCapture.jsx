@@ -1269,6 +1269,8 @@ export function VoiceRxModuleCapture({
           console.groupEnd();
         }
         const clinicalCompletedAtMs = Date.now();
+        const transcriptCompletedAtMs = isTranscribeMode ? clinicalCompletedAtMs : null;
+        const digitizeCompletedAtMs = isTranscribeMode ? null : clinicalCompletedAtMs;
         return Promise.resolve(onComplete?.(isTranscribeMode ? digitisedResult : rows, {
           audioBlob,
           transcript: isTranscribeMode ? digitisedResult?.transcript || "" : nextTranscript,
@@ -1294,7 +1296,10 @@ export function VoiceRxModuleCapture({
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
           clinicalCompletedAtMs,
-          transcript: digitisedResult?.transcript ?? digitisedResult?.conversation ?? "",
+          transcriptCompletedAtMs,
+          digitizeCompletedAtMs,
+          transcript: digitisedResult?.rawTranscript ?? digitisedResult?.transcript ?? digitisedResult?.conversation ?? "",
+          digitizeData: digitisedResult?.rawResponse ?? (isTranscribeMode ? null : digitisedResult),
         }).then(({ source }) => {
           dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
             type: !isTranscribeMode && hasModulePreviousContext(previousContext) ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
@@ -1337,7 +1342,8 @@ export function VoiceRxModuleCapture({
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
           clinicalCompletedAtMs: Date.now(),
-          transcript: error?.transcript ?? error?.conversation ?? "",
+          transcript: error?.rawTranscript ?? error?.transcript ?? error?.conversation ?? "",
+          digitizeData: error?.rawResponse ?? error?.digitizeData ?? null,
         });
         toast.error(error.message || (isTranscribeMode ? "Module voice transcription failed" : "Module voice digitisation failed"));
         onCancel?.();

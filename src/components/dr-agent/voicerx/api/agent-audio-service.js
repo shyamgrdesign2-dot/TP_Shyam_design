@@ -29,21 +29,23 @@ function transcriptToText(transcript) {
   return typeof transcript === "string" ? transcript : "";
 }
 
+export function extractAnyAudioTranscriptRaw(responseJson) {
+  return responseJson?.data?.transcript ??
+    responseJson?.data?.transcription ??
+    responseJson?.data?.text ??
+    responseJson?.data?.result ??
+    responseJson?.payload?.transcript ??
+    responseJson?.payload?.transcription ??
+    responseJson?.payload?.text ??
+    responseJson?.transcript ??
+    responseJson?.transcription ??
+    responseJson?.text ??
+    responseJson?.result ??
+    responseJson;
+}
+
 export function extractAnyAudioTranscript(responseJson) {
-  return transcriptToText(
-    responseJson?.data?.transcript ??
-      responseJson?.data?.transcription ??
-      responseJson?.data?.text ??
-      responseJson?.data?.result ??
-      responseJson?.payload?.transcript ??
-      responseJson?.payload?.transcription ??
-      responseJson?.payload?.text ??
-      responseJson?.transcript ??
-      responseJson?.transcription ??
-      responseJson?.text ??
-      responseJson?.result ??
-      responseJson
-  );
+  return transcriptToText(extractAnyAudioTranscriptRaw(responseJson));
 }
 
 export async function transcribeAnyAudio({
@@ -90,10 +92,11 @@ export async function transcribeAnyAudio({
   }
 
   const responseJson = await response.json();
-  const transcript = extractAnyAudioTranscript(responseJson);
+  const rawTranscript = extractAnyAudioTranscriptRaw(responseJson);
+  const transcript = transcriptToText(rawTranscript);
   if (!transcript.trim()) {
     throw new Error("Audio transcription API returned an empty transcript.");
   }
 
-  return { transcript, rawResponse: responseJson };
+  return { transcript, rawTranscript, rawResponse: responseJson };
 }

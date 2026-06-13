@@ -94,6 +94,7 @@ export async function uploadAndLogVoiceRx2({
   transcriptCompletedAtMs,
   digitizeCompletedAtMs,
   transcript,
+  digitizeData,
 }) {
   const startedAtMs = submitClickedAtMs || Date.now();
   let uploadResponse = null;
@@ -165,6 +166,7 @@ export async function uploadAndLogVoiceRx2({
     voiceRxVersion: VOICE_RX_2_VERSION,
     timestamp: new Date().toISOString(),
     transcript: transcript ?? "",
+    digitizeData: digitizeData ?? null,
   };
 
   trackEvent("TP_Voice_V2_Submit_Click", eventPayload);
