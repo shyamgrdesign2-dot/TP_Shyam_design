@@ -107,6 +107,7 @@ export const GB_ZYDUS_WHATSAPP = "zydus-doctor-whatsapp-enablement";
 export const GB_ZYDUS_ACCOUNT_USERS = "zydus-account-users";
 export const GB_CHIKITSALAY = "chikitsalay";
 export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
+export const GB_VOICE_RX_MAX_SESSION_MINUTES = "VOICE_RX_MAX_SESSION_MINUTES";
 export const CLINIC_TARGET_STATUS = {
   SERVING: "SERVING",
   COMPLETED: "COMPLETED",
