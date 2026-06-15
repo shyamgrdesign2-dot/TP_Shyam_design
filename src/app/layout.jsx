@@ -2,8 +2,8 @@
 import { Mulish, Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { Toaster } from '@/src/components/molecules/Toaster';
-import { WhisperBarProvider } from '@/src/components/organisms/whisper-bar/whisper-bar-context';
-import { WhisperBar } from '@/src/components/organisms/whisper-bar/WhisperBar';
+import { VoiceBarProvider } from '@/src/components/organisms/voice-bar/voice-bar-context';
+import { VoiceBar } from '@/src/components/organisms/voice-bar/VoiceBar';
 import './globals.css';
 
 const mulish = Mulish({
@@ -48,10 +48,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${mulish.variable} ${inter.variable} font-sans antialiased`}>
-        <WhisperBarProvider>
+        <VoiceBarProvider>
           {children}
-          <WhisperBar />
-        </WhisperBarProvider>
+          <VoiceBar />
+        </VoiceBarProvider>
         <Toaster />
         <Analytics />
       </body>

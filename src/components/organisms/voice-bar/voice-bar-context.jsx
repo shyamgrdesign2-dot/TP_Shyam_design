@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * WhisperBarProvider — global keyboard listener + state for the Whisper-style
+ * VoiceBarProvider — global keyboard listener + state for the Whisper-style
  * floating dictation bar.
  *
  * Trigger: DOUBLE-TAP SHIFT within 400ms. The two presses must both be the
@@ -21,11 +21,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-const WhisperBarContext = createContext(null);
+const VoiceBarContext = createContext(null);
 
 const DOUBLE_TAP_WINDOW_MS = 400;
 
-export function WhisperBarProvider({ children }) {
+export function VoiceBarProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
   // Captured at the moment the bar opens — restored on Esc/X (so the
   // caret returns to the input the doctor was typing in).
@@ -88,7 +88,7 @@ export function WhisperBarProvider({ children }) {
    *   - If it's a contenteditable: insert via execCommand for the same
    *     effect.
    *   - Otherwise: copy to clipboard so the doctor can paste it anywhere,
-   *     and fire a CustomEvent("whisper-bar:no-target") so callers can show
+   *     and fire a CustomEvent("voice-bar:no-target") so callers can show
    *     a toast confirmation.
    *
    * Returns the routing kind so the bar can show the right success cue.
@@ -131,17 +131,17 @@ export function WhisperBarProvider({ children }) {
       navigator.clipboard.writeText(value).catch(() => { /* ignore */ });
     }
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("whisper-bar:no-target", { detail: { text: value } }));
+      window.dispatchEvent(new CustomEvent("voice-bar:no-target", { detail: { text: value } }));
     }
     return "clipboard";
   }, []);
 
   const value = useMemo(() => ({ isOpen, open, close, route }), [isOpen, open, close, route]);
-  return <WhisperBarContext.Provider value={value}>{children}</WhisperBarContext.Provider>;
+  return <VoiceBarContext.Provider value={value}>{children}</VoiceBarContext.Provider>;
 }
 
-export function useWhisperBar() {
-  const ctx = useContext(WhisperBarContext);
-  if (!ctx) throw new Error("useWhisperBar must be used inside a WhisperBarProvider");
+export function useVoiceBar() {
+  const ctx = useContext(VoiceBarContext);
+  if (!ctx) throw new Error("useVoiceBar must be used inside a VoiceBarProvider");
   return ctx;
 }

@@ -1,4 +1,4 @@
-// WhisperBar — Whisper-style floating dictation strip
+// VoiceBar — Whisper-style floating dictation strip
 // Tokens from var(--tp-*). Even-pixel sizing throughout.
 
 .host {
@@ -23,7 +23,7 @@
     rgba(15, 23, 42, 0.04) 60%,
     rgba(15, 23, 42, 0.08) 100%
   );
-  animation: whisperScrimIn 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: voiceScrimIn 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 // ── Bar shell ────────────────────────────────────────────────────────────────
@@ -48,7 +48,7 @@
 }
 
 .barIn {
-  animation: whisperBarIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: voiceBarIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 // ── Mic cell — small violet badge with subtle pulse ──────────────────────────
@@ -232,12 +232,12 @@
 .kbdLabel { opacity: 0.78; }
 
 // ── Animations ───────────────────────────────────────────────────────────────
-@keyframes whisperScrimIn {
+@keyframes voiceScrimIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-@keyframes whisperBarIn {
+@keyframes voiceBarIn {
   from {
     opacity: 0;
     transform: translateY(28px) scale(0.985);

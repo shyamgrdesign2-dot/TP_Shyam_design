@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * WhisperBar — global floating dictation strip.
+ * VoiceBar — global floating dictation strip.
  *
- * Activated by double-tapping Shift (see WhisperBarProvider). Slides up from
+ * Activated by double-tapping Shift (see VoiceBarProvider). Slides up from
  * the bottom-center of the viewport. While open: starts Web Speech recognition
  * immediately, draws a live wave animation, and shows interim transcript
  * scrolling inline. Accept (✓ / Enter) routes the final transcript to the
@@ -23,13 +23,13 @@ import { Microphone2 } from "iconsax-reactjs";
 import { Check, X } from "@/src/components/atoms/icons/lucide";
 import { toast } from "@/src/components/molecules/Toaster";
 import { cn } from "@/src/hooks/utils";
-import { useWhisperBar } from "./whisper-bar-context";
-import styles from "./WhisperBar.module.scss";
+import { useVoiceBar } from "./voice-bar-context";
+import styles from "./VoiceBar.module.scss";
 
 const WAVE_BAR_COUNT = 22;
 
-export function WhisperBar() {
-  const { isOpen, close, route } = useWhisperBar();
+export function VoiceBar() {
+  const { isOpen, close, route } = useVoiceBar();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 

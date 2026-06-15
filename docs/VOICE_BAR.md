@@ -1,4 +1,4 @@
-# WhisperBar — Global Dictation Shortcut
+# VoiceBar — Global Dictation Shortcut
 
 A floating Whisper/Superwhisper-style dictation strip available anywhere
 in the app. The clinician double-taps Shift, speaks naturally, and the
@@ -30,7 +30,7 @@ When the doctor accepts (`✓` / `Enter`):
 2. **Focused `contenteditable`** → `document.execCommand("insertText")`
    does the same job for rich-text surfaces (TipTap, etc.).
 3. **Nothing focused** → copies the transcript to the clipboard and
-   fires a `whisper-bar:no-target` `CustomEvent` on `window`. A
+   fires a `voice-bar:no-target` `CustomEvent` on `window`. A
    `toast.success("Copied dictation to clipboard")` confirms. Any
    feature that wants to listen for this event and route the text
    somewhere bespoke can.
@@ -44,14 +44,14 @@ moment the bar opened — not the activeElement at the moment of accept
 ## How it works in code
 
 ```
-src/components/organisms/whisper-bar/
-  whisper-bar-context.jsx   ← WhisperBarProvider + useWhisperBar() hook
+src/components/organisms/voice-bar/
+  voice-bar-context.jsx   ← VoiceBarProvider + useVoiceBar() hook
                               + window-level keydown listener (double-Shift,
                               Esc) + routing logic.
-  WhisperBar.jsx            ← The visible bar. Mounts to document.body via
+  VoiceBar.jsx            ← The visible bar. Mounts to document.body via
                               createPortal. Web Speech recognition + a
                               mic-amplitude analyser feeding the wave bars.
-  WhisperBar.module.scss    ← Styles. Tokens via var(--tp-*). Even-pixel
+  VoiceBar.module.scss    ← Styles. Tokens via var(--tp-*). Even-pixel
                               sizing. 36px touch targets, brand-violet
                               gradient on ✓, slate-100 on X.
   index.js                  ← Barrel.
@@ -62,10 +62,10 @@ src/components/organisms/whisper-bar/
 Mounted once at the app root in `src/app/layout.jsx`:
 
 ```jsx
-<WhisperBarProvider>
+<VoiceBarProvider>
   {children}
-  <WhisperBar />
-</WhisperBarProvider>
+  <VoiceBar />
+</VoiceBarProvider>
 ```
 
 The provider attaches **one** window-level keydown listener for the whole
@@ -74,9 +74,9 @@ app — no per-mount listeners.
 ### Public hook
 
 ```js
-import { useWhisperBar } from "@/src/components/organisms/whisper-bar";
+import { useVoiceBar } from "@/src/components/organisms/voice-bar";
 
-const { isOpen, open, close, route } = useWhisperBar();
+const { isOpen, open, close, route } = useVoiceBar();
 ```
 
 `route(text)` exists for callers that want to programmatically push a
@@ -94,8 +94,8 @@ useEffect(() => {
     const { text } = e.detail;
     // open a custom modal, write somewhere specific, etc.
   };
-  window.addEventListener("whisper-bar:no-target", onNoTarget);
-  return () => window.removeEventListener("whisper-bar:no-target", onNoTarget);
+  window.addEventListener("voice-bar:no-target", onNoTarget);
+  return () => window.removeEventListener("voice-bar:no-target", onNoTarget);
 }, []);
 ```
 
