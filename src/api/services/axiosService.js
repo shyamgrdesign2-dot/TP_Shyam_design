@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { notification } from 'antd';
 import main_config from '../../config';
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from '../../utils/constants';
+import { GB_VOICE_OLD_UI_NEW_PIPELINE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from '../../utils/constants';
 import { reportNetworkIssueToSentry } from '../../utils/sentryNetwork';
+import { isGrowthBookFeatureOn } from '../../utils/growthbook';
 
 const instance = axios.create({
     // baseURL: config.appointment_api_url, // Replace with your API base URL
@@ -11,6 +12,9 @@ const instance = axios.create({
 
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
+const VOICE_V2_HEADER_NAME = 'x-voice-v2';
+const VOICE_V2_HEADER_VALUE = 'true';
+const DIGITIZATION_VOICE_PATH = '/api/v1/digitization/voice';
 
 const isVoiceEndpointRequest = (requestConfig = {}) => {
     const requestUrl = requestConfig?.url || '';
@@ -22,6 +26,12 @@ const isVoiceEndpointRequest = (requestConfig = {}) => {
 const isVoiceUploadRequest = (requestConfig = {}) => {
     const requestUrl = requestConfig?.url || '';
     return requestUrl.includes('/api/v1/digitization/voice/upload');
+};
+
+const isDigitizationVoiceResourceRequest = (requestConfig = {}) => {
+    const requestUrl = requestConfig?.url || '';
+    const requestPath = requestUrl.split('?')[0].replace(/\/+$/, '');
+    return requestPath.endsWith(DIGITIZATION_VOICE_PATH);
 };
 
 const isVoiceDigitizeRequest = (requestConfig = {}) => {
@@ -99,6 +109,9 @@ instance.interceptors.request.use(
         const voiceCorrelationId = window.__TATVA_VOICE_SESSION_ID;
         if (voiceCorrelationId && shouldAttachVoiceCorrelationId(config)) {
             config.headers['x-correlation-id'] = voiceCorrelationId;
+        }
+        if (isDigitizationVoiceResourceRequest(config) && isGrowthBookFeatureOn(GB_VOICE_OLD_UI_NEW_PIPELINE)) {
+            config.headers[VOICE_V2_HEADER_NAME] = VOICE_V2_HEADER_VALUE;
         }
         return config;
     },
