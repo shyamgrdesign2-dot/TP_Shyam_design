@@ -73,6 +73,7 @@ export function DrAgentPanel({
     setVoiceRxRecording,
     beginVoiceAddOn,
     submitQuickEdit,
+    retryVoiceRxSoap,
     flipDeg,
     voiceRxAwaitingResponse,
     voiceRxHandoffExiting,
@@ -313,6 +314,7 @@ export function DrAgentPanel({
           onMinimize={onClose}
           onAddDetailsByVoice={beginVoiceAddOn}
           onQuickEditSubmit={submitQuickEdit}
+          onRetrySoap={retryVoiceRxSoap}
           voiceLocked={voiceLocked}
           onCopyResult={(payload, opts) => {
             if (opts?.copyTracking) {

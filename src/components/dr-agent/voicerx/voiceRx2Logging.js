@@ -86,6 +86,7 @@ export async function uploadAndLogVoiceRx2({
   voicecall = 0,
   moduleName = "",
   sourceSurface = "",
+  voiceInputLocation = "",
   isDoctorAgent = false,
   micBeingUsed = "",
   voiceLogCreated = false,
@@ -93,6 +94,8 @@ export async function uploadAndLogVoiceRx2({
   clinicalCompletedAtMs,
   transcriptCompletedAtMs,
   digitizeCompletedAtMs,
+  transcript,
+  digitizeData,
 }) {
   const startedAtMs = submitClickedAtMs || Date.now();
   let uploadResponse = null;
@@ -152,6 +155,7 @@ export async function uploadAndLogVoiceRx2({
     retry_attempts: retryAttempts,
     moduleName,
     sourceSurface,
+    voiceInputLocation,
     isDoctorAgent,
     submitClickedAt,
     uploadCompletedAt,
@@ -163,6 +167,8 @@ export async function uploadAndLogVoiceRx2({
     timeFromSubmitToLogMs: Date.now() - startedAtMs,
     voiceRxVersion: VOICE_RX_2_VERSION,
     timestamp: new Date().toISOString(),
+    transcript: transcript ?? "",
+    digitizeData: digitizeData ?? null,
   };
 
   trackEvent("TP_Voice_V2_Submit_Click", eventPayload);
