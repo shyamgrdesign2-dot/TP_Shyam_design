@@ -247,7 +247,7 @@ export function VoiceRxBottomSheet({
             <Lamp size={14} variant="Bulk" color="currentColor" />
           </span>
           <p className={cn("m-0 min-w-0 flex-1 text-[13px] leading-[1.4] font-medium", styles.bestPracticeTipText)}>
-            <strong className="font-semibold">Note:</strong> Keep each session under <strong className="font-semibold">10 min</strong>. Short, focused dictations transcribe more accurately.
+            <strong className="font-semibold">Note:</strong>{" "}Keep each session under{" "}<strong className="font-semibold">10 min</strong>{" "}for more accurate &amp; faster results.
           </p>
           <button
             type="button"
