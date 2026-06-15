@@ -11,6 +11,9 @@ const instance = axios.create({
 
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
+const VOICE_V2_HEADER_NAME = 'x-voice-v2';
+const VOICE_V2_HEADER_VALUE = 'true';
+const DIGITIZATION_VOICE_PATH = '/api/v1/digitization/voice';
 
 const isVoiceEndpointRequest = (requestConfig = {}) => {
     const requestUrl = requestConfig?.url || '';
@@ -22,6 +25,12 @@ const isVoiceEndpointRequest = (requestConfig = {}) => {
 const isVoiceUploadRequest = (requestConfig = {}) => {
     const requestUrl = requestConfig?.url || '';
     return requestUrl.includes('/api/v1/digitization/voice/upload');
+};
+
+const isDigitizationVoiceResourceRequest = (requestConfig = {}) => {
+    const requestUrl = requestConfig?.url || '';
+    const requestPath = requestUrl.split('?')[0].replace(/\/+$/, '');
+    return requestPath.endsWith(DIGITIZATION_VOICE_PATH);
 };
 
 const isVoiceDigitizeRequest = (requestConfig = {}) => {
@@ -99,6 +108,9 @@ instance.interceptors.request.use(
         const voiceCorrelationId = window.__TATVA_VOICE_SESSION_ID;
         if (voiceCorrelationId && shouldAttachVoiceCorrelationId(config)) {
             config.headers['x-correlation-id'] = voiceCorrelationId;
+        }
+        if (isDigitizationVoiceResourceRequest(config)) {
+            config.headers[VOICE_V2_HEADER_NAME] = VOICE_V2_HEADER_VALUE;
         }
         return config;
     },
