@@ -64,19 +64,21 @@ export const oneClickTemplatesList = createAsyncThunk(
 
 export const oneClickSingleTemplateDetails = createAsyncThunk(
     "caseManager/oneClickSingleTemplateDetails",
-    async (arg) => {
-        const templateId =
-            typeof arg === "object" && arg !== null
-                ? arg.templateId ?? arg.tmoc_id ?? arg
-                : arg;
-        const isChikitsalayAccessable =
-            typeof arg === "object" && arg !== null
-                ? !!arg.isChikitsalayAccessable
-                : false;
+    async ({ templateId, tmoc_id, isChikitsalayAccessable = false } = {}) => {
+        const resolvedTemplateId = templateId ?? tmoc_id;
+        if (
+            resolvedTemplateId === undefined ||
+            resolvedTemplateId === null ||
+            resolvedTemplateId === ""
+        ) {
+            throw new Error(
+                "oneClickSingleTemplateDetails requires templateId in the request payload."
+            );
+        }
 
         const result = await ApiCaseManager.oneClickSingleTemplateDetails(
-            templateId,
-            { mergeInventory: isChikitsalayAccessable }
+            resolvedTemplateId,
+            { mergeInventory: !!isChikitsalayAccessable }
         );
 
         if (result.status) {

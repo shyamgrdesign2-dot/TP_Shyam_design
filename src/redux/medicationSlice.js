@@ -90,18 +90,20 @@ export const getMedicationTemplates = createAsyncThunk(
 
 export const singleTemplateDetails = createAsyncThunk(
   "medication/singleTemplateDetails",
-  async (arg) => {
-    const templateId =
-      typeof arg === "object" && arg !== null
-        ? arg.templateId ?? arg.tmtd_id ?? arg
-        : arg;
-    const isChikitsalayAccessable =
-      typeof arg === "object" && arg !== null
-        ? !!arg.isChikitsalayAccessable
-        : false;
+  async ({ templateId, tmtd_id, isChikitsalayAccessable = false } = {}) => {
+    const resolvedTemplateId = templateId ?? tmtd_id;
+    if (
+      resolvedTemplateId === undefined ||
+      resolvedTemplateId === null ||
+      resolvedTemplateId === ""
+    ) {
+      throw new Error(
+        "singleTemplateDetails requires templateId in the request payload."
+      );
+    }
 
-    const result = await ApiMedication.singleTemplateDetails(templateId, {
-      mergeInventory: isChikitsalayAccessable,
+    const result = await ApiMedication.singleTemplateDetails(resolvedTemplateId, {
+      mergeInventory: !!isChikitsalayAccessable,
     });
 
     if (result.status) {

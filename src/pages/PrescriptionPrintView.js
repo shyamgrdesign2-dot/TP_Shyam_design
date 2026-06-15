@@ -18,7 +18,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { useAccess } from "./vaccination/useAccess";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
-import ApiMedication from "../api/services/ApiMedication";
 
 import { pdfjs, Document, Page } from "react-pdf";
 import { getGynecDetails } from "../api/services/ApiGynec";
@@ -486,21 +485,11 @@ function PrescriptionPrintView() {
         var sendData = {
             patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
             tcm_id: state.tcm_id,
+            isChikitsalayAccessable,
         };
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            let caseManagerData = action.payload;
-            if (
-                isChikitsalayAccessable &&
-                Array.isArray(caseManagerData?.medicine) &&
-                caseManagerData.medicine.length > 0
-            ) {
-                caseManagerData =
-                    await ApiMedication.mergeCaseManagerMedicineInventory(
-                        caseManagerData,
-                        true
-                    );
-            }
+            const caseManagerData = action.payload;
             navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
         } else {
             errorMessage(action.error)
