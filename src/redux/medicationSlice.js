@@ -1,6 +1,31 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
 import ApiMedication from "../api/services/ApiMedication";
+import { MEDICINE_STOCK_STATUS } from "../utils/constants";
+
+const mergeInventoryData = (searchResults, invRows) => {
+  const invByRef = new Map(
+    invRows.map((row) => [String(row.referenceId), row])
+  );
+
+  return searchResults.map((item) => {
+    const rid = String(item?.reference_id ?? "");
+    const inv = invByRef.get(rid);
+
+    return {
+      ...item,
+      quantity: Number(inv?.quantity ?? 0),
+      stock_status: inv?.stock_status ?? MEDICINE_STOCK_STATUS.NO_STOCK,
+    };
+  });
+};
+
+const withEmptyInventory = (searchResults) =>
+  searchResults.map((item) => ({
+    ...item,
+    quantity: 0,
+    stock_status: MEDICINE_STOCK_STATUS.NO_STOCK,
+  }));
 
 const initialState = {
   selectedMedicationList: [],
@@ -65,14 +90,27 @@ export const getMedicationTemplates = createAsyncThunk(
 
 export const singleTemplateDetails = createAsyncThunk(
   "medication/singleTemplateDetails",
-  async (templateId) => {
-    let result = {};
-    result = await ApiMedication.singleTemplateDetails(templateId);
+  async ({ templateId, tmtd_id, isChikitsalayAccessable = false } = {}) => {
+    const resolvedTemplateId = templateId ?? tmtd_id;
+    if (
+      resolvedTemplateId === undefined ||
+      resolvedTemplateId === null ||
+      resolvedTemplateId === ""
+    ) {
+      throw new Error(
+        "singleTemplateDetails requires templateId in the request payload."
+      );
+    }
+
+    const result = await ApiMedication.singleTemplateDetails(resolvedTemplateId, {
+      mergeInventory: !!isChikitsalayAccessable,
+    });
+
     if (result.status) {
       return result.data;
-    } else {
-      throw Error(result.error);
     }
+
+    throw Error(result.error);
   }
 );
 
@@ -108,7 +146,7 @@ export const getFrequentlySearchedMedication = createAsyncThunk(
         .map((id) => String(id));
 
       if (referenceIds.length === 0) {
-        return searchResults.map((item) => ({ ...item, quantity: 0 }));
+        return withEmptyInventory(searchResults);
       }
 
       try {
@@ -120,15 +158,9 @@ export const getFrequentlySearchedMedication = createAsyncThunk(
             : Array.isArray(inv?.data)
               ? inv.data
               : [];
-        const qtyByRef = new Map(
-          invRows.map((row) => [String(row.referenceId), Number(row.quantity ?? 0)])
-        );
-        return searchResults.map((item) => {
-          const rid = String(item?.reference_id ?? "");
-          return { ...item, quantity: qtyByRef.get(rid) ?? 0 };
-        });
+        return mergeInventoryData(searchResults, invRows);
       } catch (e) {
-        return searchResults.map((item) => ({ ...item, quantity: 0 }));
+        return withEmptyInventory(searchResults);
       }
     } else {
       throw Error(result.error);
@@ -155,7 +187,7 @@ export const searchMedication = createAsyncThunk(
         .map((id) => String(id));
 
       if (referenceIds.length === 0) {
-        return searchResults.map((item) => ({ ...item, quantity: 0 }));
+        return withEmptyInventory(searchResults);
       }
 
       try {
@@ -167,15 +199,9 @@ export const searchMedication = createAsyncThunk(
             : Array.isArray(inv?.data)
               ? inv.data
               : [];
-        const qtyByRef = new Map(
-          invRows.map((row) => [String(row.referenceId), Number(row.quantity ?? 0)])
-        );
-        return searchResults.map((item) => {
-          const rid = String(item?.reference_id ?? "");
-          return { ...item, quantity: qtyByRef.get(rid) ?? 0 };
-        });
+        return mergeInventoryData(searchResults, invRows);
       } catch (e) {
-        return searchResults.map((item) => ({ ...item, quantity: 0 }));
+        return withEmptyInventory(searchResults);
       }
     } else {
       throw Error(result.error);
@@ -186,13 +212,17 @@ export const searchMedication = createAsyncThunk(
 export const getLoadPreviousRx = createAsyncThunk(
   "medication/getLoadPreviousRx",
   async (data) => {
-    let result = {};
-    result = await ApiMedication.getLoadPreviousRx(data);
+    const { isChikitsalayAccessable, ...requestData } = data ?? {};
+
+    const result = await ApiMedication.getLoadPreviousRx(requestData, {
+      mergeInventory: !!isChikitsalayAccessable,
+    });
+
     if (result.status) {
       return result.data;
-    } else {
-      throw Error(result.error);
     }
+
+    throw Error(result.error);
   }
 );
 

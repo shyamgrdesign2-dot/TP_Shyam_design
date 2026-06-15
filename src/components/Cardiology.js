@@ -86,6 +86,7 @@ import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { ASSETS } from "../assets";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import ApiMedication from "../api/services/ApiMedication";
 import { clinicTargetStatus } from "../pages/chikitsalay/service";
 const {
   symptoms: Symptomsicon,
@@ -1866,6 +1867,12 @@ function Cardiology(props) {
       rx_date: viewCaseManagerData?.consultation_date,
     });
 
+    const caseManagerDataForEdit =
+      await ApiMedication.mergeCaseManagerMedicineInventory(
+        viewCaseManagerData,
+        isChikitsalayAccessable
+      );
+
     if (isTabRx) {
       return navigate("/tab-rx", {
         state: {
@@ -1882,7 +1889,7 @@ function Cardiology(props) {
       return navigate("/snap-rx", {
         state: {
           patient_data: patient_data,
-          caseManagerData: viewCaseManagerData,
+          caseManagerData: caseManagerDataForEdit,
         },
       });
     }
@@ -1910,7 +1917,7 @@ function Cardiology(props) {
         state: {
           patient_data: patient_data,
           send_path: "patient_details",
-          caseManagerData: viewCaseManagerData,
+          caseManagerData: caseManagerDataForEdit,
           isEditRx: true,
           isVoiceRxNewUiFlow: true,
           ...(videoConsultData ? { videoConsultData } : {}),
@@ -1922,7 +1929,7 @@ function Cardiology(props) {
       navigate("/smart-prescription", {
         state: {
           patient_data: patient_data,
-          caseManagerData: viewCaseManagerData,
+          caseManagerData: caseManagerDataForEdit,
           smartRxFilesData: smartRxFile,
         },
       });
@@ -1945,16 +1952,13 @@ function Cardiology(props) {
       } else {
         window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
       }
-      console.log("viewCaseManagerData", viewCaseManagerData);
-      console.log("isVoiceRxNewFromGB", isVoiceRxNewFromGB);
-      console.log("shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB)", shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB));
       navigate("/prescription", {
         state: {
           patient_data: patient_data,
           send_path: "patient_details",
-          caseManagerData: viewCaseManagerData,
+          caseManagerData: caseManagerDataForEdit,
           isEditRx: true,
-          ...(shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}),
+          ...(shouldUseNewPrescriptionUi(caseManagerDataForEdit, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}),
           ...(videoConsultData ? { videoConsultData } : {}),
         },
       });

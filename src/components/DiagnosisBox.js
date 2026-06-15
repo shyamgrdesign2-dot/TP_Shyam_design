@@ -213,13 +213,15 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   useEffect(() => {
     const data = [];
-    parentOptionsList.map((e) => {
-      return data.push({
-        key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-        value: e.tds_name,
-        label: <div>{`${e.tds_name} ${e?.icd_code ? `(${e?.icd_code})` : ''}`}</div>,
+    parentOptionsList
+      .filter((e) => !isChikitsalayAccessable || e?.icd_code)
+      .forEach((e) => {
+        data.push({
+          key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+          value: e.tds_name,
+          label: <div>{`${e.tds_name} ${e?.icd_code ? `(${e?.icd_code})` : ''}`}</div>,
+        });
       });
-    });
     if (searchParentQuery.length === 0) {
       data.unshift({
         key: -1,

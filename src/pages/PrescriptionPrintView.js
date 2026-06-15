@@ -38,6 +38,7 @@ import { EVENTS } from "../utils/events";
 import { uploadDocsToAzure } from "./medicalRecords/service";
 
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { useZydusWhatsapp } from "../hooks/useZydusWhatsapp";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
@@ -69,6 +70,7 @@ function PrescriptionPrintView() {
     const { isOpdBillChecked } = useSelector((state) => state.billing);
     const { isOpdBillingAccessable } = useOpdBilling();
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const navigate = useNavigate();
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
@@ -482,11 +484,13 @@ function PrescriptionPrintView() {
         await syncCarePlanAssignmentIfNeeded();
         var sendData = {
             patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
-            tcm_id: state.tcm_id
-        }
+            tcm_id: state.tcm_id,
+            isChikitsalayAccessable,
+        };
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload, ...(shouldUseNewPrescriptionUi(action.payload, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
+            const caseManagerData = action.payload;
+            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
         } else {
             errorMessage(action.error)
         }
