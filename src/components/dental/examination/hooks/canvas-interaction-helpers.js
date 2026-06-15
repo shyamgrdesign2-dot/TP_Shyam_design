@@ -10,15 +10,18 @@ import {
   ALL_ZONES
 } from "../types";
 
-/** Convert a YYYY-MM-DD date string back to the closest UI label ("1 hour" … "1 year"). */
+/** Convert a since_date value to its display label.
+ *  ISO dates ("YYYY-MM-DD") → "D MMM YYYY". Relative labels ("3 months") → pass through. */
 export const dateToSinceLabel = (dateStr) => {
-  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return "";
-  const diffDays = Math.round((Date.now() - new Date(dateStr + "T00:00:00").getTime()) / 86400000);
-  if (diffDays < 1) return "1 hour";
-  if (diffDays <= 3) return "1 day";
-  if (diffDays <= 14) return "1 week";
-  if (diffDays <= 180) return "1 month";
-  return "1 year";
+  if (!dateStr) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const d = new Date(dateStr + "T00:00:00");
+    const day = d.getDate();
+    const month = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  }
+  return dateStr;
 };
 
 export const ARCH_SCOPE_IDS = new Set([

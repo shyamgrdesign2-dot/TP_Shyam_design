@@ -11,9 +11,13 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import { Grid5, Ram, Eraser } from "iconsax-reactjs";
 import { TPMedicalIcon } from "../tp-ui";
 import ui from "./ExaminationTab.ui.module.scss";
+
+dayjs.extend(customParseFormat);
 
 // ──────────────────────────────────────────────────────────────
 // AccordionWrap — rounded card with animated expand/collapse.
@@ -164,11 +168,26 @@ function getDynamicSinceOptions(query) {
   const n = match ? parseInt(match[0], 10) : 1;
   const plural = n > 1 ? "s" : "";
   return [
-    `${n} hour${plural}`,
     `${n} day${plural}`,
+    `${n} week${plural}`,
     `${n} month${plural}`,
-    `${n} year${plural}`];
+    `${n} year${plural}`,
+  ];
+}
 
+function tryParseToISO(val) {
+  if (!val) return "";
+  const d = dayjs(val, "D MMM YYYY", true);
+  return d.isValid() ? d.format("YYYY-MM-DD") : "";
+}
+
+function  CalendarSvg() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <path d="M8 2v3M16 2v3M3.5 9.09h17M21 8.5V17c0 3-1.5 5-5 5H8c-3.5 0-5-2-5-5V8.5c0-3 1.5-5 5-5h8c3.5 0 5 2 5 5Z" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15.695 13.7h.009M15.695 16.7h.009M11.995 13.7h.01M11.995 16.7h.01M8.294 13.7h.01M8.294 16.7h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 export function SinceDropdown({
   value,
@@ -179,19 +198,24 @@ export function SinceDropdown({
 }) {
   const [open, setOpen] = useState(false);
   const [internalValue, setInternalValue] = useState(value);
+  const [hiddenDateValue, setHiddenDateValue] = useState(() => tryParseToISO(value));
   const [pos, setPos] = useState(null);
   const anchorRef = useRef(null);
   const popoverRef = useRef(null);
+  const dateInputRef = useRef(null);
   useEffect(() => {
     if (autoOpen && !value) setOpen(true);
   }, [autoOpen, value]);
   useEffect(() => {
     setInternalValue(value);
   }, [value]);
+  useEffect(() => {
+    setHiddenDateValue(tryParseToISO(value));
+  }, [value]);
   const options = useMemo(() => {
     return internalValue && internalValue.match(/\d+/) ?
       getDynamicSinceOptions(internalValue) :
-      ["1 hour", "1 day", "1 week", "1 month", "1 year"];
+      ["1 day", "1 week", "1 month", "1 year"];
   }, [internalValue]);
   useEffect(() => {
     if (!open) {
@@ -230,6 +254,27 @@ export function SinceDropdown({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open, onBlurDeactivate]);
+  function handleDatePick(e) {
+    const iso = e.target.value;
+    if (!iso) return;
+    const display = dayjs(iso).format("D MMM YYYY");
+    setInternalValue(display);
+    setHiddenDateValue(iso);
+    onChange(display);
+    setOpen(false);
+  }
+
+  function openDatePicker() {
+    if (!dateInputRef.current) return;
+    try { dateInputRef.current.showPicker(); }
+    catch { dateInputRef.current.click(); }
+  }
+
+  function handleSelectCustomDate() {
+    setOpen(false);
+    setTimeout(openDatePicker, 0);
+  }
+
   return (
     <>
       <div className={ui.sinceAnchor} ref={anchorRef}>
@@ -253,27 +298,23 @@ export function SinceDropdown({
           placeholder="e.g. 5 days"
           className={ui.sinceInput} />
 
+        <input
+          ref={dateInputRef}
+          type="date"
+          aria-hidden="true"
+          tabIndex={-1}
+          value={hiddenDateValue}
+          onChange={handleDatePick}
+          className={ui.sinceDateHidden} />
 
-        <svg
-          className={ui.sinceChevronAbs}
-          width="10"
-          height="6"
-          viewBox="0 0 10 6"
-          fill="none"
-          style={{
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.15s",
-            flexShrink: 0
-          }}>
-
-          <path
-            d="M1 1L5 5L9 1"
-            stroke="#94a3b8"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round" />
-
-        </svg>
+        <button
+          type="button"
+          aria-label="Pick exact date"
+          title="Pick exact date"
+          className={ui.sinceDateBtn}
+          onClick={(e) => { e.stopPropagation(); openDatePicker(); }}>
+          <CalendarSvg />
+        </button>
       </div>
       {open &&
         pos &&
@@ -286,19 +327,28 @@ export function SinceDropdown({
               left: pos.left,
               width: pos.width
             }}>
-
-            {options.map((opt) =>
-              <button
-                type="button"
-                className={ui.popoverItem}
-                onClick={() => {
-                  onChange(opt);
-                  setOpen(false);
-                }}>
-
-                {opt}
-              </button>
-            )}
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {options.map((opt) =>
+                <button
+                  key={opt}
+                  type="button"
+                  className={ui.popoverItem}
+                  onClick={() => {
+                    onChange(opt);
+                    setOpen(false);
+                  }}>
+                  {opt}
+                </button>
+              )}
+            </div>
+            <div className={ui.sinceMenuSep} />
+            <button
+              type="button"
+              className={ui.sinceCustomDateBtn}
+              onClick={handleSelectCustomDate}>
+              <CalendarSvg />
+              <span>Select custom date</span>
+            </button>
           </div>,
           document.body
         )}

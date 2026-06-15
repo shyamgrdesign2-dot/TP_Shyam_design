@@ -1,16 +1,18 @@
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import { DX_MARKER } from "../../../utils/dentalApiMappers";
 
-const SINCE_LABEL_TO_DAYS = { "1 hour": 0, "1 day": 1, "1 week": 7, "1 month": 30, "1 year": 365 };
+dayjs.extend(customParseFormat);
 
 const sinceToDate = (since) => {
   if (!since) return null;
-  // Already YYYY-MM-DD
+  // Already ISO → pass through
   if (/^\d{4}-\d{2}-\d{2}$/.test(since)) return since;
-  const days = SINCE_LABEL_TO_DAYS[since];
-  if (days === undefined) return null;
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().split("T")[0];
+  // Calendar-picked date in "D MMM YYYY" → convert to ISO
+  const parsed = dayjs(since, "D MMM YYYY", true);
+  if (parsed.isValid()) return parsed.format("YYYY-MM-DD");
+  // Relative labels ("1 month", "3 weeks", …) → pass through as-is
+  return since;
 };
 
 /**
