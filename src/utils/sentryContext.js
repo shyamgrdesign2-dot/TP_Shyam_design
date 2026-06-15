@@ -5,6 +5,22 @@ const compactObject = (value) =>
     Object.entries(value).filter(([, fieldValue]) => fieldValue !== undefined && fieldValue !== null && fieldValue !== "")
   );
 
+const removeTag = (key) => {
+  const scope = Sentry.getIsolationScope?.();
+  if (!scope?._tags) return;
+
+  delete scope._tags[key];
+  scope._notifyScopeListeners?.();
+};
+
+const setTagIfValue = (key, value) => {
+  if (value !== undefined && value !== null && value !== "") {
+    Sentry.setTag(key, String(value));
+  } else {
+    removeTag(key);
+  }
+};
+
 export const applySentryUserContext = ({ profile, tokenData, userId }) => {
   const user = compactObject({
     id: userId || tokenData?.user_id,
@@ -18,25 +34,30 @@ export const applySentryUserContext = ({ profile, tokenData, userId }) => {
     Sentry.setUser(null);
   }
 
+  const doctorContext = compactObject({
+    um_id: tokenData?.user_id,
+    doctor_unique_id: profile?.doctor_unique_id,
+    name: profile?.um_name,
+    mobile: profile?.um_contact,
+    email: profile?.um_email,
+    speciality_id: profile?.dp_id,
+    speciality: profile?.dp_name,
+    b2c_id: profile?.b2c,
+    clinic_id: tokenData?.clinic_id,
+    hospital_business_id: tokenData?.hospital_business_id,
+  });
+
   Sentry.setContext(
     "doctor",
-    compactObject({
-      um_id: tokenData?.user_id,
-      doctor_unique_id: profile?.doctor_unique_id,
-      name: profile?.um_name,
-      mobile: profile?.um_contact,
-      email: profile?.um_email,
-      speciality_id: profile?.dp_id,
-      speciality: profile?.dp_name,
-      b2c_id: profile?.b2c,
-      clinic_id: tokenData?.clinic_id,
-      hospital_business_id: tokenData?.hospital_business_id,
-    })
+    Object.keys(doctorContext).length > 0 ? doctorContext : null
   );
 
-  Sentry.setTag("doctor_um_id", tokenData?.user_id || userId || "unknown");
-  Sentry.setTag("clinic_id", tokenData?.clinic_id || "unknown");
-  Sentry.setTag("doctor_speciality_id", profile?.dp_id || "unknown");
+  setTagIfValue("doctor_um_id", tokenData?.user_id || userId);
+  setTagIfValue("doctor_unique_id", profile?.doctor_unique_id);
+  setTagIfValue("doctor_b2c_id", profile?.b2c);
+  setTagIfValue("clinic_id", tokenData?.clinic_id);
+  setTagIfValue("doctor_speciality_id", profile?.dp_id);
+  setTagIfValue("doctor_speciality", profile?.dp_name);
 };
 
 export const applySentryPatientContext = (patientData) => {
@@ -44,19 +65,13 @@ export const applySentryPatientContext = (patientData) => {
 
   if (patientId) {
     Sentry.setContext("patient", { patient_unique_id: patientId });
-    Sentry.setTag("patient_unique_id", patientId);
+    setTagIfValue("patient_unique_id", patientId);
   } else {
     Sentry.setContext("patient", null);
-    Sentry.setTag("patient_unique_id", "unknown");
+    removeTag("patient_unique_id");
   }
 };
 
 export const clearSentryContext = () => {
-  Sentry.setUser(null);
-  Sentry.setContext("doctor", null);
-  Sentry.setContext("patient", null);
-  Sentry.setTag("doctor_um_id", "unknown");
-  Sentry.setTag("clinic_id", "unknown");
-  Sentry.setTag("doctor_speciality_id", "unknown");
-  Sentry.setTag("patient_unique_id", "unknown");
+  Sentry.getIsolationScope?.()?.clear();
 };

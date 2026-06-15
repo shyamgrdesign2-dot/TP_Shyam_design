@@ -2,6 +2,7 @@ import axios from 'axios';
 import { notification } from 'antd';
 import main_config from '../../config';
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from '../../utils/constants';
+import { reportNetworkIssueToSentry } from '../../utils/sentryNetwork';
 
 const instance = axios.create({
     // baseURL: config.appointment_api_url, // Replace with your API base URL
@@ -79,6 +80,7 @@ instance.interceptors.request.use(
         if (!window.navigator.onLine) {
             const error = 'Internet connection not available';
             // notification.error({ key: "notification_key", message: error });
+            reportNetworkIssueToSentry(new Error(error), config);
             return Promise.reject(new Error(error));
         }
         // You can modify the request config here (e.g., add headers)
@@ -150,6 +152,10 @@ instance.interceptors.response.use(
         // Silently reject cancelled requests without showing a notification
         if (error?.code === 'ERR_CANCELED') {
             return Promise.reject(error);
+        }
+
+        if (!error.response || error?.code === 'ECONNABORTED' || error.response.status >= 500) {
+            reportNetworkIssueToSentry(error, originalRequest);
         }
 
         // Check if error.response exists before accessing its properties
