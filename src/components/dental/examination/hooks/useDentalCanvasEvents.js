@@ -471,7 +471,7 @@ export function useDentalCanvasEvents(s) {
       const id = `oral-${Date.now().toString(36)}-${++oralIdRef.current}`;
       return [...prev, {
         id, kind, name,
-        surfaces: extra?.surfaces ?? [],
+        surfaces: extra?.surfaces ?? ["WHOLE"],
         since: extra?.since ?? "",
         note: extra?.note ?? "",
       }];
