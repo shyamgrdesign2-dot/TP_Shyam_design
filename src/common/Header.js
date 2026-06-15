@@ -17,7 +17,7 @@ import QrPrintDownloadModal from "./QrPrintDownloadModal";
 import LoopingVideo from "../components/common/LoopingVideo";
 
 import config from "../config";
-import { getProfile, updateStatusMoengageB2C, changeHospital, customizedPad, swtichLayout, navigatetoTatvaPedia, changeLogoStatus, showMedicineTime, showMedicineFrequency, getMedicineType, getDefaultPrintsettings, listVideo, zydusRefIds, campaigns, clearDoctorProfile } from "../redux/doctorsSlice";
+import { getProfile, changeHospital, customizedPad, swtichLayout, navigatetoTatvaPedia, changeLogoStatus, showMedicineTime, showMedicineFrequency, getMedicineType, getDefaultPrintsettings, listVideo, zydusRefIds, campaigns, clearDoctorProfile } from "../redux/doctorsSlice";
 import { clearTeleconsultNotification } from "../redux/teleconsultNotificationSlice";
 import ApiAbha from "../api/services/ApiAbha";
 import { viewDoctorWebsite } from "../redux/doctorWebsiteSlice";
@@ -130,6 +130,7 @@ function Header({ locationPath }) {
   const { profile, loading, videoList, siteId, empNo, hasLocation } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
   const dispatch = useDispatch();
+  const moengageUserIdRef = useRef(null);
 
   const [clinicOptions, setClinicOptions] = useState([]);
   const [selectedHospital, setSelectedHospital] = useState(null);
@@ -176,9 +177,33 @@ function Header({ locationPath }) {
 
   useEffect(() => {
     if (profile) {
-      if (profile.moengage_b2c_send === undefined) {
-        window.Moengage?.add_unique_user_id?.(profile?.b2c);
-        dispatch(updateStatusMoengageB2C());
+      const moengageUserId =
+        profile?.b2c ||
+        profile?.doctor_unique_id ||
+        profile?.user_id;
+      const normalizedMoengageUserId = moengageUserId ? String(moengageUserId) : "";
+      if (normalizedMoengageUserId && moengageUserIdRef.current !== normalizedMoengageUserId) {
+        moengageUserIdRef.current = normalizedMoengageUserId;
+        Promise.resolve(window.Moengage?.add_unique_user_id?.(normalizedMoengageUserId))
+          .then(() => {
+            window.Moengage?.add_user_attribute?.("doctor_unique_id", profile?.doctor_unique_id || "");
+            window.Moengage?.add_user_attribute?.("b2c", profile?.b2c || "");
+            window.Moengage?.add_user_attribute?.("doctor_name", profile?.um_name || "");
+            window.Moengage?.add_user_attribute?.("user_id", profile?.user_id || "");
+            if (profile?.um_name) {
+              window.Moengage?.add_first_name?.(profile.um_name);
+              window.Moengage?.add_user_name?.(profile.um_name);
+            }
+            if (profile?.um_contact) {
+              window.Moengage?.add_mobile?.(`+91${profile.um_contact}`);
+            }
+            if (profile?.um_email) {
+              window.Moengage?.add_email?.(profile.um_email);
+            }
+          })
+          .catch(() => {
+            moengageUserIdRef.current = null;
+          });
       }
       // setSwitchCheckbox(profile.switchtoOld != 0 ? true : false)
       setPopOver(profile.NavigatetoTatvaPedia == 0 ? true : false);
