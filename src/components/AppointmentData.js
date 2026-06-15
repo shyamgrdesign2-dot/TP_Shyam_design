@@ -92,6 +92,7 @@ import {
   TAB_CLINIC_APPOINTMENT,
   CLINIC_TARGET_STATUS,
   GB_CVT_EXT_HOS,
+  GB_MANYA_DENTAL,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -224,6 +225,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
   const [modalOpen, setModalOpen] = useState(false);
+  const isManyaDentalAccessableFromGB = useFeatureIsOn(GB_MANYA_DENTAL);
 
   useEffect(() => {
     if (!isChikitsalayAccessable) return;
@@ -2391,7 +2393,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               ? record.toct_type
               : record.appointmentStatus}
               <br />{" "}
-              <small> {record.pt_name || "--"}</small>
+              <small> {isManyaDentalAccessableFromGB ? record.appointment_pt_name || "--" : record.pt_name || "--"}</small>
           </div>
           {!isCvtExtHosAccessableFromGB &&
             advancedSettings?.billingStatusInAppointmentScreen &&
