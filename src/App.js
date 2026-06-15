@@ -9,7 +9,7 @@ import {
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { isMobile, isTablet, isChrome, isSafari } from "react-device-detect";
-import { GrowthBook, GrowthBookProvider, useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GrowthBookProvider, useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useDeviceType } from "./utils/deviceDetection";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
@@ -31,7 +31,7 @@ import { useTncConsent } from "./hooks/useTncConsent";
 import FullPageLoader from "./pages/vaccination/components/Loader";
 import { lazyRetry } from "./utils/lazyRetry";
 import useRouteTracking from "./hooks/useRouteTracking";
-import { isProdEnv, isProductionEnv } from "./utils/environment";
+import { isProdEnv } from "./utils/environment";
 import {
   getNormalizedPhoneNumber,
   syncPhoneAndCheckZydusAccountUser,
@@ -39,6 +39,7 @@ import {
 import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateBanner from "./common/UpdateBanner";
 import { clearSentryContext } from "./utils/sentryContext";
+import { growthbook } from "./utils/growthbook";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -205,12 +206,6 @@ const PatientDetails = React.lazy(() =>
 const MobilePatientDetails = React.lazy(() =>
   lazyRetry(() => import("./pages/mobile/PatientDetails/PatientDetails"))
 );
-
-const growthbook = new GrowthBook({
-  apiHost: "https://cdn.growthbook.io",
-  clientKey: config?.GROWTHBOOK_CLIENTKEY,
-  enableDevMode: !isProductionEnv(),
-});
 
 function PrescriptionRouteElement() {
   const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);

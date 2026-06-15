@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { notification } from 'antd';
 import main_config from '../../config';
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from '../../utils/constants';
+import { GB_VOICE_OLD_UI_NEW_PIPELINE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from '../../utils/constants';
 import { reportNetworkIssueToSentry } from '../../utils/sentryNetwork';
+import { isGrowthBookFeatureOn } from '../../utils/growthbook';
 
 const instance = axios.create({
     // baseURL: config.appointment_api_url, // Replace with your API base URL
@@ -109,7 +110,7 @@ instance.interceptors.request.use(
         if (voiceCorrelationId && shouldAttachVoiceCorrelationId(config)) {
             config.headers['x-correlation-id'] = voiceCorrelationId;
         }
-        if (isDigitizationVoiceResourceRequest(config)) {
+        if (isDigitizationVoiceResourceRequest(config) && isGrowthBookFeatureOn(GB_VOICE_OLD_UI_NEW_PIPELINE)) {
             config.headers[VOICE_V2_HEADER_NAME] = VOICE_V2_HEADER_VALUE;
         }
         return config;
