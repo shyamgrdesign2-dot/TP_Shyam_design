@@ -7,24 +7,31 @@ import { playVoiceRxWarningSound, playVoiceRxCriticalSound } from "./audio";
 import styles from "./recording-limit.module.scss";
 
 // ── Recording duration cap ────────────────────────────────────────────────────
-// The two knobs below are the ONLY settings devs need to touch to change the
-// VoiceRx recording session limit and the heads-up window.
+// FEATURE FLAG — recording auto-cutoff is currently DISABLED.
 //
+// The whole feature (countdown bar, sound cues, auto-submit, session-limit
+// notes in the loaders / canvas) ships behind this single flag. While
+// false, useRecordingLimit short-circuits all visible behavior — no bar,
+// no sounds, no auto-submit, no session-limit messaging anywhere. All the
+// code stays in the tree so flipping back to true brings it all back.
+//
+// To re-enable: set RECORDING_LIMIT_ENABLED = true and tune the three knobs
+// below. See docs/RECORDING_AUTO_CUTOFF.md for the rationale + backend
+// coordination notes.
+export const RECORDING_LIMIT_ENABLED = false;
+
 //   MAX_RECORDING_MS    → the per-session cap.            (currently 1 min)
 //   LIMIT_WARN_BEFORE   → countdown bar lead-time before  (currently 15s)
 //                         the auto-submit fires.
+//   LIMIT_CRITICAL_MS   → final amber-to-red switch.      (currently 5s)
 //
 // Examples:
 //   • 2-minute session, warn at T-10s   → 2*60*1000, 10*1000
 //   • 5-minute session, warn at T-20s   → 5*60*1000, 20*1000
 //   • 10-minute session, warn at T-30s  → 10*60*1000, 30*1000
-//
-// See docs/RECORDING_AUTO_CUTOFF.md for the rationale + backend coordination.
 export const MAX_RECORDING_MS  = 60 * 1000;   // 1 min (dev/QA cap — raise for prod)
 export const LIMIT_WARN_BEFORE = 15 * 1000;  // 15s heads-up window
-// Last few seconds — bar escalates from amber → red so the doctor knows the
-// auto-submit is imminent. Pure CSS swap, no copy change, no extra anxiety.
-export const LIMIT_CRITICAL_MS = 5 * 1000;
+export const LIMIT_CRITICAL_MS = 5 * 1000;   // final escalation
 
 /**
  * useRecordingLimit — tracks elapsed time against the recording cap and fires
@@ -61,6 +68,7 @@ export function useRecordingLimit({ elapsedMs, isListening, isSubmitting = false
   }, [isListening]);
 
   useEffect(() => {
+    if (!RECORDING_LIMIT_ENABLED) return;
     if (!isListening || isSubmitting) return;
     if (elapsedMs < MAX_RECORDING_MS) return;
     if (autoFiredRef.current) return;
@@ -70,11 +78,16 @@ export function useRecordingLimit({ elapsedMs, isListening, isSubmitting = false
   }, [elapsedMs, isListening, isSubmitting, onSubmit, onAutoSubmit]);
 
   const remainingMs = Math.max(0, MAX_RECORDING_MS - elapsedMs);
-  const showWarning = isListening && !isSubmitting && remainingMs > 0 && remainingMs <= LIMIT_WARN_BEFORE;
-  const isCritical = remainingMs > 0 && remainingMs <= LIMIT_CRITICAL_MS;
+  const showWarning = RECORDING_LIMIT_ENABLED
+    && isListening && !isSubmitting
+    && remainingMs > 0 && remainingMs <= LIMIT_WARN_BEFORE;
+  const isCritical = RECORDING_LIMIT_ENABLED
+    && remainingMs > 0 && remainingMs <= LIMIT_CRITICAL_MS;
 
   // Audio cues — warning at T-15s (when the bar first appears), critical at
-  // T-5s (when the bar swaps to red). Both fire once per session.
+  // T-5s (when the bar swaps to red). Both fire once per session. The
+  // showWarning / isCritical flags above already gate on the feature flag,
+  // so these effects naturally never fire while the feature is off.
   useEffect(() => {
     if (showWarning && !warnSoundFiredRef.current) {
       warnSoundFiredRef.current = true;

@@ -1,0 +1,265 @@
+// WhisperBar — Whisper-style floating dictation strip
+// Tokens from var(--tp-*). Even-pixel sizing throughout.
+
+.host {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;       // host itself never blocks the page
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 16px 24px;
+}
+
+// Soft full-screen dim so the bar reads as the primary surface.
+// Doesn't block clicks — the doctor can still interact with the page.
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.00) 0%,
+    rgba(15, 23, 42, 0.04) 60%,
+    rgba(15, 23, 42, 0.08) 100%
+  );
+  animation: whisperScrimIn 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+// ── Bar shell ────────────────────────────────────────────────────────────────
+.bar {
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 720px;
+  padding: 10px 12px 10px 16px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--tp-slate-200, #E2E8F0);
+  border-radius: 18px;
+  box-shadow:
+    0 24px 48px -16px rgba(15, 23, 42, 0.22),
+    0 8px 16px -8px rgba(15, 23, 42, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.barIn {
+  animation: whisperBarIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+// ── Mic cell — small violet badge with subtle pulse ──────────────────────────
+.micCell {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.micRing {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: linear-gradient(
+    135deg,
+    rgba(213, 101, 234, 0.18) 0%,
+    rgba(103, 58, 172, 0.22) 50%,
+    rgba(26, 25, 148, 0.16) 100%
+  );
+  color: var(--ai-violet, #673AAC);
+}
+
+.micPulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(103, 58, 172, 0.35) 0%, rgba(103, 58, 172, 0) 70%);
+  animation: micPulse 1.8s ease-out infinite;
+  pointer-events: none;
+}
+
+// ── Wave bars — mic-amplitude driven, with subtle baseline ────────────────────
+.wave {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 132px;
+  height: 28px;
+}
+
+.waveBar {
+  width: 2px;
+  min-height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    var(--ai-pink, #D565EA) 0%,
+    var(--ai-violet, #673AAC) 60%,
+    var(--ai-indigo, #1A1994) 100%
+  );
+  // Smooth between rAF ticks so the bars don't jitter.
+  transition: height 80ms linear;
+}
+
+// ── Transcript — flex-1, truncates to ellipsis when long ─────────────────────
+.transcript {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--tp-slate-700, #475569);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  // Inner fade-mask so long transcripts dissolve into the right edge instead
+  // of slamming against the action buttons.
+  mask-image: linear-gradient(90deg, #000 0%, #000 84%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 84%, transparent 100%);
+}
+
+.transcriptHint {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--tp-slate-400, #94A3B8);
+}
+
+.transcriptFinal {
+  font-weight: 500;
+  color: var(--tp-slate-800, #1E293B);
+}
+
+.transcriptInterim {
+  color: var(--tp-slate-400, #94A3B8);
+}
+
+.transcriptError {
+  font-size: 13px;
+  color: var(--tp-error-600, #DC2626);
+}
+
+// ── Action buttons (X / ✓) ───────────────────────────────────────────────────
+.actionBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 80ms ease;
+
+  &:active { transform: scale(0.96); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+.actionCancel {
+  color: var(--tp-slate-500, #64748B);
+  background: var(--tp-slate-100, #F1F5F9);
+
+  &:hover {
+    color: var(--tp-slate-800, #1E293B);
+    background: var(--tp-slate-200, #E2E8F0);
+  }
+}
+
+.actionAccept {
+  color: #ffffff;
+  background: linear-gradient(
+    135deg,
+    var(--ai-pink, #D565EA) 0%,
+    var(--ai-violet, #673AAC) 50%,
+    var(--ai-indigo, #1A1994) 100%
+  );
+  box-shadow:
+    0 4px 14px -4px rgba(103, 58, 172, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  &:hover { filter: brightness(1.05); }
+}
+
+// ── Keyboard hint chip ───────────────────────────────────────────────────────
+.kbdHint {
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 1px 2px rgba(15, 23, 42, 0.6);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  min-width: 18px;
+  padding: 0 5px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.kbdLabel { opacity: 0.78; }
+
+// ── Animations ───────────────────────────────────────────────────────────────
+@keyframes whisperScrimIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes whisperBarIn {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes micPulse {
+  0%   { transform: scale(0.85); opacity: 0.75; }
+  70%  { transform: scale(1.18); opacity: 0;    }
+  100% { transform: scale(1.18); opacity: 0;    }
+}
+
+// ── Reduced-motion fallback ──────────────────────────────────────────────────
+@media (prefers-reduced-motion: reduce) {
+  .barIn { animation: none; }
+  .scrim { animation: none; }
+  .micPulse { animation: none; opacity: 0; }
+  .waveBar { transition: none; }
+}

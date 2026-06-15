@@ -4,8 +4,13 @@
 recording-limit feature into other consultation surfaces or wiring it
 into a real transcription backend.
 
-**Status:** Shipped (dev/QA cap: **1 minute**, heads-up window: **15s**).
-Configurable via two constants — see "Configuration" below.
+**Status:** **DISABLED via feature flag** (`RECORDING_LIMIT_ENABLED = false`
+in `src/components/organisms/voicerx/recording-limit.jsx`). All code stays
+in the tree; the entire surface (countdown bar, sound cues, auto-submit,
+session-limit notes in loaders / canvas) is gated behind that one boolean
+so flipping it back to `true` restores the full behaviour with no other
+changes needed. Dev/QA cap when re-enabled: **1 minute**, heads-up window:
+**15s**, amber→red switch: **5s**.
 
 ---
 
