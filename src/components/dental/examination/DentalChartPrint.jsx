@@ -14,6 +14,7 @@ import { selectDentalExamination } from "../../../redux/dentalExaminationSlice";
 import { transformToothStateToApi } from "../lib/examination-helpers";
 import { buildConsultationPreviewPrintPayload } from "../../../utils/buildConsultationPreviewPrintPayload";
 import { renderPrintPayloadToBlob } from "../../../utils/printPayload";
+import { resolveDentalOralForPrint } from "../../../utils/resolveDentalOralPrintData";
 import { printBlobInNewTab } from "../../../pages/opdBilling/utils/helper";
 import { GB_DENTAL_MODULE } from "../../../utils/constants";
 import { isIPad } from "../../../utils/utils";
@@ -153,10 +154,12 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
 
     try {
       const activeDentalData =
-        dentalExamination?.toothState &&
-        Object.keys(dentalExamination.toothState).length > 0
-          ? transformToothStateToApi(dentalExamination.toothState)
-          : [];
+        mode === "plain"
+          ? []
+          : dentalExamination?.toothState &&
+              Object.keys(dentalExamination.toothState).length > 0
+            ? transformToothStateToApi(dentalExamination.toothState)
+            : [];
 
       const payload = buildConsultationPreviewPrintPayload({
         patient_data,
@@ -193,7 +196,29 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
         throw new Error("Print settings are not loaded yet. Please try again.");
       }
 
-      const pdfBlob = await renderPrintPayloadToBlob(payload, {
+      let printPayload = payload;
+
+      if (mode === "historical") {
+        const { dentalExaminationData: resolvedDental, examChart: resolvedOralChart } =
+          await resolveDentalOralForPrint({
+            patientId: patient_data?.patient_unique_id,
+            tcmId,
+            consultationDate,
+            printSettings: payload.printSettings,
+            inMemoryDental: { tooth_states: activeDentalData },
+            inMemoryOral: oralExamination,
+            caseManagerData: payload.caseManagerData,
+            allowFullApiFallback: false,
+          });
+
+        printPayload = {
+          ...payload,
+          dentalExaminationData: resolvedDental,
+          examChart: resolvedOralChart,
+        };
+      }
+
+      const pdfBlob = await renderPrintPayloadToBlob(printPayload, {
         selectedLang: "English",
         isGynaecHistoryAccessable: false,
         onlyShowDental: true,
@@ -263,15 +288,48 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
           <div className={dcp.dropdownTitle}>Print</div>
           {item("tooth", `Plain ${patientType} dental chart`, "Blank odontogram template", "plain")}
           {item("clipboard-activity", `Historical ${patientType} dental chart`, "With recorded findings & history", "historical", { disabled: !historicalAvailable, disabledReason: "There is no historical data to print for this patient." })}
-          <label className={dcp.includeLabel}>
-            <input
-              type="checkbox"
-              checked={includePatient}
-              onChange={(e) => setIncludePatient(e.target.checked)}
-              className={dcp.checkboxInput}
-            />
+          <div
+            role="checkbox"
+            aria-checked={includePatient}
+            tabIndex={0}
+            className={dcp.includeLabel}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIncludePatient((prev) => !prev);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === " " || e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                setIncludePatient((prev) => !prev);
+              }
+            }}
+          >
+            <span
+              aria-hidden="true"
+              className={`${dcp.checkboxInput} ${includePatient ? dcp.checkboxInputChecked : ""}`}
+            >
+              {includePatient && (
+                <svg
+                  width="10"
+                  height="8"
+                  viewBox="0 0 10 8"
+                  fill="none"
+                  className={dcp.checkboxCheckIcon}
+                >
+                  <path
+                    d="M1 4L3.5 6.5L9 1"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </span>
             <span className={dcp.includeLabelText}>Include patient information</span>
-          </label>
+          </div>
         </div>
       )}
       <TPTooltip title="Print dental chart" arrow placement="top">

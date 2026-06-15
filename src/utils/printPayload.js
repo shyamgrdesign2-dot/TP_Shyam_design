@@ -92,15 +92,19 @@ export const renderPrintPayloadToBlob = async (
     oralExamination,
     patientUniqueId,
     tcmId,
+    dentalChartPrintMode,
   } = payload;
 
-  const examChart = resolveExamChartForPrintWithContext({
-    caseManagerData,
-    examChartOverride: examChartFromPayload,
-    oralExamination,
-    patientUniqueId,
-    tcmId,
-  });
+  const examChart =
+    dentalChartPrintMode === "plain"
+      ? null
+      : resolveExamChartForPrintWithContext({
+          caseManagerData,
+          examChartOverride: examChartFromPayload,
+          oralExamination,
+          patientUniqueId,
+          tcmId,
+        });
 
   const combinedCaseManagerData = {
     ...caseManagerData,

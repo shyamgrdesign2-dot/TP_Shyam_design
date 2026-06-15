@@ -29,8 +29,9 @@
   border-radius: 14px;
   box-shadow: 0 16px 40px rgba(2, 6, 23, 0.2);
   padding: 8px;
-  z-index: 40;
+  z-index: 100;
   font-family: "Inter", sans-serif;
+  pointer-events: auto;
 }
 
 .dropdownTitle {
@@ -132,8 +133,7 @@
 }
 
 .checkboxInput {
-  appearance: none;
-  -webkit-appearance: none;
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
   border: 1.5px solid #cbd5e1;
@@ -143,28 +143,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 120ms ease;
-  background-color: #fff !important;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+  background-color: #fff;
   margin: 0;
-
-  &:checked {
-    background-color: var(--tp-blue-500, #4b4ad5);
-    border-color: var(--tp-blue-500, #4b4ad5);
-    
-    &::after {
-      content: "";
-      width: 4px;
-      height: 8px;
-      border: solid #fff;
-      border-width: 0 2px 2px 0;
-      transform: rotate(45deg);
-      margin-bottom: 2px;
-    }
-  }
+  box-sizing: border-box;
 
   &:hover {
     border-color: var(--tp-blue-500, #4b4ad5);
   }
+
+  &.checkboxInputChecked {
+    background-color: var(--tp-blue-500, #4b4ad5);
+    border-color: var(--tp-blue-500, #4b4ad5);
+  }
+}
+
+.checkboxCheckIcon {
+  display: block;
+  color: #fff;
+  flex-shrink: 0;
 }
 
 /* ── Print trigger button ────────────────────────────────────────────────── */

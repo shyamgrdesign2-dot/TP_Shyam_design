@@ -1349,6 +1349,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     dentalPrintOption?.custom_status === "Y" &&
     dentalPrintOption?.showDentalChart !== false;
 
+  const showPatientInfoHeader =
+    printSettings?.header_footer?.show_patient_info !== "none";
+
   const hasDentalSectionData =
     dentalComplaintRowsFiltered.length > 0 ||
     dentalMedicationRowsFiltered.length > 0 ||
@@ -2675,16 +2678,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
               />
             )}
           {/* Patient Info */}
-          <View
-            style={{
-              backgroundColor: "#171725",
-              height: PX_TO_PT * 2,
-              width: "100%",
-            }}
-            fixed={printSettings?.header_footer?.show_patient_info === "all"}
-          />
+          <>
+            <View
+              style={{
+                backgroundColor: "#171725",
+                height: PX_TO_PT * 2,
+                width: "100%",
+              }}
+              fixed={printSettings?.header_footer?.show_patient_info === "all"}
+            />
 
-          {printSettings?.header_footer?.show_patient_info === "all" ? (
+            {showPatientInfoHeader &&
+              (printSettings?.header_footer?.show_patient_info === "all" ? (
             <>
               <View
                 style={{ flexDirection: "row", marginVertical: PX_TO_PT * 15 }}
@@ -2795,7 +2800,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 fixed
               />
             </>
-          ) : (
+              ) : (
             <>
               <View
                 style={{ flexDirection: "row", marginVertical: PX_TO_PT * 15 }}
@@ -2904,7 +2909,19 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 }}
               />
             </>
-          )}
+              ))}
+
+            {!showPatientInfoHeader && (
+              <View
+                style={{
+                  marginBottom: PX_TO_PT * 15,
+                  backgroundColor: "#171725",
+                  height: PX_TO_PT * 1,
+                  width: "100%",
+                }}
+              />
+            )}
+          </>
 
           {/* <View style={{
                         marginTop: (printSettings?.header_footer?.show_patient_info === 'first' ||

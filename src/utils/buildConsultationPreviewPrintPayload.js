@@ -191,7 +191,7 @@ function applyDentalChartPrintSettings(printSettings, { dentalChartPrintMode, in
         ...option,
         enable: "Y",
         custom_status: "Y",
-        showDentalChart: isPlain,
+        showDentalChart: true,
         chartOnly: isPlain,
         includeHistorical: isHistorical,
       });
@@ -209,11 +209,11 @@ function applyDentalChartPrintSettings(printSettings, { dentalChartPrintMode, in
 
   printSettings.prescription.case_option = caseOptions;
 
-  if (!includePatientInfo && printSettings.header_footer?.patient_info) {
+  if (!includePatientInfo && printSettings.header_footer) {
     printSettings.header_footer = {
       ...printSettings.header_footer,
-      show_patient_info: "",
-      patient_info: printSettings.header_footer.patient_info.map((item) => ({
+      show_patient_info: "none",
+      patient_info: (printSettings.header_footer.patient_info || []).map((item) => ({
         ...item,
         enable: "N",
       })),
@@ -335,7 +335,8 @@ export function buildConsultationPreviewPrintPayload({
     );
   }
 
-  const resolvedDentalData = activeDentalData || [];
+  const resolvedDentalData =
+    dentalChartPrintMode === "plain" ? [] : activeDentalData || [];
 
   const {
     fileHeader,
@@ -363,5 +364,7 @@ export function buildConsultationPreviewPrintPayload({
     oralExamination: dentalChartPrintMode === "plain" ? null : oralExamination,
     patientUniqueId: patient_data?.patient_unique_id,
     tcmId: currentTcmId,
+    dentalChartPrintMode,
+    includePatientInfo,
   };
 }
