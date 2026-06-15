@@ -1,6 +1,7 @@
 {
   "name": "react-thyrocare",
   "version": "4.7.1",
+  "apiCompatibilityVersion": 1,
   "private": true,
   "homepage": "/",
   "dependencies": {

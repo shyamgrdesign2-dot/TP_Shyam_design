@@ -1,8 +1,6 @@
 name: Trigger auto deployment for pm-preprod-doctor-portal
 
-# When this action will be executed
 on:
-  # Automatically trigger it when detected changes in repo
   push:
     branches:
       [ prod ]
@@ -10,8 +8,11 @@ on:
       - '**'
       - '.github/workflows/pm-zy-preprod-doctor-portal-AutoDeployTrigger-8010aaad-fb91-450b-9cbe-d38886e708c6.yml'
 
-  # Allow manual trigger
   workflow_dispatch:
+
+concurrency:
+  group: pm-zy-preprod-doctor-portal
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -19,34 +20,97 @@ jobs:
 
     env:
       REACT_APP_ENV: zy-preprod
+      # Upload → blob container react-static-preprod/cdn/... Front Door exposes that at the root (/).
+      PUBLIC_URL_PREPROD_CDN: https://pmdoctorportal-preprod-bzcjhaa5gqeqcrhj.a02.azurefd.net/
+      IMAGE_NAME: zypractice02.azurecr.io/pm-preprod-doctor-portal:${{ github.sha }}
 
     permissions:
-      id-token: write # This is required for requesting the OIDC JWT Token
-      contents: read # Required when GH token is used to authenticate with private repo
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout to the branch
         uses: actions/checkout@v2
 
-      - name: Azure Login
+      # ---- 1. Build image and push to ACR (no Container App update yet) ----
+      # Generate version.json here in CI where git is guaranteed to be available.
+      # Do NOT rely on generate-version.js running inside the Docker build —
+      # .dockerignore typically excludes .git so git rev-parse would silently fail there.
+      # This file is baked into the image but intentionally excluded from blob upload below.
+      - name: Generate version.json
+        run: |
+          set -euo pipefail
+          SHA=$(git rev-parse --short HEAD)
+          API_VERSION=$(node -e "console.log(require('./package.json').apiCompatibilityVersion ?? 1)")
+          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION}" > public/version.json
+
+      - name: Docker login to ACR
+        env:
+          REGISTRY_USER: ${{ secrets.PMPREPRODDOCTORPORTAL_REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.PMPREPRODDOCTORPORTAL_REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$REGISTRY_PASS" | docker login zypractice02.azurecr.io -u "$REGISTRY_USER" --password-stdin
+
+      - name: Build image and push to ACR
+        run: |
+          set -euo pipefail
+          docker build \
+            --build-arg REACT_APP_ENV=zy-preprod \
+            --build-arg GENERATE_SOURCEMAP=false \
+            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PREPROD_CDN }}" \
+            -t "${{ env.IMAGE_NAME }}" .
+          docker push "${{ env.IMAGE_NAME }}"
+
+      # ---- 2. Extract built assets from the same image we just pushed ----
+      - name: Extract built assets (html minus index.html and version.json)
+        run: |
+          set -euo pipefail
+          CID=$(docker create "${{ env.IMAGE_NAME }}")
+          mkdir -p _blob_html
+          docker cp "$CID:/usr/share/nginx/html/." _blob_html/
+          docker rm -v "$CID"
+          # index.html and version.json must only be served from the container (nginx),
+          # never from blob/CDN — both need no-cache guarantees that blob cannot provide.
+          rm -f _blob_html/index.html
+          rm -f _blob_html/version.json
+
+      # ---- 3. Upload to blob BEFORE the Container App revision switch ----
+      # PMPREPRODDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS — JSON for azure/login `creds` (clientId, clientSecret,
+      # subscriptionId, tenantId). subscriptionId must contain pmdoctorportal storage account.
+      # RBAC: Storage Blob Data Contributor on pmdoctorportal (or scoped to react-static-preprod).
+      - name: Azure Login (blob upload identity)
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.PMPREPRODDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS }}
+
+      # upload-batch never deletes blobs missing from --source, so previously uploaded
+      # hashed chunks survive. --overwrite only affects identical paths (e.g. manifest.json,
+      # favicon.ico) which we WANT current.
+      - name: Publish build assets to Azure Blob (react-static-preprod/cdn)
+        run: |
+          set -euo pipefail
+          az storage blob upload-batch \
+            --account-name pmdoctorportal \
+            --auth-mode login \
+            --destination react-static-preprod \
+            --source _blob_html \
+            --destination-path cdn \
+            --overwrite
+
+      # ---- 4. Now switch the Container App to the new image (assets already in place) ----
+      - name: Azure Login (deploy identity)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.PMPREPRODDOCTORPORTAL_AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.PMPREPRODDOCTORPORTAL_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.PMPREPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build and push container image to registry
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          appSourcePath: ${{ github.workspace }}
-          registryUrl: zypractice02.azurecr.io
-          registryUsername: ${{ secrets.PMPREPRODDOCTORPORTAL_REGISTRY_USERNAME }}
-          registryPassword: ${{ secrets.PMPREPRODDOCTORPORTAL_REGISTRY_PASSWORD }}
-          containerAppName: pm-preprod-doctor-portal
-          resourceGroup: practice-preprod
-          imageToBuild: zypractice02.azurecr.io/pm-preprod-doctor-portal:${{ github.sha }}
-
-          buildArguments: |
-            REACT_APP_ENV=zy-preprod
-            GENERATE_SOURCEMAP=false
-            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+      - name: Deploy Container App revision
+        run: |
+          set -euo pipefail
+          az containerapp update \
+            --name pm-preprod-doctor-portal \
+            --resource-group practice-preprod \
+            --image "${{ env.IMAGE_NAME }}"

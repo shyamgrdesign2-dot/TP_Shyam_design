@@ -59,11 +59,13 @@
 }
 
 .retryBtn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	min-height: 34px;
 	padding: 8px 16px;
 	border-radius: 8px;
-	background: #4B4AD5;
-	color: #fff;
-	border: none;
 	cursor: pointer;
 	font-size: 13px;
 	font-weight: 600;

@@ -85,6 +85,7 @@ const {
 
 var oneClickCosultationTemplateId = 0
 const HEADER_DICTATION_TARGET = "header";
+const HEADER_DICTATION_NO_INPUT_LOCATION = "no input field selected and no cursor is active";
 
 function getVoiceDictationTargetId(element) {
     const targetNode = element?.closest?.("[data-voice-rx-dictation-target]");
@@ -218,6 +219,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceLastShiftTimeRef = useRef(0);
     const headerVoiceCursorRef = useRef(null); // { element, selectionStart, selectionEnd, targetId }
     const headerVoiceTargetIdRef = useRef(HEADER_DICTATION_TARGET);
+    const headerVoiceInputLocationRef = useRef(HEADER_DICTATION_NO_INPUT_LOCATION);
     const headerVoiceRecordStartMsRef = useRef(0);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const hasUngroundedMedications = medicationData.some(
@@ -326,6 +328,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const recorder = headerVoiceMediaRecorderRef.current;
         if (!recorder || recorder.state === 'inactive') return;
         const targetId = headerVoiceTargetIdRef.current || headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
+        const voiceInputLocation = headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION;
         setHeaderVoiceState("transcribing");
         publishHeaderDictation("transcribing", targetId);
         const submitClickedAtMs = Date.now();
@@ -366,6 +369,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
                 moduleName: "header-dictation",
                 sourceSurface: "header",
+                voiceInputLocation,
                 isDoctorAgent: false,
                 voiceLogCreated: voiceDigitization?.voiceLogCreated,
                 markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -401,6 +405,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
                 moduleName: "header-dictation",
                 sourceSurface: "header",
+                voiceInputLocation,
                 isDoctorAgent: false,
                 voiceLogCreated: voiceDigitization?.voiceLogCreated,
                 markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -409,14 +414,18 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
         setHeaderVoiceState("idle");
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
     }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const headerVoiceStartRecording = useCallback(async () => {
         if (headerVoiceStateRef.current !== "idle") return;
         if (activeVoiceModule) return;
-        const targetId = headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
+        const cursor = headerVoiceCursorRef.current;
+        const hasCursor = cursor?.element && document.activeElement === cursor.element;
+        const targetId = hasCursor ? cursor.targetId : HEADER_DICTATION_TARGET;
         headerVoiceTargetIdRef.current = targetId;
+        headerVoiceInputLocationRef.current = hasCursor ? targetId : HEADER_DICTATION_NO_INPUT_LOCATION;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             headerVoiceStreamRef.current = stream;
@@ -432,6 +441,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         } catch (err) {
             console.error('[HeaderTranscribe] mic access failed', err);
             headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+            headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         }
     }, [activeVoiceModule, publishHeaderDictation, setHeaderVoiceState]);
@@ -448,6 +458,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceAudioChunksRef.current = [];
         setHeaderVoiceState("idle");
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
     }, [publishHeaderDictation, setHeaderVoiceState]);
 
