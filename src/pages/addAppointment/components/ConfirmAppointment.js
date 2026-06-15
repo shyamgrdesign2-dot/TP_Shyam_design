@@ -339,7 +339,7 @@ function ConfirmAppointment({
                     />
                 </Col>
             </Row>
-            <label className="d-block mb-2">Remarks for Receptionist</label>
+            <label className="d-block mb-2">Remarks</label>
             <Input.TextArea placeholder="Write your remarks" value={remarks} className="textareaPlaceholder fontroboto text-main" rows={3} onChange={onChangeInputRemarks} />
         </div>
     )
