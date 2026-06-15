@@ -24,6 +24,11 @@
 .sheetBody {
   flex: 1;
   overflow: hidden;
+
+  :global([data-dental-flat-chart="true"]) {
+    overflow: visible;
+    padding-bottom: 4px;
+  }
 }
 
 .emptyPad {

@@ -6,6 +6,10 @@
  */
 import React from "react";
 import { View, Text, Image, Svg, Path, Circle, G } from "@react-pdf/renderer";
+import {
+  grayscaleToothPngDataUrl,
+  outlineToothPngDataUrl,
+} from "./toothImageOutline";
 
 export const UPPER_ROW = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
 export const LOWER_ROW = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
@@ -103,11 +107,17 @@ async function loadDentalToothImageMap() {
         try {
           const res = await fetch(url, { cache: "force-cache" });
           if (!res.ok) continue;
-          const dataUrl = await blobToPngDataUrl(await res.blob());
-          if (dataUrl) {
-            map[fdi] = dataUrl;
-            break;
-          }
+          const plainGray = await grayscaleToothPngDataUrl(
+            await blobToPngDataUrl(await res.blob()),
+          );
+          if (!plainGray) continue;
+          const outlined = await outlineToothPngDataUrl(plainGray, {
+            strokeColor: "#1f2937",
+            strokePx: 2,
+            grayscale: true,
+          });
+          map[fdi] = { plain: plainGray, outlined: outlined || plainGray };
+          break;
         } catch {
           // try next candidate
         }
@@ -119,6 +129,13 @@ async function loadDentalToothImageMap() {
 
 /** Prefetch all odontogram images as PNG data URLs for react-pdf (cached per tab session). */
 export async function prefetchDentalToothImageMap({ force = false } = {}) {
+  if (
+    !force &&
+    cachedToothImageMap &&
+    Object.values(cachedToothImageMap).some((entry) => typeof entry === "string")
+  ) {
+    clearDentalToothImageMapCache();
+  }
   if (!force && cachedToothImageMap) {
     return cachedToothImageMap;
   }
@@ -223,7 +240,12 @@ const PdfToothCell = ({ fdi, arch, toothState, toothH, toothImageMap, printSetti
   const aspect = toothAspect(fdi);
   const imgH = toothH;
   const imgW = imgH * aspect;
-  const toothSrc = toothImageMap?.[fdi];
+  const toothEntry = toothImageMap?.[fdi];
+  const toothSrc = typeof toothEntry === "string"
+    ? toothEntry
+    : hasData
+      ? toothEntry?.outlined || toothEntry?.plain
+      : toothEntry?.plain;
   const fontFamily = printSettings?.page_format?.font_family || "Roboto";
 
   const imgNode = toothSrc ? (
@@ -233,7 +255,7 @@ const PdfToothCell = ({ fdi, arch, toothState, toothH, toothImageMap, printSetti
         minWidth: imgW + 4,
         alignItems: "center",
         justifyContent: "flex-end",
-        backgroundColor: hasData ? "#f1f2f4" : "transparent",
+        backgroundColor: hasData ? "rgba(124,58,237,0.10)" : "transparent",
         borderRadius: 3,
         padding: 1,
       }}
@@ -256,7 +278,7 @@ const PdfToothCell = ({ fdi, arch, toothState, toothH, toothImageMap, printSetti
       style={{
         fontSize: PX_TO_PT * 8.5,
         fontWeight: hasData ? "bold" : "normal",
-        color: hasData ? "#111827" : "#9ca3af",
+        color: hasData ? "#1e293b" : "#94a3b8",
         fontFamily,
         marginTop: 2,
         marginBottom: 2,

@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ORAL_POSITION_LABEL } from "./types";
 import { QuickSurfaceSelector } from "./QuickSurfaceSelector";
+import fdc from "./FlatDentitionChart.module.scss";
 
 const EXAM_CHART_PREFIX = "dental.exam.chart.";
 
@@ -130,13 +131,16 @@ function buildPath(type, gx, tw, top, upper) {
   return d.trim();
 }
 
-function toothState(fdi, toothDiagnoses, findingsByTooth) {
+function toothState(fdi, toothDiagnoses, findingsByTooth, chartEntries = []) {
   const diags = toothDiagnoses?.[fdi] ?? [];
   const findings = (findingsByTooth?.[fdi] ?? []).filter((f) => f && f.type && f.type !== "Normal");
+  const entryCount = chartEntries.filter(
+    (e) => e && String(e.toothFdi) === String(fdi),
+  ).length;
   const isMissing = diags.some((d) => MISSING.has(d));
   const treated = diags.length > 0 && !isMissing;
   const findingCount = findings.length;
-  const hasAny = diags.length > 0 || findingCount > 0;
+  const hasAny = diags.length > 0 || findingCount > 0 || entryCount > 0;
   return { isMissing, treated, findingCount, hasAny };
 }
 
@@ -197,8 +201,6 @@ function Tooth({ fdi, slotX, top, upper, st }) {
 // renders at the SAME height (cells size proportionally) and the row fits width.
 const TOOTH_ASPECT = { "11": 0.371, "12": 0.371, "13": 0.341, "14": 0.354, "15": 0.373, "16": 0.505, "17": 0.513, "18": 0.515, "21": 0.371, "22": 0.371, "23": 0.341, "24": 0.354, "25": 0.373, "26": 0.505, "27": 0.513, "28": 0.515, "31": 0.3, "32": 0.287, "33": 0.307, "34": 0.334, "35": 0.342, "36": 0.668, "37": 0.55, "38": 0.658, "41": 0.3, "42": 0.287, "43": 0.307, "44": 0.334, "45": 0.342, "46": 0.668, "47": 0.55, "48": 0.658 };
 function toothCellAspect(fdi) { return TOOTH_ASPECT[fdi] || 0.45; }
-// Dark gray outer stroke around a PNG tooth (4 stacked drop-shadows trace its alpha edge).
-const TOOTH_STROKE = "drop-shadow(1px 0 0 #374151) drop-shadow(-1px 0 0 #374151) drop-shadow(0 1px 0 #374151) drop-shadow(0 -1px 0 #374151)";
 const STATIC_ASSET_BASE = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
 const toothCandidates = (fdi) => ([
   `${STATIC_ASSET_BASE}/teeth/${fdi}.webp`,
@@ -242,22 +244,40 @@ function ChartToothCell({ fdi, st, h, arch, zones }) {
     setAssetIdx((prev) => (prev + 1 < candidates.length ? prev + 1 : prev));
   };
 
+  const toothImg = (
+    <img
+      src={toothSrc}
+      alt={fdi}
+      decoding="async"
+      onError={onToothImageError}
+      className={`${fdc.toothImg} ${hasData ? fdc.toothImgStroke : ""}`}
+      style={{
+        height: h,
+        opacity: st.isMissing ? 0.4 : 1,
+      }}
+    />
+  );
+
   const img = (
-    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", borderRadius: 7, background: hasData ? "#f1f2f4" : "transparent", boxSizing: "border-box", padding: "2px 2px" }}>
-      <img src={toothSrc} alt={fdi} decoding="async" onError={onToothImageError} style={{ height: h, width: "auto", display: "block", opacity: st.isMissing ? 0.4 : 1, filter: hasData ? TOOTH_STROKE : undefined }} />
+    <div className={`${fdc.toothImgShell} ${hasData ? fdc.toothImgShellHasData : ""}`}>
+      {toothImg}
     </div>
   );
-  const num = <span style={{ fontSize: 10, fontWeight: hasData ? 800 : 600, color: hasData ? "#111827" : "#9ca3af", fontFamily: "Inter, sans-serif" }}>{fdi}</span>;
+  const num = (
+    <span className={`${fdc.toothNum} ${hasData ? fdc.toothNumHasData : fdc.toothNumPlain}`}>
+      {fdi}
+    </span>
+  );
   const selector = (
-    <div style={{ width: 38, height: 78, position: "relative", overflow: "hidden", display: "flex", justifyContent: "center" }}>
-      <div style={{ transform: "scale(0.48)", transformOrigin: "top center" }}>
+    <div className={fdc.selectorWrap}>
+      <div className={fdc.selectorScale}>
         <QuickSurfaceSelector selectedZones={zones || new Set()} onToggleZone={() => {}} arch={arch} toothPosition={pos} zonesWithFindings={new Set()} />
       </div>
     </div>
   );
   const stack = arch === "maxillary" ? [img, num, selector] : [selector, num, img];
   return (
-    <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+    <div className={fdc.toothCell}>
       {stack.map((el, i) => <div key={i}>{el}</div>)}
     </div>
   );
@@ -297,42 +317,39 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
 
   const toothDiagnoses = chart?.toothDiagnoses ?? {};
   const findingsByTooth = chart?.findingsByTooth ?? {};
+  const chartEntries = Array.isArray(chart?.entries) ? chart.entries : [];
 
   // Nothing recorded → don't render in regular contexts (saves space in the
   // Rx Preview drawer when the doctor hasn't added any tooth data). The print
   // path passes `alwaysRender` so the chart ALWAYS renders for print previews
   // — that's the whole point of "Print Dental Chart".
   const anyData =
+    chartEntries.length > 0 ||
     Object.values(toothDiagnoses).some((a) => (a || []).length > 0) ||
     Object.values(findingsByTooth).some((a) => (a || []).length > 0);
   if (!anyData && !alwaysRender) return null;
 
   const zonesByTooth = zonesByToothFromChart(chart);
   const cell = (fdi, arch) => (
-    <ChartToothCell key={fdi} fdi={fdi} h={toothH} arch={arch} zones={zonesByTooth[fdi]} st={toothState(fdi, toothDiagnoses, findingsByTooth)} />
+    <ChartToothCell key={fdi} fdi={fdi} h={toothH} arch={arch} zones={zonesByTooth[fdi]} st={toothState(fdi, toothDiagnoses, findingsByTooth, chartEntries)} />
   );
   // Right/left quadrant gap matches the upper/lower jaw gap (8px row gap)
   // so the chart reads with one consistent rhythm. `space-evenly` keeps
   // the inner-most tooth (11 / 41) from sitting flush against the divider.
   const row = (fdis, arch) => (
-    <div style={{ display: "flex", alignItems: "stretch" }}>
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
-      <div style={{ width: 1, background: "#e2e8f0", margin: "0 4px" }} />
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
+    <div className={fdc.chartRow}>
+      <div className={fdc.chartHalf}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
+      <div className={fdc.chartDivider} />
+      <div className={fdc.chartHalf}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
     </div>
   );
 
   return (
-    <section
-      style={{ marginTop: 14, padding: "0 14px", breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
-      data-dental-flat-chart="true"
-    >
-      <h3 style={{ fontSize: 12, fontWeight: 700, color: "#334155", margin: "0 0 8px", fontFamily: "Inter, sans-serif" }}>
-        Dental Chart
-      </h3>
-      <div ref={wrapRef} style={{ display: "flex", flexDirection: "column", gap: 8, filter: "grayscale(1)" }}>
+    <section className={fdc.chartSection} data-dental-flat-chart="true">
+      <h3 className={fdc.chartTitle}>Dental Chart</h3>
+      <div ref={wrapRef} className={fdc.chartWrap}>
         {row(UPPER_ROW, "maxillary")}
-        <div style={{ height: 1, background: "#e2e8f0" }} />
+        <div className={fdc.chartJawDivider} />
         {row(LOWER_ROW, "mandibular")}
       </div>
     </section>
