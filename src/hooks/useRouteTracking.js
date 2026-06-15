@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
-
-const normalizePath = (path) =>
-  path.replace(/\d+/g, ":id");
+import * as Sentry from "@sentry/react";
+import { getSentryRouteName } from "../utils/sentryRouteNames";
 
 export default function useRouteTracking() {
   const location = useLocation();
@@ -14,7 +13,23 @@ export default function useRouteTracking() {
     if (prevPathRef.current === pathname) return;
     prevPathRef.current = pathname;
 
-    const normalizedPath = normalizePath(pathname);
+    const normalizedPath = getSentryRouteName(pathname);
+
+    Sentry.getCurrentScope()?.setTransactionName?.(normalizedPath);
+    Sentry.setTag("route", normalizedPath);
+    Sentry.startBrowserTracingNavigationSpan?.(
+      Sentry.getClient(),
+      {
+        name: normalizedPath,
+        op: "navigation",
+        attributes: {
+          "sentry.source": "url",
+        },
+      },
+      {
+        url: window.location.href,
+      }
+    );
 
     window?.Moengage?.track_event?.("route_mount", {
       pathname: normalizedPath,

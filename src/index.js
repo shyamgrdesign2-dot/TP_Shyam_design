@@ -22,6 +22,7 @@ import {
   shouldReloadForChunkFailure,
 } from "./utils/chunkReloadGuard";
 import { isProductionEnv } from "./utils/environment";
+import { getSentryRouteNameFromUrl } from "./utils/sentryRouteNames";
 
 // Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
@@ -89,6 +90,17 @@ Sentry.init({
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;
+    return event;
+  },
+  beforeSendTransaction(event) {
+    const routeName = getSentryRouteNameFromUrl(event?.request?.url);
+    if (routeName) {
+      event.transaction = routeName;
+      event.transaction_info = {
+        ...event.transaction_info,
+        source: "url",
+      };
+    }
     return event;
   },
   enableLogs: true

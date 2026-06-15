@@ -38,6 +38,7 @@ import {
 } from "./utils/zydusAccountRouting";
 import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateBanner from "./common/UpdateBanner";
+import { clearSentryContext } from "./utils/sentryContext";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -259,6 +260,12 @@ function App() {
 
   useRouteTracking();
   const { updateAvailable } = useVersionCheck();
+
+  useEffect(() => {
+    if (isLoginPage) {
+      clearSentryContext();
+    }
+  }, [isLoginPage]);
 
   const openUrlsSilently = async (urls) => {
     return Promise.all(
