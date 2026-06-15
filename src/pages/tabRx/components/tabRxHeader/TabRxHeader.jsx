@@ -95,7 +95,7 @@ import {
   resetOpthalForm,
   setTableValues as setOpthalTableValues,
 } from "../../../../redux/ophthalmologyExamSlice";
-import useTabletViewport from "../../../../hooks/useTabletViewport";
+import useCompactPrescriptionHeader from "../../../../hooks/useCompactPrescriptionHeader";
 import { useChikitsalay } from "../../../../pages/chikitsalay/useChikitsalay";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { ASSETS } from "../../../../assets";
@@ -146,7 +146,7 @@ function TabRxHeader({
   const { customModules } = useSelector((state) => state.customModules);
 
   const navigate = useNavigate();
-  const isTablet = useTabletViewport();
+  const isCompactHeader = useCompactPrescriptionHeader();
   const {
     patient_data,
     send_path,
@@ -2259,7 +2259,7 @@ function TabRxHeader({
   }, [popOverVideo]);
   return (
     <Navbar
-      className={`justify-content-between headerprescription p-0 ${isTablet ? " headerprescription--tablet" : ""}`}
+      className={`justify-content-between headerprescription p-0 ${isCompactHeader ? " headerprescription--tablet" : ""}`}
     >
       <Container fluid className="h-100 gx-0 w-100">
         <Row className="h-100 align-items-center w-100 justify-content-between">
@@ -2325,13 +2325,8 @@ function TabRxHeader({
               <ProfilePopover patient_data={patient_data} isPrescriptionPage />
             </div>
           </Col>
-          <Col
-            sm="auto"
-            className={isTablet ? "headerprescription-actions-col" : ""}
-          >
-            <div
-              className={`align-items-center d-flex h-100${isTablet ? " headerprescription-actions" : ""}`}
-            >
+          <Col sm="auto" className="headerprescription-actions-col">
+            <div className="align-items-center d-flex h-100 headerprescription-actions">
               {/* {!isMobile ? (
                 <div className="d-flex align-items-center">
                   <Popover
@@ -2345,7 +2340,7 @@ function TabRxHeader({
                     <button className="btn d-flex align-items-center btn-text">
                       {" "}
                       <i className="icon-template me-2"></i>{" "}
-                      <span>{isTablet ? "Temp" : "Templates"}</span>
+                      <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                     </button>
                   </Popover>
                   <Tooltip
@@ -2397,7 +2392,7 @@ function TabRxHeader({
                     onClick={handleDrawerTemplate}
                   >
                     <i className="icon-template me-2"></i>{" "}
-                    <span>{isTablet ? "Temp" : "Templates"}</span>
+                    <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                   </button>
                   <Tooltip
                     placement="bottom"
@@ -2446,7 +2441,7 @@ function TabRxHeader({
                 placement="bottom"
               >
                 <button
-                  className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? "me-20" : ""}`}
+                  className={`btn d-flex align-items-center btn-text p-0 ${!isCompactHeader ? "me-20" : ""}`}
                 >
                   <span>
                     <img src={tutorial2} />
@@ -2460,12 +2455,12 @@ function TabRxHeader({
                 className="btn d-flex align-items-center btn-text"
                 onClick={handleDrawerCustomize}
               >
-                {isTablet ? (
+                {isCompactHeader ? (
                   <img src={settingsIcon} alt="Settings" className="me-2" />
                 ) : (
                   <i className="icon-setting me-2"></i>
                 )}{" "}
-                <span>{isTablet ? "Custom" : "Customize"}</span>
+                <span>{isCompactHeader ? "Custom" : "Customize"}</span>
               </button> */}
 
               {/* <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
@@ -2481,7 +2476,7 @@ function TabRxHeader({
                 placement="bottom"
               >
                 <button
-                  className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? "me-20" : ""}`}
+                  className={`btn d-flex align-items-center btn-text p-0 ${!isCompactHeader ? "me-20" : ""}`}
                 >
                   <span>
                     <img src={tutorial2} />
@@ -2558,7 +2553,7 @@ function TabRxHeader({
                 />
               )}
               {/* {(isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx ? (
-                isTablet ? (
+                isCompactHeader ? (
                   <>
                     <div
                       className="headerprescription-tablet-sep"
@@ -2571,7 +2566,7 @@ function TabRxHeader({
                 )
               ) : null} */}
 
-              {isTablet && (
+              {isCompactHeader && (
                 <div
                   className="headerprescription-tablet-sep"
                   aria-hidden="true"
@@ -2582,7 +2577,7 @@ function TabRxHeader({
                 <SaveDraft
                   onSaveAsDraft={onSaveAsDraft}
                   loading={saveDraftLoading}
-                  label={isTablet ? "Draft" : "Save as Draft"}
+                  label={isCompactHeader ? "Draft" : "Save as Draft"}
                 />
               )} */}
 
@@ -2656,7 +2651,7 @@ function TabRxHeader({
                   loading={loading && !saveDraftLoading}
                 >
                   <i className="icon-exit me-2"></i>
-                  {isTablet ? "End" : "End"}
+                  {isCompactHeader ? "End" : "End"}
                 </Button>
               </Tooltip>
 
