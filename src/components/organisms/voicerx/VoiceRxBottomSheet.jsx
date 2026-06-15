@@ -242,18 +242,18 @@ export function VoiceRxBottomSheet({
              small lamp glyph on the left and an X on the right. No heading;
              the message itself carries the whole intent. */}
         {tipVisible &&
-        <div className={cn("mx-[16px] mt-[14px] flex items-center gap-[10px] rounded-[12px] px-[12px] py-[10px]", styles.bestPracticeTip)} role="note">
-          <span className={cn("flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full", styles.bestPracticeTipBadge)} aria-hidden>
+        <div className={cn("mx-[16px] mt-[14px] flex items-start gap-[10px] rounded-[12px] px-[12px] py-[10px]", styles.bestPracticeTip)} role="note">
+          <span className={cn("mt-[1px] flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full", styles.bestPracticeTipBadge)} aria-hidden>
             <Lamp size={14} variant="Bulk" color="currentColor" />
           </span>
           <p className={cn("m-0 min-w-0 flex-1 text-[13px] leading-[1.4] font-medium", styles.bestPracticeTipText)}>
-            <strong className="font-semibold">Note:</strong>{" "}Keep each session under{" "}<strong className="font-semibold">10 min</strong>{" "}for more accurate &amp; faster results.
+            <strong className="font-semibold">Note:</strong>{" "}Keep each session under{" "}<strong className="font-bold">10 min</strong>{" "}for more accurate &amp; faster results.
           </p>
           <button
             type="button"
             onClick={dismissTip}
             aria-label="Dismiss tip"
-            className={cn("inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px] transition-colors", styles.bestPracticeTipClose)}>
+            className={cn("mt-[2px] inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px] transition-colors", styles.bestPracticeTipClose)}>
 
             <X size={13} strokeWidth={2.4} />
           </button>
