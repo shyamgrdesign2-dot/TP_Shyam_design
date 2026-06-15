@@ -47,6 +47,7 @@ if (typeof window !== "undefined") {
     "add_unique_user_id",
     "add_first_name",
     "add_last_name",
+    "add_user_name",
     "add_email",
     "add_mobile",
     "destroy_session",
