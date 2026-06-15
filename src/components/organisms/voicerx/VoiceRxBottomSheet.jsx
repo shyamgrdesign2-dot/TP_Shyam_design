@@ -238,29 +238,24 @@ export function VoiceRxBottomSheet({
           })}
         </div>
 
-        {/* Best-practice tip — soft violet/AI-tinted card, two-line copy with
-             a small lamp glyph on the left and an X dismiss on the right. Sits
-             quietly above the CTA so the doctor scans it before starting. */}
+        {/* Best-practice tip — amber, crisp, dismissible. One-line copy + a
+             small lamp glyph on the left and an X on the right. No heading;
+             the message itself carries the whole intent. */}
         {tipVisible &&
-        <div className={cn("mx-[16px] mt-[14px] flex items-start gap-[10px] rounded-[12px] px-[12px] py-[10px]", styles.bestPracticeTip)} role="note">
-          <span className={cn("mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full", styles.bestPracticeTipBadge)} aria-hidden>
-            <Lamp size={13} variant="Bulk" color="currentColor" />
+        <div className={cn("mx-[16px] mt-[14px] flex items-center gap-[10px] rounded-[12px] px-[12px] py-[10px]", styles.bestPracticeTip)} role="note">
+          <span className={cn("flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full", styles.bestPracticeTipBadge)} aria-hidden>
+            <Lamp size={14} variant="Bulk" color="currentColor" />
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="m-0 text-[12px] font-semibold leading-[1.35] tracking-[-0.01em] text-tp-slate-800">
-              For the cleanest transcripts
-            </p>
-            <p className="mt-[2px] text-[11px] leading-[1.5] text-tp-slate-600">
-              Speak clearly and keep each session focused — short, structured dictations transcribe far more accurately than long open-ended ones.
-            </p>
-          </div>
+          <p className={cn("m-0 min-w-0 flex-1 text-[13px] leading-[1.4] font-medium", styles.bestPracticeTipText)}>
+            Short, focused dictations transcribe more accurately than long, open-ended ones.
+          </p>
           <button
             type="button"
             onClick={dismissTip}
             aria-label="Dismiss tip"
-            className="mt-[1px] inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-[6px] text-tp-slate-400 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-700">
+            className={cn("inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px] transition-colors", styles.bestPracticeTipClose)}>
 
-            <X size={12} strokeWidth={2.4} />
+            <X size={13} strokeWidth={2.4} />
           </button>
         </div>
         }

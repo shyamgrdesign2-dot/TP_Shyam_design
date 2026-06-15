@@ -23,25 +23,29 @@
 }
 
 // ── Best-practice tip card (above the Start Consultation CTA) ──────────────
-// Soft violet/AI tint so it reads as informational guidance rather than a
-// warning. Calm, calls attention without competing with the blue consent
-// pill or the violet CTA gradient. Two-line copy + lamp badge + X dismiss.
+// Warm amber so it reads as "heads up" guidance — distinct from the blue
+// consent pill above and the violet CTA below. One crisp line of copy +
+// lamp badge + X dismiss.
 .bestPracticeTip {
-  background: linear-gradient(
-    180deg,
-    rgba(103, 58, 172, 0.06) 0%,
-    rgba(103, 58, 172, 0.02) 100%
-  );
-  border: 1px solid rgba(103, 58, 172, 0.18);
+  background: var(--tp-warning-50, #FFFBEB);
+  border: 1px solid var(--tp-warning-200, #FDE68A);
   animation: docFadeIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .bestPracticeTipBadge {
-  background: linear-gradient(
-    135deg,
-    rgba(213, 101, 234, 0.22) 0%,
-    rgba(103, 58, 172, 0.28) 50%,
-    rgba(26, 25, 148, 0.22) 100%
-  );
-  color: var(--ai-violet, #673AAC);
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--tp-warning-700, #B45309);
+}
+
+.bestPracticeTipText {
+  color: var(--tp-warning-800, #92400E);
+}
+
+.bestPracticeTipClose {
+  color: var(--tp-warning-600, #D97706);
+
+  &:hover {
+    background: rgba(245, 158, 11, 0.14);
+    color: var(--tp-warning-800, #92400E);
+  }
 }
