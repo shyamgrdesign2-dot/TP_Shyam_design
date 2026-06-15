@@ -389,7 +389,8 @@ export function SurfaceCellDropdown({
   onDeactivate,
   onToggleZone,
   onHover,
-  multiSelectZones
+  multiSelectZones,
+  onClearSurfaces
 }) {
   const { activeSurfaces } = useDentalMasters();
   const [open, setOpen] = useState(false);
@@ -625,6 +626,17 @@ export function SurfaceCellDropdown({
 
               })}
             </ul>
+            {onClearSurfaces && shown.length > 0 && (
+              <div style={{ borderTop: "1px solid #f1f5f9", padding: "8px 12px", display: "flex", justifyContent: "center", background: "#fff" }}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={onClearSurfaces}
+                  style={{ border: "none", background: "transparent", color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: "4px 10px" }}>
+                  Clear all
+                </button>
+              </div>
+            )}
           </div>,
           document.body
         )}

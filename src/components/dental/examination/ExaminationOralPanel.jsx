@@ -122,6 +122,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
     const left = Math.max(8, Math.min(r.left, vw - w - 8));
 
     const SEARCH_H = 76; // search bar header approx height
+    const FOOTER_H = 43; // Clear all footer row height
     const GAP = 4;
     const MARGIN = 8;
     const spaceBelow = vh - r.bottom - GAP - MARGIN;
@@ -129,12 +130,12 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
 
     if (spaceBelow >= spaceAbove) {
       // More space below — open downward
-      const maxScrollH = Math.max(120, Math.min(460, spaceBelow - SEARCH_H));
+      const maxScrollH = Math.max(80, Math.min(420, spaceBelow - SEARCH_H - FOOTER_H));
       setPos({ top: r.bottom + GAP, left, width: w, maxScrollH });
     } else {
       // More space above — flip upward
-      const maxScrollH = Math.max(120, Math.min(460, spaceAbove - SEARCH_H));
-      const popupH = maxScrollH + SEARCH_H;
+      const maxScrollH = Math.max(80, Math.min(420, spaceAbove - SEARCH_H - FOOTER_H));
+      const popupH = maxScrollH + SEARCH_H + FOOTER_H;
       setPos({ top: Math.max(MARGIN, r.top - GAP - popupH), left, width: w, maxScrollH });
     }
   }, []);
@@ -360,6 +361,17 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
                   />
                 )}
               </div>
+              {value.length > 0 && (
+                <div style={{ borderTop: "1px solid #f1f5f9", padding: "8px 12px", display: "flex", justifyContent: "center", background: "#fff" }}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => { onChange([]); onHoverPreview?.([]); }}
+                    style={{ border: "none", background: "transparent", color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: "4px 10px" }}>
+                    Clear all
+                  </button>
+                </div>
+              )}
             </div>
           );
         })(),

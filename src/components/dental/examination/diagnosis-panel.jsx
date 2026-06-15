@@ -357,7 +357,8 @@ export function PrimaryDiagnosisBody({ state }) {
                         }}
                         onToggleZone={state.onToggleZoneMultiSelect}
                         onHover={state.onSetHighlightZones}
-                        multiSelectZones={state.multiSelectZones} />
+                        multiSelectZones={state.multiSelectZones}
+                        onClearSurfaces={state.onClearMultiSelect} />
 
                     </td>
                     <td

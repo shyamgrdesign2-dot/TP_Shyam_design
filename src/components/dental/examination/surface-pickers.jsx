@@ -265,6 +265,17 @@ export function SymptomSurfacePicker({
 
               })}
             </ul>
+            {surfaces.length > 0 && (
+              <div style={{ borderTop: "1px solid #f1f5f9", padding: "8px 12px", display: "flex", justifyContent: "center", background: "#fff" }}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onChange([])}
+                  style={{ border: "none", background: "transparent", color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: "4px 10px" }}>
+                  Clear all
+                </button>
+              </div>
+            )}
           </div>,
           document.body
         )}

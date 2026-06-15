@@ -494,7 +494,8 @@ export function EntryTab({ state, kind }) {
                           }}
                           onToggleZone={state.onToggleZoneMultiSelect}
                           onHover={state.onSetHighlightZones}
-                          multiSelectZones={state.multiSelectZones} />
+                          multiSelectZones={state.multiSelectZones}
+                          onClearSurfaces={state.onClearMultiSelect} />
 
                       </td>
                       {(kind === "finding" || kind === "symptom") &&
