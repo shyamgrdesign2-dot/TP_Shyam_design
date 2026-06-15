@@ -247,7 +247,7 @@ export function VoiceRxBottomSheet({
             <Lamp size={14} variant="Bulk" color="currentColor" />
           </span>
           <p className={cn("m-0 min-w-0 flex-1 text-[13px] leading-[1.4] font-medium", styles.bestPracticeTipText)}>
-            Short, focused dictations transcribe more accurately than long, open-ended ones.
+            Keep each session under <strong className="font-semibold">10 min</strong> — short, focused dictations transcribe more accurately.
           </p>
           <button
             type="button"
