@@ -2,7 +2,7 @@ import * as React from "react";
 import { resolveTPMedicalIconName, tpMedicalIconRegistry } from "./registry";
 export function TPMedicalIcon({
   name,
-  variant = "line",
+  variant = "bulk",
   size = 24,
   color,
   alt,
@@ -23,7 +23,7 @@ export function TPMedicalIcon({
     return null;
   }
   const iconRecord = tpMedicalIconRegistry[resolvedName];
-  const src = iconRecord[variant] ?? iconRecord.line;
+  const src = iconRecord[variant] ?? iconRecord.bulk;
   const numericSize = typeof size === "number" ? `${size}px` : size;
   if (color) {
     const maskedStyle = {

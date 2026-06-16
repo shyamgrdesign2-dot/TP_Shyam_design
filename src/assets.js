@@ -907,6 +907,21 @@ export const ASSETS = {
     whatsapp: `${BASE_URL}/mobile/WhatsApp.svg`,
     woman: `${BASE_URL}/mobile/woman.svg`,
   },
+  dental: {
+    dragHandle: `${BASE_URL}/images/drag-handle.svg`,
+    medicalIcons: {
+      clipboardActivity: `${BASE_URL}/images/clipboard-activity--bulk.svg`,
+      diagnosis: `${BASE_URL}/images/diagnosis--bulk.svg`,
+      healthCare: `${BASE_URL}/images/health-care--bulk.svg`,
+      healthFile03: `${BASE_URL}/images/health-file-03--bulk.svg`,
+      medicalService: `${BASE_URL}/images/medical-service--bulk.svg`,
+      note2: `${BASE_URL}/images/note-2--bulk.svg`,
+      surgicalScissors02: `${BASE_URL}/images/surgical-scissors-02--bulk.svg`,
+      tablets: `${BASE_URL}/images/tablets--bulk.svg`,
+      testTube: `${BASE_URL}/images/test-tube--bulk.svg`,
+      tooth: `${BASE_URL}/images/tooth--bulk.svg`,
+    },
+  },
   scss: {
     allcomponent: `${BASE_URL}/scss/allComponent.scss`,
     app: `${BASE_URL}/scss/app.scss`,

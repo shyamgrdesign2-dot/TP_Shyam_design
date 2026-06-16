@@ -26,6 +26,7 @@ import { OralExamPanel, OralRecordsList } from "./ExaminationOralPanel";
 import { DentitionPanel } from "./ExaminationDentitionPanel";
 import { SingleToothPanel } from "./ExaminationFindingsPanel";
 import { useExaminationOrchestrator } from "./hooks/useExaminationOrchestrator";
+import { ASSETS } from "../../../assets";
 
 export function ExaminationTab({ patientId, patientAge = 30 }) {
   const dispatch = useDispatch();
@@ -195,7 +196,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
 
           <span className={ex.resizeHit} />
           <img
-            src={"/assets/images/ui/drag-handle.svg"}
+            src={ASSETS.dental.dragHandle}
             alt=""
             draggable={false}
             className={ex.resizeIcon}
