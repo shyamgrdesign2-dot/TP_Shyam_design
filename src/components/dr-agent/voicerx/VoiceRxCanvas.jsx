@@ -227,7 +227,7 @@ export function VoiceRxCanvas({
   };
 
   return (
-    <div className={["vrx-canvas vrx-canvas--enter", styles.root].join(" ")}>
+    <div className={["vrx-canvas vrx-canvas--enter", styles.root].join(" ")} data-testid="voicerx-canvas">
       {/* Header */}
       <div className={styles.topBar}>
         <button
@@ -356,7 +356,7 @@ export function VoiceRxCanvas({
             </div>
           </div>
         ) : (
-          <div className={styles.emrTabContent}>
+          <div className={styles.emrTabContent} data-testid="voicerx-clinical-notes">
             <div className={["vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell].join(" ")}>
               <div className={styles.emrShellInner}>{emrCard}</div>
             </div>
@@ -419,6 +419,7 @@ export function VoiceRxCanvas({
               type="button"
               onClick={handleCopyToRx}
               disabled={!onCopyToRx}
+              data-testid="voicerx-copy-all-to-rxpad"
               className={["vrx-cn-secondary-blue", styles.footerPrimary].join(" ")}>
               <CopyGlyph size={16} variant="Linear" color="currentColor" />
               Copy all to RxPad
@@ -433,6 +434,7 @@ export function VoiceRxCanvas({
                 onClick={handleVoiceEditOpen}
                 disabled={voiceLocked || (!onQuickEditSubmit && !onAddDetailsByVoice)}
                 aria-label="Edit clinical notes with voice"
+                data-testid="voicerx-add-details-by-voice"
                 className={["vrx-rt-voice-cta-outline", styles.footerVoiceCta].join(" ")}>
                 <VoiceRxIcon size={20} color="#673AAC" />
               </button>

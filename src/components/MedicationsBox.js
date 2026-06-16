@@ -29,7 +29,8 @@ import {
   addMedicine,
   editMedicine,
   updateFrequentlyMedication,
-  getAllDoses
+  getAllDoses,
+  clearMedicineDetailsCache
 } from "../redux/medicationSlice";
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, MEDICINE_STOCK_STATUS, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
 import MedicineOutOfStockAlternatives from "./medications/MedicineOutOfStockAlternatives";
@@ -183,6 +184,38 @@ const isVoiceRxUngroundedMedication = (item) => (
   !!item?.voice_rx_from_module && !hasMedicineMasterId(item?.tmm_id)
 );
 
+const VOICE_RX_DOSAGE_WORDS = {
+  one: "1",
+  two: "2",
+  three: "3",
+  four: "4",
+  five: "5",
+  six: "6",
+  seven: "7",
+  eight: "8",
+  nine: "9",
+  ten: "10",
+};
+
+const getVoiceRxDosageValue = (medicine = {}) => {
+  const dosageText = String(medicine?.tmm_dosage || medicine?.tmm_dosage_unit_name || "").trim();
+  if (!dosageText) return "";
+
+  const numericMatch = dosageText.match(/^(\d+(?:\.\d+)?)/);
+  if (numericMatch) return numericMatch[1];
+
+  const wordMatch = dosageText.match(/^([a-z]+)/i);
+  return VOICE_RX_DOSAGE_WORDS[wordMatch?.[1]?.toLowerCase()] || dosageText;
+};
+
+const getPositiveId = (...values) => {
+  for (const value of values) {
+    const id = Number(value);
+    if (Number.isFinite(id) && id > 0) return value;
+  }
+  return 0;
+};
+
 const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   background: "#2f2e39",
   borderRadius: 8,
@@ -312,6 +345,7 @@ function MedicationsBox({ showVoiceRxModule }) {
     templates,
     genericList,
     loading,
+    medicineDetailsById,
   } = useSelector((state) => state.medication);
   const { todayData } = useSelector((state) => state.vitals);
   const dispatch = useDispatch();
@@ -430,6 +464,14 @@ function MedicationsBox({ showVoiceRxModule }) {
   }, []);
 
   useEffect(() => {
+    if (!isVoiceRxModuleEnabled) return undefined;
+    dispatch(clearMedicineDetailsCache());
+    return () => {
+      dispatch(clearMedicineDetailsCache());
+    };
+  }, [dispatch, isVoiceRxModuleEnabled]);
+
+  useEffect(() => {
     setMatchedTemplates(templates);
     setAllTemplates(templates);
   }, [templates]);
@@ -453,7 +495,7 @@ function MedicationsBox({ showVoiceRxModule }) {
         key: JSON.stringify({ ...medicine, unique_id: uuidv4() }),
         value: medicineName,
         label: (
-          <div>
+          <div data-testid="medicine-search-option">
             <span className="fw-medium">{medicineName}</span>, <span>{medicine.tmm_generic || medicine.generic_name}</span>
             {renderHmTypeBadge(medicine)}
             <FreeBadge show={medicine?.is_free} />
@@ -535,7 +577,7 @@ function MedicationsBox({ showVoiceRxModule }) {
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.tmm_medicine_name,
         label: (
-          <div>
+          <div data-testid="medicine-search-option">
             <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>
             {renderHmTypeBadge(e)}
             <FreeBadge show={e?.is_free} />
@@ -674,14 +716,34 @@ function MedicationsBox({ showVoiceRxModule }) {
       value: keyParsed.tmm_medicine_name
     });
 
-    const action = await dispatch(getMedicineDetails(keyParsed.tmm_id));
-    if (action.meta.requestStatus !== "fulfilled") {
-      errorMessage(action.error);
-      return;
-    }
-
     const current = medicationData[index];
-    const selected = action.payload?.[0] || keyParsed;
+    const cachedSelected = medicineDetailsById?.[String(keyParsed.tmm_id)];
+    let selected = cachedSelected || null;
+    if (!selected) {
+      const action = await dispatch(getMedicineDetails(keyParsed.tmm_id));
+      if (action.meta.requestStatus !== "fulfilled") {
+        errorMessage(action.error);
+        return;
+      }
+      selected = action.payload?.[0] || keyParsed;
+    }
+    const shouldUseSelectedVoiceUnit =
+      isVoiceRxModuleEnabled &&
+      (current?.voice_rx_group_id || current?.voice_rx_from_module || current?.voice_rx_original_name);
+    const selectedUnitId = getPositiveId(
+      selected.tmm_unit,
+      selected.tmu_id,
+      selected.default_tmm_unit,
+      selected.medicineUnit?.[0]?.tmu_id
+    );
+    const selectedUnit = shouldUseSelectedVoiceUnit && Array.isArray(selected.medicineUnit)
+      ? selected.medicineUnit.find((unit) => unit.tmu_id == selectedUnitId)
+      : null;
+    const selectedUnitTitle = selectedUnit?.tmu_title || "";
+    const voiceDosageValue = shouldUseSelectedVoiceUnit ? getVoiceRxDosageValue(current) : "";
+    const voiceDoseLabel = voiceDosageValue && selectedUnitTitle
+      ? `${voiceDosageValue} ${selectedUnitTitle}`
+      : current.tmm_dosage_unit_name;
     medicationData[index] = {
       ...current,
       ...selected,
@@ -691,11 +753,14 @@ function MedicationsBox({ showVoiceRxModule }) {
       stock_status: keyParsed.stock_status,
       tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type,
       um_id: selected.um_id ?? keyParsed.um_id,
-      tmm_dosage: current.tmm_dosage,
-      tmm_dosage_unit_name: current.tmm_dosage_unit_name,
-      tmm_unit: current.tmm_unit,
-      tmm_unit_name: current.tmm_unit_name,
-      tmu_id: current.tmu_id,
+      tmm_dosage: shouldUseSelectedVoiceUnit ? voiceDosageValue : current.tmm_dosage,
+      tmm_dosage_unit_name: shouldUseSelectedVoiceUnit ? voiceDoseLabel : current.tmm_dosage_unit_name,
+      tmm_unit: shouldUseSelectedVoiceUnit ? selectedUnitId : current.tmm_unit,
+      tmm_unit_name: shouldUseSelectedVoiceUnit ? selectedUnitTitle : current.tmm_unit_name,
+      tmu_id: shouldUseSelectedVoiceUnit ? selectedUnitId : current.tmu_id,
+      default_tmm_unit: shouldUseSelectedVoiceUnit
+        ? getPositiveId(selected.default_tmm_unit, selectedUnitId)
+        : current.default_tmm_unit,
       tmm_freq_type_name: current.tmm_freq_type_name,
       tmf_block_val: current.tmf_block_val,
       tcm_tmm_freq_morning: current.tcm_tmm_freq_morning,
@@ -1630,6 +1695,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                               isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
                               isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "align-self-stretch" : ""
                             ].filter(Boolean).join(" ") || undefined}
+                            data-testid={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
                             onClick={() => {
                               if (isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) && voiceMedicineEdit.index !== item.index) {
                                 handleVoiceMedicineClick(item);
@@ -1645,6 +1711,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                       <AutoComplete
                                         autoFocus
                                         value={voiceMedicineEdit.query}
+                                        data-testid={`voice-rx-medication-search-${item.index}`}
                                         placeholder="Medicine Name"
                                         bordered={false}
                                         defaultOpen
@@ -1661,6 +1728,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                       <button
                                         type="button"
                                         className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2"
+                                        data-testid={`voice-rx-medication-name-${item.index}`}
                                         onClick={() => handleVoiceMedicineClick(item)}
                                         style={{ cursor: "pointer" }}
                                       >
@@ -1799,6 +1867,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                   <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
                                     <TextArea
                                       className="notesinput border-0 h-100 align-self-center"
+                                      data-testid={`medicine-note-${item.index}`}
                                       placeholder={isChikitsalayAccessable ? "" : "Notes"}
                                       defaultValue={item.tmm_remarks}
                                       value={item.tmm_remarks}
@@ -2629,7 +2698,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   return (
     <>
-      <div ref={sectionRef} data-voice-rx-dictation-target="medications" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} data-testid="medications-rx-section" data-voice-rx-dictation-target="medications" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Medicationicon} alt="Medication" />
@@ -2794,6 +2863,7 @@ function MedicationsBox({ showVoiceRxModule }) {
             <AutoComplete
               // defaultValue={searchParentQuery}
               value={searchParentQuery}
+              data-testid="medicine-parent-search"
               onSearch={handleParentSearch}
               options={parentSearchOptions}
               className="autocomplete-custom w-100"
@@ -2804,6 +2874,7 @@ function MedicationsBox({ showVoiceRxModule }) {
               }`)}
             >
               <Input
+                data-testid="medicine-parent-search-input"
                 placeholder="Search Medicines by Name"
                 prefix={<i className="icon-search"></i>}
               />

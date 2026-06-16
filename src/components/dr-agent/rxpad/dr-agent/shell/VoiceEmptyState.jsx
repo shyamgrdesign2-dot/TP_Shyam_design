@@ -57,6 +57,7 @@ export function VoiceEmptyState({
             type="button"
             onClick={onStartVoice}
             disabled={voiceLocked}
+            data-testid="voicerx-start-with-voice"
             aria-disabled={voiceLocked || undefined}
             title={
               voiceLocked
