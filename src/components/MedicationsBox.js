@@ -50,6 +50,7 @@ import {
   moduleRowsToPreviousContext,
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import ApiMedication from "../api/services/ApiMedication";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
@@ -353,6 +354,7 @@ function MedicationsBox({ showVoiceRxModule }) {
   const [searchParentQuery, setSearchParentQuery] = useState("");
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
   const [voiceMedicineEdit, setVoiceMedicineEdit] = useState({ index: null, query: "" });
+  const voiceMedicineSearchRequestRef = useRef(0);
 
   const [unitPerDoseOptions, setUnitPerDoseOptions] = useState([]);
   const [frequencyOptions, setFrequencyOptions] = useState([]);
@@ -434,8 +436,64 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   //Parent AutoComplete
   const activeVoiceMedicineQuery = voiceMedicineEdit.index !== null ? voiceMedicineEdit.query : "";
+  const activeVoiceMedicineItem = voiceMedicineEdit.index !== null ? medicationData[voiceMedicineEdit.index] : null;
+  const isVoiceMedicineFuzzySearchActive = (
+    isVoiceRxModuleEnabled &&
+    isZydusAccount &&
+    isVoiceRxUngroundedMedication(activeVoiceMedicineItem)
+  );
+
+  const buildMedicineSearchOption = useCallback(
+    (medicine) => {
+      if (!medicine) return null;
+      const medicineName = medicine.tmm_medicine_name || medicine.medicine_name || "";
+      if (!medicineName) return null;
+
+      return {
+        key: JSON.stringify({ ...medicine, unique_id: uuidv4() }),
+        value: medicineName,
+        label: (
+          <div>
+            <span className="fw-medium">{medicineName}</span>, <span>{medicine.tmm_generic || medicine.generic_name}</span>
+            {renderHmTypeBadge(medicine)}
+            <FreeBadge show={medicine?.is_free} />
+            {renderLowStockBadge(medicine)}
+          </div>
+        ),
+      };
+    },
+    [renderHmTypeBadge, renderLowStockBadge]
+  );
+
+  const performVoiceMedicineFuzzySearch = useCallback(
+    async (query) => {
+      const searchQuery = String(query || "").trim();
+      const requestId = voiceMedicineSearchRequestRef.current + 1;
+      voiceMedicineSearchRequestRef.current = requestId;
+
+      if (!searchQuery) {
+        setParentSearchOptions([]);
+        return;
+      }
+
+      try {
+        const result = await ApiMedication.getFuzzySearch(searchQuery, 10);
+        if (voiceMedicineSearchRequestRef.current !== requestId) return;
+
+        const rows = Array.isArray(result) ? result : result ? [result] : [];
+        setParentSearchOptions(rows.map(buildMedicineSearchOption).filter(Boolean));
+      } catch (error) {
+        if (voiceMedicineSearchRequestRef.current === requestId) {
+          setParentSearchOptions([]);
+        }
+      }
+    },
+    [buildMedicineSearchOption]
+  );
 
   useEffect(() => {
+    if (isVoiceMedicineFuzzySearchActive) return;
+
     if (searchParentQuery || searchMLQuery || activeVoiceMedicineQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
@@ -454,9 +512,23 @@ function MedicationsBox({ showVoiceRxModule }) {
     } else {
       dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
     }
-  }, [activeVoiceMedicineQuery, doseCalculatorDrawer, isChikitsalayAccessable, searchMLQuery, searchParentQuery]);
+  }, [activeVoiceMedicineQuery, doseCalculatorDrawer, isChikitsalayAccessable, isVoiceMedicineFuzzySearchActive, searchMLQuery, searchParentQuery]);
 
   useEffect(() => {
+    if (!isVoiceMedicineFuzzySearchActive) return;
+
+    const timeOutId = setTimeout(() => {
+      performVoiceMedicineFuzzySearch(activeVoiceMedicineQuery);
+    }, 500);
+
+    return () => {
+      clearTimeout(timeOutId);
+    };
+  }, [activeVoiceMedicineQuery, isVoiceMedicineFuzzySearchActive, performVoiceMedicineFuzzySearch]);
+
+  useEffect(() => {
+    if (isVoiceMedicineFuzzySearchActive) return;
+
     const data = [];
     parentOptionsList.map((e) => {
       return data.push({
@@ -530,7 +602,7 @@ function MedicationsBox({ showVoiceRxModule }) {
       }
     }
     setParentSearchOptions(data);
-  }, [activeVoiceMedicineQuery, doseCalculatorDrawer, parentOptionsList, renderHmTypeBadge, renderLowStockBadge, searchMLQuery, searchParentQuery]);
+  }, [activeVoiceMedicineQuery, doseCalculatorDrawer, isVoiceMedicineFuzzySearchActive, parentOptionsList, renderHmTypeBadge, renderLowStockBadge, searchMLQuery, searchParentQuery]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -567,11 +639,15 @@ function MedicationsBox({ showVoiceRxModule }) {
       index: item.index,
       query,
     });
-    dispatch(searchMedication({
-      searchQuery: query,
-      type: "parent",
-      isChikitsalayAccessable,
-    }));
+    if (isZydusAccount) {
+      setParentSearchOptions([]);
+    } else {
+      dispatch(searchMedication({
+        searchQuery: query,
+        type: "parent",
+        isChikitsalayAccessable,
+      }));
+    }
   };
 
   const handleVoiceMedicineSearch = (query, index) => {
@@ -579,6 +655,7 @@ function MedicationsBox({ showVoiceRxModule }) {
   };
 
   const handleVoiceMedicineBlur = () => {
+    voiceMedicineSearchRequestRef.current += 1;
     window.setTimeout(() => {
       setVoiceMedicineEdit({ index: null, query: "" });
     }, 150);
