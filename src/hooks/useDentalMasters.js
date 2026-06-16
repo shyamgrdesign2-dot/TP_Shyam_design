@@ -18,11 +18,12 @@ export function useDentalMasters() {
   const masters = useSelector((state) => state.dentalMasters);
 
   useEffect(() => {
-    // Automatically fetch masters if they haven't been loaded yet
-    if (!masters.loading && masters.surfaces.length === 0 && !masters.error) {
+    const TTL_MS = 24 * 60 * 60 * 1000;
+    const isStale = !masters.fetchedAt || Date.now() - masters.fetchedAt > TTL_MS;
+    if (!masters.loading && !masters.error && (masters.surfaces.length === 0 || isStale)) {
       dispatch(fetchAllDentalMasters());
     }
-  }, [dispatch, masters.loading, masters.surfaces.length, masters.error]);
+  }, [dispatch, masters.loading, masters.surfaces.length, masters.fetchedAt, masters.error]);
 
   return {
     ...masters,

@@ -453,6 +453,19 @@ function buildPediatricTeeth() {
 
 export const PEDIATRIC_TEETH = buildPediatricTeeth();
 
+/** Returns deduplicated GLB paths for the given patient type (for useGLTF.preload). */
+export function getModelPathsForPatientType(patientType) {
+  const paths = new Set();
+  const sets = patientType === "adult"
+    ? [TEETH]
+    : patientType === "pediatric"
+    ? [PEDIATRIC_TEETH]
+    : [TEETH, PEDIATRIC_TEETH];
+  sets.forEach((set) => set.forEach((t) => paths.add(t.modelPath)));
+  paths.add(ASSETS.dental.models.implant);
+  return [...paths];
+}
+
 function computePediatricArchPositions() {
   const result = {};
 

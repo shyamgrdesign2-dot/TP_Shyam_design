@@ -52,7 +52,7 @@ import oralExaminationSlice from "./oralExaminationSlice";
 const persistConfig = {
   key: "root",
   storage,
-  whitelist: ["doctors"],
+  whitelist: ["doctors", "dentalMasters"],
 };
 
 const rootReducer = combineReducers({

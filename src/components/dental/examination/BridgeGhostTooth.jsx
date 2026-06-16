@@ -151,7 +151,3 @@ export const BridgeGhostTooth = memo(function BridgeGhostTooth({
   );
 });
 
-// Preload all unique tooth models + implant for instant switching
-const ALL_MODEL_PATHS = Object.values(ASSETS.dental.models);
-
-ALL_MODEL_PATHS.forEach((p) => useGLTF.preload(p, "/draco/"));

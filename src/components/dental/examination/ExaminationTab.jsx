@@ -27,9 +27,15 @@ import { DentitionPanel } from "./ExaminationDentitionPanel";
 import { SingleToothPanel } from "./ExaminationFindingsPanel";
 import { useExaminationOrchestrator } from "./hooks/useExaminationOrchestrator";
 import { ASSETS } from "../../../assets";
+import { useGLTF } from "@react-three/drei";
+import { getModelPathsForPatientType } from "./tooth-geometry";
 
 export function ExaminationTab({ patientId, patientAge = 30 }) {
   const dispatch = useDispatch();
+  const patientType = patientAge < 12 ? "pediatric" : patientAge < 18 ? "mixed" : "adult";
+  useEffect(() => {
+    getModelPathsForPatientType(patientType).forEach((p) => useGLTF.preload(p, "/draco/"));
+  }, [patientType]);
   const { syncState, toothState, dentitionType, loading, saveChart, error } = useDentalExamination(patientId);
   const {
     findings: oralFindings,

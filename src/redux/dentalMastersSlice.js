@@ -19,6 +19,7 @@ const initialState = {
   toothMapPediatric: null,
   oralAreaItems: [],
   billingItems: buildInitialDentalBillingItems(),
+  fetchedAt: null,
   loading: false,
   error: null,
 };
@@ -105,6 +106,7 @@ const dentalMastersSlice = createSlice({
         state.toothMapAdult = action.payload.toothMapAdult;
         state.toothMapPediatric = action.payload.toothMapPediatric;
         state.oralAreaItems = action.payload.oralAreaItems;
+        state.fetchedAt = Date.now();
       })
       .addCase(fetchAllDentalMasters.rejected, (state, action) => {
         state.loading = false;

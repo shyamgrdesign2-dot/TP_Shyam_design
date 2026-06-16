@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Layout,
@@ -156,7 +156,6 @@ import {
 } from "../redux/customModuleSlice";
 import TabRxHeader from "../pages/tabRx/components/tabRxHeader/TabRxHeader";
 import ClinicalExaminationContent from "./ClinicalExaminationContent";
-import { ExaminationTab } from "./dental/examination/ExaminationTab";
 import { ClipboardText } from "iconsax-reactjs";
 import { TPMedicalIcon } from "./dental/tp-ui/medical-icons";
 
@@ -168,14 +167,18 @@ import {
   setActiveTeleconsultConsultationId,
   setJoinToken,
 } from "../redux/teleconsultNotificationSlice";
-import { saveDentalExamination, selectDentalExamination } from "../redux/dentalExaminationSlice";
-import { saveOralExaminationThunk, patchOralExaminationThunk } from "../redux/oralExaminationSlice";
+import { saveDentalExamination, selectDentalExamination, fetchDentalExamination } from "../redux/dentalExaminationSlice";
+import { saveOralExaminationThunk, patchOralExaminationThunk, fetchOralExamination } from "../redux/oralExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { buildConsultationPreviewPrintPayload } from "../utils/buildConsultationPreviewPrintPayload";
 import { resolveDentalOralForPrint } from "../utils/resolveDentalOralPrintData";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
+
+const ExaminationTab = React.lazy(() =>
+  import("./dental/examination/ExaminationTab").then((m) => ({ default: m.ExaminationTab }))
+);
 
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
@@ -838,6 +841,14 @@ function ConsultationLayout({ children, headerProps }) {
   useEffect(() => {
     getSymptomsCollectorData();
   }, []);
+
+  // Prefetch dental data while user is on the Clinical tab so it's ready when dental tab opens
+  useEffect(() => {
+    const patId = patient_data?.patient_unique_id;
+    if (!patId || location.pathname !== "/dental") return;
+    dispatch(fetchDentalExamination(patId));
+    dispatch(fetchOralExamination(patId));
+  }, [patient_data?.patient_unique_id, location.pathname]);
 
   useEffect(() => {
     if (isGynaecHistoryAccessable) {
@@ -2284,10 +2295,16 @@ function ConsultationLayout({ children, headerProps }) {
                         />
                       </div>
                     ) : (
-                      <ExaminationTab 
-                        patientId={patient_data?.patient_unique_id} 
-                        patientAge={patient_data?.ageYears} 
-                      />
+                      <Suspense fallback={
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+                          <span style={{ color: '#64748b', fontSize: 13 }}>Loading Dental Examination…</span>
+                        </div>
+                      }>
+                        <ExaminationTab
+                          patientId={patient_data?.patient_unique_id}
+                          patientAge={patient_data?.ageYears}
+                        />
+                      </Suspense>
                     )}
                   </div>
                 </Content>
