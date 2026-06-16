@@ -2412,6 +2412,28 @@ body {
   padding: 0.3rem 0.3rem;
 }
 
+.digitise-info-cardiology-mobile {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+
+  img {
+    flex: none;
+  }
+
+  p {
+    flex: none;
+    width: 100%;
+  }
+
+  button.digitise-info-btn-cardiology {
+    flex: none;
+    width: 100%;
+    padding: 8px 12px;
+  }
+}
+
 .opthal-summary {
   display: flex;
   flex-direction: column;
