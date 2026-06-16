@@ -2,6 +2,7 @@ import { memo, useMemo, useEffect, useState, useRef } from "react";
 import * as THREE from "three";
 import { useGLTF, Center } from "@react-three/drei";
 import { TEETH } from "./types";
+import { ASSETS } from "../../../assets";
 
 export function getAdjacentTeeth(fdi) {
   const quadDigit = parseInt(fdi[0]);
@@ -151,23 +152,6 @@ export const BridgeGhostTooth = memo(function BridgeGhostTooth({
 });
 
 // Preload all unique tooth models + implant for instant switching
-const ALL_MODEL_PATHS = [
-  "/models/tooth_11.glb",
-  "/models/tooth_13.glb",
-  "/models/tooth_14.glb",
-  "/models/tooth_15.glb",
-  "/models/tooth_16.glb",
-  "/models/tooth_17.glb",
-  "/models/tooth_18.glb",
-  "/models/tooth_31.glb",
-  "/models/tooth_32.glb",
-  "/models/tooth_33.glb",
-  "/models/tooth_34.glb",
-  "/models/tooth_35.glb",
-  "/models/tooth_36.glb",
-  "/models/tooth_37.glb",
-  "/models/tooth_38.glb",
-  "/models/implant.glb",
-];
+const ALL_MODEL_PATHS = Object.values(ASSETS.dental.models);
 
 ALL_MODEL_PATHS.forEach((p) => useGLTF.preload(p, "/draco/"));

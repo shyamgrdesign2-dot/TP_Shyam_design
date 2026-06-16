@@ -1,3 +1,5 @@
+import { ASSETS } from "../../../assets";
+
 // ══════════════════════════════════════════════════════════════
 // ZONE SYSTEM — varies by tooth position
 // ══════════════════════════════════════════════════════════════
@@ -169,26 +171,28 @@ const TOOTH_NAMES = {
 
 // Model mapping: which GLB to use for each position
 // Upper teeth use UL (upper left) models, lower use LL (lower left) models
+const M = ASSETS.dental.models;
+
 const UPPER_MODELS = {
-  1: "/models/tooth_11.glb",
-  2: "/models/tooth_11.glb", // use central incisor for lateral (closest match)
-  3: "/models/tooth_13.glb",
-  4: "/models/tooth_14.glb",
-  5: "/models/tooth_15.glb",
-  6: "/models/tooth_16.glb",
-  7: "/models/tooth_17.glb",
-  8: "/models/tooth_18.glb",
+  1: M.tooth11,
+  2: M.tooth11, // use central incisor for lateral (closest match)
+  3: M.tooth13,
+  4: M.tooth14,
+  5: M.tooth15,
+  6: M.tooth16,
+  7: M.tooth17,
+  8: M.tooth18,
 };
 
 const LOWER_MODELS = {
-  1: "/models/tooth_31.glb",
-  2: "/models/tooth_32.glb",
-  3: "/models/tooth_33.glb",
-  4: "/models/tooth_34.glb",
-  5: "/models/tooth_35.glb",
-  6: "/models/tooth_36.glb",
-  7: "/models/tooth_37.glb",
-  8: "/models/tooth_38.glb",
+  1: M.tooth31,
+  2: M.tooth32,
+  3: M.tooth33,
+  4: M.tooth34,
+  5: M.tooth35,
+  6: M.tooth36,
+  7: M.tooth37,
+  8: M.tooth38,
 };
 
 function buildTeeth() {

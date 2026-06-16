@@ -20,6 +20,7 @@ import {
   RootCanals,
   getDirsForTooth,
 } from "./Tooth";
+import { ASSETS } from "../../../assets";
 
 const ArchTooth = memo(function ArchTooth({
   tooth,
@@ -42,7 +43,7 @@ const ArchTooth = memo(function ArchTooth({
 }) {
   const { gl, camera } = useThree();
   const gltf = useGLTF(tooth.modelPath, "/draco/");
-  const implantGltf = useGLTF("/models/implant.glb", "/draco/");
+  const implantGltf = useGLTF(ASSETS.dental.models.implant, "/draco/");
   const groupRef = useRef(null); // Center ref (for bounding box)
   const outerGroupRef = useRef(null); // mirrorX group (parentGroup for diagnosis visuals)
   const meshRef = useRef(null);

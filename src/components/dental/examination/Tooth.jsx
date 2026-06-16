@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { useGLTF, Center, Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { ALL_ZONES } from "./types";
+import { ASSETS } from "../../../assets";
 import { Annotations } from "./Annotations";
 import { ImplantScrew } from "./ImplantScrew";
 import { RootCanals } from "./RootCanals";
@@ -44,7 +45,7 @@ export function Tooth({
   onSelectZone,
   onClearSelectedZone,
   onHoverZone,
-  modelPath = "/models/tooth_16.glb",
+  modelPath = ASSETS.dental.models.tooth16,
   arch = "maxillary",
   mirrorX = false,
   quadrant,
@@ -62,7 +63,7 @@ export function Tooth({
   toothEntries,
 }) {
   const gltf = useGLTF(modelPath, "/draco/");
-  const implantGltf = useGLTF("/models/implant.glb", "/draco/");
+  const implantGltf = useGLTF(ASSETS.dental.models.implant, "/draco/");
   const [mountGen] = useState(() => Math.random());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const clonedScene = useMemo(
