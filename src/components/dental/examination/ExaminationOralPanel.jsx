@@ -9,21 +9,17 @@
  * Shares AccordionWrap / SectionHeader / SinceDropdown with the findings cluster
  * via examination-shared-ui (avoids a circular import back into ExaminationTab).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trash, Eraser, Add, SearchNormal1 } from "iconsax-reactjs";
 import {
-  ORAL_FINDINGS,
-  ORAL_PROCEDURES,
-  ORAL_POSITION_GROUPS,
-  ORAL_POSITION_LABEL,
   oralPositionShort,
   reconcileOralPositions
 } from "./types";
+import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { ExpandIcon } from "./ui-icons";
 import { MiniScopeCanvas } from "./MiniScopeCanvas";
 import { TPMedicalIcon, TPTooltip } from "../tp-ui";
-import { AddDentalBillItemDrawer } from "../AddDentalBillItemDrawer";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
 import { useStickyActionEdge } from "./useStickyActionEdge";
 import {
@@ -40,6 +36,11 @@ import { useExaminationTemplates } from "./hooks/useExaminationTemplates";
 // OralPositionCell — multi-select dropdown for oral regions
 // ──────────────────────────────────────────────────────────────
 function OralPositionCell({ value = [], onChange, onHoverPreview }) {
+  const { oralPositionGroups } = useDentalMasters();
+  const positionLabelMap = useMemo(
+    () => Object.fromEntries(oralPositionGroups.flatMap((g) => g.items.map((i) => [i.id, i.label]))),
+    [oralPositionGroups]
+  );
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(null);
   const [query, setQuery] = useState("");
@@ -177,7 +178,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
 
   const shownPills = value;
 
-  const tooltipTitle = value.length === 0 ? "" : value.map((v) => ORAL_POSITION_LABEL[v] || v).join(", ");
+  const tooltipTitle = value.length === 0 ? "" : value.map((v) => positionLabelMap[v] || v).join(", ");
 
   return (
     <>
@@ -198,7 +199,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
               <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, rowGap: 4, minWidth: 0 }}>
                 {shownPills.map((v) => (
                   <span key={v} className={ui.pillStyle}>
-                    {oralPositionShort(v)}
+                    {oralPositionShort(v, positionLabelMap)}
                   </span>
                 ))}
               </span>
@@ -268,7 +269,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
             </div>
           );
 
-          const filtered = ORAL_POSITION_GROUPS.map((g) => ({
+          const filtered = oralPositionGroups.map((g) => ({
             group: g.group,
             items: g.items.filter((it) => !q || it.label.toLowerCase().includes(q))
           })).filter((g) => g.items.length);
@@ -391,9 +392,6 @@ function OralTable({ state, kind, catalog, list }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [pos, setPos] = useState(null);
 
-  const [customDrawerOpen, setCustomDrawerOpen] = useState(false);
-  const [customDrawerInitial, setCustomDrawerInitial] = useState("");
-
   const inputRef = useRef(null);
   const popRef = useRef(null);
 
@@ -407,8 +405,6 @@ function OralTable({ state, kind, catalog, list }) {
   const catalogExact = !!queryTrim && catalog.some((c) => c.toLowerCase() === q);
   const alreadyAdded = !!queryTrim && list.some((e) => e.name.toLowerCase() === q);
   const showAddCustom = !!queryTrim && !catalogExact && !alreadyAdded;
-
-  const usesBillItemDrawer = kind === "procedure";
   const placeholder = kind === "finding"
     ? "Search & add oral finding"
     : kind === "past"
@@ -424,12 +420,7 @@ function OralTable({ state, kind, catalog, list }) {
   const onAddCustom = () => {
     if (!queryTrim) return;
     setSearchOpen(false);
-    if (usesBillItemDrawer) {
-      setCustomDrawerInitial(queryTrim);
-      setCustomDrawerOpen(true);
-    } else {
-      addAndClear(queryTrim);
-    }
+    addAndClear(queryTrim);
   };
 
   const place = useCallback(() => {
@@ -458,7 +449,8 @@ function OralTable({ state, kind, catalog, list }) {
     };
   }, [searchOpen, place]);
 
-  const showDropdown = searchOpen && q.length > 0;
+  const showDropdown = searchOpen;
+  const displayItems = q ? matches : available.slice(0, 30);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "4px 14px 12px" }}>
@@ -579,8 +571,8 @@ function OralTable({ state, kind, catalog, list }) {
             boxShadow: "0 10px 30px rgba(2,6,23,0.22)",
             padding: 6
           }}>
-          {matches.length > 0 ? (
-            matches.map((name) => (
+          {displayItems.length > 0 ? (
+            displayItems.map((name) => (
               <button
                 key={name}
                 type="button"
@@ -620,23 +612,16 @@ function OralTable({ state, kind, catalog, list }) {
               className={ui.popoverAdd}
               onMouseDown={(e) => e.preventDefault()}
               onClick={onAddCustom}>
-              {usesBillItemDrawer ? (
-                <span className={ui.popoverAddInner}>
-                  <Add size={16} color="var(--tp-blue-600)" variant="Bold" />
-                  <span>Add "{queryTrim}" as custom dental service</span>
-                </span>
-              ) : (
-                <span className={ui.popoverAddInner}>
-                  <Add size={14} color="currentColor" variant="Linear" /> Add "{queryTrim}"
-                </span>
-              )}
+              <span className={ui.popoverAddInner}>
+                <Add size={14} color="currentColor" variant="Linear" /> Add "{queryTrim}"
+              </span>
             </button>
           )}
         </div>,
         document.body
       )}
 
-      {!showDropdown && quickChips.length > 0 && (
+      {quickChips.length > 0 && (
         <div className={ui.chipRow}>
           {quickChips.map((name) => (
             <button
@@ -650,16 +635,6 @@ function OralTable({ state, kind, catalog, list }) {
         </div>
       )}
 
-      {usesBillItemDrawer && (
-        <AddDentalBillItemDrawer
-          open={customDrawerOpen}
-          onOpenChange={setCustomDrawerOpen}
-          initialName={customDrawerInitial}
-          onSaved={(item) => {
-            addAndClear(item.name);
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -668,6 +643,7 @@ function OralTable({ state, kind, catalog, list }) {
 // OralExamPanel — sidebar accordions for Findings, Past work, etc.
 // ──────────────────────────────────────────────────────────────
 export function OralExamPanel({ state, onSave, saving }) {
+  const { activeProcedures, activeSurfaceFindings } = useDentalMasters();
   const entries = Array.isArray(state.oralEntries) ? state.oralEntries : [];
   const pastProcedures = entries.filter((e) => e.kind === "past");
   const findings = entries.filter((e) => e.kind === "finding");
@@ -827,7 +803,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("past")}
             />
           }>
-          <OralTable state={state} kind="past" catalog={ORAL_PROCEDURES} list={pastProcedures} />
+          <OralTable state={state} kind="past" catalog={activeProcedures} list={pastProcedures} />
         </AccordionWrap>
 
         <AccordionWrap
@@ -867,7 +843,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("findings")}
             />
           }>
-          <OralTable state={state} kind="finding" catalog={ORAL_FINDINGS} list={findings} />
+          <OralTable state={state} kind="finding" catalog={activeSurfaceFindings} list={findings} />
         </AccordionWrap>
 
         <AccordionWrap
@@ -907,7 +883,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("procedures")}
             />
           }>
-          <OralTable state={state} kind="procedure" catalog={ORAL_PROCEDURES} list={procedures} />
+          <OralTable state={state} kind="procedure" catalog={activeProcedures} list={procedures} />
         </AccordionWrap>
 
         <AccordionWrap

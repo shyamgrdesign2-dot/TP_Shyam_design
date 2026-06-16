@@ -23,7 +23,7 @@ export const deleteOralTemplateById = (type, id) =>
 
 // 2. Masters
 export const getOralAreas = () =>
-  api.get(`/masters/oral-areas`, oralBaseUrl);
+  api.get(`/api/v1/dental/masters/oral-areas`, oralBaseUrl);
 
 // 3. Examinations
 export const getOralExamination = (patientId) =>
@@ -36,20 +36,3 @@ export const patchOralExamination = (patientId, data) =>
   api.patch(`api/v1/dental/patients/${patientId}/oral-examination`, data, oralBaseUrl);
 export const getOralExaminationHistory = (patientId) =>
   api.get(`api/v1/dental/patients/${patientId}/oral-examination/history`, oralBaseUrl);
-
-export const listTemplates = (type) =>
-  api.get(`/api/v1/dental//oral-templates/${type}`, oralBaseUrl);
-export const getTemplate = (type, id) =>
-  api.get(`/api/v1/dental//oral-templates/${type}/${id}`, oralBaseUrl);
-export const saveOralTemplate = (data) =>
-  api.post(`/api/v1/dental//oral-templates/examination`, data, oralBaseUrl);
-export const saveFindingsTemplate = (data) =>
-  api.post(`/api/v1/dental//oral-templates/findings`, data, oralBaseUrl);
-export const saveProceduresTemplate = (data) =>
-  api.post(`/api/v1/dental//oral-templates/procedures`, data, oralBaseUrl);
-export const saveTreatmentHistoryTemplate = (data) =>
-  api.post(`/api/v1/dental//oral-templates/treatment-history`, data, oralBaseUrl);
-export const saveNotesTemplate = (data) =>
-  api.post(`/api/v1/dental//oral-templates/notes`, data, oralBaseUrl);
-export const deleteTemplateById = (type, id) =>
-  api.delete(`/api/v1/dental//oral-templates/${type}/${id}`, oralBaseUrl);

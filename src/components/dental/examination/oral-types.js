@@ -75,6 +75,32 @@ export const ORAL_POSITION_LABEL = Object.fromEntries(
   ORAL_POSITION_GROUPS.flatMap((g) => g.items.map((i) => [i.id, i.label]))
 );
 
+// Maps masters/oral-areas API codes → this module's stable internal IDs,
+// keeping reconciliation + 3D-highlighting logic unchanged.
+const ORAL_AREA_API_CODE_TO_ID = {
+  whole_mouth: 'WHOLE', generalized: 'GENERALIZED', localized: 'LOCALIZED',
+  full_mouth: 'FULL', maxillary: 'UPPER_ARCH', mandibular: 'LOWER_ARCH',
+  upper_right: 'UR', upper_left: 'UL', lower_right: 'LR', lower_left: 'LL',
+  right_arch: 'RIGHT_ARCH', left_arch: 'LEFT_ARCH',
+  gingiva: 'gingiva', buccal_mucosa: 'buccal_mucosa', tongue: 'tongue',
+  floor_of_mouth: 'floor_mouth', hard_palate: 'hard_palate', soft_palate: 'soft_palate',
+  upper_lip: 'upper_lip', lower_lip: 'lower_lip', vestibule: 'vestibule',
+  labial_mucosa: 'labial_mucosa', tmj: 'tmj',
+  mesial: 'mesial', distal: 'distal', buccal_labial: 'buccal', lingual_palatal: 'lingual',
+  occlusal_incisal: 'occlusal', cervical: 'cervical', root: 'root',
+};
+
+export function buildOralPositionGroupsFromApi(apiItems) {
+  if (!Array.isArray(apiItems) || apiItems.length === 0) return ORAL_POSITION_GROUPS;
+  return apiItems.map((g) => ({
+    group: g.group,
+    items: (g.picks || []).map((p) => ({
+      id: ORAL_AREA_API_CODE_TO_ID[p.code] ?? p.code,
+      label: p.label,
+    })),
+  }));
+}
+
 // Compact labels for the LOCATION pills inside the table cell
 export const ORAL_POSITION_SHORT = {
   WHOLE: 'Whole mouth', GENERALIZED: 'Gen.', LOCALIZED: 'Local.',
@@ -88,8 +114,8 @@ export const ORAL_POSITION_SHORT = {
   occlusal: 'O/I', cervical: 'Cerv.', root: 'Root',
 };
 
-export function oralPositionShort(id) {
-  return ORAL_POSITION_SHORT[id] || ORAL_POSITION_LABEL[id] || id;
+export function oralPositionShort(id, labelMap = ORAL_POSITION_LABEL) {
+  return ORAL_POSITION_SHORT[id] || labelMap[id] || id;
 }
 
 // Distribution markers. Mutually exclusive.

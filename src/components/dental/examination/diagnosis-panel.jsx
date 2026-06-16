@@ -25,7 +25,7 @@ const PRIMARY_DIAG_COLOR = {
 };
 
 export function PrimaryDiagnosisBody({ state }) {
-  const { activeToothDiagnoses } = useDentalMasters();
+  const { activeProcedures } = useDentalMasters();
   const [activeCell, setActiveCell] = useState(null);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -70,14 +70,14 @@ export function PrimaryDiagnosisBody({ state }) {
     const q = query.toLowerCase().trim();
     const activeSet = new Set(activeRows.map((r) => r.toLowerCase()));
     const pool = q ?
-      activeToothDiagnoses.filter((c) => c.toLowerCase().includes(q)) :
-      activeToothDiagnoses;
+      activeProcedures.filter((c) => c.toLowerCase().includes(q)) :
+      activeProcedures;
     return pool.filter((c) => !activeSet.has(c.toLowerCase())).slice(0, 12);
   }, [query, activeRows]);
   const queryTrim = query.trim();
   const catalogHasExactName =
     queryTrim.length > 0 &&
-    activeToothDiagnoses.some((d) => d.toLowerCase() === queryTrim.toLowerCase());
+    activeProcedures.some((d) => d.toLowerCase() === queryTrim.toLowerCase());
   const alreadyHasTypedTreatmentLabel =
     queryTrim.length > 0 &&
     displayRows.some((r) => r.toLowerCase() === queryTrim.toLowerCase());
@@ -449,7 +449,7 @@ export function PrimaryDiagnosisBody({ state }) {
             onFocus={() => setSearchOpen(true)}
             onKeyDown={(e) => {
               if (e.key !== "Enter" || !queryTrim) return;
-              const match = activeToothDiagnoses.find(
+              const match = activeProcedures.find(
                 (d) => d.toLowerCase() === queryTrim.toLowerCase()
               );
               if (match) {
@@ -506,26 +506,18 @@ export function PrimaryDiagnosisBody({ state }) {
         </div>
         {query.length === 0 &&
           <div className={ui.diagQuickChips}>
-            {[
-              "Implant",
-              "RCT",
-              "Missing",
-              "Crown",
-              "Bridge",
-              "Denture",
-              "Extraction"].
-              map((chip) => {
-                if (activeRows.includes(chip)) return null;
-                return (
-                  <button
-                    type="button"
-                    onClick={() => addDiagnosis(chip)}
-                    className={ui.chipBtn}>
-
-                    {chip}
-                  </button>);
-
-              })}
+            {activeProcedures
+              .filter((c) => !activeRows.includes(c))
+              .slice(0, 8)
+              .map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => addDiagnosis(chip)}
+                  className={ui.chipBtn}>
+                  {chip}
+                </button>
+              ))}
           </div>}
 
       </div>

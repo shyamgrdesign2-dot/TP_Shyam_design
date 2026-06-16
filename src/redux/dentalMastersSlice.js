@@ -5,6 +5,7 @@ import {
   getProcedures,
   getToothMap,
 } from "../api/services/ApiDental";
+import { getOralAreas } from "../api/services/ApiOral";
 import { DIAGNOSES, PROCEDURE_CATALOG, ALL_ZONES } from "../components/dental/examination/types";
 import { buildInitialDentalBillingItems } from "../utils/dentalBillingCatalog";
 import { getDentalApiPayload } from "../utils/dentalApiMappers";
@@ -16,23 +17,20 @@ const initialState = {
   procedures: [],
   toothMapAdult: null,
   toothMapPediatric: null,
+  oralAreaItems: [],
   billingItems: buildInitialDentalBillingItems(),
   loading: false,
   error: null,
 };
 
 // Helper to normalize API data with fallbacks
-const normalize = (apiArr, fallbackArr) => {
+const normalize = (apiArr, fallbackArr, key = null) => {
   if (!apiArr || apiArr.length === 0) return fallbackArr;
-  return apiArr.map(item => (typeof item === 'object' ? (item.code || item.name || item.id) : item));
-};
-
-const normalizeBillingItems = (response) => {
-  const payload = getDentalApiPayload(response);
-  const items = payload?.items || payload;
-  return Array.isArray(items) && items.length > 0
-    ? items
-    : buildInitialDentalBillingItems();
+  return apiArr.map(item => {
+    if (typeof item !== 'object') return item;
+    if (key) return item[key] || item.code || item.name || item.id;
+    return item.code || item.name || item.id;
+  });
 };
 
 export const fetchAllDentalMasters = createAsyncThunk(
@@ -45,13 +43,14 @@ export const fetchAllDentalMasters = createAsyncThunk(
         proceduresRes,
         toothMapAdultRes,
         toothMapPediatricRes,
-        billingItemsRes,
+        oralAreasRes,
       ] = await Promise.all([
         getSurfaces(),
         getDiagnoses(),
         getProcedures(),
         getToothMap("adult"),
         getToothMap("pediatric"),
+        getOralAreas(),
       ]);
 
       const diagnosesPayload = getDentalApiPayload(diagnosesRes);
@@ -69,10 +68,10 @@ export const fetchAllDentalMasters = createAsyncThunk(
         surfaces: normalize(getDentalApiPayload(surfacesRes)?.items || getDentalApiPayload(surfacesRes), ALL_ZONES),
         diagnoses: normalize(rawToothDiagnoses, []),
         surfaceFindings: normalize(rawSurfaceFindings, DIAGNOSES),
-        procedures: normalize(getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes), PROCEDURE_CATALOG),
+        procedures: normalize(getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes), PROCEDURE_CATALOG, 'label'),
         toothMapAdult: getDentalApiPayload(toothMapAdultRes) || null,
         toothMapPediatric: getDentalApiPayload(toothMapPediatricRes) || null,
-        billingItems: normalizeBillingItems(billingItemsRes),
+        oralAreaItems: getDentalApiPayload(oralAreasRes)?.items || [],
       };
     } catch (err) {
       return rejectWithValue(err.message);
@@ -105,7 +104,7 @@ const dentalMastersSlice = createSlice({
         state.procedures = action.payload.procedures;
         state.toothMapAdult = action.payload.toothMapAdult;
         state.toothMapPediatric = action.payload.toothMapPediatric;
-        state.billingItems = action.payload.billingItems;
+        state.oralAreaItems = action.payload.oralAreaItems;
       })
       .addCase(fetchAllDentalMasters.rejected, (state, action) => {
         state.loading = false;
