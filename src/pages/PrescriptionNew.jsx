@@ -170,6 +170,7 @@ import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryCon
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
 import { useTabletViewport } from "../hooks/useTabletViewport";
+import { VoiceBarProvider, VoiceBar, QuickDictateCoachMark, TutorialDrawer } from "../components/quick-dictator";
 
 const FOLLOW_UP_DATE_FORMATS = [
   "YYYY-MM-DD",
@@ -2895,6 +2896,7 @@ function PrescriptionNew() {
   ]);
 
   return (
+    <VoiceBarProvider>
     <CashManagerContext.Provider value={contextApi}>
       <RxPadSyncProvider>
         <PrescriptionNewRxPadCopyListener />
@@ -3451,6 +3453,10 @@ function PrescriptionNew() {
         </>
       </RxPadSyncProvider>
     </CashManagerContext.Provider>
+    <VoiceBar />
+    <QuickDictateCoachMark />
+    <TutorialDrawer />
+    </VoiceBarProvider>
   );
 }
 

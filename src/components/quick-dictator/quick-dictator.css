@@ -1,0 +1,389 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Quick Dictator — floating dynamic island bar
+   All classes prefixed `qd-` to avoid collisions.
+   Font: inherits Poppins from body; mono uses JetBrains Mono.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* ── Host + Scrim ─────────────────────────────────────────────────────── */
+.qd-host {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 36px;
+}
+.qd-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
+}
+
+/* ── Bar ──────────────────────────────────────────────────────────────── */
+.qd-bar {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 320px;
+  max-width: 420px;
+  height: 52px;
+  padding: 0 8px;
+  background: #0f172a;
+  border-radius: 12px;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.38),
+    0 4px 14px rgba(0, 0, 0, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-family: inherit;
+  opacity: 0;
+  transform: translateY(12px) scale(0.96);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.qd-bar-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.qd-bar-cancelled {
+  gap: 8px;
+  padding: 0 8px 0 4px;
+}
+
+/* ── Action buttons (✕, ✓) ───────────────────────────────────────────── */
+.qd-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.qd-action:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.qd-action:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.qd-action-cancel {
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+}
+.qd-action-cancel:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.qd-action-accept {
+  background: #fff;
+  color: #0f172a;
+}
+.qd-action-accept:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.qd-action-accept:disabled {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.22);
+  opacity: 1;
+}
+
+/* ── Mic switcher ────────────────────────────────────────────────────── */
+.qd-switcher-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.qd-switcher {
+  gap: 2px;
+  width: auto;
+  padding: 0 6px 0 10px;
+}
+.qd-switcher-muted {
+  color: #fff;
+}
+.qd-chev {
+  transition: transform 0.15s ease;
+}
+.qd-chev-open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown menu — white card */
+.qd-switcher-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 240px;
+  max-width: 320px;
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 10;
+}
+.qd-switcher-eyebrow {
+  padding: 6px 10px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #94A3B8;
+}
+.qd-switcher-empty {
+  padding: 10px;
+  font-size: 12px;
+  color: #94A3B8;
+  text-align: center;
+}
+.qd-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.qd-switcher-item:hover {
+  background: #F1F5F9;
+}
+.qd-switcher-item-active {
+  background: #F1F5F9;
+  color: #0F172A;
+  font-weight: 600;
+}
+.qd-switcher-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #CBD5E1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.12s;
+}
+.qd-switcher-radio-inner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.12s;
+}
+.qd-switcher-item-active .qd-switcher-radio {
+  border-color: #3B82F6;
+}
+.qd-switcher-item-active .qd-switcher-radio-inner {
+  background: #3B82F6;
+}
+.qd-switcher-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Signal (wave + status) ──────────────────────────────────────────── */
+.qd-signal {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0;
+}
+
+/* Wave bars */
+.qd-wave {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  height: 18px;
+  width: 100%;
+}
+.qd-wave-bar {
+  width: 3px;
+  min-height: 2px;
+  border-radius: 1px;
+  background: #fff;
+  transition: height 0.06s ease-out;
+}
+.qd-wave-bar-muted {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Status line */
+.qd-status {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+  white-space: nowrap;
+}
+.qd-status-listening {
+  color: rgba(255, 255, 255, 0.7);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+}
+.qd-status-error {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+}
+
+/* Animated dots */
+.qd-dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 2px;
+}
+.qd-dots > span {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: qd-dot-bounce 1.2s ease-in-out infinite;
+}
+.qd-dots > span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.qd-dots > span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes qd-dot-bounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* ── Processing spinner ──────────────────────────────────────────────── */
+.qd-processing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+.qd-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: qd-spin 0.6s linear infinite;
+}
+@keyframes qd-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Cancel-undo row ─────────────────────────────────────────────────── */
+.qd-cancel-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.qd-cancel-cell:hover {
+  background: rgba(255, 255, 255, 0.20);
+}
+.qd-cancel-mark {
+  display: inline-flex;
+}
+.qd-cancel-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.qd-cancel-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+.qd-cancel-sub {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+.qd-undo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.qd-undo-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Progress track */
+.qd-undo-track {
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.qd-undo-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 1px;
+  transition: width 0.05s linear;
+}
+
+/* ── Voice-block dim rule ────────────────────────────────────────────── */
+body[data-quickdict-active="true"] [data-voice-block] {
+  opacity: 0.4;
+  filter: grayscale(40%);
+  cursor: not-allowed;
+  pointer-events: none;
+}

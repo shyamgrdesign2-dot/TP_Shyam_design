@@ -462,36 +462,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
     }, [publishHeaderDictation, setHeaderVoiceState]);
 
-    // ── Header transcribe: keyboard triggers ───────────────────────────────
-    // double-shift → start | single shift (while recording) → submit | Esc → cancel
-    useEffect(() => {
-        if (!isVoiceRxNewFromGB) return;
-        const onKeyDown = (e) => {
-            if (e.key === 'Escape') {
-                if (headerVoiceStateRef.current === "recording") {
-                    headerVoiceCancelRecording();
-                }
-                return;
-            }
-            if (e.key !== 'Shift') return;
-            const now = Date.now();
-            if (headerVoiceStateRef.current === "recording") {
-                // any single shift while recording → submit
-                headerVoiceLastShiftTimeRef.current = 0;
-                headerVoiceStopAndTranscribe();
-                return;
-            }
-            // idle: detect double-shift to start
-            if (now - headerVoiceLastShiftTimeRef.current < 500) {
-                headerVoiceLastShiftTimeRef.current = 0;
-                headerVoiceStartRecording();
-            } else {
-                headerVoiceLastShiftTimeRef.current = now;
-            }
-        };
-        document.addEventListener('keydown', onKeyDown);
-        return () => document.removeEventListener('keydown', onKeyDown);
-    }, [isVoiceRxNewFromGB, headerVoiceStartRecording, headerVoiceStopAndTranscribe, headerVoiceCancelRecording]);
 
     const syncOrderMedicineAndInvestigation = useCallback((resolvedTcmId) => {
         const patientUniqueId = patient_data?.patient_unique_id;
@@ -2525,35 +2495,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     </Col>
                     <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
                         <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
-                        {showVoiceRxModule && (
-                                <Tooltip
-                                    placement="bottom"
-                                    title={headerIconVoiceState === "recording" ? "Recording… double-shift or click to stop" : headerIconVoiceState === "transcribing" ? "Transcribing…" : "Voice input (double-shift to start)"}
-                                    zIndex={headerOverlayZIndex}
-                                    destroyTooltipOnHide
-                                    trigger={["hover"]}
-                                    mouseLeaveDelay={0}
-                                >
-                                    <button
-                                        type="button"
-                                        data-header-dictation-trigger="true"
-                                        className={`btn align-items-center justify-content-center d-flex btn-41 me-2 ${headerIconVoiceState === "recording" ? " header-voice-recording" : headerIconVoiceState === "transcribing" ? " header-voice-transcribing" : ""} ${headerVoiceSoftLocked ? " header-voice-locked" : ""}`}
-                                        style={{ position: "relative" }}
-                                        onClick={headerVoiceSoftLocked ? undefined : headerVoiceState === "recording" ? headerVoiceStopAndTranscribe : headerVoiceState === "transcribing" ? undefined : headerVoiceStartRecording}
-                                        disabled={headerIconVoiceState === "transcribing"}
-                                        aria-disabled={headerVoiceSoftLocked || undefined}
-                                    >
-                                        {headerIconVoiceState === "transcribing" ? (
-                                            <LoadingOutlined style={{ fontSize: 20 }} />
-                                        ) : (
-                                            <VoiceRxIcon size={22} color={headerIconVoiceState === "recording" ? "#e53935" : "#673AAC"} />
-                                        )}
-                                        {headerIconVoiceState === "recording" && (
-                                            <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: "50%", background: "#e53935", animation: "headerVoicePulse 1s infinite" }} />
-                                        )}
-                                    </button>
-                                </Tooltip>
-                            )}
                             {!showVoiceRxModule && (
                                 <Popover
                                     open={popOverVideo}
