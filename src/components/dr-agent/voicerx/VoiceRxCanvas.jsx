@@ -443,7 +443,7 @@ export function VoiceRxCanvas({
         </div>
       )}
       {voiceEditOpen ? (
-        <div className={styles.overlayWrap}>
+        <div className={styles.overlayWrap} data-testid="voicerx-voice-edit-overlay">
           <div className={styles.overlayInner}>
             <VoiceRecorderCore
               layout="overlay"
