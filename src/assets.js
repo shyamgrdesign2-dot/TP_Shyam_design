@@ -825,6 +825,8 @@ export const ASSETS = {
     genrxtypetip: `${BASE_URL}/lotties/genRxTypeTip.json`,
     greenscanrx: `${BASE_URL}/lotties/greenScanRx.lottie`,
     tatvaaichakra: `${BASE_URL}/lotties/tatvaAiChakra.lottie`,
+    arrowLeft: `${BASE_URL}/lotties/arrow-left.json`,
+    arrowUp: `${BASE_URL}/lotties/arrow-up.json`,
   },
   mobile: {
     "1": `${BASE_URL}/mobile/1.svg`,
