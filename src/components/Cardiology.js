@@ -4073,8 +4073,8 @@ function Cardiology(props) {
                   </button>
                 </div>
               ) : (
-                !rxDigitisedData?.editedData && !(isMobile && !isTablet) && (
-                  <div className="digitise-info-cardiology">
+                !rxDigitisedData?.editedData && (
+                  <div className={`digitise-info-cardiology${(isMobile && !isTablet) ? " digitise-info-cardiology-mobile" : ""}`}>
                     <img
                       src={successIcon}
                       alt="success"
@@ -4142,44 +4142,42 @@ function Cardiology(props) {
                   </button>
                 </div>
               ) : (
-                !(isMobile && !isTablet) && (
-                  <div className="digitise-info-cardiology">
-                    <img
-                      src={successIcon}
-                      alt="success"
-                      width="40px"
-                      height="40px"
-                    />
-                    <p>
-                      <span className="digitise-info-header-cardiology">
-                        {`${patient_data?.pm_fullname}'s Digital Rx is ready!`}
-                      </span>
-                      Digitise Rx to enhance patient care, workflow efficiency,
-                      and revenue.
-                      <button
-                        className="know-more-btn"
-                        onClick={handleDrawerCvtKnowMore}
-                      >
-                        <span
-                          style={{
-                            fontSize: "14px",
-                            paddingLeft: "4px",
-                            textDecoration: "underline",
-                            textDecorationColor: "#454551",
-                          }}
-                        >
-                          Know More
-                        </span>
-                      </button>
-                    </p>
+                <div className={`digitise-info-cardiology${(isMobile && !isTablet) ? " digitise-info-cardiology-mobile" : ""}`}>
+                  <img
+                    src={successIcon}
+                    alt="success"
+                    width="40px"
+                    height="40px"
+                  />
+                  <p>
+                    <span className="digitise-info-header-cardiology">
+                      {`${patient_data?.pm_fullname}'s Digital Rx is ready!`}
+                    </span>
+                    Digitise Rx to enhance patient care, workflow efficiency,
+                    and revenue.
                     <button
-                      className="digitise-info-btn-cardiology"
-                      onClick={handleDigitiseSnapRx}
+                      className="know-more-btn"
+                      onClick={handleDrawerCvtKnowMore}
                     >
-                      Digitise Rx Now
+                      <span
+                        style={{
+                          fontSize: "14px",
+                          paddingLeft: "4px",
+                          textDecoration: "underline",
+                          textDecorationColor: "#454551",
+                        }}
+                      >
+                        Know More
+                      </span>
                     </button>
-                  </div>
-                )
+                  </p>
+                  <button
+                    className="digitise-info-btn-cardiology"
+                    onClick={handleDigitiseSnapRx}
+                  >
+                    Digitise Rx Now
+                  </button>
+                </div>
               ))
             }
 
@@ -4231,6 +4229,84 @@ function Cardiology(props) {
             {(isMobile && !isTablet) && loading && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 <PrescriptionSkeleton />
+              </Card.Body>
+            )}
+            {/* Mobile view: Smart Rx / Tab Rx prescription images or digitised content */}
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && (isSmartRxFile || isTabRx) && !isSnapRx && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', overflowY: 'auto', position: 'relative' }}>
+                {isRxdigitised && showDigitalRx ? (
+                  <>
+                    {renderDigitisedSections(rxDigitisedData?.editedData)}
+                    {rxDigitisedData?.editedData?.followUp && (
+                      <div className="d-flex align-items-center mb-14 follow-up-detailsPage">
+                        <img className="me-3" src={followUp} alt="Symptoms" />
+                        <div className="title-common">Follow-up:</div>
+                        <div className="follow-up-date-text">
+                          {rxDigitisedData?.editedData?.followUp
+                            ? moment(
+                              rxDigitisedData.editedData.followUp,
+                              ["YYYY-MM-DD", "DD/MM/YYYY", "DD-MM-YYYY"],
+                              true
+                            ).format("DD/MM/YYYY")
+                            : ""}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  smartRxFile?.length > 0 &&
+                  smartRxFile.map((fileItem, index) => (
+                    <div key={fileItem?.smart_prescription_filename || index} style={{ padding: "5px" }}>
+                      {fileItem?.smart_prescription_file && (
+                        <img
+                          src={fileItem.smart_prescription_file}
+                          alt="Smart Rx"
+                          width="100%"
+                          style={{ height: "auto", objectFit: "contain" }}
+                        />
+                      )}
+                    </div>
+                  ))
+                )}
+              </Card.Body>
+            )}
+            {/* Mobile view: Snap Rx prescription images or digitised content */}
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && isSnapRx && isSnapRxAccessableFromGB && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', overflowY: 'auto', position: 'relative' }}>
+                {isSnapRxdigitised && showDigitalSnapRx ? (
+                  <>
+                    {renderDigitisedSections(snapRxDigitisedData)}
+                    {snapRxDigitisedData?.followUp && (
+                      <div className="d-flex align-items-center mb-14 follow-up-detailsPage">
+                        <img className="me-3" src={followUp} alt="Symptoms" />
+                        <div className="title-common">Follow-up:</div>
+                        <div className="follow-up-date-text">
+                          {snapRxDigitisedData?.followUp
+                            ? moment(
+                              snapRxDigitisedData.followUp,
+                              ["YYYY-MM-DD", "DD/MM/YYYY", "DD-MM-YYYY"],
+                              true
+                            ).format("DD/MM/YYYY")
+                            : ""}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  !!snapRxFile?.length &&
+                  snapRxFile.map(({ fileUrl }, index) => (
+                    <div key={index} style={{ padding: "5px" }}>
+                      {fileUrl && (
+                        <img
+                          src={fileUrl}
+                          alt="Snap Rx"
+                          width="100%"
+                          style={{ height: "auto", objectFit: "contain" }}
+                        />
+                      )}
+                    </div>
+                  ))
+                )}
               </Card.Body>
             )}
             {/* Mobile view: Show prescription PDF inline using react-pdf */}
