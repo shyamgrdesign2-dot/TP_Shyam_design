@@ -911,6 +911,7 @@ export const ASSETS = {
   },
   dental: {
     dragHandle: `${BASE_URL}/images/drag-handle.svg`,
+    tutorial: `${BASE_URL}/images/tutorial-dental-preview.png`,
     models: {
       implant: `${BASE_URL}/3d/implant.glb`,
       tooth11: `${BASE_URL}/3d/tooth_11.glb`,

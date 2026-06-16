@@ -16,6 +16,7 @@ import { TPMedicalIcon } from "../tp-ui";
 import { uniquePartList } from "./examination-chip-helpers";
 import { OralRecordsList } from "./ExaminationOralPanel";
 import ui from "./ExaminationTab.ui.module.scss";
+import { ASSETS } from "../../../assets";
 
 // ──────────────────────────────────────────────────────────────
 // Dentition panel: Patient Dental Score + per-tooth summary
@@ -333,7 +334,7 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
               </div>
               <div className={ui.tutorialWrap}>
                 <img
-                  src={"/assets/tutorial-dental-preview.png"}
+                  src={ASSETS.dental.tutorial}
                   alt="How Dental Works? \u2014 Watch tutorial"
                   className={ui.tutorialImg} />
                 <div className={ui.tutorialOverlay} />
