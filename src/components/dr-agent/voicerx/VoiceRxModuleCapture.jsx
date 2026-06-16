@@ -1254,7 +1254,14 @@ export function VoiceRxModuleCapture({
 
   const getDigitisedData = useCallback(async ({ audioBlob }) => {
     if (isTranscribeMode) {
-      return transcribeAnyAudio({ audioBlob });
+      return transcribeAnyAudio({
+        audioBlob,
+        context: {
+          patientId: patient_data?.patient_unique_id,
+          doctorId: profile?.doctor_unique_id,
+          sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+        },
+      });
     }
 
     return ENABLE_REAL_MODULE_DIGITISE_API

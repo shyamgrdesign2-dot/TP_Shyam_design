@@ -339,7 +339,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const audioBlob = new Blob(headerVoiceAudioChunksRef.current, { type: mimeType });
         const cursor = headerVoiceCursorRef.current;
         try {
-            const { transcript } = await transcribeAnyAudio({ audioBlob });
+            const transcribeAnyAudioContext = {
+                patientId: patient_data?.patient_unique_id,
+                doctorId: profile?.doctor_unique_id,
+                sessionId: voiceDigitization?.sessionId || submitId,
+            };
+            const { transcript } = await transcribeAnyAudio({
+                audioBlob,
+                context: transcribeAnyAudioContext,
+            });
             const clinicalCompletedAtMs = Date.now();
             if (transcript) {
                 const inserted = insertTranscriptAtCursor(transcript, cursor);

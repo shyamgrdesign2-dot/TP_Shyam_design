@@ -6076,6 +6076,8 @@ export function SideNavbar({
     const submitId = `voice-rx-2-side-nav-${sectionId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const requestId = submitId;
     const sessionId = getSideNavVoiceSessionId();
+    const voicePatientId = patientId || patientData?.patient_unique_id;
+    const voiceDoctorId = doctorId || profile?.doctor_unique_id;
     let voiceRxLogTranscript = "";
     let voiceRxLogDigitizeData = null;
     let transcriptCompletedAtMs = null;
@@ -6089,10 +6091,16 @@ export function SideNavbar({
     }, SIDE_NAV_SHINER_DELAY_MS);
 
     try {
+      const transcribeAnyAudioContext = {
+            patientId: voicePatientId,
+            doctorId: voiceDoctorId,
+            sessionId,
+          };
       const result = isPrivateNotesVoice
         ? await transcribeAnyAudio({
-          audioBlob,
-          prompt: PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
+            audioBlob,
+            context: transcribeAnyAudioContext,
+            prompt: PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
         })
         : await requestSideNavModuleDigitise({
           sectionId,
