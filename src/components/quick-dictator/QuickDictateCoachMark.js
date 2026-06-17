@@ -18,12 +18,29 @@ import { createPortal } from "react-dom";
 import { Drawer } from "antd";
 import { useVoiceBar } from "./voice-bar-context";
 
-const STATE_KEY = "tp-voicerx-quickdict-coach-state-v4";
-const DEFAULT_STATE = { dismissed: false, gotItCount: 0 };
-// Dismiss permanently after this many explicit "Got it" clicks. Click-away,
-// Esc, typing, and successful dictations do NOT count — only the explicit
-// acknowledgement does.
-const SHOW_UNTIL_GOT_IT = 5;
+const STATE_KEY = "tp-voicerx-quickdict-coach-state-v5";
+const DEFAULT_STATE = {
+  dismissed: false,
+  gotItCount: 0,
+  successCount: 0,
+  cancelCount: 0,
+};
+// The tip stops showing on ANY of these (whichever is hit first):
+//   • "Don't show again" checked once
+//   • "Got it" clicked DISMISS_THRESHOLD times
+//   • DISMISS_THRESHOLD successful dictations (✓ in the bar)
+//   • DISMISS_THRESHOLD cancellations (✕ in the bar)
+// Click-away, Esc, and typing remain transient — they don't count.
+const DISMISS_THRESHOLD = 3;
+
+function shouldStopShowing(s) {
+  return (
+    s.dismissed ||
+    s.gotItCount >= DISMISS_THRESHOLD ||
+    s.successCount >= DISMISS_THRESHOLD ||
+    s.cancelCount >= DISMISS_THRESHOLD
+  );
+}
 const AUTO_DISMISS_MS = 14000;
 const CARD_WIDTH = 308;
 const CARD_GAP = 12;
@@ -40,6 +57,12 @@ function readState() {
     return {
       dismissed: parsed?.dismissed === true,
       gotItCount: Number.isFinite(parsed?.gotItCount) ? parsed.gotItCount : 0,
+      successCount: Number.isFinite(parsed?.successCount)
+        ? parsed.successCount
+        : 0,
+      cancelCount: Number.isFinite(parsed?.cancelCount)
+        ? parsed.cancelCount
+        : 0,
     };
   } catch (_) {
     return { ...DEFAULT_STATE };
@@ -144,8 +167,7 @@ export function QuickDictateCoachMark() {
     if (Date.now() < muteShimmerUntilRef.current) return;
     const el = shimmerTarget;
     if (!isCoachableInput(el)) return;
-    const { dismissed, gotItCount } = stateRef.current;
-    if (dismissed || gotItCount >= SHOW_UNTIL_GOT_IT) return;
+    if (shouldStopShowing(stateRef.current)) return;
     const lastDict = recentDictationRef.current.get(el);
     if (lastDict && Date.now() - lastDict < 3000) return;
     anchorRef.current = el;
@@ -157,9 +179,9 @@ export function QuickDictateCoachMark() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shimmerTick, shimmerTarget, isBarOpen]);
 
-  // Successful dictation: just remember the field (for the 3s same-field
-  // grace) and close this instance. We deliberately DO NOT count it toward
-  // the auto-dismiss limit — only explicit "Got it" clicks do that.
+  // Tick the success / cancel counters when the bar reports either event.
+  // Successful dictation also remembers the field for the 3s same-field
+  // grace, then closes this instance immediately.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onSuccess = (e) => {
@@ -167,12 +189,21 @@ export function QuickDictateCoachMark() {
       if (routedTarget instanceof Element) {
         recentDictationRef.current.set(routedTarget, Date.now());
       }
+      const cur = stateRef.current;
+      persist({ ...cur, successCount: (cur.successCount || 0) + 1 });
       setOpen(false);
     };
+    const onCancel = () => {
+      const cur = stateRef.current;
+      persist({ ...cur, cancelCount: (cur.cancelCount || 0) + 1 });
+    };
     window.addEventListener("tp-voicerx-dictation-success", onSuccess);
-    return () =>
+    window.addEventListener("tp-voicerx-dictation-cancelled", onCancel);
+    return () => {
       window.removeEventListener("tp-voicerx-dictation-success", onSuccess);
-  }, []);
+      window.removeEventListener("tp-voicerx-dictation-cancelled", onCancel);
+    };
+  }, [persist]);
 
   useLayoutEffect(() => {
     if (!open || !cardRef.current) return;
@@ -239,14 +270,14 @@ export function QuickDictateCoachMark() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // "Got it" is the only path (other than the explicit checkbox) that ticks
-  // the auto-dismiss counter. Five Got-It clicks → dismissed permanently.
+  // "Got it" ticks its own counter and also honours the checkbox.
   const handleGotIt = useCallback(() => {
     const cur = stateRef.current;
-    const gotItCount = (cur.gotItCount || 0) + 1;
-    const dismissed =
-      dontShowAgain || cur.dismissed || gotItCount >= SHOW_UNTIL_GOT_IT;
-    persist({ dismissed, gotItCount });
+    persist({
+      ...cur,
+      dismissed: dontShowAgain || cur.dismissed,
+      gotItCount: (cur.gotItCount || 0) + 1,
+    });
     dismissInstance();
   }, [dontShowAgain, persist, dismissInstance]);
 
@@ -369,11 +400,17 @@ export function QuickDictateCoachMark() {
               setDontShowAgain(checked);
               // Persist immediately so it stays dismissed even if the doctor
               // just clicks into another field instead of pressing "Got it".
-              // Unchecking means "show me again" — clear `dismissed` *and*
-              // reset `gotItCount`, otherwise the >=5 auto-dismiss would still
-              // block the tip after enough Got-It clicks.
+              // Unchecking means "show me again" — clear every auto-dismiss
+              // channel, otherwise any threshold already hit would still
+              // block the tip.
               if (checked) persist({ ...stateRef.current, dismissed: true });
-              else persist({ dismissed: false, gotItCount: 0 });
+              else
+                persist({
+                  dismissed: false,
+                  gotItCount: 0,
+                  successCount: 0,
+                  cancelCount: 0,
+                });
             }}
             data-quickdict-no-coach="true"
             style={{ width: 14, height: 14, accentColor: "#3B82F6", cursor: "pointer" }}

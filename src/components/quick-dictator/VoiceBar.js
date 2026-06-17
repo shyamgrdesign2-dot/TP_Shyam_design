@@ -262,6 +262,8 @@ export function VoiceBar() {
   }, [processing, micDenied, route, close]);
 
   // Cancel pauses the recording (keeping the audio) so Undo can resume it.
+  // Also notifies the coach mark so it can tick its cancel counter toward
+  // auto-dismissal.
   const handleCancel = useCallback(() => {
     if (processing) return;
     try {
@@ -269,6 +271,9 @@ export function VoiceBar() {
         mediaRecorderRef.current.pause();
     } catch (_) {}
     playVoiceRxErrorSound();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("tp-voicerx-dictation-cancelled"));
+    }
     setCancelPending(true);
   }, [processing]);
 
