@@ -18,9 +18,12 @@ import { createPortal } from "react-dom";
 import { Drawer } from "antd";
 import { useVoiceBar } from "./voice-bar-context";
 
-const STATE_KEY = "tp-voicerx-quickdict-coach-state-v3";
-const DEFAULT_STATE = { dismissed: false, successes: 0 };
-const SHOW_UNTIL_SUCCESSES = 3;
+const STATE_KEY = "tp-voicerx-quickdict-coach-state-v4";
+const DEFAULT_STATE = { dismissed: false, gotItCount: 0 };
+// Dismiss permanently after this many explicit "Got it" clicks. Click-away,
+// Esc, typing, and successful dictations do NOT count — only the explicit
+// acknowledgement does.
+const SHOW_UNTIL_GOT_IT = 5;
 const AUTO_DISMISS_MS = 14000;
 const CARD_WIDTH = 308;
 const CARD_GAP = 12;
@@ -36,7 +39,7 @@ function readState() {
     const parsed = JSON.parse(raw);
     return {
       dismissed: parsed?.dismissed === true,
-      successes: Number.isFinite(parsed?.successes) ? parsed.successes : 0,
+      gotItCount: Number.isFinite(parsed?.gotItCount) ? parsed.gotItCount : 0,
     };
   } catch (_) {
     return { ...DEFAULT_STATE };
@@ -141,8 +144,8 @@ export function QuickDictateCoachMark() {
     if (Date.now() < muteShimmerUntilRef.current) return;
     const el = shimmerTarget;
     if (!isCoachableInput(el)) return;
-    const { dismissed, successes } = stateRef.current;
-    if (dismissed || successes >= SHOW_UNTIL_SUCCESSES) return;
+    const { dismissed, gotItCount } = stateRef.current;
+    if (dismissed || gotItCount >= SHOW_UNTIL_GOT_IT) return;
     const lastDict = recentDictationRef.current.get(el);
     if (lastDict && Date.now() - lastDict < 3000) return;
     anchorRef.current = el;
@@ -154,8 +157,9 @@ export function QuickDictateCoachMark() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shimmerTick, shimmerTarget, isBarOpen]);
 
-  // Count successful dictations; stop showing once the doctor has clearly
-  // got the hang of it (3 successes).
+  // Successful dictation: just remember the field (for the 3s same-field
+  // grace) and close this instance. We deliberately DO NOT count it toward
+  // the auto-dismiss limit — only explicit "Got it" clicks do that.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onSuccess = (e) => {
@@ -163,16 +167,12 @@ export function QuickDictateCoachMark() {
       if (routedTarget instanceof Element) {
         recentDictationRef.current.set(routedTarget, Date.now());
       }
-      const cur = stateRef.current;
-      const successes = (cur.successes || 0) + 1;
-      const dismissed = cur.dismissed || successes >= SHOW_UNTIL_SUCCESSES;
-      persist({ dismissed, successes });
       setOpen(false);
     };
     window.addEventListener("tp-voicerx-dictation-success", onSuccess);
     return () =>
       window.removeEventListener("tp-voicerx-dictation-success", onSuccess);
-  }, [persist]);
+  }, []);
 
   useLayoutEffect(() => {
     if (!open || !cardRef.current) return;
@@ -239,10 +239,14 @@ export function QuickDictateCoachMark() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // "Got it" is the only path (other than the explicit checkbox) that ticks
+  // the auto-dismiss counter. Five Got-It clicks → dismissed permanently.
   const handleGotIt = useCallback(() => {
-    if (dontShowAgain) {
-      persist({ ...stateRef.current, dismissed: true });
-    }
+    const cur = stateRef.current;
+    const gotItCount = (cur.gotItCount || 0) + 1;
+    const dismissed =
+      dontShowAgain || cur.dismissed || gotItCount >= SHOW_UNTIL_GOT_IT;
+    persist({ dismissed, gotItCount });
     dismissInstance();
   }, [dontShowAgain, persist, dismissInstance]);
 
@@ -366,10 +370,10 @@ export function QuickDictateCoachMark() {
               // Persist immediately so it stays dismissed even if the doctor
               // just clicks into another field instead of pressing "Got it".
               // Unchecking means "show me again" — clear `dismissed` *and*
-              // reset `successes`, otherwise the >=3 auto-dismiss would still
-              // block the tip for power users.
+              // reset `gotItCount`, otherwise the >=5 auto-dismiss would still
+              // block the tip after enough Got-It clicks.
               if (checked) persist({ ...stateRef.current, dismissed: true });
-              else persist({ dismissed: false, successes: 0 });
+              else persist({ dismissed: false, gotItCount: 0 });
             }}
             data-quickdict-no-coach="true"
             style={{ width: 14, height: 14, accentColor: "#3B82F6", cursor: "pointer" }}
