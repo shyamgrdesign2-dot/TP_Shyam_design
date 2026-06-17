@@ -2447,15 +2447,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {/* Legacy VoiceRx CTA belongs only to the old prescription UI. */}
                             {shouldShowLegacyVoiceRxCta ? (
                                 isCompactHeader ?
-                                    <>
-                                        <div className="headerprescription-tablet-sep" aria-hidden="true" />
-                                        <TabVoiceRxButton onClick={handleGenRx} />
-                                    </>
+                                    <TabVoiceRxButton onClick={handleGenRx} />
                                     :
                                     <GenRxButton onClick={handleGenRx} />
                             ) : null}
-
-                            {isCompactHeader && <div className="headerprescription-tablet-sep" aria-hidden="true" />}
 
                             {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isCompactHeader ? 'Draft' : 'Save as Draft'} />}
 

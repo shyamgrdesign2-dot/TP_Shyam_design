@@ -352,9 +352,9 @@ export function VoiceBar() {
       data-quickdict-no-shimmer="true"
       data-quickdict-no-block="true"
     >
-      {/* No page-dimming scrim in the cancelled state — the page stays active
-          while the undo countdown runs. */}
-      {!cancelPending && <div className="qd-scrim" aria-hidden />}
+      {/* Page is fully interactive while Quick Dictator is up: scroll, click,
+          focus other inputs, etc. — matching VoiceRx's behaviour. The host
+          uses pointer-events: none so only the bar itself captures clicks. */}
       <div
         className={
           "qd-bar qd-bar-in " + (cancelPending ? "qd-bar-cancelled" : "")

@@ -15,12 +15,6 @@
   justify-content: center;
   padding-bottom: 36px;
 }
-.qd-scrim {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.18);
-  pointer-events: auto;
-}
 
 /* ── Bar ──────────────────────────────────────────────────────────────── */
 .qd-bar {
@@ -464,12 +458,4 @@
 @keyframes qd-undo-countdown {
   from { transform: scaleX(1); }
   to { transform: scaleX(0); }
-}
-
-/* ── Voice-block dim rule ────────────────────────────────────────────── */
-body[data-quickdict-active="true"] [data-voice-block] {
-  opacity: 0.4;
-  filter: grayscale(40%);
-  cursor: not-allowed;
-  pointer-events: none;
 }

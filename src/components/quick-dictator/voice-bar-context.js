@@ -2,8 +2,9 @@
 //
 // Public surface:
 //   <VoiceBarProvider>   — context provider, installs the double-Shift
-//                          listener and the [data-voice-block] click-block
-//                          while the bar is open.
+//                          listener while the bar is open. The rest of the
+//                          page stays fully interactive (no page scrim, no
+//                          click blocking), matching VoiceRx's behaviour.
 //   useVoiceBar()        — { isOpen, open, close, route, openTutorial,
 //                            closeTutorial, isTutorialOpen,
 //                            shimmerTick, shimmerTarget, pingShimmer }
@@ -209,48 +210,6 @@ export function VoiceBarProvider({ children }) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, open, close]);
-
-  // ── Block competing voice surfaces while the bar is up ─────────────────
-  // Anything with [data-voice-block] dims out and clicks bounce a message.
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (!isOpen) {
-      delete document.body.dataset.quickdictActive;
-      return;
-    }
-    document.body.dataset.quickdictActive = "true";
-
-    let lastMsgAt = 0;
-    const bounce = (e) => {
-      const target = e.target;
-      if (!(target instanceof Element)) return;
-      const blocker = target.closest("[data-voice-block]");
-      if (!blocker) return;
-      if (blocker.closest("[data-quickdict-no-block]")) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const now = Date.now();
-      if (now - lastMsgAt > 1200) {
-        lastMsgAt = now;
-        qdToast("Quick Dictator is up. Close it first to use this.", {
-          type: "error",
-        });
-      }
-    };
-    const onKey = (e) => {
-      if (e.key === "Enter" || e.key === " ") bounce(e);
-    };
-
-    document.addEventListener("pointerdown", bounce, true);
-    document.addEventListener("click", bounce, true);
-    document.addEventListener("keydown", onKey, true);
-    return () => {
-      delete document.body.dataset.quickdictActive;
-      document.removeEventListener("pointerdown", bounce, true);
-      document.removeEventListener("click", bounce, true);
-      document.removeEventListener("keydown", onKey, true);
-    };
-  }, [isOpen]);
 
   // ── Auto-shimmer ping on every qualifying text focus ───────────────────
   useEffect(() => {

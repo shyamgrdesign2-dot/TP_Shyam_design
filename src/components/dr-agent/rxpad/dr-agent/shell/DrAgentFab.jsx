@@ -258,7 +258,6 @@ export function DrAgentFab({
   return (
     <div
       data-dr-agent="true"
-      data-voice-block="true"
       className="vrx-fab-wrapper"
       style={{
         pointerEvents: "none",

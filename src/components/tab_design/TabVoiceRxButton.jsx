@@ -12,7 +12,6 @@ const TabVoiceRxButton = ({ onClick, className = "" }) => {
   return (
     <button
       onClick={onClick}
-      data-voice-block="true"
       className={`${styles.tabVoiceRxButton} ${className}`}
     >
       <LoopingVideo

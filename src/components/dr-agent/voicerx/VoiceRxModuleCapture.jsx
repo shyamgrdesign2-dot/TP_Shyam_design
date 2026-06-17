@@ -1088,7 +1088,6 @@ export function VoiceRxModuleButton({ active = false, disabled = false, onClick,
         aria-pressed={active || headerDictationMatches}
         disabled={locked}
         onClick={clickBlocked ? undefined : onClick}
-        data-voice-block="true"
         className={[
           styles.voiceButton,
           active || headerDictationMatches ? styles.voiceButtonActive : "",
