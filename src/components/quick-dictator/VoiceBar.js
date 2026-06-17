@@ -1,6 +1,6 @@
 // Quick Dictator — floating black "dynamic island" bar.
 // Activated by double-Shift via VoiceBarProvider. Closes on single-Shift,
-// Esc, ✕ (cancel-undo flow with 10s grace), or ✓ (route + processing
+// Esc, ✕ (cancel-undo flow with 8s grace), or ✓ (route + processing
 // state). Mic switcher exposes audio inputs and doubles as mute.
 
 import React, {
@@ -10,134 +10,52 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { message } from "antd";
-import { useVoiceBar } from "./voice-bar-context";
+import { useVoiceBar, qdToast } from "./voice-bar-context";
+import { transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
+import {
+  playVoiceRxStartSound,
+  playSubmitSound,
+  playVoiceRxErrorSound,
+} from "../dr-agent/voicerx/audio";
+import { getSupportedMimeType } from "../../utils/utils";
 import "./quick-dictator.css";
 
-const WAVE_BAR_COUNT = 22;
-const CANCEL_UNDO_WINDOW_MS = 10000;
-const PROCESSING_HOLD_MS = 700;
+// Rounded equalizer bars, matching the VoiceRx FAB waveform. The pulse is
+// CSS-driven; staggered delays give a travelling-wave look.
+const WAVE_BAR_COUNT = 9;
+const CANCEL_UNDO_WINDOW_MS = 5000;
 
-const CheckGlyph = (p) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    width="16"
-    height="16"
-    strokeWidth="2.4"
-    {...p}
-  >
-    <path d="M20 6 9 17l-5-5" />
-  </svg>
+// TP CDN icons rendered as recolourable masks (see `.qd-ico*` in the CSS).
+// `currentColor` lets each icon pick up its context colour.
+const Ico = ({ name, size = 16, className = "", style }) => (
+  <span
+    aria-hidden
+    className={`qd-ico qd-ico-${name} ${className}`.trim()}
+    style={{ width: size, height: size, ...style }}
+  />
 );
-const XGlyph = (p) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    width="16"
-    height="16"
-    strokeWidth="2.4"
-    {...p}
-  >
-    <path d="M18 6 6 18" />
-    <path d="m6 6 12 12" />
-  </svg>
+const CheckGlyph = () => <Ico name="check" size={18} />;
+const XGlyph = () => <Ico name="close" size={16} />;
+const ChevronDown = ({ className }) => (
+  <Ico name="chevron" size={14} className={className} />
 );
-const ChevronDown = (p) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    width="12"
-    height="12"
-    strokeWidth="2.4"
-    {...p}
-  >
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-const MicGlyph = (p) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    width="16"
-    height="16"
-    strokeWidth="1.6"
-    {...p}
-  >
-    <rect x="9" y="2" width="6" height="13" rx="3" />
-    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-    <path d="M12 19v3" />
-  </svg>
-);
-const MicSlash = (p) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    width="16"
-    height="16"
-    strokeWidth="1.6"
-    {...p}
-  >
-    <path d="M2 2l20 20" />
-    <path d="M16 6.3V6c0-2.21-1.79-4-4-4S8 3.79 8 6v5" />
-    <path d="M9 14.2c.73.81 1.79 1.31 2.96 1.31 2.21 0 4-1.79 4-4V11" />
-    <path d="M4.35 9.65v1.7c0 4.22 3.43 7.65 7.65 7.65 1.45 0 2.81-.4 3.97-1.1" />
-    <path d="M19.65 9.65v1.7c0 .94-.17 1.85-.49 2.69" />
-    <path d="M12 19v3" />
-  </svg>
-);
-const UndoGlyph = (p) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    width="14"
-    height="14"
-    strokeWidth="2.4"
-    {...p}
-  >
-    <path d="M3 7v6h6" />
-    <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
-  </svg>
-);
+const MicGlyph = () => <Ico name="mic" size={18} />;
+const MicSlash = () => <Ico name="mic-slash" size={18} />;
+const UndoGlyph = () => <Ico name="undo" size={14} />;
 
 export function VoiceBar() {
   const { isOpen, close, route } = useVoiceBar();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const [finalText, setFinalText] = useState("");
-  const [interimText, setInterimText] = useState("");
-  const [speechSupported, setSpeechSupported] = useState(true);
-  const [speechError, setSpeechError] = useState(null);
+  const [recordingSupported, setRecordingSupported] = useState(true);
+  const [recordError, setRecordError] = useState(null);
+  const [recording, setRecording] = useState(false);
   const [micDenied, setMicDenied] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [muted, setMuted] = useState(false);
 
-  const [cancelPending, setCancelPending] = useState(null); // { deadlineTs }
-  const [undoProgressPct, setUndoProgressPct] = useState(100);
+  const [cancelPending, setCancelPending] = useState(false);
 
   const [devices, setDevices] = useState([]);
   const [activeDeviceId, setActiveDeviceId] = useState("default");
@@ -147,16 +65,21 @@ export function VoiceBar() {
     typeof navigator === "undefined" ? true : navigator.onLine
   );
 
-  const recogRef = useRef(null);
-  const restartRecogRef = useRef(null);
-  const stopRecogRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
   const audioCtxRef = useRef(null);
   const analyserRef = useRef(null);
   const rafRef = useRef(0);
-  const levelsRef = useRef(new Array(WAVE_BAR_COUNT).fill(0));
-  const [, forceRender] = useState(0);
+  const waveRef = useRef(null);
   const switcherRef = useRef(null);
+
+  // ── Sound cues (mirror VoiceRx): Active = open, Submit = accept, Cancelled = cancel
+  // Played once per state transition; fires on `isOpen` flip only (device-id
+  // changes don't replay it).
+  useEffect(() => {
+    if (isOpen) playVoiceRxStartSound();
+  }, [isOpen]);
 
   // Online/offline indicator
   useEffect(() => {
@@ -189,72 +112,23 @@ export function VoiceBar() {
     };
   }, [switcherOpen]);
 
-  // Lifecycle — spin recognition + audio stream up on open / device change
+  // Lifecycle — record audio (for AI transcription) + drive the waveform,
+  // spun up on open / device change.
   useEffect(() => {
     if (!isOpen) return;
-    setFinalText("");
-    setInterimText("");
-    setSpeechError(null);
+    setRecordError(null);
     setMicDenied(false);
-    setCancelPending(null);
+    setCancelPending(false);
     setProcessing(false);
+    setMuted(false);
+    setRecording(false);
 
     const w = typeof window !== "undefined" ? window : null;
-    const SR = w && (w.SpeechRecognition || w.webkitSpeechRecognition);
-    const flags = { autoRestart: true };
-
-    if (!SR) {
-      setSpeechSupported(false);
-    } else {
-      const recog = new SR();
-      recog.continuous = true;
-      recog.interimResults = true;
-      recog.lang = "en-US";
-      recog.onresult = (e) => {
-        let finalChunk = "";
-        let interimChunk = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const t = e.results[i][0].transcript;
-          if (e.results[i].isFinal) finalChunk += t + " ";
-          else interimChunk += t;
-        }
-        if (finalChunk)
-          setFinalText((prev) =>
-            prev ? `${prev.trim()} ${finalChunk.trim()}` : finalChunk.trim()
-          );
-        setInterimText(interimChunk.trim());
-      };
-      recog.onerror = (e) => {
-        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-          setMicDenied(true);
-          flags.autoRestart = false;
-        } else if (e.error && e.error !== "no-speech" && e.error !== "aborted") {
-          setSpeechError(e.error);
-        }
-      };
-      recog.onend = () => {
-        if (!flags.autoRestart) return;
-        try {
-          recog.start();
-        } catch (_) {}
-      };
-      try {
-        recog.start();
-      } catch (_) {}
-      recogRef.current = recog;
-      stopRecogRef.current = () => {
-        flags.autoRestart = false;
-        try {
-          recog.stop();
-        } catch (_) {}
-      };
-      restartRecogRef.current = () => {
-        flags.autoRestart = true;
-        try {
-          recog.start();
-        } catch (_) {}
-      };
+    if (!w || typeof MediaRecorder === "undefined") {
+      setRecordingSupported(false);
+      return;
     }
+    setRecordingSupported(true);
 
     let cancelled = false;
     (async () => {
@@ -274,6 +148,21 @@ export function VoiceBar() {
             setDevices(all.filter((d) => d.kind === "audioinput"));
         } catch (_) {}
         streamRef.current = stream;
+
+        // Record the audio — sent to the AI transcription backend on accept.
+        const mimeType = getSupportedMimeType();
+        const recorder = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream);
+        audioChunksRef.current = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        };
+        mediaRecorderRef.current = recorder;
+        recorder.start();
+        if (!cancelled) setRecording(true);
+
+        // Waveform analyser (drives --qd-level on the bars).
         const AC = w.AudioContext || w.webkitAudioContext;
         const ctx = new AC();
         const src = ctx.createMediaStreamSource(stream);
@@ -285,18 +174,14 @@ export function VoiceBar() {
         analyserRef.current = analyser;
 
         const bins = new Uint8Array(analyser.frequencyBinCount);
-        const stepBins = Math.floor(bins.length / WAVE_BAR_COUNT) || 1;
         const tick = () => {
           analyser.getByteFrequencyData(bins);
-          const next = new Array(WAVE_BAR_COUNT);
-          for (let i = 0; i < WAVE_BAR_COUNT; i++) {
-            let sum = 0;
-            for (let j = 0; j < stepBins; j++)
-              sum += bins[i * stepBins + j] ?? 0;
-            next[i] = sum / stepBins / 255;
-          }
-          levelsRef.current = next;
-          forceRender((n) => (n + 1) % 1000);
+          let sum = 0;
+          for (let i = 0; i < bins.length; i++) sum += bins[i];
+          const avg = sum / bins.length / 255;
+          const level = Math.max(0, Math.min(1, avg * 1.8));
+          // Write straight to the DOM — no per-frame React re-render.
+          waveRef.current?.style.setProperty("--qd-level", level.toFixed(3));
           rafRef.current = requestAnimationFrame(tick);
         };
         rafRef.current = requestAnimationFrame(tick);
@@ -310,7 +195,7 @@ export function VoiceBar() {
         ) {
           setMicDenied(true);
         } else {
-          setSpeechError(err?.message || "Microphone unavailable");
+          setRecordError(err?.message || "Microphone unavailable");
         }
       }
     })();
@@ -318,82 +203,109 @@ export function VoiceBar() {
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
-      if (recogRef.current) {
-        recogRef.current.onend = null;
+      const rec = mediaRecorderRef.current;
+      if (rec) {
+        rec.ondataavailable = null;
+        rec.onstop = null;
         try {
-          recogRef.current.stop();
+          if (rec.state !== "inactive") rec.stop();
         } catch (_) {}
-        recogRef.current = null;
+        mediaRecorderRef.current = null;
       }
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       audioCtxRef.current?.close().catch(() => {});
       audioCtxRef.current = null;
       analyserRef.current = null;
+      audioChunksRef.current = [];
     };
   }, [isOpen, activeDeviceId]);
 
-  // Accept / cancel
-  const handleAccept = useCallback(() => {
-    if (processing) return;
-    const text = (finalText + (interimText ? ` ${interimText}` : "")).trim();
-    stopRecogRef.current?.();
+  // Accept — stop recording, send the audio to the AI transcription backend,
+  // and route the refined transcript into the focused field.
+  const handleAccept = useCallback(async () => {
+    if (processing || micDenied) return;
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") {
+      qdToast("Nothing captured. Try again", { type: "error" });
+      return;
+    }
+    playSubmitSound();
     setProcessing(true);
-    window.setTimeout(() => {
-      const kind = route(text);
+    await new Promise((resolve) => {
+      recorder.onstop = resolve;
+      try {
+        recorder.stop();
+      } catch (_) {
+        resolve();
+      }
+    });
+    setRecording(false);
+    streamRef.current?.getAudioTracks().forEach((t) => t.stop());
+    const mimeType = recorder.mimeType || "audio/webm";
+    const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+    try {
+      const { transcript } = await transcribeAnyAudio({ audioBlob });
+      const kind = route(transcript);
       close({ restoreFocus: true });
       if (kind === "clipboard") {
-        message.success("Copied dictation to clipboard");
+        qdToast("Copied dictation to clipboard");
       } else if (kind === "empty") {
-        message.info("Nothing captured — try again");
+        qdToast("Nothing captured. Try again", { type: "error" });
       }
-    }, PROCESSING_HOLD_MS);
-  }, [processing, finalText, interimText, route, close]);
+    } catch (err) {
+      close({ restoreFocus: true });
+      qdToast("Couldn't transcribe audio. Please try again.", {
+        type: "error",
+      });
+    }
+  }, [processing, micDenied, route, close]);
 
+  // Cancel pauses the recording (keeping the audio) so Undo can resume it.
   const handleCancel = useCallback(() => {
     if (processing) return;
-    stopRecogRef.current?.();
-    setInterimText("");
-    setCancelPending({ deadlineTs: Date.now() + CANCEL_UNDO_WINDOW_MS });
+    try {
+      if (mediaRecorderRef.current?.state === "recording")
+        mediaRecorderRef.current.pause();
+    } catch (_) {}
+    playVoiceRxErrorSound();
+    setCancelPending(true);
   }, [processing]);
 
   const handleUndoCancel = useCallback(() => {
-    setCancelPending(null);
-    setUndoProgressPct(100);
-    restartRecogRef.current?.();
+    setCancelPending(false);
+    try {
+      if (mediaRecorderRef.current?.state === "paused")
+        mediaRecorderRef.current.resume();
+    } catch (_) {}
   }, []);
 
-  const handleForceDiscard = useCallback(() => {
-    setCancelPending(null);
-    setUndoProgressPct(100);
-    close({ restoreFocus: true });
-  }, [close]);
+  // Mute / unmute the live mic — silences the input track and pauses the
+  // recorder while muted, resumes both on unmute. No-op without access.
+  const toggleMute = useCallback(() => {
+    if (micDenied) return;
+    setMuted((prev) => {
+      const next = !prev;
+      streamRef.current?.getAudioTracks().forEach((t) => (t.enabled = !next));
+      try {
+        const rec = mediaRecorderRef.current;
+        if (next && rec?.state === "recording") rec.pause();
+        else if (!next && rec?.state === "paused") rec.resume();
+      } catch (_) {}
+      return next;
+    });
+  }, [micDenied]);
 
-  // 10s undo progress
+  // Auto-discard once the undo window elapses. The countdown bar itself is a
+  // pure CSS animation (qd-undo-countdown), so it always runs the full window
+  // and can't desync from React re-renders.
   useEffect(() => {
     if (!cancelPending) return;
-    let raf = 0;
-    let done = false;
-    const tick = () => {
-      if (done) return;
-      const remaining = Math.max(0, cancelPending.deadlineTs - Date.now());
-      const pct = Math.max(
-        0,
-        Math.min(100, (remaining / CANCEL_UNDO_WINDOW_MS) * 100)
-      );
-      setUndoProgressPct(pct);
-      if (remaining <= 0) {
-        done = true;
-        close({ restoreFocus: true });
-        return;
-      }
-      raf = window.requestAnimationFrame(tick);
-    };
-    raf = window.requestAnimationFrame(tick);
-    return () => {
-      done = true;
-      window.cancelAnimationFrame(raf);
-    };
+    const t = window.setTimeout(
+      () => close({ restoreFocus: true }),
+      CANCEL_UNDO_WINDOW_MS
+    );
+    return () => window.clearTimeout(t);
   }, [cancelPending, close]);
 
   // Enter routes through accept (Esc handled at provider level)
@@ -430,11 +342,7 @@ export function VoiceBar() {
   if (!mounted || !isOpen) return null;
 
   const denied = micDenied;
-  const displayTranscript = (
-    finalText + (interimText ? ` ${interimText}` : "")
-  ).trim();
-  const acceptDisabled =
-    (!displayTranscript && !speechError) || processing || denied;
+  const acceptDisabled = denied || processing || !recording;
 
   return createPortal(
     <div
@@ -444,7 +352,9 @@ export function VoiceBar() {
       data-quickdict-no-shimmer="true"
       data-quickdict-no-block="true"
     >
-      <div className="qd-scrim" aria-hidden />
+      {/* No page-dimming scrim in the cancelled state — the page stays active
+          while the undo countdown runs. */}
+      {!cancelPending && <div className="qd-scrim" aria-hidden />}
       <div
         className={
           "qd-bar qd-bar-in " + (cancelPending ? "qd-bar-cancelled" : "")
@@ -454,22 +364,8 @@ export function VoiceBar() {
       >
         {cancelPending ? (
           <>
-            <button
-              type="button"
-              onClick={handleForceDiscard}
-              aria-label="Discard now"
-              className="qd-cancel-cell"
-              style={{ color: "#fff" }}
-            >
-              <span className="qd-cancel-mark">
-                <XGlyph width="20" height="20" stroke="#fff" />
-              </span>
-            </button>
             <div className="qd-cancel-text">
               <span className="qd-cancel-title">Transcript cancelled</span>
-              <span className="qd-cancel-sub">
-                Undo to keep going, auto-discards in 10s.
-              </span>
             </div>
             <button
               type="button"
@@ -478,13 +374,13 @@ export function VoiceBar() {
               className="qd-undo-btn"
               style={{ color: "#fff" }}
             >
-              <UndoGlyph stroke="#fff" />
+              <UndoGlyph />
               <span style={{ color: "#fff" }}>Undo</span>
             </button>
             <div className="qd-undo-track" aria-hidden>
               <div
                 className="qd-undo-fill"
-                style={{ width: `${undoProgressPct}%` }}
+                style={{ animationDuration: `${CANCEL_UNDO_WINDOW_MS}ms` }}
               />
             </div>
           </>
@@ -501,27 +397,43 @@ export function VoiceBar() {
             </button>
 
             <div className="qd-switcher-wrap" ref={switcherRef}>
-              <button
-                type="button"
-                onClick={() => setSwitcherOpen((v) => !v)}
-                aria-label={
-                  denied
-                    ? "Microphone blocked — switch device"
-                    : "Switch microphone"
-                }
-                aria-expanded={switcherOpen}
+              <div
                 className={
-                  "qd-action qd-switcher " +
-                  (denied ? "qd-switcher-muted" : "")
+                  "qd-mic-group " + (muted ? "qd-mic-group-muted" : "")
                 }
               >
-                {denied ? <MicSlash /> : <MicGlyph />}
-                <ChevronDown
-                  className={
-                    "qd-chev " + (switcherOpen ? "qd-chev-open" : "")
+                <button
+                  type="button"
+                  onClick={toggleMute}
+                  disabled={denied || processing}
+                  aria-label={
+                    denied
+                      ? "Microphone blocked"
+                      : muted
+                      ? "Unmute microphone"
+                      : "Mute microphone"
                   }
-                />
-              </button>
+                  aria-pressed={muted}
+                  className="qd-mic-toggle"
+                >
+                  {denied || muted ? <MicSlash /> : <MicGlyph />}
+                </button>
+                <span className="qd-mic-divider" aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => setSwitcherOpen((v) => !v)}
+                  disabled={processing}
+                  aria-label="Switch microphone"
+                  aria-expanded={switcherOpen}
+                  className="qd-mic-caret"
+                >
+                  <ChevronDown
+                    className={
+                      "qd-chev " + (switcherOpen ? "qd-chev-open" : "")
+                    }
+                  />
+                </button>
+              </div>
               {switcherOpen && (
                 <div className="qd-switcher-menu" role="menu">
                   <div className="qd-switcher-eyebrow">Microphone</div>
@@ -542,10 +454,7 @@ export function VoiceBar() {
                           const label = d.label || `Microphone ${i + 1}`;
                           setActiveDeviceId(d.deviceId || "default");
                           setSwitcherOpen(false);
-                          message.success({
-                            content: `Switched to ${label}`,
-                            duration: 2,
-                          });
+                          qdToast(`Switched to ${label}`, { duration: 2 });
                         }}
                         className={
                           "qd-switcher-item " +
@@ -567,57 +476,43 @@ export function VoiceBar() {
 
             <div className="qd-signal">
               {processing ? (
-                <div className="qd-processing" aria-live="polite">
+                <div
+                  className="qd-processing"
+                  aria-live="polite"
+                  role="status"
+                >
                   <span className="qd-spinner" aria-hidden />
                   <span>Processing…</span>
                 </div>
               ) : (
                 <>
-                  <div className="qd-wave" aria-hidden>
-                    {Array.from({ length: WAVE_BAR_COUNT }).map((_, i) => {
-                      const lvl = levelsRef.current[i] ?? 0;
-                      const mid =
-                        Math.abs(i - WAVE_BAR_COUNT / 2) /
-                        (WAVE_BAR_COUNT / 2);
-                      const emphasis = 1 - mid * 0.35;
-                      const h = Math.max(
-                        0.1,
-                        Math.min(1, lvl * 1.3 * emphasis)
-                      );
-                      return (
-                        <span
-                          key={i}
-                          className={
-                            "qd-wave-bar " +
-                            (denied ? "qd-wave-bar-muted" : "")
-                          }
-                          style={{ height: `${(h * 100).toFixed(0)}%` }}
-                        />
-                      );
-                    })}
+                  <div className="qd-wave" aria-hidden ref={waveRef}>
+                    {Array.from({ length: WAVE_BAR_COUNT }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={
+                          "qd-wave-bar " +
+                          (denied || muted ? "qd-wave-bar-muted" : "")
+                        }
+                        style={{ animationDelay: `${(i * 0.09).toFixed(2)}s` }}
+                      />
+                    ))}
                   </div>
                   <div className="qd-status" aria-live="polite">
                     {denied ? (
                       <span className="qd-status-error">No mic access</span>
+                    ) : muted ? (
+                      <span className="qd-status-muted">Muted</span>
                     ) : !online ? (
                       <span className="qd-status-error">No internet</span>
-                    ) : speechError ? (
-                      <span className="qd-status-error">
-                        Mic not available
-                      </span>
-                    ) : !speechSupported ? (
+                    ) : recordError ? (
+                      <span className="qd-status-error">Mic not available</span>
+                    ) : !recordingSupported ? (
                       <span className="qd-status-error">
                         Voice not supported here
                       </span>
                     ) : (
-                      <span className="qd-status-listening">
-                        Listening
-                        <span className="qd-dots" aria-hidden>
-                          <span />
-                          <span />
-                          <span />
-                        </span>
-                      </span>
+                      <span className="qd-status-listening">Listening</span>
                     )}
                   </div>
                 </>

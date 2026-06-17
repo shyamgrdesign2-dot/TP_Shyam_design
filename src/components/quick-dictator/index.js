@@ -1,4 +1,3 @@
-export { VoiceBarProvider, useVoiceBar } from "./voice-bar-context";
+export { VoiceBarProvider, useVoiceBar, qdToast } from "./voice-bar-context";
 export { VoiceBar } from "./VoiceBar";
-export { QuickDictateCoachMark } from "./QuickDictateCoachMark";
-export { TutorialDrawer } from "./TutorialDrawer";
+export { QuickDictateCoachMark, TutorialDrawer } from "./QuickDictateCoachMark";

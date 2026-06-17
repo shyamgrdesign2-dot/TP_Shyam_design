@@ -8,7 +8,7 @@
 //                            closeTutorial, isTutorialOpen,
 //                            shimmerTick, shimmerTarget, pingShimmer }
 
-import {
+import React, {
   createContext,
   useCallback,
   useContext,
@@ -21,6 +21,36 @@ import { message } from "antd";
 
 const VoiceBarContext = createContext(null);
 const DOUBLE_TAP_WINDOW_MS = 400;
+
+// TP design-system snackbars, reusing the app's existing antd-message styles
+// (see allComponent.scss) plus TP CDN mask icons (see `.qd-ico*` in the CSS):
+//   success → dark `.message-appointment` card with a green tick
+//   error   → red `.error-red` card with a red danger icon
+// Icon + text live in one flex row inside the content so they never stack.
+export function qdToast(content, { type = "success", duration = 3 } = {}) {
+  const isError = type === "error";
+  const icon = React.createElement("span", {
+    "aria-hidden": true,
+    className: `qd-ico qd-ico-${isError ? "danger" : "check"}`,
+    style: {
+      width: 18,
+      height: 18,
+      flexShrink: 0,
+      color: isError ? "#dc6069" : "#52c41a",
+    },
+  });
+  return message.open({
+    type: "",
+    className: isError ? "error-red" : "message-appointment",
+    content: React.createElement(
+      "div",
+      { style: { display: "flex", alignItems: "center", gap: 8 } },
+      icon,
+      React.createElement("span", null, content)
+    ),
+    duration,
+  });
+}
 
 export function VoiceBarProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -190,7 +220,9 @@ export function VoiceBarProvider({ children }) {
       const now = Date.now();
       if (now - lastMsgAt > 1200) {
         lastMsgAt = now;
-        message.info("Quick Dictator is up — close it first to use this.");
+        qdToast("Quick Dictator is up. Close it first to use this.", {
+          type: "error",
+        });
       }
     };
     const onKey = (e) => {

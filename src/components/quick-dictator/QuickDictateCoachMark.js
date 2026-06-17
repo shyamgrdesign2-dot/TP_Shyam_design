@@ -1,7 +1,11 @@
 // Quick Dictator coach mark.
-// Auto-detects free-text inputs (single central `isCoachableInput`), shows
-// a "tap ⇧ twice" tip above the field. Mode machine persists in
-// localStorage: full → minimal (after first successful dictation) → off.
+// Auto-detects free-text inputs (single central `isCoachableInput`) and shows
+// a "double-tap Shift" tip above the field. It keeps showing on every
+// qualifying focus until the doctor either (a) ticks "Don't show again" or
+// (b) completes 3 successful dictations — both persisted in localStorage.
+//
+// It must NOT pop on the programmatic re-focus the voice bar does when it
+// closes (accept / cancel / Esc) — only a genuine user activation counts.
 
 import React, {
   useCallback,
@@ -11,15 +15,18 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { Drawer } from "antd";
 import { useVoiceBar } from "./voice-bar-context";
 
-const STATE_KEY = "tp-voicerx-quickdict-coach-state-v2";
-const DEFAULT_STATE = { mode: "full", minimalRemaining: 2 };
-const AUTO_DISMISS_FULL_MS = 14000;
-const AUTO_DISMISS_MINIMAL_MS = 5000;
-const FULL_WIDTH = 308;
-const MINIMAL_WIDTH = 224;
+const STATE_KEY = "tp-voicerx-quickdict-coach-state-v3";
+const DEFAULT_STATE = { dismissed: false, successes: 0 };
+const SHOW_UNTIL_SUCCESSES = 3;
+const AUTO_DISMISS_MS = 14000;
+const CARD_WIDTH = 308;
 const CARD_GAP = 12;
+// Swallow shimmer pings for a beat after the bar closes, so the bar's
+// focus-restore doesn't immediately re-open the coach mark.
+const POST_CLOSE_MUTE_MS = 1000;
 
 function readState() {
   if (typeof window === "undefined") return { ...DEFAULT_STATE };
@@ -27,13 +34,10 @@ function readState() {
     const raw = window.localStorage.getItem(STATE_KEY);
     if (!raw) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(raw);
-    const mode = ["full", "minimal", "dismissed"].includes(parsed?.mode)
-      ? parsed.mode
-      : "full";
-    const minimalRemaining = Number.isFinite(parsed?.minimalRemaining)
-      ? parsed.minimalRemaining
-      : 2;
-    return { mode, minimalRemaining };
+    return {
+      dismissed: parsed?.dismissed === true,
+      successes: Number.isFinite(parsed?.successes) ? parsed.successes : 0,
+    };
   } catch (_) {
     return { ...DEFAULT_STATE };
   }
@@ -96,7 +100,7 @@ export function QuickDictateCoachMark() {
   const { shimmerTick, shimmerTarget, isOpen: isBarOpen, openTutorial } =
     useVoiceBar();
 
-  const [stateTick, setStateTick] = useState(0);
+  const [, setStateTick] = useState(0);
   const stateRef = useRef(readState());
   const persist = useCallback((next) => {
     stateRef.current = next;
@@ -105,44 +109,53 @@ export function QuickDictateCoachMark() {
   }, []);
 
   const [open, setOpen] = useState(false);
-  const [variant, setVariant] = useState("full");
   const [pos, setPos] = useState(null);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const cardRef = useRef(null);
   const anchorRef = useRef(null);
-  const consumedRef = useRef(false);
   const recentDictationRef = useRef(new WeakMap());
+  const muteShimmerUntilRef = useRef(0);
+  const prevBarOpenRef = useRef(isBarOpen);
 
   const dismissInstance = useCallback(() => {
     setOpen(false);
     setDontShowAgain(false);
   }, []);
 
+  // Hide while the bar is up, and mute shimmer pings briefly after it closes
+  // so the bar's focus-restore doesn't re-trigger us (the cancel-then-tooltip
+  // bug). This effect is declared *before* the shimmer effect so the mute
+  // window is set before the post-close ping is evaluated.
+  useEffect(() => {
+    if (isBarOpen) {
+      setOpen(false);
+    } else if (prevBarOpenRef.current) {
+      muteShimmerUntilRef.current = Date.now() + POST_CLOSE_MUTE_MS;
+      setOpen(false);
+    }
+    prevBarOpenRef.current = isBarOpen;
+  }, [isBarOpen]);
+
   useEffect(() => {
     if (isBarOpen || !shimmerTick) return;
+    if (Date.now() < muteShimmerUntilRef.current) return;
     const el = shimmerTarget;
     if (!isCoachableInput(el)) return;
-    const { mode } = stateRef.current;
-    if (mode === "dismissed") return;
+    const { dismissed, successes } = stateRef.current;
+    if (dismissed || successes >= SHOW_UNTIL_SUCCESSES) return;
     const lastDict = recentDictationRef.current.get(el);
     if (lastDict && Date.now() - lastDict < 3000) return;
     anchorRef.current = el;
-    const width = mode === "full" ? FULL_WIDTH : MINIMAL_WIDTH;
-    const estimatedH = mode === "full" ? 140 : 36;
-    const p = computePos(el, width, estimatedH);
+    const p = computePos(el, CARD_WIDTH, 140);
     if (!p) return;
-    setVariant(mode);
     setDontShowAgain(false);
     setPos(p);
-    consumedRef.current = false;
     setOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shimmerTick, shimmerTarget, isBarOpen]);
 
-  useEffect(() => {
-    if (isBarOpen) setOpen(false);
-  }, [isBarOpen]);
-
+  // Count successful dictations; stop showing once the doctor has clearly
+  // got the hang of it (3 successes).
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onSuccess = (e) => {
@@ -151,10 +164,10 @@ export function QuickDictateCoachMark() {
         recentDictationRef.current.set(routedTarget, Date.now());
       }
       const cur = stateRef.current;
-      if (cur.mode === "full") {
-        persist({ mode: "minimal", minimalRemaining: 2 });
-        setOpen(false);
-      }
+      const successes = (cur.successes || 0) + 1;
+      const dismissed = cur.dismissed || successes >= SHOW_UNTIL_SUCCESSES;
+      persist({ dismissed, successes });
+      setOpen(false);
     };
     window.addEventListener("tp-voicerx-dictation-success", onSuccess);
     return () =>
@@ -163,9 +176,8 @@ export function QuickDictateCoachMark() {
 
   useLayoutEffect(() => {
     if (!open || !cardRef.current) return;
-    const w = variant === "full" ? FULL_WIDTH : MINIMAL_WIDTH;
     const h = cardRef.current.getBoundingClientRect().height;
-    const p = computePos(anchorRef.current, w, h);
+    const p = computePos(anchorRef.current, CARD_WIDTH, h);
     if (
       p &&
       (p.top !== pos?.top ||
@@ -175,14 +187,13 @@ export function QuickDictateCoachMark() {
       setPos(p);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, variant]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const update = () => {
-      const w = variant === "full" ? FULL_WIDTH : MINIMAL_WIDTH;
       const h = cardRef.current?.getBoundingClientRect().height || 0;
-      const p = computePos(anchorRef.current, w, h);
+      const p = computePos(anchorRef.current, CARD_WIDTH, h);
       if (p) setPos(p);
     };
     window.addEventListener("scroll", update, true);
@@ -191,24 +202,17 @@ export function QuickDictateCoachMark() {
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };
-  }, [open, variant]);
+  }, [open]);
 
+  // Auto-dismiss / Esc / click-away just hide this instance — they don't
+  // permanently dismiss, so the tip can reappear on the next activation.
   const handleDismiss = useCallback(() => {
-    if (variant === "minimal" && !consumedRef.current) {
-      consumedRef.current = true;
-      const cur = stateRef.current;
-      const next = Math.max(0, cur.minimalRemaining - 1);
-      if (next === 0) persist({ mode: "dismissed", minimalRemaining: 0 });
-      else persist({ mode: "minimal", minimalRemaining: next });
-    }
     dismissInstance();
-  }, [variant, persist, dismissInstance]);
+  }, [dismissInstance]);
 
   useEffect(() => {
     if (!open) return;
-    const ms =
-      variant === "full" ? AUTO_DISMISS_FULL_MS : AUTO_DISMISS_MINIMAL_MS;
-    const t = window.setTimeout(handleDismiss, ms);
+    const t = window.setTimeout(handleDismiss, AUTO_DISMISS_MS);
     const onKey = (e) => {
       if (e.key === "Escape") handleDismiss();
     };
@@ -233,11 +237,11 @@ export function QuickDictateCoachMark() {
       window.removeEventListener("mousedown", onClick);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, variant]);
+  }, [open]);
 
   const handleGotIt = useCallback(() => {
     if (dontShowAgain) {
-      persist({ mode: "dismissed", minimalRemaining: 0 });
+      persist({ ...stateRef.current, dismissed: true });
     }
     dismissInstance();
   }, [dontShowAgain, persist, dismissInstance]);
@@ -250,57 +254,6 @@ export function QuickDictateCoachMark() {
   if (!open || !pos || typeof document === "undefined") return null;
   const isAbove = pos.placement === "above";
 
-  if (variant === "minimal") {
-    return createPortal(
-      <div
-        ref={cardRef}
-        role="status"
-        aria-label="Quick dictation tip"
-        data-quickdict-no-shimmer="true"
-        style={{
-          position: "fixed",
-          left: pos.left,
-          top: pos.top,
-          width: MINIMAL_WIDTH,
-          zIndex: 2147483647,
-          background: "#0F172A",
-          color: "#fff",
-          borderRadius: 999,
-          padding: "8px 12px",
-          boxShadow:
-            "0 10px 28px rgba(15,23,42,0.30), inset 0 0 0 1px rgba(255,255,255,0.06)",
-          fontFamily: "Inter, sans-serif",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={miniKbd}>⇧</span>
-        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 600 }}>+</span>
-        <span style={miniKbd}>⇧</span>
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.92)",
-            flex: 1,
-          }}
-        >
-          Double-tap to dictate
-        </span>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          aria-label="Dismiss"
-          style={miniCloseBtn}
-        >
-          ✕
-        </button>
-      </div>,
-      document.body
-    );
-  }
-
   return createPortal(
     <div
       ref={cardRef}
@@ -311,7 +264,7 @@ export function QuickDictateCoachMark() {
         position: "fixed",
         left: pos.left,
         top: pos.top,
-        width: FULL_WIDTH,
+        width: CARD_WIDTH,
         zIndex: 2147483647,
         background: "#0F172A",
         color: "#fff",
@@ -362,9 +315,8 @@ export function QuickDictateCoachMark() {
           color: "rgba(255,255,255,0.86)",
         }}
       >
-        <strong style={{ color: "#fff" }}>Tap Shift twice</strong> and start
-        talking. Whatever you speak lands here exactly the way you said it,
-        with clinical precision.{" "}
+        <strong style={{ color: "#fff" }}>Double-tap the Shift key</strong> and
+        start talking. Your words land right here, exactly as you said them.{" "}
         <button
           type="button"
           onClick={handleMore}
@@ -408,7 +360,13 @@ export function QuickDictateCoachMark() {
           <input
             type="checkbox"
             checked={dontShowAgain}
-            onChange={(e) => setDontShowAgain(e.currentTarget.checked)}
+            onChange={(e) => {
+              const checked = e.currentTarget.checked;
+              setDontShowAgain(checked);
+              // Persist immediately so it stays dismissed even if the doctor
+              // just clicks into another field instead of pressing "Got it".
+              if (checked) persist({ ...stateRef.current, dismissed: true });
+            }}
             data-quickdict-no-coach="true"
             style={{ width: 14, height: 14, accentColor: "#3B82F6", cursor: "pointer" }}
           />
@@ -455,23 +413,248 @@ const kbdStyle = {
   letterSpacing: "0.04em",
   fontFamily: "JetBrains Mono, SF Mono, monospace",
 };
-const miniKbd = {
-  ...kbdStyle,
-  padding: "1px 6px",
-  minWidth: 18,
-  height: 16,
-  fontSize: 10,
-};
-const miniCloseBtn = {
+
+// ── "Know more" tutorial drawer ──────────────────────────────────────────
+// Opened from the coach mark's "Know more" link via openTutorial().
+const STEPS = [
+  {
+    n: 1,
+    title: "Double-tap Shift",
+    body: "From any note field, tap ⇧ twice to open the dictation bar.",
+  },
+  {
+    n: 2,
+    title: "Just talk",
+    body: "Speak naturally. We transcribe word-for-word, no AI editing.",
+  },
+  {
+    n: 3,
+    title: "Hit ✓ to insert",
+    body: "Press ✓ or Enter. Your words drop straight into the field.",
+  },
+  {
+    n: 4,
+    title: "5 seconds to undo",
+    body: "Click ✕ to cancel. You’ve got 5 seconds to undo.",
+  },
+];
+
+export function TutorialDrawer() {
+  const { isTutorialOpen, closeTutorial } = useVoiceBar();
+
+  return (
+    <Drawer
+      title={
+        <span
+          style={{
+            fontFamily: "Mulish, sans-serif",
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#0F172A",
+          }}
+        >
+          Quick Dictator
+        </span>
+      }
+      placement="right"
+      width={400}
+      open={isTutorialOpen}
+      onClose={closeTutorial}
+      destroyOnClose={false}
+      zIndex={2147483647}
+      closeIcon={
+        <span
+          aria-hidden
+          className="qd-ico qd-ico-close-square"
+          style={{ width: 20, height: 20, color: "#334155" }}
+        />
+      }
+      styles={{
+        wrapper: {
+          boxShadow: "-8px 0 32px rgba(0,0,0,0.12)",
+        },
+        header: {
+          minHeight: 60,
+          height: 60,
+          padding: "0 20px",
+          display: "flex",
+          alignItems: "center",
+          borderBottom: "1px solid #E2E8F0",
+          boxSizing: "border-box",
+        },
+        body: {
+          padding: "24px 20px",
+        },
+        content: {
+          borderLeft: "1px solid #E2E8F0",
+        },
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <h2
+          style={{
+            margin: 0,
+            fontFamily: "Mulish, sans-serif",
+            fontSize: 18,
+            fontWeight: 700,
+            lineHeight: 1.3,
+            letterSpacing: "-0.01em",
+            color: "#0F172A",
+          }}
+        >
+          Talk through your notes in four steps.
+        </h2>
+
+        <ol
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            margin: 0,
+            padding: 0,
+            listStyle: "none",
+          }}
+        >
+          {STEPS.map((step, idx) => {
+            const isLast = idx === STEPS.length - 1;
+            return (
+              <li
+                key={step.n}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "32px 1fr",
+                  gap: 14,
+                  padding: "4px 0 16px",
+                  alignItems: "flex-start",
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    alignSelf: "stretch",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 32,
+                      height: 32,
+                      borderRadius: 8,
+                      background:
+                        "linear-gradient(135deg, #6938EF 0%, #4338CA 100%)",
+                      color: "#fff",
+                      boxShadow: "0 6px 14px -6px rgba(105,56,239,0.45)",
+                      fontFamily: "JetBrains Mono, SF Mono, monospace",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      letterSpacing: "0.02em",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {step.n}
+                  </span>
+                  {!isLast && (
+                    <span
+                      style={{
+                        flex: 1,
+                        width: 2,
+                        minHeight: 28,
+                        marginTop: 6,
+                        marginBottom: 6,
+                        backgroundImage:
+                          "linear-gradient(180deg, #CBD5E1 0%, #CBD5E1 50%, transparent 50%, transparent 100%)",
+                        backgroundSize: "2px 8px",
+                        backgroundRepeat: "repeat-y",
+                      }}
+                    />
+                  )}
+                </span>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    paddingTop: 4,
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontFamily: "Mulish, sans-serif",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      letterSpacing: "-0.005em",
+                      color: "#0F172A",
+                    }}
+                  >
+                    {step.title}
+                  </h3>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 12,
+                      lineHeight: 1.55,
+                      color: "#475569",
+                    }}
+                  >
+                    {step.body}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "14px 16px",
+            borderRadius: 12,
+            background: "#F4EFFF",
+            border: "1px solid #E0D4FF",
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={kbdBig}>⇧</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#64748B" }}>
+              +
+            </span>
+            <span style={kbdBig}>⇧</span>
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              lineHeight: 1.55,
+              fontWeight: 600,
+              color: "#2A1E5C",
+            }}
+          >
+            Try it now. Focus a notes field and double-tap Shift.
+          </span>
+        </div>
+      </div>
+    </Drawer>
+  );
+}
+
+const kbdBig = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  width: 18,
-  height: 18,
-  borderRadius: 999,
-  background: "rgba(255,255,255,0.10)",
-  color: "rgba(255,255,255,0.85)",
-  border: "none",
-  cursor: "pointer",
-  fontSize: 10,
+  minWidth: 22,
+  height: 22,
+  padding: "0 6px",
+  borderRadius: 4,
+  background: "#0F172A",
+  color: "#fff",
+  fontFamily: "JetBrains Mono, SF Mono, monospace",
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "0.04em",
 };

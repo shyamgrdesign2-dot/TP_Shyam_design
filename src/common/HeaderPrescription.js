@@ -25,11 +25,8 @@ import {
     VoiceRxModuleActionButton,
 } from '../components/dr-agent/voicerx/VoiceRxModuleCapture';
 import voiceModuleStyles from '../components/dr-agent/voicerx/VoiceRxModuleCapture.module.scss';
-import { DictationIcon, VoiceRxIcon } from '../components/dr-agent/voicerx/voice-consult-icons';
-import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncContext';
 
-import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType, trackEvent } from "../utils/utils";
-import { transcribeAnyAudio } from '../components/dr-agent/voicerx/api/agent-audio-service';
+import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, trackEvent } from "../utils/utils";
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
 import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
@@ -58,8 +55,7 @@ import { appendStripped, stripEmptyRows } from '../utils/voiceRxRowStrip';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
-import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
-import { uploadAndLogVoiceRx2, buildVoiceHistoryEntry } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { updateVoiceEditedData } from '../redux/voiceDigitizationSlice';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
 
@@ -85,32 +81,6 @@ const {
 } = ASSETS.images;
 
 var oneClickCosultationTemplateId = 0
-const HEADER_DICTATION_TARGET = "header";
-const HEADER_DICTATION_NO_INPUT_LOCATION = "no input field selected and no cursor is active";
-
-function getVoiceDictationTargetId(element) {
-    const targetNode = element?.closest?.("[data-voice-rx-dictation-target]");
-    return targetNode?.getAttribute("data-voice-rx-dictation-target") || HEADER_DICTATION_TARGET;
-}
-
-function getEditableSelection(element) {
-    if (!element || (element.tagName !== "INPUT" && element.tagName !== "TEXTAREA")) return null;
-    let selectionStart = null;
-    let selectionEnd = null;
-    try {
-        selectionStart = typeof element.selectionStart === "number" ? element.selectionStart : null;
-        selectionEnd = typeof element.selectionEnd === "number" ? element.selectionEnd : null;
-    } catch (_) {
-        selectionStart = null;
-        selectionEnd = null;
-    }
-    return {
-        element,
-        selectionStart,
-        selectionEnd,
-        targetId: getVoiceDictationTargetId(element),
-    };
-}
 
 async function getConsentForVoicePrescriptionPayload() {
     let userIp = "";
@@ -162,7 +132,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     } = useSelector((state) => state.caseManager);
     const dispatch = useDispatch();
     const isChikitsalayAccessable = useChikitsalay();
-    const { activeVoiceModule, headerDictation, setHeaderDictation } = useRxPadSync();
 
     const {customModules} = useSelector((state) => state.customModules);
 
@@ -211,18 +180,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
     const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
-    // header transcribe voice state
-    const [headerVoiceState, setHeaderVoiceStateRaw] = useState("idle"); // "idle" | "recording" | "transcribing"
-    const headerVoiceStateRef = useRef("idle");
-    const setHeaderVoiceState = useCallback((s) => { headerVoiceStateRef.current = s; setHeaderVoiceStateRaw(s); }, []);
-    const headerVoiceMediaRecorderRef = useRef(null);
-    const headerVoiceAudioChunksRef = useRef([]);
-    const headerVoiceStreamRef = useRef(null);
-    const headerVoiceLastShiftTimeRef = useRef(0);
-    const headerVoiceCursorRef = useRef(null); // { element, selectionStart, selectionEnd, targetId }
-    const headerVoiceTargetIdRef = useRef(HEADER_DICTATION_TARGET);
-    const headerVoiceInputLocationRef = useRef(HEADER_DICTATION_NO_INPUT_LOCATION);
-    const headerVoiceRecordStartMsRef = useRef(0);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const hasUngroundedMedications = medicationData.some(
       (item) => !!item?.voice_rx_from_module && !(Number(item?.tmm_id) > 0)
@@ -231,269 +188,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false, isVoiceRxNewUiFlow = false} = location.state || {};
     const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx && !isVoiceRxNewUiFlow;
-    const headerDictationTargetId = headerDictation?.targetId || HEADER_DICTATION_TARGET;
-    const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
-    const headerIconVoiceState = headerDictationTargetId === HEADER_DICTATION_TARGET ? headerVoiceState : "idle";
-    const headerVoiceDisabledByModule = !!activeVoiceModule;
-    const headerVoiceLockedByOtherSurface = headerDictationBusy && headerDictationTargetId !== HEADER_DICTATION_TARGET;
-    const headerVoiceSoftLocked = headerVoiceDisabledByModule || headerVoiceLockedByOtherSurface;
     const shouldHideLegacyVoiceRxCta = isNewPrescriptionUi;
     const shouldShowLegacyVoiceRxCta =
         !shouldHideLegacyVoiceRxCta &&
         (isFreeVoiceRxUser || tp_monetization_enable) &&
         handleGenRx &&
         !hideVoiceRxIcon;
-
-    const publishHeaderDictation = useCallback((status, targetId) => {
-        const resolvedTargetId = status === "idle"
-            ? HEADER_DICTATION_TARGET
-            : targetId || headerVoiceTargetIdRef.current || HEADER_DICTATION_TARGET;
-        setHeaderDictation({ status, targetId: resolvedTargetId });
-    }, [setHeaderDictation]);
-
-    const insertTranscriptAtCursor = useCallback((transcript, cursor) => {
-        const text = String(transcript || "");
-        const el = cursor?.element;
-        if (!text || !el || !document.contains(el) || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return false;
-        const current = el.value || "";
-        const start = typeof cursor.selectionStart === "number" ? cursor.selectionStart : current.length;
-        const end = typeof cursor.selectionEnd === "number" ? cursor.selectionEnd : start;
-        const safeStart = Math.max(0, Math.min(start, current.length));
-        const safeEnd = Math.max(safeStart, Math.min(end, current.length));
-        const newValue = current.slice(0, safeStart) + text + current.slice(safeEnd);
-        const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-        const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-        if (!nativeSetter) return false;
-        nativeSetter.call(el, newValue);
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        const newPos = safeStart + text.length;
-        try {
-            el.setSelectionRange(newPos, newPos);
-        } catch (_) {}
-        el.focus();
-        return true;
-    }, []);
-
-    const copyTranscriptToClipboard = useCallback(async (transcript) => {
-        const text = String(transcript || "").trim();
-        if (!text) return;
-        try {
-            if (navigator?.clipboard?.writeText) {
-                await navigator.clipboard.writeText(text);
-            } else {
-                const textarea = document.createElement("textarea");
-                textarea.value = text;
-                textarea.setAttribute("readonly", "");
-                textarea.style.position = "fixed";
-                textarea.style.opacity = "0";
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand("copy");
-                document.body.removeChild(textarea);
-            }
-            message.success("Transcript copied to clipboard.");
-        } catch (error) {
-            console.error("[HeaderTranscribe] clipboard copy failed", error);
-            message.warning("Transcript is ready, but it could not be copied to clipboard.");
-        }
-    }, []);
-
-    // ── Header transcribe: cursor tracking ─────────────────────────────────
-    useEffect(() => {
-        if (!isVoiceRxNewFromGB) return;
-        const onFocusIn = (e) => {
-            const selection = getEditableSelection(e.target);
-            if (selection) headerVoiceCursorRef.current = selection;
-        };
-        const onUpdateCursor = (event) => {
-            const el = document.activeElement;
-            const selection = getEditableSelection(el);
-            if (selection) {
-                headerVoiceCursorRef.current = selection;
-                return;
-            }
-            if (event?.target?.closest?.("[data-header-dictation-trigger]")) return;
-            headerVoiceCursorRef.current = null;
-        };
-        document.addEventListener('focusin', onFocusIn);
-        document.addEventListener('click', onUpdateCursor);
-        document.addEventListener('keyup', onUpdateCursor);
-        return () => {
-            document.removeEventListener('focusin', onFocusIn);
-            document.removeEventListener('click', onUpdateCursor);
-            document.removeEventListener('keyup', onUpdateCursor);
-        };
-    }, [isVoiceRxNewFromGB]);
-
-    // ── Header transcribe: start / stop recording ──────────────────────────
-    const headerVoiceStopAndTranscribe = useCallback(async () => {
-        const recorder = headerVoiceMediaRecorderRef.current;
-        if (!recorder || recorder.state === 'inactive') return;
-        const targetId = headerVoiceTargetIdRef.current || headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
-        const voiceInputLocation = headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION;
-        setHeaderVoiceState("transcribing");
-        publishHeaderDictation("transcribing", targetId);
-        const submitClickedAtMs = Date.now();
-        const submitClickedAt = new Date(submitClickedAtMs).toISOString();
-        const durationMs = submitClickedAtMs - (headerVoiceRecordStartMsRef.current || submitClickedAtMs);
-        const submitId = `header-transcribe-${submitClickedAtMs}-${Math.random().toString(36).slice(2, 8)}`;
-        dispatch(beginVoiceAttempt());
-        await new Promise((resolve) => {
-            recorder.onstop = resolve;
-            recorder.stop();
-        });
-        const stream = headerVoiceStreamRef.current;
-        if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
-        const mimeType = recorder.mimeType || "audio/webm";
-        const audioBlob = new Blob(headerVoiceAudioChunksRef.current, { type: mimeType });
-        const cursor = headerVoiceCursorRef.current;
-        try {
-            const { transcript } = await transcribeAnyAudio({ audioBlob });
-            const clinicalCompletedAtMs = Date.now();
-            if (transcript) {
-                const inserted = insertTranscriptAtCursor(transcript, cursor);
-                if (!inserted) {
-                    await copyTranscriptToClipboard(transcript);
-                }
-            }
-            uploadAndLogVoiceRx2({
-                audioBlob,
-                patientData: patient_data,
-                profile,
-                sessionId: voiceDigitization?.sessionId || submitId,
-                submitId,
-                requestId: submitId,
-                submitClickedAt,
-                submitClickedAtMs,
-                durationMs,
-                clinicalStatus: "completed",
-                mode: "dictation",
-                voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
-                moduleName: "header-dictation",
-                sourceSurface: "header",
-                voiceInputLocation,
-                isDoctorAgent: false,
-                voiceLogCreated: voiceDigitization?.voiceLogCreated,
-                markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
-                clinicalCompletedAtMs,
-            }).then(({ source }) => {
-                dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
-                    type: "AUDIO_NO_CONTEXT",
-                    source,
-                    durationMs,
-                    timeRequiredInMs: clinicalCompletedAtMs - submitClickedAtMs,
-                    conversation: transcript || "",
-                    digitize: [],
-                    isDoctorAgent: false,
-                    moduleName: "header-dictation",
-                })));
-            });
-        } catch (err) {
-            console.error('[HeaderTranscribe] transcription failed', err);
-            uploadAndLogVoiceRx2({
-                audioBlob,
-                patientData: patient_data,
-                profile,
-                sessionId: voiceDigitization?.sessionId || submitId,
-                submitId,
-                requestId: submitId,
-                submitClickedAt,
-                submitClickedAtMs,
-                durationMs,
-                clinicalStatus: "failed",
-                failedPhase: "agents-transcribe-any-audio",
-                errorMessage: err?.message || "Header voice transcription failed",
-                mode: "dictation",
-                voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
-                moduleName: "header-dictation",
-                sourceSurface: "header",
-                voiceInputLocation,
-                isDoctorAgent: false,
-                voiceLogCreated: voiceDigitization?.voiceLogCreated,
-                markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
-                clinicalCompletedAtMs: Date.now(),
-            });
-        }
-        setHeaderVoiceState("idle");
-        headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
-        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
-        publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
-    }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    const headerVoiceStartRecording = useCallback(async () => {
-        if (headerVoiceStateRef.current !== "idle") return;
-        if (activeVoiceModule) return;
-        const cursor = headerVoiceCursorRef.current;
-        const hasCursor = cursor?.element && document.activeElement === cursor.element;
-        const targetId = hasCursor ? cursor.targetId : HEADER_DICTATION_TARGET;
-        headerVoiceTargetIdRef.current = targetId;
-        headerVoiceInputLocationRef.current = hasCursor ? targetId : HEADER_DICTATION_NO_INPUT_LOCATION;
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            headerVoiceStreamRef.current = stream;
-            const mimeType = getSupportedMimeType();
-            const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-            headerVoiceAudioChunksRef.current = [];
-            recorder.ondataavailable = (e) => { if (e.data.size > 0) headerVoiceAudioChunksRef.current.push(e.data); };
-            headerVoiceMediaRecorderRef.current = recorder;
-            recorder.start();
-            headerVoiceRecordStartMsRef.current = Date.now();
-            setHeaderVoiceState("recording");
-            publishHeaderDictation("recording", targetId);
-        } catch (err) {
-            console.error('[HeaderTranscribe] mic access failed', err);
-            headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
-            headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
-            publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
-        }
-    }, [activeVoiceModule, publishHeaderDictation, setHeaderVoiceState]);
-
-    const headerVoiceCancelRecording = useCallback(() => {
-        const recorder = headerVoiceMediaRecorderRef.current;
-        if (recorder && recorder.state !== 'inactive') {
-            recorder.ondataavailable = null;
-            recorder.onstop = null;
-            try { recorder.stop(); } catch (_) {}
-        }
-        const stream = headerVoiceStreamRef.current;
-        if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
-        headerVoiceAudioChunksRef.current = [];
-        setHeaderVoiceState("idle");
-        headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
-        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
-        publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
-    }, [publishHeaderDictation, setHeaderVoiceState]);
-
-    // ── Header transcribe: keyboard triggers ───────────────────────────────
-    // double-shift → start | single shift (while recording) → submit | Esc → cancel
-    useEffect(() => {
-        if (!isVoiceRxNewFromGB) return;
-        const onKeyDown = (e) => {
-            if (e.key === 'Escape') {
-                if (headerVoiceStateRef.current === "recording") {
-                    headerVoiceCancelRecording();
-                }
-                return;
-            }
-            if (e.key !== 'Shift') return;
-            const now = Date.now();
-            if (headerVoiceStateRef.current === "recording") {
-                // any single shift while recording → submit
-                headerVoiceLastShiftTimeRef.current = 0;
-                headerVoiceStopAndTranscribe();
-                return;
-            }
-            // idle: detect double-shift to start
-            if (now - headerVoiceLastShiftTimeRef.current < 500) {
-                headerVoiceLastShiftTimeRef.current = 0;
-                headerVoiceStartRecording();
-            } else {
-                headerVoiceLastShiftTimeRef.current = now;
-            }
-        };
-        document.addEventListener('keydown', onKeyDown);
-        return () => document.removeEventListener('keydown', onKeyDown);
-    }, [isVoiceRxNewFromGB, headerVoiceStartRecording, headerVoiceStopAndTranscribe, headerVoiceCancelRecording]);
 
     const syncOrderMedicineAndInvestigation = useCallback((resolvedTcmId) => {
         const patientUniqueId = patient_data?.patient_unique_id;
@@ -2527,35 +2227,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     </Col>
                     <Col sm="auto" className="headerprescription-actions-col">
                         <div className="align-items-center d-flex h-100 headerprescription-actions">
-                        {showVoiceRxModule && (
-                                <Tooltip
-                                    placement="bottom"
-                                    title={headerIconVoiceState === "recording" ? "Recording… double-shift or click to stop" : headerIconVoiceState === "transcribing" ? "Transcribing…" : "Voice input (double-shift to start)"}
-                                    zIndex={headerOverlayZIndex}
-                                    destroyTooltipOnHide
-                                    trigger={["hover"]}
-                                    mouseLeaveDelay={0}
-                                >
-                                    <button
-                                        type="button"
-                                        data-header-dictation-trigger="true"
-                                        className={`btn align-items-center justify-content-center d-flex btn-41 me-2 ${headerIconVoiceState === "recording" ? " header-voice-recording" : headerIconVoiceState === "transcribing" ? " header-voice-transcribing" : ""} ${headerVoiceSoftLocked ? " header-voice-locked" : ""}`}
-                                        style={{ position: "relative" }}
-                                        onClick={headerVoiceSoftLocked ? undefined : headerVoiceState === "recording" ? headerVoiceStopAndTranscribe : headerVoiceState === "transcribing" ? undefined : headerVoiceStartRecording}
-                                        disabled={headerIconVoiceState === "transcribing"}
-                                        aria-disabled={headerVoiceSoftLocked || undefined}
-                                    >
-                                        {headerIconVoiceState === "transcribing" ? (
-                                            <LoadingOutlined style={{ fontSize: 20 }} />
-                                        ) : (
-                                            <VoiceRxIcon size={22} color={headerIconVoiceState === "recording" ? "#e53935" : "#673AAC"} />
-                                        )}
-                                        {headerIconVoiceState === "recording" && (
-                                            <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: "50%", background: "#e53935", animation: "headerVoicePulse 1s infinite" }} />
-                                        )}
-                                    </button>
-                                </Tooltip>
-                            )}
+                            {/* Header VoiceRx dictation icon removed — dictation is now
+                                triggered via Quick Dictator (double-Shift). */}
                             {!showVoiceRxModule && (
                                 <Popover
                                     open={popOverVideo}

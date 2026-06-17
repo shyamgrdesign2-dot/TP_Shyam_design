@@ -29,16 +29,19 @@
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 320px;
-  max-width: 420px;
-  height: 52px;
-  padding: 0 8px;
-  background: #0f172a;
-  border-radius: 12px;
-  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.38),
-    0 4px 14px rgba(0, 0, 0, 0.22),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  gap: 8px;
+  min-width: 300px;
+  max-width: min(440px, calc(100vw - 28px));
+  padding: 12px 14px;
+  /* TP slate (#171725) surface with a faint frosted blur — kept mostly
+     opaque so the blur doesn't tint the brand colour. */
+  background: rgba(23, 23, 37, 0.94);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-radius: 22px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42),
+    0 6px 18px rgba(0, 0, 0, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   color: #fff;
   font-family: inherit;
   opacity: 0;
@@ -50,8 +53,7 @@
   transform: translateY(0) scale(1);
 }
 .qd-bar-cancelled {
-  gap: 8px;
-  padding: 0 8px 0 4px;
+  gap: 10px;
 }
 
 /* ── Action buttons (✕, ✓) ───────────────────────────────────────────── */
@@ -59,11 +61,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.10);
   color: #fff;
@@ -99,18 +101,115 @@
   opacity: 1;
 }
 
+/* ── TP CDN icons ─────────────────────────────────────────────────────
+   SVGs are served (white) from the TP icon CDN. We load them as CSS masks
+   and fill with `currentColor`, so each icon inherits its context colour
+   (white on the bar, orange when muted, dark on the accept button, red/green
+   on toasts, dark on the tutorial drawer). Recolour = set `color`. */
+.qd-ico {
+  display: inline-block;
+  flex-shrink: 0;
+  /* Inherit the parent's colour — the app has a global `span` colour rule that
+     would otherwise leak in and tint these mask icons dark. */
+  color: inherit;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+.qd-ico-check {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/check-mark---tick.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/check-mark---tick.svg);
+}
+.qd-ico-close {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/close.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/close.svg);
+}
+.qd-ico-chevron {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/arrow-short-down.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/arrow-short-down.svg);
+}
+.qd-ico-mic {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/video-audio-image/microphone.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/video-audio-image/microphone.svg);
+}
+.qd-ico-mic-slash {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/video-audio-image/microphone-slash.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/video-audio-image/microphone-slash.svg);
+}
+.qd-ico-undo {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/undo-arrow.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/undo-arrow.svg);
+}
+.qd-ico-close-square {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bold/essential/close-square.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bold/essential/close-square.svg);
+}
+.qd-ico-danger {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/danger.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/danger.svg);
+}
+
 /* ── Mic switcher ────────────────────────────────────────────────────── */
 .qd-switcher-wrap {
   position: relative;
   flex-shrink: 0;
 }
-.qd-switcher {
-  gap: 2px;
-  width: auto;
-  padding: 0 6px 0 10px;
+/* Split control: mic icon (mute/unmute) | divider | caret (device accordion) */
+.qd-mic-group {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  transition: background 0.15s;
 }
-.qd-switcher-muted {
+.qd-mic-toggle,
+.qd-mic-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  border: none;
+  background: transparent;
   color: #fff;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.qd-mic-toggle {
+  padding: 0 9px;
+}
+.qd-mic-caret {
+  padding: 0 7px;
+}
+.qd-mic-toggle:hover,
+.qd-mic-caret:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.qd-mic-toggle:disabled,
+.qd-mic-caret:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.qd-mic-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 8px 0;
+  background: rgba(255, 255, 255, 0.20);
+}
+/* Muted — orange accent */
+.qd-mic-group-muted {
+  background: rgba(245, 158, 11, 0.16);
+}
+.qd-mic-group-muted .qd-mic-toggle {
+  color: #f59e0b;
+}
+.qd-mic-group-muted .qd-mic-divider {
+  background: rgba(245, 158, 11, 0.3);
 }
 .qd-chev {
   transition: transform 0.15s ease;
@@ -212,34 +311,46 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 6px 0;
+  gap: 4px;
+  padding: 2px 0;
 }
 
-/* Wave bars */
+/* Wave bars — rounded equalizer matching the VoiceRx FAB.
+   `--qd-level` (0–1) is written each animation frame from the live mic
+   level and drives bar opacity; the pulse rhythm itself is CSS-driven. */
 .qd-wave {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  gap: 2px;
-  height: 18px;
+  gap: 4px;
+  height: 22px;
   width: 100%;
 }
 .qd-wave-bar {
   width: 3px;
-  min-height: 2px;
-  border-radius: 1px;
+  height: 16px;
+  border-radius: 999px;
   background: #fff;
-  transition: height 0.06s ease-out;
+  transform: scaleY(0.45);
+  transform-origin: center;
+  opacity: calc(0.78 + var(--qd-level, 0) * 0.22);
+  animation: qd-wave-pulse 950ms ease-in-out infinite;
 }
 .qd-wave-bar-muted {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.16);
+  animation: none;
+  transform: scaleY(0.5);
+  opacity: 0.55;
+}
+@keyframes qd-wave-pulse {
+  0%, 100% { transform: scaleY(0.45); }
+  50% { transform: scaleY(1.25); }
 }
 
 /* Status line */
 .qd-status {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.01em;
   text-align: center;
   white-space: nowrap;
@@ -252,38 +363,20 @@
 }
 .qd-status-error {
   color: rgba(255, 255, 255, 0.85);
-  font-weight: 600;
+  font-weight: 400;
 }
-
-/* Animated dots */
-.qd-dots {
-  display: inline-flex;
-  gap: 2px;
-  margin-left: 2px;
-}
-.qd-dots > span {
-  display: inline-block;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: qd-dot-bounce 1.2s ease-in-out infinite;
-}
-.qd-dots > span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-.qd-dots > span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-@keyframes qd-dot-bounce {
-  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-  30% { opacity: 1; transform: translateY(-3px); }
+.qd-status-muted {
+  color: #f59e0b;
+  font-weight: 400;
 }
 
 /* ── Processing spinner ──────────────────────────────────────────────── */
+/* Shown in the signal area while transcribing; all controls stay visible
+   but disabled. */
 .qd-processing {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   font-size: 12px;
   font-weight: 600;
@@ -302,55 +395,32 @@
 }
 
 /* ── Cancel-undo row ─────────────────────────────────────────────────── */
-.qd-cancel-cell {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.qd-cancel-cell:hover {
-  background: rgba(255, 255, 255, 0.20);
-}
-.qd-cancel-mark {
-  display: inline-flex;
-}
+/* The discard button reuses `.qd-action.qd-action-cancel` so it matches the
+   cross in the active bar. */
 .qd-cancel-text {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
 }
 .qd-cancel-title {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: #fff;
-  white-space: nowrap;
-}
-.qd-cancel-sub {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.7);
   white-space: nowrap;
 }
 
 .qd-undo-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
-  height: 30px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.20);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.10);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
@@ -359,25 +429,41 @@
   transition: background 0.15s;
 }
 .qd-undo-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.18);
+}
+/* Force white against the app's global button styles. */
+.qd-undo-btn,
+.qd-undo-btn span {
+  color: #fff;
+}
+.qd-undo-btn svg {
+  stroke: #fff;
 }
 
-/* Progress track */
+/* Countdown track — pure CSS animation so it always runs the full window
+   and shrinks (reverses) toward the left over the undo period. Stuck flush
+   to the card's bottom edge (inset to clear the rounded corners). */
 .qd-undo-track {
   position: absolute;
   bottom: 0;
-  left: 12px;
-  right: 12px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 1px;
+  left: 22px;
+  right: 22px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px 999px 0 0;
   overflow: hidden;
 }
 .qd-undo-fill {
   height: 100%;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 1px;
-  transition: width 0.05s linear;
+  width: 100%;
+  background: #fff;
+  border-radius: 999px;
+  transform-origin: left center;
+  animation: qd-undo-countdown 5s linear forwards;
+}
+@keyframes qd-undo-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 
 /* ── Voice-block dim rule ────────────────────────────────────────────── */
