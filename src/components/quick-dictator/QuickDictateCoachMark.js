@@ -365,9 +365,11 @@ export function QuickDictateCoachMark() {
               setDontShowAgain(checked);
               // Persist immediately so it stays dismissed even if the doctor
               // just clicks into another field instead of pressing "Got it".
-              // Mirror the box's state both ways — unchecking after a check
-              // must revert the dismissal, not leave the previous true value.
-              persist({ ...stateRef.current, dismissed: checked });
+              // Unchecking means "show me again" — clear `dismissed` *and*
+              // reset `successes`, otherwise the >=3 auto-dismiss would still
+              // block the tip for power users.
+              if (checked) persist({ ...stateRef.current, dismissed: true });
+              else persist({ dismissed: false, successes: 0 });
             }}
             data-quickdict-no-coach="true"
             style={{ width: 14, height: 14, accentColor: "#3B82F6", cursor: "pointer" }}
