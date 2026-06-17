@@ -39,14 +39,26 @@ export function qdToast(content, { type = "success", duration = 3 } = {}) {
       color: isError ? "#dc6069" : "#52c41a",
     },
   });
+  // The success card's CSS only paints `div`s white; without an inline colour
+  // here, the app's global `span` rule would re-tint the text dark. Error
+  // toasts already force red via `.error-red div, span`, so we hand them the
+  // colour they expect.
+  const textColor = isError ? "#dc6069" : "#fff";
   return message.open({
     type: "",
     className: isError ? "error-red" : "message-appointment",
     content: React.createElement(
       "div",
-      { style: { display: "flex", alignItems: "center", gap: 8 } },
+      {
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          color: textColor,
+        },
+      },
       icon,
-      React.createElement("span", null, content)
+      React.createElement("span", { style: { color: textColor } }, content)
     ),
     duration,
   });
