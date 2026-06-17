@@ -103,57 +103,13 @@ const getMedicineReferenceId = (item) => {
   return String(refId).trim();
 };
 
-ApiMedication.enrichMedicinesWithReferenceId = async function (medicines) {
-  return Promise.all(
-    medicines.map(async (item) => {
-      if (getMedicineReferenceId(item)) {
-        return item;
-      }
-
-      const name = String(item?.tmm_medicine_name ?? "").trim();
-      if (!name) {
-        return item;
-      }
-
-      try {
-        const result = await ApiMedication.getFuzzySearch(name, 5);
-        const rows = Array.isArray(result) ? result : result ? [result] : [];
-        const match =
-          rows.find((row) => String(row?.tmm_id) === String(item?.tmm_id)) ||
-          rows[0];
-
-        if (!getMedicineReferenceId(match)) {
-          return item;
-        }
-
-        return {
-          ...item,
-          reference_id: match.reference_id ?? match.referenceId,
-          objectID: match.objectID ?? item.objectID,
-          tmm_hm_type: match.tmm_hm_type ?? item.tmm_hm_type,
-          um_id: match.um_id ?? item.um_id,
-        };
-      } catch {
-        return item;
-      }
-    })
-  );
-};
-
 ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
-  const hasMissingReferenceId = searchResults.some(
-    (item) => !getMedicineReferenceId(item)
-  );
-  const items = hasMissingReferenceId
-    ? await ApiMedication.enrichMedicinesWithReferenceId(searchResults)
-    : searchResults;
-
-  const referenceIds = items
+  const referenceIds = searchResults
     .map((item) => getMedicineReferenceId(item))
     .filter((id) => id !== "");
 
   if (referenceIds.length === 0) {
-    return items;
+    return searchResults;
   }
 
   const applyNoStock = (list) =>
@@ -182,7 +138,7 @@ ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
       invRows.map((row) => [getInventoryReferenceKey(row), row])
     );
 
-    return items.map((item) => {
+    return searchResults.map((item) => {
       const refId = getMedicineReferenceId(item);
       if (!refId) {
         return item;
@@ -196,7 +152,7 @@ ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
       };
     });
   } catch (e) {
-    return applyNoStock(items);
+    return applyNoStock(searchResults);
   }
 };
 

@@ -2514,7 +2514,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     });
     const sendData = {
       patient_unique_id: record !== undefined ? record.patient_unique_id : 0,
-      tcm_id: record?.tcm_id
+      tcm_id: record?.tcm_id,
+      isChikitsalayAccessable
     }
     const action = await dispatch(viewCaseManager(sendData));
     if (action.meta.requestStatus === "fulfilled") {
