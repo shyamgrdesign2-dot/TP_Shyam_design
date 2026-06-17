@@ -206,7 +206,7 @@ const ConsultationSidebar = ({
         })}
         
         {/* AI Buttons at bottom or end */}
-        {(tp_monetization_enable || isFreeVoiceRxUser) && (
+        {/* {(tp_monetization_enable || isFreeVoiceRxUser) && (
           <button
             type="button"
             className={`nav-item ai-item ${collapsedFlag === 10 ? "active" : ""}`}
@@ -219,7 +219,7 @@ const ConsultationSidebar = ({
               <label className="item-label">Voice Rx</label>
             </div>
           </button>
-        )}
+        )} */}
       </div>
 
       <Sider

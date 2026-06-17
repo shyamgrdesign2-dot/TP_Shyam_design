@@ -140,9 +140,6 @@ export function DentalInlineView({
           paddingBottom: PX_TO_PT * 4,
         }}
       >
-        <View style={{ marginRight: 6 }}>
-          <ToothIconPdf size={14} color="#171725" />
-        </View>
         <Text
           style={{
             color: "#171725",

@@ -912,6 +912,10 @@ export const ASSETS = {
   dental: {
     dragHandle: `${BASE_URL}/images/drag-handle.svg`,
     tutorial: `${BASE_URL}/images/tutorial-dental-preview.png`,
+    /** Front-view odontogram PNG/WebP per FDI — use `getToothImageUrl(fdi)` for dynamic paths. */
+    teeth: {
+      base: `${BASE_URL}/images/teeth`,
+    },
     models: {
       implant: `${BASE_URL}/3d/implant.glb`,
       tooth11: `${BASE_URL}/3d/tooth_11.glb`,
@@ -967,3 +971,13 @@ export const ASSETS = {
     welcome: `${BASE_URL}/scss/welcome.scss`,
   },
 };
+
+/** Front-view odontogram image for a permanent tooth FDI code (e.g. `"11"` → `…/images/teeth/11.webp`). */
+export function getToothImageUrl(fdi, ext = "webp") {
+  return `${ASSETS.dental.teeth.base}/${fdi}.${ext}`;
+}
+
+/** Primary + fallback extensions when loading odontogram images. */
+export function getToothImageCandidates(fdi) {
+  return [getToothImageUrl(fdi, "webp"), getToothImageUrl(fdi, "png")];
+}

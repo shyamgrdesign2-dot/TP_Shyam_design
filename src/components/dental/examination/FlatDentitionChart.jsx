@@ -11,6 +11,7 @@
 // teeth are dimmed. The FDI number under each tooth is also colour-coded.
 
 import { useEffect, useRef, useState } from "react";
+import { getToothImageCandidates } from "../../../assets";
 import { ORAL_POSITION_LABEL } from "./types";
 import { QuickSurfaceSelector } from "./QuickSurfaceSelector";
 import fdc from "./FlatDentitionChart.module.scss";
@@ -192,8 +193,8 @@ function Tooth({ fdi, slotX, top, upper, st }) {
 }
 
 // Compact PNG-based tooth cell for the Rx dental chart. Uses the captured
-// front-view images (/teeth/<fdi>.png); teeth with recorded data are
-// highlighted with a violet ring + violet number.
+// front-view images (Azure blob: images/teeth/<fdi>.webp); teeth with recorded
+// data are highlighted with a violet ring + violet number.
 // Flex weight per tooth ≈ its width/height aspect, so cells size proportionally
 // and every tooth renders at the SAME height (molars get wider cells, so they
 // no longer look small). The row uses width:100%, so it always fits the page.
@@ -201,15 +202,7 @@ function Tooth({ fdi, slotX, top, upper, st }) {
 // renders at the SAME height (cells size proportionally) and the row fits width.
 const TOOTH_ASPECT = { "11": 0.371, "12": 0.371, "13": 0.341, "14": 0.354, "15": 0.373, "16": 0.505, "17": 0.513, "18": 0.515, "21": 0.371, "22": 0.371, "23": 0.341, "24": 0.354, "25": 0.373, "26": 0.505, "27": 0.513, "28": 0.515, "31": 0.3, "32": 0.287, "33": 0.307, "34": 0.334, "35": 0.342, "36": 0.668, "37": 0.55, "38": 0.658, "41": 0.3, "42": 0.287, "43": 0.307, "44": 0.334, "45": 0.342, "46": 0.668, "47": 0.55, "48": 0.658 };
 function toothCellAspect(fdi) { return TOOTH_ASPECT[fdi] || 0.45; }
-const STATIC_ASSET_BASE = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
-const toothCandidates = (fdi) => ([
-  `${STATIC_ASSET_BASE}/teeth/${fdi}.webp`,
-  `/teeth/${fdi}.webp`,
-  `teeth/${fdi}.webp`,
-  `${STATIC_ASSET_BASE}/teeth/${fdi}.png`,
-  `/teeth/${fdi}.png`,
-  `teeth/${fdi}.png`,
-]).filter(Boolean);
+const toothCandidates = (fdi) => getToothImageCandidates(fdi);
 
 // Widest half-arch aspect-sum (lower arch) — used to size a uniform tooth
 // height that still lets the widest row fit the available width.

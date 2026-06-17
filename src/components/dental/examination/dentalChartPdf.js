@@ -6,6 +6,7 @@
  */
 import React from "react";
 import { View, Text, Image, Svg, Path, Circle, G } from "@react-pdf/renderer";
+import { getToothImageCandidates } from "../../../assets";
 import {
   grayscaleToothPngDataUrl,
   outlineToothPngDataUrl,
@@ -78,15 +79,7 @@ async function blobToPngDataUrl(blob) {
 }
 
 function toothAssetUrls(fdi) {
-  if (typeof window === "undefined") return [];
-  const origin = window.location.origin;
-  const publicBase = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
-  return [
-    `${origin}${publicBase}/teeth/${fdi}.webp`,
-    `${origin}/teeth/${fdi}.webp`,
-    `${origin}${publicBase}/teeth/${fdi}.png`,
-    `${origin}/teeth/${fdi}.png`,
-  ];
+  return getToothImageCandidates(fdi);
 }
 
 /** In-memory cache so PDF rebuilds (e.g. consultation prev/next) do not re-fetch 32 teeth. */

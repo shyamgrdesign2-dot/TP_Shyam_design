@@ -340,9 +340,9 @@ const ConsultationHeader = ({
         </button>
 
         {/* Notes/Letterhead */}
-        <button className="icon-btn" onClick={handleSelectLetterHead}>
+        {/* <button className="icon-btn" onClick={handleSelectLetterHead}>
             <img src={notesMultiple} alt="Notes" />
-        </button>
+        </button> */}
 
         {showTeleconsultIcon && (
             <Tooltip title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"}>
