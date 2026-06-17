@@ -29,6 +29,7 @@ import {
   Modal,
   Spin,
   Tour,
+  Tooltip,
 } from "antd";
 import { Row, Col, ButtonGroup } from "react-bootstrap";
 import dayjs from "dayjs";
@@ -46,6 +47,7 @@ import {
   shouldMonetizationDisabled,
   handleAdmitToIpd,
   getDraftMoengageDoctorAttributes,
+  isValidMongoId,
 } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import {
@@ -87,6 +89,12 @@ import {
   PATIENT_DETAILS_SIDEBAR_KEYS,
   GB_TAB_RX_CVT,
   GB_VOICE_RX_FREE,
+  GB_VOICE_RX_NEW_UI,
+  TAB_CLINIC_QUEUE,
+  TAB_CLINIC_APPOINTMENT,
+  CLINIC_TARGET_STATUS,
+  GB_CVT_EXT_HOS,
+  GB_MANYA_DENTAL,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -121,6 +129,8 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { changeSortOrder } from "../redux/doctorsSlice";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
+import ApiCaseManager from "../api/services/ApiCaseManager";
+import { getGenRx } from "../api/services/ApiGenRx";
 import {
   setAppointmentTeleconsultStatus,
   setJoinToken,
@@ -168,12 +178,16 @@ import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import AbhaDrawer from "./abha/AbhaDrawer";
 import OphthalmologyExamDrawer from "./ophthalmology/OphthalmologyExamDrawer";
+import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import { clearAbhaDetails } from "../redux/abhaSlice";
 import {
   resetOpthalForm,
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import { clinicTargetStatus, generateClinicToken } from "../pages/chikitsalay/service";
+import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
 const {
   endVisit: visitEnd,
@@ -201,6 +215,7 @@ const { TextArea } = Input;
 
 const dateFormat = "YYYY-MM-DD";
 const showDateFormat = "DD-MM-YYYY";
+const FINISHED_PRINT_MESSAGE_KEY = "finished-print-rx-generate";
 
 function AppointmentData({ locationPath, appointmentAgentsData }) {
   const navigate = useNavigate();
@@ -213,12 +228,23 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const { isLoading } = useSelector((state) => state.uploadDoc);
   const { advancedSettings } = useSelector((state) => state.billing);
   const { isOpdBillingAccessable } = useOpdBilling();
+  const isChikitsalayAccessable = useChikitsalay();
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
   const [modalOpen, setModalOpen] = useState(false);
+  const isManyaDentalAccessableFromGB = useFeatureIsOn(GB_MANYA_DENTAL);
+
+  useEffect(() => {
+    if (!isChikitsalayAccessable) return;
+    const existingClinicToken =
+      localStorage.getItem("visitClinicToken");
+    if (existingClinicToken) return;
+    generateClinicToken();
+  }, [isChikitsalayAccessable]);
 
   const {
     queueCount,
+    clinicQueueCount,
     finishedCount,
     cancelledCount,
     zydusEncounterCount,
@@ -254,6 +280,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isAppointmentAgentAccessableFromGB =
@@ -320,7 +347,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [agentsData, setAgentsData] = useState(null);
   const [isAgentsLoading, setIsAgentsLoading] = useState(false);
-  const [selectedTab, setSelectedTab] = useState(TAB_QUEUE);
+  const [selectedTab, setSelectedTab] = useState(isChikitsalayAccessable ? TAB_CLINIC_QUEUE : TAB_QUEUE);
   const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
   const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
 
@@ -421,8 +448,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const getAllDocumentCategories = useCallback(async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
-  }, [dispatch]);
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
+  }, [dispatch, isChikitsalayAccessable]);
 
   const handleFileUpload = (event, record) => {
     const files = event.target.files;
@@ -473,11 +502,76 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     GB_NEW_IPD_HOS_BUSINESS_ID
   );
   const isAppointmentSequenceFromGB = useFeatureIsOn(GB_APPT_SEQUENCE);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const [pendingFinishedPrint, setPendingFinishedPrint] = useState(null);
+  const [hasFinishedPrintGenerationStarted, setHasFinishedPrintGenerationStarted] = useState(false);
 
   const baseUrl = env.casemanager_api_url;
   const snapRxDigitizationUrl = env.snap_rx_api_url;
   const customBaseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
+
+  const finishedPrintSelectedLang = useMemo(() => {
+    if (!pendingFinishedPrint?.selectedLang) return undefined;
+    try {
+      return Number(atob(pendingFinishedPrint.selectedLang));
+    } catch (error) {
+      return undefined;
+    }
+  }, [pendingFinishedPrint?.selectedLang]);
+
+  const {
+    printBlob: finishedPrintBlob,
+    isGenerating: isFinishedPrintGenerating,
+    error: finishedPrintError,
+  } = usePrintPayloadPdf({
+    printUrl: pendingFinishedPrint?.printUrl || null,
+    selectedLang: finishedPrintSelectedLang,
+    isGynaecHistoryAccessable: false,
+    payloadOverride: null,
+    skipFetch: !pendingFinishedPrint?.printUrl || pendingFinishedPrint?.printChannel === "in_app",
+    isCvtExtHosAccessableFromGB,
+    patientId: pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    tcmId: pendingFinishedPrint?.caseManagerData?.tcm_id,
+  });
+
+  useEffect(() => {
+    if (pendingFinishedPrint?.printChannel !== "browser") return;
+    if (isFinishedPrintGenerating) {
+      setHasFinishedPrintGenerationStarted(true);
+    }
+  }, [pendingFinishedPrint?.printChannel, isFinishedPrintGenerating]);
+
+  useEffect(() => {
+    if (!pendingFinishedPrint || pendingFinishedPrint.printChannel !== "browser") return;
+    if (!hasFinishedPrintGenerationStarted || isFinishedPrintGenerating) return;
+
+    if (finishedPrintBlob instanceof Blob) {
+      message.destroy(FINISHED_PRINT_MESSAGE_KEY);
+      const blobURL = URL.createObjectURL(finishedPrintBlob);
+      window.open(blobURL, "_blank");
+      setPendingFinishedPrint(null);
+      setHasFinishedPrintGenerationStarted(false);
+      return;
+    }
+
+    if (finishedPrintError) {
+      message.open({
+        key: FINISHED_PRINT_MESSAGE_KEY,
+        type: "error",
+        content: "Failed to generate PDF.",
+        duration: 2,
+      });
+      setPendingFinishedPrint(null);
+      setHasFinishedPrintGenerationStarted(false);
+    }
+  }, [
+    pendingFinishedPrint,
+    hasFinishedPrintGenerationStarted,
+    isFinishedPrintGenerating,
+    finishedPrintBlob,
+    finishedPrintError,
+  ]);
 
   const handleClickOutside = (event) => {
     if (!consultButtonRef?.current?.contains(event.target)) {
@@ -589,7 +683,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         </div>
       ),
     },
-    isSaveAsDraftRxAccessableFromGB && {
+    isSaveAsDraftRxAccessableFromGB &&
+      !isCvtExtHosAccessableFromGB && {
       key: TAB_DRAFT_RX,
       label: (
         <div className="d-flex align-items-center">
@@ -618,19 +713,40 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     },
   ]);
 
+  // Compute the actual number of visible zydus appointment rows (mirrors Table dataSource filter)
+  const zydusAppointmentVisibleCount = useMemo(() => {
+    if (statusFilters.length > 0 && selectedTab === TAB_ZYDUS_APPOINTMENT) {
+      return matchedAppointment.filter((item) =>
+        statusFilters.includes(item.appointmentStatus)
+      ).length;
+    }
+    return zydusAappointmentCount;
+  }, [matchedAppointment, statusFilters, selectedTab, zydusAappointmentCount]);
+
   // UseEffect to update items when pendingDigitisation changes
   useEffect(() => {
     const updatedItems = [
-      {
-        key: TAB_QUEUE,
+      ...(isChikitsalayAccessable ? [{
+        key: TAB_CLINIC_APPOINTMENT,
         label: (
           <div className="d-flex align-items-center">
             <i className="icon-Queue"></i>
-            Queue ({isDigitisationTab ? 0 : queueCount})
+            Appointment ({isDigitisationTab ? 0 : queueCount})
+            {/* ({appointmentCount}) */}
+          </div>
+        ),
+      }] : []),
+      {
+        key: isChikitsalayAccessable ? TAB_CLINIC_QUEUE : TAB_QUEUE,
+        label: (
+          <div className="d-flex align-items-center">
+            <i className="icon-Queue"></i>
+            Queue ({isChikitsalayAccessable ? clinicQueueCount : isDigitisationTab ? 0 : queueCount})
           </div>
         ),
       },
-      isSaveAsDraftRxAccessableFromGB && {
+      isSaveAsDraftRxAccessableFromGB &&
+        !isCvtExtHosAccessableFromGB && {
         key: TAB_DRAFT_RX,
         label: (
           <div className="d-flex align-items-center">
@@ -663,7 +779,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
     // Conditionally add the Pending Digitisation tab
     if (
-      (isSmartSyncCVTAccessableFromGB || isSnapRxDigitizationAccessable) &&
+      (isSmartSyncCVTAccessableFromGB || isSnapRxDigitizationAccessable || isTabRxCVTAccessableFromGB) &&
       unDigitizedUnReviewedIdsLength > 0
     ) {
       updatedItems.push({
@@ -671,7 +787,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         label: (
           <div className="d-flex align-items-center">
             <i className="icon-Report"></i>
-            Pending Digitisation ({unDigitizedUnReviewedIdsLength})
+            {/* Pending Digitisation ({unDigitizedUnReviewedIdsLength}) */}
+            Pending Digitisation
           </div>
         ),
       });
@@ -691,7 +808,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             <div className="d-flex align-items-center">
               <i className="icon-Queue"></i>
               Appointment{" "}
-              {zydusAappointmentCount ? `(${zydusAappointmentCount})` : ""}
+              {zydusAppointmentVisibleCount ? `(${zydusAppointmentVisibleCount})` : ""}
             </div>
           ),
         },
@@ -718,6 +835,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     isZydusUserAccessableFromGB,
     isSmartSyncCVTAccessableFromGB,
     isSnapRxDigitizationAccessable,
+    isTabRxCVTAccessableFromGB,
+    isCvtExtHosAccessableFromGB,
+    isSaveAsDraftRxAccessableFromGB,
+    draftRxCount,
+    selectedTab,
+    zydusAppointmentVisibleCount,
   ]);
 
   const [isDigitisationTab, setIsDigitisationTab] = useState(false);
@@ -732,6 +855,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       setSelectedTab(TAB_ZYDUS_ENCOUNTER);
     }
   }, [isZydusUserAccessableFromGB]);
+
+  useEffect(() => {
+    if (isCvtExtHosAccessableFromGB && selectedTab === TAB_DRAFT_RX) {
+      setSelectedTab(TAB_QUEUE);
+    }
+  }, [isCvtExtHosAccessableFromGB, selectedTab]);
 
   const calanderOptions = [
     { value: 1, label: "Today" },
@@ -783,6 +912,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       setFirstSymptomIndex(firstIndex);
     }
   }, [appointmentsData, matchedAppointment, selectedTab]);
+
 
   const decodedToken = getDecodedToken();
   const isAdmin = decodedToken?.result?.admin;
@@ -1501,6 +1631,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       patient_id: record?.patient_unique_id,
     });
     goToPatientDetails(record, "/prescription");
+    if (isChikitsalayAccessable) {
+      clinicTargetStatus(record?.pam_id, {
+        targetStatus: CLINIC_TARGET_STATUS.SERVING,
+      });
+    }
   };
 
   const onPatientDetailsClick = async (record) => {
@@ -2071,6 +2206,145 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     return urlObj.toString();
   };
 
+  const encodePrintLanguage = (language) => {
+    return language && language !== "English" ? btoa(language.toString()) : "";
+  };
+
+  const getConsultationsFromResponse = (response) => {
+    const payload = response?.data ?? response;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.consultations)) return payload.consultations;
+    if (Array.isArray(payload?.data?.consultations)) return payload.data.consultations;
+    return [];
+  };
+
+  const hasVoiceConversation = (conversation) => {
+    if (Array.isArray(conversation)) return conversation.length > 0;
+    return typeof conversation === "string" && conversation.trim() !== "";
+  };
+
+  const getVoiceRxPrintPayloadMeta = async (recordId) => {
+    const defaultMeta = {
+      shouldUseVoiceRxPrintPayload: false,
+      isAmbientVoiceRx: false,
+    };
+    if (!recordId) return defaultMeta;
+    try {
+      const response = await getGenRx(recordId);
+      const payload = response?.data ?? response?.response;
+      const history = Array.isArray(payload) ? payload : (Array.isArray(payload?.history) ? payload.history : []);
+      const version = typeof payload?.version === "string"
+        ? payload.version.trim().toLowerCase()
+        : "legacy";
+      const isAmbientVoiceRx = Boolean(
+        payload?.isAmbientVoiceRxDigitizeBool ||
+          payload?.ambientVoiceRxDigitizeEditedData ||
+          history.some((item) => hasVoiceConversation(item?.conversation))
+      );
+      return {
+        shouldUseVoiceRxPrintPayload: version !== "v3",
+        isAmbientVoiceRx,
+      };
+    } catch (error) {
+      console.error("Failed to identify VoiceRx print payload type:", error);
+      return defaultMeta;
+    }
+  };
+
+  const getSmartPrescriptionFilename = (caseManagerData) => {
+    const filename = caseManagerData?.smart_prescription_filename;
+    return Array.isArray(filename) ? filename.find(Boolean) : filename;
+  };
+
+  const buildFinishedPrintUrl = ({
+    caseManagerData,
+    latestConsultation,
+    record,
+    selectedLang,
+    shouldUseVoiceRxPrintPayload = false,
+    isAmbientVoiceRx = false,
+  }) => {
+    const basePrintUrl =
+      caseManagerData?.print_url ||
+      caseManagerData?.print_rx_url ||
+      record?.print_rx_url;
+
+    if (!basePrintUrl) return null;
+
+    const urlObj = new URL(basePrintUrl, window.location.origin);
+    const resolvedPamId =
+      caseManagerData?.pam_id ??
+      latestConsultation?.pam_id ??
+      record?.pam_id ??
+      caseManagerData?.appointmentId ??
+      latestConsultation?.appointmentId;
+    if (resolvedPamId) {
+      urlObj.searchParams.set("pam_id", resolvedPamId);
+    }
+
+    if (shouldUseVoiceRxPrintPayload) {
+      if (isAmbientVoiceRx) {
+        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+        urlObj.searchParams.set("voiceRxDigitize", "false");
+      } else {
+        urlObj.searchParams.delete("ambientVoiceRxDigitize");
+        urlObj.searchParams.set("voiceRxDigitize", "true");
+      }
+      urlObj.searchParams.set("rxDigitize", "false");
+    } else {
+      urlObj.searchParams.delete("ambientVoiceRxDigitize");
+    }
+
+    urlObj.searchParams.set("lg", selectedLang || "");
+    return urlObj.toString();
+  };
+
+  const resolveLatestFinishedPrintUrl = async (record, selectedLang) => {
+    const patientUniqueId = record?.patient_unique_id;
+    if (!patientUniqueId) {
+      throw new Error("Patient unique ID is missing.");
+    }
+
+    const consultationsResponse = await ApiCaseManager.listConsultations({
+      patient_unique_id: patientUniqueId,
+      limit: 10,
+      page: 1,
+    });
+    const consultations = getConsultationsFromResponse(consultationsResponse);
+    const latestConsultation = consultations?.[0];
+    const latestTcmId = latestConsultation?.tcm_id;
+    if (!latestTcmId) {
+      throw new Error("Latest consultation not found.");
+    }
+
+    const caseManagerResponse = await ApiCaseManager.viewCaseManager({
+      patient_unique_id: patientUniqueId,
+      tcm_id: latestTcmId,
+    });
+    if (caseManagerResponse?.status === false) {
+      throw new Error(caseManagerResponse?.error || "Failed to fetch prescription.");
+    }
+    const caseManagerData = caseManagerResponse?.data ?? caseManagerResponse;
+    const smartPrescriptionFilename = getSmartPrescriptionFilename(caseManagerData);
+    const voiceRxPrintPayloadMeta = isValidMongoId(smartPrescriptionFilename)
+      ? await getVoiceRxPrintPayloadMeta(smartPrescriptionFilename)
+      : {
+          shouldUseVoiceRxPrintPayload: false,
+          isAmbientVoiceRx: false,
+        };
+    const printUrl = buildFinishedPrintUrl({
+      caseManagerData,
+      latestConsultation,
+      record,
+      selectedLang,
+      ...voiceRxPrintPayloadMeta,
+    });
+    if (!printUrl) {
+      throw new Error("Print URL is missing.");
+    }
+    return { printUrl, caseManagerData, latestConsultation };
+  };
+
   const getPatientDefaultLanguage = async (record) => {
     const res = await fetchPatientDefaultLanguage(
       record?.patient_unique_id
@@ -2090,13 +2364,51 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
     const patientDefaultLanguage = await getPatientDefaultLanguage(record);
-    const encodedData = patientDefaultLanguage !== "English" ? btoa(patientDefaultLanguage.toString()) : "";
+    const encodedData = encodePrintLanguage(patientDefaultLanguage);
+
+    if (selectedTab === TAB_FINISHED) {
+      const printChannel = !isChrome && !isSafari ? "in_app" : "browser";
+      try {
+        const { printUrl, caseManagerData, latestConsultation } =
+          await resolveLatestFinishedPrintUrl(record, encodedData);
+
+        if (printChannel === "in_app") {
+          sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+          return;
+        }
+
+        message.open({
+          key: FINISHED_PRINT_MESSAGE_KEY,
+          type: "loading",
+          content: "Preparing PDF...",
+          duration: 0,
+        });
+        setHasFinishedPrintGenerationStarted(false);
+        setPendingFinishedPrint({
+          printUrl,
+          selectedLang: encodedData,
+          printChannel,
+          record,
+          caseManagerData,
+          latestConsultation,
+        });
+      } catch (error) {
+        message.open({
+          key: FINISHED_PRINT_MESSAGE_KEY,
+          type: "error",
+          content: error?.message || "Failed to open prescription.",
+          duration: 2,
+        });
+      }
+      return;
+    }
+
     if (record.print_rx_url) {
       const printUrl = await updateRxDigitizeInUrl(record);
       if (!isChrome && !isSafari) {
         // navigate(`/?url=${printUrl}&lg=${encodedData}&key=print`, { replace: true });
         // navigate(0, { replace: true });
-        sendMessageToParent(EVENTS.PRINT, { url: `${record.print_rx_url}&lg=${encodedData}` });
+        sendMessageToParent(EVENTS.PRINT, { url: `${printUrl}&lg=${encodedData}` });
       } else {
         await window.open(`${printUrl}&lg=${encodedData}`);
       }
@@ -2215,11 +2527,20 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     });
     const sendData = {
       patient_unique_id: record !== undefined ? record.patient_unique_id : 0,
-      tcm_id: record?.tcm_id
+      tcm_id: record?.tcm_id,
+      isChikitsalayAccessable
     }
     const action = await dispatch(viewCaseManager(sendData));
     if (action.meta.requestStatus === "fulfilled") {
-        navigate("/prescription", { state: { patient_data: record, caseManagerData: action.payload } })
+        navigate("/prescription", {
+          state: {
+            patient_data: record,
+            caseManagerData: action.payload,
+            ...(shouldUseNewPrescriptionUi(action.payload, isVoiceRxNewFromGB)
+              ? { isVoiceRxNewUiFlow: true }
+              : {}),
+          },
+        });
     }
   };
 
@@ -2345,9 +2666,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               ? record.toct_type
               : record.appointmentStatus}
               <br />{" "}
-              <small> {record.pt_name || "--"}</small>
+              <small> {isManyaDentalAccessableFromGB ? record.appointment_pt_name || "--" : record.pt_name || "--"}</small>
           </div>
-          {advancedSettings?.billingStatusInAppointmentScreen &&
+          {!isCvtExtHosAccessableFromGB &&
+            advancedSettings?.billingStatusInAppointmentScreen &&
             record.billStatus && (
               <div
                 className={`bill-status ${
@@ -2357,6 +2679,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                 {record.billStatus}
               </div>
             )}
+            <div className="d-flex py-1">
+            {record.pam_appointment_remark && <Tooltip
+                placement="right"
+                title={record.pam_appointment_remark}
+            >
+              <i className="icon-info ms-1" style={{fontSize: "18px"}}></i>
+            </Tooltip>}
+            </div>
         </div>
       ),
     },
@@ -2495,7 +2825,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         );
       },
     },
-    {
+    ...(!(isChikitsalayAccessable && selectedTab === TAB_CLINIC_APPOINTMENT) ? [{
       title: selectedTab != TAB_ZYDUS_APPOINTMENT ? "Action" : "",
       key: "action",
       width: 200,
@@ -2505,7 +2835,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             size="middle"
             style={{ display: "flex", justifyContent: "space-between" }}
           >
-            {selectedTab === TAB_DRAFT_RX ? (
+            {(selectedTab === TAB_CLINIC_QUEUE && isChikitsalayAccessable) ? 
+              <button
+              className="btn btn-outline-primary btn-resume-draft-rx"
+              onClick={() => onConsultClick(record)}
+              >
+                Consult
+              </button>
+             : selectedTab === TAB_DRAFT_RX ? (
               <button
                 className="btn btn-outline-primary btn-resume-draft-rx"
                 onClick={() => handleResumeDraftRx(record)}
@@ -2516,7 +2853,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) &&
             shouldShowVoiceRx() &&
             selectedTab != TAB_ZYDUS_ENCOUNTER ? (
-              (isDigitisationTab && (isSnapRxDigitizationAccessable || isSmartSyncAccessableFromGB)) ? (
+              (isDigitisationTab && (isSnapRxDigitizationAccessable || isSmartSyncAccessableFromGB || isTabRxCVTAccessableFromGB)) ? (
                 ["snap-rx", "tab-rx"].includes(
                   getUnDigitisedAppointmentMeta(record)?.source
                 ) &&
@@ -2720,7 +3057,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             )}
             {!isDigitisationTab &&
               selectedTab != TAB_ZYDUS_ENCOUNTER &&
-              selectedTab != TAB_ZYDUS_APPOINTMENT && (
+              selectedTab != TAB_ZYDUS_APPOINTMENT && 
+              !isCvtExtHosAccessableFromGB && (
                 <Dropdown
                   className="btn btn-outline btn-more ms-3 d-flex align-items-center"
                   menu={{
@@ -2740,7 +3078,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               )}
           </div>
         ) : null,
-    },
+    }] : []),
   ];
 
   const handleChange = (pagination, filters, sorter, extra) => {
@@ -3298,11 +3636,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       source: selectedTab === TAB_ZYDUS_ENCOUNTER ? "Encounter" : "Appt Landing",
     });
     
-    // Navigate to Voice Rx Doctor Consult Page
-    navigate("/voice-rx-consult", {
+    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
       state: { 
         patient_data: record,
-        isFromTabView: isMobile
+        isFromTabView: isMobile,
+        ...(isVoiceRxNewFromGB && {
+          isVoiceRxNewUiFlow: true,
+          voiceRxEntryPoint: selectedTab === TAB_ZYDUS_ENCOUNTER ? "zydus_encounter" : "appointment_landing",
+        }),
       },
     });
   };
@@ -3318,7 +3659,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) ? (
+            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) && !isCvtExtHosAccessableFromGB ? (
               <div
                 className="receptionist-setup-button"
                 onClick={onAppointmentAgentClick}

@@ -16,6 +16,7 @@ import {
     deleteTemplate,
     getInvestigationTemplates,
     getFrequentlySearchedInvestigation,
+    singleTemplateDetails,
 } from "../../redux/investigationSlice";
 
 import TabInvestigationSearch from "../../components/tab_design/TabInvestigationSearch";
@@ -24,6 +25,7 @@ import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import DifferentialDiagnosis from "../DifferentialDiagnosis";
 import { setIsLabTestBox } from "../../redux/ddxSlice";
 import { INVESTIGATION_TITLE } from "../../utils/constants";
+import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 import { ASSETS } from "../../assets";
 const {
   alerticon: alertIcon,
@@ -31,6 +33,7 @@ const {
 } = ASSETS.images;
 
 function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
+    const isChikitsalayAccessable = useChikitsalay();
 
     const {
         selectedInvestigationList,
@@ -199,15 +202,23 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
         }
     };
 
-    const onTemplateSelected = (template) => {
+    const onTemplateSelected = async (template) => {
         window.Moengage.track_event("investigation_template_used", {
             "template_name": template.tit_template_name
         });
-        const updatedData = template.investigation.map(e => {
-            return { ...e, unique_id: uuidv4(), note: e.note ? e.note : "" }
-        })
-        setInvestigationData([...investigationData, ...updatedData]);
-        handleDrawerTemplate();
+        const action = await dispatch(singleTemplateDetails(template.tit_id));
+        if (action.meta.requestStatus === "fulfilled") {
+            const rows = Array.isArray(action.payload) ? action.payload : [];
+            const updatedData = rows.map((e) => ({
+                ...e,
+                unique_id: uuidv4(),
+                note: e.note ? e.note : "",
+            }));
+            setInvestigationData([...investigationData, ...updatedData]);
+            handleDrawerTemplate();
+        } else {
+            errorMessage(action.error);
+        }
     };
 
     const onDeleteTemplateClicked = async (tit_id) => {
@@ -342,31 +353,45 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
     //     );
     // }, [investigationData]);
 
-    const SortableItem = SortableElement(({ item }) => (
-        <div
-            style={{
-                width: item.investigation_name.length > 12 && item.investigation_name.length < 24
-                    ? `${item.investigation_name.length * 10.5}px`
-                    : item.investigation_name.length >= 24
-                        ? '256px'
-                        : '150px'
-            }}
-            className={"d-flex align-items-center justify-content-between text-truncate closable-chips closable-chips-active"}
-        >
-            <div className="text-truncate p-2" onClick={() => handleDrawerChild(item)}>
-                <div className="text-truncate">{item.investigation_name}
-                    {item.note ? (
-                        <div className="text-truncate small">{item.note}</div>
-                    ) : (
-                        <div className="text-truncate small">Add Details</div>
-                    )}
+    const SortableItem = SortableElement(({ item }) => {
+        const showVC = item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable;
+        return (
+            <div
+                style={{
+                    width: item.investigation_name.length > 12 && item.investigation_name.length < 24
+                        ? `${item.investigation_name.length * 10.5}px`
+                        : item.investigation_name.length >= 24
+                            ? '256px'
+                            : '150px'
+                }}
+                className={"position-relative d-flex align-items-center justify-content-between closable-chips closable-chips-active"}
+            >
+                <div className="text-truncate p-2" onClick={() => handleDrawerChild(item)}>
+                    <div>
+                        <div className="d-flex align-items-center gap-1">
+                            <span className="chip-text text-truncate">{item.investigation_name}</span>
+                        </div>
+                        {item.note ? (
+                            <div className="text-truncate small">{item.note}</div>
+                        ) : (
+                            <div className="text-truncate small">Add Details</div>
+                        )}
+                    </div>
                 </div>
+                {showVC && (
+                    <span
+                        className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white chip-vc-badge"
+                        style={{ minWidth: 24, height: 18, padding: "0 5px", lineHeight: "16px", background: "#c44ea2", right: 36, top: -6 }}
+                    >
+                        VC
+                    </span>
+                )}
+                <Button type="text" className="rounded-0 btn-close-chips" onClick={() => onRemoveRow(item.index)}>
+                    <i className="icon-Cross"></i>
+                </Button>
             </div>
-            <Button type="text" className="rounded-0 btn-close-chips" onClick={() => onRemoveRow(item.index)}>
-                <i className="icon-Cross"></i>
-            </Button>
-        </div>
-    ));
+        );
+    });
 
     const SortableList = SortableContainer(({ items }) => {
         return (
@@ -661,6 +686,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
                                 <div className="position-relative">
                                     <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{`${item.investigation_name}`}</Button>
                                     {(item?.hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                                    {(item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                                 </div>
                             )
                         })}

@@ -1801,10 +1801,9 @@ function MedicalHistoryBoxMobile(props) {
                                                         </div>
                                                         <div className="d-flex flex-wrap">
                                                             {!e?.no_know_history && !e?.isExpand && e?.tags?.map((e1, i1) => {
-                                                                const displayTitle = e1?.enable === "N" ? `${e1?.title} N` : e1?.title;
                                                                 return (
                                                                     <div key={Math.random()} className={`history-badge ${e1?.enable !== undefined ? e1?.enable === "Y" ? 'history-active' : e1?.enable === "N" ? 'history-inactive' : '' : ''}`}>
-                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{displayTitle}</div>
+                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.title}</div>
                                                                         <span onClick={() => onEnableClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.enable !== undefined ? e1?.enable : "-"}<img src={e1?.enable !== undefined ? e1?.enable === "Y" ? ActiveverticleUpDown : e1?.enable === "N" ? InActiveverticleUpDown : verticleUpDown : verticleUpDown} />
                                                                         </span>
                                                                     </div>

@@ -194,10 +194,10 @@ function OphthalmologyInlineView({
   };
 
   return (
-    <View style={{ marginTop: PX_TO_PT * 15 }}>
+    <View style={{ marginTop: PX_TO_PT * 6 }}>
       {/* Visual Acuity Test */}
       {isSectionVisible("visualAcuity") && hasVisualAcuityData && (
-        <View style={{ marginBottom: PX_TO_PT * 10 }}>
+        <View style={{ marginBottom: PX_TO_PT * 6 }}>
           <Text
             style={{
               color: "#171725",
@@ -205,7 +205,7 @@ function OphthalmologyInlineView({
               fontSize:
                 PX_TO_PT * (printSettings?.page_format?.font_size || 12),
               fontWeight: 700,
-              marginBottom: PX_TO_PT * 8,
+              marginBottom: PX_TO_PT * 6,
             }}
           >
             Visual Acuity Test:
@@ -221,7 +221,7 @@ function OphthalmologyInlineView({
                     PX_TO_PT *
                     (printSettings?.page_format?.font_size || 12),
                   color: "#000",
-                  marginBottom: PX_TO_PT * 3,
+                  // marginBottom: PX_TO_PT * 3,
                 }}
               >
                 {formatEyeDataInline(odData, osData, [
@@ -239,7 +239,7 @@ function OphthalmologyInlineView({
 
       {/* Subjective Refraction */}
       {isSectionVisible("autoRefraction") && hasAutoRefractionData && (
-        <View style={{ marginBottom: PX_TO_PT * 10 }}>
+        <View style={{ marginBottom: PX_TO_PT * 6 }}>
           <Text
             style={{
               color: "#171725",
@@ -247,7 +247,7 @@ function OphthalmologyInlineView({
               fontSize:
                 PX_TO_PT * (printSettings?.page_format?.font_size || 12),
               fontWeight: 700,
-              marginBottom: PX_TO_PT * 8,
+              marginBottom: PX_TO_PT * 6,
             }}
           >
             Subjective Refraction:
@@ -285,7 +285,7 @@ function OphthalmologyInlineView({
                         PX_TO_PT *
                         (printSettings?.page_format?.font_size || 12),
                       color: "#000",
-                      marginBottom: PX_TO_PT * 3,
+                      // marginBottom: PX_TO_PT * 3,
                     }}
                   >
                     Undilated: {formatEyeDataInline(undilatedOD || {}, undilatedOS || {}, [
@@ -307,7 +307,7 @@ function OphthalmologyInlineView({
                         PX_TO_PT *
                         (printSettings?.page_format?.font_size || 12),
                       color: "#000",
-                      marginBottom: PX_TO_PT * 3,
+                      // marginBottom: PX_TO_PT * 3,
                     }}
                   >
                     Dilated: {formatEyeDataInline(dilatedOD || {}, dilatedOS || {}, [
@@ -328,7 +328,7 @@ function OphthalmologyInlineView({
 
       {/* Lensometer Values */}
       {isSectionVisible("lensometerValues") && hasLensometerValuesData && (
-        <View style={{ marginBottom: PX_TO_PT * 10 }}>
+        <View style={{ marginBottom: PX_TO_PT * 6 }}>
           <Text
             style={{
               color: "#171725",
@@ -336,7 +336,7 @@ function OphthalmologyInlineView({
               fontSize:
                 PX_TO_PT * (printSettings?.page_format?.font_size || 12),
               fontWeight: 700,
-              marginBottom: PX_TO_PT * 8,
+              marginBottom: PX_TO_PT * 6,
             }}
           >
             Lensometer Values:
@@ -352,7 +352,7 @@ function OphthalmologyInlineView({
                     PX_TO_PT *
                     (printSettings?.page_format?.font_size || 12),
                   color: "#000",
-                  marginBottom: PX_TO_PT * 3,
+                  // marginBottom: PX_TO_PT * 3,
                 }}
               >
                 {formatEyeDataInline(odData, osData, [
@@ -371,7 +371,7 @@ function OphthalmologyInlineView({
 
       {/* Glass Prescription */}
       {isSectionVisible("glassPrescription") && hasGlassPrescriptionData && (
-        <View style={{ marginBottom: PX_TO_PT * 10 }}>
+        <View style={{ marginBottom: PX_TO_PT * 6 }}>
           <Text
             style={{
               color: "#171725",
@@ -379,7 +379,7 @@ function OphthalmologyInlineView({
               fontSize:
                 PX_TO_PT * (printSettings?.page_format?.font_size || 12),
               fontWeight: 700,
-              marginBottom: PX_TO_PT * 8,
+              marginBottom: PX_TO_PT * 6,
             }}
           >
             Glass Prescription:
@@ -404,7 +404,7 @@ function OphthalmologyInlineView({
                     PX_TO_PT *
                     (printSettings?.page_format?.font_size || 12),
                   color: "#000",
-                  marginBottom: PX_TO_PT * 3,
+                  // marginBottom: PX_TO_PT * 3,
                 }}
               >
                 {eyeData}{pd ? ` | PD (${pd})` : ""}
@@ -417,7 +417,7 @@ function OphthalmologyInlineView({
       {/* Intra Ocular Pressure */}
       {isSectionVisible("intraOcularPressure") &&
         hasIntraOcularPressureData && (
-        <View style={{ marginBottom: PX_TO_PT * 10 }}>
+        <View style={{ marginBottom: PX_TO_PT * 6 }}>
           <Text
             style={{
               color: "#171725",
@@ -425,7 +425,7 @@ function OphthalmologyInlineView({
               fontSize:
                 PX_TO_PT * (printSettings?.page_format?.font_size || 12),
               fontWeight: 700,
-              marginBottom: PX_TO_PT * 8,
+              marginBottom: PX_TO_PT * 6,
             }}
           >
             Intra Ocular Pressure:
@@ -441,7 +441,7 @@ function OphthalmologyInlineView({
                     PX_TO_PT *
                     (printSettings?.page_format?.font_size || 12),
                   color: "#000",
-                  marginBottom: PX_TO_PT * 3,
+                  // marginBottom: PX_TO_PT * 3,
                 }}
               >
                 {formatEyeDataInline(odData, osData, [
@@ -459,7 +459,7 @@ function OphthalmologyInlineView({
       {/* Slit Lamp Examination */}
       {isSectionVisible("slitLampExamination") &&
         hasSlitLampExaminationData && (
-        <View style={{ marginBottom: PX_TO_PT * 10 }}>
+        <View style={{ marginBottom: PX_TO_PT * 6 }}>
           <Text
             style={{
               color: "#171725",
@@ -467,7 +467,7 @@ function OphthalmologyInlineView({
               fontSize:
                 PX_TO_PT * (printSettings?.page_format?.font_size || 12),
               fontWeight: 700,
-              marginBottom: PX_TO_PT * 8,
+              marginBottom: PX_TO_PT * 6,
             }}
           >
             Slit Lamp Examination:
@@ -510,7 +510,7 @@ function OphthalmologyInlineView({
                     PX_TO_PT *
                     (printSettings?.page_format?.font_size || 12),
                   color: "#000",
-                  marginBottom: PX_TO_PT * 3,
+                  // marginBottom: PX_TO_PT * 3,
                 }}
               >
                 {item.section}: {formattedValue}
@@ -522,7 +522,7 @@ function OphthalmologyInlineView({
 
       {/* Fundus Examination */}
       {isSectionVisible("fundusExamination") && hasFundusExaminationData && (
-        <View style={{ marginBottom: PX_TO_PT * 10 }}>
+        <View style={{ marginBottom: PX_TO_PT * 6 }}>
           <Text
             style={{
               color: "#171725",
@@ -530,7 +530,7 @@ function OphthalmologyInlineView({
               fontSize:
                 PX_TO_PT * (printSettings?.page_format?.font_size || 12),
               fontWeight: 700,
-              marginBottom: PX_TO_PT * 8,
+              marginBottom: PX_TO_PT * 6,
             }}
           >
             Fundus Examination:
@@ -573,7 +573,7 @@ function OphthalmologyInlineView({
                     PX_TO_PT *
                     (printSettings?.page_format?.font_size || 12),
                   color: "#000",
-                  marginBottom: PX_TO_PT * 3,
+                  // marginBottom: PX_TO_PT * 3,
                 }}
               >
                 {item.section}: {formattedValue}

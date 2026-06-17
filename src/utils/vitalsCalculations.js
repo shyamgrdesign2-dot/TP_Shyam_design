@@ -85,6 +85,36 @@ export function calculateBMR(height, weight, age, gender) {
   return parseFloat(calBMR.toFixed(2));
 }
 
+/**
+ * BMI / BMR / BSA as strings for the rx pad and symptom-collector merge (same shape as VitalsBox `calculate`).
+ */
+export function computeRxPadVitalsDerivedMetrics(H, W, patientData) {
+  const hasDim = (v) =>
+    v !== "" && v !== undefined && v !== null && v !== 0;
+  if (!hasDim(H) || !hasDim(W)) {
+    return { bmi: "", bmr: "", bsa: "" };
+  }
+  const hStr = String(H).trim();
+  const wStr = String(W).trim();
+  if (!hStr || !wStr) {
+    return { bmi: "", bmr: "", bsa: "" };
+  }
+
+  const bmiNum = calculateBMI(hStr, wStr);
+  const bsaNum = calculateBSA(hStr, wStr);
+  const age =
+    patientData !== undefined && patientData?.ageYears !== undefined
+      ? patientData.ageYears
+      : 0;
+  const bmrNum = calculateBMR(hStr, wStr, age, patientData?.pm_gender);
+
+  return {
+    bmi: bmiNum != null ? String(bmiNum) : "",
+    bmr: bmrNum != null ? String(bmrNum) : "",
+    bsa: bsaNum != null ? String(bsaNum) : "",
+  };
+}
+
 function hasValue(value) {
   return value !== undefined && value !== null && String(value).trim() !== '';
 }

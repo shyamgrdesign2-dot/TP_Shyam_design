@@ -30,6 +30,10 @@ ApiInvestigation.getInvestigationTemplates = function (query) {
   return api.get(`/api/v1/investigation/listTemplate`, baseUrl);
 };
 
+ApiInvestigation.singleTemplateDetails = function (templateId) {
+  return api.get(`/api/v1/investigation/singleTemplateDetails/${templateId}`, baseUrl);
+};
+
 ApiInvestigation.getFrequentlySearchedInvestigation = function () {
   return api.get(`/api/v1/investigation/frequentlyInvestigations`, baseSearchEngineUrl);
 };

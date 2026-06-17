@@ -340,6 +340,7 @@ const ConfigureBillSettings = ({
       logo_enable,
       logo_image,
       header_image,
+      footer_image,
     } = defaultPrintSettings;
     const {
       custom_margin,
@@ -363,7 +364,7 @@ const ConfigureBillSettings = ({
             right: custom_margin?.right ? parseFloat(custom_margin?.right) : 2,
             top: custom_margin?.top ? parseFloat(custom_margin?.top) : 3,
           },
-          footer: { ...footer, fontSize: footer?.font_size },
+          footer: { ...footer, fontSize: footer?.font_size, file: footer_image },
           header: {
             clinicInfo: {
               enabled: clinic_info.enable === "Y",

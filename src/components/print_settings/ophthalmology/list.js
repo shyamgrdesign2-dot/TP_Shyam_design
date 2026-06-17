@@ -130,14 +130,14 @@ function OphthalmologyListView({
 
   const renderSection = (title, renderContent) => {
     return (
-      <View style={{ marginTop: PX_TO_PT * 15, marginBottom: PX_TO_PT * 10 }}>
+      <View style={{ marginTop: PX_TO_PT * 6 }}>
         <Text
           style={{
             color: "#171725",
             fontFamily: printSettings?.page_format?.font_family,
             fontSize: PX_TO_PT * (printSettings?.page_format?.font_size || 12),
             fontWeight: 700,
-            marginBottom: PX_TO_PT * 8,
+            marginBottom: PX_TO_PT * 6,
           }}
         >
           {title}
@@ -215,7 +215,7 @@ function OphthalmologyListView({
   };
 
   return (
-    <View style={{ marginTop: PX_TO_PT * 15 }}>
+    <View style={{ marginTop: PX_TO_PT * 6 }}>
       {/* Visual Acuity Test */}
       {isSectionVisible("visualAcuity") &&
         hasVisualAcuityData &&
@@ -277,7 +277,7 @@ function OphthalmologyListView({
                       fontSize:
                         PX_TO_PT * (printSettings?.page_format?.font_size || 12),
                       fontWeight: 500,
-                      marginBottom: PX_TO_PT * 8,
+                      marginBottom: PX_TO_PT * 6,
                       color: "#000",
                     }}
                   >
@@ -311,8 +311,8 @@ function OphthalmologyListView({
                         PX_TO_PT *
                         (printSettings?.page_format?.font_size || 12),
                       fontWeight: 500,
-                      marginTop: PX_TO_PT * 15,
-                      marginBottom: PX_TO_PT * 8,
+                      marginTop: PX_TO_PT * 6,
+                      marginBottom: PX_TO_PT * 6,
                       color: "#000",
                     }}
                   >

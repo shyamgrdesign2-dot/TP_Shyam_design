@@ -326,7 +326,7 @@ function UpgradeServicesModal({ isUpgradeModal, upgradeList, handleUpgradeModal 
                             {/* <div className='upgraded-premium-box w-92'>
                                 <div className="w-100 mx-auto px-3">
                                     <div className="fs-18 fw-semibold"> Scan the Below QR to Download MedEco App</div>
-                                    <QRCodeSVG className="rounded-3 my-4" value={"https://pm-doctor-tatva-pwa-prod.tatvacare.in/"} size={150}
+                                    <QRCodeSVG className="rounded-3 my-4" value={config.MEDECO_WEBVIEW_URL} size={150}
                                     // imageSettings={{
                                     //     src: medcoIcon,
                                     //     x: undefined,

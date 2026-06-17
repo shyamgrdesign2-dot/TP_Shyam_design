@@ -8,11 +8,17 @@ import {
   setSelectAutofill,
   setSelectedSymptomsCollector,
 } from "../redux/ddxSlice";
-import { GB_VOICE_RX_FREE } from "../utils/constants";
+import { GB_VOICE_RX_FREE, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS } from "../utils/constants";
 import { getClinicName, getTokenData, isVoiceRxFree, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import dayjs from "dayjs";
 import CashManagerContext from "../context/CashManagerContext";
 import { ASSETS } from "../assets";
+import {
+  normalizeVitalsAndBodyCompositionToRxRowFields,
+  rxVitalsPatchToCollectorDisplayKeys,
+  vitalScalarString,
+} from "../utils/symptomCollectorVitalsMerge";
+import { addUpdateVitals, getPatientBirthWeight } from "../redux/vitalsSlice";
 const {
   scHeaderBg,
   scRx: autoFillRx,
@@ -34,6 +40,35 @@ const VALID_TYPES = {
   allergy: "Allergies",
   "family history": "Family History",
   lifestyle: "Lifestyle",
+};
+
+const VITAL_FIELD_LABELS = {
+  temperature: "Temperature",
+  pulse: "Pulse",
+  respiratoryRate: "Respiratory rate",
+  bloodPressure: "Blood pressure",
+  systolic: "Systolic",
+  diastolic: "Diastolic",
+  spo2: "SpO₂",
+  randomBloodSugar: "Random blood sugar",
+  height: "Height",
+  weight: "Weight",
+  headCircumference: "Head circumference",
+  waistCircumference: "Waist circumference",
+  bmi: "BMI",
+  bmr: "BMR",
+  bsa: "BSA",
+  fib4: "FIB-4",
+  generalRBS: "General RBS",
+};
+
+const VITAL_DISPLAY_ORDER = Object.keys(VITAL_FIELD_LABELS);
+
+const getNonEmptyVitalKeys = (vitals) => {
+  if (!vitals || typeof vitals !== "object") return [];
+  return Object.keys(vitals).filter(
+    (k) => vitalScalarString(vitals[k]) !== ""
+  );
 };
 
 const segregateDataByType = (data) => {
@@ -188,6 +223,11 @@ const SCPopup = ({
   const { patient_data, pamId } = useContext(CashManagerContext);
   const clinic_name = getClinicName(profile?.hospital_data);
   const tokenData = getTokenData();
+  const {
+    patientBirthWeight: storedPatientBirthWeight,
+  } = useSelector((state) => state.vitals);
+  const { vitalsData } = useContext(CashManagerContext);
+  const patientBirthWeight = vitalsData?.[0]?.patient_birth_weight || storedPatientBirthWeight;
   const moengageData = {
     clinic_name,
     appointment_id:
@@ -220,7 +260,9 @@ const SCPopup = ({
 
   const symptomsCollectorData =
     selectedSymptomsCollector?.symptoms?.length > 0 ||
-    selectedSymptomsCollector?.medicalHistory?.length > 0
+    selectedSymptomsCollector?.medicalHistory?.length > 0 ||
+    getNonEmptyVitalKeys(selectedSymptomsCollector?.vitalsAndBodyComposition)
+      .length > 0
       ? selectedSymptomsCollector
       : symptomCollector;
 
@@ -253,6 +295,15 @@ const SCPopup = ({
     }
 
     return [];
+  });
+
+  const [selectedVitalKeys, setSelectedVitalKeys] = useState(() => {
+    const stored = symptomsCollectorData?.vitalsAndBodyComposition;
+    if (stored && typeof stored === "object" && Object.keys(stored).length > 0) {
+      const fromRx = rxVitalsPatchToCollectorDisplayKeys(stored);
+      if (fromRx.length > 0) return fromRx;
+    }
+    return getNonEmptyVitalKeys(symptomCollector?.vitalsAndBodyComposition);
   });
 
   const [selectedNotes, setSelectedNotes] = useState(true);
@@ -301,6 +352,21 @@ const SCPopup = ({
     formattedData.symptoms = selectedSymptomData;
     formattedData.notes = selectedNotes ? symptomCollector.notes : "";
 
+    const vitalsSource =
+      symptomsCollectorData?.vitalsAndBodyComposition ||
+      symptomCollector?.vitalsAndBodyComposition ||
+      {};
+    const vitalsAndBodyComposition = {};
+    selectedVitalKeys.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(vitalsSource, key)) {
+        vitalsAndBodyComposition[key] = vitalsSource[key];
+      }
+    });
+    if (Object.keys(vitalsAndBodyComposition).length > 0) {
+      formattedData.vitalsAndBodyComposition =
+        normalizeVitalsAndBodyCompositionToRxRowFields(vitalsAndBodyComposition);
+    }
+
     const voicePayload = {
       symptoms: selectedSymptomData.map((symptom) => {
         const payload = {
@@ -319,6 +385,11 @@ const SCPopup = ({
       others: selectedNotes && symptomCollector.notes ? symptomCollector.notes : "",
     };
 
+    if (Object.keys(vitalsAndBodyComposition).length > 0) {
+      voicePayload.vitalsAndBodyComposition =
+        normalizeVitalsAndBodyCompositionToRxRowFields(vitalsAndBodyComposition);
+    }
+
     return { formattedData, voicePayload };
   };
 
@@ -330,8 +401,115 @@ const SCPopup = ({
     trackEvent("SC_Doctor_SentoRxPad", moengageData);
   };
 
+  const onAddUpdateClicked = async (vitalsAndBodyComposition) => {
+    // Voice / Ambient / Snap / Smart only: use listVitalsTodayIds, direct addVitals, setVitalsIdsFromAddVitals (same ids for update)
+    // if (isVoiceAmbientSnapSmartFlow) {
+    //     if (!patient_data?.patient_unique_id) {
+    //         errorMessage('Patient is required to save vitals.');
+    //         return;
+    //     }
+    //     setVoiceAmbientSaving(true);
+    //     try {
+    //         const today = moment().format('YYYY-MM-DD');
+    //         const ids = resolveVitalsIds(listVitalsTodayIds, patient_data.patient_unique_id, childVitalsData[0]);
+    //         const dataWithIds = childVitalsData.map((row, i) => ({
+    //             ...row,
+    //             tcv_id: i === 0 ? ids.tcv_id : (row.tcv_id ?? 0),
+    //             tcbc_id: i === 0 ? ids.tcbc_id : (row.tcbc_id ?? 0),
+    //             dev_unique_id: i === 0 ? ids.dev_unique_id : (row.dev_unique_id ?? 0)
+    //         }));
+    //         const sendData = {
+    //             patient_unique_id: patient_data.patient_unique_id,
+    //             pm_pid: patient_data.pm_pid ?? 0,
+    //             pm_id: patient_data.pm_id ?? 0,
+    //             pam_id: patient_data.pam_id ?? 0,
+    //             patient_birth_weight: patientBirthWeight,
+    //             data: dataWithIds
+    //         };
+    //         const addRes = await ApiVitals.addUpdateVitals(sendData);
+    //         if (addRes?.status !== false && addRes?.statusCode !== 400) {
+    //             const savedVitals = addRes?.data && Array.isArray(addRes.data) ? addRes.data : [];
+    //             const todaySaved = savedVitals.find(v => (v.date || '').toString().startsWith(today)) || savedVitals[0];
+    //             const responseIds = {
+    //                 tcv_id: todaySaved?.tcv_id ?? 0,
+    //                 tcbc_id: todaySaved?.tcbc_id ?? 0,
+    //                 dev_unique_id: todaySaved?.dev_unique_id ?? 0
+    //             };
+    //             dispatch(setVitalsIdsFromAddVitals({ flow: flowForRedux, patient_unique_id: patient_data.patient_unique_id, tcv_id: responseIds.tcv_id, tcbc_id: responseIds.tcbc_id, dev_unique_id: responseIds.dev_unique_id }));
+    //             dispatch(clearListVitalsToday()); // form first row (via parent state) is source of truth after save
+    //             const vitalsObject = childVitalsDataToVitalsObject(childVitalsData);
+    //             const vitalsObjectWithIds = { ...vitalsObject, ...responseIds };
+    //             if (typeof onVitalsSave === 'function') {
+    //                 onVitalsSave(vitalsObjectWithIds);
+    //             }
+    //             if (typeof handleCollapsed === 'function') handleCollapsed(1);
+    //             if (typeof handleDrawerVital === 'function') handleDrawerVital();
+    //         } else {
+    //             errorMessage(addRes?.error || addRes?.message || 'Failed to save vitals');
+    //         }
+    //     } catch (err) {
+    //         errorMessage(err?.message || err?.response?.data?.error || 'Failed to save vitals');
+    //     } finally {
+    //         setVoiceAmbientSaving(false);
+    //     }
+    //     return;
+    // }
+
+    const clinic_name = getClinicName(profile?.hospital_data);
+    window.Moengage.track_event("TP_vitals_updated", {
+        clinic_name,
+        "patient_number": patient_data?.pm_contact_no,
+        "patient_id": patient_data?.patient_unique_id
+    });
+    const row = {
+      "date": dayjs().format("YYYY-MM-DD"),
+      "dev_unique_id": 0,
+      "tcv_id": 0,
+      "tcbc_id": 0,
+      "temp": vitalsAndBodyComposition?.temp ?? "",
+      "pres": vitalsAndBodyComposition?.pres ?? "",
+      "resp_rate": vitalsAndBodyComposition?.resp_rate ?? "",
+      "systolic": vitalsAndBodyComposition?.systolic ?? "",
+      "diastolic": vitalsAndBodyComposition?.diastolic ?? "",
+      "spo2": vitalsAndBodyComposition?.spo2 ?? "",
+      "height": vitalsAndBodyComposition?.height ?? "",
+      "weight": vitalsAndBodyComposition?.weight ?? "",
+      "fib4": vitalsAndBodyComposition?.fib4 ?? "",
+      "waist_circumference": vitalsAndBodyComposition?.waist_circumference ?? "",
+      "ofc": vitalsAndBodyComposition?.ofc ?? "",
+      "bmi": vitalsAndBodyComposition?.bmi ?? "",
+      "bmr": vitalsAndBodyComposition?.bmr ?? "",
+      "bsa": vitalsAndBodyComposition?.bsa ?? "",
+      "general_rbs": vitalsAndBodyComposition?.general_rbs ?? "",
+  }
+    var sendData = {
+        patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
+        pm_pid: patient_data !== undefined ? patient_data.pm_pid : 0,
+        pm_id: patient_data !== undefined ? patient_data.pm_id : 0,
+        pam_id: patient_data !== undefined && patient_data.pam_id !== undefined ? patient_data.pam_id : 0,
+        patient_birth_weight: patientBirthWeight,
+        data: [row],
+    };
+    const action = await dispatch(addUpdateVitals(sendData));
+    if ((profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && patient_data?.ageMonths <= 12 && patient_data?.ageYears === 0) {
+      dispatch(
+        getPatientBirthWeight({
+          patient_unique_id:
+            patient_data !== undefined ? patient_data.patient_unique_id : 0,
+          pam_id:
+            patient_data !== undefined && patient_data.pam_id !== undefined
+              ? patient_data.pam_id
+              : 0,
+        })
+      );
+    }
+}
+
   const handleAutofill = () => {
     const payloads = buildSelectedData();
+    if (payloads?.voicePayload?.vitalsAndBodyComposition && Object.keys(payloads?.voicePayload?.vitalsAndBodyComposition).length > 0) {
+      onAddUpdateClicked(payloads.voicePayload.vitalsAndBodyComposition);
+    }
     if (!payloads) return;
     applySelectionToRxPad(payloads.formattedData);
   };
@@ -389,6 +567,20 @@ const SCPopup = ({
       duration: 5,
     });
   };
+
+  const vitalsForUi = symptomCollector?.vitalsAndBodyComposition;
+  const filledVitalKeysForUi = getNonEmptyVitalKeys(vitalsForUi);
+  const orderedVitalKeysForUi =
+    filledVitalKeysForUi.length > 0
+      ? [
+          ...VITAL_DISPLAY_ORDER.filter((k) =>
+            filledVitalKeysForUi.includes(k)
+          ),
+          ...filledVitalKeysForUi.filter(
+            (k) => !VITAL_DISPLAY_ORDER.includes(k)
+          ),
+        ]
+      : [];
 
   return (
     <Modal
@@ -720,6 +912,72 @@ const SCPopup = ({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {orderedVitalKeysForUi.length > 0 && (
+          <div
+            style={{
+              overflow: "auto",
+              background: "white",
+              padding: 18,
+              borderRadius: 10,
+              marginTop: 20,
+            }}
+          >
+            <div className="d-flex align-items-center justify-content-between mb-3">
+              <div className="d-flex gap-3 patient-details">
+                <img src={custom} alt="vitals" />
+                <span style={{ color: "#454551" }}>
+                  Vitals & body composition
+                </span>
+              </div>
+              <span
+                className="hyperling-text-style cursor-pointer"
+                onClick={() => {
+                  if (
+                    selectedVitalKeys.length === orderedVitalKeysForUi.length
+                  ) {
+                    setSelectedVitalKeys([]);
+                  } else {
+                    setSelectedVitalKeys([...orderedVitalKeysForUi]);
+                  }
+                }}
+              >
+                {selectedVitalKeys.length === orderedVitalKeysForUi.length
+                  ? "Unselect All"
+                  : "Select All"}
+              </span>
+            </div>
+            <Divider style={{ margin: "15px 0px" }} />
+            <div className="space-y-6">
+              {orderedVitalKeysForUi.map((key) => (
+                <div
+                  key={key}
+                  className="ml-3 mb-2 relative pl-4 d-flex gap-2 align-items-start"
+                >
+                  <Checkbox
+                    className="me-2"
+                    checked={selectedVitalKeys.includes(key)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedVitalKeys([...selectedVitalKeys, key]);
+                      } else {
+                        setSelectedVitalKeys(
+                          selectedVitalKeys.filter((k) => k !== key)
+                        );
+                      }
+                    }}
+                  />
+                  <span className="text-[14px] font-medium text-gray-900">
+                    <span className="font-medium">
+                      {VITAL_FIELD_LABELS[key] || key}
+                      {": "}
+                    </span>
+                    <span className="text-gray-600">{vitalsForUi?.[key]?.value + " " + vitalsForUi?.[key]?.unit}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         {symptomCollector?.notes?.length > 0 && (

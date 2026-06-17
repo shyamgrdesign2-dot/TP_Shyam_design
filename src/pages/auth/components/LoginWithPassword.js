@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from "react";
+import { useGrowthBook } from "@growthbook/growthbook-react";
 import { useNavigate } from "react-router-dom";
 import { loginWithPassword } from "../authService";
 import "../auth.scss";
 import { isMobile } from "react-device-detect";
 import { Spin } from "antd";
 import { ASSETS } from "../../../assets";
+import { isProdEnv } from "../../../utils/environment";
+import {
+  getZydusProdLoginUrl,
+  syncPhoneAndCheckZydusAccountUser,
+} from "../../../utils/zydusAccountRouting";
 const tavaPracticeLogo = ASSETS.images.websiteImages.tatvacareLogoWithTag;
 
 const LoginWithPassword = ({ handleView, number }) => {
+  const growthbook = useGrowthBook();
   const [mobileNumber, setMobileNumber] = useState(number === "null" ? "" : number);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -61,6 +68,20 @@ const LoginWithPassword = ({ handleView, number }) => {
     try {
       // Step 2: Call login API
       setMobileNumber(trimmedMobileNumber);
+
+      if (isProdEnv()) {
+        const isZydusAccountUser =
+          await syncPhoneAndCheckZydusAccountUser(growthbook, trimmedMobileNumber);
+
+        if (isZydusAccountUser) {
+          const zydusLoginUrl = getZydusProdLoginUrl();
+          if (zydusLoginUrl) {
+            window.location.replace(zydusLoginUrl);
+            return;
+          }
+        }
+      }
+
       const response = await loginWithPassword(trimmedMobileNumber, trimmedPassword);
       window.Moengage.track_event('TP_Login_Success', {
         utm_campaign, utm_source, utm_medium, utm_content

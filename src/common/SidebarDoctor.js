@@ -8,8 +8,7 @@ import axios from "axios";
 
 import config from "../config";
 import { useLocalStorage } from "../utils/localStorage";
-import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
-
+import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, GB_CVT_EXT_HOS } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, sendMessageToParent, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import FullPageLoader from "../pages/vaccination/components/Loader";
@@ -77,6 +76,7 @@ function SidebarDoctor() {
   const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_NEW_IPD_HOS_BUSINESS_ID
   );
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const dispatch = useDispatch();
   const { servicesList } = useSelector((state) => state.doctors);
   const ASK_TATVA_planDetails = servicesList?.find(e => e.service_name === S_ASK_TATVA)
@@ -497,6 +497,9 @@ function SidebarDoctor() {
             </div>
           </NavLink>
 
+          {!isCvtExtHosAccessableFromGB && (
+          <>
+          
           <NavLink
             replace={true}
             className={({ isActive, isPending }) =>
@@ -686,6 +689,8 @@ function SidebarDoctor() {
                 )}
               </div>
             </NavLink>
+          )}
+          </>
           )}
         {/* </div> */}
 

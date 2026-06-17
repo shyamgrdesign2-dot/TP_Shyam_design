@@ -212,6 +212,15 @@ const OphthalmologyTable = ({
   resetKey,
 }) => {
   const { columns, rows } = table;
+  const isAutoRefractionEyeTable =
+    table.id === "autoRefractionDilated" ||
+    table.id === "autoRefractionUndilated" ||
+    table.id === "visualAcuityTable" ||
+    table.id === "lensometerTable" ||
+    table.id === "glassPrescriptionTable" ||
+    table.id === "iopTable";
+  const isColumnEyeAutofillTable =
+    table.id === "slitLampTable" || table.id === "fundusTable";
   const inputColumnKeys = useMemo(
     () => columns.filter((column) => column.type !== "label").map((c) => c.key),
     [columns]
@@ -281,15 +290,89 @@ const OphthalmologyTable = ({
     return [];
   };
 
+  const handleEyeAutofill = (targetRowKey) => {
+    const sourceRowKey = targetRowKey === "od" ? "os" : "od";
+    const editableColumns = columns.filter((column) => column.type !== "label");
+    if (onChange) {
+      editableColumns.forEach((column) => {
+        const sourceCellKey = `${sourceRowKey}-${column.key}`;
+        const sourceValue = externalValues
+          ? externalValues[sourceCellKey] ?? ""
+          : values[sourceCellKey] ?? "";
+        onChange(targetRowKey, column.key, sourceValue);
+      });
+      return;
+    }
+    setValues((prev) => {
+      const nextValues = { ...prev };
+      editableColumns.forEach((column) => {
+        const sourceCellKey = `${sourceRowKey}-${column.key}`;
+        const targetCellKey = `${targetRowKey}-${column.key}`;
+        nextValues[targetCellKey] = prev[sourceCellKey] ?? "";
+      });
+      return nextValues;
+    });
+  };
+
+  const handleEyeColumnAutofill = (targetColumnKey) => {
+    const sourceColumnKey = targetColumnKey === "od" ? "os" : "od";
+    if (onChange) {
+      rows.forEach((row) => {
+        const sourceCellKey = `${row.key}-${sourceColumnKey}`;
+        const sourceValue = externalValues
+          ? externalValues[sourceCellKey] ?? ""
+          : values[sourceCellKey] ?? "";
+        onChange(row.key, targetColumnKey, sourceValue);
+      });
+      return;
+    }
+    setValues((prev) => {
+      const nextValues = { ...prev };
+      rows.forEach((row) => {
+        const sourceCellKey = `${row.key}-${sourceColumnKey}`;
+        const targetCellKey = `${row.key}-${targetColumnKey}`;
+        nextValues[targetCellKey] = prev[sourceCellKey] ?? "";
+      });
+      return nextValues;
+    });
+  };
+
   return (
     <div className={styles.tableWrapper}>
       {table.title && <div className={styles.tableTitle}>{table.title}</div>}
       <table className={styles.table}>
         <thead>
           <tr>
-            {columns.map((column) => (
-              <th key={column.key}>{column.label}</th>
-            ))}
+            {columns.map((column) => {
+              const showColumnAutofill =
+                isColumnEyeAutofillTable &&
+                (column.key === "od" || column.key === "os");
+              if (!showColumnAutofill) {
+                return <th key={column.key}>{column.label}</th>;
+              }
+
+              const sourceEyeLabel = column.key === "od" ? "OS" : "OD";
+              return (
+                <th
+                  key={column.key}
+                  className={styles.columnHeaderAutofill}
+                >
+                  <div className={styles.columnHeaderContent}>
+                    <span>{column.label}</span>
+                    <button
+                      type="button"
+                      className={styles.columnAutofillCta}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleEyeColumnAutofill(column.key);
+                      }}
+                    >
+                      Autofill from {sourceEyeLabel}
+                    </button>
+                  </div>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -297,9 +380,32 @@ const OphthalmologyTable = ({
             <tr key={row.key}>
               {columns.map((column) => {
                 if (column.type === "label") {
+                  const showEyeAutofill =
+                    isAutoRefractionEyeTable &&
+                    (row.key === "od" || row.key === "os");
+                  const sourceEyeLabel = row.key === "od" ? "OS" : "OD";
                   return (
-                    <td key={column.key} className={styles.rowLabel}>
-                      {row.label}
+                    <td
+                      key={column.key}
+                      className={`${styles.rowLabel} ${
+                        showEyeAutofill ? styles.rowLabelAutofill : ""
+                      }`}
+                    >
+                      <div className={styles.rowLabelContent}>
+                        <span>{row.label}</span>
+                        {showEyeAutofill && (
+                          <button
+                            type="button"
+                            className={styles.rowAutofillCta}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEyeAutofill(row.key);
+                            }}
+                          >
+                            Autofill from {sourceEyeLabel}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   );
                 }

@@ -25,22 +25,31 @@ const DownloadBill = ({
   const { hm_name, um_contact, um_email, hm_address, hm_address1, hm_state } =
     hospitalData;
 
-  const paymentSummaryWithTotal = paymentSummary
-    ? [
-        ...paymentSummary,
-        {
-          paymentMode: "Total",
-          receivedAmount: paymentSummary.reduce(
-            (sum, item) => sum + (Number(item.receivedAmount) || 0),
-            0
-          ),
-          refundedAmount: paymentSummary.reduce(
-            (sum, item) => sum + (Number(item.refundedAmount) || 0),
-            0
-          ),
-        },
-      ]
+  const paymentSummaryFiltered = Array.isArray(paymentSummary)
+    ? paymentSummary.filter(
+        (item) =>
+          (Number(item?.receivedAmount) || 0) !== 0 ||
+          (Number(item?.refundedAmount) || 0) !== 0
+      )
     : [];
+
+  const paymentSummaryWithTotal =
+    paymentSummaryFiltered.length > 0
+      ? [
+          ...paymentSummaryFiltered,
+          {
+            paymentMode: "Total",
+            receivedAmount: paymentSummaryFiltered.reduce(
+              (sum, item) => sum + (Number(item.receivedAmount) || 0),
+              0
+            ),
+            refundedAmount: paymentSummaryFiltered.reduce(
+              (sum, item) => sum + (Number(item.refundedAmount) || 0),
+              0
+            ),
+          },
+        ]
+      : [];
 
   function getDoctorNameById(um_id) {
     const doctor = doctorList.find((doc) => doc.um_id === um_id);
@@ -369,9 +378,7 @@ const DownloadBill = ({
 
   const hasBills = Array.isArray(downloadData) && downloadData.length > 0;
   const showPaymentSummaryBlock =
-    !omitPaymentSummary &&
-    Array.isArray(paymentSummary) &&
-    paymentSummary.length > 0;
+    !omitPaymentSummary && Array.isArray(paymentSummaryFiltered) && paymentSummaryFiltered.length > 0;
 
   if (!hasBills && (!omitBillsTable || !showPaymentSummaryBlock)) {
     return (

@@ -53,11 +53,14 @@ import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
 import { lazyRetry } from "../utils/lazyRetry";
 import { searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
-import { errorMessage } from "../utils/utils";
+import { errorMessage, trackEvent } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
+import VisitDrawingCanvases from "./drawingCanvas/components/VisitDrawingCanvases";
+
 const variables = ASSETS.scss.variables;
 const alertIcon = ASSETS.images.alerticon;
 const BillingDashboard = React.lazy(() =>
@@ -79,6 +82,7 @@ function PatientDetails() {
         (state) => state.billing
       );
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -250,33 +254,43 @@ function PatientDetails() {
             });
             var sendData = {
                 patient_unique_id: patient_data?.patient_unique_id,
-                tcm_id: currentConsultation.tcm_id
+                tcm_id: currentConsultation.tcm_id,
+                isChikitsalayAccessable,
             };
             dispatch(viewCaseManager(sendData));
         }
-    }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch]);
+    }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch, isChikitsalayAccessable]);
 
     useEffect(() => {
         const tcmId = viewCaseManagerData?.tcm_id;
-        if (!tcmId) {
+        const patientId = patient_data?.patient_unique_id;
+        
+        if (!tcmId || !patientId) {
             return;
         }
+        
         let isMounted = true;
+        const abortController = new AbortController();
+        
         const fetchOpthalPrescription = async () => {
             try {
                 const response = await getOpthalPrescriptionDetails({
                     tcm_id: tcmId,
-                    patientId: patient_data?.patient_unique_id,
+                    patientId: patientId,
+                    signal: abortController.signal,
                 });
-                const data = response?.data ?? response;
-                const payload = Array.isArray(data) ? data[0] : data;
+                
                 if (!isMounted) {
                     return;
                 }
+                
+                const data = response?.data ?? response;
+                const payload = Array.isArray(data) ? data[0] : data;
+                
                 setOpthalPrescriptionHistory((prev) => {
                     const next = Array.isArray(prev) ? [...prev] : [];
                     const index = next.findIndex((item) => item?.tcm_id === tcmId);
-                    const entry = { tcm_id: tcmId, data: payload || null };
+                    const entry = { tcm_id: tcmId, data: payload || null, timestamp: Date.now() };
                     if (index >= 0) {
                         next[index] = entry;
                     } else {
@@ -285,14 +299,19 @@ function PatientDetails() {
                     return next;
                 });
             } catch (error) {
-                console.error("Error fetching opthal prescription details:", error);
+                if (error.name !== 'AbortError') {
+                    console.error("Error fetching opthal prescription details:", error);
+                }
             }
         };
+        
         fetchOpthalPrescription();
+        
         return () => {
             isMounted = false;
+            abortController.abort();
         };
-    }, [viewCaseManagerData?.tcm_id]);
+    }, [viewCaseManagerData?.tcm_id, patient_data?.patient_unique_id]);
 
     useEffect(() => {
         return () => {
@@ -414,6 +433,18 @@ function PatientDetails() {
     const onClickSidebarHandle = useCallback((key) => {
         setSidebarKey(key)
     }, [sidebarKey])
+
+    useEffect(() => {
+        if (sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES) {
+            trackEvent("drawing_canvas_patient_history_viewed", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: patient_data?.patient_unique_id,
+            });
+        }
+    }, [sidebarKey, profile, patient_data?.patient_unique_id]);
 
     const handleUploadDocPopup = () => {
         setShowUploadDocPopup((prev) => !prev);
@@ -563,6 +594,17 @@ function PatientDetails() {
                             <div className="appointment-wrap PatientDetailswrap">
                                 <HealthCheckupReport patient_data={patient_data} showHealthCheckupReportDrawer={showHealthCheckupReportDrawer} setShowHealthCheckupReportDrawer={setShowHealthCheckupReportDrawer} />
                             </div>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES ? (
+                            <VisitDrawingCanvases 
+                                patientId={patient_data?.patient_unique_id}
+                                trackingAttrs={{
+                                    specialty: profile?.dp_name,
+                                    specialty_id: profile?.dp_id,
+                                    doctor_unique_id: profile?.doctor_unique_id,
+                                    doctor_name: profile?.um_name,
+                                    patient_id: patient_data?.patient_unique_id,
+                                }}
+                            />
                         ) : null}
                     </div>
                 </Content>

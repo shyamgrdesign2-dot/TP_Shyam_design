@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { resolveDentalOralForPrint } from "../utils/resolveDentalOralPrintData";
+import { listPatientCanvasMapping } from "../pages/drawingCanvas/service";
+import {
+  ensureDrawingCanvasCaseOption,
+  filterCanvasRecordsByFilename,
+} from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
+import { exportToBlob } from "@excalidraw/excalidraw";
+import { trackEvent } from "../utils/utils";
 
 export const usePrintPayloadPdf = ({
   printUrl,
@@ -15,9 +22,11 @@ export const usePrintPayloadPdf = ({
   dentalExaminationData = null,
   oralExamination = null,
   patientUniqueId = null,
+  patientId = null,
   tcmId = null,
   onlyShowDental = false,
   allowFullApiFallback = true,
+  isCvtExtHosAccessableFromGB,
 }) => {
   const [payload, setPayload] = useState(null);
   const [printBlob, setPrintBlob] = useState(null);
@@ -32,6 +41,7 @@ export const usePrintPayloadPdf = ({
 
     if (payloadOverride) {
       setPayload(payloadOverride);
+      setPrintBlob(null);
       return;
     }
 
@@ -45,6 +55,8 @@ export const usePrintPayloadPdf = ({
     const fetchPayload = async () => {
       setIsGenerating(true);
       setError(null);
+      setPayload(null);
+      setPrintBlob(null);
       try {
         let fetchUrl = printUrl;
         try {
@@ -61,6 +73,9 @@ export const usePrintPayloadPdf = ({
         }
         const response = await axios.get(fetchUrl);
         const data = response?.data?.data || null;
+        if (!data) {
+          throw new Error("Print payload is missing.");
+        }
         if (!isCancelled) {
           setPayload(data);
         }
@@ -98,10 +113,12 @@ export const usePrintPayloadPdf = ({
     const buildPdf = async () => {
       setIsGenerating(true);
       setError(null);
+      const pdfStartTime = Date.now();
       try {
         const caseManagerData = payload?.caseManagerData;
         const resolvedPatientId =
           patientUniqueId ||
+          patientId ||
           caseManagerData?.patient_data?.patient_unique_id;
         const resolvedTcmId = tcmId || caseManagerData?.tcm_id;
         const consultationDate =
@@ -131,14 +148,85 @@ export const usePrintPayloadPdf = ({
             allowFullApiFallback,
           });
 
+        let drawingCanvases = [];
+        let corruptedCanvasSkipped = 0;
+
+        if (resolvedPatientId && resolvedTcmId) {
+            try {
+                const res = await listPatientCanvasMapping(resolvedPatientId, resolvedTcmId);
+                const recordsArray = res?.records || res?.data?.records;
+                const canvasFilename = payload?.caseManagerData?.canvas_filename;
+                const filteredRecordsArray = filterCanvasRecordsByFilename(
+                  recordsArray,
+                  canvasFilename
+                );
+
+                if (res?.status && filteredRecordsArray.length > 0) {
+                    for (const record of filteredRecordsArray) {
+                        try {
+                            if (!record?.canvas_url) continue;
+                            const response = await fetch(record.canvas_url);
+                            const textData = await response.text();
+
+                            if (textData) {
+                                const parsedData = JSON.parse(textData);
+                                if (parsedData?.elements) {
+                                    const blob = await exportToBlob({
+                                        elements: parsedData.elements,
+                                        appState: { ...parsedData.appState, exportBackground: true },
+                                        files: parsedData.files,
+                                    });
+                                    if (blob) {
+                                        const url = URL.createObjectURL(blob);
+                                        drawingCanvases.push({
+                                            name: record.canvas_name || "Untitled Canvas",
+                                            imageUrl: url
+                                        });
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.error(`Failed to parse canvas mapping: ${record.canvas_name}`, err);
+                            corruptedCanvasSkipped++;
+                            trackEvent("drawing_canvas_corrupt_scene_detected", {
+                              patient_id: resolvedPatientId,
+                              consultation_id: resolvedTcmId,
+                              canvas_id: record?.mapping_id || record?.canvas_id || record?.id,
+                              render_context: "pdf_generation",
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to inject drawing canvases into payload:", err);
+                trackEvent("drawing_canvas_api_failed", {
+                  patient_id: resolvedPatientId,
+                  consultation_id: resolvedTcmId,
+                  api_name: "listPatientCanvasMapping",
+                  error_code: err?.code || "EXCEPTION",
+                  error_message: err?.message || "Failed to fetch canvases for PDF",
+                });
+            }
+        }
+
+        const printSettingsWithCanvas =
+          drawingCanvases.length > 0
+            ? ensureDrawingCanvasCaseOption(payload.printSettings)
+            : payload.printSettings;
+
         const blob = await renderPrintPayloadToBlob({
           ...payload,
+          printSettings: printSettingsWithCanvas,
           zydusLabData: zydusSelectedLabParams,
           dentalExaminationData: normalizedDentalData,
           examChart,
           oralExamination,
           patientUniqueId: resolvedPatientId,
           tcmId: resolvedTcmId,
+          drawingCanvases,
+          ...(typeof isCvtExtHosAccessableFromGB === "boolean"
+            ? { isCvtExtHosAccessableFromGB }
+            : {}),
         }, {
           selectedLang,
           isGynaecHistoryAccessable,
@@ -157,6 +245,21 @@ export const usePrintPayloadPdf = ({
         }
         if (!isCancelled) {
           setPrintBlob(blob);
+          if (drawingCanvases.length > 0) {
+            trackEvent("drawing_canvas_pdf_generated", {
+              patient_id: payload?.caseManagerData?.patient_data?.patient_unique_id,
+              consultation_id: payload?.caseManagerData?.tcm_id,
+              selected_canvas_count: drawingCanvases.length,
+              render_time_ms: Date.now() - pdfStartTime,
+              corrupted_canvas_skipped: corruptedCanvasSkipped,
+            });
+            trackEvent("drawing_canvas_pdf_render_time", {
+              patient_id: payload?.caseManagerData?.patient_data?.patient_unique_id,
+              consultation_id: payload?.caseManagerData?.tcm_id,
+              selected_canvas_count: drawingCanvases.length,
+              render_time_ms: Date.now() - pdfStartTime,
+            });
+          }
         }
       } catch (err) {
         console.log("Failed to generate PDF blob", err);
@@ -184,11 +287,13 @@ export const usePrintPayloadPdf = ({
     dentalExaminationData,
     oralExamination,
     patientUniqueId,
+    patientId,
     tcmId,
     onlyShowDental,
     showSnapRxImages,
     zydusSelectedLabParams,
     allowFullApiFallback,
+    isCvtExtHosAccessableFromGB,
   ]);
 
   return { payload, printBlob, isGenerating, error };

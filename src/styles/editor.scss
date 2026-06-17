@@ -1,6 +1,6 @@
 // .jodit Editor
 body {
-    .jodit-container {  
+    .jodit-container:not(.health-checkup-editor__document-body) {  
         border-radius: 10px !important;
         .jodit-toolbar__box {
             border-radius: 10px 10px 0 0;

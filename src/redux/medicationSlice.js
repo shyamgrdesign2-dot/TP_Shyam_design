@@ -1,6 +1,31 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
 import ApiMedication from "../api/services/ApiMedication";
+import { MEDICINE_STOCK_STATUS } from "../utils/constants";
+
+const mergeInventoryData = (searchResults, invRows) => {
+  const invByRef = new Map(
+    invRows.map((row) => [String(row.referenceId), row])
+  );
+
+  return searchResults.map((item) => {
+    const rid = String(item?.reference_id ?? "");
+    const inv = invByRef.get(rid);
+
+    return {
+      ...item,
+      quantity: Number(inv?.quantity ?? 0),
+      stock_status: inv?.stock_status ?? MEDICINE_STOCK_STATUS.NO_STOCK,
+    };
+  });
+};
+
+const withEmptyInventory = (searchResults) =>
+  searchResults.map((item) => ({
+    ...item,
+    quantity: 0,
+    stock_status: MEDICINE_STOCK_STATUS.NO_STOCK,
+  }));
 
 const initialState = {
   selectedMedicationList: [],
@@ -65,14 +90,27 @@ export const getMedicationTemplates = createAsyncThunk(
 
 export const singleTemplateDetails = createAsyncThunk(
   "medication/singleTemplateDetails",
-  async (templateId) => {
-    let result = {};
-    result = await ApiMedication.singleTemplateDetails(templateId);
+  async ({ templateId, tmtd_id, isChikitsalayAccessable = false } = {}) => {
+    const resolvedTemplateId = templateId ?? tmtd_id;
+    if (
+      resolvedTemplateId === undefined ||
+      resolvedTemplateId === null ||
+      resolvedTemplateId === ""
+    ) {
+      throw new Error(
+        "singleTemplateDetails requires templateId in the request payload."
+      );
+    }
+
+    const result = await ApiMedication.singleTemplateDetails(resolvedTemplateId, {
+      mergeInventory: !!isChikitsalayAccessable,
+    });
+
     if (result.status) {
       return result.data;
-    } else {
-      throw Error(result.error);
     }
+
+    throw Error(result.error);
   }
 );
 
@@ -91,11 +129,39 @@ export const getMedicineDetails = createAsyncThunk(
 
 export const getFrequentlySearchedMedication = createAsyncThunk(
   "medication/getFrequentlySearchedMedication",
-  async () => {
+  async (data) => {
     let result = {};
     result = await ApiMedication.getFrequentlySearchedMedication();
     if (result.status) {
-      return result.data;
+      const searchResults = Array.isArray(result.data) ? result.data : [];
+
+      // Inventory is a Chikitsalay-only feature
+      if (!data?.isChikitsalayAccessable) {
+        return searchResults;
+      }
+
+      const referenceIds = searchResults
+        .map((item) => item?.reference_id)
+        .filter((id) => id !== undefined && id !== null && String(id).trim() !== "")
+        .map((id) => String(id));
+
+      if (referenceIds.length === 0) {
+        return withEmptyInventory(searchResults);
+      }
+
+      try {
+        const inv = await ApiMedication.getEvitalsInventory(referenceIds);
+        const invRows = Array.isArray(inv)
+          ? inv
+          : inv?.status && Array.isArray(inv.data)
+            ? inv.data
+            : Array.isArray(inv?.data)
+              ? inv.data
+              : [];
+        return mergeInventoryData(searchResults, invRows);
+      } catch (e) {
+        return withEmptyInventory(searchResults);
+      }
     } else {
       throw Error(result.error);
     }
@@ -108,7 +174,35 @@ export const searchMedication = createAsyncThunk(
     let result = {};
     result = await ApiMedication.searchMedication(data.searchQuery);
     if (result.status) {
-      return result.data;
+      const searchResults = Array.isArray(result.data) ? result.data : [];
+
+      // Inventory is a Chikitsalay-only feature
+      if (!data?.isChikitsalayAccessable) {
+        return searchResults;
+      }
+
+      const referenceIds = searchResults
+        .map((item) => item?.reference_id)
+        .filter((id) => id !== undefined && id !== null && String(id).trim() !== "")
+        .map((id) => String(id));
+
+      if (referenceIds.length === 0) {
+        return withEmptyInventory(searchResults);
+      }
+
+      try {
+        const inv = await ApiMedication.getEvitalsInventory(referenceIds);
+        const invRows = Array.isArray(inv)
+          ? inv
+          : inv?.status && Array.isArray(inv.data)
+            ? inv.data
+            : Array.isArray(inv?.data)
+              ? inv.data
+              : [];
+        return mergeInventoryData(searchResults, invRows);
+      } catch (e) {
+        return withEmptyInventory(searchResults);
+      }
     } else {
       throw Error(result.error);
     }
@@ -118,13 +212,17 @@ export const searchMedication = createAsyncThunk(
 export const getLoadPreviousRx = createAsyncThunk(
   "medication/getLoadPreviousRx",
   async (data) => {
-    let result = {};
-    result = await ApiMedication.getLoadPreviousRx(data);
+    const { isChikitsalayAccessable, ...requestData } = data ?? {};
+
+    const result = await ApiMedication.getLoadPreviousRx(requestData, {
+      mergeInventory: !!isChikitsalayAccessable,
+    });
+
     if (result.status) {
       return result.data;
-    } else {
-      throw Error(result.error);
     }
+
+    throw Error(result.error);
   }
 );
 

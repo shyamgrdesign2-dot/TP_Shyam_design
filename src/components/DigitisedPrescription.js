@@ -38,14 +38,19 @@ import MedicationsTable from "./MedicationsTable";
 import LabInvestigationTable from "./LabInvestigationTable";
 import config from "../config";
 import styles from "./ConsultationDrawer.module.css";
-import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
+import {
+  ensureLabInvestigationMetadataForRxSave,
+  ensureMedicationGroundedForRxSave,
+} from "../utils/medicationRxPayload";
 import { setDentalData } from "../redux/dentalRxSlice";
+import { MANYA_DENTAL_TREATMENT_OPTIONS } from "../utils/manyaDentalTreatmentOptions";
 import { ASSETS } from "../assets";
 const {
   alerticon: alertIcon,
   documentNormal: documentIcon,
   danger: warningIcon,
 } = ASSETS.images;
+const MANYA_DENTAL_TREATMENT_DATALIST_ID = "manya-dental-treatment-options";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -122,6 +127,10 @@ export const normalizeNewItem = (type, text = "") => {
 const getMedicationNameForFuzzy = (m) =>
   String(m?.groundedMedicineName ?? m?.groundingMedicineName ?? m?.name ?? "").trim();
 
+/** Lab investigation string used for fuzzy search (corrected name first, then spoken/OCR name). */
+const getLabInvestigationNameForFuzzy = (item) =>
+  String(item?.name ?? item?.metadata?.fuzzyCorrectedName ?? "").trim();
+
 const getPrimaryText = (type, item) => {
   if (type === "advice") return typeof item === "string" ? item : "";
   if (type === "medications") return (item?.groundedMedicineName || "").trim() || (item?.name || "").trim() || "";
@@ -139,6 +148,9 @@ const getMedicationNameToUse = (med) => getMedicationNameForFuzzy(med);
 
 const getMedicationNamesSignature = (meds = []) =>
   meds.map((m) => getMedicationNameToUse(m)).join("|");
+
+const getLabInvestigationNamesSignature = (labs = []) =>
+  labs.map((item) => getLabInvestigationNameForFuzzy(item)).join("|");
 
 const getDentalMedicationArray = (rootMedications, dentalMedications) => {
   if (Array.isArray(rootMedications)) return rootMedications;
@@ -193,6 +205,7 @@ const DigitisedPrescription = ({
   vitalsFlow,
   skipAutoLabResultsLogic = false,
   digitiseSplitLayout = false,
+  isManyaDental = false,
 }) => {
   const showHeaderArea = showRxPadHeader || showHeader;
   const rightSectionClass = [
@@ -229,9 +242,10 @@ const DigitisedPrescription = ({
   const dentalDataFromStore = useSelector((state) => state.dentalRx?.dentalData);
   // Fuzzy search run-once guards for meds and tests
   const hasFuzzyRunMedsRef = useRef(false);
-  const hasFuzzyRunTestsRef = useRef(false);
   const lastFuzzyNamesRef = useRef("");
   const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
+  const lastFuzzyLabsRef = useRef("");
+  const lastFuzzyLabsCallRef = useRef({ sig: "", ts: 0 });
   const tokenData = getTokenData();
   const toothInputRefs = useRef({});
   const pendingToothFocusRef = useRef(null);
@@ -1040,7 +1054,7 @@ const DigitisedPrescription = ({
               return {
                 correctedName: corrected || nameToUse,
                 fullData: result?.[0] || null,
-                skip: false,
+                skip: !result?.[0],
               };
             } catch (error) {
               return { correctedName: nameToUse, fullData: null, skip: true };
@@ -1054,7 +1068,11 @@ const DigitisedPrescription = ({
             return currentDisplayName !== correctedResults[i].correctedName;
           }
         );
-        if (!anyChanged) {
+        const needsFuzzyMetadata = meds.some(
+          (m, i) =>
+            Boolean(correctedResults[i]?.fullData) && !m?.metadata?.isFuzzyCorrected
+        );
+        if (!anyChanged && !needsFuzzyMetadata) {
           const correctedSig = meds.map((m) => getMedicationNameForFuzzy(m)).join("|");
           lastFuzzyNamesRef.current = correctedSig;
           return;
@@ -1074,12 +1092,14 @@ const DigitisedPrescription = ({
             ...prev,
             medications: currentMeds.map((m, idx) => {
               const result = correctedResults[idx];
-              if (!result || result.skip) return m;
+              if (!result || result.skip || !result.fullData) return m;
               const corrected = result.correctedName;
+              const nameChanged = getMedicationNameForFuzzy(m) !== corrected;
               return ensureMedicationGroundedForRxSave({
                 ...m,
-                groundedMedicineName: corrected,
-                refinedName: corrected,
+                ...(nameChanged
+                  ? { groundedMedicineName: corrected, refinedName: corrected }
+                  : {}),
                 metadata: {
                   ...m.metadata,
                   fuzzyCorrectedName: corrected,
@@ -1101,44 +1121,93 @@ const DigitisedPrescription = ({
       try {
         const labs = labsSnapshot || sectionData.labInvestigation || [];
         if (!labs.length) return;
+        const sourceSignature = getLabInvestigationNamesSignature(labs);
+
         const correctedResults = await Promise.all(
-          labs.map(async (it) => {
-            const currentName = (it?.name || "").trim();
-            if (!currentName)
-              return { correctedName: currentName, fullData: null };
+          labs.map(async (item) => {
+            const nameToUse = getLabInvestigationNameForFuzzy(item);
+            const isManualSelection = Boolean(
+              item?.metadata?.isManualSelection ||
+                item?.metadata?.selectedValue
+            );
+            const hasSameFuzzyResult = Boolean(
+              item?.metadata?.isFuzzyCorrected &&
+                (item?.metadata?.fuzzyCorrectedName || "").trim() === nameToUse
+            );
+            if (!nameToUse) {
+              return { correctedName: nameToUse, fullData: null, skip: true };
+            }
+            if (isManualSelection) {
+              return { correctedName: nameToUse, fullData: null, skip: true };
+            }
+            if (hasSameFuzzyResult) {
+              return { correctedName: nameToUse, fullData: null, skip: true };
+            }
             try {
-              const result = await ApiInvestigation.getFuzzySearch(currentName);
+              const result = await ApiInvestigation.getFuzzySearch(nameToUse);
               const corrected = result?.[0]?.investigation_name?.trim();
               return {
-                correctedName: corrected || currentName,
+                correctedName: corrected || nameToUse,
                 fullData: result?.[0] || null,
+                skip: !result?.[0],
               };
             } catch {
-              return { correctedName: currentName, fullData: null };
+              return { correctedName: nameToUse, fullData: null, skip: true };
             }
           })
         );
 
         const anyChanged = labs.some(
-          (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+          (item, index) =>
+            getLabInvestigationNameForFuzzy(item) !== correctedResults[index].correctedName
         );
-        if (!anyChanged) return;
+        const needsFuzzyMetadata = labs.some(
+          (item, index) =>
+            Boolean(correctedResults[index]?.fullData) &&
+            !item?.metadata?.isFuzzyCorrected
+        );
+        if (!anyChanged && !needsFuzzyMetadata) {
+          const correctedSig = labs
+            .map((item) => getLabInvestigationNameForFuzzy(item))
+            .join("|");
+          lastFuzzyLabsRef.current = correctedSig;
+          return;
+        }
 
-        setData((prev) => ({
-          ...prev,
-          labInvestigation: (prev?.labInvestigation || []).map((m, idx) => ({
-            ...m,
-            name: correctedResults[idx].correctedName,
-            edited: false,
-            metadata: {
-              ...m.metadata,
-              fuzzyCorrectedName: correctedResults[idx].correctedName,
-              originalName: m.name,
-              isFuzzyCorrected: true,
-              ...(correctedResults[idx].fullData || {}),
-            },
-          })),
-        }));
+        const correctedSig = correctedResults
+          .map((result) => result.correctedName)
+          .join("|");
+        lastFuzzyLabsRef.current = correctedSig;
+
+        setData((prev) => {
+          const currentLabs = prev?.labInvestigation || [];
+          const currentSignature = getLabInvestigationNamesSignature(currentLabs);
+          if (currentSignature !== sourceSignature) return prev;
+
+          return {
+            ...prev,
+            labInvestigation: currentLabs.map((item, idx) => {
+              const result = correctedResults[idx];
+              if (!result || result.skip || !result.fullData) return item;
+              const corrected = result.correctedName;
+              const nameChanged = getLabInvestigationNameForFuzzy(item) !== corrected;
+              const fuzzyMeta = {
+                ...item.metadata,
+                fuzzyCorrectedName: corrected,
+                originalName: getLabInvestigationNameForFuzzy(item) || item.name,
+                isFuzzyCorrected: true,
+                ...(result.fullData || {}),
+              };
+              return ensureLabInvestigationMetadataForRxSave({
+                ...item,
+                ...(nameChanged ? { name: corrected, edited: false } : {}),
+                hm_type: fuzzyMeta.hm_type ?? item.hm_type,
+                um_id: fuzzyMeta.um_id ?? item.um_id,
+                metadata: fuzzyMeta,
+              });
+            }),
+          };
+        });
       } finally {}
     },
     [sectionData.labInvestigation, setData]
@@ -1154,8 +1223,11 @@ const DigitisedPrescription = ({
     const namesSignature = getMedicationNamesSignature(meds);
     if (!namesSignature) return;
 
-    // If signature matches what we last processed, skip
-    if (namesSignature === lastFuzzyNamesRef.current) return;
+    // If signature matches what we last processed, skip — unless fuzzy metadata was lost (e.g. after voice PUT)
+    const needsMetadataRefresh = meds.some(
+      (m) => getMedicationNameForFuzzy(m) && !m?.metadata?.isFuzzyCorrected
+    );
+    if (namesSignature === lastFuzzyNamesRef.current && !needsMetadataRefresh) return;
 
     const now = Date.now();
     // Prevent rapid duplicate calls (e.g., StrictMode double effect)
@@ -1171,13 +1243,31 @@ const DigitisedPrescription = ({
     getFuzzySearchMedicine(meds);
   }, [sectionData.medications]);
 
-  // Fuzzy-correct lab investigations ONLY when API response (snap/smart/voice/ambient) has labInvestigation
+  // Fuzzy-correct lab investigation names when labInvestigation changes (same lifecycle as medications)
   useEffect(() => {
     if (!isGroundingAccessable) return;
-    if (hasFuzzyRunTestsRef.current) return;
     const labs = sectionData.labInvestigation || [];
     if (!labs.length) return;
-    hasFuzzyRunTestsRef.current = true;
+
+    const namesSignature = getLabInvestigationNamesSignature(labs);
+    if (!namesSignature) return;
+
+    const needsMetadataRefresh = labs.some(
+      (item) =>
+        getLabInvestigationNameForFuzzy(item) && !item?.metadata?.isFuzzyCorrected
+    );
+    if (namesSignature === lastFuzzyLabsRef.current && !needsMetadataRefresh) return;
+
+    const now = Date.now();
+    if (
+      lastFuzzyLabsCallRef.current.sig === namesSignature &&
+      now - lastFuzzyLabsCallRef.current.ts < 800
+    ) {
+      return;
+    }
+    lastFuzzyLabsCallRef.current = { sig: namesSignature, ts: now };
+
+    lastFuzzyLabsRef.current = namesSignature;
     getFuzzySearchLabs(labs);
   }, [sectionData.labInvestigation]);
 
@@ -1185,9 +1275,10 @@ const DigitisedPrescription = ({
   useEffect(() => {
     return () => {
       hasFuzzyRunMedsRef.current = false;
-      hasFuzzyRunTestsRef.current = false;
       lastFuzzyNamesRef.current = "";
       lastFuzzyCallRef.current = { sig: "", ts: 0 };
+      lastFuzzyLabsRef.current = "";
+      lastFuzzyLabsCallRef.current = { sig: "", ts: 0 };
     };
   }, []);
 
@@ -1254,6 +1345,7 @@ const DigitisedPrescription = ({
                   ...arr[activeIndex].metadata,
                   ...(option?.key ? JSON.parse(option.key) : {}),
                   selectedValue: value,
+                  isManualSelection: true,
                 },
               };
               updated.labInvestigation = arr;
@@ -1280,6 +1372,7 @@ const DigitisedPrescription = ({
               ...arr[activeIndex].metadata,
               ...(option?.key ? JSON.parse(option.key) : {}),
               selectedValue: value,
+              isManualSelection: true,
             },
           };
           updated.labInvestigation = arr;
@@ -2632,6 +2725,13 @@ const DigitisedPrescription = ({
               </div>
 
               <div className="dental-table-title">TREATMENT PLAN(S)</div>
+              {isManyaDental && (
+                <datalist id={MANYA_DENTAL_TREATMENT_DATALIST_ID}>
+                  {MANYA_DENTAL_TREATMENT_OPTIONS.map((treatmentName) => (
+                    <option key={treatmentName} value={treatmentName} />
+                  ))}
+                </datalist>
+              )}
               <table className="dental-table dental-treatment-table">
                 <thead>
                   <tr>
@@ -2665,6 +2765,11 @@ const DigitisedPrescription = ({
                           <input
                             type="text"
                             className="dental-table-input"
+                            list={
+                              isManyaDental
+                                ? MANYA_DENTAL_TREATMENT_DATALIST_ID
+                                : undefined
+                            }
                             value={row?.treatment ?? ""}
                             onChange={(e) =>
                               updateDentalTreatmentItem(

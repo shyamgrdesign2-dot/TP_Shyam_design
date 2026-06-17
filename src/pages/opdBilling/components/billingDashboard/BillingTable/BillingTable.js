@@ -578,7 +578,11 @@ export default function BillingTable({
       header: billSheetColumnOrder,
     });
 
-    const paymentModes = data?.summary?.paymentModeSummary || [];
+    const paymentModes = (data?.summary?.paymentModeSummary || []).filter(
+      (item) =>
+        (Number(item?.receivedAmount) || 0) !== 0 ||
+        (Number(item?.refundedAmount) || 0) !== 0
+    );
     const paymentRows = paymentModes.map((item) => ({
       "PAYMENT MODE": item?.paymentMode || "",
       "RECEIVED AMOUNT": Number(item?.receivedAmount || 0),
@@ -1134,8 +1138,14 @@ export default function BillingTable({
                 )
               );
             }
-            const paymentModes = data?.summary?.paymentModeSummary;
-            if (paymentModes?.length > 0) {
+            const paymentModes = (
+              data?.summary?.paymentModeSummary || []
+            ).filter(
+              (item) =>
+                (Number(item?.receivedAmount) || 0) !== 0 ||
+                (Number(item?.refundedAmount) || 0) !== 0
+            );
+            if (paymentModes.length > 0) {
               flushSync(() => {
                 setPatientPdfUi({
                   rowStart: 0,

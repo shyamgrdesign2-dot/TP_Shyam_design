@@ -11,94 +11,13 @@ import html2canvas from "html2canvas";
 
 import { HEALTH_CHECKUP_REPORT_TEMPLATE_HTML } from "../constants";
 import { buildReportContentFromGroupedData } from "../utils/buildReportContentFromGroupedData";
+import { normalizeHealthCheckupReportHtml } from "../utils/normalizeReportHtml";
 import ApiHealthCheckupReport from "../../../api/services/ApiHealthCheckupReport";
 import HealthCheckupDocument from "./HealthCheckupDocument";
 
 import "./HealthCheckupReportEditor.scss";
 
-/** Set to true to use Smart Web Components editor for the report body (HTML as source); save still uses TipTap JSON. Set false if smart-webcomponents-react is not installed or to use TipTap toolbar. */
 const USE_SMART_EDITOR = true;
-
-/**
- * Validates and cleans TipTap content to ensure it's valid
- * Deep clones to avoid mutating read-only objects
- * @param {Array} contentArray - Array of TipTap nodes
- * @param {boolean} isTopLevel - Whether this is top-level document content (text nodes not allowed)
- */
-function validateAndCleanContent(contentArray, isTopLevel = true) {
-  if (!Array.isArray(contentArray)) return [];
-
-  return contentArray
-    .filter((node) => {
-      if (!node || typeof node !== "object" || !node.type) {
-        console.warn("Invalid node (missing type):", node);
-        return false;
-      }
-
-      // Text nodes must have a 'text' property
-      if (node.type === "text") {
-        if (typeof node.text !== "string") {
-          console.warn("Text node missing text property:", node);
-          return false;
-        }
-        // Text nodes are only invalid at document/table top level
-        if (isTopLevel) {
-          console.warn("Unwrapped text node at top level:", node);
-          return false;
-        }
-      }
-
-      return true;
-    })
-    .map((node) => {
-      // Deep clone the node to avoid mutating read-only objects
-      const clonedNode = JSON.parse(JSON.stringify(node));
-
-      // Fix text nodes without text property
-      if (clonedNode.type === "text" && typeof clonedNode.text !== "string") {
-        clonedNode.text = "\u200B"; // Zero-width space
-      }
-
-      // Recursively validate nested content
-      // Text nodes are allowed inside block elements (paragraphs, headings, etc.)
-      if (clonedNode.content && Array.isArray(clonedNode.content)) {
-        const allowTextNodes = [
-          "paragraph",
-          "heading",
-          "listItem",
-          "blockquote",
-          "tableCell",
-          "tableHeader",
-        ].includes(clonedNode.type);
-        clonedNode.content = validateAndCleanContent(
-          clonedNode.content,
-          !allowTextNodes,
-        );
-      }
-
-      // Ensure paragraphs/headings have at least one text node
-      if (["paragraph", "heading"].includes(clonedNode.type)) {
-        if (!clonedNode.content || clonedNode.content.length === 0) {
-          clonedNode.content = [{ type: "text", text: "\u200B" }];
-        }
-      }
-
-      // Validate table structure
-      if (clonedNode.type === "table" && clonedNode.content) {
-        clonedNode.content = clonedNode.content.filter((row) => {
-          if (row.type !== "tableRow") return false;
-          if (row.content && Array.isArray(row.content)) {
-            row.content = row.content.filter((cell) => {
-              return cell.type === "tableCell" || cell.type === "tableHeader";
-            });
-          }
-          return row.content && row.content.length > 0;
-        });
-      }
-
-      return clonedNode;
-    });
-}
 
 function HealthCheckupReportEditor({
   initialContent,
@@ -120,26 +39,27 @@ function HealthCheckupReportEditor({
 
   const smartEditorRef = useRef(null);
   const toolbarSlotRef = useRef(null);
+  const loadedInitialContentKeyRef = useRef(null);
   const [htmlContent, setHtmlContent] = useState("");
+  const [isEditorContentReady, setIsEditorContentReady] = useState(false);
   const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
 
-  // When USE_SMART_EDITOR: initial content is HTML from template or buildReportContentFromGroupedData (no TipTap getHTML)
   const initialHtmlWhenSmart = useMemo(() => {
     if (!USE_SMART_EDITOR) return "";
     if (groupedConsultationData) {
-      return buildReportContentFromGroupedData(
+      return normalizeHealthCheckupReportHtml(buildReportContentFromGroupedData(
         groupedConsultationData,
         patient_data,
         profile
-      );
+      ));
     }
     if (
       typeof initialContent === "string" &&
       initialContent.trim().startsWith("<")
     ) {
-      return initialContent;
+      return normalizeHealthCheckupReportHtml(initialContent);
     }
-    return HEALTH_CHECKUP_REPORT_TEMPLATE_HTML;
+    return normalizeHealthCheckupReportHtml(HEALTH_CHECKUP_REPORT_TEMPLATE_HTML);
   }, [
     groupedConsultationData,
     patient_data,
@@ -147,11 +67,22 @@ function HealthCheckupReportEditor({
     initialContent,
   ]);
 
+  const initialContentKey = useMemo(() => {
+    if (editingReportId) return `edit:${editingReportId}`;
+    if (groupedConsultationData) {
+      return `generated:${patient_data?.patient_unique_id || "patient"}`;
+    }
+    return "blank";
+  }, [editingReportId, groupedConsultationData, patient_data?.patient_unique_id]);
+
   // Set htmlContent when report is loaded (Smart editor path): from template/builder or from saved HTML
   useEffect(() => {
     if (!USE_SMART_EDITOR) return;
+    if (loadedInitialContentKeyRef.current === initialContentKey) return;
+    loadedInitialContentKeyRef.current = initialContentKey;
     setHtmlContent(initialHtmlWhenSmart);
-  }, [initialHtmlWhenSmart]);
+    setIsEditorContentReady(true);
+  }, [initialContentKey, initialHtmlWhenSmart]);
 
   /**
    * Generate thumbnail from document (first page, JPEG, good quality)
@@ -161,7 +92,7 @@ function HealthCheckupReportEditor({
     if (!documentRef.current) return null;
 
     // Use the smart editor's internal container for exact boundaries, fallback to outer paper wrap
-    const targetElement = documentRef.current.querySelector('.smart-editor-content-container') || documentRef.current;
+    const targetElement = documentRef.current.querySelector('.smart-editor-content-container') || documentRef.current.querySelector('.jodit-wysiwyg') || documentRef.current;
 
     try {
       const canvas = await html2canvas(targetElement, {
@@ -225,8 +156,10 @@ function HealthCheckupReportEditor({
         }
       }
 
-      // Step 4: Call onSave with document and thumbnail URL
-      const html = smartEditorRef.current?.getHtml?.() ?? htmlContent;
+      // Step 3: Call onSave with document and thumbnail URL
+      const rawHtml = smartEditorRef.current?.getHtml?.();
+      const htmlSource = rawHtml && rawHtml.trim() ? rawHtml : htmlContent;
+      const html = normalizeHealthCheckupReportHtml(htmlSource);
 
       onSave({
         id: editingReportId,
@@ -246,11 +179,16 @@ function HealthCheckupReportEditor({
     htmlContent,
   ]);
 
+  const smartEditorInitialHtml =
+    loadedInitialContentKeyRef.current === initialContentKey
+      ? htmlContent
+      : initialHtmlWhenSmart;
+
   return (
     <div
       className={`health-checkup-editor health-checkup-editor--drawer`}
     >
-      {<header className="health-checkup-editor__header">
+      <header className="health-checkup-editor__header">
         <div className="health-checkup-editor__header-left">
           <button
             type="button"
@@ -275,21 +213,28 @@ function HealthCheckupReportEditor({
             {isSaving || isGeneratingThumbnail ? "Saving..." : "Save"}
           </Button>
         </div>
-      </header>}
+      </header>
 
       <div
         className="health-checkup-editor__document-wrap"
       >
-        <HealthCheckupDocument
-          documentRef={documentRef}
-          editable={editable}
-          useSmartEditor={USE_SMART_EDITOR}
-          smartEditorHtml={htmlContent}
-          onSmartEditorChange={setHtmlContent}
-          smartEditorRef={smartEditorRef}
-          hideSmartToolbar={false}
-          toolbarSlotRef={USE_SMART_EDITOR ? toolbarSlotRef : null}
-        />
+        {isEditorContentReady ? (
+          <HealthCheckupDocument
+            key={initialContentKey}
+            documentRef={documentRef}
+            editable={editable}
+            useSmartEditor={USE_SMART_EDITOR}
+            smartEditorHtml={smartEditorInitialHtml}
+            onSmartEditorChange={setHtmlContent}
+            smartEditorRef={smartEditorRef}
+            hideSmartToolbar={false}
+            toolbarSlotRef={USE_SMART_EDITOR ? toolbarSlotRef : null}
+          />
+        ) : (
+          <div style={{ padding: "20px", textAlign: "center", color: "#999" }}>
+            Loading document...
+          </div>
+        )}
       </div>
     </div>
   );

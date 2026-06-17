@@ -52,7 +52,17 @@ export const getAllOpthalPrescriptions = async (params = {}) => {
 export const getOpthalPrescriptionDetails = async (params = {}) => {
   let res = {};
   try {
-    res = await api.get(`/api/v1/opthal-prescription${buildQueryString(params)}`, baseUrl);
+    const { signal, ...queryParams } = params;
+    
+    const axiosConfig = {
+      ...baseUrl,
+      signal,
+    };
+    
+    res = await api.get(
+      `/api/v1/opthal-prescription${buildQueryString(queryParams)}`,
+      axiosConfig
+    );
     res = res?.data ?? res;
   } catch (e) {
     console.error("Error while fetching opthal prescription details:", e);

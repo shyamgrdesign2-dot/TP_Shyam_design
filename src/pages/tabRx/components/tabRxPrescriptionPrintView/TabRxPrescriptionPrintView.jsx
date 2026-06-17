@@ -30,6 +30,7 @@ import { getGynecDetails } from "../../../../api/services/ApiGynec";
 import {
   FAILED_VERIFICATION,
   FREE,
+  GB_CVT_EXT_HOS,
   LANGUAGE_LIST,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN,
@@ -39,6 +40,7 @@ import {
   ZYDUS_WHATS_APP_API,
   FETCH_SMART_RX,
 } from "../../../../utils/constants";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useZydusWhatsapp } from "../../../../hooks/useZydusWhatsapp";
 import { env } from "../../../../EnvironmentConfig";
 import CreateBill from "../../../opdBilling/components/createBill/CreateBill";
@@ -149,6 +151,7 @@ function TabRxPrescriptionPrintView() {
     (state) => state.doctors,
   );
   const isZydusWhatsappEnabled = useZydusWhatsapp();
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const { servicesList } = useSelector((state) => state.doctors);
   const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
   const { isOpdBillChecked } = useSelector((state) => state.billing);
@@ -338,6 +341,13 @@ function TabRxPrescriptionPrintView() {
   }, [showDigitalRx]);
 
   useEffect(() => {
+    if (isCvtExtHosAccessableFromGB) return;
+    setWhatsAppButtonText(
+      showDigitalRx ? "Send Digital Rx to WhatsApp" : "Send Written Rx to WhatsApp",
+    );
+  }, [showDigitalRx, isCvtExtHosAccessableFromGB]);
+
+  useEffect(() => {
     if (isGynaecHistoryAccessable) {
       fetchGynecHistory();
     }
@@ -456,10 +466,12 @@ function TabRxPrescriptionPrintView() {
     isGynaecHistoryAccessable,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
-    dentalExaminationData,
-    oralExamination,
-    patientUniqueId: patient_data?.patient_unique_id,
-    tcmId: state?.tcm_id,
+        dentalExaminationData,
+        oralExamination,
+        patientUniqueId: patient_data?.patient_unique_id,
+        patientId: patient_data?.patient_unique_id,
+        tcmId: state?.tcm_id,
+        isCvtExtHosAccessableFromGB,
   });
 
 
@@ -790,6 +802,40 @@ function TabRxPrescriptionPrintView() {
     }
   };
 
+  const handleSendToWhatsapp = async () => {
+    const decodedToken = getDecodedToken();
+    const tokenData = decodedToken?.result;
+    const body = {
+      tcm_id: state?.tcm_id,
+      pm_contact_no: patient_data?.pm_contact_no,
+      change_mobile_number: false,
+      patient_unique_id: patient_data?.patient_unique_id,
+      hospital_business_id: tokenData?.hospital_business_id,
+      um_id: tokenData?.user_id,
+      ...(showDigitalRx && { isRxDigitize: "true" }),
+    };
+
+    setIsWhatsAppLoading(true);
+    setWhatsAppButtonText("Sending...");
+    try {
+      const response = await api.post(WHATS_APP_API, body, {
+        customBaseUrl: env.casemanager_api_url,
+      });
+      if (response.message) {
+        setWhatsAppButtonText("Successfully Sent");
+        setTimeout(() => {
+          setWhatsAppButtonText("Send to WhatsApp again");
+        }, 3000);
+      } else {
+        setWhatsAppButtonText("Send to WhatsApp");
+      }
+    } catch (error) {
+      errorMessage(WTSAP_ERR_MESSAGE);
+    } finally {
+      setIsWhatsAppLoading(false);
+    }
+  };
+
   const handleZydusSendToWhatsapp = async () => {
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
@@ -1105,12 +1151,14 @@ function TabRxPrescriptionPrintView() {
                     }
                   />
                 )}
-                {(() => {
+                {!isCvtExtHosAccessableFromGB && (() => {
                   const decodedToken = getDecodedToken();
                   const tokenData = decodedToken?.result;
+                  const isZydusWhatsapp =
+                    tokenData?.hospital_business_id ==
+                      env.zydus_business_id && isZydusWhatsappEnabled;
 
-                  return tokenData?.hospital_business_id ==
-                    env.zydus_business_id && isZydusWhatsappEnabled ? (
+                  return (
                     <>
                       <div className="bg-body d-flex p-3 rounded-10px border">
                         <img
@@ -1120,7 +1168,9 @@ function TabRxPrescriptionPrintView() {
                         />
                         <div className="fontroboto title-common">
                           <div className="fw-normal fontroboto mb-2">
-                            Send this Written Rx to
+                            {showDigitalRx
+                              ? "Send this Digital Rx to"
+                              : "Send this Written Rx to "}
                           </div>
                           {patient_data !== undefined
                             ? `WhatsApp +91 ${patient_data.pm_contact_no}`
@@ -1129,7 +1179,11 @@ function TabRxPrescriptionPrintView() {
                       </div>
                       <button
                         className="btn btn-send-to-wtsap btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
-                        onClick={handleZydusSendToWhatsapp}
+                        onClick={
+                          isZydusWhatsapp
+                            ? handleZydusSendToWhatsapp
+                            : handleSendToWhatsapp
+                        }
                       >
                         {isWhatsAppLoading ? (
                           <img
@@ -1143,7 +1197,7 @@ function TabRxPrescriptionPrintView() {
                         )}
                       </button>
                     </>
-                  ) : null;
+                  );
                 })()}
               </div>
 

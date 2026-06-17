@@ -32,9 +32,54 @@ body{
             }
         }
     }
+    .header-patient-info {
+        align-items: center;
+        min-width: 0;
+        max-height: 60px;
+        overflow: hidden;
+    }
+
+    .header-patient-details {
+        min-width: 0;
+        overflow: hidden;
+        line-height: 1.2;
+
+        .patientName,
+        .text-2 {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.25;
+        }
+
+        .text-2 {
+            line-height: 1.2;
+        }
+    }
+
     .headerprescription {
         height: 60px;
+        max-height: 60px;
         box-shadow: -1px -1px 0px 0px #E2E2EA inset;
+
+        .headerprescription-actions-col {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .headerprescription-actions {
+            flex-wrap: nowrap;
+            min-width: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+
+            &::-webkit-scrollbar {
+                display: none;
+            }
+        }
 
         .teleconsult-video-btn {
             width: 42px;
@@ -62,17 +107,7 @@ body{
                 padding-right: 0 !important;
             }
 
-            .headerprescription-actions-col {
-                flex: 1 1 auto;
-                min-width: 0;
-                display: flex;
-                justify-content: flex-end;
-            }
-
             .headerprescription-actions {
-                flex-wrap: nowrap;
-                min-width: 0;
-
                 .btn:not(.btn-primary3):not(.btn-more) {
                     padding: 0 12px 0 0;
                 }
@@ -103,7 +138,10 @@ body{
             .patientName {
                 color: #44444F;
                 font-weight: 500;
-                max-width: 140px;
+            }
+
+            .header-patient-details {
+                max-width: 160px;
             }
 
             .teleconsult-video-btn + .headerprescription-tablet-sep {
@@ -111,4 +149,18 @@ body{
             }
         }
     }
+}
+@keyframes headerVoicePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.4); }
+}
+.header-voice-transcribing {
+    padding: 0 12px !important;
+}
+.header-voice-locked {
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    opacity: 0.45;
+    cursor: not-allowed !important;
 }

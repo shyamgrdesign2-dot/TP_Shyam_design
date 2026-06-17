@@ -19,8 +19,11 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
+import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
 
-import { MenuOutlined } from '@ant-design/icons';
+import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   addTemplate,
   updateTemplate,
@@ -36,12 +39,26 @@ import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
 import TextArea from "antd/es/input/TextArea";
 import { ASSETS } from "../assets";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleButton,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import { Grid5, Trash } from "iconsax-reactjs";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   symptoms: Symptomsicon,
 } = ASSETS.images;
 
-function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
+function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
   const {
     selectedSymptomsList,
     parentOptionsList,
@@ -52,6 +69,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   const { isAutofillSelected, selectedSymptomsCollector } = useSelector(
     (state) => state.ddx
   );
+  const isChikitsalayAccessable = useChikitsalay();
   const dispatch = useDispatch();
 
   const { symptomsData, setSymptomsData, examinationData } = useContext(CashManagerContext);
@@ -117,6 +135,51 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
   const [showShimmer, setShowShimmer] = useState(false);
+  const emptySymptomRow = () => ({ symptom_name: "", unique_id: uuidv4(), since: "", severity: "", note: "", change: 1, pms_default: 0 });
+
+  const applyVoiceSymptoms = useCallback((nextSymptoms) => {
+    if (nextSymptoms.length > 0) {
+      if (canShowVoiceRxNewRows) {
+        const last = nextSymptoms[nextSymptoms.length - 1];
+        const withTrailing = (!last || last.symptom_name !== "") ? [...nextSymptoms, emptySymptomRow()] : nextSymptoms;
+        setSymptomsData(withTrailing);
+      } else {
+        setSymptomsData(nextSymptoms);
+      }
+    }
+  }, [canShowVoiceRxNewRows, setSymptomsData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // add one trailing empty row on mount (only when flag is on)
+  useEffect(() => {
+    if (!canShowVoiceRxNewRows) return;
+    setSymptomsData(prev => {
+      const last = prev[prev.length - 1];
+      if (!last || last.symptom_name !== "") {
+        return [...prev, emptySymptomRow()];
+      }
+      return prev;
+    });
+  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAddRow = useCallback(() => {
+    setSymptomsData(prev => [...prev, emptySymptomRow()]);
+  }, [setSymptomsData]);
+  const symptomsVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(symptomsData, "symptoms"),
+    [symptomsData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Symptoms",
+    onApply: applyVoiceSymptoms,
+    successMessage: "Symptoms filled from voice dictation",
+    copyPayloadKeys: ["symptoms"],
+  });
 
   useEffect(() => {
     if (isAutofillSelected) {
@@ -341,8 +404,11 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
       setSymptomsData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).symptom_name, index: i });
       dispatch(setIsDDxReadyToGenerate(true));
+      if (canShowVoiceRxNewRows && i === symptomsData.length - 1) {
+        setSymptomsData((prev) => [...prev, emptySymptomRow()]);
+      }
     },
-    [searchChildQuery, symptomsData]
+    [searchChildQuery, symptomsData, canShowVoiceRxNewRows]
   );
 
   const onSearchSinceChid = useCallback(
@@ -407,7 +473,11 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
 
   const onRemoveRow = (index) => {
     symptomsData.splice(index, 1);
-    setSymptomsData((prev) => [...prev]);
+    if (canShowVoiceRxNewRows && symptomsData.length === 0) {
+      setSymptomsData([emptySymptomRow()]);
+    } else {
+      setSymptomsData((prev) => [...prev]);
+    }
     if (symptomsData?.length > 0) {
       dispatch(setIsDDxReadyToGenerate(true));
     } else if (examinationData?.length === 0) {
@@ -441,7 +511,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
     const action = await dispatch(singleTemplateDetails(template.tst_id));
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action?.payload;
-      setSymptomsData([...symptomsData, ...updatedData]);
+      setSymptomsData(appendStripped(symptomsData, updatedData, "symptoms"));
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)
@@ -478,14 +548,15 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   );
 
   const onAddTemplateClicked = async () => {
-    if (symptomsData.length === 0) {
+    const templateSymptoms = canShowVoiceRxNewRows ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
+    if (templateSymptoms.length === 0) {
       errorMessage('At least 1 symptom added')
-    } else if (symptomsData.filter(e => e.symptom_name == "").length > 0) {
+    } else if (templateSymptoms.filter(e => String(e.symptom_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup symptom name')
     } else {
       var sendData = {
         tst_template_name: inputTemplateName,
-        symptoms: symptomsData,
+        symptoms: templateSymptoms,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -507,16 +578,17 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (symptomsData.length === 0) {
+    const templateSymptoms = canShowVoiceRxNewRows ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
+    if (templateSymptoms.length === 0) {
       errorMessage('At least 1 symptom added')
-    } else if (symptomsData.filter(e => e.symptom_name == "").length > 0) {
+    } else if (templateSymptoms.filter(e => String(e.symptom_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup symptom name')
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         tst_id: data.tst_id,
         tst_template_name: data.tst_template_name,
-        symptoms: symptomsData,
+        symptoms: templateSymptoms,
       };
       const action = await dispatch(updateTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -668,7 +740,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="symptoms" direction="vertical">
           {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
+            <div {...provided.droppableProps} ref={provided.innerRef} className="mt-2">
               {symptomsData.length > 0 &&
                 symptomsData.map((item, index) => (
                   <Draggable key={index} draggableId={`symptom-${index}`} index={index}>
@@ -707,7 +779,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
                           <AutoComplete
                             defaultValue={item.since}
                             value={item.since}
-                            placeholder="Since"
+                            placeholder={isChikitsalayAccessable ? <div><span style={{ opacity: 0.6}}>Since</span> <span className="text-danger">*</span></div> : "Since"}
                             bordered={false}
                             defaultOpen={false}
                             onSearch={(query) => onSearchSinceChid(query, index)}
@@ -753,7 +825,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
                             className="btn py-0 btn-delete-prescription px-0"
                             onClick={() => onRemoveRow(index)}
                           >
-                            <i className="icon-delete"></i>
+                            {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                           </Button>
                         </Col>
                       </Row>
@@ -804,7 +876,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -829,7 +901,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -899,7 +971,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box"><i className="icon-template"></i></div>
+                  <div className="round-box">{isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -928,7 +1000,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setSymptomsData([])
+    setSymptomsData(canShowVoiceRxNewRows ? [emptySymptomRow()] : [])
     showHideClearData()
   };
 
@@ -991,13 +1063,20 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
 
   return (
     <>
-      <div>
+      <div ref={sectionRef} data-voice-rx-dictation-target="symptoms" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Symptomsicon} alt="Symptoms" />
-            <div className="title-common">Symptoms</div>
+            <div className="title-common">Symptoms {isChikitsalayAccessable ? <span className="text-danger">*</span> : ""}</div>
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="symptoms"
+                label="Start Symptoms voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -1006,10 +1085,18 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse symptoms templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse symptoms templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip placement="bottom" title={(symptomsData.length > 0) ? "" : "Please enter some Symptoms to save a template"}>
               <Popover
@@ -1021,16 +1108,37 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton
+                      type="save"
+                      label="Save symptoms as template"
+                      disabled={symptomsData.length === 0}
+                    />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
 
               </Popover>
             </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={symptomsData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton
+                  type="clear"
+                  label="Clear symptoms"
+                  onClick={showHideClearData}
+                  disabled={symptomsData.length === 0}
+                />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={symptomsData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
         {showShimmer ? <TableShimmerLoader /> : (
@@ -1038,6 +1146,18 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
             {DELETE_MODAL}
             {REMOVE_ALL_ROWS}
             {TABLE_SYMPTOMS}
+            {canShowVoiceRxNewRows && (
+              <div className="p-2">
+                <Button
+                  type="link"
+                  icon={<PlusOutlined />}
+                  className="add-custom-module-link"
+                  onClick={handleAddRow}
+                >
+                  Add New Line
+                </Button>
+              </div>
+            )}
 
         {/* {ddxOptionsList?.length > 0 && (
           <div style={{ padding: "0 14px" }}>
@@ -1049,22 +1169,30 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
             />
           </div>
         )} */}
-        <div className="p-14">
-         <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={!searchParentQuery && "boxpopup"}
-          >
-            <Input
-              placeholder="Search Symptoms"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>     
+        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName="Symptoms"
+              previousContext={symptomsVoicePreviousContext}
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.symptoms}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : !isVoiceRxModuleEnabled ? (
+            <AutoComplete
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+              popupClassName={!searchParentQuery && "boxpopup"}
+            >
+              <Input
+                placeholder="Search Symptoms"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
+          ) : null}
         </div>
         </>
         )}

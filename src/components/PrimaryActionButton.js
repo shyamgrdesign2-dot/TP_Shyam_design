@@ -5,7 +5,7 @@ import { useSelector } from "react-redux";
 import { isMobile, isTablet } from "react-device-detect";
 import { isZydus } from "../utils/utils";
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { GB_TAB_RX, GB_DENTAL_MODULE } from "../utils/constants";
+import { GB_TAB_RX, GB_DENTAL_MODULE, GB_CVT_EXT_HOS } from "../utils/constants";
 import { ASSETS } from "../assets";
 const smartPad = ASSETS.images.smartpad;
 
@@ -13,7 +13,7 @@ const smartPad = ASSETS.images.smartpad;
  * PrimaryActionButton Component
  * 
  * A reusable component that renders a primary action button with dropdown for additional options.
- * Handles the priority-based rendering: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+ * Handles the priority-based rendering: SmartRx > TabRx > VoiceRx > SnapRx > Consult
  * Special case: For Zydus accounts, Consult is always primary and other options go to dropdown
  * 
  * @param {Object} props
@@ -95,7 +95,7 @@ const PrimaryActionButton = ({
   // Check if this is a Zydus account
   const isZydusAccount = isZydus();
 
-  // Determine available options based on priority: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+  // Determine available options based on priority: SmartRx > TabRx > VoiceRx > SnapRx > Consult
   // Special handling: 
   // 1. If VoiceRx is accessible but not paid, Consult becomes primary and VoiceRx goes to dropdown
   // 2. For Zydus accounts, Consult is always primary and all other options go to dropdown
@@ -106,16 +106,19 @@ const PrimaryActionButton = ({
 
   const isTabRxEnabledFromGB = useFeatureIsOn(GB_TAB_RX);
   const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
-  // const isTabRxVisible = isTabRxEnabledFromGB ;
-  
+
   const isDental = dpid === 26 || (department && department.toLowerCase() === 'dental');
   const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
-  const isDentalAndEnabled = isDental ||  isDentalEnabled;
+  const isDentalAndEnabled = isDental || isDentalEnabled;
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
-  if (isDentalAndEnabled) {
-    // 1. If Dental & Enabled, Consult (redirecting to Dental) is always primary
+  if (isCvtExtHosAccessableFromGB) {
+    if (isSmartRxAccessible) {
+      allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+    }
+  } else if (isDentalAndEnabled) {
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onTypeRxClick });
-    
+
     if (isSmartRxAccessible && !isMobile) {
       dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
@@ -129,10 +132,11 @@ const PrimaryActionButton = ({
       dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
   } else if (isZydusAccount) {
-    // 2. Zydus Account (non-Dental or not GB enabled):
-    // Consult is always primary, all other options go to dropdown
     if (isSmartRxAccessible && !isMobile) {
       dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+    }
+    if (isTabRxVisible) {
+      dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
     if (isVoiceRxAccessible) {
       dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
@@ -140,35 +144,26 @@ const PrimaryActionButton = ({
     if (isSnapRxAccessible) {
       dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
     }
-    if (isTabRxVisible) {
-      dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
-    }
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
   } else {
-    // 3. Normal priority logic (non-Dental or not GB enabled):
-    // Priority order: SmartRx > VoiceRx (if paid) > SnapRx > TabRx > Consult
-    // (TypeRx is completely removed)
     if (isSmartRxAccessible && !isMobile) {
       allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
-    
-    // Handle VoiceRx: If paid, it's primary; if not paid, Consult is primary and VoiceRx goes to dropdown
-    if (isVoiceRxAccessible && isVoiceRxPaid) {
-      allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
-    }
-    
-    if (isSnapRxAccessible) {
-      allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
-    }
-    
+
     if (isTabRxVisible) {
       allAvailableOptions.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
-    
-    // Consult is always available as fallback
+
+    if (isVoiceRxAccessible && isVoiceRxPaid) {
+      allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+    }
+
+    if (isSnapRxAccessible) {
+      allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
+    }
+
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
-    
-    // If VoiceRx is accessible but not paid, add it to dropdown (after Consult)
+
     if (isVoiceRxAccessible && !isVoiceRxPaid) {
       allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
     }
@@ -179,7 +174,11 @@ const PrimaryActionButton = ({
   // Dropdown options: For Zydus and DentalAndEnabled, use dropdownOptionsList; otherwise, use remaining options from allAvailableOptions
   const dropdownOptions = (isZydusAccount || isDentalAndEnabled) ? dropdownOptionsList : allAvailableOptions.slice(1);
 
-  // Generate dropdown menu items - following priority order: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+  if (!primaryOption) {
+    return null;
+  }
+
+  // Generate dropdown menu items - following priority order: SmartRx > TabRx> VoiceRx > SnapRx > Consult
   const getMenuItems = () => {
     if (dropdownOptions.length === 0) return [];
 
@@ -263,7 +262,7 @@ const PrimaryActionButton = ({
           paddingLeft: "6px",
           justifyContent: "flex-start"
         }
-      : { paddingLeft: "6px" };
+      : { paddingLeft: "0px" };
     
     if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" || primaryOption.type === "typerx") {
       return (

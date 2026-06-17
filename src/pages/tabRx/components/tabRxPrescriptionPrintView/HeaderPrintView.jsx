@@ -23,6 +23,7 @@ import {
   LANGUAGE_LIST,
   NEO_NATOLOGISTS_DP_ID,
 } from "../../../../utils/constants";
+import { useChikitsalay } from "../../../chikitsalay/useChikitsalay";
 import { ASSETS } from "../../../../assets";
 const {
   profileImg,
@@ -53,6 +54,7 @@ function HeaderPrintView({
   const dispatch = useDispatch();
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
+  const isChikitsalayAccessable = useChikitsalay();
 
   const selectedLangValueRaw =
     typeof selectedLang === "object" && selectedLang !== null
@@ -101,7 +103,9 @@ function HeaderPrintView({
             ? btoa(selectedLang.toString())
             : "",
       };
-      const action = await dispatch(sendCashsheetWhatsapp(sendData));
+      if (!isChikitsalayAccessable) {
+        const action = await dispatch(sendCashsheetWhatsapp(sendData));
+      }
       if (pam_id || tcm_id) {
         updateVisitStatus({
           status: 3,
@@ -124,16 +128,16 @@ function HeaderPrintView({
           });
         }
       }
-      if (action.meta.requestStatus === "fulfilled") {
+      // if (action.meta.requestStatus === "fulfilled") {
         dispatch(resetVaccineState());
         dispatch(resetGrowthChartState());
         dispatch(resetObstetricState());
         dispatch(resetUploadDocState());
         dispatch(resetDDxState());
         navigate("/", { replace: true });
-      } else {
-        errorMessage(action.error);
-      }
+      // } else {
+      //   errorMessage(action.error);
+      // }
     }
   };
 

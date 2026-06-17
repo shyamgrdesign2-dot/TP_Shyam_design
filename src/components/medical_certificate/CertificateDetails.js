@@ -109,17 +109,23 @@ function CertificateDetails({ patient_data, onCreateCertificateClick }) {
                 duration: 1.5,
             });
         } catch (error) {
+            console.error("Certificate generation error:", error);
             if (popup && !popup.closed) {
                 popup.close();
             }
+            
+            const errorMsg = error?.message?.includes("font") 
+                ? "Failed to load certificate fonts. Please try again."
+                : "Failed to generate certificate. Please try again.";
+            
             message.open({
                 key: messageKey,
                 type: "error",
-                content: "Failed to generate certificate.",
+                content: errorMsg,
                 duration: 3,
             });
         }
-    };
+    }
 
     async function printInAppContent(item) {
         sendMessageToParent(EVENTS.PRINT, { url: item?.certificate });

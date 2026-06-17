@@ -2,7 +2,7 @@ import moment from "moment";
 
 import config from "../config";
 import { message } from "antd";
-import { MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS_DP_ID, SNAP_RX_TOKENS_STORAGE_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { MESSAGE_KEY, MEDICINE_STOCK_STATUS, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS_DP_ID, SNAP_RX_TOKENS_STORAGE_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { browserName, deviceDetect, isBrowser, isMobile } from "react-device-detect";
 import html2pdf from "html2pdf.js";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
@@ -828,12 +828,24 @@ export const chunkArray = (array, size) => {
 };
 
 // Helper function to get indicator letter based on hm_type
-export const getHmTypeIndicator = (item) => {
+export const getHmTypeIndicator = (item, isChikitsalayAccessable = false) => {
   if (!item) return '';
   const hmType = item.tmm_hm_type || item.hm_type || item.metadata?.tmm_hm_type || item.metadata?.hm_type;
-  if (hmType == 1) return 'Z';
-  if (hmType == 2) return 'A';
+  const umId = item.um_id ?? item.metadata?.um_id;
+  if (hmType == 1 && Number(umId) === 0) return 'Z';
+  if (hmType == 2 ) return 'A';
+  if (hmType == 15 && Number(umId) === 0 && isChikitsalayAccessable) return 'VC';
   return '';
+};
+
+export const getMedicineStockLabel = (med) => {
+  if (med?.stock_status === MEDICINE_STOCK_STATUS.NO_STOCK) {
+    return "Out of stock";
+  }
+  if (med?.stock_status === MEDICINE_STOCK_STATUS.LOW_STOCK) {
+    return `Qty: ${med?.quantity ?? 0}`;
+  }
+  return null;
 };
 
 export const getClinicName = (hospitalData) => {

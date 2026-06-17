@@ -30,6 +30,7 @@ function Measurements(props) {
     getGrowthChartDetails,
     setMeasurementsToEdit,
     allGrowthChartParams,
+    onGrowthUpdated,
   } = props;
 
   const { patient_data } = useContext(CashManagerContext);
@@ -223,6 +224,7 @@ function Measurements(props) {
       updateGrowthRes?.some((res) => res?.status === 204)
     ) {
       getGrowthChartDetails();
+      onGrowthUpdated?.();
       setMeasurementsToEdit([]);
       setShowSuccess(true);
       setTimeout(() => {

@@ -56,8 +56,6 @@ import {
 } from "../../utils/constants";
 import {
     assignCarePlan,
-    getCarePlanAssignments,
-    hasExistingCarePlanForConsultation,
     updateCarePlanName,
 } from "../../pages/smartSync/services/carePlanService";
 
@@ -94,6 +92,7 @@ import {
     setTableValues as setOpthalTableValues,
 } from "../../redux/ophthalmologyExamSlice";
 import useTabletViewport from "../../hooks/useTabletViewport";
+import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 import CashManagerContext from "../../context/CashManagerContext";
 import { getTabRxFiles, upsertTabRxRx } from "../../pages/tabRx/services/tabRxService";
 import {
@@ -131,6 +130,7 @@ function HeaderV2({
     handleGenRx,
     labReportID,
     selectedCarePlan,
+    hasExistingCarePlan = false,
     handleVideoConsult,
     isVideoConsultLoading,
     smartRxFiles = [],
@@ -170,6 +170,7 @@ function HeaderV2({
     const dentalExamination = useSelector(selectDentalExamination);
     const { plans: dentalPlans } = useSelector(selectDentalPlan);
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const { customModules } = useSelector((state) => state.customModules);
 
@@ -451,7 +452,12 @@ function HeaderV2({
         window.Moengage.track_event("one_click_template_select", {
             template_name: tmoc_template_name,
         });
-        const action = await dispatch(oneClickSingleTemplateDetails(tmoc_id));
+        const action = await dispatch(
+            oneClickSingleTemplateDetails({
+                templateId: tmoc_id,
+                isChikitsalayAccessable,
+            })
+        );
         if (action.meta.requestStatus === "fulfilled") {
             const data = action.payload;
             if (data !== undefined) {
@@ -744,12 +750,12 @@ function HeaderV2({
                     advice_name,
                     ...(change !== undefined && { change }),
                 })),
-                investigation: investigationData.map(
-                    ({ investigation_name, change }) => ({
-                        investigation_name,
-                        ...(change !== undefined && { change }),
-                    }),
-                ),
+                investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+                    investigation_name,
+                    ...(change !== undefined && { change }),
+                    ...(id != null && String(id).trim() !== "" && { id }),
+                    ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+                })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -903,12 +909,12 @@ function HeaderV2({
                     advice_name,
                     ...(change !== undefined && { change }),
                 })),
-                investigation: investigationData.map(
-                    ({ investigation_name, change }) => ({
-                        investigation_name,
-                        ...(change !== undefined && { change }),
-                    }),
-                ),
+                investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+                    investigation_name,
+                    ...(change !== undefined && { change }),
+                    ...(id != null && String(id).trim() !== "" && { id }),
+                    ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+                })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -1851,12 +1857,6 @@ function HeaderV2({
                     const tokenData = decodedToken?.result;
                     const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
 
-                    const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-                        patient_data?.patient_unique_id,
-                        generatedTcmId,
-                        'submit',
-                    );
-
                     if (generatedTcmId > 0 && selectedCarePlan) {
                         if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
                             await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
@@ -1878,17 +1878,6 @@ function HeaderV2({
                     }
                 } catch (error) {
                     console.error('Care plan sync after submit failed:', error);
-                }
-
-                // Fetch care plan assignments to include in print state
-                let carePlanAssignments = [];
-                try {
-                    if (patient_data?.patient_unique_id) {
-                        const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
-                        carePlanAssignments = Array.isArray(assignmentsResp?.data) ? assignmentsResp.data : (Array.isArray(assignmentsResp) ? assignmentsResp : (assignmentsResp?.assignments || []));
-                    }
-                } catch (cpFetchErr) {
-                    console.error('Failed to fetch care plan assignments for print state:', cpFetchErr);
                 }
 
                 message.open({

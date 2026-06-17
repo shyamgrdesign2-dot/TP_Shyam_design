@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useContext,
 } from "react";
+import { v4 as uuidv4 } from 'uuid';
 import {
   AutoComplete,
   Input,
@@ -17,7 +18,7 @@ import {
   Spin,
   Tooltip,
 } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
@@ -30,6 +31,7 @@ import {
   capitalizeAfterSentence,
   getClinicName,
 } from "../utils/utils";
+import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 
 import { MenuOutlined } from "@ant-design/icons";
 import {
@@ -40,11 +42,22 @@ import {
   searchExamination,
   createSurgery,
 } from "../redux/surgicalSlice";
+import ApiSurgical from "../api/services/ApiSurgical";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useLocation } from "react-router-dom";
-import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
 import { ASSETS } from "../assets";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import { Grid5, Trash } from "iconsax-reactjs";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   surgery: surgeryIcon,
@@ -52,7 +65,7 @@ const {
 
 const { TextArea } = Input;
 
-function SurgicalBox() {
+function SurgicalBox({ showVoiceRxModule }) {
   const {
     selectedSurgicalList,
     parentOptionsList,
@@ -67,8 +80,126 @@ function SurgicalBox() {
   const { patient_data } = state || {};
 
   const { surgeriesData, setSurgeriesData } = useContext(CashManagerContext);
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
+  const emptySurgeryRow = () => ({ masterId: uuidv4(), name: "", notes: "" });
+  const mapSurgeryMasterRecord = useCallback((record) => {
+    if (typeof record === "string" || typeof record === "number") {
+      return { masterId: record };
+    }
+    if (!record || typeof record !== "object") return null;
+    const { id, ...rest } = record;
+    return {
+      masterId: record.masterId || id,
+      ...rest,
+    };
+  }, []);
+  const findLocalSurgeryMaster = useCallback((name) => {
+    const normalizedName = String(name || "").trim().toLowerCase();
+    if (!normalizedName) return null;
+    const match = [...(parentOptionsList || []), ...(childOptionsList || [])].find((item) => (
+      String(item?.name || "").trim().toLowerCase() === normalizedName
+    ));
+    return match ? mapSurgeryMasterRecord(match) : null;
+  }, [childOptionsList, mapSurgeryMasterRecord, parentOptionsList]);
+  const findSurgeryMasterByName = useCallback(async (name) => {
+    const normalizedName = String(name || "").trim().toLowerCase();
+    if (!normalizedName) return null;
+
+    const localMatch = findLocalSurgeryMaster(name);
+    if (localMatch) return localMatch;
+
+    const result = await ApiSurgical.searchExamination(name);
+    const exactMatch = Array.isArray(result)
+      ? result.find((item) => String(item?.name || "").trim().toLowerCase() === normalizedName)
+      : null;
+    return exactMatch ? mapSurgeryMasterRecord(exactMatch) : null;
+  }, [findLocalSurgeryMaster, mapSurgeryMasterRecord]);
+  const createCustomSurgeryRecord = useCallback(async (name) => {
+    const created = await ApiSurgical.createSurgery({ name });
+    const createdRecord = mapSurgeryMasterRecord(created) || { masterId: created?.id, name };
+    const masterRecord = await findSurgeryMasterByName(name).catch(() => null);
+    return {
+      ...createdRecord,
+      ...masterRecord,
+      masterId: masterRecord?.masterId || createdRecord.masterId,
+      name: masterRecord?.name || createdRecord.name || name,
+      change: createdRecord.change ?? 1,
+    };
+  }, [findSurgeryMasterByName, mapSurgeryMasterRecord]);
+  const enrichVoiceSurgeryRows = useCallback(async (rows) => {
+    const enrichedRows = [];
+
+    for (const row of rows) {
+      const name = String(row?.name || row?.surgery_name || row?.procedure_name || "").trim();
+      if (!name) continue;
+
+      let resolvedMaster;
+      try {
+        const masterRecord = await findSurgeryMasterByName(name);
+        resolvedMaster = masterRecord || await createCustomSurgeryRecord(name);
+      } catch (error) {
+        console.error("VoiceRx surgery master enrichment failed:", error);
+        resolvedMaster = {
+          masterId: row?.masterId || uuidv4(),
+          name,
+          change: row?.change ?? 1,
+        };
+      }
+      enrichedRows.push({
+        ...row,
+        ...resolvedMaster,
+        masterId: resolvedMaster?.masterId || row?.masterId || uuidv4(),
+        name: resolvedMaster?.name || name,
+        notes: row?.notes ?? row?.note ?? "",
+      });
+    }
+
+    return enrichedRows;
+  }, [createCustomSurgeryRecord, findSurgeryMasterByName]);
+  const applyVoiceSurgeries = useCallback(async (nextSurgeries) => {
+    if (nextSurgeries.length > 0) {
+      const enrichedSurgeries = await enrichVoiceSurgeryRows(nextSurgeries);
+      if (canShowVoiceRxNewRows) {
+        const last = enrichedSurgeries[enrichedSurgeries.length - 1];
+        const withTrailing = (!last || last.name !== "") ? [...enrichedSurgeries, emptySurgeryRow()] : enrichedSurgeries;
+        setSurgeriesData(withTrailing);
+      } else {
+        setSurgeriesData(enrichedSurgeries);
+      }
+    }
+  }, [canShowVoiceRxNewRows, enrichVoiceSurgeryRows, setSurgeriesData]); // eslint-disable-line react-hooks/exhaustive-deps
+  const surgeriesVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(surgeriesData, "surgery"),
+    [surgeriesData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Surgeries/Procedures",
+    onApply: applyVoiceSurgeries,
+    successMessage: "Surgeries/Procedures filled from voice dictation",
+    copyPayloadKeys: ["surgeries"],
+  });
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
+
+  useEffect(() => {
+    if (!canShowVoiceRxNewRows) return;
+    setSurgeriesData(prev => {
+      const last = prev[prev.length - 1];
+      if (!last || last.name !== "") return [...prev, emptySurgeryRow()];
+      return prev;
+    });
+  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleAddRow = useCallback(() => {
+    setSurgeriesData(prev => [...prev, emptySurgeryRow()]);
+  }, [setSurgeriesData]);
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -328,8 +459,11 @@ function SurgicalBox() {
         query: surgeriesUpdatedData.name,
         index: i,
       });
+      if (canShowVoiceRxNewRows && i === surgeriesData.length - 1) {
+        setSurgeriesData((prev) => [...prev, emptySurgeryRow()]);
+      }
     },
-    [searchChildQuery, surgeriesData]
+    [searchChildQuery, surgeriesData, canShowVoiceRxNewRows]
   );
 
   const onChangeNoteChild = useCallback(
@@ -342,7 +476,11 @@ function SurgicalBox() {
 
   const onRemoveRow = (index) => {
     surgeriesData.splice(index, 1);
-    setSurgeriesData((prev) => [...prev]);
+    if (canShowVoiceRxNewRows && surgeriesData.length === 0) {
+      setSurgeriesData([emptySurgeryRow()]);
+    } else {
+      setSurgeriesData((prev) => [...prev]);
+    }
   };
 
   //PopOver1 function
@@ -370,7 +508,7 @@ function SurgicalBox() {
         notes: e.notes ? e.notes : "",
       };
     });
-    setSurgeriesData([...surgeriesData, ...updatedData]);
+    setSurgeriesData(appendStripped(surgeriesData, updatedData, "surgeries"));
     showHideTemplatesListPopover();
   };
 
@@ -404,14 +542,15 @@ function SurgicalBox() {
   );
 
   const onAddTemplateClicked = async () => {
-    if (surgeriesData.length === 0) {
+    const templateSurgeries = canShowVoiceRxNewRows ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
+    if (templateSurgeries.length === 0) {
       errorMessage("At least 1 surgeries/procedures added");
-    } else if (surgeriesData.filter((e) => e.name == "").length > 0) {
+    } else if (templateSurgeries.filter((e) => String(e.name ?? "").trim() === "").length > 0) {
       errorMessage("Please fillup surgeries/procedures name");
     } else {
       var sendData = {
         name: inputTemplateName,
-        surgeries: surgeriesData,
+        surgeries: templateSurgeries,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -433,15 +572,16 @@ function SurgicalBox() {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (surgeriesData.length === 0) {
+    const templateSurgeries = canShowVoiceRxNewRows ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
+    if (templateSurgeries.length === 0) {
       errorMessage("At least 1 surgeries/procedures added");
-    } else if (surgeriesData.filter((e) => e.name == "").length > 0) {
+    } else if (templateSurgeries.filter((e) => String(e.name ?? "").trim() === "").length > 0) {
       errorMessage("Please fillup surgeries/procedures name");
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         name: data.name,
-        surgeries: surgeriesData,
+        surgeries: templateSurgeries,
       };
       const action = await dispatch(
         updateTemplate({ template: sendData, templateId: data.id })
@@ -605,7 +745,7 @@ function SurgicalBox() {
                             className="btn py-0 btn-delete-prescription px-0"
                             onClick={() => onRemoveRow(index)}
                           >
-                            <i className="icon-delete"></i>
+                            {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                           </Button>
                         </Col>
                       </Row>
@@ -656,7 +796,7 @@ function SurgicalBox() {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -687,7 +827,7 @@ function SurgicalBox() {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -754,7 +894,7 @@ function SurgicalBox() {
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
                   <div className="round-box">
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
@@ -793,7 +933,7 @@ function SurgicalBox() {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setSurgeriesData([]);
+    setSurgeriesData(canShowVoiceRxNewRows ? [emptySurgeryRow()] : []);
     showHideClearData();
   };
 
@@ -840,13 +980,20 @@ function SurgicalBox() {
 
   return (
     <>
-      <div className="">
+      <div ref={sectionRef} data-voice-rx-dictation-target="surgeries" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={surgeryIcon} alt="surgery-icon" />
             <div className="title-common">Surgeries/Procedures</div>
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="surgeries"
+                label="Start Surgeries Procedures voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -855,10 +1002,18 @@ function SurgicalBox() {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse surgery templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse surgery templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip
               placement="bottom"
@@ -879,41 +1034,68 @@ function SurgicalBox() {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton type="save" label="Save surgery as template" disabled={surgeriesData.length === 0} />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button
-              onClick={showHideClearData}
-              className="btn btn-text clear-text d-flex align-items-center"
-              disabled={surgeriesData.length > 0 ? false : true}
-            >
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton type="clear" label="Clear surgery" onClick={showHideClearData} disabled={surgeriesData.length === 0} />
+              </Tooltip>
+            ) : (
+              <button
+                onClick={showHideClearData}
+                className="btn btn-text clear-text d-flex align-items-center"
+                disabled={surgeriesData.length > 0 ? false : true}
+              >
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
+        {canShowVoiceRxNewRows && (
+          <div className="p-2">
+            <Button type="link" icon={<PlusOutlined />} className="add-custom-module-link" onClick={handleAddRow}>
+              Add New Line
+            </Button>
+          </div>
+        )}
 
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-          >
-            <Input
-              placeholder="Search Surgeries/Procedures"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
+        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName="Surgeries/Procedures"
+              previousContext={surgeriesVoicePreviousContext}
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.surgeries}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : !isVoiceRxModuleEnabled ? (
+            <AutoComplete
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+            >
+              <Input
+                placeholder="Search Surgeries/Procedures"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
+          ) : null}
         </div>
       </div>
     </>

@@ -1,30 +1,24 @@
 import React from "react";
 import { Result, Button } from "antd";
 import { useNavigate } from "react-router-dom";
-
-const CHUNK_RELOAD_KEY = "chunk-reload-v1";
-
-const isChunkError = (message = "") =>
-  /ChunkLoadError|Loading chunk \d+ failed|Failed to fetch dynamically imported module|Loading CSS chunk|Unable to preload CSS/i.test(message);
+import {
+  clearChunkReloadState,
+  isChunkLoadError,
+  shouldReloadForChunkFailure,
+} from "../utils/chunkReloadGuard";
 
 export default function ErrorFallback({ error, resetErrorBoundary }) {
   const navigate = useNavigate();
   const [isRecovering, setIsRecovering] = React.useState(false);
 
   const message = error?.message || "";
-  const isChunk = isChunkError(message);
+  const isChunk = isChunkLoadError(message);
 
   React.useEffect(() => {
     if (!isChunk) return;
-
-    const alreadyReloaded =
-      sessionStorage.getItem(CHUNK_RELOAD_KEY) === "1";
-
-    if (alreadyReloaded) return;
+    if (!shouldReloadForChunkFailure(`boundary:${message}`)) return;
 
     const recover = async () => {
-      sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
-      
       try {
         if ("caches" in window) {
           const keys = await caches.keys();
@@ -39,7 +33,7 @@ export default function ErrorFallback({ error, resetErrorBoundary }) {
 
     setIsRecovering(true);
     recover();
-  }, [isChunk]);
+  }, [isChunk, message]);
 
   // Show minimal UI while recovering
   if (isRecovering) {
@@ -64,27 +58,26 @@ export default function ErrorFallback({ error, resetErrorBoundary }) {
           type="primary"
           key="retry"
           onClick={() => {
-            sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+            clearChunkReloadState();
+            if (isChunk) {
+              window.location.reload();
+              return;
+            }
             resetErrorBoundary();
           }}
         >
-          Try Again
+          {isChunk ? "Reload now" : "Try Again"}
         </Button>,
         <Button
           key="home"
           onClick={() => {
-            sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+            clearChunkReloadState();
             resetErrorBoundary();
             navigate("/");
           }}
         >
           Go Home
         </Button>,
-        isChunk && (
-          <Button key="refresh" onClick={() => window.location.reload()}>
-            Refresh
-          </Button>
-        ),
       ]}
     />
   );

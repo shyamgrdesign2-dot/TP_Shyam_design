@@ -29,6 +29,8 @@ import {
   getAmbientRx,
   setAddToRx,
   uploadVoiceAudio,
+  createVoiceLog,
+  updateVoiceLog,
   generateRx,
   updateGenRx,
   generateAmbientRx,
@@ -38,6 +40,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { getDecodedToken } from "../utils/localStorage";
+import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../context/CashManagerContext";
 import {
@@ -48,8 +51,13 @@ import {
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
-import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
-import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
+import { vitalScalarString } from "../utils/symptomCollectorVitalsMerge";
+import {
+  ensureLabInvestigationMetadataForRxSave,
+  ensureMedicationGroundedForRxSave,
+  mergeVoiceApiPrescriptionWithPrior,
+  preparePreviousContextRxItems,
+} from "../utils/medicationRxPayload";
 
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
@@ -214,6 +222,14 @@ const ConsultationDrawer = ({
   const prescriptionUrlsForSessionRef = useRef(new Set());
   const editedModulesByUserRef = useRef(new Set());
   const voiceCallCountRef = useRef(0);
+  useEffect(() => {
+    window.__TATVA_VOICE_SESSION_ID = voiceSessionIdRef.current;
+    return () => {
+      if (window.__TATVA_VOICE_SESSION_ID === voiceSessionIdRef.current) {
+        delete window.__TATVA_VOICE_SESSION_ID;
+      }
+    };
+  }, []);
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
     return activeService === S_AMBIENT_VOICE_RX;
@@ -528,6 +544,7 @@ const ConsultationDrawer = ({
   const audioStreamRef = useRef(null);
 
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
 
   const { tcmId, consultationDate, pamId } = useContext(CashManagerContext);
 
@@ -949,7 +966,7 @@ const ConsultationDrawer = ({
             const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
             if (validatedPrescriptionData) {
               setPrescriptionData((prev) => {
-                const next = validatedPrescriptionData;
+                const next = mergeVoiceApiPrescriptionWithPrior(prev, validatedPrescriptionData);
                 const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
                   ? next.labResults
                   : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
@@ -1139,7 +1156,7 @@ const ConsultationDrawer = ({
       audioStreamRef.current?.getAudioTracks?.()?.[0]?.label ||
       micBeingUsedRef.current ||
       "Unknown";
-    trackEvent("TP_Voice_Submit_Click", {
+    const eventPayload = {
       doctorId: profile?.doctor_unique_id || "",
       doctorName: profile?.um_name || "",
       patientId: patient_data?.patient_unique_id || "",
@@ -1164,6 +1181,17 @@ const ConsultationDrawer = ({
       upload_error_message: uploadErrorMessage,
       voicecall,
       timestamp: new Date().toISOString(),
+    };
+    trackEvent("TP_Voice_Submit_Click", eventPayload);
+    const submitLogPayload = {
+      correlationId: sessionId || submitId || requestId || "",
+      status: uploadFailed ? "failed" : "pending",
+      needConversation: modeForEvent === "ambient",
+      prescriptionUrls: prescriptionUrl ? [prescriptionUrl] : [],
+      ...eventPayload,
+    };
+    createVoiceLog(submitLogPayload, eventPayload.patientId).catch((err) => {
+      console.error("[voice/logs/create] Failed", err?.message || err);
     });
   };
 
@@ -1181,6 +1209,7 @@ const ConsultationDrawer = ({
     errorMessage = "",
     retryAttempts = 1,
     prescriptionUrl = "",
+    sessionId = "",
     recordId = "",
     isEmptyPrescription = false,
     submitId = "",
@@ -1191,9 +1220,10 @@ const ConsultationDrawer = ({
     errorType = "",
     rxModulesFilledCount = 0,
     filledModules = [],
+    modeForEvent = "dictation",
     voicecall = 0,
   }) => {
-    trackEvent("TP_Voice_Api_Result", {
+    const eventPayload = {
       doctorId: profile?.doctor_unique_id || "",
       doctorName: profile?.um_name || "",
       patientId: patient_data?.patient_unique_id || "",
@@ -1201,6 +1231,7 @@ const ConsultationDrawer = ({
       hospitalId: clinic?.hm_id || "",
       hospitalName: clinic?.hm_name || "",
       prescriptionUrl,
+      sessionId,
       _id: recordId,
       voice_failed: voiceFailed,
       error_message: errorMessage,
@@ -1216,6 +1247,18 @@ const ConsultationDrawer = ({
       filled_modules: Array.isArray(filledModules) ? filledModules.join(",") : "",
       voicecall,
       timestamp: new Date().toISOString(),
+    };
+    trackEvent("TP_Voice_Api_Result", eventPayload);
+    const { _id, ...resultEventPayloadForApi } = eventPayload;
+    const resultLogPayload = {
+      correlationId: sessionId || submitId || requestId || "",
+      status: voiceFailed ? "failed" : "completed",
+      needConversation: modeForEvent === "ambient",
+      prescriptionUrls: prescriptionUrl ? [prescriptionUrl] : [],
+      ...resultEventPayloadForApi,
+    };
+    updateVoiceLog(resultLogPayload, eventPayload.patientId).catch((err) => {
+      console.error("[voice/logs/update] Failed", err?.message || err);
     });
   };
 
@@ -1437,23 +1480,25 @@ const ConsultationDrawer = ({
       return false;
     }
 
-    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'height', 'weight', 'BMI', 'BMR', 'BSA', 'general_rbs', 'fib4', 'waist_circumference'];
-    const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
-      if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
-      const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
-      const result = {};
-      CANONICAL_VITAL_KEYS.forEach((key) => {
-        const v = actual[key];
-        if (v !== undefined && v !== null && v !== '' && String(v).trim() !== '') {
-          result[key] = v;
+      const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'respiratoryRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'headCircumference', 'height', 'weight', 'BMI', 'BMR', 'BSA', 'general_rbs', 'generalRBS', 'fib4', 'waist_circumference', 'waistCircumference', 'randomBloodSugar'];
+      const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
+        if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
+        const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
+        const result = {};
+        CANONICAL_VITAL_KEYS.forEach((key) => {
+          const v = actual[key];
+          const s = vitalScalarString(v);
+          if (s !== '') {
+            result[key] = s;
+          }
+        });
+        const generalRBSVal = actual.generalRBS ?? actual.genralRBS ?? result.general_rbs ?? actual['General RBS'];
+        const grbs = vitalScalarString(generalRBSVal);
+        if (grbs !== '') {
+          result.general_rbs = grbs;
         }
-      });
-      const generalRBSVal = actual.generalRBS ?? actual.genralRBS ?? result.general_rbs ?? actual['General RBS'];
-      if (generalRBSVal !== undefined && generalRBSVal !== null && String(generalRBSVal).trim() !== '') {
-        result.general_rbs = String(generalRBSVal).trim();
-      }
-      return result;
-    };
+        return result;
+      };
 
     const deepClean = (obj) => {
       if (obj === null || typeof obj !== 'object') {
@@ -1551,7 +1596,7 @@ const ConsultationDrawer = ({
           } else if (item.metadata?.um_id !== undefined) {
             mappedItem.um_id = item.metadata.um_id;
           }
-          return mappedItem;
+          return ensureLabInvestigationMetadataForRxSave(mappedItem);
         })
       : [];
     
@@ -1658,7 +1703,7 @@ const ConsultationDrawer = ({
     if (!data || typeof data !== "object") return false;
     const hasArray = (arr) => Array.isArray(arr) && arr.length > 0;
     const hasVitals = (v) => v && typeof v === "object" && Object.keys(v).some((k) => !["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"].includes(k) && v[k] != null && String(v[k]).trim() !== "");
-    if (hasArray(data.symptoms) || hasArray(data.surgeries) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
+    if (hasArray(data.symptoms) || hasArray(data.surgeries) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labInvestigation) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
     if (hasVitals(data.vitalsAndBodyComposition)) return true;
     if (data.followUp && String(data.followUp).trim()) return true;
     if (hasArray(data.others) || (data.advice && (typeof data.advice === "string" ? data.advice.trim() : hasArray(data.advice)))) return true;
@@ -1666,9 +1711,14 @@ const ConsultationDrawer = ({
   };
 
   const mapPrescriptionDataToDigitizeData = (prescriptionData) => {
-    if (!prescriptionData || typeof prescriptionData !== "object") return prescriptionData;
-    const v = prescriptionData.vitalsAndBodyComposition;
-    if (!v || typeof v !== "object") return { ...prescriptionData };
+    if (!prescriptionData || typeof prescriptionData !== "object") {
+      return preparePreviousContextRxItems(prescriptionData);
+    }
+
+    const withRxItems = preparePreviousContextRxItems(prescriptionData);
+    const v = withRxItems.vitalsAndBodyComposition;
+    if (!v || typeof v !== "object") return withRxItems;
+
     const mapped = { ...v };
     if (mapped.respRate !== undefined) {
       mapped.respiratoryRate = mapped.respRate;
@@ -1689,7 +1739,7 @@ const ConsultationDrawer = ({
       delete mapped.general_rbs;
       delete mapped["General RBS"];
     }
-    return { ...prescriptionData, vitalsAndBodyComposition: mapped };
+    return { ...withRxItems, vitalsAndBodyComposition: mapped };
   };
 
   const handleVoiceDigitize = async (
@@ -2097,8 +2147,9 @@ const ConsultationDrawer = ({
                 const labResults = (Array.isArray(finalPrescriptionData.labResults) && finalPrescriptionData.labResults.length > 0)
                   ? finalPrescriptionData.labResults
                   : (Array.isArray(prevData?.labResults) && prevData.labResults.length > 0 ? prevData.labResults : []);
+                const mergedPrescription = mergeVoiceApiPrescriptionWithPrior(prevData, finalPrescriptionData);
                 return {
-                  ...finalPrescriptionData,
+                  ...mergedPrescription,
                   labResults,
                   dynamicFields: mergedDynamicFields,
                 };
@@ -2440,7 +2491,11 @@ const ConsultationDrawer = ({
                 }
 
                 setPrescriptionData((prev) => {
-                  return { ...validatedPrescriptionDataForDictate, labResults: labResultsToUse };
+                  const merged = mergeVoiceApiPrescriptionWithPrior(
+                    prev,
+                    validatedPrescriptionDataForDictate
+                  );
+                  return { ...merged, labResults: labResultsToUse };
                 });   
                 
                 // Convert API medicalHistory format to CashManagerContext format and populate it
@@ -2566,6 +2621,7 @@ const ConsultationDrawer = ({
           errorMessage: "",
           retryAttempts: getVoiceRetryAttempts(),
           prescriptionUrl: prescriptionUrlForApiResult || window.__TATVA_VOICE_API_LAST_UPLOAD_URL || "",
+          sessionId: voiceSessionIdRef.current,
           recordId: voiceApiRecordId,
           isEmptyPrescription,
           submitId,
@@ -2576,6 +2632,7 @@ const ConsultationDrawer = ({
           errorType: "",
           rxModulesFilledCount,
           filledModules,
+          modeForEvent,
           voicecall,
         });
       }
@@ -2592,6 +2649,7 @@ const ConsultationDrawer = ({
           errorMessage: error?.message || "",
           retryAttempts: getVoiceRetryAttempts(),
           prescriptionUrl: prescriptionUrlForApiResult || window.__TATVA_VOICE_API_LAST_UPLOAD_URL || "",
+          sessionId: voiceSessionIdRef.current,
           recordId: voiceApiRecordId || genRxDetails?._id || "",
           isEmptyPrescription: true,
           submitId,
@@ -2602,6 +2660,7 @@ const ConsultationDrawer = ({
           errorType: classifyVoiceApiErrorType(error),
           rxModulesFilledCount: 0,
           filledModules: [],
+          modeForEvent,
           voicecall,
         });
       }
@@ -2660,6 +2719,11 @@ const ConsultationDrawer = ({
 
           return ensureMedicationGroundedForRxSave({ ...item, quantity });
         }),
+        labInvestigation: Array.isArray(prescriptionData?.labInvestigation)
+          ? prescriptionData.labInvestigation.map((item) =>
+              ensureLabInvestigationMetadataForRxSave(item)
+            )
+          : [],
       };
 
       const editedDataForApi = { ...updatedPrescriptionData };
@@ -3784,6 +3848,12 @@ const ConsultationDrawer = ({
           getInvestigationAndMedicine(sendInvestigationAndMedicine)
         );
         if (actionIM.meta.requestStatus === "fulfilled") {
+          const cmInvestigations = actionIM?.payload?.investigation ?? [];
+          const investigationList = cmInvestigations.map((item) => ({
+            serviceName: String(item?.investigation_name ?? "").trim(),
+            serviceCode: String(item?.service_code ?? "").trim(),
+          }));
+
           let zydusSendData = {
             action: tcmId == 0 ? "add" : "edit",
             tcmId: action?.payload?.tcm_id,
@@ -3795,9 +3865,7 @@ const ConsultationDrawer = ({
             doctorCode: patient_data?.employeeId,
             storeCode: storeCode,
             duplicateCheck: 1,
-            investigationList:
-              prescriptionData?.labInvestigation?.map((item) => item.name) ||
-              [],
+            investigationList,
             medicineList:
               sanitizedMedications.map(({ name, notes }, index) => {
                 const quantityValue =
@@ -4213,13 +4281,8 @@ const ConsultationDrawer = ({
     } else {
       // If no prescription data, navigate directly based on mode
       if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
-        // Navigate to Voice Rx Consult page (mode selection) in ambient mode
-        navigate("/voice-rx-consult", {
-          replace: true,
-          state: {
-            patient_data,
-          },
-        });
+        // Return to the correct VoiceRx entry point for this feature flag state.
+        navigateVoiceRx({ patient_data }, { replace: true }, "consultation_drawer_ambient_back");
         onClose();
     } else {
       onClose();
@@ -4231,7 +4294,7 @@ const ConsultationDrawer = ({
     if (!(isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX)) {
       onClose();
     }
-    navigate("/voice-rx-consult", { replace: true, state: { patient_data } });
+    navigateVoiceRx({ patient_data }, { replace: true }, "consultation_drawer_back");
   };
 
   const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
@@ -4888,13 +4951,8 @@ const ConsultationDrawer = ({
                           onClick={() => {
                             // Check if we're in ambient mode
                             if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
-                              // Navigate to Voice Rx Consult page (mode selection) when leaving in ambient mode
-                              navigate("/voice-rx-consult", {
-                                replace: true,
-                                state: {
-                                  patient_data,
-                                },
-                              });
+                              // Return to the correct VoiceRx entry point for this feature flag state.
+                              navigateVoiceRx({ patient_data }, { replace: true }, "consultation_drawer_leave_ambient");
                             } else {
                               // For non-ambient mode, use the regular back handler
                               handleBack();

@@ -467,8 +467,8 @@ const MedicalHistoryRichTextEditor = ({
                       rows={calculatedRows}
                       style={{ 
                         minHeight: '30px',
-                        resize: 'vertical',
-                        overflow: 'auto',
+                        resize: 'none',
+                        overflow: 'hidden',
                         cursor: isEditableType ? 'text' : 'default'
                       }}
                     />

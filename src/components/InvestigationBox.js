@@ -11,7 +11,7 @@ import {
   Spin,
   Tooltip
 } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -19,7 +19,8 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils/utils";
+import { errorMessage, getHmTypeIndicator, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils/utils";
+import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 
 import { MenuOutlined } from '@ant-design/icons';
 import {
@@ -28,15 +29,27 @@ import {
   deleteTemplate,
   getInvestigationTemplates,
   getFrequentlySearchedInvestigation,
-  searchInvestigation
+  searchInvestigation,
+  singleTemplateDetails,
 } from "../redux/investigationSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
-import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
+import { Grid5, Trash } from "iconsax-reactjs";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   lab: Investigationicon,
@@ -44,7 +57,25 @@ const {
 
 const { TextArea } = Input;
 
-function InvestigationBox({handleDDxDrawer, generatedDDx}) {
+const isVoiceRxModuleInvestigation = (item) => !!item?.voice_rx_from_module;
+const isFrequentlyUsedHeaderOption = (option) => option?.key === -1 || option?.key === "-1";
+const getVoiceRxAutoSelectKey = (item, index) => {
+  const rowId = item?.unique_id || item?.objectID || item?.id || index;
+  return `${rowId}:${String(item?.investigation_name || "").trim().toLowerCase()}`;
+};
+const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
+  background: "#2f2e39",
+  borderRadius: 8,
+  color: "#fff",
+  fontSize: 14,
+  lineHeight: 1.35,
+  maxWidth: 360,
+  padding: "12px 16px",
+  textAlign: "center",
+};
+
+function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
+  const isChikitsalayAccessable = useChikitsalay();
   const {
     selectedInvestigationList,
     parentOptionsList,
@@ -57,6 +88,59 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   const { investigationData, setInvestigationData, diagnosisData } =
     useContext(CashManagerContext);
   // const [ investigationData, setInvestigationData] = useState([]);
+  const emptyInvestigationRow = () => ({ investigation_name: "", note: "", unique_id: uuidv4(), change: 1, pms_default: 0 });
+  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
+  const shouldKeepEmptyInvestigationRow = isPrescriptionNewContext;
+
+  const applyVoiceInvestigation = useCallback((nextInvestigation) => {
+    if (nextInvestigation.length > 0) {
+      if (canShowVoiceRxNewRows) {
+        const last = nextInvestigation[nextInvestigation.length - 1];
+        const withTrailing = (!last || last.investigation_name !== "") ? [...nextInvestigation, emptyInvestigationRow()] : nextInvestigation;
+        setInvestigationData(withTrailing);
+      } else {
+        setInvestigationData(nextInvestigation);
+      }
+    }
+  }, [canShowVoiceRxNewRows, setInvestigationData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // PrescriptionNew should never render investigation without at least one editable row.
+  useEffect(() => {
+    if (!shouldKeepEmptyInvestigationRow) return;
+    setInvestigationData(prev => {
+      if (!prev?.length) {
+        return [emptyInvestigationRow()];
+      }
+      const last = prev[prev.length - 1];
+      if (canShowVoiceRxNewRows && (!last || last.investigation_name !== "")) {
+        return [...prev, emptyInvestigationRow()];
+      }
+      return prev;
+    });
+  }, [shouldKeepEmptyInvestigationRow, canShowVoiceRxNewRows, investigationData?.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAddRow = useCallback(() => {
+    setInvestigationData(prev => [...prev, emptyInvestigationRow()]);
+  }, [setInvestigationData]);
+  const investigationVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(investigationData, "lab_investigations"),
+    [investigationData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: INVESTIGATION_TITLE,
+    onApply: applyVoiceInvestigation,
+    successMessage: `${INVESTIGATION_TITLE} filled from voice dictation`,
+    copyPayloadKeys: ["labInvestigations", "investigations", "lab_investigation", "labInvestigation"],
+  });
 
   const [ddxInvestigationOptionsList, setDdxInvestigationOptionsList] =
     useState([]);
@@ -113,6 +197,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   const [searchChildQuery, setSearchChildQuery] = useState(null);
   const [childSearchOptions, setChildSearchOptions] = useState([]);
+  const [activeVoiceInvestigationIndex, setActiveVoiceInvestigationIndex] = useState(null);
+  const voiceRxAutoSelectedKeysRef = React.useRef(new Set());
 
   //PopOver2
   const [popOver2, setPopOver2] = useState(false);
@@ -162,15 +248,51 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   useEffect(() => {
     const data = [];
     parentOptionsList.map((e) => {
+      let supplementaryIndicator = "";
+      if (isChikitsalayAccessable) {
+        const raw = getHmTypeIndicator(e, true);
+        // Legacy label only shows Z when hm_type === 1 && um_id === 0; never add Z via helper (avoids widening Z to all hm_type===1).
+        if (raw && raw !== "Z") supplementaryIndicator = raw;
+      }
+      const isWideSupplementary = supplementaryIndicator.length > 1;
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.investigation_name,
-        label: <div>{e.investigation_name} {(e?.hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2'}}>Z</span>}</div>,
+        label: (
+          <div>
+            {e.investigation_name}{" "}
+            {(e?.hm_type === 1 && e?.um_id === 0) && (
+              <span
+                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                style={{ width: 18, height: 18, background: "#c44ea2" }}
+              >
+                Z
+              </span>
+            )}
+            {supplementaryIndicator && (
+              <span
+                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${
+                  isWideSupplementary ? "rounded-pill" : "rounded-circle"
+                }`}
+                style={{
+                  minWidth: isWideSupplementary ? 26 : 18,
+                  height: 18,
+                  padding: isWideSupplementary ? "0 6px" : "0 4px",
+                  background: "#c44ea2",
+                  lineHeight: "16px",
+                }}
+              >
+                {supplementaryIndicator}
+              </span>
+            )}
+          </div>
+        ),
       });
     });
     if (searchParentQuery.length === 0) {
       data.unshift({
         key: -1,
+        disabled: true,
         label: (
           <>
             <div>FREQUENTLY USED</div>
@@ -206,6 +328,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   const onSelectParent = useCallback(
     (data, e) => {
+      if (isFrequentlyUsedHeaderOption(e)) {
+        return;
+      }
+
       window.Moengage.track_event("investigation_select", {
         "value": data
       });
@@ -274,10 +400,25 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   }, [childOptionsList]);
 
   const onFocusChid = (i) => {
+    if (canShowVoiceRxNewRows && !String(investigationData[i].investigation_name ?? "").trim()) {
+      setSearchChildQuery(null);
+      return;
+    }
     setSearchChildQuery({ query: investigationData[i].investigation_name, index: i });
     dispatch(
       searchInvestigation({ searchQuery: investigationData[i].investigation_name, type: "child" })
     );
+  };
+
+  const handleVoiceInvestigationClick = (i) => {
+    setActiveVoiceInvestigationIndex(i);
+    onFocusChid(i);
+  };
+
+  const handleVoiceInvestigationBlur = () => {
+    window.setTimeout(() => {
+      setActiveVoiceInvestigationIndex(null);
+    }, 150);
   };
 
   const onSearchChild = useCallback(
@@ -296,12 +437,96 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   const onSelectChild = useCallback(
     (data, e, i) => {
-      investigationData[i] = { ...investigationData[i], ...JSON.parse(e.key) };
+      if (isFrequentlyUsedHeaderOption(e)) {
+        return;
+      }
+
+      investigationData[i] = {
+        ...investigationData[i],
+        ...JSON.parse(e.key),
+        voice_rx_from_module: false,
+      };
       setInvestigationData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).investigation_name, index: i });
+      setActiveVoiceInvestigationIndex(null);
+      if (canShowVoiceRxNewRows && i === investigationData.length - 1) {
+        setInvestigationData((prev) => [...prev, emptyInvestigationRow()]);
+      }
     },
-    [searchChildQuery, investigationData]
+    [searchChildQuery, investigationData, canShowVoiceRxNewRows]
   );
+
+  useEffect(() => {
+    if (!canShowVoiceRxNewRows) return;
+
+    const rowsToResolve = investigationData
+      .map((item, index) => ({ item, index, key: getVoiceRxAutoSelectKey(item, index) }))
+      .filter(({ item, key }) => {
+        const name = String(item?.investigation_name || "").trim();
+        return (
+          name &&
+          isVoiceRxModuleInvestigation(item) &&
+          !item?.voice_rx_auto_select_failed &&
+          !voiceRxAutoSelectedKeysRef.current.has(key)
+        );
+      });
+
+    if (!rowsToResolve.length) return;
+
+    rowsToResolve.forEach(({ item, key }) => {
+      voiceRxAutoSelectedKeysRef.current.add(key);
+      dispatch(searchInvestigation({ searchQuery: item.investigation_name, type: "child" }))
+        .then((action) => {
+          const firstMatch = action?.meta?.requestStatus === "fulfilled" && Array.isArray(action.payload)
+            ? action.payload[0]
+            : null;
+
+          setInvestigationData((prev = []) => {
+            const currentIndex = prev.findIndex((row, rowIndex) => getVoiceRxAutoSelectKey(row, rowIndex) === key);
+            if (currentIndex === -1 || !isVoiceRxModuleInvestigation(prev[currentIndex])) {
+              return prev;
+            }
+
+            const currentRow = prev[currentIndex];
+            const nextRows = [...prev];
+
+            if (firstMatch) {
+              nextRows[currentIndex] = {
+                ...currentRow,
+                ...firstMatch,
+                unique_id: currentRow.unique_id || uuidv4(),
+                note: currentRow.note || "",
+                voice_rx_from_module: false,
+                voice_rx_original_name: currentRow.voice_rx_original_name || currentRow.investigation_name,
+                voice_rx_auto_select_failed: false,
+              };
+            } else {
+              nextRows[currentIndex] = {
+                ...currentRow,
+                voice_rx_auto_select_failed: true,
+              };
+            }
+
+            return nextRows;
+          });
+        })
+        .catch(() => {
+          setInvestigationData((prev = []) => {
+            const currentIndex = prev.findIndex((row, rowIndex) => getVoiceRxAutoSelectKey(row, rowIndex) === key);
+            if (currentIndex === -1 || !isVoiceRxModuleInvestigation(prev[currentIndex])) {
+              return prev;
+            }
+
+            const nextRows = [...prev];
+            nextRows[currentIndex] = {
+              ...nextRows[currentIndex],
+              voice_rx_auto_select_failed: true,
+            };
+            return nextRows;
+          });
+        });
+    });
+  }, [canShowVoiceRxNewRows, dispatch, investigationData, setInvestigationData]);
 
   const onChangeNoteChild = useCallback(
     (e, i) => {
@@ -313,7 +538,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   const onRemoveRow = (index) => {
     investigationData.splice(index, 1);
-    setInvestigationData((prev) => [...prev]);
+    if (shouldKeepEmptyInvestigationRow && investigationData.length === 0) {
+      setInvestigationData([emptyInvestigationRow()]);
+    } else {
+      setInvestigationData((prev) => [...prev]);
+    }
   };
 
   //PopOver1 function
@@ -335,15 +564,26 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
     }
   };
 
-  const onTemplateSelected = (template) => {
+  const onTemplateSelected = async (template) => {
     window.Moengage.track_event("investigation_template_used", {
       "template_name": template.tit_template_name
     });
-    const updatedData = template.investigation.map(e => {
-      return { ...e, unique_id: uuidv4(), note: e.note ? e.note : "" }
-    })
-    setInvestigationData([...investigationData, ...updatedData]);
-    showHideTemplatesListPopover();
+    const action = await dispatch(singleTemplateDetails(template.tit_id));
+    if (action.meta.requestStatus === "fulfilled") {
+      const rows = Array.isArray(action.payload) ? action.payload : [];
+      const updatedData = rows.map((e) => ({
+        ...e,
+        unique_id: uuidv4(),
+        note: e.note ? e.note : "",
+      }));
+      const nextInvestigationData = isPrescriptionNewContext
+        ? appendStripped(investigationData, updatedData, "investigations")
+        : [...investigationData, ...updatedData];
+      setInvestigationData(nextInvestigationData);
+      showHideTemplatesListPopover();
+    } else {
+      errorMessage(action.error);
+    }
   };
 
   const onDeleteTemplateClicked = async (tit_id) => {
@@ -376,14 +616,15 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   );
 
   const onAddTemplateClicked = async () => {
-    if (investigationData.length === 0) {
+    const templateInvestigation = canShowVoiceRxNewRows ? stripEmptyRows(investigationData, "investigations") : investigationData;
+    if (templateInvestigation.length === 0) {
       errorMessage('At least 1 investigation added')
-    } else if (investigationData.filter(e => e.investigation_name == "").length > 0) {
+    } else if (templateInvestigation.filter(e => String(e.investigation_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup investigation name')
     } else {
       var sendData = {
         tit_template_name: inputTemplateName,
-        investigation: investigationData,
+        investigation: templateInvestigation,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -405,16 +646,17 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (investigationData.length === 0) {
+    const templateInvestigation = canShowVoiceRxNewRows ? stripEmptyRows(investigationData, "investigations") : investigationData;
+    if (templateInvestigation.length === 0) {
       errorMessage('At least 1 investigation added')
-    } else if (investigationData.filter(e => e.investigation_name == "").length > 0) {
+    } else if (templateInvestigation.filter(e => String(e.investigation_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup investigation name')
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         tit_id: data.tit_id,
         tit_template_name: data.tit_template_name,
-        investigation: investigationData,
+        investigation: templateInvestigation,
       };
       const action = await dispatch(updateTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -546,7 +788,18 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
           {(provided) => (
             <div {...provided.droppableProps} ref={provided.innerRef}>
               {investigationData.length > 0 &&
-                investigationData.map((item, index) => (
+                investigationData.map((item, index) => {
+                  let supplementaryIndicator = "";
+                  if (isChikitsalayAccessable) {
+                    const raw = getHmTypeIndicator(item, true);
+                    if (raw && raw !== "Z") supplementaryIndicator = raw;
+                  }
+                  const isWideSupplementary = supplementaryIndicator.length > 1;
+                  const shouldShowVoiceInvestigationFallbackInfo =
+                    isVoiceRxModuleEnabled &&
+                    isVoiceRxModuleInvestigation(item) &&
+                    item?.voice_rx_auto_select_failed;
+                  return (
                   <Draggable key={index} draggableId={`investigation-${index}`} index={index}>
                     {(provided) => (
                       <Row
@@ -565,22 +818,86 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                           >
                           </MenuOutlined>
                         </Col>
-                        <Col lg={8} md={8} sm={8} xs={8}>
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.investigation_name}
-                              value={item.investigation_name}
-                              placeholder="Investigation Name"
-                              bordered={false}
-                              disabled={true}
-                              defaultOpen={false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) => onSelectChild(data, e, index)}
-                            />
+                        <Col
+                          lg={8}
+                          md={8}
+                          sm={8}
+                          xs={8}
+                          className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : undefined}
+                          onClick={() => {
+                            if (isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index) {
+                              handleVoiceInvestigationClick(index);
+                            }
+                          }}
+                          style={shouldShowVoiceInvestigationFallbackInfo ? { background: "#fff8ef" } : undefined}
+                        >
+                          <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
+                            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                              {isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
+                                <button
+                                  type="button"
+                                  className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2 text-truncate w-100"
+                                  onClick={() => handleVoiceInvestigationClick(index)}
+                                >
+                                  {item.investigation_name}
+                                </button>
+                              ) : (
+                                <AutoComplete
+                                  autoFocus={activeVoiceInvestigationIndex === index}
+                                  defaultValue={item.investigation_name}
+                                  value={item.investigation_name}
+                                  placeholder="Investigation Name"
+                                  bordered={false}
+                                  disabled={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? false : undefined}
+                                  defaultOpen={activeVoiceInvestigationIndex === index}
+                                  open={activeVoiceInvestigationIndex === index ? true : undefined}
+                                  onSearch={(query) => onSearchChild(query, index)}
+                                  onFocus={() => onFocusChid(index)}
+                                  onBlur={handleVoiceInvestigationBlur}
+                                  options={canShowVoiceRxNewRows && !String(item.investigation_name ?? "").trim() ? parentSearchOptions : childSearchOptions}
+                                  className="autocomplete-custom w-100 inputborder"
+                                  popupClassName={canShowVoiceRxNewRows && !String(item.investigation_name ?? "").trim() ? "boxpopup" : undefined}
+                                  defaultActiveFirstOption={true}
+                                  onSelect={(data, e) => onSelectChild(data, e, index)}
+                                />
+                              )}
+                            </div>
+                            {shouldShowVoiceInvestigationFallbackInfo && (
+                              <Tooltip
+                                placement="top"
+                                overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
+                                title={`We could not auto-select this ${INVESTIGATION_TITLE.toLowerCase()}. Click to search and select it from the dropdown.`}
+                              >
+                                <InfoCircleOutlined
+                                  className="fs-18 flex-shrink-0"
+                                  style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
+                                />
+                              </Tooltip>
+                            )}
+                            {/* {isPrescriptionNewContext && (item?.hm_type === 1 && item?.um_id === 0) && (
+                              <span
+                                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white flex-shrink-0 m-1"
+                                style={{ width: 18, height: 18, background: "#c44ea2" }}
+                              >
+                                Z
+                              </span>
+                            )} */}
+                            {supplementaryIndicator && (
+                              <span
+                                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${
+                                  isWideSupplementary ? "rounded-pill" : "rounded-circle"
+                                }`}
+                                style={{
+                                  minWidth: isWideSupplementary ? 26 : 18,
+                                  height: 18,
+                                  padding: isWideSupplementary ? "0 6px" : "0 4px",
+                                  background: "#c44ea2",
+                                  lineHeight: "16px",
+                                }}
+                              >
+                                {supplementaryIndicator}
+                              </span>
+                            )}
                           </div>
                         </Col>
                         <Col lg={14} md={14} sm={13} xs={13} className="border-start border-end">
@@ -601,20 +918,21 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                             className="btn py-0 btn-delete-prescription px-0"
                             onClick={() => onRemoveRow(index)}
                           >
-                            <i className="icon-delete"></i>
+                            {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                           </Button>
                         </Col>
                       </Row>
                     )}
                   </Draggable>
-                ))}
+                  );
+                })}
               {provided.placeholder}
             </div>
           )}
         </Droppable>
       </DragDropContext>
     );
-  }, [investigationData, childSearchOptions]);
+  }, [activeVoiceInvestigationIndex, investigationData, childSearchOptions, parentSearchOptions, canShowVoiceRxNewRows, isChikitsalayAccessable, isPrescriptionNewContext]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -652,7 +970,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -682,7 +1000,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -752,7 +1070,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box"><i className="icon-template"></i></div>
+                  <div className="round-box">{isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -786,7 +1104,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setInvestigationData([])
+    setInvestigationData(shouldKeepEmptyInvestigationRow ? [emptyInvestigationRow()] : [])
     showHideClearData()
   };
 
@@ -827,13 +1145,20 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   return (
     <>
-      <div className="">
+      <div ref={sectionRef} data-voice-rx-dictation-target="investigation" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Investigationicon} alt="Investigation" />
             <div className="title-common">{INVESTIGATION_TITLE}</div>
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="investigation"
+                label={`Start ${INVESTIGATION_TITLE} voice input`}
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -842,10 +1167,18 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title={`Browse ${INVESTIGATION_TITLE} templates`}>
+                    <VoiceRxModuleActionButton type="template" label={`Browse ${INVESTIGATION_TITLE} templates`} />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip
               placement="bottom"
@@ -866,25 +1199,49 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton type="save" label={`Save ${INVESTIGATION_TITLE} as template`} disabled={investigationData.length === 0} />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button
-              onClick={showHideClearData}
-              className="btn btn-text clear-text d-flex align-items-center"
-              disabled={investigationData.length > 0 ? false : true}
-            >
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton type="clear" label={`Clear ${INVESTIGATION_TITLE}`} onClick={showHideClearData} disabled={investigationData.length === 0} />
+              </Tooltip>
+            ) : (
+              <button
+                onClick={showHideClearData}
+                className="btn btn-text clear-text d-flex align-items-center"
+                disabled={investigationData.length > 0 ? false : true}
+              >
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_INVESTIGATION}
+        {canShowVoiceRxNewRows && (
+          <div className="p-2">
+            <Button
+              type="link"
+              icon={<PlusOutlined />}
+              className="add-custom-module-link"
+              onClick={handleAddRow}
+            >
+              Add New Line
+            </Button>
+          </div>
+        )}
 
         {filteredDdxInvestigationOptionsList?.length > 0 && (
           <div style={{ padding: "0 14px" }}>
@@ -896,22 +1253,32 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
           </div>
         )}
 
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={!searchParentQuery && "boxpopup"}
-          >
-            <Input
-              placeholder="Search Investigation"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
+        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName={INVESTIGATION_TITLE}
+              previousContext={investigationVoicePreviousContext}
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.investigation}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : (
+            !isVoiceRxModuleEnabled && (
+              <AutoComplete
+                value={searchParentQuery}
+                onSearch={onSearchParent}
+                options={parentSearchOptions}
+                className="autocomplete-custom w-100"
+                onSelect={onSelectParent}
+                defaultActiveFirstOption={true}
+                popupClassName={!searchParentQuery && "boxpopup"}
+              >
+                <Input
+                  placeholder={`Search ${INVESTIGATION_TITLE}`}
+                  prefix={<i className="icon-search"></i>}
+                />
+              </AutoComplete>
+            )
+          )}
         </div>
       </div>
     </>

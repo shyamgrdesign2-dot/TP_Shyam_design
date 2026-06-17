@@ -14,6 +14,7 @@ import {
   isVoiceRxFree,
 } from '../../../utils/utils';
 import { S_AMBIENT_VOICE_RX, S_VOICE_RX, FREE, FAILED_VERIFICATION, GB_VOICE_RX_FREE } from '../../../utils/constants';
+import { useVoiceRxNavigation } from '../../../utils/voiceRxNavigation';
 import { checkCredits } from '../../../redux/monetizationSlice';
 import { services } from '../../../redux/doctorsSlice';
 import PatientDetailsBottomSheet from '../../../components/mobile/PatientDetailsBottomSheet';
@@ -37,6 +38,7 @@ const {
 function MobileVoiceRecording() {
   const location = useLocation();
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const dispatch = useDispatch();
   const { profile, userId, servicesList } = useSelector((state) => state.doctors);
 
@@ -118,9 +120,7 @@ function MobileVoiceRecording() {
   }, [isSubModalOpen]);
 
   const handleBack = () => {
-    navigate('/voice-rx-consult', { 
-      state: { patient_data, isFromTabView }
-    });
+    navigateVoiceRx({ patient_data, isFromTabView }, {}, "mobile_voice_recording_back");
   };
 
   const formatTime = (seconds) => {
@@ -230,9 +230,7 @@ function MobileVoiceRecording() {
   const handleQuitRecording = () => {
     setShowQuitRecordingModal(false);
     cleanupRecording();
-    navigate('/voice-rx-consult', {
-      state: { patient_data, isFromTabView },
-    });
+    navigateVoiceRx({ patient_data, isFromTabView }, {}, "mobile_voice_recording_quit");
   };
 
   const handleStayRecording = async () => {

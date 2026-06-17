@@ -37,6 +37,7 @@ import {
   MAX_DOCUMENT_FILE_SIZE,
   MAX_VIDEO_FILE_SIZE,
   VIDEO_THUMBNAIL_TIME,
+  isClinicUploadCategory,
 } from "../../utils/constants";
 import { ASSETS } from "../../assets";
 const {
@@ -66,7 +67,12 @@ const UploadDocument = ({
   const patient_data = state?.patient_data || patientData;
   const { uploadDocCategories, allUploadedDocs, patientUploadedDocs } =
     useSelector((state) => state.uploadDoc);
-  const documentOptions = uploadDocCategories.map((item) => {
+
+  const categoriesForUpload = uploadDocCategories.filter(
+    (item) => item && !isClinicUploadCategory(item?.category_name)
+  );
+
+  const documentOptions = categoriesForUpload.map((item) => {
     return {
       label: item.category_name,
       value: item.category_id,

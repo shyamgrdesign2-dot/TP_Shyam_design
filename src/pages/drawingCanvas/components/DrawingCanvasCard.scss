@@ -1,0 +1,173 @@
+.drawing-canvas-card {
+  border: 1px solid #e2e2ea !important;
+  border-radius: 18px !important;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.03) !important;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  .ant-card-body {
+    padding: 0 !important;
+  }
+}
+
+.drawing-canvas-card__rx-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  color: #444551;
+  font-weight: 500;
+
+  .ant-switch {
+    height: 22px !important;
+    width: 37px !important;
+    background: #b5b5be;
+
+    &.ant-switch-checked {
+      background: #7d49f8;
+    }
+  }
+}
+
+.drawing-canvas-card__thumb {
+  height: 160px;
+  background: #f8f8fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+
+  /* Foggy overlay at the top for better UI contrast */
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .drawing-canvas-card__preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  &:hover .drawing-canvas-card__preview-image {
+    transform: scale(1.05);
+  }
+}
+
+.drawing-canvas-card__thumb-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #edeef2;
+  position: relative;
+  z-index: 3;
+}
+
+.drawing-canvas-card__thumb-icon:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: #c3c4cd;
+  transform: rotate(-20deg);
+}
+
+.drawing-canvas-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px;
+  background: #f1f1f5;
+}
+
+.drawing-canvas-card__title-container {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+}
+
+.drawing-canvas-card__title {
+  padding: 0;
+  font-family: "Poppins", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #444551;
+  line-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.drawing-canvas-card__subtitle {
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  color: #92929d;
+  font-weight: 500;
+}
+
+.drawing-canvas-card__rename-input-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.drawing-canvas-card__rename-input {
+  border: 1px solid #7d49f8 !important;
+  border-radius: 12px !important;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  color: #1a1c1e;
+  font-weight: 600;
+  padding: 6px 12px;
+  box-shadow: none !important;
+  flex: 1;
+}
+
+.drawing-canvas-card__rename-input .ant-input-suffix {
+  color: #a0a0a0;
+  font-size: 11px;
+}
+
+.drawing-canvas-card__rename-action {
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.drawing-canvas-card__rename-cancel {
+  color: #ff4d4f !important;
+}
+
+.drawing-canvas-card__rename-save {
+  color: #2e8b57 !important;
+}
+
+.drawing-canvas-card .drawing-canvas-card__thumb,
+.drawing-canvas-card .drawing-canvas-card__title-container {
+  cursor: pointer;
+}

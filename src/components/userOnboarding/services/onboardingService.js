@@ -11,13 +11,11 @@ import config from "../../../config";
  */
 export const initOnboarding = async (phone_number, utmParams, deviceSource) => {
   try {
-    const resolvedUtmSource = deviceSource || utmParams?.utm_source;
     const response = await axios.post(
       `${config.central_auth_api_url}/api/v1/onBoarding/InIt`,
       {
         phone_number,
         ...utmParams,
-        ...(resolvedUtmSource ? { utm_source: resolvedUtmSource } : {}),
         ...(deviceSource ? { device_source: deviceSource } : {}),
       },
       {

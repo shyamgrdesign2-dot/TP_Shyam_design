@@ -346,6 +346,71 @@
   width: 100px;
 }
 
+.rowLabelContent {
+  position: relative;
+}
+
+.rowLabelAutofill .rowAutofillCta {
+  display: none;
+}
+
+.rowLabelAutofill:hover .rowAutofillCta {
+  display: inline-flex;
+}
+
+.rowAutofillCta {
+  position: absolute;
+  left: 0;
+  top: 65%;
+  transform: translateY(4px);
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: #ffffff;
+  color: #4e4bb8;
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(33, 33, 54, 0.16);
+  white-space: nowrap;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.columnHeaderContent {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+
+.columnHeaderAutofill .columnAutofillCta {
+  display: none;
+}
+
+.columnHeaderAutofill:hover .columnAutofillCta {
+  display: flex;
+}
+
+.columnAutofillCta {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  // transform: translateY(0);
+  transform: translateY(4px);
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: #ffffff;
+  color: #4e4bb8;
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(33, 33, 54, 0.16);
+  // padding: 2px 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  z-index: 2;
+}
+
 .autoComplete {
   width: 100%;
 }

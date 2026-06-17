@@ -62,6 +62,18 @@ export const getInvestigationTemplates = createAsyncThunk(
   }
 );
 
+export const singleTemplateDetails = createAsyncThunk(
+  "investigation/singleTemplateDetails",
+  async (templateId) => {
+    const result = await ApiInvestigation.singleTemplateDetails(templateId);
+    if (result.status) {
+      return result.data;
+    } else {
+      throw Error(result.error);
+    }
+  }
+);
+
 export const getFrequentlySearchedInvestigation = createAsyncThunk(
   "investigation/getFrequentlySearchedInvestigation",
   async (_, { rejectWithValue }) => {

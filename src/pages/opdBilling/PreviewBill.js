@@ -110,6 +110,10 @@ const PreviewBill = ({
   const receptionistId = urlParams.get("receptionistId");
   const receptionistName = urlParams.get("receptionistName");
   const clinicName = urlParams.get("clinicName");
+  const isEditAccessRestricted =
+    isReceptionist &&
+    !isIpdBill &&
+    advancedSettings?.editBillAccessControlForReceptionist === false;
   const [buttonText, setButtonText] = useState("Send to WhatsApp");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -489,7 +493,10 @@ const PreviewBill = ({
                       <i className="icon-right iconrotate180 ms-auto"></i>
                     </Button>
                   )}
-                {!isEditDisabled && !isDepositReceipt && !isPreviewForm3c && (
+                {!isEditDisabled &&
+                  !isDepositReceipt &&
+                  !isPreviewForm3c &&
+                  !isEditAccessRestricted && (
                   <Button
                     type="text"
                     className={`btn btnicon20 align-items-center d-flex btn-41 w-100 mb-3 ${
@@ -501,7 +508,7 @@ const PreviewBill = ({
                     <span className="fw-semibold">Edit Bill</span>
                     <i className="icon-right iconrotate180 ms-auto"></i>
                   </Button>
-                )}
+                  )}
 
                 <div className="bg-body d-flex flex-column p-3 rounded-10px border">
                   <div className="d-flex">

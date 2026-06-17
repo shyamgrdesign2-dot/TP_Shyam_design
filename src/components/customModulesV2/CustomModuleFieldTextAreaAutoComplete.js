@@ -41,6 +41,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
   fieldId, // Unique identifier for this field instance
   focusedFieldId, // Currently focused field ID from parent
   onFocusChange, // Callback to update focused field in parent
+  onCursorChange,
 }) => {
   const dispatch = useDispatch();
   const { searchModuleResults, loading } = useSelector(
@@ -62,6 +63,14 @@ const CustomModuleFieldTextAreaAutoComplete = ({
   
   // Only show dropdown if this field is the focused one
   const isFocused = focusedFieldId === fieldId;
+
+  const reportCursorSelection = useCallback((event) => {
+    const textarea = event?.target || textAreaRef.current?.resizableTextArea?.textArea;
+    const currentValue = String(textarea?.value ?? value ?? "");
+    const selectionStart = Number.isInteger(textarea?.selectionStart) ? textarea.selectionStart : currentValue.length;
+    const selectionEnd = Number.isInteger(textarea?.selectionEnd) ? textarea.selectionEnd : selectionStart;
+    onCursorChange?.({ selectionStart, selectionEnd });
+  }, [onCursorChange, value]);
 
   // Extract frequently used values from templates for this specific field
   const frequentlyUsedValues = useMemo(() => {
@@ -307,13 +316,17 @@ const CustomModuleFieldTextAreaAutoComplete = ({
       const newValue = e.target.value;
       const trimmedVal = removeBeforeWhiteSpace(newValue || "");
       onChange(trimmedVal);
+      onCursorChange?.({
+        selectionStart: Number.isInteger(e.target?.selectionStart) ? e.target.selectionStart : trimmedVal.length,
+        selectionEnd: Number.isInteger(e.target?.selectionEnd) ? e.target.selectionEnd : trimmedVal.length,
+      });
       // Update search query for filtering/API calls based on current line
       // Only make API calls if this field is focused (handled in useEffect)
       const lines = trimmedVal.split('\n');
       const currentLine = lines[lines.length - 1] || '';
       setSearchQuery(currentLine);
     },
-    [onChange]
+    [onChange, onCursorChange]
   );
 
   const onSelect = useCallback(
@@ -394,11 +407,16 @@ const CustomModuleFieldTextAreaAutoComplete = ({
             // Update ref immediately to help with timing
             focusedFieldIdRef.current = fieldId;
           }
+          setTimeout(() => reportCursorSelection(), 0);
           // Update search query based on current line when focused
           const currentLine = getCurrentLine();
           setSearchQuery(currentLine);
           // Dropdown visibility will be handled by the useEffect that watches isFocused
         }}
+        onClick={reportCursorSelection}
+        onKeyUp={reportCursorSelection}
+        onMouseUp={reportCursorSelection}
+        onSelect={reportCursorSelection}
         onBlur={(e) => {
           // Clear any existing timeout
           if (blurTimeoutRef.current) {

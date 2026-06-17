@@ -562,6 +562,16 @@ body {
             height: 36px !important;
             padding: 5px 10px !important;
 
+            &.chips-custom-auto {
+                height: auto !important;
+                padding-top: 8px !important;
+                padding-bottom: 8px !important;
+            }
+
+            .hm-type-indicator {
+                color: $white !important;
+            }
+
             &.btn-primary2 {
 
                 &:focus,
@@ -572,6 +582,14 @@ body {
 
                     span {
                         color: $theme !important;
+                    }
+
+                    .stock-pill-badge {
+                        color: #fff !important;
+                    }
+
+                    .hm-type-indicator {
+                        color: $white !important;
                     }
                 }
             }
@@ -613,19 +631,87 @@ body {
                 line-height: 26px !important;
             }
 
+            .chikitsalay-vc-badge {
+                color: #fff !important;
+                line-height: 16px !important;
+            }
+
+            .stock-pill-badge {
+                margin-left: 6px;
+                padding: 0 6px;
+                border-radius: 7px;
+                background: #ED8A00;
+                color: #fff !important;
+                font-family: 'roboto' !important;
+                font-size: 10px !important;
+                font-weight: 600 !important;
+                line-height: 12px !important;
+                display: inline-flex !important;
+                align-items: center;
+                white-space: nowrap;
+                vertical-align: middle;
+            }
+
+            .stock-pill-badge-outside {
+                padding: 1px 8px;
+                font-size: 11px !important;
+                line-height: 14px !important;
+            }
+
+            .stock-pill-badge-inside {
+                padding: 0 6px;
+                font-size: 10px !important;
+                line-height: 12px !important;
+            }
+
+            .stock-pill-badge-qty {
+                background: #FC5A5A;
+            }
+
             &.chips-custom-break {
                 max-width: 160px;
 
-                span {
+                > span:not(.chip-med-content):not(.stock-pill-badge) {
                     font-size: 12px !important;
                     line-height: 13px !important;
                     display: -webkit-box;
+                    line-clamp: 2;
                     -webkit-line-clamp: 2;
                     -webkit-box-orient: vertical;
                     overflow: hidden;
                     text-align: left;
                     white-space: initial;
                 }
+            }
+
+            &.chips-custom-break-inside {
+                max-width: 280px;
+            }
+
+            .chip-med-content {
+                display: flex;
+                flex-wrap: nowrap;
+                align-items: center;
+                column-gap: 6px;
+                max-width: 100%;
+                width: 100%;
+            }
+
+            .chip-med-name {
+                flex: 1 1 auto;
+                min-width: 0;
+                font-size: 12px !important;
+                line-height: 13px !important;
+                display: block;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                text-align: left;
+                white-space: nowrap;
+            }
+
+            .chip-med-content .stock-pill-badge-inside {
+                margin-left: 0;
+                flex-shrink: 0;
             }
         }
         &.btn-free-trials {

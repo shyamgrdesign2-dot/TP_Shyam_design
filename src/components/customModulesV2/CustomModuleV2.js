@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useMemo,
+  useRef,
 } from "react";
 import {
   Input,
@@ -29,6 +30,7 @@ import {
   CloseOutlined,
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../../context/CashManagerContext";
 
@@ -38,6 +40,7 @@ import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { removeBeforeWhiteSpace, errorMessage, getClinic } from "../../utils/utils";
 import { getDecodedToken } from "../../utils/localStorage";
+import { GB_VOICE_RX_NEW_UI } from "../../utils/constants";
 import "./CustomModuleV2.scss";
 import { isMobile } from "react-device-detect";
 import CustomModuleV2Drawer from "./CustomModuleV2Drawer";
@@ -45,12 +48,37 @@ import CustomModuleFieldAutoComplete from "./CustomModuleFieldAutoComplete";
 import CustomModuleFieldTextAreaAutoComplete from "./CustomModuleFieldTextAreaAutoComplete";
 import EditCustomModuleDrawer from "./EditCustomModuleDrawer";
 import { ASSETS } from "../../assets";
+import {
+  VoiceRxModuleActionButton,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "../dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { Grid5, Trash } from "iconsax-reactjs";
 const {
   customModule: ModuleIcon,
   editIconBlue: editIcon,
   deleteIconBlue: deleteIcon,
   alerticon: alertIcon,
 } = ASSETS.images;
+
+function insertTranscriptIntoFieldValue(value, transcript, selectionStart, selectionEnd) {
+  const currentValue = String(value || "");
+  const nextTranscript = String(transcript || "").trim();
+  if (!nextTranscript) return currentValue;
+
+  const hasStart = Number.isInteger(selectionStart);
+  const hasEnd = Number.isInteger(selectionEnd);
+  const start = hasStart ? Math.max(0, Math.min(selectionStart, currentValue.length)) : currentValue.length;
+  const end = hasEnd ? Math.max(start, Math.min(selectionEnd, currentValue.length)) : start;
+
+  if (end > start || start < currentValue.length) {
+    return `${currentValue.slice(0, start)}${nextTranscript}${currentValue.slice(end)}`;
+  }
+
+  return currentValue.trim() ? `${currentValue.trimEnd()}\n${nextTranscript}` : nextTranscript;
+}
 
 /**
  * CustomModuleV2 Component
@@ -63,7 +91,9 @@ const {
  * @param {String} module.name - Module name
  * @param {Array} module.namedFields - Array of field configurations
  */
-const CustomModuleV2 = ({ module }) => {
+const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
   const dispatch = useDispatch();
   const {
     userId,
@@ -85,6 +115,8 @@ const CustomModuleV2 = ({ module }) => {
   const [activeRowId, setActiveRowId] = useState(null);
   const [drawerValues, setDrawerValues] = useState({});
   const [focusedFieldId, setFocusedFieldId] = useState(null); // Track which field is focused
+  const [voiceTargetHighlight, setVoiceTargetHighlight] = useState(null);
+  const lastVoiceTargetRef = useRef(null);
 
   // Templates List Popover (popOver1) / Drawer (templateDrawer)
   const [popOver1, setPopOver1] = useState(false);
@@ -236,6 +268,112 @@ const CustomModuleV2 = ({ module }) => {
     },
     [module, setCustomModuleContents]
   );
+
+  const rememberVoiceTarget = useCallback((rowId, fieldName, selection = {}) => {
+    const row = moduleData.find((item) => item.id === rowId);
+    const value = String(row?.[fieldName] || "");
+    const selectionStart = Number.isInteger(selection.selectionStart) ? selection.selectionStart : value.length;
+    const selectionEnd = Number.isInteger(selection.selectionEnd) ? selection.selectionEnd : selectionStart;
+
+    lastVoiceTargetRef.current = {
+      rowId,
+      fieldName,
+      selectionStart,
+      selectionEnd,
+    };
+    setVoiceTargetHighlight({ rowId, fieldName });
+  }, [moduleData]);
+
+  const resolveVoiceTarget = useCallback((rows) => {
+    const fieldNames = module.namedFields?.map((field) => field.fieldName).filter(Boolean) || [];
+    const lastTarget = lastVoiceTargetRef.current;
+    if (
+      lastTarget &&
+      fieldNames.includes(lastTarget.fieldName) &&
+      rows.some((row) => row.id === lastTarget.rowId)
+    ) {
+      return lastTarget;
+    }
+
+    for (const row of rows) {
+      for (const fieldName of fieldNames) {
+        if (!String(row?.[fieldName] || "").trim()) {
+          return { rowId: row.id, fieldName, selectionStart: 0, selectionEnd: 0 };
+        }
+      }
+    }
+
+    const fallbackRow = rows[rows.length - 1];
+    const fallbackFieldName = fieldNames[0];
+    return {
+      rowId: fallbackRow?.id,
+      fieldName: fallbackFieldName,
+      selectionStart: String(fallbackRow?.[fallbackFieldName] || "").length,
+      selectionEnd: String(fallbackRow?.[fallbackFieldName] || "").length,
+    };
+  }, [module.namedFields]);
+
+  const applyVoiceTranscriptToFocusedField = useCallback((transcript) => {
+    const cleanTranscript = String(transcript || "").trim();
+    const fieldNames = module.namedFields?.map((field) => field.fieldName).filter(Boolean) || [];
+    if (!cleanTranscript || fieldNames.length === 0) return;
+
+    const nextModuleData = moduleData.length ? moduleData.map((row) => ({ ...row })) : [createEmptyRow()];
+    const target = resolveVoiceTarget(nextModuleData);
+    if (!target?.fieldName) return;
+
+    const targetRowIndex = nextModuleData.findIndex((row) => row.id === target.rowId);
+    const rowIndex = targetRowIndex >= 0 ? targetRowIndex : nextModuleData.length - 1;
+    nextModuleData[rowIndex] = {
+      ...nextModuleData[rowIndex],
+      [target.fieldName]: insertTranscriptIntoFieldValue(
+        nextModuleData[rowIndex]?.[target.fieldName],
+        cleanTranscript,
+        target.selectionStart,
+        target.selectionEnd
+      ),
+    };
+
+    setModuleData(nextModuleData);
+    updateCustomModuleContents(nextModuleData);
+    setHasChanges(true);
+  }, [createEmptyRow, module.namedFields, moduleData, resolveVoiceTarget, updateCustomModuleContents]);
+
+  const copyPayloadMatchesThisModule = useCallback((payload = {}) => {
+    const targetedModuleId = payload.sideNavCustomModuleTargetId || payload.digitization?.sideNavCustomModuleTargetId;
+    if (targetedModuleId) {
+      return String(targetedModuleId) === String(module?.module_id);
+    }
+    const digitization = payload.digitization || {};
+    const copiedModules = [
+      ...(Array.isArray(payload.moduleContents) ? payload.moduleContents : []),
+      ...(Array.isArray(payload.module_contents) ? payload.module_contents : []),
+      ...(Array.isArray(digitization.moduleContents) ? digitization.moduleContents : []),
+      ...(Array.isArray(digitization.module_contents) ? digitization.module_contents : []),
+    ];
+    return copiedModules.some((copiedModule) => (
+      String(copiedModule?.module_id) === String(module?.module_id)
+    ));
+  }, [module?.module_id]);
+
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: module?.name || "Custom Module",
+    onTranscriptionApply: applyVoiceTranscriptToFocusedField,
+    transcriptionSuccessMessage: "Transcript added from voice dictation",
+    copyPayloadMatcher: copyPayloadMatchesThisModule,
+  });
+
+  const isVoiceTargetHighlighted = useCallback((rowId, fieldName) => (
+    voiceCaptureOpen &&
+    voiceTargetHighlight?.rowId === rowId &&
+    voiceTargetHighlight?.fieldName === fieldName
+  ), [voiceCaptureOpen, voiceTargetHighlight]);
 
   // Handle field value change
   const handleFieldChange = (rowId, fieldName, value) => {
@@ -1117,7 +1255,7 @@ const CustomModuleV2 = ({ module }) => {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -1155,7 +1293,7 @@ const CustomModuleV2 = ({ module }) => {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -1279,7 +1417,7 @@ const CustomModuleV2 = ({ module }) => {
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
                   <div className="round-box">
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
@@ -1412,8 +1550,22 @@ const CustomModuleV2 = ({ module }) => {
     };
   }, [module?.module_id]);
 
+  const voiceDictationTargetId = `custom-module-${module?.module_id || module?.name || "v2"}`;
+  const activeDropdownFieldId = focusedFieldId;
+
   return (
-    <div className="prescription-box-sm" data-module-id={module?.module_id}>
+    <div
+      ref={sectionRef}
+      data-voice-rx-dictation-target={voiceDictationTargetId}
+      className={[
+        "prescription-box-sm",
+        activeDropdownFieldId ? "custom-module-v2--dropdown-open" : "",
+        voiceModuleStyles.moduleRoot,
+        isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
+        voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+      ].filter(Boolean).join(" ")}
+      data-module-id={module?.module_id}
+    >
       {/* Header */}
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
@@ -1456,14 +1608,52 @@ const CustomModuleV2 = ({ module }) => {
             </div>
 
             <div className="d-flex align-items-center">
-              <button
-                className="btn d-flex align-items-center btn-text"
-                onClick={loadPreviousClick}
-              >
-                <i className="icon-reload me-2"></i>
-                <span>Load Prev. data</span>
-              </button>
-              {isMobile ? (
+              {isVoiceRxModuleEnabled && (
+                <VoiceRxModuleButton
+                  active={voiceCaptureOpen}
+                  dictationTargetId={voiceDictationTargetId}
+                  label={`Start ${module?.name || "Custom Module"} voice input`}
+                  onClick={() => setVoiceCaptureOpen(true)} />
+              )}
+              {isVoiceRxModuleEnabled ? (
+                <Tooltip placement="bottom" title="Load previous data">
+                  <VoiceRxModuleActionButton type="reload" label="Load previous data" onClick={loadPreviousClick} />
+                </Tooltip>
+              ) : (
+                <button
+                  className="btn d-flex align-items-center btn-text"
+                  onClick={loadPreviousClick}
+                >
+                  <i className="icon-reload me-2"></i>
+                  <span>Load Prev. data</span>
+                </button>
+              )}
+              {isVoiceRxModuleEnabled ? (
+                isMobile ? (
+                  <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                    <VoiceRxModuleActionButton
+                      type="template"
+                      label={`Browse ${module?.name || "module"} templates`}
+                      onClick={handleDrawerTemplate}
+                    />
+                  </Tooltip>
+                ) : (
+                  <Popover
+                    open={popOver1}
+                    onOpenChange={showHideTemplatesListPopover}
+                    content={TEMPLATE_CONTENT}
+                    trigger="click"
+                    overlayClassName="pop-350 pp-0"
+                    placement="bottom"
+                  >
+                    <span>
+                      <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                        <VoiceRxModuleActionButton type="template" label={`Browse ${module?.name || "module"} templates`} />
+                      </Tooltip>
+                    </span>
+                  </Popover>
+                )
+              ) : isMobile ? (
                 <button
                   className="btn d-flex align-items-center btn-text"
                   onClick={handleDrawerTemplate}
@@ -1493,7 +1683,35 @@ const CustomModuleV2 = ({ module }) => {
                     : `Please enter some ${module?.name} to save a template`
                 }
               >
-                {isMobile ? (
+                {isVoiceRxModuleEnabled ? (
+                  isMobile ? (
+                    <VoiceRxModuleActionButton
+                      type="save"
+                      label={`Save ${module?.name || "module"} as template`}
+                      onClick={() => hasDataToSave && handleSaveTemplateDrawer()}
+                      disabled={!hasDataToSave}
+                    />
+                  ) : (
+                    <Popover
+                      open={popOver2}
+                      onOpenChange={() =>
+                        hasDataToSave && showHideSaveTemplatePopOver()
+                      }
+                      content={SAVE_CONTENT}
+                      trigger="click"
+                      overlayClassName="pop-450 pp-0"
+                      placement="bottom"
+                    >
+                      <span>
+                        <VoiceRxModuleActionButton
+                          type="save"
+                          label={`Save ${module?.name || "module"} as template`}
+                          disabled={!hasDataToSave}
+                        />
+                      </span>
+                    </Popover>
+                  )
+                ) : isMobile ? (
                   <button
                     className="btn d-flex align-items-center btn-text"
                     style= {{border: "none"}}
@@ -1520,13 +1738,24 @@ const CustomModuleV2 = ({ module }) => {
                   </Popover>
                 )}
               </Tooltip>
-              <button
-                onClick={handleClear}
-                className="btn btn-text clear-text d-flex align-items-center"
-                disabled={!hasDataToSave}
-              >
-                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <Tooltip placement="bottom" title="Clear this section">
+                  <VoiceRxModuleActionButton
+                    type="clear"
+                    label={`Clear ${module?.name || "module"}`}
+                    onClick={handleClear}
+                    disabled={!hasDataToSave}
+                  />
+                </Tooltip>
+              ) : (
+                <button
+                  onClick={handleClear}
+                  className="btn btn-text clear-text d-flex align-items-center"
+                  disabled={!hasDataToSave}
+                >
+                  <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+                </button>
+              )}
               <Dropdown
                 overlay={moreMenu}
                 trigger={["click"]}
@@ -1564,7 +1793,7 @@ const CustomModuleV2 = ({ module }) => {
                 key={field.fieldName}
                 className="custom-module-v2__table-header-cell"
               >
-                {field.fieldLabel.toUpperCase()}
+                {field.fieldLabel ?? field.fieldName}
               </th>
             ))}
             <th className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">
@@ -1578,19 +1807,32 @@ const CustomModuleV2 = ({ module }) => {
           {moduleData.map((row, rowIndex) => {
             // Ensure row has an id - fallback to index if missing (shouldn't happen but safety check)
             const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
+            const isActiveDropdownRow = module.namedFields?.some(
+              (field) => activeDropdownFieldId === `${row.id}-${field.fieldName}`
+            );
             return (
             <tr
               key={rowKey}
-              className="border-bottom"
+              className={[
+                "border-bottom",
+                isActiveDropdownRow ? "custom-module-v2__table-row--dropdown-open" : "",
+              ].filter(Boolean).join(" ")}
             >
               {module.namedFields?.map((field, fieldIndex) => (
                 <td
                   key={field.fieldName}
-                  className="custom-module-v2__table-cell"
+                  className={[
+                    "custom-module-v2__table-cell",
+                    activeDropdownFieldId === `${row.id}-${field.fieldName}` ? "custom-module-v2__table-cell--dropdown-open" : "",
+                    isVoiceTargetHighlighted(row.id, field.fieldName) ? "custom-module-v2__voice-target-cell" : "",
+                  ].filter(Boolean).join(" ")}
                 >
                   {isMobile ? (
                     <div
-                      onClick={() => handleEditRow(row.id)}
+                      onClick={() => {
+                        rememberVoiceTarget(row.id, field.fieldName);
+                        handleEditRow(row.id);
+                      }}
                       style={{ cursor: "pointer", width: "100%", padding: "4px 12px" }}
                     >
                       <TextArea
@@ -1621,7 +1863,13 @@ const CustomModuleV2 = ({ module }) => {
                       className="custom-module-v2__input w-100"
                       fieldId={`${row.id}-${field.fieldName}`}
                       focusedFieldId={focusedFieldId}
-                      onFocusChange={setFocusedFieldId}
+                      onFocusChange={(nextFocusedFieldId) => {
+                        setFocusedFieldId(nextFocusedFieldId);
+                        if (nextFocusedFieldId) {
+                          rememberVoiceTarget(row.id, field.fieldName);
+                        }
+                      }}
+                      onCursorChange={(selection) => rememberVoiceTarget(row.id, field.fieldName, selection)}
                     />
                   )}
                 </td>
@@ -1639,7 +1887,7 @@ const CustomModuleV2 = ({ module }) => {
                   className="btn py-0 btn-delete-prescription px-0"
                   onClick={() => handleDeleteRow(row.id)}
                 >
-                  <i className="icon-delete"></i>
+                  {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                 </Button>
               </td>
             </tr>
@@ -1649,15 +1897,29 @@ const CustomModuleV2 = ({ module }) => {
       </table>
 
       {/* Add New Line Button */}
-      <div className="p-14">
-        <Button
-          type="link"
-          icon={<PlusOutlined />}
-          className="add-custom-module-link"
-          onClick={handleAddRow}
-        >
-          Add New Line
-        </Button>
+      <div
+        className={
+          isVoiceRxModuleEnabled && voiceCaptureOpen
+            ? [voiceModuleStyles.moduleSlot, voiceModuleStyles.moduleCaptureActiveSlot].filter(Boolean).join(" ")
+            : "p-14"
+        }
+      >
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+          <VoiceRxModuleCapture
+            mode="transcribe"
+            moduleName={module?.name || "Custom Module"}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        ) : (
+          <Button
+            type="link"
+            icon={<PlusOutlined />}
+            className="add-custom-module-link"
+            onClick={handleAddRow}
+          >
+            Add New Line
+          </Button>
+        )}
       </div>
 
       {/* Template Drawer for Tablet/Mobile */}

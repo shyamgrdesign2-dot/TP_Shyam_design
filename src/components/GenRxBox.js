@@ -3,8 +3,9 @@ import { Button, Collapse, Divider } from "antd";
 import { useState } from "react";
 import { getClinicName, trackEvent } from "../utils/utils";
 import { useSelector } from "react-redux";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { ASSETS } from "../assets";
+import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
 const {
   shadedArrow: arrow,
   tryGenRx: tryGenRxIcon,
@@ -16,7 +17,7 @@ const GenRxBox = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
   const { profile } = useSelector((state) => state.doctors);
   const { state } = useLocation();
   const { patient_data } = state || {};
-  const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
 
   const handlePanelChange = () => {
     setIsCollapseActive((prev) => !prev);
@@ -80,14 +81,15 @@ const GenRxBox = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
                   doctor_unique_id: profile?.doctor_unique_id,
                   clinic_name,
                 });
-                // Navigate to VoiceRxConsult page with auto-open modal
-                navigate("/voice-rx-consult", {
-                  state: {
+                navigateVoiceRx(
+                  {
                     patient_data,
                     autoOpenModal: true,
                     fromPrescription: true,
                   },
-                });
+                  {},
+                  "gen_rx_box"
+                );
               }}
             >
               <img src={tryGenRxIcon} alt="genrx-icon" />

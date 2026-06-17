@@ -19,8 +19,9 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
+import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 
-import { MenuOutlined } from '@ant-design/icons';
+import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   addTemplate,
   updateTemplate,
@@ -34,12 +35,27 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
 import { ASSETS } from "../assets";
+import { Grid5, Trash } from "iconsax-reactjs";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleButton,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
 const {
   alerticon: alertIcon,
   examination: Examinationicon,
 } = ASSETS.images;
 
-function ExaminationBox() {
+function ExaminationBox({ showVoiceRxModule }) {
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
   const {
     selectedExaminationList,
     parentOptionsList,
@@ -76,6 +92,51 @@ function ExaminationBox() {
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
+  const emptyExaminationRow = () => ({ examination_name: "", unique_id: uuidv4(), note: "", change: 1, pms_default: 0 });
+
+  const applyVoiceExaminations = useCallback((nextExaminations) => {
+    if (nextExaminations.length > 0) {
+      if (canShowVoiceRxNewRows) {
+        const last = nextExaminations[nextExaminations.length - 1];
+        const withTrailing = (!last || last.examination_name !== "") ? [...nextExaminations, emptyExaminationRow()] : nextExaminations;
+        setExaminationData(withTrailing);
+      } else {
+        setExaminationData(nextExaminations);
+      }
+    }
+  }, [canShowVoiceRxNewRows, setExaminationData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // add one trailing empty row on mount (only when flag is on)
+  useEffect(() => {
+    if (!canShowVoiceRxNewRows) return;
+    setExaminationData(prev => {
+      const last = prev[prev.length - 1];
+      if (!last || last.examination_name !== "") {
+        return [...prev, emptyExaminationRow()];
+      }
+      return prev;
+    });
+  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAddRow = useCallback(() => {
+    setExaminationData(prev => [...prev, emptyExaminationRow()]);
+  }, [setExaminationData]);
+  const examinationsVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(examinationData, "examinations"),
+    [examinationData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Examinations",
+    onApply: applyVoiceExaminations,
+    successMessage: "Examinations filled from voice dictation",
+    copyPayloadKeys: ["examinations"],
+  });
 
   useEffect(() => {
     if (selectedExaminationList.length > 0) {
@@ -244,8 +305,11 @@ function ExaminationBox() {
       setExaminationData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).examination_name, index: i });
       dispatch(setIsDDxReadyToGenerate(true));
+      if (canShowVoiceRxNewRows && i === examinationData.length - 1) {
+        setExaminationData((prev) => [...prev, emptyExaminationRow()]);
+      }
     },
-    [searchChildQuery, examinationData]
+    [searchChildQuery, examinationData, canShowVoiceRxNewRows]
   );
 
   const onChangeNoteChild = useCallback(
@@ -260,7 +324,11 @@ function ExaminationBox() {
 
   const onRemoveRow = (index) => {
     examinationData.splice(index, 1);
-    setExaminationData((prev) => [...prev]);
+    if (canShowVoiceRxNewRows && examinationData.length === 0) {
+      setExaminationData([emptyExaminationRow()]);
+    } else {
+      setExaminationData((prev) => [...prev]);
+    }
     if (examinationData?.length > 0) {
       dispatch(setIsDDxReadyToGenerate(true));
     } else if (symptomsData?.length === 0) {
@@ -291,7 +359,7 @@ function ExaminationBox() {
     const action = await dispatch(singleTemplateDetails(template.tet_id));
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action?.payload;
-      setExaminationData([...examinationData, ...updatedData]);
+      setExaminationData(appendStripped(examinationData, updatedData, "examinations"));
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)
@@ -328,14 +396,15 @@ function ExaminationBox() {
   );
 
   const onAddTemplateClicked = async () => {
-    if (examinationData.length === 0) {
+    const templateExamination = canShowVoiceRxNewRows ? stripEmptyRows(examinationData, "examinations") : examinationData;
+    if (templateExamination.length === 0) {
       errorMessage('At least 1 examination added')
-    } else if (examinationData.filter(e => e.examination_name == "").length > 0) {
+    } else if (templateExamination.filter(e => String(e.examination_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup examination name')
     } else {
       var sendData = {
         tet_template_name: inputTemplateName,
-        examination: examinationData,
+        examination: templateExamination,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -357,16 +426,17 @@ function ExaminationBox() {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (examinationData.length === 0) {
+    const templateExamination = canShowVoiceRxNewRows ? stripEmptyRows(examinationData, "examinations") : examinationData;
+    if (templateExamination.length === 0) {
       errorMessage('At least 1 examination added')
-    } else if (examinationData.filter(e => e.examination_name == "").length > 0) {
+    } else if (templateExamination.filter(e => String(e.examination_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup examination name')
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         tet_id: data.tet_id,
         tet_template_name: data.tet_template_name,
-        examination: examinationData,
+        examination: templateExamination,
       };
       const action = await dispatch(updateTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -493,7 +563,7 @@ function ExaminationBox() {
                             className="btn py-0 btn-delete-prescription px-0"
                             onClick={() => onRemoveRow(index)}
                           >
-                            <i className="icon-delete"></i>
+                            {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                           </Button>
                         </Col>
                       </Row>
@@ -595,7 +665,7 @@ function ExaminationBox() {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -620,7 +690,7 @@ function ExaminationBox() {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -690,7 +760,7 @@ function ExaminationBox() {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box"><i className="icon-template"></i></div>
+                  <div className="round-box">{isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -719,7 +789,7 @@ function ExaminationBox() {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setExaminationData([])
+    setExaminationData(canShowVoiceRxNewRows ? [emptyExaminationRow()] : [])
     showHideClearData()
   };
 
@@ -760,13 +830,20 @@ function ExaminationBox() {
 
   return (
     <>
-      <div className="">
+      <div ref={sectionRef} data-voice-rx-dictation-target="examinations" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Examinationicon} alt="Examination" />
             <div className="title-common">Examinations</div>
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="examinations"
+                label="Start Examinations voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -776,10 +853,18 @@ function ExaminationBox() {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse examination templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse examination templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip placement="bottom" title={(examinationData.length > 0) ? "" : "Please enter some Examination to save a template"}>
               <Popover
@@ -791,38 +876,79 @@ function ExaminationBox() {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton
+                      type="save"
+                      label="Save examination as template"
+                      disabled={examinationData.length === 0}
+                    />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={examinationData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton
+                  type="clear"
+                  label="Clear examinations"
+                  onClick={showHideClearData}
+                  disabled={examinationData.length === 0}
+                />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={examinationData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
+        {canShowVoiceRxNewRows && (
+          <div className="p-2">
+            <Button
+              type="link"
+              icon={<PlusOutlined />}
+              className="add-custom-module-link"
+              onClick={handleAddRow}
+            >
+              Add New Line
+            </Button>
+          </div>
+        )}
 
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={!searchParentQuery && "boxpopup"}
-          >
-            <Input
-              placeholder="Search Examinations"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
+        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName="Examinations"
+              previousContext={examinationsVoicePreviousContext}
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.examination}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : !isVoiceRxModuleEnabled ? (
+            <AutoComplete
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+              popupClassName={!searchParentQuery && "boxpopup"}
+            >
+              <Input
+                placeholder="Search Examinations"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
+          ) : null}
         </div>
       </div>
     </>

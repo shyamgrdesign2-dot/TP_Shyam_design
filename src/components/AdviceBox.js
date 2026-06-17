@@ -36,12 +36,23 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { classNames } from "@react-pdf-viewer/core";
 import { ASSETS } from "../assets";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import { Grid5, Trash } from "iconsax-reactjs";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   advice: Adviceicon,
 } = ASSETS.images;
 
-function AdviceBox() {
+function AdviceBox({ showVoiceRxModule }) {
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const inputRef = useRef();
   const {
     selectedAdviceList,
@@ -55,6 +66,27 @@ function AdviceBox() {
   const { adviceData, setAdviceData } = useContext(CashManagerContext);
   // const [adviceData, setAdviceData] = useState([]);
   const [adviceDataCheck, setAdviceDataCheck] = useState([]);
+  const applyVoiceAdvice = useCallback((nextAdvice) => {
+    if (nextAdvice.length > 0) {
+      setAdviceData(nextAdvice);
+    }
+  }, [setAdviceData]);
+  const adviceVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(adviceData, "advice"),
+    [adviceData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Advices",
+    onApply: applyVoiceAdvice,
+    successMessage: "Advices filled from voice dictation",
+    copyPayloadKeys: ["advice"],
+  });
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -486,7 +518,7 @@ function AdviceBox() {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -516,7 +548,7 @@ function AdviceBox() {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -586,7 +618,7 @@ function AdviceBox() {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box"><i className="icon-template"></i></div>
+                  <div className="round-box">{isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -707,13 +739,20 @@ function AdviceBox() {
 
   return (
     <>
-      <div className="">
+      <div ref={sectionRef} data-voice-rx-dictation-target="advice" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Adviceicon} alt="Advice" />
             <div className="title-common">Advices</div>
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="advice"
+                label="Start Advices voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -722,10 +761,18 @@ function AdviceBox() {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse advice templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse advice templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip placement="bottom" title={(adviceData.length > 0) ? "" : "Please enter some Advices to save a template"}>
               <Popover
@@ -737,15 +784,27 @@ function AdviceBox() {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton type="save" label="Save advice as template" disabled={adviceData.length === 0} />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={adviceData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton type="clear" label="Clear advice" onClick={showHideClearData} disabled={adviceData.length === 0} />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={adviceData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -756,25 +815,34 @@ function AdviceBox() {
           {CHILD_DRAWER_DATA}
         </Drawer>
 
-        <div className="p-14">
-          <AutoComplete
-            ref={inputRef}
-            // defaultValue={searchParentQuery}
-            value={searchQuery}
-            onSearch={onSearchParent}
-            onFocus={onFocusParent}
-            onBlur={onBlurParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            open={autoCompleteFlag}
-            onSelect={onSelectParent}
-            popupClassName="boxpopup"
-          >
-            <Input
-              placeholder="Search Advices"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName="Advices"
+              previousContext={adviceVoicePreviousContext}
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.advice}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : (
+            <AutoComplete
+              ref={inputRef}
+              // defaultValue={searchParentQuery}
+              value={searchQuery}
+              onSearch={onSearchParent}
+              onFocus={onFocusParent}
+              onBlur={onBlurParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              open={autoCompleteFlag}
+              onSelect={onSelectParent}
+              popupClassName="boxpopup"
+            >
+              <Input
+                placeholder="Search Advices"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
+          )}
         </div>
       </div>
     </>

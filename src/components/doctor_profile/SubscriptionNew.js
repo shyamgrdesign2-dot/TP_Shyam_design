@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Drawer, Table } from "antd";
 import { Button } from "react-bootstrap";
@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import BillingHistoryNew from "./BillingHistoryNew";
 import BillingPrint from "./BillingPrint";
 import { billingHistory, invoiceGenerate, receiptGenerate } from "../../redux/monetizationSlice";
+import { fetchSubscriptionDetails } from "../../redux/subscriptionSlice";
 import { S_SMARTSYNC, S_TATVA_PRACTICE } from "../../utils/constants";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData } from "../../utils/utils";
 import { deviceType, osName } from "react-device-detect";
@@ -22,16 +23,30 @@ function SubscriptionNew() {
   const navigate = useNavigate();
 
   const { profile } = useSelector((state) => state.doctors);
+  const { planDetails } = useSelector((state) => state.subscription);
   const { billingHistoryList } = useSelector((state) => state.monetization);
   const dispatch = useDispatch();
 
   const [showBillingHistory, setShowBillingHistory] = useState(false);
   const [open, setOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
+
+  const billingFetched = useRef(false);
+  useEffect(() => {
+    if (!planDetails && !isReceptionist) {
+      dispatch(fetchSubscriptionDetails());
+    }
+  }, [planDetails, dispatch]);
 
   useEffect(() => {
-    dispatch(billingHistory(profile?.b2c));
-  }, []);
+    const b2c = profile?.b2c ?? planDetails?.profile_b2c;
+    if (b2c && !billingFetched.current && !isReceptionist) {
+      billingFetched.current = true;
+      dispatch(billingHistory(b2c));
+    }
+  }, [profile?.b2c, planDetails?.profile_b2c, dispatch]);
 
   const handlePdfDrawer = useCallback(() => {
     setOpen(!open);

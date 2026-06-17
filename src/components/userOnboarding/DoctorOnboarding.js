@@ -296,7 +296,7 @@ const DoctorOnboarding = ({
               departmentId: formData.speciality,
               device_source: currentDeviceSource,
               // Use real UTM data
-              utm_source: currentDeviceSource,
+              utm_source: utmParams?.utm_source,
               utm_campaign: utmParams?.utm_campaign,
               utm_term: utmParams?.utm_term,
               utm_content: utmParams?.utm_content,
@@ -414,7 +414,7 @@ const DoctorOnboarding = ({
         departmentId: formData.speciality,
         device_source: currentDeviceSource,
         // Use real UTM data
-        utm_source: currentDeviceSource,
+        utm_source: utmParams?.utm_source,
         utm_campaign: utmParams?.utm_campaign,
         utm_term: utmParams?.utm_term,
         utm_content: utmParams?.utm_content,
@@ -465,7 +465,7 @@ const DoctorOnboarding = ({
         departmentId: formData.speciality,
         device_source: currentDeviceSource,
         // UTM data
-        utm_source: currentDeviceSource,
+        utm_source: utmParams?.utm_source,
         utm_campaign: utmParams?.utm_campaign,
         utm_term: utmParams?.utm_term,
         utm_content: utmParams?.utm_content,

@@ -19,7 +19,8 @@ import SCPopup from "../components/SCPopup";
 import { getDecodedToken } from "../utils/localStorage";
 import CommonModal from "../common/CommonModal";
 import { checkCredits } from "../redux/monetizationSlice";
-import { services } from "../redux/doctorsSlice";
+import { services, setB2C_Profile } from "../redux/doctorsSlice";
+import { fetchSubscriptionDetails } from "../redux/subscriptionSlice";
 import { resetVitalsState } from "../redux/vitalsSlice";
 import { ASSETS } from "../assets";
 const {
@@ -42,7 +43,8 @@ const VoiceRxConsult = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { profile, userId, servicesList } = useSelector((state) => state.doctors);
+  const { profile, userId, servicesList, servicesLoading } = useSelector((state) => state.doctors);
+  const { planDetails } = useSelector((state) => state.subscription);
   const { showSCPopup } = useSelector((state) => state.ddx);
   const AI_planDetails = servicesList?.find(e => e.service_name === S_VOICE_RX)
   
@@ -79,6 +81,8 @@ const VoiceRxConsult = () => {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tokenData = getTokenData();
   const clinic = getClinic(profile?.hospital_data);
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
 
   const isVoiceRxCreditExpired =
     !isFreeVoiceRxUser &&
@@ -87,7 +91,27 @@ const VoiceRxConsult = () => {
         VOICE_RX_planDetails?.credit_balance <= 0));
 
   useEffect(() => {
+    if (!planDetails && !isReceptionist) {
+      dispatch(fetchSubscriptionDetails());
+    }
+  }, [planDetails, dispatch]);
+
+  useEffect(() => {
+    if (profile && !profile?.b2c && planDetails?.profile_b2c && !isReceptionist) {
+      dispatch(setB2C_Profile(planDetails.profile_b2c));
+    }
+  }, [profile, profile?.b2c, planDetails?.profile_b2c, dispatch]);
+
+  useEffect(() => {
+    const b2c = profile?.b2c ?? planDetails?.profile_b2c;
+    if (b2c && !isReceptionist) {
+      dispatch(services(b2c));
+    }
+  }, [profile?.b2c, planDetails?.profile_b2c, dispatch]);
+
+  useEffect(() => {
     if (
+      !servicesLoading &&
       VOICE_RX_planDetails !== undefined &&
       (VOICE_RX_planDetails?.plan_tier === FREE ||
         VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
@@ -97,7 +121,7 @@ const VoiceRxConsult = () => {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [VOICE_RX_planDetails]);
+  }, [VOICE_RX_planDetails, servicesLoading]);
 
   const getSymptomsCollectorData = useCallback(async () => {
     if (!patient_data?.patient_unique_id || !userId || !clinicId) {
@@ -419,7 +443,7 @@ const VoiceRxConsult = () => {
     }
 
     let sendData = {
-      b2c_id: profile?.b2c,
+      b2c_id: profile?.b2c ?? planDetails?.profile_b2c,
       service_name: S_VOICE_RX,
     };
     const action = await dispatch(checkCredits(sendData));

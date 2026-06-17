@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useContext, useCallback, useRef } from "react";
+import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from "react";
 import { Button, Card, Row, Col, Form, Radio, AutoComplete, Checkbox, Input, Spin, Popover, Tabs, DatePicker } from 'antd';
 
 import { isMobile } from 'react-device-detect';
 
 import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from 'uuid';
 
 import CashManagerContext from '../context/CashManagerContext';
@@ -20,7 +21,7 @@ import {
 } from "../redux/medicalhistorySlice";
 import { useLocation } from "react-router-dom";
 import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { GB_VOICE_RX_NEW_UI, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { jwtDecode } from "jwt-decode";
 import { CLOTS_LIST, CYCLE_KEY_LIST, FLOW_LIST, GYNEC_SECTION_ENABLE_LIST, PAIN_LIST, PAIN_OCCURANCE_LIST, REPRODUCTIVE_LIFE_STAGES_LIST, TYPES_REPRODUCTIVE_STAGES } from "../utils/gynec_constants";
 import { useAccess } from "../pages/vaccination/useAccess";
@@ -31,9 +32,16 @@ import {
     mergeMedicalHistoryTagsBySection,
     tagsAreDuplicateForHistoryMerge,
 } from "../utils/medicalHistoryUtils";
+import { convertAgentMedicalHistoryRowsToSections } from "../utils/medicalHistoryConverters";
 import VideoModal from "../common/VideoModal";
 import TextArea from "antd/es/input/TextArea";
 import { ASSETS } from "../assets";
+import {
+    VoiceRxModuleCapture,
+    VoiceRxModuleButton,
+    useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   noRecordRound: noRecordFound,
   verticleUpDown,
@@ -47,9 +55,151 @@ const {
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD-MM-YYYY'
 
+function normalizeMedicalHistoryMatch(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
+function mapMedicalHistoryIdsFromDefaultList(data = [], defaultList = []) {
+    if (!Array.isArray(data)) return [];
+
+    return data
+        .map((item) => {
+            const incomingTitle = item?.title || item?.section || item?.type || "Medical Condition";
+            let section = defaultList?.find((defaultItem) => (
+                Number(defaultItem?.tmmhs_id) === Number(item?.tmmhs_id) ||
+                normalizeMedicalHistoryMatch(defaultItem?.title) === normalizeMedicalHistoryMatch(incomingTitle)
+            ));
+            if (!section && normalizeMedicalHistoryMatch(incomingTitle) === "others") {
+                section = defaultList?.find((defaultItem) => normalizeMedicalHistoryMatch(defaultItem?.title) === "lifestyle");
+            }
+
+            const mappedTags = Array.isArray(item?.tags)
+                ? item.tags
+                    .map((tag) => {
+                        const tagTitle = String(tag?.title || tag?.name || tag?.lineItem || "").trim();
+                        if (!tagTitle) return null;
+                        const matchedTag = findMatchingMedicalHistoryTag(
+                            { title: tagTitle, tmmhst_id: tag?.tmmhst_id },
+                            section?.tags,
+                            section?.tmmhs_id
+                        );
+                        return {
+                            ...tag,
+                            title: tagTitle,
+                            ...(matchedTag?.tmmhst_id ? { tmmhst_id: matchedTag.tmmhst_id } : {}),
+                            note: tag?.note || tag?.notes || "",
+                            notes: tag?.notes || tag?.note || "",
+                            enable: tag?.enable === "" || tag?.enable === undefined ? "Y" : tag?.enable,
+                            relationship: tag?.relationship || tag?.relation || "",
+                            since: tag?.since || tag?.duration || "",
+                            status: tag?.status || "",
+                            medication: tag?.medication || "",
+                        };
+                    })
+                    .filter(Boolean)
+                : [];
+
+            return {
+                ...item,
+                title: section?.title || incomingTitle,
+                ...(section?.tmmhs_id ? { tmmhs_id: section.tmmhs_id } : {}),
+                no_know_history: Boolean(item?.no_know_history),
+                tags: mappedTags,
+            };
+        })
+        .filter((section) => section.no_know_history || section.tags.length);
+}
+
+function mergeMedicalHistorySections(base = [], incoming = []) {
+    const baseData = Array.isArray(base) ? JSON.parse(JSON.stringify(base)) : [];
+    const incomingData = Array.isArray(incoming) ? JSON.parse(JSON.stringify(incoming)) : [];
+    const usedIncomingIndexes = new Set();
+
+    const merged = baseData.map((section) => {
+        const incomingIndex = incomingData.findIndex((item) => (
+            Number(item?.tmmhs_id) === Number(section?.tmmhs_id) ||
+            normalizeMedicalHistoryMatch(item?.title) === normalizeMedicalHistoryMatch(section?.title)
+        ));
+        const incomingSection = incomingIndex >= 0 ? incomingData[incomingIndex] : null;
+        if (!incomingSection) return section;
+        usedIncomingIndexes.add(incomingIndex);
+
+        const mergedTags = [
+            ...(section?.tags || []).map((tag) => ({
+                ...tag,
+                ...(findMatchingMedicalHistoryTag(tag, incomingSection?.tags, section?.tmmhs_id) || {}),
+            })),
+            ...(incomingSection?.tags || []).filter(
+                (incomingTag) => !(section?.tags || []).some((existingTag) =>
+                    tagsAreDuplicateForHistoryMerge(existingTag, incomingTag, section?.tmmhs_id)
+                )
+            ),
+        ];
+
+        return {
+            ...section,
+            ...incomingSection,
+            tags: mergeMedicalHistoryTagsBySection(mergedTags, [], section?.tmmhs_id || incomingSection?.tmmhs_id),
+        };
+    });
+
+    incomingData.forEach((section, index) => {
+        if (!usedIncomingIndexes.has(index)) merged.push(section);
+    });
+
+    return merged;
+}
+
+function hasMedicalHistoryDetailValue(value) {
+    if (value === undefined || value === null) return false;
+    return String(value).trim() !== "" && String(value).trim() !== "-";
+}
+
+function medicalHistoryEnableState(value) {
+    const key = String(value || "").trim().toLowerCase();
+    if (["n", "no", "false", "absent", "negative"].includes(key)) return "N";
+    if (["y", "yes", "true", "active", "inactive", "present", "positive"].includes(key)) return "Y";
+    return key ? value : "";
+}
+
+function getDisplayableMedicalHistoryContext(data = []) {
+    if (!Array.isArray(data)) return undefined;
+
+    const sections = data
+        .map((section) => {
+            const tags = Array.isArray(section?.tags)
+                ? section.tags.filter((tag) => {
+                    const enable = medicalHistoryEnableState(tag?.enable);
+                    if (enable === "N") return true;
+                    if (enable === "Y") return true;
+                    return [
+                        tag?.since,
+                        tag?.status,
+                        tag?.medication,
+                        tag?.relationship,
+                        tag?.note,
+                        tag?.notes,
+                        tag?.date,
+                    ].some(hasMedicalHistoryDetailValue);
+                })
+                : [];
+            const nextSection = {
+                ...section,
+                tags,
+            };
+            const hasSectionData = Boolean(section?.no_know_history) ||
+                tags.length > 0 ||
+                hasMedicalHistoryDetailValue(section?.medical_history_remarks);
+            return hasSectionData ? nextSection : null;
+        })
+        .filter(Boolean);
+
+    return sections.length ? sections : undefined;
+}
+
 function MedicalHistoryBox(props) {
 
-    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, gynecOnly = false, initialGynecHistory } = props
+    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, gynecOnly = false, initialGynecHistory, showVoiceRxModule } = props
     const { TabPane } = Tabs;
     const {
         searchList,
@@ -129,6 +279,148 @@ function MedicalHistoryBox(props) {
     const [remarks,setRemarks] = useState(medicalHistoryData?.[0]?.medical_history_remarks || "");
     const [surgicalDateType, setSurgicalDateType] = useState('year');
     const [surgicalDate, setSurgicalDate] = useState(null);
+    const selectedHistoryNoteVoiceTargetRef = useRef(null);
+    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB && !gynecOnly;
+
+    const applyVoiceMedicalHistory = useCallback((nextMedicalHistory) => {
+        const sectionedMedicalHistory = convertAgentMedicalHistoryRowsToSections(nextMedicalHistory);
+        const mappedMedicalHistory = mapMedicalHistoryIdsFromDefaultList(sectionedMedicalHistory, defaultList);
+        console.groupCollapsed("[VoiceRx MedicalHistory] MedicalHistoryBox applyVoiceMedicalHistory");
+        console.log("incoming nextMedicalHistory", nextMedicalHistory);
+        console.log("sectionedMedicalHistory", sectionedMedicalHistory);
+        console.log("defaultList length", defaultList?.length || 0);
+        console.log("defaultList section titles", defaultList?.map((section) => ({ tmmhs_id: section?.tmmhs_id, title: section?.title, tags: section?.tags?.length })) || []);
+        console.log("mappedMedicalHistory", mappedMedicalHistory);
+        console.groupEnd();
+        if (!mappedMedicalHistory.length) {
+            console.warn("[VoiceRx MedicalHistory] applyVoiceMedicalHistory no-op: mappedMedicalHistory is empty", {
+                nextMedicalHistory,
+                sectionedMedicalHistory,
+                defaultListLength: defaultList?.length || 0,
+            });
+            return;
+        }
+
+        if (typeof setMedicalHistoryData === "function") {
+            setMedicalHistoryData((prev = []) => {
+                const next = mergeMedicalHistorySections(prev, mappedMedicalHistory);
+                console.groupCollapsed("[VoiceRx MedicalHistory] setMedicalHistoryData merge");
+                console.log("prev medicalHistoryData", prev);
+                console.log("incoming mappedMedicalHistory", mappedMedicalHistory);
+                console.log("next medicalHistoryData", next);
+                console.groupEnd();
+                return next;
+            });
+        }
+        setCloneMedicalHistoryData((prev = []) => {
+            const next = mergeMedicalHistorySections(prev, mappedMedicalHistory);
+            console.groupCollapsed("[VoiceRx MedicalHistory] setCloneMedicalHistoryData merge");
+            console.log("prev cloneMedicalHistoryData", prev);
+            console.log("incoming mappedMedicalHistory", mappedMedicalHistory);
+            console.log("next cloneMedicalHistoryData", next);
+            console.groupEnd();
+            return next;
+        });
+        const nextRemarks = mappedMedicalHistory.find((section) => section?.medical_history_remarks)?.medical_history_remarks;
+        if (nextRemarks) setRemarks(nextRemarks);
+    }, [defaultList, setMedicalHistoryData]);
+
+    const {
+        voiceCaptureOpen,
+        setVoiceCaptureOpen,
+        voiceUpdated,
+        handleVoiceCaptureComplete,
+    } = useVoiceRxModuleCapture({
+        moduleName: "Medical History",
+        onApply: applyVoiceMedicalHistory,
+        successMessage: "Medical history filled from voice dictation",
+    });
+
+    const applyAdditionalHistoryTranscript = useCallback((transcript) => {
+        const cleanTranscript = String(transcript || "").trim();
+        if (!cleanTranscript) return;
+
+        setRemarks((prev = "") => {
+            const base = String(prev || "").trimEnd();
+            const separator = base ? "\n" : "";
+            return `${base}${separator}${cleanTranscript}`.slice(0, 5000);
+        });
+    }, []);
+
+    const {
+        voiceCaptureOpen: additionalHistoryVoiceCaptureOpen,
+        setVoiceCaptureOpen: setAdditionalHistoryVoiceCaptureOpen,
+        voiceUpdated: additionalHistoryVoiceUpdated,
+        handleVoiceCaptureComplete: handleAdditionalHistoryVoiceCaptureComplete,
+    } = useVoiceRxModuleCapture({
+        moduleName: "Additional History",
+        onTranscriptionApply: applyAdditionalHistoryTranscript,
+        transcriptionSuccessMessage: "Additional history transcript appended",
+    });
+
+    const applySelectedHistoryNoteTranscript = useCallback((transcript) => {
+        const cleanTranscript = String(transcript || "").trim();
+        const target = selectedHistoryNoteVoiceTargetRef.current || selectData;
+        if (!cleanTranscript || target?.section_index === undefined || target?.tag_index === undefined) return;
+
+        setCloneMedicalHistoryData((prev = []) => {
+            const section = prev[target.section_index];
+            const tag = section?.tags?.[target.tag_index];
+            if (!tag) return prev;
+
+            const currentNote = String(tag.note || "").trimEnd();
+            const separator = currentNote ? "\n" : "";
+            const nextData = [...prev];
+            const nextTags = [...(section.tags || [])];
+            nextTags[target.tag_index] = {
+                ...tag,
+                note: `${currentNote}${separator}${cleanTranscript}`,
+            };
+            nextData[target.section_index] = {
+                ...section,
+                tags: nextTags,
+            };
+            return nextData;
+        });
+    }, [selectData]);
+
+    const {
+        voiceCaptureOpen: selectedHistoryNoteVoiceCaptureOpen,
+        setVoiceCaptureOpen: setSelectedHistoryNoteVoiceCaptureOpen,
+        voiceUpdated: selectedHistoryNoteVoiceUpdated,
+        handleVoiceCaptureComplete: handleSelectedHistoryNoteVoiceCaptureComplete,
+    } = useVoiceRxModuleCapture({
+        moduleName: "Medical History Note",
+        onTranscriptionApply: applySelectedHistoryNoteTranscript,
+        transcriptionSuccessMessage: "Medical history note transcript appended",
+    });
+
+    const openMedicalHistoryVoiceCapture = useCallback(() => {
+        setAdditionalHistoryVoiceCaptureOpen(false);
+        setSelectedHistoryNoteVoiceCaptureOpen(false);
+        setVoiceCaptureOpen(true);
+    }, [setAdditionalHistoryVoiceCaptureOpen, setSelectedHistoryNoteVoiceCaptureOpen, setVoiceCaptureOpen]);
+
+    const openAdditionalHistoryVoiceCapture = useCallback(() => {
+        setVoiceCaptureOpen(false);
+        setSelectedHistoryNoteVoiceCaptureOpen(false);
+        setExpandRemarks(true);
+        setAdditionalHistoryVoiceCaptureOpen(true);
+    }, [setAdditionalHistoryVoiceCaptureOpen, setSelectedHistoryNoteVoiceCaptureOpen, setVoiceCaptureOpen]);
+
+    const openSelectedHistoryNoteVoiceCapture = useCallback(() => {
+        if (!selectData) return;
+        selectedHistoryNoteVoiceTargetRef.current = selectData;
+        setVoiceCaptureOpen(false);
+        setAdditionalHistoryVoiceCaptureOpen(false);
+        setSelectedHistoryNoteVoiceCaptureOpen(true);
+    }, [selectData, setAdditionalHistoryVoiceCaptureOpen, setSelectedHistoryNoteVoiceCaptureOpen, setVoiceCaptureOpen]);
+
+    const medicalHistoryPreviousContext = useMemo(() => (
+        getDisplayableMedicalHistoryContext(medicalHistoryData) ||
+        getDisplayableMedicalHistoryContext(cloneMedicalHistoryData)
+    ), [cloneMedicalHistoryData, medicalHistoryData]);
 
     const datePickerRef = useRef(null);
     // Function to handle custom input changes
@@ -286,12 +578,17 @@ function MedicalHistoryBox(props) {
     const [popOver, setPopOver] = useState(false);
     const RELATIONSHIP_LIST = ['Father', 'Mother', 'Maternity Grandfather', 'Maternity Grandmother', 'Paternity Grandfather', 'Paternity Grandmother', 'Uncle', 'Aunty', 'Sibling', 'Relatives'];
     const [selectedRelationship, setSelectedRelationship] = useState([]);
-    const [activeTab, setActiveTab] = useState('gynec');
+    const defaultActiveTabKey = initialActiveKey || ((hideMenstrualHistoryTab && !gynecOnly) ? 'medical' : 'gynec');
+    const [activeTab, setActiveTab] = useState(defaultActiveTabKey);
     const [tokenData, setTokenData] = useState(null);
 
     const onTabChange = (key) => {
         setActiveTab(key);
     };
+
+    useEffect(() => {
+        setActiveTab(defaultActiveTabKey);
+    }, [defaultActiveTabKey]);
 
     useEffect(() => {
         dispatch(listSectionwithTag());
@@ -384,6 +681,13 @@ function MedicalHistoryBox(props) {
             if (defaultList?.length > 0) {
                 const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
                 const mergedArray = buildMergedArray(data1);
+                console.groupCollapsed("[VoiceRx MedicalHistory] MedicalHistoryBox sync effect");
+                console.log("reason", "defaultList/medicalHistoryData sync");
+                console.log("defaultList length", defaultList?.length || 0);
+                console.log("medicalHistoryData source", medicalHistoryData);
+                console.log("data2 source used for merge", data2);
+                console.log("mergedArray for cloneMedicalHistoryData", mergedArray);
+                console.groupEnd();
                 setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
             } else if (isPrescriptionOnly && Array.isArray(data2) && data2.length > 0) {
                 setCloneMedicalHistoryData(JSON.parse(JSON.stringify(ensureFiveSections(data2))));
@@ -901,7 +1205,17 @@ function MedicalHistoryBox(props) {
             "patient_number": patient_data?.pm_contact_no,
             "patient_id": patient_data?.patient_unique_id
         });
-        handleSave();
+        if (!hideMenstrualHistoryTab) {
+            await handleSave({ closeDrawer: activeTab === "gynec" });
+            if (activeTab === "gynec") {
+                return;
+            }
+        } else {
+            await handleSave();
+        }
+        if (gynecOnly) {
+            return;
+        }
         if (selectData && selectData.tmmhs_id === 5) {
             const sectionIndex = selectData.section_index;
             const tagIndex = selectData.tag_index;
@@ -1076,7 +1390,7 @@ function MedicalHistoryBox(props) {
         setGynecHistory(prevState => ({ ...prevState, [key]: value }));
     };
 
-    const handleSave = () => {
+    const handleSave = async ({ closeDrawer = true } = {}) => {
         if (gynecOnly) {
             const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
                 if (
@@ -1094,7 +1408,24 @@ function MedicalHistoryBox(props) {
                 if (parsed.isValid()) filteredGynecHistory.lastMenstrualPeriod = parsed.format(showDateFormat);
             }
             if (onSave) onSave(filteredGynecHistory);
-            if (patient_data?.patient_unique_id) handleSaveClick();
+            if (patient_data?.patient_unique_id) await handleSaveClick();
+            if (closeDrawer) handleDrawerMedicalHistory();
+            return;
+        }
+        if (!hideMenstrualHistoryTab) {
+            const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
+                if (
+                    key !== 'createdAt' && key !== 'createdBy' &&
+                    gynecHistory[key] !== '' && gynecHistory[key] !== null &&
+                    gynecHistory[key] !== 'custom' && gynecHistory[key] !== 'number'
+                ) {
+                    acc[key] = gynecHistory[key];
+                }
+                return acc;
+            }, {});
+            if (onSave) onSave(filteredGynecHistory);
+            await handleSaveClick();
+            if (closeDrawer) handleDrawerMedicalHistory();
             return;
         }
         if (hideMenstrualHistoryTab) {
@@ -1102,20 +1433,7 @@ function MedicalHistoryBox(props) {
             if (onSave) {
                 onSave(cloneMedicalHistoryData);
             }
-        } else {
-        const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
-            if (
-                key !== 'createdAt' && key !== 'createdBy' &&
-                gynecHistory[key] !== '' && gynecHistory[key] !== null &&
-                gynecHistory[key] !== 'custom' && gynecHistory[key] !== 'number'
-            ) {
-                acc[key] = gynecHistory[key];
-            }
-            return acc;
-        }, {});
-        onSave(filteredGynecHistory);
         }
-        handleSaveClick()
     };
 
     const onExpandCollapseGynecClick = useCallback((key) => {
@@ -1179,7 +1497,7 @@ function MedicalHistoryBox(props) {
 
         if (!hasData) {
             setGynecLoading(false);
-            return;
+            return false;
         }
 
         // Filter out keys with empty string values
@@ -1191,7 +1509,6 @@ function MedicalHistoryBox(props) {
         }, {});
 
         setGynecHistory(filteredGynecHistory)
-        handleCollapsed(2)
 
         if (gynecEditState === "CREATE") {
             const payload = {
@@ -1209,9 +1526,11 @@ function MedicalHistoryBox(props) {
                 if (response?.data) {
                     trackUpdateEvent();
                 }
+                return true;
             } catch (error) {
                 console.error('Error:', error);
                 errorMessage("Unable to create gynec history for you. please try again.")
+                return false;
             } finally {
                 setGynecLoading(false);
             }
@@ -1226,9 +1545,11 @@ function MedicalHistoryBox(props) {
                 if (response?.data) {
                     trackUpdateEvent();
                 }
+                return true;
             } catch (error) {
                 console.error('Error:', error);
                 errorMessage("Unable able to update gynecdetail for you. please try again.")
+                return false;
             } finally {
                 setGynecLoading(false);
             }
@@ -1314,13 +1635,16 @@ function MedicalHistoryBox(props) {
                     }
                 `}</style>
             )}
-            <Card bordered={false} className="search-modalCard">
+            <Card bordered={false} className={[
+                "search-modalCard",
+                isVoiceRxModuleEnabled ? voiceModuleStyles.moduleRoot : "",
+                isVoiceRxModuleEnabled && (voiceUpdated || additionalHistoryVoiceUpdated || selectedHistoryNoteVoiceUpdated) ? voiceModuleStyles.moduleUpdated : "",
+            ].filter(Boolean).join(" ")}>
                 <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'>
                     <div className='align-items-center d-flex h-100'>
                         <div className='border-end h-100 text-center me-3'>
                             <div
-                                onClick={onSaveClicked}
-                                // onClick={handleDrawerMedicalHistory} 
+                                onClick={handleDrawerMedicalHistory}
                                 className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
                                 <i className='icon-right'></i>
                             </div>
@@ -1346,13 +1670,20 @@ function MedicalHistoryBox(props) {
                                 </button>
                             </Popover>
                         )}
+                        {/* {isVoiceRxModuleEnabled && (
+                            <VoiceRxModuleButton
+                                active={voiceCaptureOpen}
+                                label="Start Medical History voice input"
+                                onClick={openMedicalHistoryVoiceCapture}
+                            />
+                        )} */}
                         <Button className='btn btn-primary3 btn-41 px-4 me-20' onClick={onSaveClicked}>
                             Save
                         </Button>
                     </div>
                 </div>
                 <Tabs 
-                    defaultActiveKey={initialActiveKey || "gynec"} 
+                    defaultActiveKey={defaultActiveTabKey} 
                     onChange={onTabChange}
                     className={(hideMenstrualHistoryTab || gynecOnly) ? "hide-tabs-nav" : ""}
                 >
@@ -1794,6 +2125,18 @@ function MedicalHistoryBox(props) {
                     {!gynecOnly && (
                     <TabPane tab="Medical History" key="medical">
                         <div style={{ marginTop: hideMenstrualHistoryTab ? "16px" : "-1rem" }}>
+                            {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+                                <div className={voiceModuleStyles.moduleSlot}>
+                                    <VoiceRxModuleCapture
+                                        moduleName="Medical History"
+                                        moduleApiName="medical_history"
+                                        previousContext={medicalHistoryPreviousContext}
+                                        dummyDigitisedData={[]}
+                                        onCancel={() => setVoiceCaptureOpen(false)}
+                                        onComplete={handleVoiceCaptureComplete}
+                                    />
+                                </div>
+                            ) : null}
                             <Row>
                                 <Col lg={15}>
                                     <div className="bg-white overflow-y-auto medical-history-section" style={{ height: 'calc(100vh - 115px)' }}>
@@ -1817,10 +2160,9 @@ function MedicalHistoryBox(props) {
                                                         </div>
                                                         <div className="d-flex flex-wrap">
                                                             {!e?.no_know_history && !e?.isExpand && e?.tags?.map((e1, i1) => {
-                                                                const displayTitle = e1?.enable === "N" ? `${e1?.title} N` : e1?.title;
                                                                 return (
                                                                     <div key={Math.random()} className={`history-badge ${e1?.enable !== undefined ? e1?.enable === "Y" ? 'history-active' : e1?.enable === "N" ? 'history-inactive' : '' : ''}`}>
-                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{displayTitle}</div>
+                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.title}</div>
                                                                         <span onClick={() => onEnableClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.enable !== undefined ? e1?.enable : "-"}<img src={e1?.enable !== undefined ? e1?.enable === "Y" ? ActiveverticleUpDown : e1?.enable === "N" ? InActiveverticleUpDown : verticleUpDown : verticleUpDown} />
                                                                         </span>
                                                                     </div>
@@ -1835,10 +2177,30 @@ function MedicalHistoryBox(props) {
                                                                         <Button className="btn border rounded-3 px-1 ms-3 collapseButton" onClick={onExpandCollapseRemarks}>
                                                                             <i style={{ transitionDuration: '0.5s' }} className={`icon-right d-block fs-18 ${!expandRemarks ? 'iconrotate270' : 'iconrotatehistory90'}`}></i>
                                                                         </Button>
+                                                                        {isVoiceRxModuleEnabled && (
+                                                                            <span className="d-inline-flex ms-2">
+                                                                                <VoiceRxModuleButton
+                                                                                    active={additionalHistoryVoiceCaptureOpen}
+                                                                                    dictationTargetId="medical-history-additional"
+                                                                                    label="Start Additional History voice input"
+                                                                                    onClick={openAdditionalHistoryVoiceCapture}
+                                                                                />
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                                 {expandRemarks &&
-                                                                    <div style={{ position: "relative", width: "100%" }}>
+                                                                    <div data-voice-rx-dictation-target="medical-history-additional" style={{ position: "relative", width: "100%" }}>
+                                                                        {isVoiceRxModuleEnabled && additionalHistoryVoiceCaptureOpen ? (
+                                                                            <div className={voiceModuleStyles.moduleSlot}>
+                                                                                <VoiceRxModuleCapture
+                                                                                    mode="transcribe"
+                                                                                    moduleName="Additional History"
+                                                                                    onCancel={() => setAdditionalHistoryVoiceCaptureOpen(false)}
+                                                                                    onComplete={handleAdditionalHistoryVoiceCaptureComplete}
+                                                                                />
+                                                                            </div>
+                                                                        ) : null}
                                                                         <TextArea
                                                                             value={remarks}
                                                                             placeholder="Write your additional history"
@@ -2114,10 +2476,33 @@ function MedicalHistoryBox(props) {
                                                                     )}
                                                                 </div>
                                                             )}
-                                                            <div className={`${isMobile ? 'mt-5' : 'mt-20'}`}>
-                                                                <label className="title-common mb-1">
-                                                                    {selectData?.tmmhs_id == 5 ? "Surgical History Remarks" : "Note"}
-                                                                </label>
+                                                            <div data-voice-rx-dictation-target="medical-history-note" className={`${isMobile ? 'mt-5' : 'mt-20'}`}>
+                                                                <div className="d-flex align-items-center mb-1">
+                                                                    <label className="title-common mb-0">
+                                                                        {selectData?.tmmhs_id == 5 ? "Surgical History Remarks" : "Note"}
+                                                                    </label>
+                                                                    {isVoiceRxModuleEnabled && (
+                                                                        <span className="d-inline-flex ms-2">
+                                                                            <VoiceRxModuleButton
+                                                                                active={selectedHistoryNoteVoiceCaptureOpen}
+                                                                                dictationTargetId="medical-history-note"
+                                                                                label="Start Medical History note voice input"
+                                                                                onClick={openSelectedHistoryNoteVoiceCapture}
+                                                                            />
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {isVoiceRxModuleEnabled && selectedHistoryNoteVoiceCaptureOpen ? (
+                                                                    <div className={voiceModuleStyles.moduleSlot}>
+                                                                        <VoiceRxModuleCapture
+                                                                            mode="transcribe"
+                                                                            moduleName="Medical History Note"
+                                                                            hideCaptions={true}
+                                                                            onCancel={() => setSelectedHistoryNoteVoiceCaptureOpen(false)}
+                                                                            onComplete={handleSelectedHistoryNoteVoiceCaptureComplete}
+                                                                        />
+                                                                    </div>
+                                                                ) : null}
                                                                 <Input.TextArea 
                                                                     value={cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.note !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.note} 
                                                                     placeholder={selectData?.tmmhs_id == 5 ? "Enter surgical history remarks here" : "Enter any specific notes here"} 

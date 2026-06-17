@@ -24,10 +24,9 @@ const PDF_REGEN_DEBOUNCE_MS = 400;
 
 function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, carePlanAssignments, isDigitisedPrintConfig, dentalExaminationData } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig, dentalExaminationData, isCvtExtHosAccessableFromGB, drawingCanvases, isDrawingCanvasesLoading } = useContext(PrintSettingsContext);
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
     const oralExamination = useSelector((state) => state.oralExamination);
-
     const {isGynaecHistoryAccessable} = useAccess();
     const { isPediatricAccessable } = useAccess();
     const dispatch = useDispatch();
@@ -292,6 +291,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                     carePlanAssignments={carePlanAssignments}
                     smartRxData={smartRxData}
                     isDigitisedPrintConfig={isDigitisedPrintConfig}
+                    isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
                     columns={columns}
                     initialRows={initialRows}
                     frequencyList={frequencyList}
@@ -307,7 +307,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                     isGynaecHistoryAccessable={isGynaecHistoryAccessable}
                     obsHistoryData={props.obstetricDetails}
                     labParamsData={labParamsData}
-                    customModules={customModules}
+                    customModules={hospitalSearchResults?.modules ?? customModules}
                     patientBills={props.patientBills}
                     advanceReceipts={props.advanceReceipts}
                     patientWalletBalance={props.patientWalletBalance}
@@ -318,6 +318,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                     dentalExaminationData={resolvedDental}
                     toothImageMap={toothImageMap}
                     examChart={resolvedOralChart}
+                    drawingCanvases={drawingCanvases}
                 />).toBlob();
 
                 const setPdfUrlSafe = (url) => {
@@ -356,14 +357,52 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 }
             };
 
-            makePDFUrl();
+            if (!isDrawingCanvasesLoading) {
+                makePDFUrl();
+            }
         }, PDF_REGEN_DEBOUNCE_MS);
 
         return () => {
             clearTimeout(timer);
             setLoadSuccesss(false);
         };
-    }, [pdfInputKey, caseManagerData?.patient_data]);
+    }, [
+        pdfInputKey,
+        mode,
+        props.printSettingsCopy,
+        props.fileHeaderCopy,
+        props.fileFooterCopy,
+        props.fileLogoCopy,
+        printSettings,
+        fileHeader,
+        fileFooter,
+        fileSignature,
+        fileWatermark,
+        fileLogo,
+        props.todayVaccines,
+        props.growthChartDetails,
+        props.obstetricDetails,
+        printSettings?.default_language,
+        caseManagerData,
+        frequencyList,
+        timingList,
+        labParamsData,
+        customModules,
+        hospitalSearchResults,
+        carePlanAssignments,
+        smartRxFile,
+        props.patientBills,
+        props.advanceReceipts,
+        props.patientWalletBalance,
+        props.abhaDetails,
+        props.dentalData,
+        dentalExaminationData,
+        oralExamination,
+        drawingCanvases,
+        isDrawingCanvasesLoading,
+        isCvtExtHosAccessableFromGB,
+        ophthalModuleData,
+    ]);
 
     const onDocumentLoadSuccess = ({ numPages }) => {
         setNumPages(numPages)

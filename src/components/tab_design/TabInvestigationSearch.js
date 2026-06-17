@@ -19,6 +19,7 @@ import { getClinicName } from "../../utils/utils";
 import { useLocation } from "react-router-dom";
 import { getDecodedToken } from "../../utils/localStorage";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../../utils/constants";
+import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 import { env } from "../../EnvironmentConfig";
 import { ASSETS } from "../../assets";
 const {
@@ -29,6 +30,7 @@ const {
 } = ASSETS.images;
 
 function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
+    const isChikitsalayAccessable = useChikitsalay();
 
     const {
         parentOptionsList,
@@ -191,34 +193,45 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
     // }, [investigationData, selectedIndex]);
 
     // Drag & Drop
-    const SortableItem = SortableElement(({ item }) => (
-        <div
-            style={{
-                width: item.investigation_name.length > 12 && item.investigation_name.length < 24
-                    ? `${item.investigation_name.length * 10.5}px`
-                    : item.investigation_name.length >= 24
-                        ? '256px'
-                        : '150px',
-                zIndex: 9999,
-            }}
-            className={`${selectedIndex == item.index && "closable-chips-active"} d-flex align-items-center justify-content-between text-truncate closable-chips`}
-        >
-            <div className="text-truncate p-2" onClick={() => {
-                setSelectedIndex(item.index)
-            }}>
-                <div className="text-truncate">{item.investigation_name}
-                    {item.note ? (
-                        <div className="text-truncate small">{item.note}</div>
-                    ) : (
-                        <div className="text-truncate small">Add Details</div>
-                    )}
+    const SortableItem = SortableElement(({ item }) => {
+        const showVC = item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable;
+        return (
+            <div
+                style={{
+                    width: item.investigation_name.length > 12 && item.investigation_name.length < 24
+                        ? `${item.investigation_name.length * 10.5}px`
+                        : item.investigation_name.length >= 24
+                            ? '256px'
+                            : '150px',
+                    zIndex: 9999,
+                }}
+                className={`${selectedIndex == item.index && "closable-chips-active"} position-relative d-flex align-items-center justify-content-between closable-chips`}
+            >
+                <div className="text-truncate p-2" onClick={() => {
+                    setSelectedIndex(item.index)
+                }}>
+                    <div className="text-truncate"><span className="chip-text">{item.investigation_name}</span>
+                        {item.note ? (
+                            <div className="text-truncate small">{item.note}</div>
+                        ) : (
+                            <div className="text-truncate small">Add Details</div>
+                        )}
+                    </div>
                 </div>
+                {showVC && (
+                    <span
+                        className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white chip-vc-badge"
+                        style={{ minWidth: 24, height: 18, padding: "0 5px", lineHeight: "16px", background: "#c44ea2", right: 36, top: -6 }}
+                    >
+                        VC
+                    </span>
+                )}
+                <Button type="text" className="rounded-0 btn-close-chips" onClick={() => onRemoveRow(item.index)}>
+                    <i className="icon-Cross"></i>
+                </Button>
             </div>
-            <Button type="text" className="rounded-0 btn-close-chips" onClick={() => onRemoveRow(item.index)}>
-                <i className="icon-Cross"></i>
-            </Button>
-        </div>
-    ));
+        );
+    });
 
     const SortableList = SortableContainer(({ items }) => {
         return (
@@ -385,7 +398,8 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                                                 {item.value}
                                                             </Button>
                                                         )}
-                                                        {(JSON.parse(item.key)?.hm_type === 1 && JSON.parse(item.key)?.um_id === 1) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                                                        {(JSON.parse(item.key)?.hm_type === 1 && JSON.parse(item.key)?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                                                        {(JSON.parse(item.key)?.hm_type == 15 && Number(JSON.parse(item.key)?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                                                     </div>
                                                 )
                                             })
@@ -396,6 +410,7 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                                     <div className="position-relative">
                                                         <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{item.investigation_name}</Button>
                                                         {(item?.hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                                                        {(item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                                                     </div>
                                                 )
                                             })

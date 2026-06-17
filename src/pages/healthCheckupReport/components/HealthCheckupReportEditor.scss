@@ -31,6 +31,7 @@ $editor-purple: $token-editor-purple;
   background: $white;
   border-bottom: $token-header-border solid $editor-border;
   box-shadow: $token-header-shadow;
+  z-index: 100;
 }
 
 .health-checkup-editor__header-left {
@@ -212,8 +213,9 @@ $editor-purple: $token-editor-purple;
 }
 
 .health-checkup-editor__document-wrap {
-  height: auto;
-  overflow: visible;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   background: $token-bg-10;
   width: 100%;
 }

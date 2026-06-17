@@ -4,6 +4,7 @@ import { Button, Collapse } from 'antd';
 import { useSelector } from "react-redux";
 
 import CashManagerContext from '../../context/CashManagerContext';
+import { hasVitalsAndBodyCompositionData } from "../../utils/symptomCollectorVitalsMerge";
 
 import moment from "moment";
 import { useLocation } from "react-router-dom";
@@ -21,6 +22,9 @@ function TabVitalsList(props) {
     const { vitalsPastList, patientBirthWeight } = useSelector(
       (state) => state.vitals
     );
+    const { isAutofillSelected, selectedSymptomsCollector } = useSelector(
+      (state) => state.ddx
+    );
 
     const { vitalsData } = useContext(CashManagerContext);
     const hasTodayVitals = vitalsData?.some((item) =>
@@ -36,12 +40,22 @@ function TabVitalsList(props) {
       item?.bmr ||
       item?.bsa ||
       item?.fib4 ||
-      item?.waist_circumference
+      item?.waist_circumference ||
+      item?.general_rbs
     );
     const hasBirthWeight = patient_data?.ageMonths <= 12 &&
       patient_data?.ageYears === 0 &&
       (vitalsData?.[0]?.patient_birth_weight || patientBirthWeight);
-    const hasAnyVitalsData = hasTodayVitals || vitalsPastList.length > 0 || hasBirthWeight;
+    const hasScVitalsAutofill =
+      isAutofillSelected &&
+      hasVitalsAndBodyCompositionData(
+        selectedSymptomsCollector?.vitalsAndBodyComposition
+      );
+    const hasAnyVitalsData =
+      hasTodayVitals ||
+      vitalsPastList.length > 0 ||
+      hasBirthWeight ||
+      hasScVitalsAutofill;
 
     const PAST_VITALS = useMemo(() => {
         return (
@@ -177,7 +191,7 @@ function TabVitalsList(props) {
         return (
             vitalsData.length > 0 &&
             vitalsData.map((item, i) => {
-                if (item.temp || item.pres || item.resp_rate || item.blood_press || item.spo2 || item.ofc || item.height || item.weight || item.bmi || item.bmr || item.bsa || item.fib4 || item.waist_circumference ) {
+                if (item.temp || item.pres || item.resp_rate || item.blood_press || item.spo2 || item.ofc || item.height || item.weight || item.bmi || item.bmr || item.bsa || item.fib4 || item.waist_circumference || item.general_rbs ) {
                 return (
                     <div key={i} className="p-10 border-bottom pb-0">
                         <div className="title-sami">

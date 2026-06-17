@@ -37,7 +37,12 @@ function UploadProfile({ form, mode = ADD, isMobile = false }) {
   }
 
   const handleUploadClick = () => {
-    setIsModalVisible(true);
+    if (isMobile) {
+      setIsModalVisible(true);
+    } else if (fileInputRef.current) {
+      fileInputRef.current.removeAttribute('capture');
+      fileInputRef.current.click();
+    }
   };
 
   const handleCameraSelect = () => {
@@ -112,14 +117,16 @@ function UploadProfile({ form, mode = ADD, isMobile = false }) {
         style={{ display: 'none' }}
       />
 
-      {/* Upload Profile Modal */}
-      <UploadProfileModal
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-        onSelectCamera={handleCameraSelect}
-        onSelectGallery={handleGallerySelect}
-        onSelectFiles={handleFilesSelect}
-      />
+      {/* Upload Profile bottom sheet — mobile only */}
+      {isMobile && (
+        <UploadProfileModal
+          visible={isModalVisible}
+          onClose={() => setIsModalVisible(false)}
+          onSelectCamera={handleCameraSelect}
+          onSelectGallery={handleGallerySelect}
+          onSelectFiles={handleFilesSelect}
+        />
+      )}
     </>
   );
 }

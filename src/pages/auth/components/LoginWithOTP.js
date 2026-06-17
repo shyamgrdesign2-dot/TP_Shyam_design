@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from "react";
+import { useGrowthBook } from "@growthbook/growthbook-react";
 import { useNavigate } from "react-router-dom";
 import { checkPediaExists, validateUser, verifyAccessToken } from "../authService";
 import "../auth.scss"; // Assuming the provided styles are in this CSS file
 import { isMobile } from "react-device-detect";
 import { Spin } from "antd";
+import { isProdEnv, isZyPreprodOrZyProdEnv } from "../../../utils/environment";
+import {
+  getZydusProdLoginUrl,
+  syncPhoneAndCheckZydusAccountUser,
+} from "../../../utils/zydusAccountRouting";
 
 const LoginWithOTP = ({ reason, handleView, number }) => {
+  const isSignupDisabled = isZyPreprodOrZyProdEnv();
+  const growthbook = useGrowthBook();
   const navigate = useNavigate();
   const [mobileNumber, setMobileNumber] = useState(
     number === "null" ? "" : number
@@ -176,6 +184,19 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
       setMessage("");
       setError(null);
       setLoading(true); // Show loader
+
+      if (isProdEnv()) {
+        const isZydusAccountUser =
+          await syncPhoneAndCheckZydusAccountUser(growthbook, mobileNumber);
+
+        if (isZydusAccountUser) {
+          const zydusLoginUrl = getZydusProdLoginUrl();
+          if (zydusLoginUrl) {
+            window.location.replace(zydusLoginUrl);
+            return;
+          }
+        }
+      }
 
       if (isValidUser) {
 
@@ -549,7 +570,9 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
             </button>
 
             <br />
-            <p>Don't have an account? <a href="/login?view=signup">Sign up</a> </p>
+            {!isSignupDisabled && (
+              <p>Don't have an account? <a href="/login?view=signup">Sign up</a> </p>
+            )}
           </>
         )}
       </div>

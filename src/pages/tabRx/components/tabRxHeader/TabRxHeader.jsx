@@ -59,8 +59,8 @@ import {
 } from "../../../../utils/constants";
 import {
   assignCarePlan,
-  updateCarePlanName,
   getCarePlanAssignments,
+  updateCarePlanName,
 } from "../../../../pages/smartSync/services/carePlanService";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -96,7 +96,8 @@ import {
   resetOpthalForm,
   setTableValues as setOpthalTableValues,
 } from "../../../../redux/ophthalmologyExamSlice";
-import useTabletViewport from "../../../../hooks/useTabletViewport";
+import useCompactPrescriptionHeader from "../../../../hooks/useCompactPrescriptionHeader";
+import { useChikitsalay } from "../../../../pages/chikitsalay/useChikitsalay";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { ASSETS } from "../../../../assets";
 const {
@@ -141,11 +142,12 @@ function TabRxHeader({
   const { isObstetricDetailsUpdated } = useSelector((state) => state.obstetric);
   const { templates, loading } = useSelector((state) => state.caseManager);
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
 
   const { customModules } = useSelector((state) => state.customModules);
 
   const navigate = useNavigate();
-  const isTablet = useTabletViewport();
+  const isCompactHeader = useCompactPrescriptionHeader();
   const {
     patient_data,
     send_path,
@@ -427,7 +429,12 @@ function TabRxHeader({
     window.Moengage.track_event("one_click_template_select", {
       template_name: tmoc_template_name,
     });
-    const action = await dispatch(oneClickSingleTemplateDetails(tmoc_id));
+    const action = await dispatch(
+      oneClickSingleTemplateDetails({
+        templateId: tmoc_id,
+        isChikitsalayAccessable,
+      })
+    );
     if (action.meta.requestStatus === "fulfilled") {
       const data = action.payload;
       if (data !== undefined) {
@@ -724,12 +731,12 @@ function TabRxHeader({
           advice_name,
           ...(change !== undefined && { change }),
         })),
-        investigation: investigationData.map(
-          ({ investigation_name, change }) => ({
-            investigation_name,
-            ...(change !== undefined && { change }),
-          }),
-        ),
+        investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+          investigation_name,
+          ...(change !== undefined && { change }),
+          ...(id != null && String(id).trim() !== "" && { id }),
+          ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+        })),
         userModules: customModuleContents?.map((e) => {
           // Filter content based on module version
           let filteredContent;
@@ -883,12 +890,12 @@ function TabRxHeader({
           advice_name,
           ...(change !== undefined && { change }),
         })),
-        investigation: investigationData.map(
-          ({ investigation_name, change }) => ({
-            investigation_name,
-            ...(change !== undefined && { change }),
-          }),
-        ),
+        investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+          investigation_name,
+          ...(change !== undefined && { change }),
+          ...(id != null && String(id).trim() !== "" && { id }),
+          ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+        })),
         userModules: customModuleContents?.map((e) => {
           // Filter content based on module version
           let filteredContent;
@@ -1945,7 +1952,6 @@ function TabRxHeader({
           console.error("Care plan sync after submit failed:", error);
         }
 
-        // Fetch care plan assignments to include in print state
         let carePlanAssignments = [];
         try {
           if (patient_data?.patient_unique_id) {
@@ -2043,18 +2049,30 @@ function TabRxHeader({
             getInvestigationAndMedicine(sendInvestigationAndMedicine),
           );
           if (actionIM.meta.requestStatus === "fulfilled") {
+            const cmInvestigations = actionIM?.payload?.investigation ?? [];
+            const investigationList = (investigationData.length > 0 ? cmInvestigations : []).map(
+              (item) => ({
+                serviceName: String(item?.investigation_name ?? "").trim(),
+                serviceCode: String(item?.service_code ?? "").trim(),
+              })
+            );
+            const investigationsForMoengage =
+              investigationData.length > 0
+                ? cmInvestigations
+                    .map(
+                      (item) =>
+                        `${item.investigation_name}:${item.service_code ?? ""}`,
+                    )
+                    .join(", ")
+                : "";
+
             window.Moengage.track_event(
               "Z_getInvestigationAndMedicine_API_Response",
               {
                 clinic_name,
                 patient_id: patient_data?.patient_unique_id,
                 status: "suceess",
-                investigationList:
-                  investigationData.length > 0
-                    ? actionIM?.payload?.investigation
-                        .map((item) => item.investigation_name)
-                        .join(", ")
-                    : [],
+                investigationList: investigationsForMoengage,
                 medicineList:
                   medicationData.length > 0
                     ? actionIM?.payload?.medicine
@@ -2082,12 +2100,7 @@ function TabRxHeader({
               doctorCode: patient_data?.employeeId,
               storeCode: storeCode, // hardcoded value
               duplicateCheck: 1, // hardcoded value
-              investigationList:
-                investigationData.length > 0
-                  ? actionIM?.payload?.investigation.map(
-                      (item) => item.investigation_name,
-                    )
-                  : [],
+              investigationList,
               medicineList:
                 medicationData.length > 0
                   ? actionIM?.payload?.medicine.map(
@@ -2112,12 +2125,7 @@ function TabRxHeader({
               doctorCode: patient_data?.employeeId,
               storeCode: storeCode, // hardcoded value
               duplicateCheck: 1, // hardcoded value
-              investigationList:
-                investigationData.length > 0
-                  ? actionIM?.payload?.investigation
-                      .map((item) => item.investigation_name)
-                      .join(", ")
-                  : [],
+              investigationList: investigationsForMoengage,
               medicineList:
                 medicationData.length > 0
                   ? actionIM?.payload?.medicine
@@ -2273,7 +2281,7 @@ function TabRxHeader({
   }, [popOverVideo]);
   return (
     <Navbar
-      className={`justify-content-between headerprescription p-0 ${isTablet ? " headerprescription--tablet" : ""}`}
+      className={`justify-content-between headerprescription p-0 ${isCompactHeader ? " headerprescription--tablet" : ""}`}
     >
       <Container fluid className="h-100 gx-0 w-100">
         <Row className="h-100 align-items-center w-100 justify-content-between">
@@ -2339,13 +2347,8 @@ function TabRxHeader({
               <ProfilePopover patient_data={patient_data} isPrescriptionPage />
             </div>
           </Col>
-          <Col
-            sm="auto"
-            className={isTablet ? "headerprescription-actions-col" : ""}
-          >
-            <div
-              className={`align-items-center d-flex h-100${isTablet ? " headerprescription-actions" : ""}`}
-            >
+          <Col sm="auto" className="headerprescription-actions-col">
+            <div className="align-items-center d-flex h-100 headerprescription-actions">
               {/* {!isMobile ? (
                 <div className="d-flex align-items-center">
                   <Popover
@@ -2359,7 +2362,7 @@ function TabRxHeader({
                     <button className="btn d-flex align-items-center btn-text">
                       {" "}
                       <i className="icon-template me-2"></i>{" "}
-                      <span>{isTablet ? "Temp" : "Templates"}</span>
+                      <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                     </button>
                   </Popover>
                   <Tooltip
@@ -2411,7 +2414,7 @@ function TabRxHeader({
                     onClick={handleDrawerTemplate}
                   >
                     <i className="icon-template me-2"></i>{" "}
-                    <span>{isTablet ? "Temp" : "Templates"}</span>
+                    <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                   </button>
                   <Tooltip
                     placement="bottom"
@@ -2460,7 +2463,7 @@ function TabRxHeader({
                 placement="bottom"
               >
                 <button
-                  className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? "me-20" : ""}`}
+                  className={`btn d-flex align-items-center btn-text p-0 ${!isCompactHeader ? "me-20" : ""}`}
                 >
                   <span>
                     <img src={tutorial2} />
@@ -2474,12 +2477,12 @@ function TabRxHeader({
                 className="btn d-flex align-items-center btn-text"
                 onClick={handleDrawerCustomize}
               >
-                {isTablet ? (
+                {isCompactHeader ? (
                   <img src={settingsIcon} alt="Settings" className="me-2" />
                 ) : (
                   <i className="icon-setting me-2"></i>
                 )}{" "}
-                <span>{isTablet ? "Custom" : "Customize"}</span>
+                <span>{isCompactHeader ? "Custom" : "Customize"}</span>
               </button> */}
 
               {/* <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
@@ -2495,7 +2498,7 @@ function TabRxHeader({
                 placement="bottom"
               >
                 <button
-                  className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? "me-20" : ""}`}
+                  className={`btn d-flex align-items-center btn-text p-0 ${!isCompactHeader ? "me-20" : ""}`}
                 >
                   <span>
                     <img src={tutorial2} />
@@ -2572,7 +2575,7 @@ function TabRxHeader({
                 />
               )}
               {/* {(isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx ? (
-                isTablet ? (
+                isCompactHeader ? (
                   <>
                     <div
                       className="headerprescription-tablet-sep"
@@ -2585,7 +2588,7 @@ function TabRxHeader({
                 )
               ) : null} */}
 
-              {isTablet && (
+              {isCompactHeader && (
                 <div
                   className="headerprescription-tablet-sep"
                   aria-hidden="true"
@@ -2596,7 +2599,7 @@ function TabRxHeader({
                 <SaveDraft
                   onSaveAsDraft={onSaveAsDraft}
                   loading={saveDraftLoading}
-                  label={isTablet ? "Draft" : "Save as Draft"}
+                  label={isCompactHeader ? "Draft" : "Save as Draft"}
                 />
               )} */}
 
@@ -2670,7 +2673,7 @@ function TabRxHeader({
                   loading={loading && !saveDraftLoading}
                 >
                   <i className="icon-exit me-2"></i>
-                  {isTablet ? "End" : "End"}
+                  {isCompactHeader ? "End" : "End"}
                 </Button>
               </Tooltip>
 

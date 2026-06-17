@@ -16,7 +16,7 @@ import { clearSearch, searchPatients } from "../redux/appointmentsSlice";
 import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
-import { GB_ISCRIBE, GB_SNAP_RX, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX, PAID, GB_VOICE_RX_FREE } from "../utils/constants";
+import { GB_ISCRIBE, GB_SNAP_RX, GB_CVT_EXT_HOS, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX,GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, PAID } from "../utils/constants";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
@@ -64,7 +64,9 @@ function WalkInConsultation() {
     GB_SNAP_RX
   );
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -502,19 +504,24 @@ function WalkInConsultation() {
       }
     }
     if (!isMobileOnly) {
-      data.push({
-        key: -1,
-        value: "Add New Patient",
-        label: (
-          <div className="d-flex align-items-center gap-3">
-            {AddPatientPlank()}
-            {profile?.HipID && profile?.abhaEnable ? AddPatientViaAbhaPlank() : null}
-          </div>
-        ),
-      });
+      const showRegularAddPatient = !isCvtExtHosAccessableFromGB;
+      const showAbhaAddPatient =
+        profile?.HipID && profile?.abhaEnable;
+      if (showRegularAddPatient || showAbhaAddPatient) {
+        data.push({
+          key: -1,
+          value: "Add New Patient",
+          label: (
+            <div className="d-flex align-items-center gap-3">
+              {showRegularAddPatient && AddPatientPlank()}
+              {showAbhaAddPatient ? AddPatientViaAbhaPlank() : null}
+            </div>
+          ),
+        });
+      }
     }
     setSearchOptions(data);
-  }, [patients]);
+  }, [patients, isCvtExtHosAccessableFromGB, profile?.HipID, profile?.abhaEnable]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -575,11 +582,14 @@ function WalkInConsultation() {
       source: "Patient Selected",
     });
     
-    // Navigate to Voice Rx Doctor Consult Page
-    navigate("/voice-rx-consult", {
-      state: { 
+    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
+      state: {
         patient_data: patient,
-        isFromTabView: isMobileOnly
+        isFromTabView: isMobileOnly,
+        ...(isVoiceRxNewFromGB && {
+          isVoiceRxNewUiFlow: true,
+          voiceRxEntryPoint: "walk_in_patient_selected",
+        }),
       },
     });
   };

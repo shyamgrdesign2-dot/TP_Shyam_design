@@ -122,7 +122,6 @@ const SetPassword = ({ onViewChange, mobileNumber }) => {
       window.sendOtp(
         formattedNumber,
         (successData) => {
-          console.log("OTP sent successfully:", successData);
           if (successData && successData.message) {
             const reqId = successData.message;
             window.Moengage.track_event('TP_NewLoginFlow_Password_Setup_Otp_Success', {

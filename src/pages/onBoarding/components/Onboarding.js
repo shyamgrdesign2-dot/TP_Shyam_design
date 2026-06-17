@@ -11,6 +11,7 @@ import { getUtmParams } from "../../../components/userOnboarding/services/userDa
 import { Spin } from "antd";
 import { ASSETS } from "../../../assets";
 import { lazyRetry } from "../../../utils/lazyRetry";
+import { isZyPreprodOrZyProdEnv } from "../../../utils/environment";
 const Carousel = React.lazy(() =>
   lazyRetry(() => import("./OnboardCarousel"))
 );
@@ -38,7 +39,9 @@ const Logo = ASSETS.images.websiteImages.logo;
 const WebStructureBg = ASSETS.images.webstructure;
 
 const Onboarding = () => {
-  const [view, setView] = useState("signup");
+  const isSignupDisabled = isZyPreprodOrZyProdEnv();
+  const defaultAuthView = isSignupDisabled ? "loginOTP" : "signup";
+  const [view, setView] = useState(defaultAuthView);
   const [mobileNumber, setMobileNumber] = useState("");
   const [isLoginFlow, setIsLoginFlow] = useState(true);
   const [isUserExists, setIsUserExists] = useState(false);
@@ -59,18 +62,29 @@ const Onboarding = () => {
         const storedView = localStorage.getItem("currentView");
         const storedLoginFlow = localStorage.getItem("isLoginFlow");
         const storedUserExists = localStorage.getItem("isUserExists");
+        const normalizedStoredView =
+          isSignupDisabled && storedView === "signup"
+            ? "loginOTP"
+            : storedView;
 
         if (storedMobileNumber) setMobileNumber(storedMobileNumber);
-        if (storedView) setView(storedView);
-        if (storedLoginFlow) setIsLoginFlow(storedLoginFlow === "true");
+        if (normalizedStoredView) setView(normalizedStoredView);
+        if (isSignupDisabled && storedView === "signup") {
+          localStorage.setItem("currentView", "loginOTP");
+          localStorage.setItem("isLoginFlow", "true");
+        }
+        if (storedLoginFlow) {
+          setIsLoginFlow(isSignupDisabled ? true : storedLoginFlow === "true");
+        }
         if (storedUserExists) setIsUserExists(storedUserExists === "true");
 
         // Get UTM params
         const utm = getUtmParams();
         setUtmParams(utm);
         const campaign = utm.utm_campaign;
-        setIsFromCampaign(!!campaign);
-        if (!!campaign) {
+        const shouldShowSignupFlow = !!campaign && !isSignupDisabled;
+        setIsFromCampaign(shouldShowSignupFlow);
+        if (shouldShowSignupFlow) {
           setIsFromCampaign(true);
           setIsLoginFlow(false);
         } else {
@@ -84,7 +98,7 @@ const Onboarding = () => {
     };
 
     initializeData();
-  }, []);
+  }, [isSignupDisabled]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -109,13 +123,15 @@ const Onboarding = () => {
       if (onboardingContainer) {
         const containerBottom =
           onboardingContainer.getBoundingClientRect().bottom;
-        setShowFloatingSignup(containerBottom < 0 && window.innerWidth > 768);
+        setShowFloatingSignup(
+          !isSignupDisabled && containerBottom < 0 && window.innerWidth > 768
+        );
       }
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [isSignupDisabled]);
 
   // Preload the LCP background artwork with high priority to speed up first paint.
   useEffect(() => {
@@ -138,15 +154,16 @@ const Onboarding = () => {
     password = "",
     reqId = ""
   ) => {
+    const nextView = isSignupDisabled && newView === "signup" ? "loginOTP" : newView;
     // Store values in localStorage
-    localStorage.setItem("currentView", newView);
-    localStorage.setItem("isLoginFlow", String(newView === "loginOTP"));
+    localStorage.setItem("currentView", nextView);
+    localStorage.setItem("isLoginFlow", String(nextView === "loginOTP"));
     localStorage.setItem("isUserExists", String(isUserExists));
 
-    setView(newView);
-    if (newView === "loginOTP") {
+    setView(nextView);
+    if (nextView === "loginOTP") {
       setIsLoginFlow(true);
-    } else if (newView === "signup") {
+    } else if (nextView === "signup") {
       setIsLoginFlow(false);
     }
     if (number) {
@@ -177,7 +194,7 @@ const Onboarding = () => {
 
   return (
     <>
-      {showFloatingSignup && (
+      {showFloatingSignup && !isSignupDisabled && (
         <div className="floating-signup-container">
           <div className="floating-signup-content">
             <div className="logo-section">
@@ -298,44 +315,45 @@ const Onboarding = () => {
         <div className="onboarding-footer">
           <div className="onboarding-footer-container">
             <img src={footerImage} alt="footer banner" />
-            {/* Elevation Card */}
-            <div className="elevation-card">
-              <h2 className="gradient-card-text">
-                Ready To Elevate Your Practice?
-              </h2>
-              <p>
-                Sign up for free now or chat with us to get more personalized
-                insights and updates.
-              </p>
-              <div className="button-group">
-                <button
-                  className="sign-up-btn"
-                  onClick={() => {
-                    const onboardingContainer = document.querySelector(
-                      ".onboarding-container"
-                    );
-                    if (onboardingContainer) {
-                      onboardingContainer.scrollIntoView({
-                        behavior: "smooth",
-                      });
-                      setView("signup");
-                      setIsLoginFlow(false);
-                      setTimeout(() => {
-                        const mobileInput = document.querySelector(
-                          'input[placeholder="Enter your mobile number"]'
-                        );
-                        if (mobileInput) {
-                          mobileInput.focus();
-                        }
-                      }, 100);
-                    }
-                  }}
-                >
-                  Sign Up
-                </button>
-                {/* <button className="chat-btn">Chat with us</button> */}
+            {!isSignupDisabled && (
+              <div className="elevation-card">
+                <h2 className="gradient-card-text">
+                  Ready To Elevate Your Practice?
+                </h2>
+                <p>
+                  Sign up for free now or chat with us to get more personalized
+                  insights and updates.
+                </p>
+                <div className="button-group">
+                  <button
+                    className="sign-up-btn"
+                    onClick={() => {
+                      const onboardingContainer = document.querySelector(
+                        ".onboarding-container"
+                      );
+                      if (onboardingContainer) {
+                        onboardingContainer.scrollIntoView({
+                          behavior: "smooth",
+                        });
+                        setView("signup");
+                        setIsLoginFlow(false);
+                        setTimeout(() => {
+                          const mobileInput = document.querySelector(
+                            'input[placeholder="Enter your mobile number"]'
+                          );
+                          if (mobileInput) {
+                            mobileInput.focus();
+                          }
+                        }, 100);
+                      }
+                    }}
+                  >
+                    Sign Up
+                  </button>
+                  {/* <button className="chat-btn">Chat with us</button> */}
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <Suspense fallback={null}>
             <Footer />

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Row, Col, Spin } from "antd";
+import { Row, Col, Spin, message } from "antd";
 import { isMobile } from "react-device-detect";
 import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
@@ -30,7 +30,15 @@ import axios from "axios";
 import { updateCredits } from "../redux/monetizationSlice";
 import ApiMedication from "../api/services/ApiMedication";
 import { setDentalData, clearDentalData } from "../redux/dentalRxSlice";
-import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
+import {
+  hasVitalsAndBodyCompositionData,
+  normalizeVitalsAndBodyCompositionToRxRowFields,
+  vitalScalarString,
+} from "../utils/symptomCollectorVitalsMerge";
+import {
+  ensureLabInvestigationMetadataForRxSave,
+  ensureMedicationGroundedForRxSave,
+} from "../utils/medicationRxPayload";
 import { ASSETS } from "../assets";
 const documentIcon = ASSETS.images.documentNormal;
 
@@ -152,8 +160,9 @@ function SmartRxDigitise() {
     });
     Object.entries(actual).forEach(([key, value]) => {
       if (idKeys.includes(key)) return;
-      if (value !== undefined && value !== null && value !== "" && String(value).trim() !== "") {
-        result[keyMap[key] || key] = value;
+      const s = vitalScalarString(value);
+      if (s !== "") {
+        result[keyMap[key] || key] = s;
       }
     });
     return result;
@@ -172,11 +181,7 @@ function SmartRxDigitise() {
   const persistSmartRxVitals = useCallback(
     async (vitalsAndBodyComposition, setDataFn) => {
       if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== "object" || !patient_data?.patient_unique_id) return;
-      const idKeys = ["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"];
-      const hasMeaningful = Object.entries(vitalsAndBodyComposition).some(
-        ([k, v]) => !idKeys.includes(k) && v != null && String(v).trim() !== ""
-      );
-      if (!hasMeaningful) return;
+      if (!hasVitalsAndBodyCompositionData(vitalsAndBodyComposition)) return;
       if (persistVitalsInFlightRef.current) return;
       persistVitalsInFlightRef.current = true;
       try {
@@ -197,39 +202,29 @@ function SmartRxDigitise() {
           dev_unique_id: existingToday?.dev_unique_id ?? 0,
         };
 
-        const v = vitalsAndBodyComposition;
-        let systolic = String(v.Systolic || v.systolic || "").trim();
-        let diastolic = String(v.Diastolic || v.diastolic || "").trim();
-        let blood_press = v.bloodPressure || v.blood_press || "";
-        if (blood_press && !systolic && !diastolic) {
-          const parts = String(blood_press).split("/");
-          if (parts.length >= 2) {
-            systolic = parts[0].trim();
-            diastolic = parts[1].trim();
-          }
-        } else if (!blood_press && systolic && diastolic) blood_press = `${systolic}/${diastolic}`;
-        if (!systolic || !diastolic) blood_press = "";
+        const patch = normalizeVitalsAndBodyCompositionToRxRowFields(vitalsAndBodyComposition);
+        if (Object.keys(patch).length === 0) return;
 
         const vitalsArray = [
           {
             date: today,
-            temp: String(v.temperature || v.temp || "").trim(),
-            pres: String(v.pulse || v.pres || "").trim(),
-            resp_rate: String(v.respRate || v.resp_rate || "").trim(),
-            systolic,
-            diastolic,
-            ...(systolic && diastolic ? { blood_press } : {}),
-            spo2: String(v.spo2 || v.SPO2 || "").trim(),
-            height: String(v.height || v.Height || "").trim(),
-            weight: String(v.weight || v.Weight || "").trim(),
-            ofc: String(v.ofc || v.OFC || "").trim(),
-            sugar: String(v.sugar || v.Sugar || "").trim(),
-            general_rbs: String(v["General RBS"] || v.general_rbs || v.generalRBS || v.genralRBS || "").trim(),
-            fib4: String(v.FIB4 || v.fib4 || "").trim(),
-            waist_circumference: String(v["Waist Circumference"] || v.waist_circumference || "").trim(),
-            bmi: String(v.BMI || v.bmi || "").trim(),
-            bmr: String(v.BMR || v.bmr || "").trim(),
-            bsa: String(v.BSA || v.bsa || "").trim(),
+            temp: patch.temp ?? "",
+            pres: patch.pres ?? "",
+            resp_rate: patch.resp_rate ?? "",
+            systolic: patch.systolic ?? "",
+            diastolic: patch.diastolic ?? "",
+            ...(patch.blood_press ? { blood_press: patch.blood_press } : {}),
+            spo2: patch.spo2 ?? "",
+            height: patch.height ?? "",
+            weight: patch.weight ?? "",
+            ofc: patch.ofc ?? "",
+            sugar: "",
+            general_rbs: patch.general_rbs ?? "",
+            fib4: patch.fib4 ?? "",
+            waist_circumference: patch.waist_circumference ?? "",
+            bmi: patch.bmi ?? "",
+            bmr: patch.bmr ?? "",
+            bsa: patch.bsa ?? "",
             tcv_id: ids.tcv_id,
             tcbc_id: ids.tcbc_id,
             dev_unique_id: ids.dev_unique_id,
@@ -348,6 +343,11 @@ function SmartRxDigitise() {
 
             return ensureMedicationGroundedForRxSave({ ...item, quantity });
           }),
+        labInvestigation: Array.isArray(data?.labInvestigation)
+          ? data.labInvestigation.map((item) =>
+              ensureLabInvestigationMetadataForRxSave(item)
+            )
+          : [],
       };
 
       const editedDataForApi = { ...updatedPrescriptionData };
@@ -787,6 +787,24 @@ function SmartRxDigitise() {
           }
         );
       } else {
+        const resolvedAppointmentId =
+          pam_id ??
+          state?.appointmentId ??
+          patient_data?.pam_id ??
+          patient_data?.appointmentId;
+        const normalizedAppointmentId = String(resolvedAppointmentId ?? "").trim();
+        const isValidAppointmentId =
+          resolvedAppointmentId !== undefined &&
+          resolvedAppointmentId !== null &&
+          normalizedAppointmentId !== "" &&
+          Number.isFinite(Number(normalizedAppointmentId));
+
+        if (!isValidAppointmentId) {
+          setIsLoading(false);
+          message.error("Appointment ID is missing. Please reopen the visit and try again.");
+          return;
+        }
+
         const formData = new FormData();
         const cleanedToken = token.replace(/['"]+/g, "");
 
@@ -820,7 +838,7 @@ function SmartRxDigitise() {
         // Append other required fields
         formData.append("doctorId", tokenData.user_id);
         formData.append("patientId", patient_data.patient_unique_id);
-        formData.append("appointmentId", pam_id || patient_data?.pam_id);
+        formData.append("appointmentId", normalizedAppointmentId);
         formData.append("caseId", tcm_id);
 
         // Append ocrModelSelected only if isCustomSSRX is true
@@ -992,6 +1010,7 @@ function SmartRxDigitise() {
                   patient_data={patient_data}
                   vitalsFlow="smart"
                   digitiseSplitLayout
+                  isManyaDental={shouldUseCustomRxDigitize}
                 />
               </div>
             </div>

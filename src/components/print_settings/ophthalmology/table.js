@@ -184,7 +184,7 @@ function OphthalmologyTableView({
   const renderSection = (title, renderContent, options = {}) => {
     const { addColon = true } = options;
     return (
-      <View style={{ marginTop: PX_TO_PT * 14, marginBottom: PX_TO_PT * 6 }}>
+      <View style={{ marginTop: PX_TO_PT * 6, marginBottom: PX_TO_PT * 6 }}>
         <Text
           style={{
             ...baseTextStyle,
@@ -204,7 +204,7 @@ function OphthalmologyTableView({
       style={{
         ...baseTextStyle,
         fontWeight: 500,
-        marginTop: PX_TO_PT * 8,
+        marginTop: PX_TO_PT * 6,
         marginBottom: PX_TO_PT * 6,
       }}
     >
@@ -285,7 +285,7 @@ function OphthalmologyTableView({
         borderColor,
         borderRadius: 6,
         overflow: "hidden",
-        marginTop: PX_TO_PT * 8,
+        marginTop: PX_TO_PT * 6,
       }}
     >
       <View style={{ flexDirection: "row" }}>
@@ -316,7 +316,7 @@ function OphthalmologyTableView({
   );
 
   return (
-    <View style={{ marginTop: PX_TO_PT * 15 }}>
+    <View style={{ marginTop: PX_TO_PT * 6 }}>
       {/* Visual Acuity Test */}
       {isSectionVisible("visualAcuity") &&
         hasVisualAcuityData &&

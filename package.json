@@ -1,6 +1,7 @@
 {
   "name": "react-thyrocare",
-  "version": "4.6.3",
+  "version": "4.7.1",
+  "apiCompatibilityVersion": 1.1,
   "private": true,
   "homepage": "/",
   "dependencies": {
@@ -11,6 +12,7 @@
     "@dnd-kit/sortable": "^8.0.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@excalidraw/excalidraw": "^0.17.6",
     "@growthbook/growthbook-react": "^1.0.0",
     "@lottiefiles/dotlottie-react": "^0.13.0",
     "@mui/material": "^9.0.0",
@@ -30,6 +32,7 @@
     "@reduxjs/toolkit": "^1.9.7",
     "@sentry/cli": "^2.53.0",
     "@sentry/react": "^10.9.0",
+    "@tanstack/react-virtual": "^3.13.24",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -101,15 +104,15 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "start:dev": "env-cmd -f .env.dev react-scripts start",
-    "build": "react-scripts build && npm run sentry:sourcemaps",
+    "start": "craco start",
+    "start:dev": "env-cmd -f .env.dev craco start",
+    "build": "craco build && npm run sentry:sourcemaps",
     "lint:assets": "node scripts/check-no-raster-imports.js",
     "lint": "eslint --max-warnings=0 \"src/**/*.{js,jsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx}\"",
     "lint:errors": "eslint \"src/**/*.{js,jsx}\" --quiet --format unix",
     "prepare": "husky",
-    "test": "react-scripts test",
+    "test": "craco test",
     "eject": "react-scripts eject",
     "compress:models": "node scripts/compress-models.js",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org digicare-health-solutions-priv --project tatvapractice ./build && sentry-cli sourcemaps upload --org digicare-health-solutions-priv --project tatvapractice ./build"
@@ -155,6 +158,7 @@
     ]
   },
   "devDependencies": {
+    "@craco/craco": "^7.1.0",
     "eslint": "^8.57.0",
     "eslint-import-resolver-node": "^0.3.9",
     "eslint-plugin-import": "^2.29.1",

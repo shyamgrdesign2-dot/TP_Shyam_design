@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "./FAQ.scss";
 import { ASSETS } from "../../../../assets";
+import config from "../../../../config";
 const testimonialIcon = ASSETS.images.onboardPageIcons.lpFaqIcon;
 
 const FAQ = () => {
@@ -34,8 +35,7 @@ const FAQ = () => {
     },
     {
       question: "Can I use the platform on multiple devices?",
-      answer:
-        "Yes, you can use the app on iPads, Android tablets, and iOS tablets. For desktop or laptop, visit tatvapractice.tatvacare.in and log in using your credentials.",
+      answer: `Yes, you can use the app on iPads, Android tablets, and iOS tablets. For desktop or laptop, visit ${config.doctor_portal_url} and log in using your credentials.`,
     },
     {
       question:

@@ -466,6 +466,7 @@ const appointmentsSlice = createSlice({
           state.queueCount = action.payload.queue_count;
           state.finishedCount = action.payload.finished_count;
           state.cancelledCount = action.payload.cancelled_count;
+          state.clinicQueueCount = action.payload.checked_in_count;
           state.appointmentsData = updatedData;
           state.draftRxCount = action.payload.draft_count || 0;
         } else {
@@ -616,7 +617,9 @@ const appointmentsSlice = createSlice({
 
         let modifiedData = [];
         if (action.meta.arg.apStatue === TAB_ZYDUS_ENCOUNTER) {
-          modifiedData = action.payload.map((e) => {
+          modifiedData = (action.payload || [])
+            .filter((e) => !e.isCancelled)
+            .map((e) => {
             const age = calculateAge(
               moment(e.dob, "DD-MM-YYYY").format("YYYY-MM-DD")
             );
@@ -669,9 +672,15 @@ const appointmentsSlice = createSlice({
           : modifiedData;
 
         if (action.meta.arg.apStatue === TAB_ZYDUS_ENCOUNTER) {
-          state.zydusEncounterCount = modifiedData?.length;
+          state.zydusEncounterCount = updatedData?.length ?? 0;
         } else {
-          state.zydusAappointmentCount = modifiedData?.length;
+          state.zydusAappointmentCount = updatedData?.filter(
+            (item) =>
+              !(
+                item.appointmentStatus &&
+                item.appointmentStatus.toLowerCase().includes("cancel")
+              )
+          ).length;
         }
         if (action.meta.arg.page == 0) {
           state.appointmentsData = updatedData;
@@ -688,6 +697,13 @@ const appointmentsSlice = createSlice({
       })
       .addCase(zydusAppointment.fulfilled, (state, action) => {
         state.zydusAappointmentData = action.payload;
+        state.zydusAappointmentCount = (action.payload || []).filter(
+          (item) =>
+            !(
+              item.appointmentStatus &&
+              item.appointmentStatus.toLowerCase().includes("cancel")
+            )
+        ).length;
       })
       .addCase(copyGetAllAppointment1.pending, (state) => {
         state.setOnLoad = true;

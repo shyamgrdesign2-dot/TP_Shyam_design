@@ -4,9 +4,11 @@ body {
         width: 100%;
         max-width: 110px;
         height: calc(100vh - 56px);
+        max-height: calc(100vh - 56px);
         padding: 20px 0 0 0 !important;
         overflow-x: hidden;
         overflow-y: auto;
+        overscroll-behavior: contain;
         position: relative;
         display: flex;
         flex-direction: column;
@@ -329,7 +331,8 @@ body {
         }
     }
     .prescription-sidebar {
-        height: calc(100vh - 60px); 
+        height: calc(100vh - 60px);
+        max-height: calc(100vh - 60px);
         background-color: $themesecondary;
         width: 64px;
         min-width: 64px;
@@ -337,6 +340,7 @@ body {
         text-align: center;
         overflow-x: hidden;
         overflow-y: auto;
+        overscroll-behavior: contain;
         scrollbar-width: none; /* For Firefox */
         -ms-overflow-style: none; /* For IE and Edge */
         .prescription-tab-button {
@@ -505,5 +509,19 @@ body {
         width: 18px;
         height: 18px;
         object-fit: contain;
+    }
+}
+
+@supports (height: 100dvh) {
+    body {
+        .SidebarDoctor {
+            height: calc(100dvh - 56px);
+            max-height: calc(100dvh - 56px);
+        }
+
+        .prescription-sidebar {
+            height: calc(100dvh - 60px);
+            max-height: calc(100dvh - 60px);
+        }
     }
 }

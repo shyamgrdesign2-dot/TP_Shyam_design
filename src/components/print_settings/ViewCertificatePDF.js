@@ -5,19 +5,25 @@ import Html from 'react-pdf-html';
 
 const PX_TO_PT = 0.75
 
-// Roboto
-Font.register({
-    family: 'Roboto',
-    fonts: [
-        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Regular.ttf`, fontWeight: 400 }, // Regular
-        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Medium.ttf`, fontWeight: 500 }, // Medium
-        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Bold.ttf`, fontWeight: 700 }, // Bold
+// Register only Roboto font - other fonts will fallback to Roboto via CSS
+try {
+    Font.register({
+        family: 'Roboto',
+        fonts: [
+            { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Regular.ttf`, fontWeight: 400 },
+            { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Medium.ttf`, fontWeight: 500 },
+            { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Bold.ttf`, fontWeight: 700 },
+            { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Italic.ttf`, fontStyle: 'italic' },
+            { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-MediumItalic.ttf`, fontWeight: 500, fontStyle: 'italic' },
+            { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-BoldItalic.ttf`, fontWeight: 700, fontStyle: 'italic' },
+        ],
+    });
+} catch (error) {
+    console.error("Font registration error:", error);
+}
 
-        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Italic.ttf`, fontStyle: 'italic' }, // Italic
-        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-MediumItalic.ttf`, fontWeight: 500, fontStyle: 'italic' }, // Medium-Italic
-        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-BoldItalic.ttf`, fontWeight: 700, fontStyle: 'italic' }, // Bold-Italic
-    ],
-});
+// Hyphenation callback to handle unknown fonts - fallback to Roboto
+Font.registerHyphenationCallback((word) => [word]);
 
 const styles = StyleSheet.create({
     mainTitle: {
@@ -166,8 +172,18 @@ const ViewCertificatePDF = ({ mode = NORMAL, ...props }) => {
     };
 
     const convertInputToLabel = (content) => {
-        const transformedData = transformInputToLabel(content);
-        return transformedData
+        if (!content) return '';
+        
+        let transformedData = transformInputToLabel(content);
+        
+        // Remove or replace problematic font-family declarations
+        // This handles inline styles like style="font-family: Calibri"
+        transformedData = transformedData.replace(/font-family:\s*['"]?[^;'"]+['"]?/gi, 'font-family: Roboto');
+        
+        // Also remove font-family from any style tags in the content
+        transformedData = transformedData.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        
+        return transformedData;
     }
 
     return (
@@ -355,8 +371,14 @@ const ViewCertificatePDF = ({ mode = NORMAL, ...props }) => {
                         {`<html>
                             <body>
                                 <style>
+                                    * {
+                                        font-family: Roboto !important; 
+                                    }
                                     body {
-                                        font-family: Roboto; 
+                                        font-family: Roboto !important; 
+                                    }
+                                    p, div, span, label, strong, em, h1, h2, h3, h4, h5, h6 {
+                                        font-family: Roboto !important;
                                     }
                                     label {
                                         font-weight: 500;

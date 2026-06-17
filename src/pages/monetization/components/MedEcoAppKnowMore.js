@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "./ContactSupport";
 import { ASSETS } from "../../../assets";
+import config from "../../../config";
 const {
   tubeIcon: playIcons,
   medcoIcon,
@@ -14,6 +15,7 @@ const { TabPane } = Tabs;
 
 const MedEcoAppKnowMore = ({ handleMedEcoKnowMore }) => {
   const [videoLink, setVideoLink] = useState(false);
+  const medecoWebviewUrl = config.MEDECO_WEBVIEW_URL;
 
   const scrollToSection = (sectionId) => {
     const section = document.getElementById(sectionId);
@@ -64,7 +66,7 @@ const MedEcoAppKnowMore = ({ handleMedEcoKnowMore }) => {
         <div id="getMedEcoApp" className="my-5">
           <span className="fs-12-1 fw-medium text-primary">Get MedEco App</span>
           <div className="fw-semibold fs-20 text-black mb-3">Scan the Below QR to Download the MedEco App</div>
-          <QRCodeSVG className="rounded-3 my-1" value={"https://pm-doctor-tatva-pwa-prod.tatvacare.in/"} size={150}
+          <QRCodeSVG className="rounded-3 my-1" value={medecoWebviewUrl} size={150}
             // imageSettings={{
             //   src: medcoIcon,
             //   x: undefined,

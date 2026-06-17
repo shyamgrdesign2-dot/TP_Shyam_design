@@ -9,7 +9,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
-import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID, GB_VOICE_RX_FREE } from "../utils/constants";
+import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
 import { errorMessage, getClinic, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { useDeviceType } from "../utils/deviceDetection";
 
@@ -51,6 +51,7 @@ function PatientForm({ mode = ADD, patient_data }) {
     } = abhaDetails || {};
     const { isMobile: isMobileDevice, isTablet } = useDeviceType();
     const isMobileOnly = isMobileDevice && !isTablet;
+    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
     const isMobile = isMobileDevice;
 
     const [form] = Form.useForm();
@@ -278,10 +279,10 @@ function PatientForm({ mode = ADD, patient_data }) {
                                 state: { patient_data: mergedPatientForDetails }
                             });
                         } else if (fromWalkIn && isMobileOnly) {
-                            // Mobile + from Start Walk-in: redirect to Voice Rx consult (same as web flow)
-                            navigate("/voice-rx-consult", {
+                            // Mobile + Start Walk-in follows the normal consult prescription flow.
+                            navigate("/prescription", {
                                 replace: true,
-                                state: { patient_data: action.payload, isFromTabView: true }
+                                state: { patient_data: action.payload, fromWalkInMobile: true }
                             });
                         } else {
                             navigate("/prescription", {
@@ -376,9 +377,13 @@ function PatientForm({ mode = ADD, patient_data }) {
             clinic_name: clinic?.hm_name,
             source: "Add New Patient",
         });
-        navigate("/voice-rx-consult", {
+        navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
             state: { 
                 patient_data: patient,
+                ...(isVoiceRxNewFromGB && {
+                    isVoiceRxNewUiFlow: true,
+                    voiceRxEntryPoint: "add_new_patient",
+                }),
             },
         });
     };

@@ -1,5 +1,6 @@
 import React from "react";
 import { pdf } from "@react-pdf/renderer";
+import { ensureDrawingCanvasCaseOption } from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
 import ViewPDF from "./server/viewpdf";
 import { prefetchDentalToothImageMap } from "../components/dental/examination/dentalChartPdf";
 import { resolveExamChartForPrintWithContext } from "./examChartStorage";
@@ -93,6 +94,8 @@ export const renderPrintPayloadToBlob = async (
     patientUniqueId,
     tcmId,
     dentalChartPrintMode,
+    isCvtExtHosAccessableFromGB,
+    drawingCanvases
   } = payload;
 
   const examChart =
@@ -129,6 +132,11 @@ export const renderPrintPayloadToBlob = async (
     ? await prefetchDentalToothImageMap()
     : {};
 
+  const resolvedPrintSettings =
+    Array.isArray(drawingCanvases) && drawingCanvases.length > 0
+      ? ensureDrawingCanvasCaseOption(printSettings)
+      : printSettings;
+
   const normalizedCustomModules = Array.isArray(customModules)
     ? customModules
     : Array.isArray(customModules?.modules)
@@ -145,7 +153,7 @@ export const renderPrintPayloadToBlob = async (
       initialRows={initialRows}
       frequencyList={frequencyList}
       timingList={timingList}
-      printSettings={printSettings}
+      printSettings={resolvedPrintSettings}
       fileHeader={fileHeader}
       fileFooter={fileFooter}
       fileLogo={fileLogo}
@@ -176,6 +184,8 @@ export const renderPrintPayloadToBlob = async (
       onlyShowDental={onlyShowDental}
       toothImageMap={toothImageMap}
       examChart={examChart}
+      isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
+      drawingCanvases={drawingCanvases}
     />
   ).toBlob();
 };

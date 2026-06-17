@@ -89,6 +89,12 @@ body {
             }
         }
 
+        .tab-template-height {
+            max-height: min(360px, calc(100dvh - 190px));
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+
         .video-contant {
             background-color: $white;
         }

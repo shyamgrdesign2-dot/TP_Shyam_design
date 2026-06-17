@@ -70,6 +70,7 @@ import { resetDDxState } from "../../redux/ddxSlice";
 import { EVENTS } from "../../utils/events";
 import AbhaDrawer from "../../components/abha/AbhaDrawer";
 import { clearAbhaDetails } from "../../redux/abhaSlice";
+import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 
 import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
@@ -88,6 +89,7 @@ const showDateFormat = "DD MMM YYYY";
 
 const AllPatients = () => {
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   const navigate = useNavigate();
   const location = useLocation();
   const decodedToken = getDecodedToken();
@@ -131,6 +133,8 @@ const AllPatients = () => {
   const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_NEW_IPD_HOS_BUSINESS_ID
   );
+  const isZydusAccount =
+    tokenData?.hospital_business_id == env.zydus_business_id;
 
   const fileInputRef = useRef(null);
   const observer = useRef();
@@ -259,7 +263,9 @@ const AllPatients = () => {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   const getAllPatients = async () => {
@@ -444,7 +450,6 @@ const AllPatients = () => {
   };
 
   const getMenuItems = (record) => {
-    const isZydusAccount = tokenData?.hospital_business_id == env.zydus_business_id;
     const menuItems = [
       {
         label: (
@@ -454,14 +459,18 @@ const AllPatients = () => {
         ),
         key: "patientdetails",
       },
-      {
-        label: (
-          <span onClick={() => onEditPatientClick(record)}>
-            Edit Patient Details
-          </span>
-        ),
-        key: "labparams",
-      },
+      ...(!isZydusAccount
+        ? [
+            {
+              label: (
+                <span onClick={() => onEditPatientClick(record)}>
+                  Edit Patient Details
+                </span>
+              ),
+              key: "labparams",
+            },
+          ]
+        : []),
       // This will be added later
       // {
       //   label: <span onClick={() => {}}>Book Appointment</span>,
@@ -997,7 +1006,7 @@ const AllPatients = () => {
                 <div className="d-flex align-items-center">
                   <>
                     <div>
-                      <h1>All Patients</h1>
+                      <h1>All Patients </h1>
                     </div>
                     <img
                       src={ASSETS.images.bgWelcome}
@@ -1007,7 +1016,8 @@ const AllPatients = () => {
                   </>
                 </div>
                 <div className="d-flex gap-3 btn-manage-bill-all-patients">
-                  {dischargeSummery &&
+                  {!isZydusAccount &&
+                    dischargeSummery &&
                     Object.keys(dischargeSummery)?.length > 0 && (
                       <Button
                         className="btn-manage-bill"
@@ -1018,13 +1028,15 @@ const AllPatients = () => {
                         </span>
                       </Button>
                     )}
-                  <Button
-                    className="btn-create-bill gap-1"
-                    onClick={handleAddPatient}
-                    icon={<i className="icon-Add" style={{ fontSize: 20 }} />}
-                  >
-                    <span>Add New Patient</span>
-                  </Button>
+                  {!isZydusAccount && (
+                    <Button
+                      className="btn-create-bill gap-1"
+                      onClick={handleAddPatient}
+                      icon={<i className="icon-Add" style={{ fontSize: 20 }} />}
+                    >
+                      <span>Add New Patient</span>
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="pb-5">&nbsp;</div>

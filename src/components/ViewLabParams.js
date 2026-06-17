@@ -3,8 +3,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CaretRightOutlined, CaretDownOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
+import { useFeatureIsOn } from '@growthbook/growthbook-react';
+import { GB_CVT_EXT_HOS } from '../utils/constants';
 
 const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitchToAddLabParams }) => {
+    const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedReports, setExpandedReports] = useState({});
     const scrollRef = useRef(null);
@@ -127,9 +130,11 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
                     </Button>
                     <div className="modal-title">Lab Results</div>
                 </div>
-                <Button className='btn btn-primary3 btn-41 px-4 me-20' onClick={handleSwitchToAddLabParams}>
-                    Add/ Edit Parameters
-                </Button>
+                {!isCvtExtHosAccessableFromGB && (
+                    <Button className='btn btn-primary3 btn-41 px-4 me-20' onClick={handleSwitchToAddLabParams}>
+                        Add/ Edit Parameters
+                    </Button>
+                )}
             </div>
             {/* Search Bar */}
             <div className="align-items-center d-flex justify-content-between px-20 py-3 gap-4" style={{ position: "sticky", top: "3.78rem", backgroundColor: "white", zIndex: "999" }}>

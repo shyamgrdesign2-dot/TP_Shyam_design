@@ -62,7 +62,7 @@ function ReportCard({
     },
     {
       key: "download",
-      label: "Download",
+      label: "Print",
       icon: <img src={download} alt="download" />,
       disabled: isSending,
     },

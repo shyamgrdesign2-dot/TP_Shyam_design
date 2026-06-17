@@ -18,6 +18,13 @@ import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import * as Sentry from "@sentry/react";
+import {
+  isChunkLoadError,
+  shouldReloadForChunkFailure,
+} from "./utils/chunkReloadGuard";
+import { isProductionEnv } from "./utils/environment";
+import { getSentryRouteNameFromUrl } from "./utils/sentryRouteNames";
+import { reportBrowserOfflineToSentry } from "./utils/sentryNetwork";
 
 // Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
@@ -43,6 +50,7 @@ if (typeof window !== "undefined") {
     "add_unique_user_id",
     "add_first_name",
     "add_last_name",
+    "add_user_name",
     "add_email",
     "add_mobile",
     "destroy_session",
@@ -59,7 +67,7 @@ if (typeof window !== "undefined") {
 }
 
 const appEnv = process.env.REACT_APP_ENV || "prod";
-const isProd = appEnv === "prod";
+const isProd = isProductionEnv(appEnv);
 const tracesSampleRateValue =
   Number(
     process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE ??
@@ -76,6 +84,7 @@ Sentry.init({
       createRoutesFromChildren,
       matchRoutes,
     }),
+    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
   ],
   tracesSampleRate: tracesSampleRateValue,
   tracePropagationTargets: [],
@@ -86,26 +95,26 @@ Sentry.init({
     if (event.environment === "dev") return null;
     return event;
   },
+  beforeSendTransaction(event) {
+    const routeName = getSentryRouteNameFromUrl(event?.request?.url);
+    if (routeName) {
+      event.transaction = routeName;
+      event.transaction_info = {
+        ...event.transaction_info,
+        source: "url",
+      };
+    }
+    return event;
+  },
+  enableLogs: true
 });
 
-// fix for stale lazy-loaded chunks after a new deployment.
-// If an old tab tries to load a removed chunk, do a one-time hard reload.
+// Fix for stale lazy-loaded chunks after a new deployment.
+// Bounded retries prevent infinite reload loops while allowing transient recovery.
 
 if (typeof window !== "undefined") {
-  const CHUNK_RELOAD_KEY = "chunk-reload-v1";
-
-  const isChunkLoadError = (message = "") =>
-    /ChunkLoadError|Loading chunk \d+ failed|Failed to fetch dynamically imported module|Loading CSS chunk/i.test(
-      message
-    );
-
-  const reloadOnce = () => {
-    const alreadyReloaded =
-      sessionStorage.getItem(CHUNK_RELOAD_KEY) === "1";
-
-    if (alreadyReloaded) return;
-
-    sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+  const reloadIfAllowed = (signature) => {
+    if (!shouldReloadForChunkFailure(signature)) return;
     window.location.reload();
   };
 
@@ -113,7 +122,7 @@ if (typeof window !== "undefined") {
     const message = event?.message || event?.error?.message || "";
 
     if (isChunkLoadError(message)) {
-      reloadOnce();
+      reloadIfAllowed(`global-error:${message}`);
     }
   });
 
@@ -121,12 +130,11 @@ if (typeof window !== "undefined") {
     const message = event?.reason?.message || "";
 
     if (isChunkLoadError(message)) {
-      reloadOnce();
+      reloadIfAllowed(`unhandled-rejection:${message}`);
     }
   });
 
-  // Note: Do not clear CHUNK_RELOAD_KEY on load.
-  // This prevents infinite reload loops when a chunk keeps failing.
+  window.addEventListener("offline", reportBrowserOfflineToSentry);
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

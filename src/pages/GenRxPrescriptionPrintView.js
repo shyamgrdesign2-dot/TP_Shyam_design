@@ -10,6 +10,7 @@ import {
   errorMessage,
   getClinicName,
   isApollo,
+  isValidMongoId,
   trackEvent,
   sendMessageToParent
 } from "../utils/utils";
@@ -17,8 +18,9 @@ import api from "../api/services/axiosService";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST } from "../utils/constants";
+import { GB_VOICE_RX_NEW_UI, WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { useSelector, useDispatch } from "react-redux";
 import { selectDentalExamination } from "../redux/dentalExaminationSlice";
@@ -64,6 +66,7 @@ function GenRxPrescriptionPrintView() {
   const dentalExaminationData = useSelector(selectDentalExamination);
   const oralExamination = useSelector((state) => state.oralExamination);
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
@@ -210,6 +213,7 @@ function GenRxPrescriptionPrintView() {
     dentalExaminationData,
     oralExamination,
     patientUniqueId: patient_data?.patient_unique_id,
+    patientId: patient_data?.patient_unique_id,
     tcmId: state?.tcm_id,
   });
 
@@ -404,6 +408,9 @@ function GenRxPrescriptionPrintView() {
           state: {
             patient_data,
             caseManagerData: action.payload,
+            ...(isVoiceRxNewFromGB && isValidMongoId(action.payload?.smart_prescription_filename || rxId)
+              ? { isVoiceRxNewUiFlow: true }
+              : {}),
           },
         });
       } else {

@@ -1,10 +1,12 @@
 import api from "./axiosService";
 import config from '../../config';
+import { MEDICINE_STOCK_STATUS } from "../../utils/constants";
 
 const baseUrl = { customBaseUrl: config.medication_api_url }
 const doseBaseUrl = { customBaseUrl: config.lab_params_api_url };
 const fuzzySearchBaseUrl = { customBaseUrl: config.searchengine_url };
 const quantityBaseUrl = { customBaseUrl: config.symptoms_collector_api_url };
+const eVitalsInventoryBaseUrl = { customBaseUrl: config.searchengine_url };
 
 const ApiMedication = {};
 
@@ -24,8 +26,27 @@ ApiMedication.getMedicationTemplates = function () {
   return api.get(`/api/v1/medicine/listTemplate`, baseUrl);
 };
 
-ApiMedication.singleTemplateDetails = function (templateId) {
-  return api.get(`/api/v1/medicine/singleTemplateDetails/${templateId}`, baseUrl);
+ApiMedication.singleTemplateDetails = async function (
+  templateId,
+  { mergeInventory = false } = {}
+) {
+  const result = await api.get(
+    `/api/v1/medicine/singleTemplateDetails/${templateId}`,
+    baseUrl
+  );
+
+  if (!mergeInventory || !result?.status) {
+    return result;
+  }
+
+  const templateMedicines = Array.isArray(result.data) ? result.data : [];
+  const mergedData =
+    await ApiMedication.mergeSearchResultsWithInventory(templateMedicines);
+
+  return {
+    ...result,
+    data: mergedData,
+  };
 };
 
 ApiMedication.getMedicineDetails = function (query) {
@@ -55,6 +76,109 @@ ApiMedication.getFuzzySearch = function (query, max_results = 1) {
     `/api/v1/medicines/fuzzySearch?search=${query}&max_results=${max_results}`,
     fuzzySearchBaseUrl
   );
+};
+
+ApiMedication.getEvitalsInventory = function (referenceIds) {
+  return api.post(
+    `/api/v1/medicines/get-evitals-inventory`,
+    { referenceIds },
+    eVitalsInventoryBaseUrl
+  );
+};
+
+ApiMedication.getMedicineAlternatives = function (medicineId) {
+  return api.post(
+    `/api/v1/medicines/get-alternatives`,
+    { medicineId },
+    fuzzySearchBaseUrl
+  );
+};
+
+const getInventoryReferenceKey = (row) =>
+  String(row?.referenceId ?? row?.reference_id ?? "");
+
+const getMedicineReferenceId = (item) => {
+  const refId = item?.reference_id ?? item?.referenceId;
+  if (refId === undefined || refId === null) return "";
+  return String(refId).trim();
+};
+
+ApiMedication.mergeSearchResultsWithInventory = async function (searchResults) {
+  const referenceIds = searchResults
+    .map((item) => getMedicineReferenceId(item))
+    .filter((id) => id !== "");
+
+  if (referenceIds.length === 0) {
+    return searchResults;
+  }
+
+  const applyNoStock = (list) =>
+    list.map((item) => {
+      const refId = getMedicineReferenceId(item);
+      if (!refId) {
+        return item;
+      }
+      return {
+        ...item,
+        quantity: 0,
+        stock_status: MEDICINE_STOCK_STATUS.NO_STOCK,
+      };
+    });
+
+  try {
+    const inv = await ApiMedication.getEvitalsInventory(referenceIds);
+    const invRows = Array.isArray(inv)
+      ? inv
+      : inv?.status && Array.isArray(inv.data)
+        ? inv.data
+        : Array.isArray(inv?.data)
+          ? inv.data
+          : [];
+    const invByRef = new Map(
+      invRows.map((row) => [getInventoryReferenceKey(row), row])
+    );
+
+    return searchResults.map((item) => {
+      const refId = getMedicineReferenceId(item);
+      if (!refId) {
+        return item;
+      }
+
+      const invRow = invByRef.get(refId);
+      return {
+        ...item,
+        quantity: Number(invRow?.quantity ?? 0),
+        stock_status: invRow?.stock_status ?? MEDICINE_STOCK_STATUS.NO_STOCK,
+      };
+    });
+  } catch (e) {
+    return applyNoStock(searchResults);
+  }
+};
+
+ApiMedication.mergeCaseManagerMedicineInventory = async function (
+  caseManagerData,
+  isChikitsalayAccessable = false
+) {
+  if (!isChikitsalayAccessable || !caseManagerData) {
+    return caseManagerData;
+  }
+
+  const medicines = Array.isArray(caseManagerData.medicine)
+    ? caseManagerData.medicine
+    : [];
+
+  if (medicines.length === 0) {
+    return caseManagerData;
+  }
+
+  const mergedMedicine =
+    await ApiMedication.mergeSearchResultsWithInventory(medicines);
+
+  return {
+    ...caseManagerData,
+    medicine: mergedMedicine,
+  };
 };
 
 ApiMedication.getQuantity = function (data) {
@@ -87,8 +211,28 @@ ApiMedication.editMedicine = function (data) {
   return api.post(`/api/v1/medicine/editMedicine`, data, baseUrl);
 };
 
-ApiMedication.getLoadPreviousRx = function (data) {
-  return api.post(`/api/v1/medicine/getLoadPreviousRx`, data, baseUrl);
+ApiMedication.getLoadPreviousRx = async function (
+  data,
+  { mergeInventory = false } = {}
+) {
+  const result = await api.post(
+    `/api/v1/medicine/getLoadPreviousRx`,
+    data,
+    baseUrl
+  );
+
+  if (!mergeInventory || !result?.status) {
+    return result;
+  }
+
+  const previousRxMedicines = Array.isArray(result.data) ? result.data : [];
+  const mergedData =
+    await ApiMedication.mergeSearchResultsWithInventory(previousRxMedicines);
+
+  return {
+    ...result,
+    data: mergedData,
+  };
 };
 
 ApiMedication.getAllDoses = function () {
