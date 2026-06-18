@@ -102,6 +102,7 @@ export async function loadDrawingCanvasesForPrint({
               if (blob) {
                 const url = URL.createObjectURL(blob);
                 drawingCanvases.push({
+                  id: getCanvasMappingId(record),
                   name: record.canvas_name || "Untitled Canvas",
                   imageUrl: url,
                 });
