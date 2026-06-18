@@ -62,7 +62,7 @@ export const transformToothStateToApi = (toothState) => {
         const since = sinceToDate(f.since_date || "");
         return {
           ...(f.id ? { id: f.id } : {}),
-          name: f.type,
+          name: f.type || f.name || "",
           surface_codes: [f.zoneId],
           notes: f.notes || "",
           ...(since ? { since_date: since } : {}),
@@ -86,7 +86,7 @@ export const transformToothStateToApi = (toothState) => {
       findings: combinedFindings,
       procedures: procedures.map((p) => ({
         ...(p.id ? { id: p.id } : {}),
-        name: p.name,
+        name: p.name || p.type || "",
         surface_codes: p.surfaces?.length ? p.surfaces : ["whole"],
         status: (p.status || "PLANNED").toUpperCase(),
         notes: p.notes || "",
