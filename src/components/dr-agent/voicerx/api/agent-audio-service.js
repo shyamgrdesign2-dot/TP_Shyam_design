@@ -1,5 +1,6 @@
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "./stacks-api-tracking";
+import { getResponseRequestId } from "./voice-api-utils";
 
 const TRANSCRIBE_ANY_AUDIO_ENDPOINT = "/agents/transcribe-any-audio";
 const TRANSCRIBE_ANY_AUDIO_TIMEOUT_MS = 10 * 60 * 1000;
@@ -11,9 +12,6 @@ function getTimerApi() {
   return typeof window !== "undefined" ? window : null;
 }
 
-function getResponseRequestId(response) {
-  return response?.headers?.get?.("x-request-id") || "";
-}
 
 function transcriptToText(transcript) {
   if (Array.isArray(transcript)) {

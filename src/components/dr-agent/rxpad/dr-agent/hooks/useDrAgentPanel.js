@@ -659,8 +659,7 @@ export function useDrAgentPanel({
       const transcriptResponse = await transcribeAudio({
         audioBlob,
         context,
-        signal: abortController.signal,
-        includeMetadata: true
+        signal: abortController.signal
       });
       voiceRxTranscriptRequestId = transcriptResponse?.requestId || "";
       const apiTranscript = transcriptResponse?.transcript;
@@ -990,8 +989,7 @@ export function useDrAgentPanel({
           const transcriptResponse = await transcribeAudio({
             audioBlob,
             context,
-            signal: abortController.signal,
-            includeMetadata: true
+            signal: abortController.signal
           });
           voiceRxTranscriptRequestId = transcriptResponse?.requestId || "";
           apiTranscript = transcriptResponse?.transcript;

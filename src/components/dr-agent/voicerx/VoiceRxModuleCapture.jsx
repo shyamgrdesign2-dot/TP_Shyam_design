@@ -29,6 +29,7 @@ import {
   uploadAndLogVoiceRx2,
 } from "./voiceRx2Logging";
 import { transcribeAnyAudio } from "./api/agent-audio-service";
+import { getResponseRequestId } from "./api/voice-api-utils";
 import { toast } from "./toast";
 import styles from "./VoiceRxModuleCapture.module.scss";
 
@@ -389,10 +390,6 @@ function resolveModuleApiName(moduleName) {
 function appendJsonFormField(formData, key, value) {
   if (value === undefined || value === null) return;
   formData.append(key, JSON.stringify(value));
-}
-
-function getResponseRequestId(response) {
-  return response?.headers?.get?.("x-request-id") || "";
 }
 
 function hasModulePreviousContext(value) {
