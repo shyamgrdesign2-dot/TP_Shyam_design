@@ -10,7 +10,7 @@ export function createVoiceRxSessionContext({ patientId, doctorId, sessionId }) 
 
 export async function runVoiceRxPipeline({ audioBlob, context, signal, onPhase }) {
   onPhase?.("transcribing");
-  const transcript = await transcribeAudio({ audioBlob, context, signal });
+  const { transcript } = await transcribeAudio({ audioBlob, context, signal });
 
   onPhase?.("digitising");
   const digitizeResult = await digitiseClinicalData({ context, signal });

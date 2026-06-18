@@ -29,6 +29,7 @@ import {
   uploadAndLogVoiceRx2,
 } from "./voiceRx2Logging";
 import { transcribeAnyAudio } from "./api/agent-audio-service";
+import { getResponseRequestId } from "./api/voice-api-utils";
 import { toast } from "./toast";
 import styles from "./VoiceRxModuleCapture.module.scss";
 
@@ -789,13 +790,6 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
 
   if (moduleApiName === "medical_history") {
     const convertedRows = convertAgentMedicalHistoryRowsToSections(rows);
-    console.groupCollapsed("[VoiceRx MedicalHistory] normalizeModuleRows");
-    console.log("raw responseJson", responseJson);
-    console.log("extracted payload", payload);
-    console.log("moduleKeys", moduleKeys);
-    console.log("firstPresentArray rows", rows);
-    console.log("converted section rows", convertedRows);
-    console.groupEnd();
     return convertedRows;
   }
 
@@ -965,7 +959,8 @@ async function requestTranscribeAndDigitise({
     formData.append("custom_module_name", String(customModuleName));
   }
   appendJsonFormField(formData, "required_fields", requiredFields);
-  appendJsonFormField(formData, "previous_context", normalizeModulePreviousContext(previousContext, moduleApiName));
+  const requestPreviousContext = normalizeModulePreviousContext(previousContext, moduleApiName);
+  appendJsonFormField(formData, "previous_context", requestPreviousContext);
   formData.append("audio", audioBlob, "audio.webm");
 
   const abortController = new AbortController();
@@ -983,6 +978,7 @@ async function requestTranscribeAndDigitise({
     if (error?.name === "AbortError") {
       const timeoutError = new Error("Module voice digitise timed out after 120 seconds.");
       decorateVoiceV2ApiError(timeoutError, { statusCode: 408 });
+      timeoutError.previousContext = requestPreviousContext ?? null;
       trackVoiceV2ApiResponse({
         apiName: "agentsModule",
         endpoint: MODULE_DIGITISE_ENDPOINT,
@@ -994,6 +990,7 @@ async function requestTranscribeAndDigitise({
       });
       throw timeoutError;
     }
+    error.previousContext = requestPreviousContext ?? null;
     trackVoiceV2ApiResponse({
       apiName: "agentsModule",
       endpoint: MODULE_DIGITISE_ENDPOINT,
@@ -1009,8 +1006,11 @@ async function requestTranscribeAndDigitise({
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    const requestId = getResponseRequestId(response);
     const error = new Error(`Module voice digitise failed with ${response.status}. ${detail}`.trim());
     decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+    error.requestId = requestId;
+    error.previousContext = requestPreviousContext ?? null;
     trackVoiceV2ApiResponse({
       apiName: "agentsModule",
       endpoint: MODULE_DIGITISE_ENDPOINT,
@@ -1024,6 +1024,7 @@ async function requestTranscribeAndDigitise({
   }
 
   const responseJson = await response.json();
+  const requestId = getResponseRequestId(response);
   trackVoiceV2ApiResponse({
     apiName: "agentsModule",
     endpoint: MODULE_DIGITISE_ENDPOINT,
@@ -1033,18 +1034,13 @@ async function requestTranscribeAndDigitise({
     extra: { patient_id: patientId, doctor_id: doctorId, session_id: sessionId, module_name: moduleApiName },
   });
   const rows = normalizeModuleRows(responseJson, moduleApiName);
-  if (moduleApiName === "medical_history") {
-    console.groupCollapsed("[VoiceRx MedicalHistory] requestTranscribeAndDigitise result");
-    console.log("moduleApiName", moduleApiName);
-    console.log("raw responseJson", responseJson);
-    console.log("normalized rows returned to onComplete", rows);
-    console.groupEnd();
-  }
   return {
     rows,
     rawResponse: responseJson,
     conversation: extractModuleConversation(responseJson),
     moduleApiName,
+    requestId,
+    previousContext: requestPreviousContext ?? null,
   };
 }
 
@@ -1189,13 +1185,6 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
     const nextItems = Array.isArray(digitisedData)
       ? digitisedData.map((item) => ({ ...item }))
       : [];
-    if (moduleName === "Medical History") {
-      console.groupCollapsed("[VoiceRx MedicalHistory] useVoiceRxModuleCapture handleVoiceCaptureComplete");
-      console.log("digitisedData from VoiceRxModuleCapture", digitisedData);
-      console.log("nextItems passed to onApply", nextItems);
-      console.log("has onApply", typeof onApply === "function");
-      console.groupEnd();
-    }
     if (nextItems.length > 0) {
       await Promise.resolve(onApply?.(nextItems));
     }
@@ -1307,7 +1296,7 @@ export function VoiceRxModuleCapture({
     }, BUTTON_PROCESSING_MS);
 
     return getDigitisedData({ audioBlob })
-      .then((digitisedResult) => {
+      .then(async (digitisedResult) => {
         if (!mountedRef.current) {
           return;
         }
@@ -1319,28 +1308,23 @@ export function VoiceRxModuleCapture({
           setCapturedTranscript(digitisedResult?.transcript || nextTranscript);
         }
         const rows = isTranscribeMode ? [] : (Array.isArray(digitisedResult) ? digitisedResult : digitisedResult?.rows || []);
-        if (!isTranscribeMode && (digitisedResult?.moduleApiName || moduleApiName || resolveModuleApiName(moduleName)) === "medical_history") {
-          console.groupCollapsed("[VoiceRx MedicalHistory] handleSubmit before onComplete");
-          console.log("digitisedResult", digitisedResult);
-          console.log("rows passed to onComplete", rows);
-          console.log("has onComplete", typeof onComplete === "function");
-          console.groupEnd();
-        }
         const clinicalCompletedAtMs = Date.now();
         const transcriptCompletedAtMs = isTranscribeMode ? clinicalCompletedAtMs : null;
         const digitizeCompletedAtMs = isTranscribeMode ? null : clinicalCompletedAtMs;
-        return Promise.resolve(onComplete?.(isTranscribeMode ? digitisedResult : rows, {
+        await Promise.resolve(onComplete?.(isTranscribeMode ? digitisedResult : rows, {
           audioBlob,
           transcript: isTranscribeMode ? digitisedResult?.transcript || "" : nextTranscript,
           durationMs,
           moduleName,
-        })).then(() => uploadAndLogVoiceRx2({
+        }));
+        const eventRequestId = digitisedResult?.requestId || "";
+        const { source } = await uploadAndLogVoiceRx2({
           audioBlob,
           patientData: patient_data,
           profile,
           sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
           submitId,
-          requestId,
+          requestId: eventRequestId,
           submitClickedAt,
           submitClickedAtMs,
           durationMs,
@@ -1358,18 +1342,18 @@ export function VoiceRxModuleCapture({
           digitizeCompletedAtMs,
           transcript: digitisedResult?.rawTranscript ?? digitisedResult?.transcript ?? digitisedResult?.conversation ?? "",
           digitizeData: digitisedResult?.rawResponse ?? (isTranscribeMode ? null : digitisedResult),
-        }).then(({ source }) => {
-          dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
-            type: !isTranscribeMode && hasModulePreviousContext(previousContext) ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
-            source,
-            durationMs,
-            timeRequiredInMs: clinicalCompletedAtMs - clinicalStartedAtMs,
-            conversation: isTranscribeMode ? digitisedResult?.transcript || "" : digitisedResult?.conversation || nextTranscript,
-            digitize: rows,
-            isDoctorAgent: false,
-            moduleName,
-          })));
-        }));
+          previousContext: digitisedResult?.previousContext ?? null,
+        });
+        dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
+          type: !isTranscribeMode && hasModulePreviousContext(previousContext) ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
+          source,
+          durationMs,
+          timeRequiredInMs: clinicalCompletedAtMs - clinicalStartedAtMs,
+          conversation: isTranscribeMode ? digitisedResult?.transcript || "" : digitisedResult?.conversation || nextTranscript,
+          digitize: rows,
+          isDoctorAgent: false,
+          moduleName,
+        })));
       })
       .catch((error) => {
         if (!mountedRef.current) return;
@@ -1384,7 +1368,7 @@ export function VoiceRxModuleCapture({
           profile,
           sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
           submitId,
-          requestId,
+          requestId: error?.requestId || "",
           submitClickedAt,
           submitClickedAtMs,
           durationMs,
@@ -1402,6 +1386,7 @@ export function VoiceRxModuleCapture({
           clinicalCompletedAtMs: Date.now(),
           transcript: error?.rawTranscript ?? error?.transcript ?? error?.conversation ?? "",
           digitizeData: error?.rawResponse ?? error?.digitizeData ?? null,
+          previousContext: error?.previousContext ?? null,
         });
         toast.error(error.message || (isTranscribeMode ? "Module voice transcription failed" : "Module voice digitisation failed"));
         onCancel?.();
