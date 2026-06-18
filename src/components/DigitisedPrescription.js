@@ -43,12 +43,14 @@ import {
   ensureMedicationGroundedForRxSave,
 } from "../utils/medicationRxPayload";
 import { setDentalData } from "../redux/dentalRxSlice";
+import { MANYA_DENTAL_TREATMENT_OPTIONS } from "../utils/manyaDentalTreatmentOptions";
 import { ASSETS } from "../assets";
 const {
   alerticon: alertIcon,
   documentNormal: documentIcon,
   danger: warningIcon,
 } = ASSETS.images;
+const MANYA_DENTAL_TREATMENT_DATALIST_ID = "manya-dental-treatment-options";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -203,6 +205,7 @@ const DigitisedPrescription = ({
   vitalsFlow,
   skipAutoLabResultsLogic = false,
   digitiseSplitLayout = false,
+  isManyaDental = false,
 }) => {
   const showHeaderArea = showRxPadHeader || showHeader;
   const rightSectionClass = [
@@ -2722,6 +2725,13 @@ const DigitisedPrescription = ({
               </div>
 
               <div className="dental-table-title">TREATMENT PLAN(S)</div>
+              {isManyaDental && (
+                <datalist id={MANYA_DENTAL_TREATMENT_DATALIST_ID}>
+                  {MANYA_DENTAL_TREATMENT_OPTIONS.map((treatmentName) => (
+                    <option key={treatmentName} value={treatmentName} />
+                  ))}
+                </datalist>
+              )}
               <table className="dental-table dental-treatment-table">
                 <thead>
                   <tr>
@@ -2755,6 +2765,11 @@ const DigitisedPrescription = ({
                           <input
                             type="text"
                             className="dental-table-input"
+                            list={
+                              isManyaDental
+                                ? MANYA_DENTAL_TREATMENT_DATALIST_ID
+                                : undefined
+                            }
                             value={row?.treatment ?? ""}
                             onChange={(e) =>
                               updateDentalTreatmentItem(

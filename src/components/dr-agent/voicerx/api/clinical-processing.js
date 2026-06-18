@@ -1,4 +1,5 @@
 import { buildClinicalApiHeaders, joinClinicalApiUrl } from './clinical-api';
+import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from './stacks-api-tracking';
 
 const TRANSCRIPT_TIMEOUT_MS = 10 * 60 * 1000;
 export const MODULE_TIMEOUT_MS = 30 * 1000;
@@ -15,21 +16,34 @@ function sleep(ms) {
 
 function createTimeoutSignal(timeoutMs) {
 	const controller = new AbortController();
-	const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+	const timeoutId = setTimeout(() => {
+		const error = new Error(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`);
+		error.name = 'AbortError';
+		error.status = 408;
+		controller.abort(error);
+	}, timeoutMs);
 	return { signal: controller.signal, clear: () => clearTimeout(timeoutId) };
+}
+
+function abortSignal(controller, reason) {
+	if (reason !== undefined) {
+		controller.abort(reason);
+		return;
+	}
+	controller.abort();
 }
 
 function combineSignals(signals) {
 	const activeSignals = signals.filter(Boolean);
 	if (!activeSignals.length) return undefined;
 	const controller = new AbortController();
-	const abort = () => controller.abort();
+	const abort = (signal) => abortSignal(controller, signal.reason);
 	for (const signal of activeSignals) {
 		if (signal.aborted) {
-			controller.abort();
+			abort(signal);
 			break;
 		}
-		signal.addEventListener('abort', abort, { once: true });
+		signal.addEventListener('abort', () => abort(signal), { once: true });
 	}
 	return controller.signal;
 }
@@ -46,9 +60,7 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 	} catch (error) {
 		if (error?.name === 'AbortError') {
 			if (options?.signal?.aborted) throw error;
-			const timeoutError = new Error(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`);
-			timeoutError.status = 408;
-			throw timeoutError;
+			throw timeout.signal.reason || error;
 		}
 		throw error;
 	} finally {
@@ -75,51 +87,132 @@ export async function withRetry(operation, { retries = MAX_RETRIES, delayMs = 80
 	throw lastError;
 }
 
-export async function postJson(path, payload, name, { timeoutMs = MODULE_TIMEOUT_MS, signal } = {}) {
-	const response = await fetchWithTimeout(joinClinicalApiUrl(path), {
-		method: 'POST',
-		headers: buildClinicalApiHeaders(),
-		body: JSON.stringify(payload),
-		signal
-	}, timeoutMs);
+export async function postJson(path, payload, name, { timeoutMs = MODULE_TIMEOUT_MS, signal, tracking } = {}) {
+	const startedAtMs = Date.now();
+	let response;
+	try {
+		response = await fetchWithTimeout(joinClinicalApiUrl(path), {
+			method: 'POST',
+			headers: buildClinicalApiHeaders(),
+			body: JSON.stringify(payload),
+			signal
+		}, timeoutMs);
+	} catch (error) {
+		if (tracking?.apiName) {
+			trackVoiceV2ApiResponse({
+				...tracking,
+				endpoint: path,
+				statusCode: error?.status,
+				response: error?.responseBody ?? null,
+				error,
+				startedAtMs,
+			});
+		}
+		throw error;
+	}
 
 	if (!response.ok) {
 		const detail = await response.text().catch(() => '');
 		const error = new Error(`${name} API failed (${response.status}). ${detail}`.trim());
-		error.status = response.status;
+		decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+		if (tracking?.apiName) {
+			trackVoiceV2ApiResponse({
+				...tracking,
+				endpoint: path,
+				statusCode: response.status,
+				response: detail,
+				error,
+				startedAtMs,
+			});
+		}
 		throw error;
 	}
 
 	if (response.status === 204) {
+		if (tracking?.apiName) {
+			trackVoiceV2ApiResponse({
+				...tracking,
+				endpoint: path,
+				statusCode: response.status,
+				response: null,
+				startedAtMs,
+			});
+		}
 		return null;
 	}
 
-	return response.json();
+	const responseJson = await response.json();
+	if (tracking?.apiName) {
+		trackVoiceV2ApiResponse({
+			...tracking,
+			endpoint: path,
+			statusCode: response.status,
+			response: responseJson,
+			startedAtMs,
+		});
+	}
+	return responseJson;
 }
 
-async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIMEOUT_MS, signal } = {}) {
+async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIMEOUT_MS, signal, tracking } = {}) {
 	const url = joinClinicalApiUrl(path);
+	const startedAtMs = Date.now();
 	console.log(`[voice-rx] ${name} multipart request`, {
 		url,
 		method: 'POST',
 		fields: describeFormData(formData)
 	});
 
-	const response = await fetchWithTimeout(url, {
-		method: 'POST',
-		headers: buildClinicalApiHeaders({ includeContentType: false }),
-		body: formData,
-		signal
-	}, timeoutMs);
+	let response;
+	try {
+		response = await fetchWithTimeout(url, {
+			method: 'POST',
+			headers: buildClinicalApiHeaders({ includeContentType: false }),
+			body: formData,
+			signal
+		}, timeoutMs);
+	} catch (error) {
+		if (tracking?.apiName) {
+			trackVoiceV2ApiResponse({
+				...tracking,
+				endpoint: path,
+				statusCode: error?.status,
+				response: error?.responseBody ?? null,
+				error,
+				startedAtMs,
+			});
+		}
+		throw error;
+	}
 
 	if (!response.ok) {
 		const detail = await response.text().catch(() => '');
 		const error = new Error(`${name} API failed (${response.status}). ${detail}`.trim());
-		error.status = response.status;
+		decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+		if (tracking?.apiName) {
+			trackVoiceV2ApiResponse({
+				...tracking,
+				endpoint: path,
+				statusCode: response.status,
+				response: detail,
+				error,
+				startedAtMs,
+			});
+		}
 		throw error;
 	}
 
-	return response.json();
+	const responseJson = await response.json();
+	if (tracking?.apiName) {
+		trackVoiceV2ApiResponse({
+			...tracking,
+			endpoint: path,
+			statusCode: response.status,
+			response: responseJson,
+			startedAtMs,
+		});
+	}
+	return responseJson;
 }
 
 async function getJson(path, name, { timeoutMs = MODULE_TIMEOUT_MS, signal } = {}) {
@@ -315,7 +408,14 @@ export async function transcribeAudio({ audioBlob, context, signal }) {
 	return withRetry(async () => {
 		let responseJson;
 		try {
-			responseJson = await postMultipart('/agents/transcribe-audio', formData, 'Transcribe audio', { timeoutMs: TRANSCRIPT_TIMEOUT_MS, signal });
+			responseJson = await postMultipart('/agents/transcribe-audio', formData, 'Transcribe audio', {
+				timeoutMs: TRANSCRIPT_TIMEOUT_MS,
+				signal,
+				tracking: {
+					apiName: 'transcribeAudio',
+					extra: buildIdentityPayload(context)
+				}
+			});
 		} catch (error) {
 			if (error?.status === 409) {
 				return fetchExistingTranscript({ context, signal });
@@ -332,7 +432,14 @@ export async function transcribeAudio({ audioBlob, context, signal }) {
 
 function runDigitizeModule({ context, previousContext, signal, onResult }) {
 	const cfg = MODULES.digitization;
-	return withRetry(() => postJson(cfg.path, buildDigitizationPayload(context, previousContext), cfg.name, { timeoutMs: DIGITISE_DATA_TIMEOUT_MS, signal }))
+	return withRetry(() => postJson(cfg.path, buildDigitizationPayload(context, previousContext), cfg.name, {
+		timeoutMs: DIGITISE_DATA_TIMEOUT_MS,
+		signal,
+		tracking: {
+			apiName: 'digitiseData',
+			extra: buildIdentityPayload(context)
+		}
+	}))
 		.then((responseJson) => {
 			const result = {
 				name: cfg.tab,

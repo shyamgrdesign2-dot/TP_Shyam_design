@@ -1,49 +1,119 @@
 name: Trigger auto deployment for pm-prod-doctor-portal
 
-# When this action will be executed
 on:
-  # Automatically trigger it when detected changes in repo
   push:
-    branches: 
+    branches:
       [ prod ]
     paths:
     - '**'
     - '.github/workflows/pm-prod-doctor-portal-AutoDeployTrigger-3f2aba67-98a9-4e87-b2ab-44914b2c674a.yml'
 
-  # Allow manual trigger 
-  workflow_dispatch:      
+  workflow_dispatch:
+
+concurrency:
+  group: pm-prod-doctor-portal
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     env:
       REACT_APP_ENV: prod
-    permissions: 
-      id-token: write #This is required for requesting the OIDC JWT Token
-      contents: read #Required when GH token is used to authenticate with private repo
+      # Upload → blob container react-static-prod/cdn/... Front Door exposes that at the root (/).
+      PUBLIC_URL_PROD_CDN: https://assets.tatvacare.in/
+      IMAGE_NAME: acinacr.azurecr.io/pm-prod-doctor-portal:${{ github.sha }}
+
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout to the branch
         uses: actions/checkout@v2
 
-      - name: Azure Login
+      # ---- 1. Build image and push to ACR (no Container App update yet) ----
+      # Generate version.json here in CI where git is guaranteed to be available.
+      # Do NOT rely on generate-version.js running inside the Docker build —
+      # .dockerignore typically excludes .git so git rev-parse would silently fail there.
+      # This file is baked into the image but intentionally excluded from blob upload below.
+      - name: Generate version.json
+        run: |
+          set -euo pipefail
+          SHA=$(git rev-parse --short HEAD)
+          API_VERSION=$(node -e "console.log(require('./package.json').apiCompatibilityVersion ?? 1)")
+          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION}" > public/version.json
+
+      - name: Docker login to ACR
+        env:
+          REGISTRY_USER: ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$REGISTRY_PASS" | docker login acinacr.azurecr.io -u "$REGISTRY_USER" --password-stdin
+
+      - name: Build image and push to ACR
+        run: |
+          set -euo pipefail
+          docker build \
+            --build-arg REACT_APP_ENV=prod \
+            --build-arg GENERATE_SOURCEMAP=false \
+            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PROD_CDN }}" \
+            -t "${{ env.IMAGE_NAME }}" .
+          docker push "${{ env.IMAGE_NAME }}"
+
+      # ---- 2. Extract built assets from the same image we just pushed ----
+      - name: Extract built assets (html minus index.html and version.json)
+        run: |
+          set -euo pipefail
+          CID=$(docker create "${{ env.IMAGE_NAME }}")
+          mkdir -p _blob_html
+          docker cp "$CID:/usr/share/nginx/html/." _blob_html/
+          docker rm -v "$CID"
+          # index.html and version.json must only be served from the container (nginx),
+          # never from blob/CDN — both need no-cache guarantees that blob cannot provide.
+          rm -f _blob_html/index.html
+          rm -f _blob_html/version.json
+
+      # ---- 3. Upload to blob BEFORE the Container App revision switch ----
+      # PMPRODDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS — JSON for azure/login `creds` (clientId, clientSecret,
+      # subscriptionId, tenantId). subscriptionId must contain pmdoctorportal storage account.
+      # RBAC: Storage Blob Data Contributor on pmdoctorportal (or scoped to react-static-prod).
+      - name: Azure Login (blob upload identity)
+        uses: azure/login@v1
+        with:
+         creds: ${{ secrets.PMPRODDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS }}
+         #client-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_CLIENT_ID }}
+         #tenant-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_TENANT_ID }}
+         #subscription-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
+
+      # upload-batch never deletes blobs missing from --source, so previously uploaded
+      # hashed chunks survive. --overwrite only affects identical paths (e.g. manifest.json,
+      # favicon.ico) which we WANT current.
+      - name: Publish build assets to Azure Blob (react-static-prod/cdn)
+        run: |
+          set -euo pipefail
+          az storage blob upload-batch \
+            --account-name pmdoctorportal \
+            --auth-mode login \
+            --destination react-static-prod \
+            --source _blob_html \
+            --destination-path cdn \
+            --overwrite
+
+      # ---- 4. Now switch the Container App to the new image (assets already in place) ----
+      - name: Azure Login (deploy identity)
         uses: azure/login@v1
         with:
           client-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build and push container image to registry
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          appSourcePath: ${{ github.workspace }} 
-          registryUrl: acinacr.azurecr.io
-          registryUsername: ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_USERNAME }}
-          registryPassword: ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_PASSWORD }}
-          containerAppName: pm-prod-doctor-portal
-          resourceGroup: tatva-prod
-          imageToBuild: acinacr.azurecr.io/pm-prod-doctor-portal:${{ github.sha }}
-          buildArguments: |
-            REACT_APP_ENV=prod
-            GENERATE_SOURCEMAP=false
-            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+      - name: Deploy Container App revision
+        run: |
+          set -euo pipefail
+          az containerapp update \
+            --name pm-prod-doctor-portal \
+            --resource-group tatva-prod \
+            --image "${{ env.IMAGE_NAME }}"

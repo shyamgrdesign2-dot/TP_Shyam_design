@@ -22,6 +22,8 @@ import {
   shouldReloadForChunkFailure,
 } from "./utils/chunkReloadGuard";
 import { isProductionEnv } from "./utils/environment";
+import { getSentryRouteNameFromUrl } from "./utils/sentryRouteNames";
+import { reportBrowserOfflineToSentry } from "./utils/sentryNetwork";
 
 // Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
@@ -47,6 +49,7 @@ if (typeof window !== "undefined") {
     "add_unique_user_id",
     "add_first_name",
     "add_last_name",
+    "add_user_name",
     "add_email",
     "add_mobile",
     "destroy_session",
@@ -91,6 +94,17 @@ Sentry.init({
     if (event.environment === "dev") return null;
     return event;
   },
+  beforeSendTransaction(event) {
+    const routeName = getSentryRouteNameFromUrl(event?.request?.url);
+    if (routeName) {
+      event.transaction = routeName;
+      event.transaction_info = {
+        ...event.transaction_info,
+        source: "url",
+      };
+    }
+    return event;
+  },
   enableLogs: true
 });
 
@@ -118,6 +132,8 @@ if (typeof window !== "undefined") {
       reloadIfAllowed(`unhandled-rejection:${message}`);
     }
   });
+
+  window.addEventListener("offline", reportBrowserOfflineToSentry);
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

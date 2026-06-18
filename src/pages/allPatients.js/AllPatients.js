@@ -1006,7 +1006,7 @@ const AllPatients = () => {
                 <div className="d-flex align-items-center">
                   <>
                     <div>
-                      <h1>All Patients</h1>
+                      <h1>All Patients </h1>
                     </div>
                     <img
                       src={ASSETS.images.bgWelcome}

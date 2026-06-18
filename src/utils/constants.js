@@ -3,7 +3,7 @@ import { env } from "../EnvironmentConfig";
 
 /** Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js */
 export const TP_ASSETS_BASE =
-  "https://pmdoctorportal.blob.core.windows.net/tp-assets/assets";
+  "https://pmdoctorportal.tatvacare.in/tp-assets/assets";
 
 const codeIcon = `${TP_ASSETS_BASE}/images/code.svg`;
 const validateHealthcareIcon = `${TP_ASSETS_BASE}/images/validate-heathcare.svg`;
@@ -107,10 +107,18 @@ export const GB_ZYDUS_WHATSAPP = "zydus-doctor-whatsapp-enablement";
 export const GB_ZYDUS_ACCOUNT_USERS = "zydus-account-users";
 export const GB_CHIKITSALAY = "chikitsalay";
 export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
+export const GB_VOICE_RX_MAX_SESSION_MINUTES = "VOICE_RX_MAX_SESSION_MINUTES";
+export const GB_VOICE_OLD_UI_NEW_PIPELINE = "voice-old-ui-new-pipeline";
 export const CLINIC_TARGET_STATUS = {
   SERVING: "SERVING",
   COMPLETED: "COMPLETED",
 }
+
+export const MEDICINE_STOCK_STATUS = {
+  AVAILABLE: "AVAILABLE",
+  NO_STOCK: "NO_STOCK",
+  LOW_STOCK: "LOW_STOCK",
+};
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,

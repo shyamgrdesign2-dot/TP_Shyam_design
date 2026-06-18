@@ -36,7 +36,14 @@ function buildSoapPayload(context, previousContext) {
 }
 
 function runSoapModule({ context, previousContext, signal, onResult }) {
-	return withRetry(() => postJson(SOAP_PATH, buildSoapPayload(context, previousContext), SOAP_NAME, { timeoutMs: MODULE_TIMEOUT_MS, signal }))
+	return withRetry(() => postJson(SOAP_PATH, buildSoapPayload(context, previousContext), SOAP_NAME, {
+		timeoutMs: MODULE_TIMEOUT_MS,
+		signal,
+		tracking: {
+			apiName: "getSoapNotes",
+			extra: buildIdentityPayload(context)
+		}
+	}))
 		.then((responseJson) => {
 			const result = {
 				name: SOAP_TAB,

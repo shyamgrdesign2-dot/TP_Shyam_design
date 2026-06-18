@@ -48,7 +48,9 @@ import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../../assets";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
+import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
+import { uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
 import { toast } from "../dr-agent/voicerx/toast";
@@ -61,6 +63,7 @@ import {
 import { convertAgentMedicalHistoryRowsToSections } from "../../utils/medicalHistoryConverters";
 import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers";
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
+import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitizationSlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
 import "./sideNavbar.css";
@@ -2296,13 +2299,11 @@ function createSideNavVoiceId() {
 }
 
 function extractSideNavModulePayload(responseJson) {
-  return responseJson?.payload?.data?.rxDigitizationHistory?.[0]?.response ??
-    responseJson?.data?.rxDigitizationHistory?.[0]?.response ??
-    responseJson?.rxDigitizationHistory?.[0]?.response ??
-    responseJson?.data?.documents?.[0]?.data ??
-    responseJson?.data?.document?.data ??
-    responseJson?.data ??
-    responseJson;
+  return responseJson?.data || {};
+}
+
+function extractSideNavModuleConversation(responseJson) {
+  return responseJson?.data?.transcript || "";
 }
 
 function parseSideNavMaybeJson(value) {
@@ -2401,7 +2402,7 @@ function normalizeSideNavVitals(payload) {
 }
 
 function normalizeSideNavHistorySections(payload) {
-  const rows = firstSideNavArray(payload, ["medical_history", "medicalHistory", "history"], { allowObjectRow: true });
+  const rows = Array.isArray(payload?.medical_history) ? payload.medical_history : [];
   return convertAgentMedicalHistoryRowsToSections(rows)
     .filter((section) => section?.no_know_history || section?.tags?.length || hasValue(section?.medical_history_remarks));
 }
@@ -2561,6 +2562,15 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
   const abortController = new AbortController();
   const timeoutId = window.setTimeout(() => abortController.abort(), SIDE_NAV_MODULE_TIMEOUT_MS);
   let response;
+  const startedAtMs = Date.now();
+  const trackingExtra = {
+    patient_id: patientId,
+    doctor_id: doctorId,
+    session_id: sessionId,
+    module_name: moduleName,
+    sectionId,
+    sourceSurface: "side-navbar",
+  };
   try {
     response = await fetch(joinAgentModuleApiUrl(SIDE_NAV_MODULE_ENDPOINT), {
       method: "POST",
@@ -2570,18 +2580,63 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
     });
   } catch (error) {
     if (error?.name === "AbortError") {
-      throw new Error("Section voice digitise timed out after 120 seconds.");
+      const timeoutError = new Error("Section voice digitise timed out after 120 seconds.");
+      decorateVoiceV2ApiError(timeoutError, { statusCode: 408 });
+      trackVoiceV2ApiResponse({
+        apiName: "agentsModule",
+        endpoint: SIDE_NAV_MODULE_ENDPOINT,
+        statusCode: 408,
+        response: null,
+        error: timeoutError,
+        startedAtMs,
+        extra: trackingExtra,
+      });
+      throw timeoutError;
     }
+    trackVoiceV2ApiResponse({
+      apiName: "agentsModule",
+      endpoint: SIDE_NAV_MODULE_ENDPOINT,
+      response: null,
+      error,
+      startedAtMs,
+      extra: trackingExtra,
+    });
     throw error;
   } finally {
     window.clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
-    throw new Error(`Section voice digitise failed with ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    const error = new Error(`Section voice digitise failed with ${response.status}. ${detail}`.trim());
+    decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+    trackVoiceV2ApiResponse({
+      apiName: "agentsModule",
+      endpoint: SIDE_NAV_MODULE_ENDPOINT,
+      statusCode: response.status,
+      response: detail,
+      error,
+      startedAtMs,
+      extra: trackingExtra,
+    });
+    throw error;
   }
 
-  return normalizeSideNavModuleResponse(await response.json(), sectionId);
+  const responseJson = await response.json();
+  trackVoiceV2ApiResponse({
+    apiName: "agentsModule",
+    endpoint: SIDE_NAV_MODULE_ENDPOINT,
+    statusCode: response.status,
+    response: responseJson,
+    startedAtMs,
+    extra: trackingExtra,
+  });
+  return {
+    ...normalizeSideNavModuleResponse(responseJson, sectionId),
+    conversation: extractSideNavModuleConversation(responseJson),
+    rawResponse: responseJson,
+    moduleApiName: moduleName,
+  };
 }
 
 function MedicalMaskIcon({ name, active }) {
@@ -5398,6 +5453,8 @@ export function SideNavbar({
   const { allUploadedDocs = [], uploadDocCategories = [] } = useSelector((state) => state.uploadDoc);
   const obstetricRawDetails = useSelector((state) => state.obstetric?.obstetricDetails);
   const { defaultList: medicalHistoryDefaultList = [], loading: medicalHistoryLoading } = useSelector((state) => state.medicalhistory);
+  const { profile } = useSelector((state) => state.doctors);
+  const voiceDigitization = useSelector((state) => state.voiceDigitization);
   const { isPediatricAccessable } = useAccess();
   const {
     vitalsData = [],
@@ -6006,11 +6063,23 @@ export function SideNavbar({
     }
   }, [medicalHistoryDefaultList, setLabParamsData, setMedicalHistoryData, setVitalsData]);
 
-  const transcribeSectionAudio = useCallback(async (sectionId, audioBlob) => {
+  const transcribeSectionAudio = useCallback(async (sectionId, meta = {}) => {
     if (!isSideNavVoiceSupported(sectionId)) {
       return;
     }
+    const audioBlob = meta?.audioBlob;
     const isPrivateNotesVoice = sectionId === SIDE_NAV_PRIVATE_NOTES_SECTION;
+    const voicecall = (voiceDigitization?.voiceCallCount || 0) + 1;
+    dispatch(beginVoiceAttempt());
+    const submitClickedAtMs = meta?.submitClickedAtMs || Date.now();
+    const submitClickedAt = meta?.submitClickedAt || new Date(submitClickedAtMs).toISOString();
+    const submitId = `voice-rx-2-side-nav-${sectionId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const requestId = submitId;
+    const sessionId = getSideNavVoiceSessionId();
+    let voiceRxLogTranscript = "";
+    let voiceRxLogDigitizeData = null;
+    let transcriptCompletedAtMs = null;
+    let digitizeCompletedAtMs = null;
     updateVoiceState(sectionId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
     if (voiceDelayTimerRef.current) {
       window.clearTimeout(voiceDelayTimerRef.current);
@@ -6030,11 +6099,20 @@ export function SideNavbar({
           audioBlob,
           patientId,
           doctorId,
-          sessionId: getSideNavVoiceSessionId(),
+          sessionId,
           previousContext: sectionId === "history"
             ? buildSideNavMedicalHistoryPreviousContext(medicalHistoryData)
             : undefined,
         });
+      if (isPrivateNotesVoice) {
+        transcriptCompletedAtMs = Date.now();
+        voiceRxLogTranscript = result?.rawTranscript ?? result?.transcript ?? "";
+      } else {
+        digitizeCompletedAtMs = Date.now();
+        voiceRxLogTranscript = result?.conversation ?? "";
+        transcriptCompletedAtMs = voiceRxLogTranscript ? digitizeCompletedAtMs : null;
+        voiceRxLogDigitizeData = result?.rawResponse ?? result;
+      }
       if (voiceDelayTimerRef.current) {
         window.clearTimeout(voiceDelayTimerRef.current);
         voiceDelayTimerRef.current = null;
@@ -6052,16 +6130,70 @@ export function SideNavbar({
 	        error: "",
 	      });
 	      guardVoiceRxUsage?.({ phase: "mark-used", surface: "side-navbar", sectionId });
+        const clinicalCompletedAtMs = Date.now();
+        uploadAndLogVoiceRx2({
+          audioBlob,
+          patientData: { ...(patientData || {}), patient_unique_id: patientData?.patient_unique_id || patientId },
+          profile,
+          sessionId,
+          submitId,
+          requestId,
+          submitClickedAt,
+          submitClickedAtMs,
+          durationMs: meta?.durationMs ?? 0,
+          clinicalStatus: "completed",
+          mode: isPrivateNotesVoice ? "transcribe" : "module",
+          voicecall,
+          moduleName: isPrivateNotesVoice ? "Private Notes" : SIDE_NAV_MODULE_NAMES[sectionId],
+          sourceSurface: "side-navbar",
+          isDoctorAgent: false,
+          micBeingUsed: meta?.micBeingUsed || "",
+          voiceLogCreated: voiceDigitization?.voiceLogCreated,
+          markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
+          clinicalCompletedAtMs,
+          transcriptCompletedAtMs,
+          digitizeCompletedAtMs,
+          transcript: voiceRxLogTranscript,
+          digitizeData: voiceRxLogDigitizeData,
+        });
 	    } catch (error) {
       if (voiceDelayTimerRef.current) {
         window.clearTimeout(voiceDelayTimerRef.current);
         voiceDelayTimerRef.current = null;
       }
       console.error("[sideNavbar] voice processing failed", { sectionId, error });
+      uploadAndLogVoiceRx2({
+        audioBlob,
+        patientData: { ...(patientData || {}), patient_unique_id: patientData?.patient_unique_id || patientId },
+        profile,
+        sessionId,
+        submitId,
+        requestId,
+        submitClickedAt,
+        submitClickedAtMs,
+        durationMs: meta?.durationMs ?? 0,
+        clinicalStatus: "failed",
+        failedPhase: isPrivateNotesVoice ? "agents-transcribe-any-audio" : "agents-module",
+        errorMessage: error?.message || "Side navbar voice processing failed.",
+        retryAttempts: 0,
+        mode: isPrivateNotesVoice ? "transcribe" : "module",
+        voicecall,
+        moduleName: isPrivateNotesVoice ? "Private Notes" : SIDE_NAV_MODULE_NAMES[sectionId],
+        sourceSurface: "side-navbar",
+        isDoctorAgent: false,
+        micBeingUsed: meta?.micBeingUsed || "",
+        voiceLogCreated: voiceDigitization?.voiceLogCreated,
+        markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
+        clinicalCompletedAtMs: Date.now(),
+        transcriptCompletedAtMs,
+        digitizeCompletedAtMs,
+        transcript: voiceRxLogTranscript,
+        digitizeData: voiceRxLogDigitizeData,
+      });
       toast.error(error?.message || "Voice processing failed.");
       updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
     }
-	  }, [applySideNavVoiceResult, doctorId, getSideNavVoiceSessionId, guardVoiceRxUsage, medicalHistoryData, patientId, privateNotesValue, savePrivateNotesFromVoice, updateVoiceState]);
+  }, [guardVoiceRxUsage, applySideNavVoiceResult, dispatch, doctorId, getSideNavVoiceSessionId, medicalHistoryData, patientData, patientId, privateNotesValue, profile, savePrivateNotesFromVoice, updateVoiceState, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated]);
 
   const handleVoiceClick = useCallback(async () => {
     if (!activeId) return;
@@ -6075,12 +6207,12 @@ export function SideNavbar({
     updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
   }, [activeId, activeVoiceModule, getSideNavVoiceSessionId, guardVoiceRxUsage, headerDictationBusy, voiceBySection, updateVoiceState]);
 
-  const handleVoiceRecorderSubmit = useCallback(async ({ audioBlob } = {}) => {
-    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "side-navbar", sectionId: activeId });
-    if (!canUseVoiceRx) return;
-    if (activeId) return transcribeSectionAudio(activeId, audioBlob);
-    return Promise.resolve();
-  }, [activeId, guardVoiceRxUsage, transcribeSectionAudio]);
+  const handleVoiceRecorderSubmit = useCallback(async (meta = {}) => {
+  const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "side-navbar", sectionId: activeId });
+  if (!canUseVoiceRx) return;
+  if (activeId) return transcribeSectionAudio(activeId, meta);
+  return Promise.resolve();
+}, [activeId, guardVoiceRxUsage, transcribeSectionAudio]);
 
   const handleVoiceCancel = useCallback(() => {
     if (!activeId) return;

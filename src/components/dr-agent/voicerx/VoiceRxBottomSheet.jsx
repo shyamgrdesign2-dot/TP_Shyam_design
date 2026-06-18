@@ -1,13 +1,20 @@
-import React, { useId, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
+import { useFeatureValue } from "@growthbook/growthbook-react";
+import { InfoCircle } from "iconsax-reactjs";
+import { X } from "../atoms/icons/lucide";
 import { cn } from "../utils";
 import styles from "./VoiceRxBottomSheet.module.scss";
 import { VoiceConsultKindIcon, VoiceRxIcon } from "./voice-consult-icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../atoms/Tooltip";
+import { GB_VOICE_RX_MAX_SESSION_MINUTES } from "../../../utils/constants";
 
 const VOICE_RX_SHEET_MODE_LABELS = {
   ambient_consultation: "Conversation Mode",
   dictation_consultation: "Dictation Mode",
 };
+
+const VOICE_RX_SESSION_NOTE_KEY = "tp-vrx-session-duration-note-v1";
+const DEFAULT_VOICE_RX_MAX_SESSION_MINUTES = "10";
 
 function InfoIcon({ size = 13 }) {
   return (
@@ -29,7 +36,28 @@ function HeaderCloseIcon({ size = 24, color = "currentColor" }) {
 
 export function VoiceRxBottomSheet({ isOpen, onClose, consultOptions, selectedOption, onSelectOption, onConfirm }) {
   const [consentGiven, setConsentGiven] = useState(true);
+  const [sessionNoteVisible, setSessionNoteVisible] = useState(false);
+  const voiceRxMaxSessionMinutes = useFeatureValue(
+    GB_VOICE_RX_MAX_SESSION_MINUTES,
+    DEFAULT_VOICE_RX_MAX_SESSION_MINUTES
+  );
   const uid = useId();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setSessionNoteVisible(!window.localStorage.getItem(VOICE_RX_SESSION_NOTE_KEY));
+    } catch {
+      setSessionNoteVisible(true);
+    }
+  }, []);
+
+  const dismissSessionNote = () => {
+    setSessionNoteVisible(false);
+    try {
+      window.localStorage.setItem(VOICE_RX_SESSION_NOTE_KEY, "1");
+    } catch { /* ignore */ }
+  };
 
   if (!isOpen) return null;
 
@@ -123,6 +151,26 @@ export function VoiceRxBottomSheet({ isOpen, onClose, consultOptions, selectedOp
             );
           })}
         </div>
+
+        {sessionNoteVisible && (
+          <div role="note" className={styles.sessionNote}>
+            <span className={styles.sessionNoteIcon} aria-hidden>
+              <InfoCircle size={16} variant="Bulk" color="currentColor" />
+            </span>
+            <p className={styles.sessionNoteText}>
+              <span className={styles.sessionNoteLead}>Note: </span>
+              Keep each session under {voiceRxMaxSessionMinutes} min for more accurate &amp; faster results.
+            </p>
+            <button
+              type="button"
+              onClick={dismissSessionNote}
+              aria-label="Dismiss note"
+              className={styles.sessionNoteClose}
+            >
+              <X strokeWidth={2} />
+            </button>
+          </div>
+        )}
 
         <div className={styles.ctaWrap}>
           <button

@@ -56,6 +56,7 @@ import { errorMessage, trackEvent } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
 import VisitDrawingCanvases from "./drawingCanvas/components/VisitDrawingCanvases";
 
@@ -80,6 +81,7 @@ function PatientDetails() {
         (state) => state.billing
       );
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -251,11 +253,12 @@ function PatientDetails() {
             });
             var sendData = {
                 patient_unique_id: patient_data?.patient_unique_id,
-                tcm_id: currentConsultation.tcm_id
+                tcm_id: currentConsultation.tcm_id,
+                isChikitsalayAccessable,
             };
             dispatch(viewCaseManager(sendData));
         }
-    }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch]);
+    }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch, isChikitsalayAccessable]);
 
     useEffect(() => {
         const tcmId = viewCaseManagerData?.tcm_id;

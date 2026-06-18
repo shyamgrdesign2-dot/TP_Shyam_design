@@ -4,6 +4,7 @@ import { Button, Dropdown, Tooltip, Popover, Input, Spin, Tabs, Select, Drawer, 
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isMobile, isDesktop } from 'react-device-detect';
+import { useCompactPrescriptionHeader } from '../hooks/useCompactPrescriptionHeader';
 import { useTabletViewport } from '../hooks/useTabletViewport';
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -86,6 +87,7 @@ const {
 
 var oneClickCosultationTemplateId = 0
 const HEADER_DICTATION_TARGET = "header";
+const HEADER_DICTATION_NO_INPUT_LOCATION = "no input field selected and no cursor is active";
 
 function getVoiceDictationTargetId(element) {
     const targetNode = element?.closest?.("[data-voice-rx-dictation-target]");
@@ -168,6 +170,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const navigate = useNavigate();
     const isTablet = useTabletViewport();
+    const isCompactHeader = useCompactPrescriptionHeader();
     const headerOverlayZIndex = isNewPrescriptionUi ? 1305 : undefined;
     const shouldUseMobileTemplateContent = isMobile && !isTablet;
     const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft, rxDrawingCanvasIds } = useContext(CashManagerContext);
@@ -220,6 +223,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceLastShiftTimeRef = useRef(0);
     const headerVoiceCursorRef = useRef(null); // { element, selectionStart, selectionEnd, targetId }
     const headerVoiceTargetIdRef = useRef(HEADER_DICTATION_TARGET);
+    const headerVoiceInputLocationRef = useRef(HEADER_DICTATION_NO_INPUT_LOCATION);
     const headerVoiceRecordStartMsRef = useRef(0);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const VOICE_RX_planDetails = servicesList?.find((service) => service.service_name === S_VOICE_RX);
@@ -337,6 +341,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "header" });
         if (!canUseVoiceRx) return;
         const targetId = headerVoiceTargetIdRef.current || headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
+        const voiceInputLocation = headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION;
         setHeaderVoiceState("transcribing");
         publishHeaderDictation("transcribing", targetId);
         const submitClickedAtMs = Date.now();
@@ -378,6 +383,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
                 moduleName: "header-dictation",
                 sourceSurface: "header",
+                voiceInputLocation,
                 isDoctorAgent: false,
                 voiceLogCreated: voiceDigitization?.voiceLogCreated,
                 markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -413,6 +419,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
                 moduleName: "header-dictation",
                 sourceSurface: "header",
+                voiceInputLocation,
                 isDoctorAgent: false,
                 voiceLogCreated: voiceDigitization?.voiceLogCreated,
                 markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -421,6 +428,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
         setHeaderVoiceState("idle");
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
     }, [copyTranscriptToClipboard, dispatch, guardVoiceRxUsage, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -429,8 +437,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         if (activeVoiceModule) return;
         const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "header" });
         if (!canUseVoiceRx) return;
-        const targetId = headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
+        const cursor = headerVoiceCursorRef.current;
+        const hasCursor = cursor?.element && document.activeElement === cursor.element;
+        const targetId = hasCursor ? cursor.targetId : HEADER_DICTATION_TARGET;
         headerVoiceTargetIdRef.current = targetId;
+        headerVoiceInputLocationRef.current = hasCursor ? targetId : HEADER_DICTATION_NO_INPUT_LOCATION;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             headerVoiceStreamRef.current = stream;
@@ -446,6 +457,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         } catch (err) {
             console.error('[HeaderTranscribe] mic access failed', err);
             headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+            headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         }
     }, [activeVoiceModule, guardVoiceRxUsage, publishHeaderDictation, setHeaderVoiceState]);
@@ -462,6 +474,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceAudioChunksRef.current = [];
         setHeaderVoiceState("idle");
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
     }, [publishHeaderDictation, setHeaderVoiceState]);
 
@@ -748,7 +761,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         window.Moengage.track_event("one_click_template_select", {
             "template_name": tmoc_template_name
         });
-        const action = await dispatch(oneClickSingleTemplateDetails(tmoc_id));
+        const action = await dispatch(
+            oneClickSingleTemplateDetails({
+                templateId: tmoc_id,
+                isChikitsalayAccessable,
+            })
+        );
         if (action.meta.requestStatus === "fulfilled") {
             const data = action.payload
             if (data !== undefined) {
@@ -913,7 +931,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     setCustomModuleContents(Array.from(moduleMap.values()));
                 }
             }
-            (isMobile || (isTablet && isNewPrescriptionUi)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
+            (isMobile || (isTablet && isNewPrescriptionUi) || (isCompactHeader && showVoiceRxModule)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
         } else {
             errorMessage(action.error)
         }
@@ -2488,10 +2506,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [popOverVideo]);
     return (
-        <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}${isNewPrescriptionUi ? ' headerprescription--new-ui' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
+        <Navbar className={`justify-content-between headerprescription p-0 ${isCompactHeader ? ' headerprescription--tablet' : ''}${isNewPrescriptionUi ? ' headerprescription--new-ui' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
             <Container fluid className='h-100 gx-0 w-100'>
                 <Row className='h-100 align-items-center w-100 justify-content-between'>
-                    <Col sm="auto" className={`h-100 ${isTablet ? 'pr-0' : ''}`}>
+                    <Col sm="auto" className={`h-100 ${isCompactHeader ? 'pr-0' : ''}`}>
                         <div className='align-items-center d-flex h-100'>
                             <div className='border-end h-100 text-center'>
                                 <div onClick={checkDataFillOrNot} className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
@@ -2577,7 +2595,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     placement="bottom"
                                     zIndex={headerOverlayZIndex}
                                 >
-                                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? 'me-20' : ''}`}>
+                                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isCompactHeader ? 'me-20' : ''}`}>
                                         {/* onClick={showHideVideoListPopover} */}
                                         <span><img src={tutorial2} /></span>
                                     </button>
@@ -2600,7 +2618,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         </button>
                                     </Popover>
                                     <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
-                                    {isTablet ? (
+                                    {isCompactHeader ? (
                                         <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
                                             <span>
                                                 <VoiceRxModuleActionButton type="template" label="Browse prescription templates" onClick={handleDrawerTemplate} />
@@ -2669,7 +2687,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     >
                                         <button className="btn d-flex align-items-center btn-text">
                                             {" "}
-                                            <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
+                                            <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                         </button>
                                     </Popover>
                                     <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
@@ -2694,7 +2712,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             ) : (
                                 <div className="d-flex align-items-center">
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
-                                        <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
+                                        <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                     </button>
                                     <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <span>
@@ -2708,14 +2726,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
                             {!showVoiceRxModule && (
                                 <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
-                                    {isTablet ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isTablet) ? "Custom" : "Customize"}</span>
+                                    {isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
                                 </button>
                             )}
 
                             {/* <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
                                <span><img height={42} src={tutorial} /></span>
                             </button> */}
-
 
                             <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
                                 {TEMPLATE_CONTENT_TAB}
@@ -2763,15 +2780,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <span className={isTeleconsultActive ? "d-inline-block" : ""}>
                                         <button
                                             type="button"
-                                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isTablet ? 'me-20' : ''}`}
-                                            style={isTablet ? {marginLeft: '10px'} : {}}
+                                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isCompactHeader ? 'me-20' : ''}`}
+                                            style={isCompactHeader ? {marginLeft: '10px'} : {}}
                                             onClick={onTeleconsultClick}
                                             disabled={isTeleconsultJoinLoading || isTeleconsultActive}
                                         >
                                             {isTeleconsultJoinLoading ? (
-                                                <LoadingOutlined style={{ fontSize: 24, ...(!isTablet && { marginLeft: '10px' }) }} />
+                                                <LoadingOutlined style={{ fontSize: 24, ...(!isCompactHeader && { marginLeft: '10px' }) }} />
                                             ) : (
-                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isTablet ? { marginLeft: '10px' } : {}} />
+                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isCompactHeader ? { marginLeft: '10px' } : {}} />
                                             )}
                                         </button>
                                     </span>
@@ -2785,7 +2802,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             )}
                             {/* Legacy VoiceRx CTA belongs only to the old prescription UI. */}
                             {shouldShowLegacyVoiceRxCta ? (
-                                isTablet ?
+                                isCompactHeader ?
                                     <>
                                         <div className="headerprescription-tablet-sep" aria-hidden="true" />
                                         <TabVoiceRxButton onClick={handleGenRx} />
@@ -2794,9 +2811,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <GenRxButton onClick={handleGenRx} />
                             ) : null}
 
-                            {isTablet && <div className="headerprescription-tablet-sep" aria-hidden="true" />}
+                            {isCompactHeader && <div className="headerprescription-tablet-sep" aria-hidden="true" />}
 
-                            {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isTablet ? 'Draft' : 'Save as Draft'} />}
+                            {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isCompactHeader ? 'Draft' : 'Save as Draft'} />}
 
                             {(() => {
                               // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes/drawing canvas).
@@ -2822,7 +2839,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
                                     <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
                                         <i className='icon-exit me-2'></i>
-                                        {isTablet ? "End" : "End Visit"}
+                                        {isCompactHeader ? "End" : "End Visit"}
                                     </Button>
                                 </Tooltip>
                               );
