@@ -1,5 +1,6 @@
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "./stacks-api-tracking";
+import { getResponseRequestId } from "./voice-api-utils";
 
 const TRANSCRIBE_ANY_AUDIO_ENDPOINT = "/agents/transcribe-any-audio";
 const TRANSCRIBE_ANY_AUDIO_TIMEOUT_MS = 10 * 60 * 1000;
@@ -10,6 +11,7 @@ export const PRIVATE_NOTES_TRANSCRIPTION_PROMPT =
 function getTimerApi() {
   return typeof window !== "undefined" ? window : null;
 }
+
 
 function transcriptToText(transcript) {
   if (Array.isArray(transcript)) {
@@ -107,8 +109,10 @@ export async function transcribeAnyAudio({
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    const requestId = getResponseRequestId(response);
     const error = new Error(`Audio transcription failed with ${response.status}. ${detail}`.trim());
     decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+    error.requestId = requestId;
     trackVoiceV2ApiResponse({
       apiName: "transcribeAnyAudio",
       endpoint: TRANSCRIBE_ANY_AUDIO_ENDPOINT,
@@ -121,6 +125,7 @@ export async function transcribeAnyAudio({
   }
 
   const responseJson = await response.json();
+  const requestId = getResponseRequestId(response);
   trackVoiceV2ApiResponse({
     apiName: "transcribeAnyAudio",
     endpoint: TRANSCRIBE_ANY_AUDIO_ENDPOINT,
@@ -131,8 +136,10 @@ export async function transcribeAnyAudio({
   const rawTranscript = extractAnyAudioTranscriptRaw(responseJson);
   const transcript = transcriptToText(rawTranscript);
   if (!transcript.trim()) {
-    throw new Error("Audio transcription API returned an empty transcript.");
+    const error = new Error("Audio transcription API returned an empty transcript.");
+    error.requestId = requestId;
+    throw error;
   }
 
-  return { transcript, rawTranscript, rawResponse: responseJson };
+  return { transcript, rawTranscript, rawResponse: responseJson, requestId };
 }

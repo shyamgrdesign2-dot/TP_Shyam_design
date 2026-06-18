@@ -619,6 +619,8 @@ export function useDrAgentPanel({
     let digitizeCompletedAtMs = null;
     let voiceRxLogTranscript = "";
     let voiceRxLogDigitizeData = null;
+    let voiceRxTranscriptRequestId = "";
+    let voiceRxLogPreviousContext = null;
 
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
       patientId: patientId || "1111",
@@ -654,11 +656,13 @@ export function useDrAgentPanel({
     try {
       progress?.onPhase?.("creating_transcript", { transcript: "" });
       console.log("[voice-rx] quick-edit phase:", "transcribing");
-      const apiTranscript = await transcribeAudio({
+      const transcriptResponse = await transcribeAudio({
         audioBlob,
         context,
         signal: abortController.signal
       });
+      voiceRxTranscriptRequestId = transcriptResponse?.requestId || "";
+      const apiTranscript = transcriptResponse?.transcript;
       transcriptCompletedAtMs = Date.now();
       const finalTranscript = clinicalHasTranscriptContent(apiTranscript) ? apiTranscript : meta?.transcript || "";
       voiceRxLogTranscript = finalTranscript;
@@ -667,6 +671,11 @@ export function useDrAgentPanel({
 
       progress?.onPhase?.("structuring_notes", { transcript: finalTranscript });
       const digitisePrev = voiceRxResult?.digitization || voiceDigitization?.clinicNotes || voiceDigitization?.digitizeData || null;
+      const soapPreviousContext = htmlToSoapSections(voiceDigitization?.soapHtml || voiceRxResult?.soapHtml) || voiceRxResult?.soap || voiceDigitization?.soap || null;
+      voiceRxLogPreviousContext = {
+        digitiseData: digitisePrev,
+        soap: soapPreviousContext,
+      };
       const [digitizeResult, soapResult] = await Promise.all([
         digitiseClinicalData({
           context,
@@ -675,7 +684,7 @@ export function useDrAgentPanel({
         }),
         generateSoapNote({
           context,
-          previousContext: htmlToSoapSections(voiceDigitization?.soapHtml || voiceRxResult?.soapHtml) || voiceRxResult?.soap || voiceDigitization?.soap || null,
+          previousContext: soapPreviousContext,
           signal: abortController.signal
         })
       ]);
@@ -776,7 +785,7 @@ export function useDrAgentPanel({
         profile,
         sessionId: context.sessionId || voiceDigitization?.sessionId,
         submitId,
-        requestId,
+        requestId: voiceRxTranscriptRequestId || "",
         submitClickedAt,
         submitClickedAtMs,
         durationMs: meta?.durationMs ?? 0,
@@ -793,6 +802,7 @@ export function useDrAgentPanel({
         digitizeCompletedAtMs,
         transcript: voiceRxLogTranscript,
         digitizeData: voiceRxLogDigitizeData,
+        previousContext: voiceRxLogPreviousContext,
       }).then(({ source }) => {
         dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
           type: voiceRxResult?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
@@ -821,7 +831,7 @@ export function useDrAgentPanel({
         profile,
         sessionId: context.sessionId || voiceDigitization?.sessionId,
         submitId,
-        requestId,
+        requestId: voiceRxTranscriptRequestId || error?.requestId || "",
         submitClickedAt,
         submitClickedAtMs,
         durationMs: meta?.durationMs ?? 0,
@@ -841,6 +851,7 @@ export function useDrAgentPanel({
         digitizeCompletedAtMs,
         transcript: voiceRxLogTranscript,
         digitizeData: voiceRxLogDigitizeData,
+        previousContext: voiceRxLogPreviousContext,
       });
       message.error(error?.message || "Voice edit failed.");
       setMessagesByPatient((prev) => {
@@ -959,6 +970,8 @@ export function useDrAgentPanel({
       let digitizeCompletedAtMs = null;
       let voiceRxLogTranscript = "";
       let voiceRxLogDigitizeData = null;
+      let voiceRxTranscriptRequestId = "";
+      let voiceRxLogPreviousContext = null;
       const waitForButtonLoaderWindow = () => {
         const remaining = VOICE_RX_SUBMIT_BUTTON_MIN_MS - (Date.now() - submittedAt);
         if (remaining <= 0) return Promise.resolve();
@@ -973,11 +986,13 @@ export function useDrAgentPanel({
         console.log("[voice-rx] phase:", "transcribing");
         let apiTranscript;
         try {
-          apiTranscript = await transcribeAudio({
+          const transcriptResponse = await transcribeAudio({
             audioBlob,
             context,
             signal: abortController.signal
           });
+          voiceRxTranscriptRequestId = transcriptResponse?.requestId || "";
+          apiTranscript = transcriptResponse?.transcript;
           transcriptCompletedAtMs = Date.now();
         } catch (error) {
           failedPhase = "transcribe-audio";
@@ -993,14 +1008,19 @@ export function useDrAgentPanel({
         await waitForButtonLoaderWindow();
 
         console.log("[voice-rx] phase:", "digitising+soap (parallel)");
+        const soapPreviousContext = htmlToSoapSections(voiceDigitization?.soapHtml || priorVoiceResultRef.current?.soapHtml) || priorVoiceResultRef.current?.soap || voiceDigitization?.soap || null;
         const soapPromise = generateSoapNote({
           context,
-          previousContext: htmlToSoapSections(voiceDigitization?.soapHtml || priorVoiceResultRef.current?.soapHtml) || priorVoiceResultRef.current?.soap || voiceDigitization?.soap || null,
+          previousContext: soapPreviousContext,
           signal: abortController.signal
         });
         let digitizeResult;
         try {
           const mainDigitisePrev = priorVoiceResultRef.current?.digitization || voiceDigitization?.clinicNotes || voiceDigitization?.digitizeData || null;
+          voiceRxLogPreviousContext = {
+            digitiseData: mainDigitisePrev,
+            soap: soapPreviousContext,
+          };
           console.log("[voice-rx] main pipeline digitise previousContext:", mainDigitisePrev);
           digitizeResult = await digitiseClinicalData({
             context,
@@ -1113,7 +1133,7 @@ export function useDrAgentPanel({
           profile,
           sessionId: context.sessionId || voiceDigitization?.sessionId,
           submitId,
-          requestId,
+          requestId: voiceRxTranscriptRequestId || "",
           submitClickedAt,
           submitClickedAtMs,
           durationMs: meta?.durationMs ?? 0,
@@ -1130,6 +1150,7 @@ export function useDrAgentPanel({
           digitizeCompletedAtMs,
           transcript: voiceRxLogTranscript,
           digitizeData: voiceRxLogDigitizeData,
+          previousContext: voiceRxLogPreviousContext,
         }).then(({ source }) => {
           dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
             type: prior?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
@@ -1161,7 +1182,7 @@ export function useDrAgentPanel({
           profile,
           sessionId: context.sessionId || voiceDigitization?.sessionId,
           submitId,
-          requestId,
+          requestId: voiceRxTranscriptRequestId || error?.requestId || "",
           submitClickedAt,
           submitClickedAtMs,
           durationMs: meta?.durationMs ?? 0,
@@ -1181,6 +1202,7 @@ export function useDrAgentPanel({
           digitizeCompletedAtMs,
           transcript: voiceRxLogTranscript,
           digitizeData: voiceRxLogDigitizeData,
+          previousContext: voiceRxLogPreviousContext,
         });
         message.error(error?.message || "Voice consultation failed.");
         // Remove the optimistic user echo so the chat doesn't dangle.

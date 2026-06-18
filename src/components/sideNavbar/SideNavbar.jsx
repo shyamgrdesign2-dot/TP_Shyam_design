@@ -51,6 +51,7 @@ import { ASSETS } from "../../assets";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
+import { getResponseRequestId as getVoiceResponseRequestId } from "../dr-agent/voicerx/api/voice-api-utils";
 import { uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
@@ -2586,6 +2587,7 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
     if (error?.name === "AbortError") {
       const timeoutError = new Error("Section voice digitise timed out after 120 seconds.");
       decorateVoiceV2ApiError(timeoutError, { statusCode: 408 });
+      timeoutError.previousContext = hasSideNavPreviousContext(previousContext) ? previousContext : null;
       trackVoiceV2ApiResponse({
         apiName: "agentsModule",
         endpoint: SIDE_NAV_MODULE_ENDPOINT,
@@ -2597,6 +2599,7 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
       });
       throw timeoutError;
     }
+    error.previousContext = hasSideNavPreviousContext(previousContext) ? previousContext : null;
     trackVoiceV2ApiResponse({
       apiName: "agentsModule",
       endpoint: SIDE_NAV_MODULE_ENDPOINT,
@@ -2612,8 +2615,11 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    const requestId = getVoiceResponseRequestId(response);
     const error = new Error(`Section voice digitise failed with ${response.status}. ${detail}`.trim());
     decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+    error.requestId = requestId;
+    error.previousContext = hasSideNavPreviousContext(previousContext) ? previousContext : null;
     trackVoiceV2ApiResponse({
       apiName: "agentsModule",
       endpoint: SIDE_NAV_MODULE_ENDPOINT,
@@ -2627,6 +2633,7 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
   }
 
   const responseJson = await response.json();
+  const requestId = getVoiceResponseRequestId(response);
   trackVoiceV2ApiResponse({
     apiName: "agentsModule",
     endpoint: SIDE_NAV_MODULE_ENDPOINT,
@@ -2640,6 +2647,8 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
     conversation: extractSideNavModuleConversation(responseJson),
     rawResponse: responseJson,
     moduleApiName: moduleName,
+    requestId,
+    previousContext: hasSideNavPreviousContext(previousContext) ? previousContext : null,
   };
 }
 
@@ -6169,7 +6178,7 @@ export function SideNavbar({
         profile,
         sessionId,
         submitId,
-        requestId,
+        requestId: result?.requestId || "",
         submitClickedAt,
         submitClickedAtMs,
         durationMs: meta?.durationMs ?? 0,
@@ -6187,6 +6196,7 @@ export function SideNavbar({
         digitizeCompletedAtMs,
         transcript: voiceRxLogTranscript,
         digitizeData: voiceRxLogDigitizeData,
+        previousContext: result?.previousContext ?? null,
       });
     } catch (error) {
       if (voiceDelayTimerRef.current) {
@@ -6200,7 +6210,7 @@ export function SideNavbar({
         profile,
         sessionId,
         submitId,
-        requestId,
+        requestId: error?.requestId || "",
         submitClickedAt,
         submitClickedAtMs,
         durationMs: meta?.durationMs ?? 0,
@@ -6221,6 +6231,7 @@ export function SideNavbar({
         digitizeCompletedAtMs,
         transcript: voiceRxLogTranscript,
         digitizeData: voiceRxLogDigitizeData,
+        previousContext: error?.previousContext ?? null,
       });
       toast.error(error?.message || "Voice processing failed.");
       updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });

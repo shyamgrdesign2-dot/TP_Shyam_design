@@ -96,6 +96,7 @@ export async function uploadAndLogVoiceRx2({
   digitizeCompletedAtMs,
   transcript,
   digitizeData,
+  previousContext = null,
 }) {
   const startedAtMs = submitClickedAtMs || Date.now();
   let uploadResponse = null;
@@ -168,9 +169,9 @@ export async function uploadAndLogVoiceRx2({
     voiceRxVersion: VOICE_RX_2_VERSION,
     timestamp: new Date().toISOString(),
     transcript: transcript ?? "",
-    digitizeData: digitizeData ?? null,
+    digitizeData: digitizeData != null ? JSON.stringify(digitizeData) : null,
+    previousContext: previousContext != null ? JSON.stringify(previousContext) : null,
   };
-
   trackEvent("TP_Voice_V2_Submit_Click", eventPayload);
 
   const correlationId = sessionId || submitId || requestId || "";
