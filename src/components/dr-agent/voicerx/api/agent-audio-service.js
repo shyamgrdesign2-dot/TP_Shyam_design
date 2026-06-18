@@ -11,6 +11,10 @@ function getTimerApi() {
   return typeof window !== "undefined" ? window : null;
 }
 
+function getResponseRequestId(response) {
+  return response?.headers?.get?.("x-request-id") || "";
+}
+
 function transcriptToText(transcript) {
   if (Array.isArray(transcript)) {
     return transcript
@@ -107,8 +111,10 @@ export async function transcribeAnyAudio({
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    const requestId = getResponseRequestId(response);
     const error = new Error(`Audio transcription failed with ${response.status}. ${detail}`.trim());
     decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+    error.requestId = requestId;
     trackVoiceV2ApiResponse({
       apiName: "transcribeAnyAudio",
       endpoint: TRANSCRIBE_ANY_AUDIO_ENDPOINT,
@@ -121,6 +127,7 @@ export async function transcribeAnyAudio({
   }
 
   const responseJson = await response.json();
+  const requestId = getResponseRequestId(response);
   trackVoiceV2ApiResponse({
     apiName: "transcribeAnyAudio",
     endpoint: TRANSCRIBE_ANY_AUDIO_ENDPOINT,
@@ -131,8 +138,10 @@ export async function transcribeAnyAudio({
   const rawTranscript = extractAnyAudioTranscriptRaw(responseJson);
   const transcript = transcriptToText(rawTranscript);
   if (!transcript.trim()) {
-    throw new Error("Audio transcription API returned an empty transcript.");
+    const error = new Error("Audio transcription API returned an empty transcript.");
+    error.requestId = requestId;
+    throw error;
   }
 
-  return { transcript, rawTranscript, rawResponse: responseJson };
+  return { transcript, rawTranscript, rawResponse: responseJson, requestId };
 }
