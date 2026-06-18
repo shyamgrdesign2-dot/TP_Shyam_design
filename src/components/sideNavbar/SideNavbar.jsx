@@ -51,7 +51,6 @@ import { ASSETS } from "../../assets";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
-import { getResponseRequestId as getVoiceResponseRequestId } from "../dr-agent/voicerx/api/voice-api-utils";
 import { uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
@@ -1636,6 +1635,10 @@ function hasSideNavPreviousContext(value) {
 function appendSideNavJsonFormField(formData, key, value) {
   if (!hasSideNavPreviousContext(value)) return;
   formData.append(key, JSON.stringify(value));
+}
+
+function getVoiceResponseRequestId(response) {
+  return response?.headers?.get?.("x-request-id") || "";
 }
 
 function medicalHistoryTagHasContextValue(tag = {}) {

@@ -169,8 +169,8 @@ export async function uploadAndLogVoiceRx2({
     voiceRxVersion: VOICE_RX_2_VERSION,
     timestamp: new Date().toISOString(),
     transcript: transcript ?? "",
-    digitizeData: digitizeData != null ? JSON.stringify(digitizeData) : null,
-    previousContext: previousContext != null ? JSON.stringify(previousContext) : null,
+    digitizeData: digitizeData ?? null,
+    previousContext,
   };
   trackEvent("TP_Voice_V2_Submit_Click", eventPayload);
 
