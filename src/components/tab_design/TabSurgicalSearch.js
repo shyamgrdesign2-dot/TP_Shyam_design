@@ -21,7 +21,7 @@ import LoopingVideo from "../common/LoopingVideo";
 
 import TabSearchHeader from "./TabSearchHeader";
 
-import { SortableContainer, SortableElement } from "react-sortable-hoc";
+import { SortableContainer, SortableElement } from "./sortableHocAdapter";
 import { useLocation } from "react-router-dom";
 import { GB_APOLLO_DISABLE_FEATURE } from "../../utils/constants";
 import { ASSETS } from "../../assets";

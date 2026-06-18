@@ -14,7 +14,7 @@ import { updateDragDrop } from "../../redux/doctorsSlice";
 import TabSearchHeader from "./TabSearchHeader";
 import LoopingVideo from "../common/LoopingVideo";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import { getClinicName } from "../../utils/utils";
 import { useLocation } from "react-router-dom";
 import { getDecodedToken } from "../../utils/localStorage";
