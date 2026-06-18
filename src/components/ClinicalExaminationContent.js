@@ -21,11 +21,13 @@ import {
 } from "./customModulesV2";
 import SCBanner from "./SCBanner";
 import LoopingVideo from "./common/LoopingVideo";
+import CarePlanDropdown from "./CarePlanDropdown";
+import CarePlanList from "./CarePlanList";
 
 import { OPTHAL_PAD_MODULE_ID } from "../utils/constants";
 import { ASSETS } from "../assets";
 
-const { genRxBgWebm, genRxBgMp4 } = ASSETS.images;
+const { genRxBgWebm, genRxBgMp4, carePlan: carePlanIcon } = ASSETS.images;
 
 const ClinicalExaminationContent = ({
   allAvailableModules,
@@ -38,7 +40,15 @@ const ClinicalExaminationContent = ({
   isDDxLoading,
   handleDDxKnowMore,
   isDDxGenerated,
-  loadPrevOpthalSignal
+  loadPrevOpthalSignal,
+  isCarePlanEnabled,
+  selectedCarePlan,
+  setSelectedCarePlan,
+  carePlanPlaceholder,
+  userId,
+  clinicId,
+  tcmId,
+  showVoiceRxModule,
 }) => {
   const {
     patient_data,
@@ -159,6 +169,42 @@ const ClinicalExaminationContent = ({
         ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
           <div key={i} className="prescription-box-sm">
             <TabFollowUpBox />
+          </div>
+        ) : e.tmdpm_id === 22 && e.tmdpm_status === 0 && isCarePlanEnabled ? (
+          <div key={i} className="prescription-box-sm p-14">
+            <div className="d-flex align-items-center justify-content-between">
+              <div className="d-flex align-items-center">
+                <img
+                  src={carePlanIcon}
+                  alt="Care Plans"
+                  className="me-3"
+                  style={{ width: "20px", height: "20px" }}
+                />
+                <div className="title-common">Care Plans</div>
+              </div>
+            </div>
+            <CarePlanList
+              patientId={patient_data?.patient_unique_id}
+              selectedTcmId={tcmId}
+              readOnly
+              title="Assigned Care Plans"
+              hideWhenEmpty
+              onCarePlanSelect={(plan) => {
+                setSelectedCarePlan(plan);
+              }}
+            />
+            <div className="mt-3">
+              <CarePlanDropdown
+                onCarePlanSelect={(plan) => {
+                  setSelectedCarePlan(plan);
+                }}
+                selectedCarePlan={selectedCarePlan}
+                patientId={patient_data?.patient_unique_id}
+                doctorId={userId}
+                clinicId={clinicId}
+                placeholder={carePlanPlaceholder}
+              />
+            </div>
           </div>
         ) : (
           e.is_custom_module &&

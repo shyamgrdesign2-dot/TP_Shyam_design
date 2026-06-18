@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Layout,
   Drawer,
   Button,
   Spin,
@@ -36,6 +35,7 @@ import {
   GB_VIDEO_CONSULT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
+  GB_VOICE_RX_NEW_UI,
   GB_DENTAL_MODULE,
   MESSAGE_KEY,
 } from "../utils/constants";
@@ -65,7 +65,6 @@ import TabPrivateNotesList from "../components/tab_design/TabPrivateNotesList";
 // 
 // 
 // 
-import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
 import Vaccination from "../pages/vaccination/Vaccination";
 import GrowthChart from "../pages/growthChart/GrowthChart";
@@ -124,8 +123,18 @@ import {
   isVoiceRxFree,
 } from "../utils/utils";
 
-import ConsultationHeader from "./ConsultationHeader";
-import ConsultationSidebar from "./ConsultationSidebar";
+import { SideNavbar } from "./sideNavbar";
+import ConsultationRxPadCopyListener from "./ConsultationRxPadCopyListener";
+import "../components/dr-agent/dr-agent-globals.css";
+import { DrAgentRuntime } from "./dr-agent/rxpad/dr-agent/shell/DrAgentRuntime";
+import { RxPadSyncProvider } from "./dr-agent/rxpad/dr-agent/RxPadSyncContext";
+import drAgentStyles from "./dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
+import OphthalmologyExamDrawer from "./ophthalmology/OphthalmologyExamDrawer";
+import ZydusLabParams from "./ZydusLabParams";
+import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
+import useTabletViewport from "../hooks/useTabletViewport";
+import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
+import { getGenRx } from "../api/services/ApiGenRx";
 import TabRxCanvas from "../pages/tabRx/components/TabRxCanvas";
 import { uploadTabRxFiles, upsertTabRxRx } from "../pages/tabRx/services/tabRxService";
 import { getMetadata, getTemplates } from "../pages/tabRx/services/templateService";
@@ -147,8 +156,6 @@ import {
   hasExistingCarePlanForConsultation,
   updateCarePlanName,
 } from "../pages/smartSync/services/carePlanService";
-import TabCarePlanList from "../components/tab_design/TabCarePlanList";
-import GroundingBox from "../components/GroundingBox";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import {
   getModules,
@@ -239,7 +246,11 @@ function ConsultationLayout({ children, headerProps }) {
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
+  const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && (isFreeVoiceRxUser || tp_monetization_enable);
+  const isTablet = useTabletViewport();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
@@ -595,7 +606,7 @@ function ConsultationLayout({ children, headerProps }) {
     isGynaecHistoryAccessable,
   } = useAccess(caseManagerData?.patient_data?.patient_age);
   const [updatedGynecHistory, setUpdatedGynecHistory] = useState(null);
-  const [labParamsData, setLabParamsData] = useState(null);
+  const [labParamsData, setLabParamsData] = useState([]);
   const [generatedDDx, setGeneratedDDx] = useState({ results: [] });
   const [likeDislike, setLikeDislike] = useState([]);
   const [isDDxGenerated, setIsDDxGenerated] = useState(false);
@@ -629,6 +640,42 @@ function ConsultationLayout({ children, headerProps }) {
   const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
   const [activeDentalTab, setActiveDentalTab] = useState("clinical");
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
+  const [vaccineRefreshKey, setVaccineRefreshKey] = useState(0);
+  const [growthRefreshKey, setGrowthRefreshKey] = useState(0);
+  const [opthalRefreshKey, setOpthalRefreshKey] = useState(0);
+  const [drAgentOpen, setDrAgentOpen] = useState(false);
+  const [opthalDrawer, setOpthalDrawer] = useState(false);
+  const [zydusTestReportDrawer, setZydusTestReportDrawer] = useState(false);
+  const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
+  const [medicalHistoryInitialActiveKey, setMedicalHistoryInitialActiveKey] = useState(null);
+  const [medicalHistoryDrawerMode, setMedicalHistoryDrawerMode] = useState("all");
+  const [voiceHydrationStatus, setVoiceHydrationStatus] = useState("idle");
+  const [symptomCollectorStatus, setSymptomCollectorStatus] = useState("idle");
+  const symptomCollectorRequestRef = useRef(0);
+  const voiceDigitization = useSelector((state) => state.voiceDigitization);
+  const handleCollapsed = useCallback(() => {}, []);
+
+  const prescriptionWrapperStyle = {
+    flex: "1 1 auto",
+    minWidth: 0,
+    minHeight: 0,
+    height: "100%",
+    maxHeight: "100%",
+    overflowY: "auto",
+    overflowX: "hidden",
+    overscrollBehavior: "contain",
+    boxSizing: "border-box",
+    transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)",
+    ...(!isTablet && drAgentOpen ? { paddingRight: 408 } : {}),
+  };
+  const drAgentOverlayClassName = [
+    drAgentStyles.drAgentOverlay,
+    isTablet ? drAgentStyles.drAgentOverlayTablet : "",
+  ].filter(Boolean).join(" ");
+  const prescriptionRouteShellClassName = [
+    drAgentStyles.prescriptionNewRouteShell,
+    isTablet ? drAgentStyles.prescriptionNewRouteShellTablet : "",
+  ].filter(Boolean).join(" ");
 
 
 
@@ -637,9 +684,112 @@ function ConsultationLayout({ children, headerProps }) {
     setIsSubModalOpen(!isSubModalOpen);
   };
 
+  const copyCustomModuleContentsToRxPad = useCallback((modules) => {
+    const toArray = (value) => {
+      if (Array.isArray(value)) return value;
+      if (value === undefined || value === null || String(value).trim() === "") return [];
+      return [value];
+    };
+    const hasCopiedCustomModuleValue = (value) =>
+      value !== null && value !== undefined && String(value).trim().length > 0;
+    const customModuleRowHasValue = (row) =>
+      Object.entries(row || {}).some(
+        ([key, value]) => key !== "id" && hasCopiedCustomModuleValue(value),
+      );
+    const normalizeCopiedCustomModule = (module) => {
+      if (!module?.module_id) return null;
+      const content = toArray(module.content)
+        .filter(customModuleRowHasValue)
+        .map((row) => ({ ...row, id: row?.id || uuidv4() }));
+      if (!content.length) return null;
+      return {
+        ...module,
+        module_id: module.module_id,
+        module_name: module.module_name || module.name || module.title || String(module.module_id),
+        module_version: module.module_version || module.version || "v2",
+        content,
+      };
+    };
+    const customModuleRowSignature = (row) =>
+      JSON.stringify(
+        Object.entries(row || {})
+          .filter(([key, value]) => key !== "id" && hasCopiedCustomModuleValue(value))
+          .sort(([keyA], [keyB]) => keyA.localeCompare(keyB)),
+      );
+    const mergeCopiedCustomModules = (prevContents = [], copiedModules = []) => {
+      const nextContents = [...prevContents];
+      copiedModules.forEach((module) => {
+        const existingIndex = nextContents.findIndex(
+          (item) => String(item?.module_id) === String(module.module_id),
+        );
+        if (existingIndex === -1) {
+          nextContents.push(module);
+          return;
+        }
+        const existing = nextContents[existingIndex];
+        const mergedRows = [];
+        const seenRows = new Set();
+        [...toArray(existing.content), ...toArray(module.content)]
+          .filter(customModuleRowHasValue)
+          .forEach((row) => {
+            const signature = customModuleRowSignature(row);
+            if (!signature || seenRows.has(signature)) return;
+            seenRows.add(signature);
+            mergedRows.push(row);
+          });
+        nextContents[existingIndex] = {
+          ...existing,
+          ...module,
+          module_name: existing.module_name || module.module_name,
+          module_version: existing.module_version || module.module_version,
+          namedFields: existing.namedFields || module.namedFields,
+          content: mergedRows,
+        };
+      });
+      return nextContents;
+    };
+
+    const copiedModules = toArray(modules).map(normalizeCopiedCustomModule).filter(Boolean);
+    if (!copiedModules.length) return;
+
+    const copiedModuleIds = new Set(copiedModules.map((module) => String(module.module_id)));
+    setCustomModuleContents((prevContents) =>
+      mergeCopiedCustomModules(prevContents, copiedModules),
+    );
+    setRemovedModuleIds((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      copiedModuleIds.forEach((moduleId) => {
+        if (next.delete(moduleId)) changed = true;
+      });
+      return changed ? next : prev;
+    });
+    setCustomizedPadRightList((prevList = []) => {
+      const existingModuleIds = new Set(
+        prevList.filter((item) => item?.is_custom_module).map((item) => String(item.tmdpm_id)),
+      );
+      const additions = copiedModules
+        .filter((module) => !existingModuleIds.has(String(module.module_id)))
+        .map((module) => {
+          const moduleDefinition = allAvailableModules.find(
+            (availableModule) => String(availableModule.module_id) === String(module.module_id),
+          );
+          return {
+            tmdpm_id: module.module_id,
+            tmdpm_name: moduleDefinition?.name || module.module_name || String(module.module_id),
+            tmdpm_type: "custom_module",
+            tmdpm_status: 0,
+            is_custom_module: true,
+          };
+        });
+      return additions.length ? [...prevList, ...additions] : prevList;
+    });
+  }, [allAvailableModules]);
+
   const contextApi = {
     patient_data,
-    tcmId,
+    send_path,
+    tcmId: currentTcmId,
     pamId,
     consultationDate,
     symptomsData,
@@ -693,10 +843,12 @@ function ConsultationLayout({ children, headerProps }) {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
+    labParamsData,
+    setLabParamsData: (data) => setLabParamsData(data),
+    copyCustomModuleContentsToRxPad,
+    isDraft: 0,
   };
 
-  const [collapsed, setCollapsed] = useState(false);
-  const [collapsedFlag, setCollapsedFlag] = useState(null);
   const [vitalDrawer, setVitalDrawer] = useState(false);
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
@@ -811,15 +963,17 @@ function ConsultationLayout({ children, headerProps }) {
     if (isAutofillSelected) {
       setShowShimmer(true);
       if (selectedSymptomsCollector?.medicalHistory?.length > 0) {
-        openCollapsed(2);
+        setMedicalHistoryInitialActiveKey("medical");
+        setMedicalHistoryDrawerMode("medical");
+        setMedicalHistoryDrawer(true);
       }
       const timer = setTimeout(() => {
         setShowShimmer(false);
-      }, 1000); // 1 seconds
+      }, 1000);
 
-      return () => clearTimeout(timer); // Cleanup timeout
+      return () => clearTimeout(timer);
     }
-  }, [isAutofillSelected]);
+  }, [isAutofillSelected, selectedSymptomsCollector?.medicalHistory?.length]);
 
   useEffect(() => {
     if (uploadDocCategories?.length === 0) {
@@ -1110,7 +1264,27 @@ function ConsultationLayout({ children, headerProps }) {
     }
   }, [caseManagerData?.moduleContents, allAvailableModules]);
 
+  const hasDisplayableSymptomCollectorPayload = (payload) => {
+    if (!payload || typeof payload !== "object") return false;
+    return Boolean(
+      payload.symptoms?.length ||
+      payload.medicalHistory?.length ||
+      payload.allergies?.length ||
+      payload.currentMedications?.length ||
+      payload.medications?.length ||
+      payload.questionsToDoctor?.length ||
+      payload.questions?.length ||
+      payload.notes ||
+      payload.others
+    );
+  };
+
   const getSymptomsCollectorData = async () => {
+    const requestId = symptomCollectorRequestRef.current + 1;
+    symptomCollectorRequestRef.current = requestId;
+    setSymptomCollectorStatus("loading");
+    setShowSCBanner(false);
+    dispatch(setSymptomCollector({}));
     const payload = {
       um_id: String(userId),
       patient_unique_id: String(patient_data?.patient_unique_id),
@@ -1122,48 +1296,82 @@ function ConsultationLayout({ children, headerProps }) {
             ? String(caseManagerData.pam_id)
             : 0,
     };
-    const response = await fetchSymptomsCollectorData(payload);
-    if (response && Object.keys(response)?.length > 0) {
-      dispatch(
-        setSymptomCollector({
-          ...response?.summary_json_doctor,
-          _id: response?._id,
-        }),
-      );
-      setShowSCBanner(true);
-      if (patient_data?.pam_status === "0") {
-        dispatch(setShowSCPopup(true));
+    try {
+      const response = await fetchSymptomsCollectorData(payload);
+      if (symptomCollectorRequestRef.current !== requestId) return;
+      const nextSymptomCollector = {
+        ...response?.summary_json_doctor,
+        _id: response?._id,
+      };
+      if (response && Object.keys(response)?.length > 0 && hasDisplayableSymptomCollectorPayload(nextSymptomCollector)) {
+        dispatch(setSymptomCollector(nextSymptomCollector));
+        setShowSCBanner(true);
+        setSymptomCollectorStatus("found");
+        if (patient_data?.pam_status === "0" && caseManagerData === undefined) {
+          dispatch(setShowSCPopup(true));
+        }
+      } else {
+        setShowSCBanner(false);
+        setSymptomCollectorStatus("empty");
       }
+    } catch (_error) {
+      if (symptomCollectorRequestRef.current !== requestId) return;
+      setShowSCBanner(false);
+      setSymptomCollectorStatus("empty");
     }
   };
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
-    setCollapsedFlag(1);
     setVitalDrawer(!vitalDrawer);
-  }, [collapsedFlag, vitalDrawer]);
+  }, [vitalDrawer]);
 
   // Drawer Medical History
-  const handleDrawerMedicalHistory = useCallback(() => {
-    setCollapsedFlag(2);
-    setMedicalHistoryDrawer(!medicalHistoryDrawer);
-  }, [collapsedFlag, medicalHistoryDrawer]);
+  const handleDrawerMedicalHistory = useCallback((activeKey) => {
+    if (typeof activeKey === "string") {
+      setMedicalHistoryInitialActiveKey(activeKey);
+      setMedicalHistoryDrawerMode(activeKey === "medical" ? "medical" : "gynec");
+      setMedicalHistoryDrawer(true);
+      return;
+    }
+    setMedicalHistoryDrawer((prev) => {
+      if (!prev) {
+        setMedicalHistoryInitialActiveKey(isGynaecHistoryAccessable ? "gynec" : "medical");
+        setMedicalHistoryDrawerMode("all");
+      }
+      return !prev;
+    });
+  }, [isGynaecHistoryAccessable]);
 
   // Drawer Private Notes
   const handleDrawerPrivateNotes = useCallback(
     (data) => {
-      setCollapsedFlag(4);
       setSelectPrivateNotes(data);
       setPrivateNotesDrawer(!privateNotesDrawer);
     },
     [privateNotesDrawer, selectPrivateNotes],
   );
 
+  const refreshSideNavbarVaccines = useCallback(() => {
+    setVaccineRefreshKey((prev) => prev + 1);
+  }, []);
+
+  const refreshSideNavbarGrowth = useCallback(() => {
+    setGrowthRefreshKey((prev) => prev + 1);
+  }, []);
+
+  const refreshSideNavbarOpthal = useCallback(() => {
+    setOpthalRefreshKey((prev) => prev + 1);
+  }, []);
+
   // Drawer Vaccination
-  const handleDrawerVaccination = (chartType) => {
-    setCollapsedFlag(3);
-    setCollapsed(false);
-    setVaccinationDrawer(!vaccinationDrawer);
+  const handleDrawerVaccination = useCallback((chartType) => {
+    setVaccinationDrawer((prev) => {
+      if (prev) {
+        refreshSideNavbarVaccines();
+      }
+      return !prev;
+    });
     if (!vaccinationDrawer) {
       trackEvent("TP_Vac_Module", {
         patientName: patient_data?.pm_fullname || "",
@@ -1175,19 +1383,34 @@ function ConsultationLayout({ children, headerProps }) {
         source: chartType ? "Patient Details" : "Consult",
       });
     }
-  };
+  }, [patient_data, profile, refreshSideNavbarVaccines, vaccinationDrawer]);
 
   // Drawer Growth Chart
-  const handleDrawerGrowth = () => {
-    setCollapsedFlag(5);
-    setCollapsed(false);
-    setGrowthDrawer(!growthDrawer);
-    setIsGrowthChart(!isGrowthChart);
+  const handleDrawerGrowth = useCallback(() => {
+    setGrowthDrawer((prev) => {
+      if (prev) {
+        refreshSideNavbarGrowth();
+      }
+      return !prev;
+    });
+    setIsGrowthChart((prev) => !prev);
+  }, [refreshSideNavbarGrowth]);
+
+  const handleDrawerOpthal = useCallback(() => {
+    setOpthalDrawer((prev) => {
+      if (prev) {
+        refreshSideNavbarOpthal();
+      }
+      return !prev;
+    });
+  }, [refreshSideNavbarOpthal]);
+
+  const handleZydusTestReportDrawer = () => {
+    setZydusTestReportDrawer(!zydusTestReportDrawer);
   };
 
   // Drawer Obstetric
   const handleDrawerObstetric = (obstetricKey) => {
-    setCollapsedFlag(6);
     setObstetricDrawer(
       typeof obstetricKey === "string" ? obstetricKey : !obstetricDrawer,
     );
@@ -1226,7 +1449,6 @@ function ConsultationLayout({ children, headerProps }) {
 
   // Drawer Medical History
   const handleAddLabParamsDrawer = () => {
-    setCollapsedFlag(8);
     setLabParamsDrawer(!labParamsDrawer);
   };
 
@@ -1275,7 +1497,6 @@ function ConsultationLayout({ children, headerProps }) {
 
   // Drawer Upload Document
   const handleDrawerUploadDoc = () => {
-    setCollapsedFlag(7);
     setUploadDocDrawer(!uploadDocDrawer);
   };
 
@@ -1305,68 +1526,6 @@ function ConsultationLayout({ children, headerProps }) {
       handleDrawerObstetric(isNavigateToObstetric);
     }
   }, [isNavigateToObstetric]);
-
-  useEffect(() => {
-    if (
-      collapsedFlag === 6 &&
-      examinationHistory?.length === 0 &&
-      !shouldShowImmunisation &&
-      !shouldShowAncHistory &&
-      !obstetricDetails?.lmp &&
-      !obstetricDetails?.edd &&
-      !obstetricDetails?.ceed &&
-      !obstetricDetails?.gravidity &&
-      !obstetricDetails?.parity &&
-      !obstetricDetails?.livingChildren &&
-      !obstetricDetails?.abortion &&
-      !obstetricDetails?.ectopicPregnancies
-    ) {
-      setCollapsed(false);
-    }
-  }, [collapsedFlag, collapsed]);
-
-  //Handle Sider
-  const openCollapsed = useCallback(
-    (flag) => {
-      setCollapsedFlag(flag);
-      setCollapsed(true);
-    },
-    [collapsedFlag, collapsed],
-  );
-
-  const handleCollapsed = useCallback(
-    (flag) => {
-      setCollapsedFlag(flag);
-      !collapsed && setCollapsed(!collapsed);
-      if (flag === 1) {
-        handleDrawerVital();
-      } else if (flag === 2) {
-        handleDrawerMedicalHistory();
-      } else if (flag === 3) {
-        handleDrawerVaccination();
-      } else if (flag === 4) {
-        handleDrawerPrivateNotes();
-      } else if (flag === 5) {
-        handleDrawerGrowth();
-      } else if (flag === 6) {
-        handleDrawerObstetric();
-      } else if (flag === 7) {
-        handleDrawerUploadDoc();
-      } else if (flag === 8) {
-        handleAddLabParamsDrawer();
-      } else if (flag === 11) {
-        // Care plan is handled by openCollapsed, no additional action needed
-      }
-    },
-    [
-      collapsedFlag,
-      collapsed,
-      vitalDrawer,
-      medicalHistoryDrawer,
-      vaccinationDrawer,
-      privateNotesDrawer,
-    ],
-  );
 
   useEffect(() => {
     const patientLastHistory = async () => {
@@ -1693,19 +1852,11 @@ function ConsultationLayout({ children, headerProps }) {
 
   const handleApexAIClose = () => {
     dispatch(setIsApexAISelected(false));
-    setCollapsedFlag(null);
-    setCollapsed(false);
   };
 
   const handleApexAI = () => {
     dispatch(setIsApexAISelected(true));
-    openCollapsed(
-      isGroundingAccessableForZydus
-        ? 12
-        : isFreeVoiceRxUser || tp_monetization_enable
-          ? 10
-          : 9,
-    );
+    handleDDxDrawer();
     window.Moengage.track_event("TP_Apex_AI_Ack", {
       clinic_name: getClinicName(profile?.hospital_data),
       doctor_id: profile?.doctor_unique_id,
@@ -1715,7 +1866,6 @@ function ConsultationLayout({ children, headerProps }) {
   };
 
   const handleGenRx = () => {
-    setIsGenRxDrawerVisible(true);
     const clinic_name = getClinicName(profile?.hospital_data);
     trackEvent("TP_VoiceRx_Start", {
       patient_contact: patient_data?.pm_contact_no || "",
@@ -1725,6 +1875,34 @@ function ConsultationLayout({ children, headerProps }) {
       clinic_name,
     });
 
+    if (canUseVoiceRxModuleUi) {
+      if (currentTcmId == 0) {
+        const tokenDataLocal = getTokenData();
+        const deviceSdkData = getDeviceSdkData();
+        window.Moengage.track_event("TP_VoiceRx", {
+          doctor_name: profile?.um_name,
+          doctor_number: profile?.um_contact,
+          doctor_unique_id: profile?.doctor_unique_id,
+          doctor_specialty: profile?.dp_name,
+          clinic_id: tokenDataLocal?.clinic_id,
+          um_id: tokenDataLocal?.user_id,
+          clinic_Name: clinic_name,
+          ...deviceSdkData,
+        });
+      }
+      navigateVoiceRx(
+        {
+          patient_data,
+          autoOpenModal: false,
+          fromPrescription: true,
+        },
+        {},
+        "consultation_layout_header",
+      );
+      return;
+    }
+
+    setIsGenRxDrawerVisible(true);
     navigate("/voice-rx-consult", {
       state: {
         patient_data,
@@ -1733,6 +1911,174 @@ function ConsultationLayout({ children, headerProps }) {
       },
     });
   };
+
+  const handleSideNavbarSectionAction = useCallback((sectionId) => {
+    switch (sectionId) {
+      case "vitals":
+        handleDrawerVital();
+        break;
+      case "history":
+        handleDrawerMedicalHistory("medical");
+        break;
+      case "gynec":
+        handleDrawerMedicalHistory("gynec");
+        break;
+      case "labResults":
+        if (labParamsData?.length > 0) {
+          handleViewLabParamsDrawer();
+        } else {
+          handleAddLabParamsDrawer();
+        }
+        break;
+      case "medicalRecords":
+        if (allUploadedDocs.length > 0) {
+          handleDrawerMedicalReport();
+        } else {
+          handleAddClick();
+        }
+        break;
+      case "obstetric":
+        setDrAgentOpen(false);
+        handleDrawerObstetric();
+        break;
+      case "vaccine":
+        setDrAgentOpen(false);
+        handleDrawerVaccination();
+        break;
+      case "growth":
+        setDrAgentOpen(false);
+        handleDrawerGrowth();
+        break;
+      case "optal":
+        if (isOpthalModuleAccessible) {
+          handleDrawerOpthal();
+        }
+        break;
+      case "zydusLabReports":
+        handleZydusTestReportDrawer();
+        break;
+      default:
+        break;
+    }
+  }, [
+    allUploadedDocs.length,
+    handleAddLabParamsDrawer,
+    handleDrawerGrowth,
+    handleDrawerMedicalHistory,
+    handleDrawerMedicalReport,
+    handleDrawerObstetric,
+    handleDrawerOpthal,
+    handleDrawerVaccination,
+    handleDrawerVital,
+    handleViewLabParamsDrawer,
+    isOpthalModuleAccessible,
+    labParamsData?.length,
+  ]);
+
+  useEffect(() => {
+    if (canUseVoiceRxModuleUi && !isTablet) {
+      setDrAgentOpen(true);
+    }
+  }, [canUseVoiceRxModuleUi, isTablet, patient_data?.patient_unique_id]);
+
+  useEffect(() => {
+    if (!canUseVoiceRxModuleUi && drAgentOpen) {
+      setDrAgentOpen(false);
+    }
+  }, [canUseVoiceRxModuleUi, drAgentOpen]);
+
+  const hasMeaningfulVoicePayload = (payload) => {
+    if (!payload || typeof payload !== "object") return false;
+    const hasHistory = Array.isArray(payload.history) && payload.history.length > 0;
+    const hasObjectData = (value) =>
+      value && typeof value === "object" && Object.keys(value).length > 0;
+    return (
+      hasHistory ||
+      hasObjectData(payload.digitizeData) ||
+      hasObjectData(payload.editedData) ||
+      hasObjectData(payload.clinicNotes)
+    );
+  };
+
+  useEffect(() => {
+    const voiceSessionId = voiceDigitization?.sessionId;
+    if (!voiceSessionId) return;
+    window.__TATVA_VOICE_SESSION_ID = voiceSessionId;
+    return () => {
+      if (window.__TATVA_VOICE_SESSION_ID === voiceSessionId) {
+        delete window.__TATVA_VOICE_SESSION_ID;
+      }
+    };
+  }, [voiceDigitization?.sessionId]);
+
+  useEffect(() => {
+    const recordId = caseManagerData?.smart_prescription_filename;
+    if (!canUseVoiceRxModuleUi) {
+      setVoiceHydrationStatus("idle");
+      return;
+    }
+    if (!recordId) {
+      dispatch(resetVoiceDigitization());
+      setVoiceHydrationStatus("empty");
+      return;
+    }
+    let cancelled = false;
+    dispatch(resetVoiceDigitization());
+    setVoiceHydrationStatus("loading");
+    (async () => {
+      try {
+        const response = await getGenRx(recordId);
+        if (cancelled) return;
+        const payload = response?.data?.data || response?.data || response;
+        if (hasMeaningfulVoicePayload(payload)) {
+          dispatch(hydrateVoiceDigitization(payload));
+          setVoiceHydrationStatus("hydrated");
+        } else {
+          dispatch(resetVoiceDigitization());
+          setVoiceHydrationStatus("empty");
+        }
+      } catch (_error) {
+        if (!cancelled) {
+          dispatch(resetVoiceDigitization());
+          setVoiceHydrationStatus("empty");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canUseVoiceRxModuleUi, caseManagerData?.smart_prescription_filename, dispatch]);
+
+  useEffect(() => {
+    const fetchZydusLabParamsForDisplay = async () => {
+      if (labReportID && zydusSelectedLabParams.length === 0) {
+        try {
+          const response = await axios.post(
+            `${env.lab_params_api_url}/api/v1/lab-reports/getByID`,
+            {
+              labReportID: labReportID,
+              source: "zydus-ict",
+              patient_unique_id: patient_data?.patient_unique_id,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${JSON.parse(
+                  localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN),
+                )}`,
+                "Content-Type": "application/json",
+              },
+            },
+          );
+          if (response.data && response.data.data) {
+            setZydusSelectedLabParams(response.data.data);
+          }
+        } catch (error) {
+          console.error("Error fetching Zydus lab params for display:", error);
+        }
+      }
+    };
+    fetchZydusLabParamsForDisplay();
+  }, [labReportID, patient_data?.patient_unique_id, zydusSelectedLabParams.length]);
 
   const handleVideoConsult = async () => {
     if (!videoConsultData?.pam_id) {
@@ -2139,111 +2485,62 @@ function ConsultationLayout({ children, headerProps }) {
 
   return (
     <CashManagerContext.Provider value={contextApi}>
-      {/* <TabRxWelcomePopup open={true} onClose={() => {}} onGetStarted={() => {}} /> */}
-      <>
-        {/* {isGenRxDrawerVisible && (
-          <ConsultationDrawer
-            visible={isGenRxDrawerVisible}
-            onClose={() => setIsGenRxDrawerVisible(false)}
-            handleGenRxKnowMore={handleGenRxKnowMore}
-            labReportID={labReportID}
-            digitizedData={digitizedData}
-            typedInputText={inputText}
-            mode={mode}
-          />
-        )} */}
+      <RxPadSyncProvider>
+        <ConsultationRxPadCopyListener />
         <>
-          <ConsultationHeader
-            patientData={patient_data}
+          <HeaderPrescription
             isVaccinationEnabled={isVaccinationAccessable}
             isGrowthChartEnabled={isGrowthChartAccessable}
+            gynecHistory={updatedGynecHistory}
+            labParamsData={labParamsData}
+            zydusSelectedLabParams={zydusSelectedLabParams}
+            labReportID={labReportID}
+            selectedCarePlan={selectedCarePlan}
             handleGenRx={handleGenRx}
-            handleVideoConsult={
-              isVideoConsultAvailable ? handleVideoConsult : null
-            }
+            handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
             isVideoConsultLoading={isInitiatingCall}
-            isEndVisitLoading={isEndVisitLoading}
             showTeleconsultIcon={!!isTeleConsultAvailableType2}
             onTeleconsultClick={handleTeleconsultClick}
             isTeleconsultJoinLoading={isTeleconsultJoinLoading}
             isTeleconsultActive={!!joinToken}
+            showVoiceRxModule={canUseVoiceRxModuleUi}
+            hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
+            isNewPrescriptionUi
             onEndVisit={handleEndVisit}
-            handleSelectLetterHead={() => setIsSelectLetterHead(!isSelectLetterHead)}
-            hasDentalData={location.pathname === "/dental" && Object.keys(dentalExamination?.toothState ?? {}).length > 0}
+            isEndVisitLoading={isEndVisitLoading}
+            hasDentalData={Object.keys(dentalExamination?.toothState ?? {}).length > 0}
             onPreviewClick={handlePreviewRx}
+            showPreviewButton
+            onSelectLetterHead={() => setIsSelectLetterHead((v) => !v)}
+            isDentalConsultation
             {...headerProps}
           />
-          <div 
-            className="w-100 bg-body wrapper2 prescription-wrapper p-0"
-            style={{
-              overflowY: "hidden",
-              overflowX: "hidden",
-              overscrollBehavior: "contain",
-            }}
-          >
-            <Layout style={{ height: "100%" }}>
-              <ConsultationSidebar
-                collapsed={collapsed}
-                setCollapsed={setCollapsed}
-                collapsedFlag={collapsedFlag}
-                openCollapsed={openCollapsed}
-                customizedPadLeftList={customizedPadLeftList}
-                vitalsData={vitalsData}
-                vitalsPastList={vitalsPastList}
-                patientBirthWeight={patientBirthWeight}
-                handleDrawerVital={handleDrawerVital}
-                medicalHistoryData={medicalHistoryData}
-                updatedGynecHistory={updatedGynecHistory}
-                handleDrawerMedicalHistory={handleDrawerMedicalHistory}
-                isVaccinationAccessable={isVaccinationAccessable}
-                handleDrawerVaccination={handleDrawerVaccination}
-                privateNotesList={privateNotesList}
-                handleDrawerPrivateNotes={handleDrawerPrivateNotes}
-                isGrowthChartAccessable={isGrowthChartAccessable}
-                handleDrawerGrowth={handleDrawerGrowth}
-                isGynaecHistoryAccessable={isGynaecHistoryAccessable}
-                examinationHistory={examinationHistory}
-                shouldShowAncHistory={shouldShowAncHistory}
-                shouldShowImmunisation={shouldShowImmunisation}
-                obstetricDetails={obstetricDetails}
-                handleDrawerObstetric={handleDrawerObstetric}
-                allUploadedDocs={allUploadedDocs}
-                handleAddClick={handleAddClick}
-                fileInputRef={fileInputRef}
-                handleFileUpload={handleFileUpload}
-                labParamsData={labParamsData}
-                handleAddLabParamsDrawer={handleAddLabParamsDrawer}
-                handleViewLabParamsDrawer={handleViewLabParamsDrawer}
-                isCarePlanEnabled={isCarePlanEnabled}
-                caseManagerData={caseManagerData}
-                isApexAIAccessable={isApexAIAccessable}
-                tp_monetization_enable={tp_monetization_enable}
-                isFreeVoiceRxUser={isFreeVoiceRxUser}
-                generatedDDx={generatedDDx}
-                handleDDxDrawer={handleDDxDrawer}
-                isDDxLoading={isDDxLoading}
-                handleDDxKnowMore={handleDDxKnowMore}
-                getGenerateDDx={getGenerateDDx}
-                isDDxGenerated={isDDxGenerated}
-                setIsGenRxDrawerVisible={setIsGenRxDrawerVisible}
-                handleGenRxKnowMore={handleGenRxKnowMore}
-                patient_data={patient_data}
-                tcmId={tcmId}
-                selectedCarePlan={selectedCarePlan}
-                setSelectedCarePlan={setSelectedCarePlan}
-                userId={userId}
-                clinicId={decodedToken?.result?.clinic_id}
-                carePlanPlaceholder={carePlanPlaceholder}
-                isGroundingAccessableForZydus={isGroundingAccessableForZydus}
-                handleGroundingKnowMore={handleGroundingKnowMore}
-                obstetricDrawer={obstetricDrawer}
-                handleDrawerMedicalReport={handleDrawerMedicalReport}
-                setFilesData={setFilesData}
-                setIsEditDocument={setIsEditDocument}
-                handleUploadDocPopup={handleUploadDocPopup}
-                setUploadDocDrawer={setUploadDocDrawer}
-                handleDrawerUploadDoc={handleDrawerUploadDoc}
-              />
+          <div className={prescriptionRouteShellClassName}>
+            <SideNavbar
+              patientId={patient_data?.patient_unique_id}
+              doctorId={profile?.doctor_unique_id}
+              labParamsData={labParamsData}
+              gynecHistory={updatedGynecHistory}
+              vaccineRefreshKey={vaccineRefreshKey}
+              growthRefreshKey={growthRefreshKey}
+              opthalRefreshKey={opthalRefreshKey}
+              customizedPadLeftList={customizedPadLeftList}
+              isOpthalModuleAccessible={isOpthalModuleAccessible}
+              isVaccinationAccessable={isVaccinationAccessable}
+              isGrowthChartAccessable={isGrowthChartAccessable}
+              isGynaecHistoryAccessable={isGynaecHistoryAccessable}
+              isZydusUserAccessable={isGroundingAccessableForZydus}
+              zydusSelectedLabParams={zydusSelectedLabParams}
+              patientGender={patient_data?.pm_gender}
+              showVoiceRx={canUseVoiceRxModuleUi}
+              initialActiveId={isTablet ? null : undefined}
+              onSectionAction={handleSideNavbarSectionAction}
+              handleDrawerUploadDoc={handleDrawerUploadDoc}
+              setFilesData={setFilesData}
+              setIsEditDocument={setIsEditDocument}
+              setUploadDocDrawer={setUploadDocDrawer}
+            />
+            <div className="w-100 bg-body wrapper2 prescription-wrapper p-0" style={prescriptionWrapperStyle}>
               {location.pathname === "/dental" ? (
                 <Content className="dental-content-wrapper w-100 d-flex flex-column" style={{ height: "100%", overflow: "hidden" }}>
                   <div className="dental-tab-bar">
@@ -2292,6 +2589,14 @@ function ConsultationLayout({ children, headerProps }) {
                           handleDDxKnowMore={handleDDxKnowMore}
                           isDDxGenerated={isDDxGenerated}
                           loadPrevOpthalSignal={loadPrevOpthalSignal}
+                          isCarePlanEnabled={isCarePlanEnabled}
+                          selectedCarePlan={selectedCarePlan}
+                          setSelectedCarePlan={setSelectedCarePlan}
+                          carePlanPlaceholder={carePlanPlaceholder}
+                          userId={userId}
+                          clinicId={decodedToken?.result?.clinic_id}
+                          tcmId={currentTcmId}
+                          showVoiceRxModule={canUseVoiceRxModuleUi}
                         />
                       </div>
                     ) : (
@@ -2311,7 +2616,7 @@ function ConsultationLayout({ children, headerProps }) {
               ) : (
                 children
               )}
-            </Layout>
+            </div>
           </div>
         </>
         {vitalDrawer && (
@@ -2325,7 +2630,7 @@ function ConsultationLayout({ children, headerProps }) {
           >
             <VitalsBox
               handleDrawerVital={handleDrawerVital}
-              handleCollapsed={(flag) => handleCollapsed(flag)}
+              handleCollapsed={handleCollapsed}
               isGrowthChart={isGrowthChart}
             />
           </Drawer>
@@ -2336,12 +2641,25 @@ function ConsultationLayout({ children, headerProps }) {
           placement="right"
           onClose={handleDrawerMedicalHistory}
           open={medicalHistoryDrawer}
-          width="100%"
+          width="75%"
+          zIndex={1100}
         >
           <MedicalHistoryBox
+            key={`medical-history-${medicalHistoryInitialActiveKey}-${medicalHistoryDrawerMode}`}
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
-            handleCollapsed={(flag) => handleCollapsed(flag)}
-            onSave={handleSaveGynecHistory}
+            handleCollapsed={handleCollapsed}
+            onSave={medicalHistoryDrawerMode === "medical" ? undefined : handleSaveGynecHistory}
+            initialActiveKey={medicalHistoryInitialActiveKey}
+            hideMenstrualHistoryTab={medicalHistoryDrawerMode === "medical"}
+            gynecOnly={medicalHistoryDrawerMode === "gynec"}
+            initialGynecHistory={
+              medicalHistoryDrawerMode === "gynec" &&
+              updatedGynecHistory &&
+              !Array.isArray(updatedGynecHistory)
+                ? updatedGynecHistory
+                : undefined
+            }
+            showVoiceRxModule={canUseVoiceRxModuleUi}
           />
         </Drawer>
         <Drawer
@@ -2354,7 +2672,7 @@ function ConsultationLayout({ children, headerProps }) {
         >
           <PrivateNotesBox
             handleDrawerPrivateNotes={handleDrawerPrivateNotes}
-            handleCollapsed={(flag) => handleCollapsed(flag)}
+            handleCollapsed={handleCollapsed}
             selectPrivateNotes={selectPrivateNotes}
           />
         </Drawer>
@@ -2369,6 +2687,7 @@ function ConsultationLayout({ children, headerProps }) {
             <Vaccination
               handleDrawerVaccination={handleDrawerVaccination}
               source={chartType ? "Patient Details" : "Consult"}
+              onVaccinationUpdated={refreshSideNavbarVaccines}
             />
           </Drawer>
         )}
@@ -2384,8 +2703,18 @@ function ConsultationLayout({ children, headerProps }) {
             <GrowthChart
               handleDrawerVaccination={handleDrawerGrowth}
               handleDrawerVital={handleDrawerVital}
+              onGrowthUpdated={refreshSideNavbarGrowth}
             />
           </Drawer>
+        )}
+        {isOpthalModuleAccessible && opthalDrawer && (
+          <OphthalmologyExamDrawer
+            open={opthalDrawer}
+            onClose={handleDrawerOpthal}
+            patientData={patient_data}
+            tcmId={currentTcmId}
+            title="Ophthal"
+          />
         )}
         {obstetricDrawer && (
           <Drawer
@@ -2395,13 +2724,12 @@ function ConsultationLayout({ children, headerProps }) {
             open={obstetricDrawer}
             width="100%"
             push={false}
-            zIndex={100}
+            zIndex={1100}
           >
             <Obstetric
               obstetricDetails={obstetricDetails}
               obstetricDrawer={obstetricDrawer}
               handleDrawerObstetric={handleDrawerObstetric}
-              handleCollapsed={(flag) => handleCollapsed(flag)}
               handleDrawerMedicalReport={handleDrawerMedicalReport}
             />
           </Drawer>
@@ -2640,6 +2968,36 @@ function ConsultationLayout({ children, headerProps }) {
           </Drawer>
         )}
 
+        {zydusTestReportDrawer && (
+          <Drawer
+            closeIcon={false}
+            width={880}
+            placement="right"
+            open={zydusTestReportDrawer}
+            onClose={handleZydusTestReportDrawer}
+            bodyStyle={{ backgroundColor: "white" }}
+          >
+            <ZydusLabParams
+              handleZydusTestReportDrawer={handleZydusTestReportDrawer}
+              mrno={patient_data?.mrno}
+              patientId={patient_data?.patient_unique_id}
+              mrcNo={patient_data?.mrno}
+              labReportID={labReportID}
+              setLabReportID={setLabReportID}
+              zydusSelectedLabParams={zydusSelectedLabParams}
+              setZydusSelectedLabParams={setZydusSelectedLabParams}
+              onSave={(newLabReportID) => {
+                if (newLabReportID) {
+                  setLabReportID(newLabReportID);
+                }
+              }}
+              isBackModalOpen={isBackModalOpen}
+              showHideBackModal={showHideBackModal}
+              patientGender={patient_data?.pm_gender}
+            />
+          </Drawer>
+        )}
+
         {(isLoading || isEndVisitLoading) ? (
           <div
             style={{
@@ -2658,7 +3016,21 @@ function ConsultationLayout({ children, headerProps }) {
             <Spin size="large" />
           </div>
         ) : null}
-      </>
+
+        {canUseVoiceRxModuleUi && (
+          <DrAgentRuntime
+            isOpen={drAgentOpen}
+            overlayClassName={drAgentOverlayClassName}
+            patientId={patient_data?.patient_unique_id}
+            doctorId={profile?.doctor_unique_id}
+            patientData={patient_data}
+            voiceHydrationStatus={voiceHydrationStatus}
+            symptomCollectorStatus={symptomCollectorStatus}
+            onClose={() => setDrAgentOpen(false)}
+            onOpen={() => setDrAgentOpen(true)}
+          />
+        )}
+      </RxPadSyncProvider>
       {isFileSizeError || isFileLimitError || isFileTypeError ? (
         <CommonModal
           isModalOpen={isFileSizeError || isFileLimitError || isFileTypeError}
@@ -2750,7 +3122,6 @@ function ConsultationLayout({ children, headerProps }) {
           callAction={videoConsultAction}
         />
       )}
-
 
     </CashManagerContext.Provider>
   );

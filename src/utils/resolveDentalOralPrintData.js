@@ -182,18 +182,9 @@ export async function resolveDentalOralForPrint({
         allowFullApiFallback
       );
     }
-    // When includeHistorical is off, todayOnly API result is authoritative — never
-    // substitute full in-memory / payload dental data that contains past visits.
     if (
       !hasDentalExamPayload(dentalExaminationData) &&
-      hasDentalExamPayload(normalizedInMemoryDental) &&
-      dentalHistorical
-    ) {
-      dentalExaminationData = normalizedInMemoryDental;
-    } else if (
-      !hasDentalExamPayload(dentalExaminationData) &&
-      hasDentalExamPayload(normalizedInMemoryDental) &&
-      allowFullApiFallback
+      hasDentalExamPayload(normalizedInMemoryDental)
     ) {
       dentalExaminationData = normalizedInMemoryDental;
     }
@@ -209,13 +200,7 @@ export async function resolveDentalOralForPrint({
         consultationDate
       );
     }
-    if (!hasOralExamChartData(examChart) && oralHistorical) {
-      if (hasOralExamChartData(inMemoryOralChart)) {
-        examChart = inMemoryOralChart;
-      } else if (hasOralExamChartData(contextOralChart)) {
-        examChart = contextOralChart;
-      }
-    } else if (!hasOralExamChartData(examChart) && allowFullApiFallback) {
+    if (!hasOralExamChartData(examChart)) {
       if (hasOralExamChartData(inMemoryOralChart)) {
         examChart = inMemoryOralChart;
       } else if (hasOralExamChartData(contextOralChart)) {

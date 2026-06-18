@@ -552,7 +552,7 @@ function extractLabNumericValue(raw) {
 }
 
 function buildLegacyLabEntries(labParamsData = []) {
-  const sorted = [...labParamsData].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sorted = [...legacyArray(labParamsData)].sort((a, b) => new Date(b.date) - new Date(a.date));
   return sorted.reduce((entries, entry) => {
     const rows = (entry.inputs || [])
       .filter((input) => input.testName && input.testName !== "Remarks")
@@ -5387,6 +5387,9 @@ function createSessionId() {
   return `snv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+const EMPTY_PAST_VISIT_ROWS = [];
+const EMPTY_PAST_VISIT_DETAILS = {};
+
 
 export function SideNavbar({
   onSectionSelect,
@@ -5424,8 +5427,8 @@ export function SideNavbar({
   const [sideNavSignals, setSideNavSignals] = useState({});
   const [vitalsCopyUpdating, setVitalsCopyUpdating] = useState(false);
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
-  const pastVisitRows = useSelector((state) => state.pastVisits.rowsByPatient[patientId]?.rows ?? []);
-  const pastVisitDetails = useSelector((state) => state.pastVisits.detailsByPatient[patientId] ?? {});
+  const pastVisitRows = useSelector((state) => state.pastVisits.rowsByPatient[patientId]?.rows ?? EMPTY_PAST_VISIT_ROWS);
+  const pastVisitDetails = useSelector((state) => state.pastVisits.detailsByPatient[patientId] ?? EMPTY_PAST_VISIT_DETAILS);
   const [pastVisitLoadingIds, setPastVisitLoadingIds] = useState({});
   const pastVisitDetailsRef = useRef({});
   const pastVisitLoadingIdsRef = useRef({});

@@ -82,6 +82,7 @@ const {
   endVisit: visitEnd,
   closeVisit: imgCloseVisit,
   video: videoSvg,
+  notesMultiple,
 } = ASSETS.images;
 
 var oneClickCosultationTemplateId = 0
@@ -142,7 +143,7 @@ function normalizeVoiceHistoryForStore(history) {
     });
 }
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false, onEndVisit, isEndVisitLoading = false, hasDentalData = false, onPreviewClick, showPreviewButton = false, onSelectLetterHead, isDentalConsultation = false }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
@@ -2439,7 +2440,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     }
 
     const checkDataFillOrNot = () => {
-        if (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || medicationData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasOpthalValues() || hasCustomModuleContent() || followUpDate || additionalNote || givenVaccines?.length > 0 || updatedDueVaccines?.length > 0 || measurements?.length > 0 || selectedCarePlan?.plan_name) {
+        if (hasDentalData || symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || medicationData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasOpthalValues() || hasCustomModuleContent() || followUpDate || additionalNote || givenVaccines?.length > 0 || updatedDueVaccines?.length > 0 || measurements?.length > 0 || selectedCarePlan?.plan_name) {
             showHideBackModal()
         } else {
             if (send_path !== undefined) {
@@ -2803,6 +2804,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {(() => {
                               // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes/drawing canvas).
                               const hasPrescriptionModuleData = (
+                                hasDentalData ||
                                 symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 ||
                                 diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 ||
                                 medicationData.length > 0 || privateNotesData || followUpDate || additionalNote ||
@@ -2821,12 +2823,36 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 ? hasPrescriptionModuleData : isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0
                                 : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
+                                <>
+                                {onSelectLetterHead && (
+                                  <Tooltip placement="bottom" title="Letterhead" zIndex={headerOverlayZIndex}>
+                                    <button type="button" className="btn align-items-center justify-content-center d-flex btn-41 me-2" onClick={onSelectLetterHead}>
+                                      <img src={notesMultiple} alt="Notes" />
+                                    </button>
+                                  </Tooltip>
+                                )}
+                                {showPreviewButton && onPreviewClick && (
+                                  <>
+                                    <div className="headerprescription-preview-divider" aria-hidden="true" />
+                                    <Tooltip placement="bottom" title="Preview Rx" zIndex={headerOverlayZIndex}>
+                                      <Button
+                                        type="button"
+                                        className="btn-41 btn px-2 me-2 ant-btn-text btn-input align-items-center d-flex consultation-preview-btn"
+                                        onClick={onPreviewClick}
+                                        icon={<i className="icon-Preview" />}
+                                      >
+                                        Preview
+                                      </Button>
+                                    </Tooltip>
+                                  </>
+                                )}
                                 <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
-                                    <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
+                                    <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-2' onClick={() => canEndVisit && (onEndVisit ? onEndVisit() : onEndVisitClick())} loading={onEndVisit ? isEndVisitLoading : (loading && !saveDraftLoading)}>
                                         <i className='icon-exit me-2'></i>
                                         {isCompactHeader ? "End" : "End Visit"}
                                     </Button>
                                 </Tooltip>
+                                </>
                               );
                             })()}
 
