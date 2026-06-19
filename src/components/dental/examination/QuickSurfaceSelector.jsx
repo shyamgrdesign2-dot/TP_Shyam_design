@@ -83,7 +83,6 @@ export function QuickSurfaceSelector({
     });
   }, []);
   const NEUTRAL_STROKE = "#c4c9d1";
-  const NEUTRAL_FINDING_FILL = "#d2d6dc";
   // Tooltip is visible only when:
   //  1. A zone is hovered
   //  2. That zone is NOT currently selected (selected zones don't need tooltip)
@@ -94,12 +93,12 @@ export function QuickSurfaceSelector({
     const isSel = selectedZones.has(id);
     const isHov = hovered === id;
     const hasFinding = zonesWithFindings?.has(id) ?? false;
+    const zoneColor = ZONE_INFO[id]?.color ?? "#8a9098";
     let fill;
     let fillOpacity;
     let stroke;
     let strokeOpacity;
     if (isSel) {
-      const zoneColor = ZONE_INFO[id]?.color ?? "#8a9098";
       fill = zoneColor;
       fillOpacity = 0.85;
       stroke = zoneColor;
@@ -110,10 +109,10 @@ export function QuickSurfaceSelector({
       stroke = NEUTRAL_STROKE;
       strokeOpacity = 1;
     } else if (hasFinding) {
-      fill = NEUTRAL_FINDING_FILL;
-      fillOpacity = 0.5;
-      stroke = NEUTRAL_STROKE;
-      strokeOpacity = 0.85;
+      fill = zoneColor;
+      fillOpacity = 0.35;
+      stroke = zoneColor;
+      strokeOpacity = 0.7;
     } else {
       fill = "#ffffff";
       fillOpacity = 1;
