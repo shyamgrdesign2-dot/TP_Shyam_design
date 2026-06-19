@@ -120,4 +120,8 @@ const store = configureStore({
 
 const persistor = persistStore(store);
 
+if (process.env.NODE_ENV !== "production") {
+  window.__REDUX_STORE__ = store;
+}
+
 export { store, persistor };

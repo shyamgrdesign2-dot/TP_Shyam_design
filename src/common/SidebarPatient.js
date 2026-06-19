@@ -16,6 +16,7 @@ import { useDispatch } from 'react-redux';
 import moment from 'moment';
 import {
     GB_CVT_EXT_HOS,
+    GB_DENTAL_MODULE,
     GB_HEALTH_CHECKUP_REPORT,
     NEO_NATOLOGISTS_DP_ID,
     PAEDIATRIC_DP_ID,
@@ -66,6 +67,7 @@ function SidebarPatient({
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
+    const isDentalDoctor = useFeatureIsOn(GB_DENTAL_MODULE);
     const menu = [
         {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY,
@@ -111,6 +113,12 @@ function SidebarPatient({
             icon_name: "icon-Edit",
             short_title: "Canvases",
             long_title: "Canvases",
+        },
+        isDentalDoctor && {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN,
+            icon_name: "icon-Medical-Certificate",
+            short_title: "Dental",
+            long_title: "Dental Plan",
         },
         // { icon_name: 'icon-Discharge-Summary', short_title: 'Discharge', long_title: 'Discharge Summary' },
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },
