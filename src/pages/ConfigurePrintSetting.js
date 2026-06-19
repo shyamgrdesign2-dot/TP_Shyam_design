@@ -667,7 +667,7 @@ function ConfigurePrintSetting() {
                 return selectedSet.has(String(canvas.id));
             });
         }
-        return drawingCanvases;
+        return [];
     }, [drawingCanvases, enrichedCaseManagerData?.canvas_filename, normalizeCanvasIds]);
     const contextApi = useMemo(
         () => ({

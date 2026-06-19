@@ -85,6 +85,10 @@ import PrimaryActionButton from "./PrimaryActionButton";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
+import {
+  ensureDrawingCanvasCaseOption,
+  loadDrawingCanvasesForPrint,
+} from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
 import { ASSETS } from "../assets";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import ApiMedication from "../api/services/ApiMedication";
@@ -971,7 +975,9 @@ function Cardiology(props) {
     payloadOverride: null,
     skipFetch: !printUrlWithLang,
     isCvtExtHosAccessableFromGB,
-    patientId: patient_data?.patient_unique_id
+    patientId: patient_data?.patient_unique_id,
+    tcmId: viewCaseManagerData?.tcm_id,
+    canvasFilename: viewCaseManagerData?.canvas_filename,
   });
 
   const parseObjectValue = useCallback((value) => {
@@ -1036,8 +1042,26 @@ function Cardiology(props) {
     const response = await axios.get(urlObj.toString());
     const payload = response?.data?.data || null;
     if (!payload) return null;
+
+    const resolvedCanvasFilename =
+      viewCaseManagerData?.canvas_filename ?? payload?.caseManagerData?.canvas_filename;
+    const { drawingCanvases } = await loadDrawingCanvasesForPrint({
+      patientId: patient_data?.patient_unique_id,
+      tcmId: viewCaseManagerData?.tcm_id ?? payload?.caseManagerData?.tcm_id,
+      canvasFilename: resolvedCanvasFilename,
+    });
+    const printSettingsWithCanvas =
+      drawingCanvases.length > 0
+        ? ensureDrawingCanvasCaseOption(payload.printSettings)
+        : payload.printSettings;
+
     const blob = await renderPrintPayloadToBlob(
-      { ...payload, isCvtExtHosAccessableFromGB },
+      {
+        ...payload,
+        printSettings: printSettingsWithCanvas,
+        drawingCanvases,
+        isCvtExtHosAccessableFromGB,
+      },
       {
         selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
         isGynaecHistoryAccessable: false,
@@ -1047,7 +1071,13 @@ function Cardiology(props) {
     const header = await blob.slice(0, 5).text();
     if (header !== "%PDF-") return null;
     return blob;
-  }, [selectedLang, isCvtExtHosAccessableFromGB]);
+  }, [
+    selectedLang,
+    isCvtExtHosAccessableFromGB,
+    patient_data?.patient_unique_id,
+    viewCaseManagerData?.tcm_id,
+    viewCaseManagerData?.canvas_filename,
+  ]);
 
   useEffect(() => {
     if (!(isMobile && !isTablet) || !showDigitalGenRx || !printUrlWithLang) {

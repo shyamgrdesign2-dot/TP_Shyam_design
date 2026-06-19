@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence, calculateFollowUpText } from '../../utils/utils'
 import { EXTRA_OPTIONS, EXTERNAL_HOSPITAL_BUSINESS_IDS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
@@ -25,6 +25,7 @@ import {
 import { resolveExamChartForPrint, hasOralExamChartData } from '../../utils/examChartStorage';
 import { renderOralExamPdf } from './oral/renderOralExamPdf';
 import { renderDentalExamPdf } from './dental/renderDentalExamPdf';
+import { normalizeCanvasIds } from '../../pages/drawingCanvas/utils/drawingCanvasPrintUtils';
 
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
@@ -425,6 +426,26 @@ const getSmartSyncUploadedFileUri = (file) =>
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, drawingCanvases } = props
+    const filteredDrawingCanvases = useMemo(() => {
+        const canvasFilename = caseManagerData?.canvas_filename;
+        const hasCanvasFilenameField =
+            Array.isArray(canvasFilename) || typeof canvasFilename === 'string';
+        if (!hasCanvasFilenameField) {
+            return [];
+        }
+        const selectedCanvasIds = normalizeCanvasIds(canvasFilename);
+        if (selectedCanvasIds.length === 0) {
+            return [];
+        }
+        if (!Array.isArray(drawingCanvases) || drawingCanvases.length === 0) {
+            return [];
+        }
+        const selectedSet = new Set(selectedCanvasIds.map(String));
+        return drawingCanvases.filter((canvas) => {
+            if (canvas?.id == null) return false;
+            return selectedSet.has(String(canvas.id));
+        });
+    }, [drawingCanvases, caseManagerData?.canvas_filename]);
     let dentalExaminationData = rawDentalData || props.dentalExaminationData;
     if (dentalExaminationData && dentalExaminationData.toothState && typeof dentalExaminationData.toothState === "object") {
         try {
@@ -6934,9 +6955,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 25 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {drawingCanvases && drawingCanvases.length > 0 && (
+                                        {filteredDrawingCanvases.length > 0 && (
                                             <View style={{ marginTop: PX_TO_PT * 15 }} wrap={true}>
-                                                {drawingCanvases.map((canvasObj, i) => (
+                                                {filteredDrawingCanvases.map((canvasObj, i) => (
                                                     <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
                                                         <Text
                                                             style={{

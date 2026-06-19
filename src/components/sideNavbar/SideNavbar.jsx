@@ -66,6 +66,7 @@ import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhist
 import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitizationSlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
+import { getSideNavMedicalIconUrl } from "./sideNavbarMedicalIcons";
 import "./sideNavbar.css";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartTooltip, Legend, Filler);
@@ -2640,13 +2641,14 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
 }
 
 function MedicalMaskIcon({ name, active }) {
-  const variant = active ? "bulk" : "line";
-  const src = `/new-assets/icons/medical/${name}--${variant}.svg`;
+  const src = getSideNavMedicalIconUrl(name, active);
+  if (!src) return null;
   return (
     <span
       className="snv-medical-icon"
       style={{
-        "--snv-icon-url": `url("${src}")`,
+        WebkitMaskImage: `url("${src}")`,
+        maskImage: `url("${src}")`,
       }}
       aria-hidden="true"
     />
