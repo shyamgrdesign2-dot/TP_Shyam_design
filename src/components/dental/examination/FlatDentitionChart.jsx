@@ -11,6 +11,7 @@
 // teeth are dimmed. The FDI number under each tooth is also colour-coded.
 
 import { useEffect, useRef, useState } from "react";
+import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
 import { getToothImageCandidates } from "../../../assets";
 import { ORAL_POSITION_LABEL } from "./types";
 import { QuickSurfaceSelector } from "./QuickSurfaceSelector";
@@ -22,7 +23,7 @@ const EXAM_CHART_PREFIX = "dental.exam.chart.";
 const UPPER_ROW = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
 const LOWER_ROW = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
 
-const MISSING = new Set(["Missing", "Extraction"]);
+const isMissingDiag = (d) => getVisualType(d) === VISUAL_TYPE.MISSING;
 
 function loadChart(patientId) {
   if (typeof window === "undefined") return null;
@@ -138,7 +139,7 @@ function toothState(fdi, toothDiagnoses, findingsByTooth, chartEntries = []) {
   const entryCount = chartEntries.filter(
     (e) => e && String(e.toothFdi) === String(fdi),
   ).length;
-  const isMissing = diags.some((d) => MISSING.has(d));
+  const isMissing = diags.some(isMissingDiag);
   const treated = diags.length > 0 && !isMissing;
   const findingCount = findings.length;
   const hasAny = diags.length > 0 || findingCount > 0 || entryCount > 0;
@@ -217,7 +218,7 @@ function zonesByToothFromChart(chart) {
   });
   (chart?.entries || []).forEach((e) => { (e.surfaces || []).forEach((z) => add(e.toothFdi, z)); });
   Object.entries(chart?.toothDiagnoses || {}).forEach(([fdi, diags]) => {
-    (diags || []).forEach((d) => { if (d !== "Missing" && d !== "Extraction") add(fdi, "whole"); });
+    (diags || []).forEach((d) => { if (!isMissingDiag(d)) add(fdi, "whole"); });
   });
   return zonesByTooth;
 }

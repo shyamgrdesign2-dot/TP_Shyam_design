@@ -1,4 +1,5 @@
 import { TEETH, PEDIATRIC_TEETH } from "./types";
+import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
 
 export function ToothSelector({
   selectedTooth,
@@ -76,7 +77,7 @@ export function ToothSelector({
     const diagSet = toothDiagnoses?.[t.fdi];
     const hasDiag = diagSet?.size > 0;
     const diagColor = hasDiag
-      ? diagSet.has("Missing")
+      ? [...diagSet].some((d) => getVisualType(d) === VISUAL_TYPE.MISSING)
         ? "#ef4444"
         : "#8b5cf6"
       : null;

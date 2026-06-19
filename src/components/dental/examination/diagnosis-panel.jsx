@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Trash, Add, SearchNormal1 } from "iconsax-reactjs";
+import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
 import { getDefaultTreatmentSurfaces } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { DiagnosisNameCell, SurfaceCellDropdown } from "./entry-cells";
@@ -55,7 +56,7 @@ export function PrimaryDiagnosisBody({ state }) {
   const activeRows = useMemo(() => {
     const list = [];
     state.currentToothDiagnoses.forEach((d) => list.push(d));
-    if (state.isImplant && !list.includes("Implant")) list.push("Implant");
+    if (state.isImplant && !list.some((d) => getVisualType(d) === VISUAL_TYPE.IMPLANT)) list.push("Implant");
     return list;
   }, [state.currentToothDiagnoses, state.isImplant]);
   const displayRows = useMemo(() => {

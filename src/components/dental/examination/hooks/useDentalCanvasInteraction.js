@@ -61,6 +61,7 @@ export function useDentalCanvasInteraction({ patientId, patientAge = 30, initial
     controlsRef: state.controlsRef,
     // Derived
     currentToothDiagnoses: state.currentToothDiagnoses,
+    currentToothVisualTypes: state.currentToothVisualTypes,
     isImplant: state.isImplant,
     currentToothNotes: state.currentToothNotes,
     currentTreatmentHistoryDetails: state.currentTreatmentHistoryDetails,

@@ -5,6 +5,7 @@
  * returns the action handlers.
  */
 import { useCallback, useEffect, useRef } from "react";
+import { VISUAL_TYPE, getVisualType } from "../../../../utils/dentalVisualTypes";
 import {
   QUADRANT_LABELS,
   getDefaultTreatmentSurfaces,
@@ -36,11 +37,13 @@ export function useDentalCanvasEvents(s) {
     multiSelectActive,
     multiSelectZones,
     currentToothDiagnoses,
+    currentToothVisualTypes,
     controlsRef,
     agentPulseClearTimerRef,
     oralIdRef,
     VALID_TOOTH_DIAG,
     VALID_SURFACE_FINDING,
+    allEntries,
     setPatientType,
     setViewMode,
     setSelectedTooth,
@@ -129,14 +132,16 @@ export function useDentalCanvasEvents(s) {
       setToothDiagnoses((prev) => {
         const current = new Set(prev[fdi] || []);
         const next = applyDiagnosisSelection(current, diagnosis);
-        if (current.has("Implant") && !next.has("Implant")) {
+        if ([...current].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT) &&
+            ![...next].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) {
           setImplantTeeth((ip) => {
             const n = new Set(ip);
             n.delete(fdi);
             return n;
           });
         }
-        if (!current.has("Implant") && next.has("Implant")) {
+        if (![...current].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT) &&
+            [...next].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) {
           setImplantTeeth((ip) => {
             const n = new Set(ip);
             n.add(fdi);
@@ -150,7 +155,7 @@ export function useDentalCanvasEvents(s) {
         delete next[fdi];
         return next;
       });
-      if (diagnosis === "Missing" || diagnosis === "Extraction") {
+      if (getVisualType(diagnosis) === VISUAL_TYPE.MISSING) {
         setImplantTeeth((prev) => {
           const next = new Set(prev);
           next.delete(selectedTooth.fdi);
@@ -171,7 +176,8 @@ export function useDentalCanvasEvents(s) {
         const current = new Set(prev[fdi] || []);
         if (current.has(diagnosis)) return prev;
         const next = applyDiagnosisSelection(current, diagnosis);
-        if (!current.has("Implant") && next.has("Implant")) {
+        if (![...current].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT) &&
+            [...next].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) {
           setImplantTeeth((ip) => {
             const n = new Set(ip);
             n.add(fdi);
@@ -299,10 +305,7 @@ export function useDentalCanvasEvents(s) {
   // ── Zone / surface selection ───────────────────────────────────────────────
   const handleSelectZone = useCallback(
     (zone, hitPoint, opts) => {
-      if (
-        currentToothDiagnoses.has("Missing") ||
-        currentToothDiagnoses.has("Extraction")
-      )
+      if (currentToothVisualTypes.has(VISUAL_TYPE.MISSING))
         return;
       if (hitPoint) {
         const key = `${selectedTooth.fdi}-${zone}`;
@@ -440,27 +443,53 @@ export function useDentalCanvasEvents(s) {
   const handleAddEntry = useCallback(
     (partial) => {
       const fdi = selectedTooth.fdi;
-      setAllEntries((prev) => [
-        ...prev,
-        {
-          ...partial,
-          id: `entry-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          toothFdi: fdi
-        }
-      ]);
+      const id = `entry-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      setAllEntries((prev) => [...prev, { ...partial, id, toothFdi: fdi }]);
+      if (partial.kind === "finding") {
+        const surfaces = partial.surfaces?.length ? partial.surfaces : ["whole"];
+        setFindingsByTooth((fp) => {
+          const list = [...(fp[fdi] || [])];
+          for (const surface of surfaces) {
+            list.push({ id, zoneId: surface, type: partial.name, notes: partial.notes || "" });
+          }
+          return { ...fp, [fdi]: list };
+        });
+      }
     },
-    [selectedTooth.fdi]
+    [selectedTooth.fdi, setFindingsByTooth]
   );
 
   const handleUpdateEntry = useCallback((id, patch) => {
-    setAllEntries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, ...patch } : e))
-    );
-  }, []);
+    setAllEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    if (patch.surfaces !== undefined) {
+      const entry = allEntries.find((e) => e.id === id);
+      if (entry?.kind === "finding" && entry.toothFdi) {
+        const fdi = entry.toothFdi;
+        const newSurfaces = patch.surfaces.length ? patch.surfaces : ["whole"];
+        setFindingsByTooth((fp) => {
+          const list = (fp[fdi] || []).filter((f) => f.id !== id);
+          for (const surface of newSurfaces) {
+            list.push({ id, zoneId: surface, type: entry.name, notes: entry.notes || "" });
+          }
+          return { ...fp, [fdi]: list };
+        });
+      }
+    }
+  }, [allEntries, setFindingsByTooth]);
 
   const handleRemoveEntry = useCallback((id) => {
+    const entry = allEntries.find((e) => e.id === id);
     setAllEntries((prev) => prev.filter((e) => e.id !== id));
-  }, []);
+    if (entry?.kind === "finding" && entry.toothFdi) {
+      setFindingsByTooth((fp) => {
+        const fdi = entry.toothFdi;
+        if (!fp[fdi]) return fp;
+        const filtered = fp[fdi].filter((f) => f.id !== id);
+        if (filtered.length === fp[fdi].length) return fp;
+        return { ...fp, [fdi]: filtered };
+      });
+    }
+  }, [allEntries, setFindingsByTooth]);
 
   const updateOralNotes = useCallback((v) => setOralNotes(v ?? ""), []);
 

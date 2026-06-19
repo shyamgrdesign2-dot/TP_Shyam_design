@@ -3,6 +3,7 @@
  * canvas: API initialData hydration, localStorage hydrate/write, and the
  * exam-chart broadcast. Receives the state bag from useDentalCanvasState.
  */
+import { VISUAL_TYPE, getVisualType } from "../../../../utils/dentalVisualTypes";
 import { useEffect } from "react";
 import { QUADRANT_LABELS } from "../types";
 import { EXAM_CHART_STORAGE_PREFIX } from "../../plan/exam-suggestions";
@@ -114,7 +115,7 @@ export function useDentalCanvasPersistence(s) {
         const next = new Set(prev);
         for (const [fdi, diags] of Object.entries(rawDiagnoses)) {
           const arr = Array.isArray(diags) ? diags : diags instanceof Set ? [...diags] : [];
-          if (arr.includes("Implant")) next.add(fdi);
+          if (arr.some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) next.add(fdi);
         }
         return next;
       });

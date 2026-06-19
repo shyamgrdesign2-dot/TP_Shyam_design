@@ -9,6 +9,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { InfoCircle } from "iconsax-reactjs";
+import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
 import { QUADRANT_LABELS, TEETH } from "./types";
 import { ExpandIcon } from "./ui-icons";
 import { MiniToothCanvas } from "./MiniToothCanvas";
@@ -43,7 +44,7 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
     }
     state.implantTeeth.forEach((fdi) => {
       const e = seed(fdi);
-      if (!e.diagnoses.includes("Implant")) e.diagnoses.push("Implant");
+      if (!e.diagnoses.some((d) => getVisualType(d) === VISUAL_TYPE.IMPLANT)) e.diagnoses.push("Implant");
     });
     // Treatment history details (e.g. Crown stored without __dx__ marker from older saves)
     // must also surface in Tooth records, de-duped against toothDiagnoses entries.
@@ -155,18 +156,17 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
                     // Determine thumbnail color by most-severe diagnosis
                     let crownColor = "#E8DDD5",
                       rootColor = "#C4AD97";
-                    if (entry.diagnoses.includes("Missing")) {
+                    const entryVts = new Set(entry.diagnoses.map(getVisualType).filter(Boolean));
+                    if (entryVts.has(VISUAL_TYPE.MISSING)) {
                       crownColor = "#d1d5db";
                       rootColor = "#d1d5db";
-                    } else if (
-                      entry.diagnoses.includes("Crown") ||
-                      entry.diagnoses.includes("Bridge")) {
+                    } else if (entryVts.has(VISUAL_TYPE.CROWN) || entryVts.has(VISUAL_TYPE.BRIDGE)) {
                       crownColor = "#d1d5db";
                       rootColor = "#C4AD97";
-                    } else if (entry.diagnoses.includes("RCT")) {
+                    } else if (entryVts.has(VISUAL_TYPE.RCT)) {
                       crownColor = "#f87171";
                       rootColor = "#C4AD97";
-                    } else if (entry.diagnoses.includes("Implant")) {
+                    } else if (entryVts.has(VISUAL_TYPE.IMPLANT)) {
                       crownColor = "#9ca3af";
                       rootColor = "#6B7280";
                     }
@@ -190,7 +190,7 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
                                 tooth={tooth}
                                 size={52}
                                 diagnoses={new Set(entry.diagnoses)}
-                                isImplant={entry.diagnoses.includes("Implant")}
+                                isImplant={entryVts.has(VISUAL_TYPE.IMPLANT)}
                                 findings={state?.findingsByTooth?.[entry.fdi] ?? []} />}
 
 

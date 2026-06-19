@@ -28,6 +28,7 @@ import {
   prewarmDentalShaderProgram,
   getDentalShaderVariantKey,
 } from "./tooth-shader";
+import { VISUAL_TYPE, toVisualTypeSet, getVisualType } from "../../../utils/dentalVisualTypes";
 
 // Re-exports for ArchTooth, dental-camera-presets, ZoneCameraRotator — keep all
 // existing import paths from ./Tooth valid after the split.
@@ -55,6 +56,7 @@ export function Tooth({
   findings = [],
   zoneNotes = {},
   toothDiagnoses = EMPTY_SET,
+  toothVisualTypes,
   multiSelectZones,
   multiSelectActive = false,
   compact = false,
@@ -62,6 +64,7 @@ export function Tooth({
   treatmentHistoryDetails = {},
   toothEntries,
 }) {
+  const resolvedVisualTypes = toothVisualTypes ?? toVisualTypeSet(toothDiagnoses);
   const gltf = useGLTF(modelPath, "/draco/");
   const implantGltf = useGLTF(ASSETS.dental.models.implant, "/draco/");
   const [mountGen] = useState(() => Math.random());
@@ -82,14 +85,13 @@ export function Tooth({
   const [boundsReady, setBoundsReady] = useState(0);
   const { camera, gl } = useThree();
 
-  const hasCrown = toothDiagnoses.has("Crown") || Boolean(treatmentHistoryDetails?.Crown);
-  const hasRCT = toothDiagnoses.has("RCT") || Boolean(treatmentHistoryDetails?.RCT);
-  const hasBridge = toothDiagnoses.has("Bridge") || Boolean(treatmentHistoryDetails?.Bridge);
-  const hasDenture = toothDiagnoses.has("Denture") || Boolean(treatmentHistoryDetails?.Denture);
-  const hasImplant = isImplant || toothDiagnoses.has("Implant") || Boolean(treatmentHistoryDetails?.Implant);
+  const hasCrown = resolvedVisualTypes.has(VISUAL_TYPE.CROWN) || Boolean(treatmentHistoryDetails?.Crown);
+  const hasRCT = resolvedVisualTypes.has(VISUAL_TYPE.RCT) || Boolean(treatmentHistoryDetails?.RCT);
+  const hasBridge = resolvedVisualTypes.has(VISUAL_TYPE.BRIDGE) || Boolean(treatmentHistoryDetails?.Bridge);
+  const hasDenture = resolvedVisualTypes.has(VISUAL_TYPE.DENTURE) || Boolean(treatmentHistoryDetails?.Denture);
+  const hasImplant = isImplant || resolvedVisualTypes.has(VISUAL_TYPE.IMPLANT) || Boolean(treatmentHistoryDetails?.Implant);
   const isMissingOrExtraction =
-    toothDiagnoses.has("Missing") ||
-    toothDiagnoses.has("Extraction") ||
+    resolvedVisualTypes.has(VISUAL_TYPE.MISSING) ||
     Boolean(treatmentHistoryDetails?.Missing) ||
     Boolean(treatmentHistoryDetails?.Extraction);
 
@@ -471,16 +473,17 @@ export function Tooth({
       })()}
 
       {(() => {
+        // canonical frontend names still used for treatmentHistoryDetails key lookup
         const visualWholeTags = new Set([
           "Implant", "Missing", "Extraction", "RCT", "Crown", "Bridge", "Denture",
         ]);
         const wholeTags = [];
         if (toothDiagnoses) {
           for (const d of toothDiagnoses) {
-            if (visualWholeTags.has(d)) wholeTags.push(d);
+            if (getVisualType(d) !== null) wholeTags.push(d);
           }
         }
-        if (hasImplant && !wholeTags.includes("Implant")) wholeTags.push("Implant");
+        if (hasImplant && !wholeTags.some((d) => getVisualType(d) === VISUAL_TYPE.IMPLANT)) wholeTags.push("Implant");
         if (treatmentHistoryDetails) {
           for (const key of Object.keys(treatmentHistoryDetails)) {
             if (visualWholeTags.has(key) && !wholeTags.includes(key)) {

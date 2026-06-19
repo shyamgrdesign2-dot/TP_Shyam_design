@@ -21,6 +21,7 @@ import {
   getDirsForTooth,
 } from "./Tooth";
 import { ASSETS } from "../../../assets";
+import { VISUAL_TYPE, toVisualTypeSet } from "../../../utils/dentalVisualTypes";
 
 const ArchTooth = memo(function ArchTooth({
   tooth,
@@ -48,14 +49,14 @@ const ArchTooth = memo(function ArchTooth({
   const outerGroupRef = useRef(null); // mirrorX group (parentGroup for diagnosis visuals)
   const meshRef = useRef(null);
 
-  const hasCrown = diagnoses?.has("Crown") || Boolean(treatmentHistoryDetails?.Crown);
-  const hasRCT = diagnoses?.has("RCT") || Boolean(treatmentHistoryDetails?.RCT);
-  const hasBridge = diagnoses?.has("Bridge") || Boolean(treatmentHistoryDetails?.Bridge);
-  const hasDenture = diagnoses?.has("Denture") || Boolean(treatmentHistoryDetails?.Denture);
-  const hasImplant = isImplant || diagnoses?.has("Implant") || Boolean(treatmentHistoryDetails?.Implant);
+  const resolvedVisualTypes = toVisualTypeSet(diagnoses ?? new Set());
+  const hasCrown = resolvedVisualTypes.has(VISUAL_TYPE.CROWN) || Boolean(treatmentHistoryDetails?.Crown);
+  const hasRCT = resolvedVisualTypes.has(VISUAL_TYPE.RCT) || Boolean(treatmentHistoryDetails?.RCT);
+  const hasBridge = resolvedVisualTypes.has(VISUAL_TYPE.BRIDGE) || Boolean(treatmentHistoryDetails?.Bridge);
+  const hasDenture = resolvedVisualTypes.has(VISUAL_TYPE.DENTURE) || Boolean(treatmentHistoryDetails?.Denture);
+  const hasImplant = isImplant || resolvedVisualTypes.has(VISUAL_TYPE.IMPLANT) || Boolean(treatmentHistoryDetails?.Implant);
   const isMissingOrExtraction =
-    diagnoses?.has("Missing") ||
-    diagnoses?.has("Extraction") ||
+    resolvedVisualTypes.has(VISUAL_TYPE.MISSING) ||
     Boolean(treatmentHistoryDetails?.Missing) ||
     Boolean(treatmentHistoryDetails?.Extraction);
   // Fresh clone on every mount — mount generation forces a new clone so that

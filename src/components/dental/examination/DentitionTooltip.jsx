@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
+import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
 import { getZoneLabel, QUADRANT_LABELS } from "./types";
 import tt from "./DentitionTooltip.module.scss";
 
@@ -224,7 +225,7 @@ function DentitionTooltip({
   if (diagnoses) {
     for (const d of diagnoses) diagLabels.push(d);
   }
-  if (isImplant && !diagLabels.includes("Implant")) diagLabels.push("Implant");
+  if (isImplant && !diagLabels.some((d) => getVisualType(d) === VISUAL_TYPE.IMPLANT)) diagLabels.push("Implant");
 
   const toothEntries = useMemo(() => (allEntries ?? []).filter((e) => e.toothFdi === tooth.fdi), [allEntries, tooth.fdi]);
   const findingEntries = toothEntries.filter((e) => e.kind === "finding");

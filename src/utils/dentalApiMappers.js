@@ -1,3 +1,5 @@
+import { toVisualTypeSet } from "./dentalVisualTypes";
+
 const PLAN_STATUS_FROM_API = {
   DRAFT: "draft",
   ACTIVE: "active",
@@ -87,6 +89,7 @@ export const toDentalToothState = (payload = {}) => {
       })),
       treatmentHistory: historyRows,
       diagnoses: diagnosisNames,
+      visualTypes: [...toVisualTypeSet(new Set(diagnosisNames))],
       notes: tooth.overall_notes || "",
     };
   });

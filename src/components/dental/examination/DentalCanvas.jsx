@@ -6,6 +6,7 @@
  * useThreeDentalScene (CameraController, ZoneCameraRotator).
  */
 import { Suspense, useEffect, useMemo } from "react";
+import { VISUAL_TYPE } from "../../../utils/dentalVisualTypes";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Tooth } from "./Tooth";
@@ -15,7 +16,9 @@ import { QuickSurfaceSelector } from "./QuickSurfaceSelector";
 import {
   QUADRANT_LABELS,
 } from "./types";
+import { TEETH, PEDIATRIC_TEETH } from "./tooth-geometry";
 import { CameraController, ZoneCameraRotator } from "./hooks/useThreeDentalScene";
+import { SINGLE_TOOTH_TARGET } from "./hooks/dental-camera-presets";
 import { useDentalCanvasInteraction } from "./hooks/useDentalCanvasInteraction";
 import "./dental-canvas.css";
 import dc from "./DentalCanvas.module.scss";
@@ -96,6 +99,7 @@ export function DentalCanvas({
     agentApplyPulseFdis,
     controlsRef,
     currentToothDiagnoses,
+    currentToothVisualTypes,
     isImplant,
     currentToothNotes,
     currentTreatmentHistoryDetails,
@@ -278,6 +282,37 @@ export function DentalCanvas({
     handleSetHoveredTooth
   ]);
 
+  // ── Test seam (dev only) ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const allTeeth = [...TEETH, ...PEDIATRIC_TEETH];
+    window.__DENTAL_SELECT_TOOTH = (fdi) => {
+      const tooth = allTeeth.find((t) => String(t.fdi) === String(fdi));
+      if (tooth) handleSelectTooth(tooth);
+    };
+    window.__DENTAL_BACK_TO_DENTITION = handleBackToDentition;
+    window.__DENTAL_ENTER_ORAL_EXAM = enterOralExam;
+    window.__DENTAL_CHANGE_PATIENT_TYPE = handlePatientTypeChange;
+    // Expose oral highlight seam and a snapshot of canvas state for 3D effect testing
+    window.__DENTAL_SET_ORAL_HIGHLIGHT = setOralHighlight;
+    window.__DENTAL_GET_CANVAS_STATE = () => ({
+      viewMode,
+      patientType,
+      selectedToothFdi: selectedTooth?.fdi ?? null,
+      oralHighlightFdis: [...oralHighlightFdis],
+      selectionScopeId: selectionScope?.id ?? null,
+    });
+    return () => {
+      delete window.__DENTAL_SELECT_TOOTH;
+      delete window.__DENTAL_BACK_TO_DENTITION;
+      delete window.__DENTAL_ENTER_ORAL_EXAM;
+      delete window.__DENTAL_CHANGE_PATIENT_TYPE;
+      delete window.__DENTAL_SET_ORAL_HIGHLIGHT;
+      delete window.__DENTAL_GET_CANVAS_STATE;
+    };
+  }, [handleSelectTooth, handleBackToDentition, enterOralExam, handlePatientTypeChange,
+      setOralHighlight, viewMode, patientType, selectedTooth, oralHighlightFdis, selectionScope]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
@@ -432,10 +467,7 @@ export function DentalCanvas({
                 arch={selectedTooth.arch}
                 toothPosition={selectedTooth.position}
                 zonesWithFindings={new Set(findings.map((f) => f.zoneId))}
-                disabled={
-                  currentToothDiagnoses.has("Missing") ||
-                  currentToothDiagnoses.has("Extraction")
-                }
+                disabled={currentToothVisualTypes.has(VISUAL_TYPE.MISSING)}
               />
             }
           />
@@ -534,6 +566,7 @@ export function DentalCanvas({
                   findings={findings}
                   zoneNotes={zoneNotes}
                   toothDiagnoses={currentToothDiagnoses}
+                  toothVisualTypes={currentToothVisualTypes}
                   multiSelectZones={multiSelectZones}
                   multiSelectActive={multiSelectActive}
                   hideTags={true}
@@ -546,6 +579,7 @@ export function DentalCanvas({
 
           <OrbitControls
             ref={controlsRef}
+            target={selectionScope.type === "tooth" ? SINGLE_TOOTH_TARGET : undefined}
             onEnd={handleDentitionControlsEnd}
             enableDamping={true}
             dampingFactor={0.12}

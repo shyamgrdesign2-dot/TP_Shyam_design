@@ -5,6 +5,7 @@
  */
 import { useState, useRef, useEffect, useMemo } from "react";
 import { QUADRANT_LABELS } from "../types";
+import { VISUAL_TYPE, toVisualTypeSet } from "../../../../utils/dentalVisualTypes";
 import { useDentalMasters } from "../../../../hooks/useDentalMasters";
 import { INITIAL_TOOTH_STATE } from "../../mock-data";
 import {
@@ -139,8 +140,12 @@ export function useDentalCanvasState({ patientId, patientAge = 30, initialData }
     () => toothDiagnoses[selectedTooth.fdi] || EMPTY_DIAGNOSES,
     [toothDiagnoses, selectedTooth.fdi]
   );
+  const currentToothVisualTypes = useMemo(
+    () => toVisualTypeSet(currentToothDiagnoses),
+    [currentToothDiagnoses]
+  );
   const isImplant =
-    currentToothDiagnoses.has("Implant") || implantTeeth.has(selectedTooth.fdi);
+    currentToothVisualTypes.has(VISUAL_TYPE.IMPLANT) || implantTeeth.has(selectedTooth.fdi);
   const currentToothNotes = toothNotes[selectedTooth.fdi] || "";
   const currentTreatmentHistoryDetails = useMemo(
     () => treatmentHistoryDetailsByTooth[selectedTooth.fdi] || EMPTY_TREATMENTS,
@@ -192,6 +197,7 @@ export function useDentalCanvasState({ patientId, patientAge = 30, initialData }
     dentitionVerticalNudge,
     dentitionCameraOverride,
     currentToothDiagnoses,
+    currentToothVisualTypes,
     isImplant,
     currentToothNotes,
     currentTreatmentHistoryDetails,
