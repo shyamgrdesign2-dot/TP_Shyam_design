@@ -1427,6 +1427,19 @@ export function VoiceRxModuleCapture({
               doctorId: profile?.doctor_unique_id,
               patientId: patient_data?.patient_unique_id,
             }}
+            analyticsContext={{
+              patientData: patient_data,
+              profile,
+              sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+              mode: "module",
+              voicecall: voiceDigitization?.voiceCallCount || 0,
+              moduleName,
+              sourceSurface: "module",
+              voiceInputLocation: moduleName,
+              isDoctorAgent: false,
+              doctorId: profile?.doctor_unique_id,
+              patientId: patient_data?.patient_unique_id,
+            }}
             onCancel={onCancel}
             onCancelRequest={() => setConfirmOpen(true)}
             onSubmit={handleSubmit} />

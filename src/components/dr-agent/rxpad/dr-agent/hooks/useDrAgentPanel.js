@@ -502,6 +502,30 @@ export function useDrAgentPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceRxRecording]);
 
+  const patientSwitchCleanupSeenRef = useRef(selectedPatientId);
+  useEffect(() => {
+    if (patientSwitchCleanupSeenRef.current === selectedPatientId) return;
+    patientSwitchCleanupSeenRef.current = selectedPatientId;
+    if (voiceRxTimeoutRef.current) {
+      clearTimeout(voiceRxTimeoutRef.current);
+      voiceRxTimeoutRef.current = null;
+    }
+    abortActiveVoiceRxRequest(VOICE_V2_ABORT_REASONS.USER_DISCARDED_VOICE_RX);
+    voiceRxSessionRef.current = null;
+    pendingInitialVoiceUserMsgIdRef.current = null;
+    priorVoiceResultRef.current = null;
+    setVoiceRxRecording(false);
+    setVoiceRxScriptedTranscript("");
+    setVoiceRxSubmittedTranscript("");
+    setVoiceRxProcessingTranscript("");
+    setVoiceRxAwaitingResponse(false);
+    setVoiceRxPaused(false);
+    voiceRxPausedRef.current = false;
+    resetLiveTranscript();
+    onVoiceCaptureModeChange?.(null);
+    setAiFillInProgress(false);
+  }, [abortActiveVoiceRxRequest, onVoiceCaptureModeChange, resetLiveTranscript, selectedPatientId, setAiFillInProgress]);
+
   const needsSnapshotSeedRef = useRef(false);
 
   // Surfaced when the user tries to start the full Dr. Agent voice

@@ -41,6 +41,7 @@ export function BackFace({
   patientName,
   patientId,
   doctorId,
+  analyticsContext,
   onCancel,
   onSubmit,
   onCollapse,
@@ -116,6 +117,7 @@ export function BackFace({
               doctorId,
               patientId,
             }}
+            analyticsContext={analyticsContext}
             voiceLocked={voiceLocked}
           />
         ) : isFlipped ? (
@@ -140,6 +142,7 @@ export function BackFace({
                 doctorId,
                 patientId,
               }}
+              analyticsContext={analyticsContext}
             />
           </VoiceErrorBoundary>
         ) : null}

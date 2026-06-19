@@ -42,6 +42,72 @@ function getErrorMessage(error) {
   return error?.response?.data?.error || error?.response?.data?.message || error?.message || String(error);
 }
 
+export function buildVoiceRx2EventPayload({
+  patientData,
+  profile,
+  sessionId,
+  submitId = "",
+  requestId = "",
+  durationMs = 0,
+  mode = "dictation",
+  fromVoiceRecording = false,
+  voicecall = 0,
+  moduleName = "",
+  sourceSurface = "",
+  voiceInputLocation = "",
+  isDoctorAgent = false,
+  micBeingUsed = "",
+  extra = {},
+} = {}) {
+  const clinic = getClinic(profile?.hospital_data);
+  return {
+    doctorId: profile?.doctor_unique_id || extra.doctorId || "",
+    doctorName: profile?.um_name || "",
+    patientId: patientData?.patient_unique_id || extra.patientId || "",
+    patientName: patientData?.pm_fullname || patientData?.pm_first_name || "",
+    hospitalId: clinic?.hm_id || "",
+    hospitalName: clinic?.hm_name || "",
+    prescriptionUrl: "",
+    prescriptionUrls: [],
+    network: extra.network || "stable",
+    micBeingUsed,
+    browser: getBrowserNameForVoiceRx2(),
+    durationOfAudioInSeconds: Math.round((durationMs || 0) / 1000),
+    voiceApiCalled: false,
+    sessionId,
+    submitId,
+    requestId,
+    audioSizeBytes: 0,
+    audioMimeType: "",
+    mode,
+    fromVoiceRecording,
+    upload_latency_ms: null,
+    upload_failed: false,
+    upload_error_message: "",
+    voicecall,
+    status: extra.status || "",
+    voice_failed: false,
+    failedPhase: "",
+    error_message: "",
+    retry_attempts: 0,
+    moduleName,
+    sourceSurface,
+    voiceInputLocation,
+    isDoctorAgent,
+    voiceRxVersion: VOICE_RX_2_VERSION,
+    timestamp: new Date().toISOString(),
+    ...extra,
+  };
+}
+
+export function trackVoiceRx2RecorderEvent(eventName, payload = {}) {
+  try {
+    trackEvent(eventName, buildVoiceRx2EventPayload(payload));
+  } catch (error) {
+    console.error("[voice-rx-2/event] Failed", error?.message || error);
+  }
+}
+
 export function buildVoiceHistoryEntry({
   type,
   source = "",
@@ -119,59 +185,53 @@ export async function uploadAndLogVoiceRx2({
   const clinicalCompletedAt = clinicalCompletedAtMs ? new Date(clinicalCompletedAtMs).toISOString() : "";
   const transcriptCompletedAt = transcriptCompletedAtMs ? new Date(transcriptCompletedAtMs).toISOString() : "";
   const digitizeCompletedAt = digitizeCompletedAtMs ? new Date(digitizeCompletedAtMs).toISOString() : "";
-  const clinic = getClinic(profile?.hospital_data);
   const logStatus = clinicalStatus === "completed" ? "completed" : "failed";
   const uploadFailed = Boolean(uploadError);
   const finalErrorMessage = errorMessage || getErrorMessage(uploadError);
 
-  const eventPayload = {
-    doctorId: profile?.doctor_unique_id || "",
-    doctorName: profile?.um_name || "",
-    patientId: patientData?.patient_unique_id || "",
-    patientName: patientData?.pm_fullname || patientData?.pm_first_name || "",
-    hospitalId: clinic?.hm_id || "",
-    hospitalName: clinic?.hm_name || "",
-    prescriptionUrl: source,
-    prescriptionUrls: source ? [source] : [],
-    network: uploadFailed ? "unstable" : "stable",
-    micBeingUsed,
-    browser: getBrowserNameForVoiceRx2(),
-    durationOfAudioInSeconds: Math.round((durationMs || 0) / 1000),
-    voiceApiCalled: true,
+  const eventPayload = buildVoiceRx2EventPayload({
+    patientData,
+    profile,
     sessionId,
     submitId,
     requestId,
-    audioSizeBytes: audioBlob?.size || 0,
-    audioMimeType: audioBlob?.type || "audio/webm",
+    durationMs,
     mode,
     fromVoiceRecording,
-    upload_latency_ms: uploadCompletedAtMs - uploadStartedAtMs,
-    upload_failed: uploadFailed,
-    upload_error_message: getErrorMessage(uploadError),
     voicecall,
-    status: logStatus,
-    voice_failed: logStatus === "failed",
-    failedPhase,
-    error_message: finalErrorMessage,
-    retry_attempts: retryAttempts,
     moduleName,
     sourceSurface,
     voiceInputLocation,
     isDoctorAgent,
-    submitClickedAt,
-    uploadCompletedAt,
-    clinicalCompletedAt,
-    transcriptCompletedAt,
-    digitizeCompletedAt,
-    timeFromSubmitToUploadMs: uploadCompletedAtMs - startedAtMs,
-    timeFromSubmitToClinicalCompleteMs: clinicalCompletedAtMs ? clinicalCompletedAtMs - startedAtMs : null,
-    timeFromSubmitToLogMs: Date.now() - startedAtMs,
-    voiceRxVersion: VOICE_RX_2_VERSION,
-    timestamp: new Date().toISOString(),
-    transcript: transcript ?? "",
-    digitizeData: digitizeData ?? null,
-    previousContext,
-  };
+    micBeingUsed,
+    extra: {
+      prescriptionUrl: source,
+      prescriptionUrls: source ? [source] : [],
+      network: uploadFailed ? "unstable" : "stable",
+      voiceApiCalled: true,
+      audioSizeBytes: audioBlob?.size || 0,
+      audioMimeType: audioBlob?.type || "audio/webm",
+      upload_latency_ms: uploadCompletedAtMs - uploadStartedAtMs,
+      upload_failed: uploadFailed,
+      upload_error_message: getErrorMessage(uploadError),
+      status: logStatus,
+      voice_failed: logStatus === "failed",
+      failedPhase,
+      error_message: finalErrorMessage,
+      retry_attempts: retryAttempts,
+      submitClickedAt,
+      uploadCompletedAt,
+      clinicalCompletedAt,
+      transcriptCompletedAt,
+      digitizeCompletedAt,
+      timeFromSubmitToUploadMs: uploadCompletedAtMs - startedAtMs,
+      timeFromSubmitToClinicalCompleteMs: clinicalCompletedAtMs ? clinicalCompletedAtMs - startedAtMs : null,
+      timeFromSubmitToLogMs: Date.now() - startedAtMs,
+      transcript: transcript ?? "",
+      digitizeData: digitizeData != null ? JSON.stringify(digitizeData) : null,
+      previousContext: previousContext != null ? JSON.stringify(previousContext) : null,
+    },
+  });
   trackEvent("TP_Voice_V2_Submit_Click", eventPayload);
 
   const correlationId = sessionId || submitId || requestId || "";

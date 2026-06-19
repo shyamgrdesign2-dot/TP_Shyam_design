@@ -36,6 +36,7 @@ import {
   isAudioChunkContextReady,
   uploadAudioChunk,
 } from "./api/audio-chunk-upload";
+import { trackVoiceRx2RecorderEvent } from "./voiceRx2Logging";
 import fsStyles from "./VoiceRxActiveAgent.module.scss";
 import osStyles from "./VoiceRxModuleRecorder.module.scss";
 import canvasStyles from "./VoiceRxCanvas.module.scss";
@@ -81,6 +82,32 @@ function formatElapsed(ms) {
   return `${mm}:${ss}`;
 }
 
+const MIC_PERMISSION_STATE = {
+  UNKNOWN: "unknown",
+  PROMPT: "prompt",
+  GRANTED: "granted",
+  DENIED: "denied",
+};
+const MIC_PERMISSION_REVOKED_MESSAGE = "Microphone permission was revoked. Allow microphone access again to continue recording.";
+
+function isMicPermissionDeniedError(error) {
+  return error?.name === "NotAllowedError" || error?.name === "SecurityError";
+}
+
+function isMicNotFoundError(error) {
+  return error?.name === "NotFoundError" || error?.name === "DevicesNotFoundError";
+}
+
+function getMicErrorMessage(error) {
+  if (isMicPermissionDeniedError(error)) {
+    return "Microphone access is blocked. Enable it from your browser site settings.";
+  }
+  if (isMicNotFoundError(error)) {
+    return "No microphone was found on this device.";
+  }
+  return error instanceof Error ? error.message : "Microphone access denied";
+}
+
 // ── Shared hooks ─────────────────────────────────────────────────────────────
 
 function useRecordingTimer(active) {
@@ -100,8 +127,72 @@ function useMicStream(deviceId, enabled) {
   const [stream, setStream] = useState(null);
   const [devices, setDevices] = useState([]);
   const [error, setError] = useState(null);
+  const [permissionState, setPermissionState] = useState(MIC_PERMISSION_STATE.UNKNOWN);
   const [retryKey, setRetryKey] = useState(0);
+  const streamRef = useRef(null);
+  const permissionWasGrantedRef = useRef(false);
+  const intentionalStopRef = useRef(false);
+  const permissionRecoveryPendingRef = useRef(false);
   const retry = useCallback(() => { setError(null); setRetryKey((k) => k + 1); }, []);
+
+  const stopActiveStream = useCallback(({ intentional = false } = {}) => {
+    intentionalStopRef.current = intentional;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setStream(null);
+    window.setTimeout(() => {
+      if (intentionalStopRef.current === intentional) intentionalStopRef.current = false;
+    }, 0);
+  }, []);
+
+  const markPermissionRevoked = useCallback(() => {
+    permissionWasGrantedRef.current = false;
+    permissionRecoveryPendingRef.current = true;
+    stopActiveStream();
+    setError(MIC_PERMISSION_REVOKED_MESSAGE);
+  }, [stopActiveStream]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.permissions?.query) return undefined;
+    let cancelled = false;
+    let permissionStatus = null;
+    let hasInitialPermissionState = false;
+    const handlePermissionChange = () => {
+      if (!cancelled && permissionStatus?.state) {
+        const isInitialPermissionState = !hasInitialPermissionState;
+        hasInitialPermissionState = true;
+        setPermissionState(permissionStatus.state);
+        if (permissionStatus.state === MIC_PERMISSION_STATE.GRANTED) {
+          permissionWasGrantedRef.current = true;
+          if (!permissionRecoveryPendingRef.current) setError(null);
+          if (!isInitialPermissionState && enabled) setRetryKey((k) => k + 1);
+          return;
+        }
+        if (permissionWasGrantedRef.current) {
+          markPermissionRevoked();
+          return;
+        }
+        if (permissionStatus.state !== MIC_PERMISSION_STATE.DENIED) setError(null);
+      }
+    };
+    navigator.permissions.query({ name: "microphone" })
+      .then((status) => {
+        if (cancelled) return;
+        permissionStatus = status;
+        handlePermissionChange();
+        if (permissionStatus.addEventListener) {
+          permissionStatus.addEventListener("change", handlePermissionChange);
+        } else {
+          permissionStatus.onchange = handlePermissionChange;
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      permissionStatus?.removeEventListener?.("change", handlePermissionChange);
+      if (permissionStatus?.onchange === handlePermissionChange) permissionStatus.onchange = null;
+    };
+  }, [enabled, markPermissionRevoked]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -124,22 +215,45 @@ function useMicStream(deviceId, enabled) {
         }
         if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
         acquired = s;
+        streamRef.current = s;
+        permissionWasGrantedRef.current = true;
+        permissionRecoveryPendingRef.current = false;
         setStream(s);
         setError(null);
+        setPermissionState(MIC_PERMISSION_STATE.GRANTED);
+        s.getAudioTracks().forEach((track) => {
+          track.onended = () => {
+            if (!intentionalStopRef.current) markPermissionRevoked();
+          };
+          track.onmute = () => {
+            if (!intentionalStopRef.current && track.readyState === "ended") markPermissionRevoked();
+          };
+        });
         try {
           const all = await navigator.mediaDevices.enumerateDevices();
           if (!cancelled) setDevices(all.filter((d) => d.kind === "audioinput"));
         } catch { /* ignore */ }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Microphone access denied");
+        if (!cancelled) {
+          setError(getMicErrorMessage(e));
+          if (isMicPermissionDeniedError(e)) {
+            permissionRecoveryPendingRef.current = true;
+            setPermissionState(MIC_PERMISSION_STATE.DENIED);
+          }
+        }
       }
     })();
     return () => {
       cancelled = true;
+      intentionalStopRef.current = true;
       acquired?.getTracks().forEach((t) => t.stop());
+      if (streamRef.current === acquired) streamRef.current = null;
       setStream(null);
+      window.setTimeout(() => {
+        intentionalStopRef.current = false;
+      }, 0);
     };
-  }, [deviceId, enabled, retryKey]);
+  }, [deviceId, enabled, retryKey, markPermissionRevoked]);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices) return;
@@ -154,7 +268,7 @@ function useMicStream(deviceId, enabled) {
     return () => navigator.mediaDevices.removeEventListener?.("devicechange", onChange);
   }, [deviceId, enabled]);
 
-  return { stream, devices, error, retry };
+  return { stream, devices, error, permissionState, retry };
 }
 
 function useBlobRecorder(stream, paused, enabled) {
@@ -556,6 +670,7 @@ export function VoiceRecorderCore({
   onCancelRequest,
   onSubmit,
   audioChunkContext,
+  analyticsContext,
   sectionLabel,
   showSectionInStatus = true,
 
@@ -590,6 +705,10 @@ export function VoiceRecorderCore({
   const rootRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const levelRef = useRef(0);
+  const analyticsContextRef = useRef(analyticsContext);
+  const audioChunkContextRef = useRef(audioChunkContext);
+  analyticsContextRef.current = analyticsContext;
+  audioChunkContextRef.current = audioChunkContext;
 
   const [manualMute, setManualMute] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState(() => getSessionPreferredMicDeviceId());
@@ -631,12 +750,20 @@ export function VoiceRecorderCore({
   const paused = manualMute || networkPaused || isAwaitingResponse || submitProcessing;
   const chunkPaused = manualMute || networkPaused;
 
-  // Recording timer
-  const elapsedMs = useRecordingTimer(!paused);
-
   // Mic stream — disabled after submit/awaiting
   const micEnabled = isFullscreen ? !isAwaitingResponse : !submitProcessing;
-  const { stream, devices, error: micError, retry: retryMic } = useMicStream(selectedDeviceId, micEnabled);
+  const {
+    stream,
+    devices,
+    error: micError,
+    permissionState: micPermissionState,
+    retry: retryMic,
+  } = useMicStream(selectedDeviceId, micEnabled);
+  const micReady = Boolean(stream && !micError);
+  const recordingActive = micReady && !paused;
+
+  // Recording timer
+  const elapsedMs = useRecordingTimer(recordingActive);
 
   // Blob recorder
   const { getBlob } = useBlobRecorder(stream, paused, micEnabled);
@@ -663,8 +790,8 @@ export function VoiceRecorderCore({
 
   // Live transcript (overlay only; fullscreen receives transcript from parent via externalTranscript)
   const { transcript: liveFinal, error: liveError } = useLiveTranscript({
-    enabled: !isFullscreen && !paused,
-    paused: !isFullscreen && paused,
+    enabled: !isFullscreen && recordingActive,
+    paused: !isFullscreen && !recordingActive,
     lang: "en-US",
   });
 
@@ -693,13 +820,13 @@ export function VoiceRecorderCore({
   useEffect(() => {
     if (!sectionLabel) return;
     const lockId = voiceLockIdRef.current;
-    if (!paused && micEnabled) {
+    if (recordingActive && micEnabled) {
       claimActiveVoiceModule(lockId, sectionLabel);
     } else {
       releaseActiveVoiceModule(lockId);
     }
     return () => releaseActiveVoiceModule(lockId);
-  }, [claimActiveVoiceModule, micEnabled, paused, releaseActiveVoiceModule, sectionLabel]);
+  }, [claimActiveVoiceModule, micEnabled, recordingActive, releaseActiveVoiceModule, sectionLabel]);
 
   // Mute stream tracks
   useEffect(() => {
@@ -795,6 +922,7 @@ export function VoiceRecorderCore({
   useEffect(() => { playVoiceRxStartSound(); }, []);
 
   const lastErrorToneRef = useRef(null);
+  const micErrorForcedMuteRef = useRef(false);
 
   // ── Derived: critical block ─────────────────────────────────────────────────
 
@@ -809,14 +937,32 @@ export function VoiceRecorderCore({
     if (micError) return {
       kind: "mic",
       icon: <MicOff size={isFullscreen ? 40 : 32} strokeWidth={2.2} absoluteStrokeWidth />,
-      title: "Microphone unavailable",
-      description: "Please allow microphone access in your browser.",
+      title: micError === MIC_PERMISSION_REVOKED_MESSAGE
+        ? "Microphone permission revoked"
+        : micPermissionState === MIC_PERMISSION_STATE.DENIED ? "Microphone blocked" : "Microphone unavailable",
+      description: micError === MIC_PERMISSION_REVOKED_MESSAGE
+        ? MIC_PERMISSION_REVOKED_MESSAGE
+        : micPermissionState === MIC_PERMISSION_STATE.DENIED
+        ? "Enable microphone access from your browser site settings, then try again."
+        : "Please allow microphone access in your browser.",
+      actionLabel: micPermissionState === MIC_PERMISSION_STATE.DENIED ? "How to enable microphone" : "Allow microphone access",
       canRetry: true,
     };
     return null;
-  }, [online, micError, isFullscreen]);
+  }, [online, micError, micPermissionState, isFullscreen]);
 
-  useEffect(() => { if (criticalBlock) setManualMute(true); }, [criticalBlock]);
+  useEffect(() => {
+    if (micError) {
+      micErrorForcedMuteRef.current = true;
+      setManualMute(true);
+    }
+  }, [micError]);
+
+  useEffect(() => {
+    if (!stream || micError || !micErrorForcedMuteRef.current) return;
+    micErrorForcedMuteRef.current = false;
+    setManualMute(false);
+  }, [stream, micError]);
 
   useEffect(() => {
     const key = criticalBlock ? `${criticalBlock.kind}:${criticalBlock.title}` : null;
@@ -825,6 +971,14 @@ export function VoiceRecorderCore({
     lastErrorToneRef.current = key;
     playVoiceRxErrorSound();
   }, [criticalBlock]);
+
+  const handleAllowMicClick = useCallback(() => {
+    if (micPermissionState === MIC_PERMISSION_STATE.DENIED) {
+      toast.warning("Microphone is blocked. Enable it from browser site settings, then return to VoiceRx.");
+      return;
+    }
+    retryMic();
+  }, [micPermissionState, retryMic]);
 
   // ── Derived: display transcript ─────────────────────────────────────────────
 
@@ -859,8 +1013,8 @@ export function VoiceRecorderCore({
   // ── Derived: canSubmit ──────────────────────────────────────────────────────
 
   const canSubmit = isFullscreen
-    ? (!isAwaitingResponse && !submitProcessing && !networkPaused && !micError && (externalTranscript?.trim()?.length > 0 || elapsedMs >= 2000))
-    : (!submitProcessing && !criticalBlock && (overlayHasTranscript || elapsedMs >= 2000));
+    ? (!isAwaitingResponse && !submitProcessing && !networkPaused && micReady && (externalTranscript?.trim()?.length > 0 || elapsedMs >= 2000))
+    : (!submitProcessing && !criticalBlock && micReady && (overlayHasTranscript || elapsedMs >= 2000));
 
   // ── Derived: status label ───────────────────────────────────────────────────
 
@@ -868,9 +1022,53 @@ export function VoiceRecorderCore({
     if (isAwaitingResponse || submitProcessing) return "Processing";
     if (!online) return "Waiting for connection";
     if (micError) return "Mic unavailable";
+    if (!stream) return "Give microphone permission";
     if (manualMute) return "Paused";
     return "Listening";
-  }, [isAwaitingResponse, submitProcessing, online, micError, manualMute]);
+  }, [isAwaitingResponse, submitProcessing, online, micError, stream, manualMute]);
+
+  const buildRecorderEventPayload = useCallback((extra = {}) => ({
+    patientData: analyticsContextRef.current?.patientData,
+    profile: analyticsContextRef.current?.profile,
+    sessionId: analyticsContextRef.current?.sessionId || audioChunkContextRef.current?.sessionId || "",
+    submitId: analyticsContextRef.current?.submitId || "",
+    requestId: analyticsContextRef.current?.requestId || "",
+    durationMs: elapsedMs,
+    mode: analyticsContextRef.current?.mode || mode || (isFullscreen ? "dictation" : "module"),
+    fromVoiceRecording: analyticsContextRef.current?.fromVoiceRecording ?? true,
+    voicecall: analyticsContextRef.current?.voicecall || 0,
+    moduleName: analyticsContextRef.current?.moduleName || sectionLabel || "",
+    sourceSurface: analyticsContextRef.current?.sourceSurface || (isFullscreen ? "dr_agent" : "module_recorder"),
+    voiceInputLocation: analyticsContextRef.current?.voiceInputLocation || sectionLabel || "",
+    isDoctorAgent: analyticsContextRef.current?.isDoctorAgent ?? isFullscreen,
+    micBeingUsed: activeDevice?.label || "",
+    extra: {
+      doctorId: analyticsContextRef.current?.doctorId || audioChunkContextRef.current?.doctorId || "",
+      patientId: analyticsContextRef.current?.patientId || audioChunkContextRef.current?.patientId || "",
+      selectedPatientId: analyticsContextRef.current?.selectedPatientId || "",
+      permissionState: micPermissionState,
+      layout,
+      sectionLabel: sectionLabel || "",
+      statusLabel,
+      manualMute,
+      micReady,
+      recordingActive,
+      audioLevel: Math.max(0, Math.min(1, levelRef.current || 0)),
+      ...extra,
+    },
+  }), [
+    activeDevice?.label,
+    elapsedMs,
+    isFullscreen,
+    layout,
+    manualMute,
+    micPermissionState,
+    micReady,
+    mode,
+    recordingActive,
+    sectionLabel,
+    statusLabel,
+  ]);
 
   const isListening = statusLabel === "Listening";
   const shouldShowSectionLabel = showSectionInStatus && sectionLabel && sectionLabel !== "Dr Agent";
@@ -878,17 +1076,18 @@ export function VoiceRecorderCore({
   useEffect(() => {
     if (!publishesCollapsedVoiceSession) return;
     setCollapsedVoiceSession({
-      active: !isAwaitingResponse && !submitProcessing,
-      paused,
+      active: recordingActive && !isAwaitingResponse && !submitProcessing,
+      paused: !recordingActive || paused,
       statusLabel,
       elapsedLabel: formatElapsed(elapsedMs),
-      audioLevel: paused ? 0 : Math.max(0, Math.min(1, levelRef.current || 0))
+      audioLevel: recordingActive ? Math.max(0, Math.min(1, levelRef.current || 0)) : 0
     });
   }, [
     publishesCollapsedVoiceSession,
     setCollapsedVoiceSession,
     isAwaitingResponse,
     submitProcessing,
+    recordingActive,
     paused,
     statusLabel,
     elapsedMs
@@ -994,7 +1193,17 @@ export function VoiceRecorderCore({
         type="button"
         onClick={() => {
           if (resumeBlockedByOtherVoice) return;
-          setManualMute((v) => !v);
+          setManualMute((value) => {
+            const nextMuted = !value;
+            if (nextMuted) {
+              trackVoiceRx2RecorderEvent("TP_Voice_V2_Pause_Click", buildRecorderEventPayload({
+                action: "manual_pause",
+                previousMuted: value,
+                nextMuted,
+              }));
+            }
+            return nextMuted;
+          });
         }}
         disabled={isFullscreen ? (networkPaused || isAwaitingResponse || resumeBlockedByOtherVoice) : (!!criticalBlock || resumeBlockedByOtherVoice)}
         aria-label={manualMute ? "Unmute microphone" : "Mute microphone"}
@@ -1097,7 +1306,7 @@ export function VoiceRecorderCore({
         isFullscreen
           ? ["h-[42px] gap-[8px]", canSubmit ? s.submitEnabled : "vrx-submit-dim cursor-not-allowed", criticalBlock ? s.submitCritical : ""].filter(Boolean).join(" ")
           : [isUltraCompact ? s.submitBtnUltra : compactControls ? s.submitBtnCompact : s.submitBtnNormal,
-            (submitProcessing || (!criticalBlock && (overlayHasTranscript || elapsedMs >= 2000))) ? s.submitEnabled : criticalBlock ? "vrx-submit-dim cursor-not-allowed opacity-40" : "vrx-submit-dim cursor-not-allowed"].join(" "),
+            (submitProcessing || (!criticalBlock && micReady && (overlayHasTranscript || elapsedMs >= 2000))) ? s.submitEnabled : criticalBlock ? "vrx-submit-dim cursor-not-allowed opacity-40" : "vrx-submit-dim cursor-not-allowed"].join(" "),
       ].join(" ")}>
       <span className="vrx-submit-gradient absolute inset-0 rounded-[inherit]" aria-hidden />
       <span className={[s.submitTopSheen, "pointer-events-none absolute inset-x-0 top-0 h-[55%] rounded-[inherit]"].join(" ")} aria-hidden />
@@ -1293,9 +1502,9 @@ export function VoiceRecorderCore({
                       {criticalBlock.description}
                     </p>
                     {criticalBlock.kind === "mic" && (
-                      <button type="button" onClick={retryMic} className={fsStyles.retryMicBtn}>
+                      <button type="button" onClick={handleAllowMicClick} className={fsStyles.retryMicBtn}>
                         <Mic size={14} strokeWidth={2.2} aria-hidden />
-                        Allow microphone access
+                        {criticalBlock.actionLabel}
                       </button>
                     )}
                   </div>
@@ -1372,9 +1581,9 @@ export function VoiceRecorderCore({
         <h3 className={osStyles.errorTitleStack}>{criticalBlock.title}</h3>
         <p className={osStyles.errorDescStack}>{criticalBlock.description}</p>
         {criticalBlock.canRetry && (
-          <button type="button" onClick={retryMic} className={osStyles.retryBtn}>
+          <button type="button" onClick={handleAllowMicClick} className={osStyles.retryBtn}>
             <Mic size={13} strokeWidth={2.2} aria-hidden />
-            Allow microphone access
+            {criticalBlock.actionLabel}
           </button>
         )}
       </div>
@@ -1386,9 +1595,9 @@ export function VoiceRecorderCore({
         </div>
         <h3 className={osStyles.errorTitleRow}>{criticalBlock.title}</h3>
         {criticalBlock.canRetry ? (
-          <button type="button" onClick={retryMic} className={osStyles.retryBtnRow}>
+          <button type="button" onClick={handleAllowMicClick} className={osStyles.retryBtnRow}>
             <Mic size={11} strokeWidth={2.2} aria-hidden />
-            Allow microphone access
+            {criticalBlock.actionLabel}
           </button>
         ) : (
           <p className={osStyles.errorDescRow}>{criticalBlock.description}</p>
