@@ -12,6 +12,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFeatureValue } from "@growthbook/growthbook-react";
 import { playSubmitSound, playVoiceRxStartSound, playVoiceRxErrorSound } from "./audio";
 import { AlertCircle, Check, ChevronDown, Mic, MicOff, WifiOff } from "../atoms/icons/lucide";
 import {
@@ -89,6 +90,9 @@ const MIC_PERMISSION_STATE = {
   DENIED: "denied",
 };
 const MIC_PERMISSION_REVOKED_MESSAGE = "Microphone permission was revoked. Allow microphone access again to continue recording.";
+const TP_CONFIG_DATA_FEATURE_KEY = "tp-config-data";
+const DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS = 60000;
+const SILENCE_RMS_THRESHOLD = 0.012;
 
 function isMicPermissionDeniedError(error) {
   return error?.name === "NotAllowedError" || error?.name === "SecurityError";
@@ -108,6 +112,11 @@ function getMicErrorMessage(error) {
   return error instanceof Error ? error.message : "Microphone access denied";
 }
 
+function getSilenceDetectorThresholdMs(config) {
+  const value = Number(config?.silenceDetectorThresholdInMs);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS;
+}
+
 // ── Shared hooks ─────────────────────────────────────────────────────────────
 
 function useRecordingTimer(active) {
@@ -121,6 +130,75 @@ function useRecordingTimer(active) {
     return () => window.clearInterval(iv);
   }, [active]);
   return ms;
+}
+
+function useSilenceDetector(stream, active, onSilence, {
+  timeoutMs = DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS,
+  rmsThreshold = SILENCE_RMS_THRESHOLD,
+} = {}) {
+  const onSilenceRef = useRef(onSilence);
+  useEffect(() => { onSilenceRef.current = onSilence; }, [onSilence]);
+
+  useEffect(() => {
+    if (!active || !stream || typeof window === "undefined") return undefined;
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return undefined;
+
+    let cancelled = false;
+    let raf = 0;
+    let silenceStartedAt = 0;
+    let notified = false;
+    let source = null;
+    let audioContext = null;
+
+    try {
+      audioContext = new AudioContextCtor();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 1024;
+      source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      const samples = new Float32Array(analyser.fftSize);
+
+      if (audioContext.state === "suspended") {
+        void audioContext.resume().catch(() => {});
+      }
+
+      const tick = () => {
+        if (cancelled) return;
+        analyser.getFloatTimeDomainData(samples);
+        let sumSquares = 0;
+        for (let i = 0; i < samples.length; i++) {
+          sumSquares += samples[i] * samples[i];
+        }
+        const rms = Math.sqrt(sumSquares / samples.length);
+        const now = performance.now();
+
+        if (rms > rmsThreshold) {
+          silenceStartedAt = 0;
+          notified = false;
+        } else {
+          if (!silenceStartedAt) silenceStartedAt = now;
+          if (!notified && now - silenceStartedAt >= timeoutMs) {
+            notified = true;
+            onSilenceRef.current?.();
+          }
+        }
+
+        raf = window.requestAnimationFrame(tick);
+      };
+
+      raf = window.requestAnimationFrame(tick);
+    } catch {
+      return undefined;
+    }
+
+    return () => {
+      cancelled = true;
+      if (raf) window.cancelAnimationFrame(raf);
+      source?.disconnect();
+      void audioContext?.close().catch(() => {});
+    };
+  }, [active, stream, rmsThreshold, timeoutMs]);
 }
 
 function useMicStream(deviceId, enabled) {
@@ -701,6 +779,8 @@ export function VoiceRecorderCore({
   onClose: onErrorClose,
 }) {
   const isFullscreen = layout === "fullscreen";
+  const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
+  const silenceDetectorThresholdMs = getSilenceDetectorThresholdMs(tpConfigData);
   const publishesCollapsedVoiceSession = isFullscreen || enableCollapsedVoiceSession;
   const rootRef = useRef(null);
   const transcriptScrollRef = useRef(null);
@@ -1069,6 +1149,24 @@ export function VoiceRecorderCore({
     sectionLabel,
     statusLabel,
   ]);
+
+  const handleSilenceDetected = useCallback(() => {
+    trackVoiceRx2RecorderEvent("TP_Voice_V2_Silent_Detection", buildRecorderEventPayload({
+      action: "auto_pause_after_silence",
+      silenceDurationMs: silenceDetectorThresholdMs,
+      silenceThreshold: SILENCE_RMS_THRESHOLD,
+    }));
+    setManualMute(true);
+    playVoiceRxErrorSound();
+    toast.warning("You have been silent for quite some time.");
+  }, [buildRecorderEventPayload, silenceDetectorThresholdMs]);
+
+  useSilenceDetector(
+    stream,
+    Boolean(micEnabled && recordingActive && online),
+    handleSilenceDetected,
+    { timeoutMs: silenceDetectorThresholdMs }
+  );
 
   const isListening = statusLabel === "Listening";
   const shouldShowSectionLabel = showSectionInStatus && sectionLabel && sectionLabel !== "Dr Agent";
