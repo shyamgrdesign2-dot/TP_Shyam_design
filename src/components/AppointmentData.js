@@ -190,6 +190,7 @@ import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { clinicTargetStatus, generateClinicToken } from "../pages/chikitsalay/service";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
+import { useCrossConsult } from "../hooks/useCrossConsult";
 const {
   endVisit: visitEnd,
   cancelVisit: ImgcancelEnd,
@@ -263,6 +264,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const { isLoading } = useSelector((state) => state.uploadDoc);
   const { advancedSettings } = useSelector((state) => state.billing);
   const { isOpdBillingAccessable } = useOpdBilling();
+  const isCrossConsultEnabled = useCrossConsult();
   const isChikitsalayAccessable = useChikitsalay();
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
@@ -825,15 +827,17 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
 
-    updatedItems.push({
-      key: TAB_REFERRAL,
-      label: (
-        <div className="d-flex align-items-center">
-          <i className="icon-Report"></i>
-          Referral ({referralCount})
-        </div>
-      ),
-    });
+    if (isCrossConsultEnabled) {
+      updatedItems.push({
+        key: TAB_REFERRAL,
+        label: (
+          <div className="d-flex align-items-center">
+            <i className="icon-Report"></i>
+            Referral ({referralCount})
+          </div>
+        ),
+      });
+    }
 
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
