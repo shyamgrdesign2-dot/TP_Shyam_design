@@ -28,7 +28,7 @@ import voiceModuleStyles from '../components/dr-agent/voicerx/VoiceRxModuleCaptu
 import { DictationIcon, VoiceRxIcon } from '../components/dr-agent/voicerx/voice-consult-icons';
 import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncContext';
 
-import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType, trackEvent } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType, trackEvent, medicationsHaveFrequencyAndDuration } from "../utils/utils";
 import { transcribeAnyAudio } from '../components/dr-agent/voicerx/api/agent-audio-service';
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
@@ -1551,18 +1551,34 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         [symptomsData]
     );
 
+    const hasMedicationsFrequencyAndDuration = useMemo(
+        () => medicationsHaveFrequencyAndDuration(medicationData),
+        [medicationData]
+    );
+
     const endVisitTooltipMessage = useMemo(() => {
         if (isChikitsalayAccessable) {
+            const missingMedicationFields =
+                medicationData.length > 0 && !hasMedicationsFrequencyAndDuration;
+
             if (!hasSymptomsWithSince && diagnosisData.length === 0) {
                 return "Please fill Symptoms and Diagnosis to end the consultation.";
             } else if (!hasSymptomsWithSince) {
                 return "Please fill Symptoms and Since to end the consultation.";
             } else if (diagnosisData.length === 0) {
                 return "Please fill Diagnosis to end the consultation.";
+            } else if (missingMedicationFields) {
+                return "Please fill Frequency and Duration for all medicines to end the consultation.";
             }
         }
         return "Please fill your prescription to end visit.";
-    }, [isChikitsalayAccessable, hasSymptomsWithSince, diagnosisData]);
+    }, [
+        isChikitsalayAccessable,
+        hasSymptomsWithSince,
+        diagnosisData,
+        medicationData.length,
+        hasMedicationsFrequencyAndDuration,
+    ]);
 
     const opthalTablesById = useMemo(() => {
         return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
@@ -2804,7 +2820,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                               );
                               // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
                               const canEndVisit = isVoiceRxNewFromGB
-                                ? hasPrescriptionModuleData : isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0
+                                ? hasPrescriptionModuleData : isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0 && hasMedicationsFrequencyAndDuration
                                 : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
                                 <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
