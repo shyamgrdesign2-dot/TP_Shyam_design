@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Add, Trash, SearchNormal1 } from "iconsax-reactjs";
+import { VISUAL_TYPE } from "../../../utils/dentalVisualTypes";
 import { getDefaultTreatmentSurfaces } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { sortStringsForTypeahead } from "../lib/billing-catalog";
@@ -54,9 +55,7 @@ export function EntryTab({ state, kind }) {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
-  const isMissing =
-    state.currentToothDiagnoses.has("Missing") ||
-    state.currentToothDiagnoses.has("Extraction");
+  const isMissing = state.currentToothVisualTypes?.has(VISUAL_TYPE.MISSING);
   const isGroupedScope =
     state.selectionScopeType === "quadrant" ||
     state.selectionScopeType === "full-mouth" ||
@@ -204,6 +203,7 @@ export function EntryTab({ state, kind }) {
       notes: undefined
     });
     setQuery("");
+    setSearchOpen(false);
   };
 
   if (isMissing) {
