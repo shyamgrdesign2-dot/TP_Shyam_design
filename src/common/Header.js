@@ -152,6 +152,7 @@ function Header({ locationPath }) {
   useEffect(() => {
     if (!isReceptionist) {
       dispatch(getProfile());
+      dispatch(customizedPad(CUSTOMIZED_PAD_SENDDATA));
       // dispatch(customizedPad(CUSTOMIZED_PAD_SENDDATA)).then(() => {
       //   const userId = decodedToken?.result?.user_id;
       //   if (userId) {
