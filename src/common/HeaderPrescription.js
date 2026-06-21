@@ -2824,7 +2824,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
                                 <>
-                                {onSelectLetterHead && (
+                                {onSelectLetterHead && !isDentalConsultation && (
                                   <Tooltip placement="bottom" title="Letterhead" zIndex={headerOverlayZIndex}>
                                     <button type="button" className="btn align-items-center justify-content-center d-flex btn-41 me-2" onClick={onSelectLetterHead}>
                                       <img src={notesMultiple} alt="Notes" />
