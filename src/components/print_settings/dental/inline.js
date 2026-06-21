@@ -148,7 +148,8 @@ export function DentalInlineView({
             fontWeight: "700",
           }}
         >
-          Dental Examination ({dateStr})
+          Dental Examination 
+          {/* ({dateStr}) */}
         </Text>
       </View>
 

@@ -168,7 +168,8 @@ export function DentalListView({
             fontWeight: "700",
           }}
         >
-          Dental Examination ({dateStr})
+          Dental Examination 
+          {/* ({dateStr}) */}
         </Text>
       </View>
 
