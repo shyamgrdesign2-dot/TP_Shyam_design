@@ -32,7 +32,7 @@ import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWh
 import { transcribeAnyAudio } from '../components/dr-agent/voicerx/api/agent-audio-service';
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
-import { assignCarePlan, getCarePlanAssignments, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
+import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -2278,20 +2278,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     console.error('Care plan sync after submit failed:', error);
                 }
 
-                let carePlanAssignments = [];
-                try {
-                    if (patient_data?.patient_unique_id) {
-                        const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
-                        carePlanAssignments = Array.isArray(assignmentsResp?.data)
-                            ? assignmentsResp.data
-                            : Array.isArray(assignmentsResp)
-                                ? assignmentsResp
-                                : (assignmentsResp?.assignments || []);
-                    }
-                } catch (cpFetchErr) {
-                    console.error('Failed to fetch care plan assignments for print state:', cpFetchErr);
-                }
-
                 message.open({
                     key: MESSAGE_KEY,
                     type: '',
@@ -2432,7 +2418,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     }
                 }
 
-                navigate('/prescription_print_view', { replace: true, state: { ...action.payload, patient_data: patient_data, labParamsData: labParamsData, zydusSelectedLabParams: zydusSelectedLabParams, labReportID: labReportID, carePlanAssignments, from: window.location.pathname, isVoiceRxNewUiFlow } })
+                navigate('/prescription_print_view', { replace: true, state: { ...action.payload, patient_data: patient_data, labParamsData: labParamsData, zydusSelectedLabParams: zydusSelectedLabParams, labReportID: labReportID, from: window.location.pathname, isVoiceRxNewUiFlow } })
             } else {
                 errorMessage(action.error)
             }
