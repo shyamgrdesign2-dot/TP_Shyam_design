@@ -433,7 +433,8 @@ function MedicationsBox({ showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const isTablet = useTabletViewport();
   const prescriptionNewTabletOverlayZIndex = isVoiceRxModuleEnabled && isTablet ? 1305 : undefined;
-  const hasUngroundedMedications = isZydusAccount && medicationData.some(isVoiceRxUngroundedMedication);
+  const shouldRequireInventoryLinkedMedications = isZydusAccount || isChikitsalayAccessable;
+  const hasUngroundedMedications = shouldRequireInventoryLinkedMedications && medicationData.some(isVoiceRxUngroundedMedication);
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
       if (!isVoiceRxModuleEnabled) {
