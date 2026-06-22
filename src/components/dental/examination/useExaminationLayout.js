@@ -43,10 +43,10 @@ export function useExaminationLayout({ isSingle, isOral }) {
       if (!el) return;
       const x = e.clientX;
       const r = el.getBoundingClientRect();
-      const [min, max] = isSingle ? [50, 70] : [30, 40];
+      const [min, max] = (isSingle || isOral) ? [50, 70] : [30, 40];
       // Panel is on the RIGHT now → measure from right edge.
       const pct = Math.min(max, Math.max(min, (r.right - x) / r.width * 100));
-      if (isSingle) setSingleAsidePct(pct); else
+      if (isSingle || isOral) setSingleAsidePct(pct); else
         setDentitionAsidePct(pct);
     };
     const onUp = () => setDragging(false);
@@ -64,7 +64,7 @@ export function useExaminationLayout({ isSingle, isOral }) {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [dragging, isSingle]);
+  }, [dragging, isSingle, isOral]);
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
