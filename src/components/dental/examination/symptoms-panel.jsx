@@ -163,6 +163,7 @@ export function DentalSymptomsBody({ rows, onUpdateRows, state }) {
                         surfaces={r.surfaces}
                         arch={state.selectedTooth.arch}
                         toothPosition={state.selectedTooth.position}
+                        fdi={state.selectedTooth.fdi}
                         onChange={(next) =>
                           updateRow(r.id, {
                             surfaces: next

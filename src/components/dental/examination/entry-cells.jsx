@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Add, InfoCircle } from "iconsax-reactjs";
-import { TOOTH_DIAGNOSES, ZONE_INFO, getZoneLabel } from "./types";
+import { TOOTH_DIAGNOSES, ZONE_INFO, getZoneLabel, getSurfacesForFdi } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { SurfaceDots } from "./surface-pickers";
 import ui from "./ExaminationTab.ui.module.scss";
@@ -580,7 +580,7 @@ export function SurfaceCellDropdown({
                 </button>
               </li>
               <li className={ui.surfaceListRule} />
-              {activeSurfaces.filter((z) => z !== "whole").map((z) => {
+              {activeSurfaces.filter((z) => z !== "whole" && getSurfacesForFdi(entry.toothFdi).includes(z)).map((z) => {
                 const checked = shown.includes(z);
                 const label = getZoneLabel(z, arch, toothPosition);
                 return (

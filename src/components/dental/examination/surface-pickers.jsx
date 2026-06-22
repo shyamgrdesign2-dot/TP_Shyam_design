@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ZONE_INFO, getZoneLabel } from "./types";
+import { ZONE_INFO, getZoneLabel, getSurfacesForFdi } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import ui from "./ExaminationTab.ui.module.scss";
 
@@ -8,13 +8,15 @@ export function SurfaceMultiSelect({
   selected,
   arch,
   toothPosition,
+  fdi,
   onToggle,
   onHover
 }) {
   const { activeSurfaces } = useDentalMasters();
+  const validZones = getSurfacesForFdi(fdi);
   return (
     <div className={ui.zoneChipsRow}>
-      {activeSurfaces.map((z) => {
+      {activeSurfaces.filter((z) => validZones.includes(z)).map((z) => {
         const isActive = selected.includes(z);
         const label = getZoneLabel(z, arch, toothPosition);
         const color = ZONE_INFO[z].color;
@@ -88,6 +90,7 @@ export function SymptomSurfacePicker({
   surfaces,
   arch,
   toothPosition,
+  fdi,
   mode = "symptom",
   onChange
 }) {
@@ -135,8 +138,9 @@ export function SymptomSurfacePicker({
       selected.has(z) ? surfaces.filter((s) => s !== z) : [...surfaces, z]
     );
   };
-  const surfaceOptions = activeSurfaces.filter((z) => z !== "whole");
-  const optionsList = mode === "symptom" ? activeSurfaces : ["whole", ...surfaceOptions];
+  const validZones = getSurfacesForFdi(fdi);
+  const surfaceOptions = activeSurfaces.filter((z) => z !== "whole" && validZones.includes(z));
+  const optionsList = mode === "symptom" ? surfaceOptions : ["whole", ...surfaceOptions];
   return (
     <>
       <button
