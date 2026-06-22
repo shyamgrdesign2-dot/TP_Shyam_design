@@ -11,14 +11,14 @@
   left: 50%;
   z-index: 10000;
   display: grid;
-  width: 100%;
+  // width: 100%;
   max-width: calc(100% - 2rem);
   transform: translate(-50%, -50%);
   gap: 1rem;
   border: 1px solid var(--border, #e2e8f0);
-  border-radius: 0.5rem;
+  border-radius: 14px;
   padding: 1.5rem;
-  background: var(--background, #ffffff);
+  background: #ffffff;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
 }
 

@@ -5,7 +5,6 @@
   margin-top: 20px;
   margin-bottom: 10px;
   display: flex;
-  align-items: center;
   gap: 8px;
   padding: 0 2px;
 }
@@ -985,6 +984,134 @@
   padding: 24px;
 }
 
+.markAsDialogContent {
+  width: 480px;
+  max-width: 94vw;
+  border-radius: 14px;
+  overflow: hidden;
+  padding: 0 !important;
+  gap: 0 !important;
+  box-shadow: rgba(15, 23, 42, 0.15) 0 8px 28px;
+  font-family: "Inter", sans-serif;
+}
+
+.markAsDialogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.markAsDialogTitle {
+  color: #171725;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.markAsDialogClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 0;
+  background: #171725;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: #454551;
+  }
+}
+
+.markAsDialogDivider {
+  height: 1px;
+  background: #f1f1f5;
+}
+
+.markAsDialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+}
+
+.markAsDialogWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fffbeb;
+  border-radius: 10px;
+}
+
+.markAsDialogWarningIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex;
+}
+
+.markAsDialogWarningText {
+  color: #454551;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.markAsDialogFooter {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid #f1f1f5;
+}
+
+.markAsDialogYes {
+  cursor: pointer;
+  border: 0;
+  border-radius: 8px;
+  height: 36px;
+  padding: 0 12px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #dc2626;
+  background: transparent;
+  text-decoration: underline 1px;
+  text-underline-offset: 4px;
+  transition: color 0.15s;
+
+  &:hover {
+    color: #b91c1c;
+  }
+}
+
+.markAsDialogNo {
+  cursor: pointer;
+  border: 0;
+  border-radius: 8px;
+  height: 36px;
+  padding: 0 16px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #4b4ad5;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: #3d3cb8;
+  }
+}
+
 // Notes textarea wrap
 .notesPad {
   padding: 0 12px 12px;
@@ -1806,7 +1933,7 @@
   position: relative;
   z-index: 20;
   display: flex;
-  height: 52px;
+  min-height: 52px;
   width: 100%;
   min-width: 0;
   align-items: center;
@@ -1814,7 +1941,7 @@
   gap: 6px;
   border: 0;
   background: transparent;
-  padding: 0 12px;
+  padding: 8px 12px;
   font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
@@ -1831,9 +1958,6 @@
   flex: 1;
   min-width: 0;
   text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .surfacePlaceholder {
@@ -2318,7 +2442,7 @@
 }
 
 .searchBlockTop {
-  margin-top: 0;
+  margin-top: 10px;
 }
 
 .searchInput14 {
