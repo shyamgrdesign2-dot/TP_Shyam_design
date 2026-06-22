@@ -21,6 +21,12 @@ import {
 
 import { useSelector, useDispatch } from "react-redux";
 import { selectDentalExamination } from "../../../../redux/dentalExaminationSlice";
+import {
+  DENTAL_RX_PAD_ROUTE,
+  DENTAL_RX_PRINT_VIEW_ROUTE,
+  TAB_RX_PRESCRIPTION_ROUTE,
+  isDentalPrintViewPath,
+} from "../../../../utils/dentalRoutes";
 import { useAccess } from "../../../vaccination/useAccess";
 
 import { viewCaseManager } from "../../../../redux/caseManagerSlice";
@@ -156,20 +162,22 @@ function TabRxPrescriptionPrintView() {
   const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
   const { isOpdBillChecked } = useSelector((state) => state.billing);
   const { isOpdBillingAccessable } = useOpdBilling();
-  const [showDigitalRx, setShowDigitalRx] = useState(false);
+
+  const { state, pathname } = useLocation();
+  const isDental =
+    state?.page === "dental" || isDentalPrintViewPath(pathname);
+  const [showDigitalRx, setShowDigitalRx] = useState(isDental);
 
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
 
-  const { state } = useLocation();
   const {
     patient_data,
     pam_id,
     zydusSelectedLabParams,
     smartRxFilesData,
   } = state || {};
-  const isDental = state?.page === "dental"
   // const dentalExaminationData = state?.dentalExaminationData || state?.dentalData || null;
   const dentalExaminationData = useSelector(selectDentalExamination);
   const oralExamination = useSelector((state) => state.oralExamination);
@@ -714,7 +722,7 @@ function TabRxPrescriptionPrintView() {
     // Best-effort: sync care plan assignment/update based on available info
     await syncCarePlanAssignmentIfNeeded();
     if (isDental) {
-      navigate("/dental", {
+      navigate(DENTAL_RX_PAD_ROUTE, {
         replace: true,
         state: {
           patient_data: patient_data,
@@ -968,7 +976,7 @@ function TabRxPrescriptionPrintView() {
           pam_id: pam_id,
           smartRxFile,
           dentalExaminationData,
-          from: "/tab-rx-prescription",
+          from: isDental ? DENTAL_RX_PRINT_VIEW_ROUTE : TAB_RX_PRESCRIPTION_ROUTE,
         },
       });
     } else {

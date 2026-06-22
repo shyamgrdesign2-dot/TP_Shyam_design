@@ -78,14 +78,8 @@ function mergeOralHistoryToChart(historyPayload) {
   return hasOralExamChartData(chart) ? chart : null;
 }
 
-async function fetchDentalFromApi(patientId, includeHistorical, allowFullApiFallback) {
+async function fetchDentalTodayOnly(patientId, allowFullApiFallback) {
   if (!patientId) return null;
-
-  if (includeHistorical) {
-    const res = await getExamination(patientId).catch(() => null);
-    const full = extractDentalApiPayload(res);
-    return hasDentalExamPayload(full) ? full : null;
-  }
 
   const todayRes = await getExaminationTodayOnly(patientId).catch(() => null);
   const today = extractDentalApiPayload(todayRes);
@@ -100,20 +94,13 @@ async function fetchDentalFromApi(patientId, includeHistorical, allowFullApiFall
   return null;
 }
 
-async function fetchOralFromApi(
+async function fetchOralTodayOnly(
   patientId,
-  includeHistorical,
   allowFullApiFallback,
   tcmId,
   consultationDate
 ) {
   if (!patientId) return null;
-
-  if (includeHistorical) {
-    const res = await getOralExamination(patientId).catch(() => null);
-    const payload = extractDentalApiPayload(res);
-    return mergeOralHistoryToChart(payload);
-  }
 
   const todayRes = await getOralExaminationTodayOnly(patientId).catch(() => null);
   const todayPayload = extractDentalApiPayload(todayRes);
@@ -128,7 +115,7 @@ async function fetchOralFromApi(
     const fullPayload = extractDentalApiPayload(fullRes);
     const visitChart = pickOralExamForVisit(fullPayload, tcmId, consultationDate);
     if (hasOralExamChartData(visitChart)) return visitChart;
-    return mergeOralHistoryToChart(fullPayload);
+    return mapOralApiToChart(fullPayload);
   }
 
   return null;
@@ -175,37 +162,34 @@ export async function resolveDentalOralForPrint({
   let examChart = null;
 
   if (dentalEnabled) {
-    if (patientId) {
-      dentalExaminationData = await fetchDentalFromApi(
-        patientId,
-        dentalHistorical,
-        allowFullApiFallback
-      );
-    }
-    if (
-      !hasDentalExamPayload(dentalExaminationData) &&
-      hasDentalExamPayload(normalizedInMemoryDental)
-    ) {
+    if (dentalHistorical) {
+      // Toggle ON: today-only API data for this visit.
+      if (patientId) {
+        dentalExaminationData = await fetchDentalTodayOnly(
+          patientId,
+          allowFullApiFallback
+        );
+      }
+    } else if (hasDentalExamPayload(normalizedInMemoryDental)) {
+      // Toggle OFF: full in-memory dental examination chart.
       dentalExaminationData = normalizedInMemoryDental;
     }
   }
 
   if (oralEnabled) {
-    if (patientId) {
-      examChart = await fetchOralFromApi(
-        patientId,
-        oralHistorical,
-        allowFullApiFallback,
-        tcmId,
-        consultationDate
-      );
-    }
-    if (!hasOralExamChartData(examChart)) {
-      if (hasOralExamChartData(inMemoryOralChart)) {
-        examChart = inMemoryOralChart;
-      } else if (hasOralExamChartData(contextOralChart)) {
-        examChart = contextOralChart;
+    if (oralHistorical) {
+      if (patientId) {
+        examChart = await fetchOralTodayOnly(
+          patientId,
+          allowFullApiFallback,
+          tcmId,
+          consultationDate
+        );
       }
+    } else if (hasOralExamChartData(inMemoryOralChart)) {
+      examChart = inMemoryOralChart;
+    } else if (hasOralExamChartData(contextOralChart)) {
+      examChart = contextOralChart;
     }
   }
 

@@ -60,7 +60,8 @@ export function OralTableView({ PX_TO_PT, printSettings, oralChart, consultation
   return (
     <View style={{ marginTop: PX_TO_PT * 12, marginBottom: PX_TO_PT * 10 }}>
       <Text style={{ fontFamily, fontSize: PX_TO_PT * (baseFontSize + 1), fontWeight: "700", color: "#171725", marginBottom: PX_TO_PT * 8 }}>
-        Oral Examination ({dateStr})
+        Oral Examination 
+        {/* ({dateStr}) */}
       </Text>
       {renderTable("PAST PROCEDURES", entries.filter((e) => e.kind === "past"))}
       {renderTable("FINDINGS", entries.filter((e) => e.kind !== "past" && e.kind !== "procedure"))}

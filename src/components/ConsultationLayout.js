@@ -115,6 +115,7 @@ import { getDecodedToken } from "../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
   errorMessage,
+  getClinic,
   getClinicName,
   shouldMonetizationDisabled,
   trackEvent,
@@ -122,6 +123,21 @@ import {
   getTokenData,
   isVoiceRxFree,
 } from "../utils/utils";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  getDentalVisitMetrics,
+  getPatientAgeGroup,
+  setDentalAnalyticsContext,
+  setDentalVisitFlag,
+  trackDentalEvent,
+  trackDentalEventWithContext,
+} from "../utils/dentalMoengage";
+import {
+  DENTAL_RX_PAD_ROUTE,
+  DENTAL_RX_PRINT_VIEW_ROUTE,
+  TAB_RX_PRESCRIPTION_ROUTE,
+  isDentalRxPadPath,
+} from "../utils/dentalRoutes";
 
 import { SideNavbar } from "./sideNavbar";
 import ConsultationRxPadCopyListener from "./ConsultationRxPadCopyListener";
@@ -638,7 +654,7 @@ function ConsultationLayout({ children, headerProps }) {
 
   const [isSelectLetterHead, setIsSelectLetterHead] = useState(false);
   const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
-  const [activeDentalTab, setActiveDentalTab] = useState("clinical");
+  const [activeDentalTab, setActiveDentalTab] = useState("dental");
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
   const [vaccineRefreshKey, setVaccineRefreshKey] = useState(0);
   const [growthRefreshKey, setGrowthRefreshKey] = useState(0);
@@ -677,7 +693,56 @@ function ConsultationLayout({ children, headerProps }) {
     isTablet ? drAgentStyles.prescriptionNewRouteShellTablet : "",
   ].filter(Boolean).join(" ");
 
+  useEffect(() => {
+    if (!isDentalRxPadPath(location.pathname)) return;
+    setDentalAnalyticsContext({
+      profile,
+      userId,
+      patientData: patient_data,
+      clinic: getClinic(profile?.hospital_data),
+      pamId,
+      tcmId: currentTcmId,
+      sourcePage: DENTAL_RX_PAD_ROUTE,
+    });
+  }, [
+    location.pathname,
+    profile,
+    userId,
+    patient_data,
+    pamId,
+    currentTcmId,
+  ]);
 
+  const trackDentalTabOpen = () => {
+    const toothCount = Object.keys(dentalExamination?.toothState ?? {}).length;
+    const oralEntries = oralExamination?.canvasOralEntries || [];
+    const oralNotes = oralExamination?.canvasOralNotes || "";
+    const oralCount =
+      oralEntries.length + (oralNotes.trim() ? 1 : 0);
+    trackDentalEventWithContext(
+      {
+        profile,
+        userId,
+        patientData: patient_data,
+        pamId,
+        tcmId: currentTcmId,
+        sourcePage: DENTAL_RX_PAD_ROUTE,
+      },
+      DENTAL_MOENGAGE_EVENTS.CTA_CLICKED,
+      {
+        source_page: DENTAL_RX_PAD_ROUTE,
+        source_tab: "clinical_examination",
+        destination_tab: "dental_examination",
+        cta_name: "Dental Examination",
+        cta_location: "top_tab_bar",
+        has_existing_dental_data: toothCount > 0 || oralCount > 0,
+        tooth_record_count_total: toothCount,
+        oral_exam_count_total: oralCount,
+        patient_age_group: getPatientAgeGroup(patient_data?.ageYears),
+      },
+    );
+    setActiveDentalTab("dental");
+  };
 
   const showHideSubModal = (object) => {
     object && setSubModalData(object);
@@ -999,7 +1064,7 @@ function ConsultationLayout({ children, headerProps }) {
   // Prefetch dental data while user is on the Clinical tab so it's ready when dental tab opens
   useEffect(() => {
     const patId = patient_data?.patient_unique_id;
-    if (!patId || location.pathname !== "/dental") return;
+    if (!patId || !isDentalRxPadPath(location.pathname)) return;
     dispatch(fetchDentalExamination(patId));
     dispatch(fetchOralExamination(patId));
   }, [patient_data?.patient_unique_id, location.pathname]);
@@ -2132,12 +2197,38 @@ function ConsultationLayout({ children, headerProps }) {
   };
 
   const handleEndVisit = async () => {
+    const isDentalRoute = isDentalRxPadPath(location.pathname);
+    if (isDentalRoute) {
+      const toothTotal = Object.keys(dentalExamination?.toothState ?? {}).length;
+      const oralEntries = oralExamination?.canvasOralEntries || [];
+      const oralNotes = oralExamination?.canvasOralNotes || "";
+      const metrics = getDentalVisitMetrics();
+      trackDentalEventWithContext(
+        {
+          profile,
+          userId,
+          patientData: patient_data,
+          pamId,
+          tcmId: currentTcmId,
+          sourcePage: DENTAL_RX_PAD_ROUTE,
+        },
+        DENTAL_MOENGAGE_EVENTS.END_VISIT_CLICKED,
+        {
+          source_page: DENTAL_RX_PAD_ROUTE,
+          tooth_records_total_present: toothTotal,
+          tooth_records_added_current_visit: metrics.tooth_records_added_current_visit,
+          oral_exam_total_present: oralEntries.length + (oralNotes.trim() ? 1 : 0),
+          oral_exam_added_current_visit: metrics.oral_exam_added_current_visit,
+          patient_age_group: getPatientAgeGroup(patient_data?.ageYears),
+        },
+      );
+    }
     setIsEndVisitLoading(true);
     try {
       const patientId = patient_data?.patient_unique_id;
 
       // Save dental examination before ending visit when on dental route
-      if (location.pathname === "/dental" && patientId && dentalExamination?.toothState && Object.keys(dentalExamination.toothState).length > 0) {
+      if (isDentalRxPadPath(location.pathname) && patientId && dentalExamination?.toothState && Object.keys(dentalExamination.toothState).length > 0) {
         try {
           const tooth_states = transformToothStateToApi(dentalExamination.toothState);
           await dispatch(saveDentalExamination({
@@ -2156,7 +2247,7 @@ function ConsultationLayout({ children, headerProps }) {
       }
 
       // Save oral examination before ending visit when on dental route
-      if (location.pathname === "/dental" && patientId) {
+      if (isDentalRxPadPath(location.pathname) && patientId) {
         const canvasOralEntries = oralExamination?.canvasOralEntries || [];
         const canvasOralNotes = oralExamination?.canvasOralNotes || "";
         const hasOralData = canvasOralEntries.length > 0 || canvasOralNotes.trim().length > 0;
@@ -2222,6 +2313,45 @@ function ConsultationLayout({ children, headerProps }) {
         : dispatch(editCaseManager(sendData)));
 
       if (action.meta.requestStatus === "fulfilled") {
+        if (isDentalRoute) {
+          const clinic = getClinic(profile?.hospital_data);
+          const metrics = getDentalVisitMetrics();
+          const toothTotal = Object.keys(dentalExamination?.toothState ?? {}).length;
+          const oralEntries = oralExamination?.canvasOralEntries || [];
+          const oralNotes = oralExamination?.canvasOralNotes || "";
+          trackDentalEventWithContext(
+            {
+              profile,
+              userId,
+              patientData: patient_data,
+              pamId,
+              tcmId: currentTcmId,
+              clinic,
+              sourcePage: DENTAL_RX_PAD_ROUTE,
+            },
+            DENTAL_MOENGAGE_EVENTS.END_VISIT_CONFIRMED,
+            {
+              hospital_id: clinic?.hm_id || "",
+              hospital_name: clinic?.hm_name || "",
+              doctor_id: profile?.doctor_unique_id || "",
+              doctor_name: profile?.um_name || "",
+              doctor_number: profile?.um_contact || "",
+              patient_id: patient_data?.patient_unique_id || "",
+              patient_name: patient_data?.pm_fullname || "",
+              patient_age_group: getPatientAgeGroup(patient_data?.ageYears),
+              patient_gender: patient_data?.pm_gender || "",
+              tooth_records_total_present: toothTotal,
+              tooth_records_added_current_visit: metrics.tooth_records_added_current_visit,
+              oral_exam_total_present: oralEntries.length + (oralNotes.trim() ? 1 : 0),
+              oral_exam_added_current_visit: metrics.oral_exam_added_current_visit,
+              dental_entries_total_current_visit:
+                metrics.tooth_records_added_current_visit +
+                metrics.oral_exam_added_current_visit,
+              print_preview_opened_before_end: metrics.print_preview_opened_before_end,
+              print_completed_before_end: metrics.print_completed_before_end,
+            },
+          );
+        }
         try {
           // Ensure care plan is linked to the definitive consultation id
           const decodedToken = getDecodedToken();
@@ -2320,12 +2450,16 @@ function ConsultationLayout({ children, headerProps }) {
           ? transformToothStateToApi(dentalExamination.toothState)
           : [];
 
-        navigate("/tab-rx-prescription", {
+        const printRoute = isDentalRxPadPath(location.pathname)
+          ? DENTAL_RX_PRINT_VIEW_ROUTE
+          : TAB_RX_PRESCRIPTION_ROUTE;
+
+        navigate(printRoute, {
           replace: true,
           state: {
             ...action.payload,
             patient_data: patient_data,
-            page: location?.pathname === "/dental" ? "dental" : "tabrx",
+            page: isDentalRxPadPath(location.pathname) ? "dental" : "tabrx",
             dentalExaminationData: activeDentalData,
           },
         });
@@ -2341,6 +2475,34 @@ function ConsultationLayout({ children, headerProps }) {
   };
 
   const handlePreviewRx = async () => {
+    if (isDentalRxPadPath(location.pathname)) {
+      setDentalVisitFlag("print_preview_opened_before_end", true);
+      const toothTotal = Object.keys(dentalExamination?.toothState ?? {}).length;
+      const oralEntries = oralExamination?.canvasOralEntries || [];
+      const oralNotes = oralExamination?.canvasOralNotes || "";
+      const metrics = getDentalVisitMetrics();
+      trackDentalEventWithContext(
+        {
+          profile,
+          userId,
+          patientData: patient_data,
+          pamId,
+          tcmId: currentTcmId,
+          sourcePage: DENTAL_RX_PAD_ROUTE,
+        },
+        DENTAL_MOENGAGE_EVENTS.PRINT_PREVIEW_OPENED,
+        {
+          source_page: DENTAL_RX_PAD_ROUTE,
+          tooth_records_total_present: toothTotal,
+          tooth_records_added_current_visit: metrics.tooth_records_added_current_visit,
+          oral_exam_total_present: oralEntries.length + (oralNotes.trim() ? 1 : 0),
+          oral_exam_added_current_visit: metrics.oral_exam_added_current_visit,
+          has_dental_examination: toothTotal > 0,
+          has_oral_examination: oralEntries.length > 0 || oralNotes.trim().length > 0,
+          patient_age_group: getPatientAgeGroup(patient_data?.ageYears),
+        },
+      );
+    }
     setIsPreviewLoading(true);
     setIsPreviewDrawerOpen(true);
     setPreviewPdfFile(null);
@@ -2541,7 +2703,7 @@ function ConsultationLayout({ children, headerProps }) {
               setUploadDocDrawer={setUploadDocDrawer}
             />
             <div className="w-100 bg-body wrapper2 prescription-wrapper p-0" style={prescriptionWrapperStyle}>
-              {location.pathname === "/dental" ? (
+              {isDentalRxPadPath(location.pathname) ? (
                 <Content className="dental-content-wrapper w-100 d-flex flex-column" style={{ height: "100%", overflow: "hidden" }}>
                   <div className="dental-tab-bar">
                     <div className="dental-tab-inner">
@@ -2561,7 +2723,7 @@ function ConsultationLayout({ children, headerProps }) {
                       <button
                         type="button"
                         className={`dental-tab-btn ${activeDentalTab === "dental" ? "active" : "inactive"}`}
-                        onClick={() => setActiveDentalTab("dental")}
+                        onClick={trackDentalTabOpen}
                       >
                         <ToothIcon
                           name="tooth"

@@ -59,7 +59,8 @@ export function OralInlineView({
           paddingBottom: PX_TO_PT * 4,
         }}
       >
-        Oral Examination ({dateStr})
+        Oral Examination 
+        {/* ({dateStr}) */}
       </Text>
       {segs.map((seg) => (
         <Text

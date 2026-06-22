@@ -22,6 +22,12 @@ import { useExaminationTemplates } from "./hooks/useExaminationTemplates";
 import { PrimaryDiagnosisBody } from "./diagnosis-panel";
 import { EntryTab } from "./entry-tab";
 import { DX_MARKER } from "../../../utils/dentalApiMappers";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  getToothAnalyticsMeta,
+  trackDentalEvent,
+} from "../../../utils/dentalMoengage";
+import { DENTAL_RX_PAD_ROUTE } from "../../../utils/dentalRoutes";
 
 const ARCH_SCOPE_BADGE = {
   RIGHT_ARCH: "R arch",
@@ -137,6 +143,20 @@ export function SingleToothPanel({ state, onSave }) {
       return;
     }
     setActiveSection(id);
+    const toothMeta = getToothAnalyticsMeta(state.selectedTooth?.fdi, state.selectedTooth);
+    trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_SECTION_EXPANDED, {
+      ...toothMeta,
+      section_name: id,
+      existing_item_count:
+        id === "findings"
+          ? findingCount
+          : id === "planned"
+            ? plannedCount
+            : id === "procedures"
+              ? diagnosisCount + procedureCount
+              : 0,
+      source_page: DENTAL_RX_PAD_ROUTE,
+    });
     // Delay scroll until the accordion has expanded so we scroll to the expanded height.
     requestAnimationFrame(() => {
       sectionRefs.current[id]?.scrollIntoView({

@@ -5,10 +5,16 @@
  * useDentalCanvasInteraction; all scene/camera R3F components live in
  * useThreeDentalScene (CameraController, ZoneCameraRotator).
  */
-import { Suspense, useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { VISUAL_TYPE } from "../../../utils/dentalVisualTypes";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  fireDentalOnce,
+  getPatientAgeGroup,
+  trackDentalEvent,
+} from "../../../utils/dentalMoengage";
 import { Tooth } from "./Tooth";
 import DentitionView from "./DentitionView";
 import { ToothSelector } from "./ToothSelector";
@@ -78,6 +84,7 @@ export function DentalCanvas({
 
   const {
     patientType,
+    activeTeeth,
     viewMode,
     selectedTooth,
     selectionScope,
@@ -107,6 +114,7 @@ export function DentalCanvas({
     currentToothEntries,
     handleDentitionVerticalNudgeChange,
     handleDentitionControlsEnd,
+    handleOrbitControlsStart,
     toggleImplant,
     toggleToothDiagnosis,
     setToothDiagnosis,
@@ -153,6 +161,26 @@ export function DentalCanvas({
   );
 
   const isDentitionView = viewMode === "dentition";
+  const chartViewedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isDentitionView || chartViewedRef.current) return;
+    chartViewedRef.current = true;
+    fireDentalOnce("chart_viewed", () => {
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.CHART_VIEWED, {
+        patient_age_group: getPatientAgeGroup(patientAge),
+        chart_type: patientType,
+        view_mode: viewMode,
+        is_rotatable: true,
+        tooth_count_visible: activeTeeth?.length || 0,
+      });
+    });
+  }, [isDentitionView, patientAge, patientType, viewMode, activeTeeth?.length]);
+
+  const onSelectToothFromChart = (tooth) =>
+    handleSelectTooth(tooth, { selectionSource: "3d_chart" });
+
+  const onOpenOralExam = () => enterOralExam({ entrySource: "canvas_cta" });
 
   const dentitionTitle =
     patientType === "adult"
@@ -202,7 +230,8 @@ export function DentalCanvas({
       onUpdateNotes: handleUpdateNotes,
       onUpdateToothNotes: updateToothNotes,
       onBackToDentition: handleBackToDentition,
-      onSelectTooth: handleSelectTooth,
+      onSelectTooth: (tooth) =>
+        handleSelectTooth(tooth, { selectionSource: "record_card" }),
       onSelectZone: handleSelectZone,
       onClearSelectedZone: handleClearSelectedZone,
       onAddEntry: handleAddEntry,
@@ -212,7 +241,7 @@ export function DentalCanvas({
       onRemoveOralEntry: removeOralEntry,
       onUpdateOralEntry: updateOralEntry,
       onUpdateOralNotes: updateOralNotes,
-      onEnterOralExam: enterOralExam,
+      onEnterOralExam: (meta) => enterOralExam(meta),
       onSetOralHighlight: setOralHighlight,
       onUpdateTreatmentHistoryDetail: handleUpdateTreatmentHistoryDetail,
       onRemoveTreatmentHistoryDetail: handleRemoveTreatmentHistoryDetail,
@@ -445,7 +474,7 @@ export function DentalCanvas({
             <div className={dc.scopeHost}>
               <button
                 type="button"
-                onClick={enterOralExam}
+                onClick={onOpenOralExam}
                 title="Record region-level oral findings & procedures"
                 className={dc.oralExamBtn}
               >
@@ -460,7 +489,8 @@ export function DentalCanvas({
           <ToothSelector
             selectedTooth={selectedTooth}
             patientType={patientType}
-            onSelectTooth={handleSelectTooth}
+            onSelectTooth={(tooth) =>
+              handleSelectTooth(tooth, { selectionSource: "tooth_selector" })}
             toothDiagnoses={toothDiagnoses}
             viewMode={viewMode}
             onBackToDentition={handleBackToDentition}
@@ -535,7 +565,7 @@ export function DentalCanvas({
                 toothDiagnoses={toothDiagnoses}
                 findingsByTooth={findingsByTooth}
                 implantTeeth={implantTeeth}
-                onSelectTooth={handleSelectTooth}
+                onSelectTooth={onSelectToothFromChart}
                 onHoverTooth={setHoveredToothFdi}
                 externalHoveredFdi={hoveredToothFdi}
                 allEntries={allEntries}
@@ -556,7 +586,7 @@ export function DentalCanvas({
                 toothDiagnoses={toothDiagnoses}
                 findingsByTooth={findingsByTooth}
                 implantTeeth={implantTeeth}
-                onSelectTooth={handleSelectTooth}
+                onSelectTooth={onSelectToothFromChart}
                 onHoverTooth={setHoveredToothFdi}
                 externalHoveredFdi={hoveredToothFdi}
                 allEntries={allEntries}
@@ -597,6 +627,7 @@ export function DentalCanvas({
           <OrbitControls
             ref={controlsRef}
             target={selectionScope.type === "tooth" ? SINGLE_TOOTH_TARGET : undefined}
+            onStart={handleOrbitControlsStart}
             onEnd={handleDentitionControlsEnd}
             enableDamping={true}
             dampingFactor={0.12}

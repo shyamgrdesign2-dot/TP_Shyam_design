@@ -28,7 +28,13 @@ import { getModules } from "../redux/customModuleSlice";
 import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
-import { updateFooterImageHeight, trackEvent } from "../utils/utils";
+import { updateFooterImageHeight, trackEvent, getClinic } from "../utils/utils";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  fireDentalOnce,
+  setDentalAnalyticsContext,
+  trackDentalEvent,
+} from "../utils/dentalMoengage";
 import { getGenRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "./snapRx/services/snapRxService";
 import { env } from "../EnvironmentConfig";
@@ -40,6 +46,7 @@ import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
 import { transformToothStateToApi } from "../components/dental/lib/examination-helpers";
+import { toothHasDentalPrintData } from "../components/print_settings/dental/dentalPrintHelpers";
 import { GB_DENTAL_MODULE } from "../utils/constants";
 import { mergeDentalPrintCaseOptions } from "../utils/dentalDefaultPrintSettings";
 import { listPatientCanvasMapping } from "./drawingCanvas/service";
@@ -137,6 +144,27 @@ function ConfigurePrintSetting() {
         );
     };
 
+
+    useEffect(() => {
+        if (!isDentalEnabled && !dentalExaminationData && !dentalData) return;
+        setDentalAnalyticsContext({
+            profile,
+            userId,
+            patientData: caseManagerData?.patient_data,
+            clinic: getClinic(profile?.hospital_data),
+            pamId: pam_id,
+            tcmId: caseManagerData?.tcm_id,
+            sourcePage: "/configure_print_setting",
+        });
+        fireDentalOnce("print_configuration_opened", () => {
+            trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_CONFIGURATION_OPENED, {
+                source_page: "/configure_print_setting",
+                layout_type: printSettings?.prescription?.format || "",
+                show_dental_chart: true,
+                include_past_dental_history: false,
+            });
+        });
+    }, [isDentalEnabled, dentalExaminationData, dentalData, profile, userId, caseManagerData, pam_id, printSettings?.prescription?.format]);
 
     useEffect(() => {
         setDivWidth(divRef.current?.offsetWidth);
@@ -920,13 +948,9 @@ function ConfigurePrintSetting() {
                 };
             }
             if (Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.length > 0) {
-                hasDentalExaminationData = dentalExamData.tooth_states.some((toothState) => {
-                    const hasHistory = (toothState.treatment_history || []).length > 0;
-                    const hasFindings = (toothState.findings || []).length > 0;
-                    const hasProcedures = (toothState.procedures || []).length > 0;
-                    const hasNotes = (toothState.overall_notes || "").trim().length > 0;
-                    return hasHistory || hasFindings || hasProcedures || hasNotes;
-                });
+                hasDentalExaminationData = dentalExamData.tooth_states.some((toothState) =>
+                    toothHasDentalPrintData(toothState)
+                );
             }
 
             if (!isWrittenRxSnapSmart && isDentalEnabled && copyPrintSettings?.prescription?.case_option) {

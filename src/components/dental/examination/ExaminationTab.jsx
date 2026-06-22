@@ -11,9 +11,20 @@
 import React, {
   useCallback,
   useEffect,
+  useRef,
   useState
 } from "react";
 import { Spin } from "antd";
+import { useSelector } from "react-redux";
+import { getClinic } from "../../../utils/utils";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  fireDentalOnce,
+  getPatientAgeGroup,
+  setDentalAnalyticsContext,
+  trackDentalEvent,
+} from "../../../utils/dentalMoengage";
+import { DENTAL_RX_PAD_ROUTE } from "../../../utils/dentalRoutes";
 import { DentalCanvas } from "./DentalCanvas";
 import { saveDentalPreviewSnapshot } from "../tp-rxpad/rx-preview-store";
 import { useDentalExamination } from "../lib/useDentalExamination";
@@ -32,6 +43,7 @@ import { getModelPathsForPatientType } from "./tooth-geometry";
 
 export function ExaminationTab({ patientId, patientAge = 30 }) {
   const dispatch = useDispatch();
+  const { profile, userId } = useSelector((state) => state.doctors);
   const patientType = patientAge < 12 ? "pediatric" : patientAge < 18 ? "mixed" : "adult";
   useEffect(() => {
     getModelPathsForPatientType(patientType).forEach((p) => useGLTF.preload(p, "/draco/"));
@@ -47,6 +59,53 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
     saveOralExam,
   } = useOralExamination(patientId);
   const [canvasState, setCanvasState] = useState(null);
+  const moduleOpenedRef = useRef(false);
+
+  useEffect(() => {
+    setDentalAnalyticsContext({
+      profile,
+      userId,
+      patientData: { patient_unique_id: patientId, ageYears: patientAge },
+      clinic: getClinic(profile?.hospital_data),
+      sourcePage: DENTAL_RX_PAD_ROUTE,
+    });
+  }, [profile, userId, patientId, patientAge]);
+
+  useEffect(() => {
+    if (loading || oralLoading || moduleOpenedRef.current) return;
+    moduleOpenedRef.current = true;
+    fireDentalOnce("module_opened", () => {
+      const hasToothState =
+        toothState && Object.keys(toothState).length > 0;
+      const oralCount =
+        (oralFindings?.length || 0) +
+        (oralProcedures?.length || 0) +
+        (oralTreatmentHistory?.length || 0) +
+        (oralOverallNotes?.trim() ? 1 : 0);
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.MODULE_OPENED, {
+        patient_age_group: getPatientAgeGroup(patientAge),
+        chart_type: dentitionType || patientType,
+        default_view: "dentition",
+        has_existing_dental_data: Boolean(hasToothState || oralCount > 0),
+        tooth_record_count_total: hasToothState
+          ? Object.keys(toothState).length
+          : 0,
+        oral_exam_count_total: oralCount,
+        source_page: DENTAL_RX_PAD_ROUTE,
+      });
+    });
+  }, [
+    loading,
+    oralLoading,
+    patientAge,
+    patientType,
+    dentitionType,
+    toothState,
+    oralFindings,
+    oralProcedures,
+    oralTreatmentHistory,
+    oralOverallNotes,
+  ]);
 
   const { initialCanvasData } = useExaminationOrchestrator({
     loading,

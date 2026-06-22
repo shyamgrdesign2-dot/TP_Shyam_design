@@ -96,6 +96,7 @@ import {
   GB_CVT_EXT_HOS,
   GB_MANYA_DENTAL,
 } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import config from "../config";
@@ -1906,7 +1907,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           }
         : undefined;
 
-    navigate("/dental", { state: { patient_data: record, videoConsultData } });
+    navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: record, videoConsultData } });
   };
 
   const onAppointmentAgentClick = async () => {

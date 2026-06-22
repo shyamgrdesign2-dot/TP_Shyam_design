@@ -11,6 +11,7 @@ import { useReactToPrint } from 'react-to-print';
 
 import { errorMessage, getClinic, isIPad, isValidMongoId, sendMessageToParent, trackEvent } from "../utils/utils";
 import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
@@ -83,7 +84,7 @@ function PrescriptionPrintView() {
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID, isVoiceRxNewUiFlow } = state;
     const isDentalGB = useFeatureIsOn(GB_DENTAL_MODULE);
-    const isDental = state?.from === "/dental" ||
+    const isDental = state?.from === DENTAL_RX_PAD_ROUTE ||
                      profile?.dp_name?.toLowerCase().includes("dental") ||
                      profile?.dp_name?.toLowerCase().includes("dentist") || isDentalGB;
 
@@ -501,7 +502,7 @@ function PrescriptionPrintView() {
         if (action.meta.requestStatus === "fulfilled") {
             const caseManagerData = action.payload;
             if (isDental) {
-                navigate("/dental", { replace: true, state: { patient_data: patient_data, caseManagerData } })
+                navigate(DENTAL_RX_PAD_ROUTE, { replace: true, state: { patient_data: patient_data, caseManagerData } })
             } else {
                 navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
             }
