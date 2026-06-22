@@ -349,6 +349,13 @@ function sortLegacyVitalEntriesByDate(entries = []) {
   });
 }
 
+function getPersistedVitalsKey(item = {}) {
+  const ids = [item?.tcv_id, item?.tcbc_id, item?.dev_unique_id]
+    .map((value) => Number(value) || 0);
+  if (!ids.some((value) => value > 0)) return "";
+  return ids.join("-");
+}
+
 function buildLegacyVitalsEntries({
   vitalsData = [],
   vitalsPastList = [],
@@ -358,6 +365,9 @@ function buildLegacyVitalsEntries({
 }) {
   const entries = [];
   const birthWeight = vitalsData?.[0]?.patient_birth_weight || patientBirthWeight;
+  const currentVitalsKeys = new Set(
+    vitalsData.map(getPersistedVitalsKey).filter(Boolean)
+  );
 
   const collectVitalItem = (item, index, source, sourceIndex) => {
     const rows = buildLegacyVitalRows(item, isPediatricAccessable);
@@ -389,6 +399,7 @@ function buildLegacyVitalsEntries({
   });
 
   vitalsPastList.forEach((item, index) => {
+    if (currentVitalsKeys.has(getPersistedVitalsKey(item))) return;
     collectVitalItem(item, index, "past", vitalsData.length + index);
   });
 

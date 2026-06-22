@@ -54,7 +54,6 @@ import {
   moveCopiedVitalsRowToEnd,
   normalizeCopiedVitalsRow,
   normalizeVitalsInputRow,
-  vitalsRowHasCapturedData,
 } from "../utils/vitalsHelpers";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
@@ -571,17 +570,12 @@ function PrescriptionNewRxPadCopyListener() {
     const copiedVitalsObject = getCopiedVitalsObject(copiedVitals);
     if (copiedVitalsObject && patient_data?.patient_unique_id) {
       const today = moment().format("YYYY-MM-DD");
-      const isIndividualVitalsCopy = payload.vitalsCopyMode === "item" && !lastCopyRequest.isBulk;
       const modalRows = Array.isArray(vitalsData) ? vitalsData : [];
-      const normalizedModalRows = modalRows.map((row) => normalizeVitalsInputRow(row, patient_data));
-      const modalHasVitalsData = normalizedModalRows.some(vitalsRowHasCapturedData);
       const existingRows = Array.isArray(selectedVitalsList) && selectedVitalsList.length
         ? selectedVitalsList
         : modalRows;
       const normalizedExistingRows = existingRows.map((row) => normalizeVitalsInputRow(row, patient_data));
-      const editTargetIndex = isIndividualVitalsCopy && modalHasVitalsData
-        ? findLatestVitalsRowIndexForDate(normalizedExistingRows, today)
-        : -1;
+      const editTargetIndex = findLatestVitalsRowIndexForDate(normalizedExistingRows, today);
       const editTargetRow = editTargetIndex >= 0 ? normalizedExistingRows[editTargetIndex] : {};
       const copiedVitalsRow = editTargetIndex >= 0
         ? normalizeCopiedVitalsRow(
