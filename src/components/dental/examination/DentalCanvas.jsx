@@ -324,12 +324,20 @@ export function DentalCanvas({
     window.__DENTAL_CHANGE_PATIENT_TYPE = handlePatientTypeChange;
     // Expose oral highlight seam and a snapshot of canvas state for 3D effect testing
     window.__DENTAL_SET_ORAL_HIGHLIGHT = setOralHighlight;
+    window.__DENTAL_ADD_ORAL_ENTRY = addOralEntry;
+    window.__DENTAL_UPDATE_ORAL_ENTRY = updateOralEntry;
+    window.__DENTAL_HANDLE_ADD_FINDING = handleAddFinding;
+    window.__DENTAL_SELECT_SCOPE = handleSelectScope;
+    window.__DENTAL_HANDLE_ADD_ENTRY = handleAddEntry;
+    window.__DENTAL_TOGGLE_TOOTH_DIAGNOSIS = toggleToothDiagnosis;
     window.__DENTAL_GET_CANVAS_STATE = () => ({
       viewMode,
       patientType,
       selectedToothFdi: selectedTooth?.fdi ?? null,
       oralHighlightFdis: [...oralHighlightFdis],
       selectionScopeId: selectionScope?.id ?? null,
+      findingsByTooth: JSON.parse(JSON.stringify(findingsByTooth)),
+      oralEntries: JSON.parse(JSON.stringify(oralEntries)),
     });
     return () => {
       delete window.__DENTAL_SELECT_TOOTH;
@@ -337,10 +345,19 @@ export function DentalCanvas({
       delete window.__DENTAL_ENTER_ORAL_EXAM;
       delete window.__DENTAL_CHANGE_PATIENT_TYPE;
       delete window.__DENTAL_SET_ORAL_HIGHLIGHT;
+      delete window.__DENTAL_ADD_ORAL_ENTRY;
+      delete window.__DENTAL_UPDATE_ORAL_ENTRY;
+      delete window.__DENTAL_HANDLE_ADD_FINDING;
+      delete window.__DENTAL_SELECT_SCOPE;
+      delete window.__DENTAL_HANDLE_ADD_ENTRY;
+      delete window.__DENTAL_TOGGLE_TOOTH_DIAGNOSIS;
       delete window.__DENTAL_GET_CANVAS_STATE;
     };
   }, [handleSelectTooth, handleBackToDentition, enterOralExam, handlePatientTypeChange,
-      setOralHighlight, viewMode, patientType, selectedTooth, oralHighlightFdis, selectionScope]);
+      setOralHighlight, addOralEntry, updateOralEntry, handleAddFinding,
+      handleSelectScope, handleAddEntry, toggleToothDiagnosis,
+      viewMode, patientType, selectedTooth, oralHighlightFdis, selectionScope, findingsByTooth,
+      oralEntries]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (

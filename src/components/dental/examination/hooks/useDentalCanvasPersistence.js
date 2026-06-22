@@ -44,7 +44,8 @@ export function useDentalCanvasPersistence(s) {
     setSelectionScope,
     setDentitionVerticalNudgeByType,
     setDentitionCameraByType,
-    setHideExamineHint
+    setHideExamineHint,
+    visualTypeMap,
   } = s;
 
   // ── Hydrate dental canvas state from API initialData (one-time per patient) ──
@@ -115,7 +116,7 @@ export function useDentalCanvasPersistence(s) {
         const next = new Set(prev);
         for (const [fdi, diags] of Object.entries(rawDiagnoses)) {
           const arr = Array.isArray(diags) ? diags : diags instanceof Set ? [...diags] : [];
-          if (arr.some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) next.add(fdi);
+          if (arr.some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT)) next.add(fdi);
         }
         return next;
       });

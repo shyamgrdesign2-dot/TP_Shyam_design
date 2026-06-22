@@ -19,7 +19,7 @@ const EMPTY_DIAGNOSES = new Set();
 const EMPTY_TREATMENTS = {};
 
 export function useDentalCanvasState({ patientId, patientAge = 30, initialData }) {
-  const { activeDiagnoses, activeToothDiagnoses } = useDentalMasters();
+  const { activeDiagnoses, activeToothDiagnoses, visualTypeMap } = useDentalMasters();
   const VALID_TOOTH_DIAG = useMemo(
     () => new Set(activeToothDiagnoses),
     [activeToothDiagnoses]
@@ -202,6 +202,7 @@ export function useDentalCanvasState({ patientId, patientAge = 30, initialData }
     currentToothNotes,
     currentTreatmentHistoryDetails,
     findings,
-    currentToothEntries
+    currentToothEntries,
+    visualTypeMap,
   };
 }

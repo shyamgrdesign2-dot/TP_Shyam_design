@@ -79,10 +79,7 @@ export function Annotations({
     const raycaster = new THREE.Raycaster();
     const { center, size, cervicalY, occlusalMidY, bb } = meshBounds;
     const points = [];
-    // Only show annotation for the currently-selected zone. The 3D shader
-    // coloring already indicates which zones have findings; persistent badges
-    // for non-selected zones appear as "black space" floating on the tooth.
-    const set = new Set();
+    const set = new Set(Object.keys(zoneFindings));
     if (selectedZone) set.add(selectedZone);
     const zonesWithData = Array.from(set);
     for (const zoneId of zonesWithData) {

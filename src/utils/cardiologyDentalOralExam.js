@@ -96,9 +96,8 @@ export function formatDentalExamItem(item, toothCode) {
   }
   const dateStr = item?.since_date || item?.since || item?.procedure_date || item?.plannedDate || "";
   const notesStr = String(item?.notes || item?.note || "").trim();
-  const cleanNotes = notesStr === "__dx__" ? "" : notesStr;
   const statusStr = String(item?.status || "").trim();
-  const parts = [surfacesStr, dateStr, statusStr, cleanNotes].filter(Boolean);
+  const parts = [surfacesStr, dateStr, statusStr, notesStr].filter(Boolean);
   return {
     name,
     details: parts.length > 0 ? `(${parts.join(" | ")})` : "",

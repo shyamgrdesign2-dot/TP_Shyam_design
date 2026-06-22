@@ -9,6 +9,7 @@ import { getOralAreas } from "../api/services/ApiOral";
 import { DIAGNOSES, PROCEDURE_CATALOG, ALL_ZONES } from "../components/dental/examination/types";
 import { buildInitialDentalBillingItems } from "../utils/dentalBillingCatalog";
 import { getDentalApiPayload } from "../utils/dentalApiMappers";
+import { buildVisualTypeMap } from "../utils/dentalVisualTypes";
 
 const initialState = {
   surfaces: [],
@@ -18,6 +19,7 @@ const initialState = {
   toothMapAdult: null,
   toothMapPediatric: null,
   oralAreaItems: [],
+  visualTypeMap: {},
   billingItems: buildInitialDentalBillingItems(),
   fetchedAt: null,
   loading: false,
@@ -67,6 +69,7 @@ export const fetchAllDentalMasters = createAsyncThunk(
             : [];
       return {
         surfaces: normalize(getDentalApiPayload(surfacesRes)?.items || getDentalApiPayload(surfacesRes), ALL_ZONES),
+        rawDiagnosesMeta: rawToothDiagnoses,
         diagnoses: normalize(rawToothDiagnoses, []),
         surfaceFindings: normalize(rawSurfaceFindings, DIAGNOSES),
         procedures: normalize(getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes), PROCEDURE_CATALOG, 'label'),
@@ -106,6 +109,7 @@ const dentalMastersSlice = createSlice({
         state.toothMapAdult = action.payload.toothMapAdult;
         state.toothMapPediatric = action.payload.toothMapPediatric;
         state.oralAreaItems = action.payload.oralAreaItems;
+        state.visualTypeMap = buildVisualTypeMap(action.payload.rawDiagnosesMeta);
         state.fetchedAt = Date.now();
       })
       .addCase(fetchAllDentalMasters.rejected, (state, action) => {
@@ -118,4 +122,5 @@ const dentalMastersSlice = createSlice({
 export const { setDentalBillingItems, addDentalBillingItem } = dentalMastersSlice.actions;
 export const selectDentalMasters = (state) => state.dentalMasters;
 export const selectDentalBillingItems = (state) => state.dentalMasters.billingItems;
+export const selectVisualTypeMap = (state) => state.dentalMasters.visualTypeMap;
 export default dentalMastersSlice.reducer;

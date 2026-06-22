@@ -56,6 +56,7 @@ export function useDentalCanvasEvents(s) {
     oralIdRef,
     VALID_TOOTH_DIAG,
     VALID_SURFACE_FINDING,
+    visualTypeMap,
     allEntries,
     setPatientType,
     setViewMode,
@@ -196,30 +197,33 @@ export function useDentalCanvasEvents(s) {
             delete_source: "manual",
           });
         }
-        if ([...current].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT) &&
-            ![...next].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) {
+        if ([...current].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT) &&
+            ![...next].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT)) {
           setImplantTeeth((ip) => {
             const n = new Set(ip);
             n.delete(fdi);
             return n;
           });
         }
-        if (![...current].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT) &&
-            [...next].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) {
+        if (![...current].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT) &&
+            [...next].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT)) {
           setImplantTeeth((ip) => {
             const n = new Set(ip);
             n.add(fdi);
             return n;
           });
         }
+        const removed = [...current].filter(n => !next.has(n));
+        if (removed.length > 0) {
+          setTreatmentHistoryDetailsByTooth((prevDetails) => {
+            const toothMap = { ...(prevDetails[fdi] || {}) };
+            removed.forEach(n => { delete toothMap[n]; });
+            return { ...prevDetails, [fdi]: toothMap };
+          });
+        }
         return { ...prev, [fdi]: next };
       });
-      setFindingsByTooth((prev) => {
-        const next = { ...prev };
-        delete next[fdi];
-        return next;
-      });
-      if (getVisualType(diagnosis) === VISUAL_TYPE.MISSING) {
+      if (getVisualType(diagnosis, visualTypeMap) === VISUAL_TYPE.MISSING) {
         setImplantTeeth((prev) => {
           const next = new Set(prev);
           next.delete(selectedTooth.fdi);
@@ -240,8 +244,8 @@ export function useDentalCanvasEvents(s) {
         const current = new Set(prev[fdi] || []);
         if (current.has(diagnosis)) return prev;
         const next = applyDiagnosisSelection(current, diagnosis);
-        if (![...current].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT) &&
-            [...next].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) {
+        if (![...current].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT) &&
+            [...next].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT)) {
           setImplantTeeth((ip) => {
             const n = new Set(ip);
             n.add(fdi);
@@ -704,6 +708,22 @@ export function useDentalCanvasEvents(s) {
     }, 800);
   }, []);
 
+  const setOralHighlight = useCallback((positionIds) => {
+    const ids = Array.isArray(positionIds) ? positionIds : [];
+    const regionIds = ids.filter((p) => isOralRegionPosition(p));
+    if (regionIds.length === 0) {
+      setOralHighlightFdis(new Set());
+      return;
+    }
+    const fdis = new Set();
+    regionIds.forEach((r) => {
+      ((r === "WHOLE" || r === "GENERALIZED") ? getScopeFdis("FULL") : getScopeFdis(r)).forEach((f) =>
+        fdis.add(f)
+      );
+    });
+    setOralHighlightFdis(fdis);
+  }, [getScopeFdis]);
+
   const addOralEntry = useCallback((kind, name, extra) => {
     if (!name) return;
     setOralEntries((prev) => {
@@ -751,7 +771,10 @@ export function useDentalCanvasEvents(s) {
     setOralEntries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...patch } : e))
     );
-  }, []);
+    if (patch.surfaces !== undefined) {
+      setOralHighlight(patch.surfaces);
+    }
+  }, [setOralHighlight]);
 
   const enterOralExam = useCallback((meta = {}) => {
     setSelectionScope({
@@ -772,22 +795,6 @@ export function useDentalCanvasEvents(s) {
       has_oral_notes: String(oralNotes || "").trim().length > 0,
     });
   }, [getScopeFdis, oralNotes]);
-
-  const setOralHighlight = useCallback((positionIds) => {
-    const ids = Array.isArray(positionIds) ? positionIds : [];
-    const regionIds = ids.filter((p) => isOralRegionPosition(p));
-    if (regionIds.length === 0) {
-      setOralHighlightFdis(new Set());
-      return;
-    }
-    const fdis = new Set();
-    regionIds.forEach((r) => {
-      ((r === "WHOLE" || r === "GENERALIZED") ? getScopeFdis("FULL") : getScopeFdis(r)).forEach((f) =>
-        fdis.add(f)
-      );
-    });
-    setOralHighlightFdis(fdis);
-  }, [getScopeFdis]);
 
   // ── Treatment history details ──────────────────────────────────────────────
   const handleUpdateTreatmentHistoryDetail = useCallback(

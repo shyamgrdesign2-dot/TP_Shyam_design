@@ -4,6 +4,7 @@ import { fetchAllDentalMasters } from "../redux/dentalMastersSlice";
 import {
   DIAGNOSES,
   TOOTH_DIAGNOSES,
+  ALL_ZONES,
   ORAL_POSITION_GROUPS,
   buildOralPositionGroupsFromApi,
 } from "../components/dental/examination/types";
@@ -31,9 +32,10 @@ export function useDentalMasters() {
     activeSurfaceFindings: masters.surfaceFindings.length > 0 ? masters.surfaceFindings : DIAGNOSES,
     activeToothDiagnoses: masters.diagnoses.length > 0 ? masters.diagnoses : TOOTH_DIAGNOSES,
     activeProcedures: masters.procedures,
-    activeSurfaces: masters.surfaces,
+    activeSurfaces: masters.surfaces.length > 0 ? masters.surfaces : ALL_ZONES,
     oralPositionGroups: masters.oralAreaItems?.length > 0
       ? buildOralPositionGroupsFromApi(masters.oralAreaItems)
       : ORAL_POSITION_GROUPS,
+    visualTypeMap: masters.visualTypeMap,
   };
 }

@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "../ui/alert-dialog";
-import { QUADRANT_LABELS } from "./types";
+import { QUADRANT_LABELS, getDefaultTreatmentSurfaces } from "./types";
 import { MiniToothCanvas } from "./MiniToothCanvas";
 import { MiniScopeCanvas } from "./MiniScopeCanvas";
 import { AccordionWrap, SectionHeader } from "./examination-shared-ui";
@@ -200,7 +200,19 @@ export function SingleToothPanel({ state, onSave }) {
           onSelect={(t) => examTpl.applyTemplate(t, (full) => {
             (full.payload?.tooth_states || []).forEach((ts) => {
               const history = ts.treatment_history || [];
-              history.filter((h) => h.notes === DX_MARKER).forEach((h) => (state.onSetToothDiagnosis || state.onToggleToothDiagnosis)(h.name));
+              // Support both new format (diagnoses array) and old __dx__ format
+              const chipNames = ts.diagnoses?.length
+                ? ts.diagnoses
+                : history.filter((h) => h.notes === DX_MARKER).map((h) => h.name);
+              chipNames.forEach((name) => {
+                (state.onSetToothDiagnosis || state.onToggleToothDiagnosis)(name);
+                const existing = state.currentTreatmentHistoryDetails?.[name];
+                state.onUpdateTreatmentHistoryDetail?.(name, {
+                  surfaces: existing?.surfaces?.length ? existing.surfaces : getDefaultTreatmentSurfaces(name),
+                  since: existing?.since,
+                  note: existing?.note,
+                });
+              });
               applyDentalEntries("procedure", history.filter((h) => h.notes !== DX_MARKER));
               applyDentalEntries("finding", ts.findings);
               applyDentalEntries("planned", ts.procedures);
@@ -210,28 +222,28 @@ export function SingleToothPanel({ state, onSave }) {
           onDelete={examTpl.onDelete}
           onSaveNew={(name) => {
             const entries = state.currentToothEntries;
-            const dxRows = [...(state.currentToothDiagnoses || [])].map((d) => ({ name: d, surface_codes: ["whole"], notes: DX_MARKER }));
             examTpl.onSaveNew(name, {
               dentition_type: state.patientType || "adult",
               tooth_states: [{
                 tooth_code: String(state.selectedTooth?.fdi || ""),
+                diagnoses: [...(state.currentToothDiagnoses || [])],
                 findings: entries.filter((e) => e.kind === "finding").map(toDentalRow),
                 procedures: entries.filter((e) => e.kind === "planned").map(toDentalRow),
-                treatment_history: [...dxRows, ...entries.filter((e) => e.kind === "procedure").map(toDentalRow)],
+                treatment_history: entries.filter((e) => e.kind === "procedure").map(toDentalRow),
                 overall_notes: state.currentToothNotes,
               }],
             });
           }}
           onUpdate={(sel) => {
             const entries = state.currentToothEntries;
-            const dxRows = [...(state.currentToothDiagnoses || [])].map((d) => ({ name: d, surface_codes: ["whole"], notes: DX_MARKER }));
             examTpl.onUpdate(sel, {
               dentition_type: state.patientType || "adult",
               tooth_states: [{
                 tooth_code: String(state.selectedTooth?.fdi || ""),
+                diagnoses: [...(state.currentToothDiagnoses || [])],
                 findings: entries.filter((e) => e.kind === "finding").map(toDentalRow),
                 procedures: entries.filter((e) => e.kind === "planned").map(toDentalRow),
-                treatment_history: [...dxRows, ...entries.filter((e) => e.kind === "procedure").map(toDentalRow)],
+                treatment_history: entries.filter((e) => e.kind === "procedure").map(toDentalRow),
                 overall_notes: state.currentToothNotes,
               }],
             });

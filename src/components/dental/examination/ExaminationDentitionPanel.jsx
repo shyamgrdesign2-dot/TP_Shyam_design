@@ -46,19 +46,6 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
       const e = seed(fdi);
       if (!e.diagnoses.some((d) => getVisualType(d) === VISUAL_TYPE.IMPLANT)) e.diagnoses.push("Implant");
     });
-    // Treatment history details (e.g. Crown stored without __dx__ marker from older saves)
-    // must also surface in Tooth records, de-duped against toothDiagnoses entries.
-    const historyByTooth = state.treatmentHistoryDetailsByTooth ?? {};
-    for (const [fdi, histMap] of Object.entries(historyByTooth)) {
-      if (!histMap || !Object.keys(histMap).length) continue;
-      const row = seed(fdi);
-      const existingLower = new Set(row.diagnoses.map((d) => d.toLowerCase()));
-      for (const name of Object.keys(histMap)) {
-        if (name && !existingLower.has(name.toLowerCase())) {
-          row.diagnoses.push(name);
-        }
-      }
-    }
     const findingsByTooth = state.findingsByTooth ?? {};
     for (const [fdi, list] of Object.entries(findingsByTooth)) {
       if (!list?.length) continue;

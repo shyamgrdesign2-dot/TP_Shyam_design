@@ -137,17 +137,16 @@ export function formatDentalItemData(item, toothCode) {
 
   const dateStr = item?.since_date || item?.since || item?.procedure_date || item?.plannedDate || "";
   const notesStr = String(item?.notes || item?.note || "").trim();
-  const cleanNotes = notesStr === DX_MARKER ? "" : notesStr;
   const statusStr = String(item?.status || "").trim();
 
-  const parts = [surfacesStr, dateStr, statusStr, cleanNotes].filter(Boolean);
+  const parts = [surfacesStr, dateStr, statusStr, notesStr].filter(Boolean);
 
   return {
     name,
     details: parts.length > 0 ? `(${parts.join(" | ")})` : "",
     surfaces: surfacesStr || "—",
     since: dateStr ? String(dateStr).trim() : "—",
-    notes: cleanNotes || "—",
+    notes: notesStr || "—",
     rawItem: item,
   };
 }
