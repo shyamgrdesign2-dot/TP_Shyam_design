@@ -247,6 +247,7 @@ function App() {
 
   const isLoginPage = location.pathname === "/login";
   const isRootPath = location.pathname === "/";
+  const shouldShowPlanBanners = location.pathname === "/";
   const token = getToken();
   const isMobileOrPWA = isMobileDevice || isPWA;
 
@@ -841,7 +842,7 @@ function App() {
                     zIndex: 199,
                   }}
                 >
-                  {!isMobileOrPWA && (
+                  {!isMobileOrPWA && shouldShowPlanBanners && (
                     <>
                       <DemoExpirationBanner />
                       <PlanExpirationBanner />
