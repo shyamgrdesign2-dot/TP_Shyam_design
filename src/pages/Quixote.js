@@ -24,7 +24,7 @@ const PDF_REGEN_DEBOUNCE_MS = 400;
 
 function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig, dentalExaminationData, isCvtExtHosAccessableFromGB, drawingCanvases, isDrawingCanvasesLoading } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig, dentalExaminationData, isDentalEnabled, isCvtExtHosAccessableFromGB, drawingCanvases, isDrawingCanvasesLoading } = useContext(PrintSettingsContext);
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
     const oralExamination = useSelector((state) => state.oralExamination);
     const {isGynaecHistoryAccessable} = useAccess();
@@ -291,6 +291,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                     carePlanAssignments={carePlanAssignments}
                     smartRxData={smartRxData}
                     isDigitisedPrintConfig={isDigitisedPrintConfig}
+                    isDentalEnabled={isDentalEnabled}
                     isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
                     columns={columns}
                     initialRows={initialRows}
@@ -400,6 +401,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         oralExamination,
         drawingCanvases,
         isDrawingCanvasesLoading,
+        isDentalEnabled,
         isCvtExtHosAccessableFromGB,
         ophthalModuleData,
     ]);

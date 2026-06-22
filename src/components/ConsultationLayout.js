@@ -2670,7 +2670,11 @@ function ConsultationLayout({ children, headerProps }) {
             isNewPrescriptionUi
             onEndVisit={handleEndVisit}
             isEndVisitLoading={isEndVisitLoading}
-            hasDentalData={Object.keys(dentalExamination?.toothState ?? {}).length > 0}
+            hasDentalData={
+              Object.keys(dentalExamination?.toothState ?? {}).length > 0 ||
+              (oralExamination?.canvasOralEntries?.length ?? 0) > 0 ||
+              Boolean(oralExamination?.canvasOralNotes?.trim())
+            }
             onPreviewClick={handlePreviewRx}
             showPreviewButton
             onSelectLetterHead={() => setIsSelectLetterHead((v) => !v)}
