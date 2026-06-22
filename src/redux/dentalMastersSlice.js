@@ -24,6 +24,9 @@ const initialState = {
   fetchedAt: null,
   loading: false,
   error: null,
+  oralDiagnoses: [],
+  oralSurfaceFindings: [],
+  oralProcedures: [],
 };
 
 // Helper to normalize API data with fallbacks
@@ -44,13 +47,17 @@ export const fetchAllDentalMasters = createAsyncThunk(
         surfacesRes,
         diagnosesRes,
         proceduresRes,
+        oralDiagnosesRes,
+        oralProceduresRes,
         toothMapAdultRes,
         toothMapPediatricRes,
         oralAreasRes,
       ] = await Promise.all([
         getSurfaces(),
-        getDiagnoses(),
-        getProcedures(),
+        getDiagnoses("dental"),
+        getProcedures("dental"),
+        getDiagnoses("oral"),
+        getProcedures("oral"),
         getToothMap("adult"),
         getToothMap("pediatric"),
         getOralAreas(),
@@ -67,6 +74,18 @@ export const fetchAllDentalMasters = createAsyncThunk(
           : Array.isArray(diagnosesPayload)
             ? diagnosesPayload
             : [];
+
+      const oralDiagnosesPayload = getDentalApiPayload(oralDiagnosesRes);
+      const rawOralSurfaceFindings = Array.isArray(oralDiagnosesPayload?.surface_findings)
+        ? oralDiagnosesPayload.surface_findings
+        : [];
+      const rawOralDiagnoses = Array.isArray(oralDiagnosesPayload?.tooth_diagnoses)
+        ? oralDiagnosesPayload.tooth_diagnoses
+        : Array.isArray(oralDiagnosesPayload?.items)
+          ? oralDiagnosesPayload.items
+          : Array.isArray(oralDiagnosesPayload)
+            ? oralDiagnosesPayload
+            : [];
       return {
         surfaces: normalize(getDentalApiPayload(surfacesRes)?.items || getDentalApiPayload(surfacesRes), ALL_ZONES),
         rawDiagnosesMeta: rawToothDiagnoses,
@@ -76,6 +95,9 @@ export const fetchAllDentalMasters = createAsyncThunk(
         toothMapAdult: getDentalApiPayload(toothMapAdultRes) || null,
         toothMapPediatric: getDentalApiPayload(toothMapPediatricRes) || null,
         oralAreaItems: getDentalApiPayload(oralAreasRes)?.items || [],
+        oralDiagnoses: normalize(rawOralDiagnoses, []),
+        oralSurfaceFindings: normalize(rawOralSurfaceFindings, []),
+        oralProcedures: normalize(getDentalApiPayload(oralProceduresRes)?.items || getDentalApiPayload(oralProceduresRes), [], 'label'),
       };
     } catch (err) {
       return rejectWithValue(err.message);
@@ -109,6 +131,9 @@ const dentalMastersSlice = createSlice({
         state.toothMapAdult = action.payload.toothMapAdult;
         state.toothMapPediatric = action.payload.toothMapPediatric;
         state.oralAreaItems = action.payload.oralAreaItems;
+        state.oralDiagnoses = action.payload.oralDiagnoses;
+        state.oralSurfaceFindings = action.payload.oralSurfaceFindings;
+        state.oralProcedures = action.payload.oralProcedures;
         state.visualTypeMap = buildVisualTypeMap(action.payload.rawDiagnosesMeta);
         state.fetchedAt = Date.now();
       })

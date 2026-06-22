@@ -23,8 +23,8 @@ export const deleteTemplateById = (type, id) =>
 
 // 2. Masters
 export const getSurfaces = () => api.get(`/api/v1/dental/masters/surfaces?type=dental`, dentalBaseUrl);
-export const getDiagnoses = () => api.get(`/api/v1/dental/masters/diagnoses?type=dental`, dentalBaseUrl);
-export const getProcedures = () => api.get(`/api/v1/dental/masters/procedures?type=dental`, dentalBaseUrl);
+export const getDiagnoses = (type = 'dental') => api.get(`/api/v1/dental/masters/diagnoses?type=${type}`, dentalBaseUrl);
+export const getProcedures = (type = 'dental') => api.get(`/api/v1/dental/masters/procedures?type=${type}`, dentalBaseUrl);
 export const getToothMap = (dentition = "adult") =>
   api.get(`/api/v1/dental/masters/tooth-map?dentition=${dentition}`, dentalBaseUrl);
 
