@@ -1,4 +1,9 @@
-import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./clinical-api";
+import {
+  appendVoiceApiMetadata,
+  buildClinicalApiHeaders,
+  buildVoiceApiMetadata,
+  joinAgentModuleApiUrl,
+} from "./clinical-api";
 
 export const VOICE_CHUNK_UPLOAD_INTERVAL_MS = 30 * 1000;
 
@@ -10,11 +15,12 @@ function delay(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function normalizeMetadata({ chunkIndex, doctorId, patientId }) {
+function normalizeMetadata({ chunkIndex, doctorId, patientId, doctorName, patientName }) {
   return {
     chunk_index: chunkIndex,
     doctor_id: String(doctorId || ""),
     patient_id: String(patientId || ""),
+    ...buildVoiceApiMetadata({ doctorId, doctorName, patientName }),
   };
 }
 
@@ -47,6 +53,8 @@ export async function uploadAudioChunk({
   sessionId,
   doctorId,
   patientId,
+  doctorName,
+  patientName,
 }) {
   if (!audioBlob?.size) {
     throw new Error("No audio chunk available for upload.");
@@ -55,10 +63,11 @@ export async function uploadAudioChunk({
     throw new Error("Missing patient, doctor, or session id for audio chunk upload.");
   }
 
-  const metadata = normalizeMetadata({ chunkIndex, doctorId, patientId });
+  const metadata = normalizeMetadata({ chunkIndex, doctorId, patientId, doctorName, patientName });
   const formData = new FormData();
   const fileName = getChunkFileName(chunkIndex, audioBlob.type);
   formData.append("session_id", String(sessionId));
+  appendVoiceApiMetadata(formData, { doctorId, doctorName, patientName });
   formData.append("metadata", JSON.stringify(metadata));
   formData.append("audio", audioBlob, fileName);
 

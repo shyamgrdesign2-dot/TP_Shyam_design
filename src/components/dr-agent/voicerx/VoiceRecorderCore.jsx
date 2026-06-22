@@ -730,6 +730,8 @@ function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
         sessionId: context.sessionId,
         doctorId: context.doctorId,
         patientId: context.patientId,
+        doctorName: context.doctorName,
+        patientName: context.patientName,
       }))
       .catch((error) => {
         console.error("[voice-rx] audio chunk upload failed", { chunkIndex, error });

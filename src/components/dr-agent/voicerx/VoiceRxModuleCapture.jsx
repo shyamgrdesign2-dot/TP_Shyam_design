@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Eraser, Grid5, Ram, Refresh2, Setting2 } from "iconsax-reactjs";
 import { VoiceRecorderCore } from "./VoiceRecorderCore";
-import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./api/clinical-api";
+import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "./api/stacks-api-tracking";
 import {
   CaptionCarousel,
@@ -933,7 +933,9 @@ async function requestTranscribeAndDigitise({
   previousContext,
   patientId,
   doctorId,
-  sessionId
+  sessionId,
+  doctorName,
+  patientName
 }) {
   const moduleApiName = moduleApiNameOverride || resolveModuleApiName(moduleName);
   if (!patientId || !doctorId || !sessionId) {
@@ -947,6 +949,7 @@ async function requestTranscribeAndDigitise({
   formData.append("patient_id", String(patientId));
   formData.append("doctor_id", String(doctorId));
   formData.append("session_id", String(sessionId));
+  appendVoiceApiMetadata(formData, { doctorId, doctorName, patientName });
   formData.append("module_name", moduleApiName);
   if (customModuleName) {
     formData.append("custom_module_name", String(customModuleName));
@@ -1245,8 +1248,18 @@ export function VoiceRxModuleCapture({
   }, []);
 
   const getDigitisedData = useCallback(async ({ audioBlob }) => {
+    const doctorName = profile?.um_name || "";
+    const patientName = patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" ");
     if (isTranscribeMode) {
-      return transcribeAnyAudio({ audioBlob });
+      return transcribeAnyAudio({
+        audioBlob,
+        context: {
+          doctorId: profile?.doctor_unique_id,
+          patientId: patient_data?.patient_unique_id,
+          doctorName,
+          patientName,
+        },
+      });
     }
 
     return ENABLE_REAL_MODULE_DIGITISE_API
@@ -1260,9 +1273,11 @@ export function VoiceRxModuleCapture({
         patientId: patient_data?.patient_unique_id,
         doctorId: profile?.doctor_unique_id,
         sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+        doctorName,
+        patientName,
       })
       : { rows: dummyDigitisedData, rawResponse: null, conversation: [], moduleApiName: moduleApiName || resolveModuleApiName(moduleName) };
-  }, [customModuleName, dummyDigitisedData, getModuleSessionId, isTranscribeMode, moduleApiName, moduleName, patient_data?.patient_unique_id, previousContext, profile?.doctor_unique_id, requiredFields, voiceDigitization?.sessionId]);
+  }, [customModuleName, dummyDigitisedData, getModuleSessionId, isTranscribeMode, moduleApiName, moduleName, patient_data, previousContext, profile?.doctor_unique_id, profile?.um_name, requiredFields, voiceDigitization?.sessionId]);
 
   const handleSubmit = useCallback(({ audioBlob, transcript, durationMs, submitClickedAt, submitClickedAtMs, micBeingUsed }) => {
     if (submitInFlightRef.current) return;
@@ -1426,6 +1441,8 @@ export function VoiceRxModuleCapture({
               sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
               doctorId: profile?.doctor_unique_id,
               patientId: patient_data?.patient_unique_id,
+              doctorName: profile?.um_name,
+              patientName: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
             }}
             analyticsContext={{
               patientData: patient_data,

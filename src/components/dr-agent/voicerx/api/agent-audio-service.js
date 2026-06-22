@@ -1,4 +1,4 @@
-import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./clinical-api";
+import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "./stacks-api-tracking";
 
 const TRANSCRIBE_ANY_AUDIO_ENDPOINT = "/agents/transcribe-any-audio";
@@ -56,6 +56,7 @@ export function extractAnyAudioTranscript(responseJson) {
 export async function transcribeAnyAudio({
   audioBlob,
   prompt = PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
+  context,
   timeoutMs = TRANSCRIBE_ANY_AUDIO_TIMEOUT_MS,
   signal,
 } = {}) {
@@ -65,6 +66,7 @@ export async function transcribeAnyAudio({
 
   const formData = new FormData();
   formData.append("prompt", prompt);
+  appendVoiceApiMetadata(formData, context);
   formData.append("audio", audioBlob, "audio.webm");
 
   const abortController = new AbortController();

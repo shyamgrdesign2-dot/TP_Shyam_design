@@ -1,4 +1,9 @@
-import { buildClinicalApiHeaders, joinClinicalApiUrl } from './clinical-api';
+import {
+	appendVoiceApiMetadata,
+	buildClinicalApiHeaders,
+	buildVoiceApiMetadata,
+	joinClinicalApiUrl
+} from './clinical-api';
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from './stacks-api-tracking';
 
 const TRANSCRIPT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -258,6 +263,13 @@ export function buildIdentityPayload(context) {
 	};
 }
 
+export function buildVoiceRequestPayload(context) {
+	return {
+		...buildIdentityPayload(context),
+		...buildVoiceApiMetadata(context)
+	};
+}
+
 function hasPreviousContext(value) {
 	if (value === undefined || value === null) return false;
 	if (Array.isArray(value)) return value.length > 0;
@@ -286,7 +298,7 @@ function normalizeDigitizationPreviousContext(previousContext) {
 }
 
 function buildDigitizationPayload(context, previousContext) {
-	const payload = buildIdentityPayload(context);
+	const payload = buildVoiceRequestPayload(context);
 	const normalizedPreviousContext = normalizeDigitizationPreviousContext(previousContext);
 	if (normalizedPreviousContext) {
 		payload.previous_context = normalizedPreviousContext;
@@ -409,6 +421,7 @@ export async function transcribeAudio({ audioBlob, context, signal, includeMetad
 	formData.append('patient_id', payload.patient_id);
 	formData.append('doctor_id', payload.doctor_id);
 	formData.append('session_id', payload.session_id);
+	appendVoiceApiMetadata(formData, context);
 	formData.append('audio', payload.audio, payload.audio.name);
 	console.log('transcribe-audio FormData before request:', describeFormData(formData));
 

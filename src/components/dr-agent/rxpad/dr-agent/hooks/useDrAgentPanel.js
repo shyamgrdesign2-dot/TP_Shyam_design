@@ -211,6 +211,20 @@ const buildPatientFromData = (patientData, fallback) => {
   };
 };
 
+const getPatientNameFromData = (patientData) => cleanText(
+  patientData?.pm_fullname ||
+  patientData?.patient_name ||
+  [patientData?.pm_first_name, patientData?.pm_last_name].map(cleanText).filter(Boolean).join(" ")
+);
+
+const buildVoiceRxContextParams = ({ patientId, doctorId, sessionId, patientData, profile }) => ({
+  patientId,
+  doctorId,
+  sessionId,
+  doctorName: profile?.um_name || "",
+  patientName: getPatientNameFromData(patientData),
+});
+
 export function useDrAgentPanel({
   voiceRxMode,
   onVoiceCaptureModeChange,
@@ -495,9 +509,13 @@ export function useDrAgentPanel({
     setVoiceRxScriptedTranscript("");
     resetLiveTranscript();
     voiceRxSessionRef.current = createVoiceRxSessionContext({
-      patientId: patientId || "1111",
-      doctorId: doctorId || "3333",
-      sessionId: voiceDigitization?.sessionId,
+      ...buildVoiceRxContextParams({
+        patientId: patientId || "1111",
+        doctorId: doctorId || "3333",
+        sessionId: voiceDigitization?.sessionId,
+        patientData,
+        profile,
+      }),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceRxRecording]);
@@ -647,9 +665,13 @@ export function useDrAgentPanel({
     let voiceRxLogPreviousContext = null;
 
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
-      patientId: patientId || "1111",
-      doctorId: doctorId || "3333",
-      sessionId: voiceDigitization?.sessionId,
+      ...buildVoiceRxContextParams({
+        patientId: patientId || "1111",
+        doctorId: doctorId || "3333",
+        sessionId: voiceDigitization?.sessionId,
+        patientData,
+        profile,
+      }),
     });
     voiceRxSessionRef.current = context;
 
@@ -976,9 +998,13 @@ export function useDrAgentPanel({
     onVoiceCaptureModeChange?.(null);
 
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
-      patientId: patientId || "1111",
-      doctorId: doctorId || "3333",
-      sessionId: voiceDigitization?.sessionId,
+      ...buildVoiceRxContextParams({
+        patientId: patientId || "1111",
+        doctorId: doctorId || "3333",
+        sessionId: voiceDigitization?.sessionId,
+        patientData,
+        profile,
+      }),
     });
     voiceRxSessionRef.current = context;
 
@@ -1987,9 +2013,13 @@ export function useDrAgentPanel({
     if (soapRetryInFlightRef.current || voiceRxResult.soapStatus === "pending") return;
     soapRetryInFlightRef.current = true;
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
-      patientId: patientId || "1111",
-      doctorId: doctorId || "3333",
-      sessionId: voiceDigitization?.sessionId,
+      ...buildVoiceRxContextParams({
+        patientId: patientId || "1111",
+        doctorId: doctorId || "3333",
+        sessionId: voiceDigitization?.sessionId,
+        patientData,
+        profile,
+      }),
     });
     voiceRxSessionRef.current = context;
     setVoiceRxResult((prev) => prev ? { ...prev, soapStatus: "pending", soapError: null } : prev);
@@ -2018,7 +2048,7 @@ export function useDrAgentPanel({
     } finally {
       soapRetryInFlightRef.current = false;
     }
-  }, [dispatch, doctorId, patientId, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
+  }, [dispatch, doctorId, patientData, patientId, profile, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
 
   // Flip only while actively recording — submit flips back immediately so the chat loader
   // (VoiceRxLoaderCard) + RxPad processing overlay become visible.
@@ -2028,7 +2058,7 @@ export function useDrAgentPanel({
   // result tabs (which clears voiceRxResult) or by cancelling.
   // Flip for active voice recording/loading, OR when viewing a restored session
   // result (from chat card expand). The latter doesn't require voiceRxMode prop.
-  const isFlipped = voiceRxMode && (voiceRxRecording || voiceRxAwaitingResponse) || voiceRxResult !== null && !voiceRxResultMinimized;
+  const isFlipped = (voiceRxMode && (voiceRxRecording || voiceRxAwaitingResponse)) || (voiceRxResult !== null && !voiceRxResultMinimized);
 
   // Flip-step counter — increments on every toggle of isFlipped so the
   // 3D wrapper always rotates by an additional 180° in the SAME

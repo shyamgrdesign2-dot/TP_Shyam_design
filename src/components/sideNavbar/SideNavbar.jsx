@@ -48,7 +48,7 @@ import growthChartStaticData from "../../pages/growthChart/GrowthChart.json";
 import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../../assets";
-import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
+import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
 import { uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
@@ -2547,7 +2547,13 @@ function appendPrivateNotesTranscript(existingNotes, transcript) {
   return current ? `${current}\n${next}` : next;
 }
 
-async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, doctorId, sessionId, previousContext }) {
+function getSideNavPatientName(patientData) {
+  return patientData?.pm_fullname ||
+    patientData?.patient_name ||
+    [patientData?.pm_first_name, patientData?.pm_last_name].filter(Boolean).join(" ");
+}
+
+async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, doctorId, sessionId, previousContext, doctorName, patientName }) {
   const moduleName = SIDE_NAV_MODULE_NAMES[sectionId];
   if (!moduleName) {
     throw new Error("Voice input is not available for this section.");
@@ -2563,6 +2569,7 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
   formData.append("patient_id", String(patientId));
   formData.append("doctor_id", String(doctorId));
   formData.append("session_id", String(sessionId));
+  appendVoiceApiMetadata(formData, { doctorId, doctorName, patientName });
   formData.append("module_name", moduleName);
   appendSideNavJsonFormField(formData, "previous_context", previousContext);
   formData.append("audio", audioBlob, "audio.webm");
@@ -5328,7 +5335,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, voiceSessionId, medicalRecordActions }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, medicalRecordActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -5413,6 +5420,8 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
               sessionId: voiceSessionId,
               doctorId,
               patientId,
+              doctorName,
+              patientName,
             }}
             onClose={onVoiceOverlayClose}
             onCancel={onVoiceCancel}
@@ -6121,6 +6130,10 @@ export function SideNavbar({
     const submitId = `voice-rx-2-side-nav-${sectionId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const requestId = submitId;
     const sessionId = getSideNavVoiceSessionId();
+    const effectiveDoctorId = doctorId || profile?.doctor_unique_id || "";
+    const effectivePatientId = patientId || patientData?.patient_unique_id || "";
+    const doctorName = profile?.um_name || "";
+    const patientName = getSideNavPatientName(patientData);
     let voiceRxLogTranscript = "";
     let voiceRxLogDigitizeData = null;
     let transcriptCompletedAtMs = null;
@@ -6138,13 +6151,21 @@ export function SideNavbar({
         ? await transcribeAnyAudio({
           audioBlob,
           prompt: PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
+          context: {
+            doctorId: effectiveDoctorId,
+            patientId: effectivePatientId,
+            doctorName,
+            patientName,
+          },
         })
         : await requestSideNavModuleDigitise({
           sectionId,
           audioBlob,
-          patientId,
-          doctorId,
+          patientId: effectivePatientId,
+          doctorId: effectiveDoctorId,
           sessionId,
+          doctorName,
+          patientName,
           previousContext: sectionId === "history"
             ? buildSideNavMedicalHistoryPreviousContext(medicalHistoryData)
             : undefined,
@@ -6302,8 +6323,10 @@ export function SideNavbar({
           showVoiceRx={showVoiceRx}
           vitalsUpdating={vitalsCopyUpdating}
           zydusSelectedLabParams={zydusSelectedLabParams}
-          patientId={patientId}
-          doctorId={doctorId}
+          patientId={patientId || patientData?.patient_unique_id || ""}
+          doctorId={doctorId || profile?.doctor_unique_id || ""}
+          doctorName={profile?.um_name || ""}
+          patientName={getSideNavPatientName(patientData)}
           patientGender={patientGender}
           voiceSessionId={getSideNavVoiceSessionId()}
           medicalRecordActions={{

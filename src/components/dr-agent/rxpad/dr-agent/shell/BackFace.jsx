@@ -116,6 +116,8 @@ export function BackFace({
               sessionId: voiceSessionId,
               doctorId,
               patientId,
+              doctorName: analyticsContext?.profile?.um_name,
+              patientName,
             }}
             analyticsContext={analyticsContext}
             voiceLocked={voiceLocked}
@@ -141,6 +143,8 @@ export function BackFace({
                 sessionId: voiceSessionId,
                 doctorId,
                 patientId,
+                doctorName: analyticsContext?.profile?.um_name,
+                patientName,
               }}
               analyticsContext={analyticsContext}
             />
