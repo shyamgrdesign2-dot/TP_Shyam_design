@@ -18,6 +18,7 @@ import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharect
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import { GB_ISCRIBE, GB_SNAP_RX, PAID, S_VOICE_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import moment from "moment";
@@ -207,6 +208,16 @@ function WalkInConsultationZydus() {
         if (action.meta.requestStatus === "fulfilled") {
             const result = action.payload;
             navigate("/tab-rx", { state: { patient_data: { ...result, mrno: record.mrno } } });
+        } else {
+            errorMessage(action.error);
+        }
+    };
+
+    const onTypeRxClick = async (record) => {
+        const action = await dispatch(synczyduspatient(record));
+        if (action.meta.requestStatus === "fulfilled") {
+            const result = action.payload;
+            navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: { ...result, mrno: record.mrno } } });
         } else {
             errorMessage(action.error);
         }
@@ -425,6 +436,7 @@ function WalkInConsultationZydus() {
                                 onSnapRxClick={onSnapRxClick}
                                 onVoiceRxClick={onVoiceRxClick}
                                 onTabRxClick={onTabRxClick}
+                                onTypeRxClick={onTypeRxClick}
                                 onConsultClick={onConsultClick}
                                 patient={patient}
                                 buttonStyle="walkin"
@@ -555,6 +567,7 @@ function WalkInConsultationZydus() {
                                             onSnapRxClick={onSnapRxClick}
                                             onVoiceRxClick={onVoiceRxClick}
                                             onTabRxClick={onTabRxClick}
+                                            onTypeRxClick={onTypeRxClick}
                                             onConsultClick={onConsultClick}
                                             patient={clickedPatient}
                                             setAutoCompleteFlag={setAutoCompleteFlag}

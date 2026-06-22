@@ -39,6 +39,7 @@ export const PATIENT_DETAILS_SIDEBAR_KEYS = {
   ABHA_RECORDS: 5,
   HEALTH_CHECKUP_REPORT: 6,
   CANVASES: 7,
+  DENTAL_PLAN: 8,
 };
 
 export const TAB_QUEUE = 0;
@@ -142,6 +143,7 @@ export const GB_VIDEO_CONSULT = "video-consult";
 export const GB_TELE_CONSULT = "tele-consult";
 export const GB_TAB_RX = "tab-rx";
 export const GB_TAB_RX_CVT = "tab-rx-cvt";
+export const GB_DENTAL_MODULE = "dental-module";
 export const GB_CVT_EXT_HOS = "cvt-external-hospitals";
 export const EXTERNAL_HOSPITAL_BUSINESS_IDS = {
   MISSION_HOSPITAL: String(env.mission_hospital_business_id),

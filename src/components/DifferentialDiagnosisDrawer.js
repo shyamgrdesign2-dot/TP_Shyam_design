@@ -68,7 +68,7 @@ const DifferentialDiagnosisDrawer = ({
   } = useContext(CashManagerContext);
   const { profile } = useSelector((state) => state.doctors);
   const { state } = useLocation();
-  const { patient_data } = state;
+  const { patient_data } = state || {};
   const { isGynaecHistoryAccessable } = useAccess(patient_data?.ageYears);
   let filteredExcluded = excluded;
   if (

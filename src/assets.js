@@ -828,6 +828,8 @@ export const ASSETS = {
     genrxtypetip: `${BASE_URL}/lotties/genRxTypeTip.json`,
     greenscanrx: `${BASE_URL}/lotties/greenScanRx.lottie`,
     tatvaaichakra: `${BASE_URL}/lotties/tatvaAiChakra.lottie`,
+    arrowLeft: `${BASE_URL}/lotties/arrow-left.json`,
+    arrowUp: `${BASE_URL}/lotties/arrow-up.json`,
   },
   mobile: {
     "1": `${BASE_URL}/mobile/1.svg`,
@@ -910,6 +912,44 @@ export const ASSETS = {
     whatsapp: `${BASE_URL}/mobile/WhatsApp.svg`,
     woman: `${BASE_URL}/mobile/woman.svg`,
   },
+  dental: {
+    dragHandle: `${BASE_URL}/images/drag-handle.svg`,
+    tutorial: `${BASE_URL}/images/tutorial-dental-preview.png`,
+    /** Front-view odontogram PNG/WebP per FDI — use `getToothImageUrl(fdi)` for dynamic paths. */
+    teeth: {
+      base: `${BASE_URL}/images/teeth`,
+    },
+    models: {
+      implant: `${BASE_URL}/3d/implant.glb`,
+      tooth11: `${BASE_URL}/3d/tooth_11.glb`,
+      tooth13: `${BASE_URL}/3d/tooth_13.glb`,
+      tooth14: `${BASE_URL}/3d/tooth_14.glb`,
+      tooth15: `${BASE_URL}/3d/tooth_15.glb`,
+      tooth16: `${BASE_URL}/3d/tooth_16.glb`,
+      tooth17: `${BASE_URL}/3d/tooth_17.glb`,
+      tooth18: `${BASE_URL}/3d/tooth_18.glb`,
+      tooth31: `${BASE_URL}/3d/tooth_31.glb`,
+      tooth32: `${BASE_URL}/3d/tooth_32.glb`,
+      tooth33: `${BASE_URL}/3d/tooth_33.glb`,
+      tooth34: `${BASE_URL}/3d/tooth_34.glb`,
+      tooth35: `${BASE_URL}/3d/tooth_35.glb`,
+      tooth36: `${BASE_URL}/3d/tooth_36.glb`,
+      tooth37: `${BASE_URL}/3d/tooth_37.glb`,
+      tooth38: `${BASE_URL}/3d/tooth_38.glb`,
+    },
+    medicalIcons: {
+      clipboardActivity: `${BASE_URL}/images/clipboard-activity--bulk.svg`,
+      diagnosis: `${BASE_URL}/images/diagnosis--bulk.svg`,
+      healthCare: `${BASE_URL}/images/health-care--bulk.svg`,
+      healthFile03: `${BASE_URL}/images/health-file-03--bulk.svg`,
+      medicalService: `${BASE_URL}/images/medical-service--bulk.svg`,
+      note2: `${BASE_URL}/images/note-2--bulk.svg`,
+      surgicalScissors02: `${BASE_URL}/images/surgical-scissors-02--bulk.svg`,
+      tablets: `${BASE_URL}/images/tablets--bulk.svg`,
+      testTube: `${BASE_URL}/images/test-tube--bulk.svg`,
+      tooth: `${BASE_URL}/images/tooth--bulk.svg`,
+    },
+  },
   scss: {
     allcomponent: `${BASE_URL}/scss/allComponent.scss`,
     app: `${BASE_URL}/scss/app.scss`,
@@ -934,3 +974,13 @@ export const ASSETS = {
     welcome: `${BASE_URL}/scss/welcome.scss`,
   },
 };
+
+/** Front-view odontogram image for a permanent tooth FDI code (e.g. `"11"` → `…/images/teeth/11.webp`). */
+export function getToothImageUrl(fdi, ext = "webp") {
+  return `${ASSETS.dental.teeth.base}/${fdi}.${ext}`;
+}
+
+/** Primary + fallback extensions when loading odontogram images. */
+export function getToothImageCandidates(fdi) {
+  return [getToothImageUrl(fdi, "webp"), getToothImageUrl(fdi, "png")];
+}

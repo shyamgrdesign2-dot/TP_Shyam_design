@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { Col, Tabs, Row } from "antd";
 import { useSelector, useDispatch } from "react-redux";
@@ -28,7 +28,13 @@ import { getModules } from "../redux/customModuleSlice";
 import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
-import { updateFooterImageHeight, trackEvent } from "../utils/utils";
+import { updateFooterImageHeight, trackEvent, getClinic } from "../utils/utils";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  fireDentalOnce,
+  setDentalAnalyticsContext,
+  trackDentalEvent,
+} from "../utils/dentalMoengage";
 import { getGenRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "./snapRx/services/snapRxService";
 import { env } from "../EnvironmentConfig";
@@ -39,6 +45,10 @@ import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefault
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
+import { transformToothStateToApi } from "../components/dental/lib/examination-helpers";
+import { toothHasDentalPrintData } from "../components/print_settings/dental/dentalPrintHelpers";
+import { GB_DENTAL_MODULE } from "../utils/constants";
+import { mergeDentalPrintCaseOptions } from "../utils/dentalDefaultPrintSettings";
 import { listPatientCanvasMapping } from "./drawingCanvas/service";
 import { ensureDrawingCanvasCaseOption } from "./drawingCanvas/utils/drawingCanvasPrintUtils";
 import { exportToBlob } from "@excalidraw/excalidraw";
@@ -51,9 +61,10 @@ function ConfigurePrintSetting() {
     const printSettingsRef = useRef(null);
 
     const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
+    const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
 
     const { state } = useLocation();
-    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
+    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, dentalExaminationData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
     const isAfterDigitization = page === "digitise";
     const snapRxSessionId = stateSessionId ?? stateSessionIdAlt ?? caseManagerData?.session_id;
 
@@ -69,9 +80,13 @@ function ConfigurePrintSetting() {
     const todayVaccines = useTodayVaccines(caseManagerData);
     const growthChartDetails = useGrowthChart(caseManagerData);
     const obstetricDetails = useObstetric(caseManagerData?.patient_data?.patient_unique_id, caseManagerData?.doctor_Data?.um_id);
-    const medicalHistoryCheckboxOptions = caseManagerData?.medical_history?.map(e => {
-        return { label: e?.title, value: e?.tmmhs_id }
-    })
+    const medicalHistoryCheckboxOptions = useMemo(
+        () => caseManagerData?.medical_history?.map((e) => ({
+            label: e?.title,
+            value: e?.tmmhs_id,
+        })),
+        [caseManagerData?.medical_history]
+    );
     const [labParamsData, setLabParamsData] = useState([]);
     const [prescriptionDataFromApi, setPrescriptionDataFromApi] = useState(null);
     const [patientBills, setPatientBills] = useState([]);
@@ -129,6 +144,27 @@ function ConfigurePrintSetting() {
         );
     };
 
+
+    useEffect(() => {
+        if (!isDentalEnabled && !dentalExaminationData && !dentalData) return;
+        setDentalAnalyticsContext({
+            profile,
+            userId,
+            patientData: caseManagerData?.patient_data,
+            clinic: getClinic(profile?.hospital_data),
+            pamId: pam_id,
+            tcmId: caseManagerData?.tcm_id,
+            sourcePage: "/configure_print_setting",
+        });
+        fireDentalOnce("print_configuration_opened", () => {
+            trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_CONFIGURATION_OPENED, {
+                source_page: "/configure_print_setting",
+                layout_type: printSettings?.prescription?.format || "",
+                show_dental_chart: true,
+                include_past_dental_history: false,
+            });
+        });
+    }, [isDentalEnabled, dentalExaminationData, dentalData, profile, userId, caseManagerData, pam_id, printSettings?.prescription?.format]);
 
     useEffect(() => {
         setDivWidth(divRef.current?.offsetWidth);
@@ -617,23 +653,38 @@ function ConfigurePrintSetting() {
     }, [caseManagerData?.patient_data?.patient_unique_id, caseManagerData?.tcm_id]);
 
     const usePrescriptionDataFromApi = (!!(rxId || isAmbientRx) && !(smartRxFile?.length > 0 && !isAfterDigitization)) || ((smartRxFile?.length > 0 || caseManagerData?.isRxDigitize) && isAfterDigitization);
-    const dataSourceForPreview = usePrescriptionDataFromApi && prescriptionDataFromApi != null ? prescriptionDataFromApi : caseManagerData;
-    const obstetricData = obstetricDetails?.data || obstetricDetails;
-    const enrichedCaseManagerData = dataSourceForPreview
-        ? {
+    const dataSourceForPreview = useMemo(
+        () => (usePrescriptionDataFromApi && prescriptionDataFromApi != null ? prescriptionDataFromApi : caseManagerData),
+        [usePrescriptionDataFromApi, prescriptionDataFromApi, caseManagerData]
+    );
+    const enrichedCaseManagerData = useMemo(() => {
+        const obstetricData = obstetricDetails?.data || obstetricDetails;
+        if (!dataSourceForPreview) return dataSourceForPreview;
+        return {
             ...dataSourceForPreview,
-            ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
-        }
-        : dataSourceForPreview;
+            ...(obstetricData && {
+                obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData,
+            }),
+        };
+    }, [dataSourceForPreview, obstetricDetails]);
+    const growthChartDetailsForPdf = useMemo(
+        () => ({
+            growthChartData: growthChartDetails?.growthChartData,
+            growthChartImageData: growthChartDetails?.growthChartImageData,
+            todayGrowthChartData: growthChartDetails?.todayGrowthChartData,
+        }),
+        [
+            growthChartDetails?.growthChartData,
+            growthChartDetails?.growthChartImageData,
+            growthChartDetails?.todayGrowthChartData,
+        ]
+    );
     const filteredDrawingCanvases = useMemo(() => {
         const rawCanvasFilename = enrichedCaseManagerData?.canvas_filename;
         const hasCanvasFilenameField =
             Array.isArray(rawCanvasFilename) || typeof rawCanvasFilename === "string";
         const selectedCanvasIds = normalizeCanvasIds(rawCanvasFilename);
 
-        // - empty canvas_filename => no canvases rendered
-        // - ids in canvas_filename => only those canvases rendered
-        // - missing/unknown canvas_filename => fallback to fetched canvases
         if (hasCanvasFilenameField && selectedCanvasIds.length === 0) {
             return [];
         }
@@ -644,10 +695,66 @@ function ConfigurePrintSetting() {
                 return selectedSet.has(String(canvas.id));
             });
         }
-        return drawingCanvases;
+        return [];
     }, [drawingCanvases, enrichedCaseManagerData?.canvas_filename, normalizeCanvasIds]);
-
-    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData, drawingCanvases: filteredDrawingCanvases, isDrawingCanvasesLoading, isCvtExtHosAccessableFromGB };
+    const contextApi = useMemo(
+        () => ({
+            smartRxFile: isAfterDigitization ? undefined : smartRxFile,
+            isDigitisedPrintConfig: isAfterDigitization,
+            divWidth,
+            caseManagerData: enrichedCaseManagerData,
+            certificateData,
+            printSettings,
+            setPrintSettings,
+            fileHeader,
+            setFileHeader,
+            fileFooter,
+            setFileFooter,
+            fileLogo,
+            setFileLogo,
+            fileWatermark,
+            setFileWatermark,
+            fileSignature,
+            setFileSignature,
+            medicalHistoryCheckboxOptions,
+            labParamsData,
+            zydusSelectedLabParams,
+            customModules,
+            carePlanAssignments,
+            ophthalModuleData: opthalModuleData,
+            dentalData,
+            dentalExaminationData,
+            isDentalEnabled,
+            drawingCanvases: filteredDrawingCanvases,
+            isDrawingCanvasesLoading,
+            isCvtExtHosAccessableFromGB,
+        }),
+        [
+            isAfterDigitization,
+            smartRxFile,
+            divWidth,
+            enrichedCaseManagerData,
+            certificateData,
+            printSettings,
+            fileHeader,
+            fileFooter,
+            fileLogo,
+            fileWatermark,
+            fileSignature,
+            medicalHistoryCheckboxOptions,
+            labParamsData,
+            zydusSelectedLabParams,
+            customModules,
+            carePlanAssignments,
+            opthalModuleData,
+            dentalData,
+            dentalExaminationData,
+            isDentalEnabled,
+            filteredDrawingCanvases,
+            isDrawingCanvasesLoading,
+            isCvtExtHosAccessableFromGB,
+        ]
+    );
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
@@ -832,7 +939,28 @@ function ConfigurePrintSetting() {
                 }
             }
 
-            // Drawing canvas (id 25): add when patient has linked canvases with renderable scene data.
+            let hasDentalExaminationData = false;
+            let dentalExamData = dentalExaminationData;
+            if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {
+                dentalExamData = {
+                    ...dentalExamData,
+                    tooth_states: transformToothStateToApi(dentalExamData.toothState)
+                };
+            }
+            if (Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.length > 0) {
+                hasDentalExaminationData = dentalExamData.tooth_states.some((toothState) =>
+                    toothHasDentalPrintData(toothState)
+                );
+            }
+
+            if (!isWrittenRxSnapSmart && isDentalEnabled && copyPrintSettings?.prescription?.case_option) {
+                const merged = mergeDentalPrintCaseOptions(copyPrintSettings.prescription.case_option);
+                copyPrintSettings.prescription.case_option = merged.caseOptions;
+            } else if (!isWrittenRxSnapSmart && hasDentalExaminationData && copyPrintSettings?.prescription?.case_option) {
+                const merged = mergeDentalPrintCaseOptions(copyPrintSettings.prescription.case_option);
+                copyPrintSettings.prescription.case_option = merged.caseOptions;
+            }
+
             if (hasDrawingCanvasData) {
                 const withCanvasOption = ensureDrawingCanvasCaseOption(copyPrintSettings);
                 copyPrintSettings.prescription = withCanvasOption.prescription;
@@ -846,9 +974,9 @@ function ConfigurePrintSetting() {
             if (copyPrintSettings?.footer_image) {
                 updateFooterImageHeight({showFile: copyPrintSettings?.footer_image}, setFileFooter, true);
             }
-        }
-        makeData()
-    },[defaultPrintSettings, hasOphthalModuleData, hasDrawingCanvasData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl]);
+        };
+        makeData();
+    }, [defaultPrintSettings, hasOphthalModuleData, hasDrawingCanvasData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, isDentalEnabled, dentalExaminationData]);
 
     useEffect(() => {
         if (!fileFooter?.showFile) return;
@@ -930,7 +1058,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetailsForPdf} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>
