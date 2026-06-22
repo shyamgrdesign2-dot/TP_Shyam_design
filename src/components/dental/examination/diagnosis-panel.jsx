@@ -27,7 +27,7 @@ const PRIMARY_DIAG_COLOR = {
 };
 
 export function PrimaryDiagnosisBody({ state }) {
-  const { activeProcedures } = useDentalMasters();
+  const { activeProcedures, visualTypeMap } = useDentalMasters();
   const [activeCell, setActiveCell] = useState(null);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -57,9 +57,9 @@ export function PrimaryDiagnosisBody({ state }) {
   const activeRows = useMemo(() => {
     const list = [];
     state.currentToothDiagnoses.forEach((d) => list.push(d));
-    if (state.isImplant && !list.some((d) => getVisualType(d) === VISUAL_TYPE.IMPLANT)) list.push("Implant");
+    if (state.isImplant && !list.some((d) => getVisualType(d, visualTypeMap) === VISUAL_TYPE.IMPLANT)) list.push("Implant");
     return list;
-  }, [state.currentToothDiagnoses, state.isImplant]);
+  }, [state.currentToothDiagnoses, state.isImplant, visualTypeMap]);
   const displayRows = useMemo(() => {
     const detailMap = state.currentTreatmentHistoryDetails ?? {};
     const keys = Object.keys(detailMap);
@@ -125,7 +125,10 @@ export function PrimaryDiagnosisBody({ state }) {
   };
   const confirmMarkAs = () => {
     state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d));
-    if (state.isImplant) state.onToggleImplant();
+    // ponytail: no onToggleImplant() here — toggleToothDiagnosis above already clears
+    // implantTeeth when the last IMPLANT-visual-type diagnosis is removed. Calling
+    // toggleImplant() after would re-add the hardcoded "Implant" string since it wasn't
+    // in toothDiagnoses (the procedure label was, e.g. "Implant abutment placement").
     state.onClearTreatmentHistoryDetails?.();
     state.currentToothEntries?.forEach((e) => state.onRemoveEntry(e.id));
     state.onUpdateToothNotes?.("");
