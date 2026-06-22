@@ -25,8 +25,6 @@ package-lock.json
 # Sentry Config File
 .sentryclirc
 .env
-
-/public/models_backup/
 .env.dev
 AGENTS.md
 DR_AGENT_PORT_SESSION_CONTEXT.md
