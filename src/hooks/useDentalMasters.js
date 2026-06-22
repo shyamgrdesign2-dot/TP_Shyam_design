@@ -33,9 +33,9 @@ export function useDentalMasters() {
     activeToothDiagnoses: masters.diagnoses.length > 0 ? masters.diagnoses : TOOTH_DIAGNOSES,
     activeProcedures: masters.procedures,
     activeSurfaces: masters.surfaces.length > 0 ? masters.surfaces : ALL_ZONES,
-    activeOralDiagnoses: masters.oralDiagnoses,
+    activeOralDiagnoses: masters.oralDiagnoses || [],
     activeOralSurfaceFindings: masters.oralSurfaceFindings?.length > 0 ? masters.oralSurfaceFindings : (masters.oralDiagnoses?.length > 0 ? masters.oralDiagnoses : []),
-    activeOralProcedures: masters.oralProcedures,
+    activeOralProcedures: masters.oralProcedures || [],
     oralPositionGroups: masters.oralAreaItems?.length > 0
       ? buildOralPositionGroupsFromApi(masters.oralAreaItems)
       : ORAL_POSITION_GROUPS,

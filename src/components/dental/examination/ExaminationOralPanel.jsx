@@ -400,7 +400,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview, oralKind = "" 
 // ──────────────────────────────────────────────────────────────
 // OralTable — record/edit grid with quick-add chips for a given kind
 // ──────────────────────────────────────────────────────────────
-function OralTable({ state, kind, catalog, list }) {
+function OralTable({ state, kind, catalog = [], list = [] }) {
   const hasStatus = kind === "procedure";
   const { wrapRef, showEdge } = useStickyActionEdge(list.length);
   const [query, setQuery] = useState("");
