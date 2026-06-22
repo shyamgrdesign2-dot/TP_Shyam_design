@@ -1077,9 +1077,8 @@ export function OralRecordsList({ state }) {
         <div className={ui.toothRowHeader}>
           <div className={ui.toothThumb}>
             <MiniScopeCanvas
-              patientType="adult"
+              patientType={state?.patientType || "adult"}
               scopeType="full-mouth"
-              fdis={[]}
               toothDiagnoses={{}}
               findingsByTooth={{}}
               implantTeeth={new Set()}
