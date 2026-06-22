@@ -57,6 +57,7 @@ import { GB_SMARTSYNC_CONNECT } from "../utils/constants";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { setDefaultCustomSyncPadTemplate } from "../pages/smartSync/services/uploadService";
 import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
+import { syncCrossConsultReferral } from "../utils/crossConsultHelpers";
 import VideoConsultButton from "../components/VideoConsultButton";
 import { ASSETS } from "../assets";
 const {
@@ -120,6 +121,7 @@ function HeaderPrescription({
     followUpDate,
     setFollowUpDate,
     additionalNote,
+    referralData,
     pillupSwitch,
     setPillupSwitch,
     setMedicalHistoryData,
@@ -571,6 +573,17 @@ function HeaderPrescription({
         }
       } catch (cpErr) {
         console.error('Care plan sync (assign/update) after SmartRx submit failed:', cpErr);
+      }
+
+      try {
+        const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
+        await syncCrossConsultReferral(referralData, {
+          tcmId: generatedTcmId,
+          patientUniqueId: patient_data?.patient_unique_id,
+          referredBy: profile?.um_name,
+        });
+      } catch (error) {
+        console.error('[cross-consult] Failed', error?.message || error);
       }
 
       navigate("/print-smart-rx", {

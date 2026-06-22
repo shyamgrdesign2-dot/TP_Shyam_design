@@ -77,10 +77,9 @@
 
 .referral-panel-form--prescription {
   .referral-fields-row {
-    display: grid;
-    grid-template-columns: minmax(0, 40%) minmax(0, 60%);
+    display: flex;
+    flex-direction: column;
     gap: 16px;
-    align-items: start;
   }
 
   .referral-field {

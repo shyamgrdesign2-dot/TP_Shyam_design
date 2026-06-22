@@ -2290,16 +2290,9 @@ function Prescription() {
                       </div>
                     </div>
                   ) : e.tmdpm_id === 10 && e.tmdpm_status === 0 ? (
-                    <React.Fragment key={i}>
-                      <div className="prescription-box-sm">
+                      <div key={i} className="prescription-box-sm">
                         <ExaminationBox />
                       </div>
-                      {isCrossConsultAccessable && (
-                        <div className="prescription-box-sm">
-                          <ReferralBox />
-                        </div>
-                      )}
-                    </React.Fragment>
                   ) : e.tmdpm_id === 21 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <SurgicalBox />
@@ -2344,6 +2337,10 @@ function Prescription() {
                   ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <TabFollowUpBox />
+                    </div>
+                  ) : e.tmdpm_id === 26 && e.tmdpm_status === 0 ? (
+                    <div key={i} className="prescription-box-sm">
+                      <ReferralBox />
                     </div>
                   ) : (
                     e.is_custom_module &&

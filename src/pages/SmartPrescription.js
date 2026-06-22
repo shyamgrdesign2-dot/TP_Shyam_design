@@ -43,6 +43,9 @@ import PrivateNotesBox from "../components/PrivateNotesBox";
 import PrivateNotesList from "../components/PrivateNotesList";
 
 import SmartRxFollowUpBox from "../components/SmartRxFollowUpBox";
+import ReferralBox from "../components/ReferralBox";
+import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
+import { useCrossConsult } from "../hooks/useCrossConsult";
 import CarePlanDropdown from "../components/CarePlanDropdown";
 import CarePlanList from "../components/CarePlanList";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
@@ -235,6 +238,8 @@ function SmartPrescription() {
   const [viewlabparamsDrawer, setViewlabparamsDrawer] = useState(false);
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   // const [token, setToken] = useState(null);
@@ -358,6 +363,8 @@ function SmartPrescription() {
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     customModuleContents,
     setCustomModuleContents,
     startTime,
@@ -900,6 +907,23 @@ function SmartPrescription() {
         ) !== -1
       ) {
         setAdditionalNote(caseManagerData.visit_advice);
+      }
+      const crossConsultRaw =
+        caseManagerData.cross_consult ?? caseManagerData.crossConsult;
+      if (crossConsultRaw && isCrossConsultAccessable) {
+        const list = Array.isArray(crossConsultRaw)
+          ? crossConsultRaw
+          : crossConsultRaw?.content ?? crossConsultRaw?.referrals ?? [];
+        const item = Array.isArray(list) ? list[0] : crossConsultRaw;
+        if (item?.um_id) {
+          setReferralData({
+            um_id: item.um_id,
+            um_name: item.um_name ?? "",
+            dp_id: item.dp_id ?? item.department_id ?? null,
+            department_name: item.department_name ?? "",
+            reason_for_cross_consult: item.reason_for_cross_consult ?? "",
+          });
+        }
       }
     }
   }, []);
@@ -3733,6 +3757,11 @@ function SmartPrescription() {
                   <SmartRxFollowUpBox />
                 </div>
               }
+              {!isCvtExtHosAccessableFromGB && isCrossConsultAccessable && (
+                <div className="prescription-box-sm p-14">
+                  <ReferralBox />
+                </div>
+              )}
             </div>
             <div
               className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3"

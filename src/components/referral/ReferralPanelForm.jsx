@@ -132,11 +132,9 @@ function ReferralPanelForm({
           {notesField}
         </>
       )}
-      {variant !== "prescription" && (
-        <span className="opacity-08 fs-12">
-          This referral appears on the printed prescription.
-        </span>
-      )}
+      <span className="opacity-08" style={{ fontSize: "12px" }}>
+        This referral appears on the printed prescription.
+      </span>
     </div>
   );
 }
