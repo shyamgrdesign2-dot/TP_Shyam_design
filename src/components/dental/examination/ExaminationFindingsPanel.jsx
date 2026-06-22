@@ -27,6 +27,7 @@ import {
   getToothAnalyticsMeta,
   trackDentalEvent,
 } from "../../../utils/dentalMoengage";
+import { DENTAL_RX_PAD_ROUTE } from "../../../utils/dentalRoutes";
 
 const ARCH_SCOPE_BADGE = {
   RIGHT_ARCH: "R arch",
@@ -154,7 +155,7 @@ export function SingleToothPanel({ state, onSave }) {
             : id === "procedures"
               ? diagnosisCount + procedureCount
               : 0,
-      source_page: "/dental",
+      source_page: DENTAL_RX_PAD_ROUTE,
     });
     // Delay scroll until the accordion has expanded so we scroll to the expanded height.
     requestAnimationFrame(() => {

@@ -17,6 +17,7 @@ import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree, shouldMonetization
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import { GB_ISCRIBE, GB_SNAP_RX, GB_CVT_EXT_HOS, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX,GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, PAID } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
@@ -598,7 +599,7 @@ function WalkInConsultation() {
     navigate("/tab-rx", { state: { patient_data: patient } });
   };
   const onTypeRxClick = async (patient) => {
-    navigate("/dental", { state: { patient_data: patient } });
+    navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: patient } });
   };
 
   const COMMON_MODAL = useMemo(() => {

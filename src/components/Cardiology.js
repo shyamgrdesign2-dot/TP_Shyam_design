@@ -46,6 +46,7 @@ import {
   GB_CVT_EXT_HOS,
   CLINIC_TARGET_STATUS,
 } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { EVENTS } from "../utils/events";
 
 import {
@@ -1993,7 +1994,7 @@ function Cardiology(props) {
       };
       const isDental = profile?.dp_id === 26 || (profile?.dp_name && profile?.dp_name.toLowerCase() === 'dental');
       if (isDental || isDentalEnabled) {
-        navigate("/dental", { state: prescriptionState });
+        navigate(DENTAL_RX_PAD_ROUTE, { state: prescriptionState });
       } else {
         navigate("/prescription", { state: prescriptionState });
       }
@@ -3901,7 +3902,7 @@ function Cardiology(props) {
   };
 
   const handleStartTypeRx = () => {
-    navigate("/dental", {
+    navigate(DENTAL_RX_PAD_ROUTE, {
       state: { patient_data: patient_data },
     });
   };

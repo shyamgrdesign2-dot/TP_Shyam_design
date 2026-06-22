@@ -106,11 +106,11 @@ export function DentalInlineView({
 
   const teethWithData =
     resolvedGroupBy === DENTAL_GROUP_BY_TOOTH
-      ? buildDentalGroupsByTooth(toothStates, showPastHistory)
+      ? buildDentalGroupsByTooth(toothStates)
       : [];
   const typeGroups =
     resolvedGroupBy !== DENTAL_GROUP_BY_TOOTH
-      ? buildDentalGroupsByType(toothStates, showPastHistory)
+      ? buildDentalGroupsByType(toothStates)
       : [];
 
   const hasContent =

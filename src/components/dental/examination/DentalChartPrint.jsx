@@ -24,6 +24,7 @@ import {
   setDentalVisitFlag,
   trackDentalEvent,
 } from "../../../utils/dentalMoengage";
+import { DENTAL_RX_PAD_ROUTE } from "../../../utils/dentalRoutes";
 import dcp from "./DentalChartPrint.module.scss";
 
 function triggerPdfPrint(pdfBlob) {
@@ -153,7 +154,7 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
       clinic: getClinic(profile?.hospital_data),
       pamId,
       tcmId,
-      sourcePage: "/dental",
+      sourcePage: DENTAL_RX_PAD_ROUTE,
     });
   }, [profile, userId, patient_data, pamId, tcmId]);
 
@@ -252,7 +253,7 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
         print_type: mode,
         include_patient_information: includePatient,
         include_historic_data: mode === "historical",
-        source_page: "/dental",
+        source_page: DENTAL_RX_PAD_ROUTE,
       });
     } catch (err) {
       console.error("Failed to print dental chart:", err);
@@ -268,7 +269,7 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
       print_type: mode,
       include_historic_data: mode === "historical",
       has_historic_data: historicalAvailable,
-      source_page: "/dental",
+      source_page: DENTAL_RX_PAD_ROUTE,
     });
     runPrint(mode);
   };
@@ -332,7 +333,7 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
               trackDentalEvent(DENTAL_MOENGAGE_EVENTS.CHART_PATIENT_INFO_TOGGLED, {
                 include_patient_information: next,
                 print_type: "chart",
-                source_page: "/dental",
+                source_page: DENTAL_RX_PAD_ROUTE,
               });
             }}
             onKeyDown={(e) => {
@@ -378,7 +379,7 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
             setOpen(next);
             if (next) {
               trackDentalEvent(DENTAL_MOENGAGE_EVENTS.CHART_PRINT_CLICKED, {
-                source_page: "/dental",
+                source_page: DENTAL_RX_PAD_ROUTE,
                 chart_type: patientType,
                 has_historic_data: hasHistoricalData(patientId),
               });

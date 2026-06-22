@@ -26,6 +26,7 @@ import {
   DENTAL_MOENGAGE_EVENTS,
   trackDentalEvent,
 } from "../../../utils/dentalMoengage";
+import { DENTAL_RX_PAD_ROUTE } from "../../../utils/dentalRoutes";
 import { useStickyActionEdge } from "./useStickyActionEdge";
 import {
   AccordionWrap,
@@ -795,7 +796,7 @@ export function OralExamPanel({ state, onSave, saving }) {
             onOpenChange={setShowClearConfirm}
             analytics={{
               dialog_type: "oral_clear_all",
-              source_page: "/dental",
+              source_page: DENTAL_RX_PAD_ROUTE,
               source_action: "clear_all",
               primary_label: "No, Keep It",
               secondary_label: "Yes, Clear All",

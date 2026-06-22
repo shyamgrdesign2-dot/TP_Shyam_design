@@ -21,14 +21,8 @@ export function renderOralExamPdf({
     return null;
   }
   const showDates = oralOption?.includeHistorical === true;
-  const includeHistorical = oralOption?.includeHistorical === true;
   const format = oralOption?.format || "inline";
-  const oralChart = includeHistorical
-    ? examChart
-    : {
-        ...examChart,
-        oralEntries: (examChart?.oralEntries || []).filter((e) => e.kind !== "past"),
-      };
+  const oralChart = examChart;
   if (!hasOralExamChartData(oralChart)) {
     return null;
   }

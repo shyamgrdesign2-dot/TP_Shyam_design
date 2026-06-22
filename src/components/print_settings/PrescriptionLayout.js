@@ -29,6 +29,7 @@ import {
 } from "../../utils/dentalDefaultPrintSettings";
 import { loadExamChart, hasOralExamChartData } from "../../utils/examChartStorage";
 import { hasHistoricalData } from "../dental/examination/DentalChartPrint";
+import { toothHasDentalPrintData } from "../print_settings/dental/dentalPrintHelpers";
 import { trackEvent } from "../../utils/utils";
 import {
   DENTAL_MOENGAGE_EVENTS,
@@ -226,13 +227,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
       tooth_states: transformToothStateToApi(dentalExamData.toothState)
     };
   }
-  const hasDentalExaminationData = Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.some((toothState) => {
-    const hasHistory = (toothState.treatment_history || []).length > 0;
-    const hasFindings = (toothState.findings || []).length > 0;
-    const hasProcedures = (toothState.procedures || []).length > 0;
-    const hasNotes = (toothState.overall_notes || "").trim().length > 0;
-    return hasHistory || hasFindings || hasProcedures || hasNotes;
-  });
+  const hasDentalExaminationData = Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.some((toothState) =>
+    toothHasDentalPrintData(toothState)
+  );
 
   const patientId = caseManagerData?.patient_data?.patient_unique_id;
   const examChart = loadExamChart(patientId);

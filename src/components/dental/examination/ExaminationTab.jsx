@@ -24,6 +24,7 @@ import {
   setDentalAnalyticsContext,
   trackDentalEvent,
 } from "../../../utils/dentalMoengage";
+import { DENTAL_RX_PAD_ROUTE } from "../../../utils/dentalRoutes";
 import { DentalCanvas } from "./DentalCanvas";
 import { saveDentalPreviewSnapshot } from "../tp-rxpad/rx-preview-store";
 import { useDentalExamination } from "../lib/useDentalExamination";
@@ -66,7 +67,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
       userId,
       patientData: { patient_unique_id: patientId, ageYears: patientAge },
       clinic: getClinic(profile?.hospital_data),
-      sourcePage: "/dental",
+      sourcePage: DENTAL_RX_PAD_ROUTE,
     });
   }, [profile, userId, patientId, patientAge]);
 
@@ -90,7 +91,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
           ? Object.keys(toothState).length
           : 0,
         oral_exam_count_total: oralCount,
-        source_page: "/dental",
+        source_page: DENTAL_RX_PAD_ROUTE,
       });
     });
   }, [

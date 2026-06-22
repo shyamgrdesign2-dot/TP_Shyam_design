@@ -49,6 +49,7 @@ import {
 } from "../examChartStorage";
 import { renderOralExamPdf } from "../../components/print_settings/oral/renderOralExamPdf";
 import { renderDentalExamPdf } from "../../components/print_settings/dental/renderDentalExamPdf";
+import { toothHasDentalPrintData } from "../../components/print_settings/dental/dentalPrintHelpers";
 import {
   getCvtExtHosPatientDataShowValue,
   shouldUseCvtExtHosDigitisedPatientMapping,
@@ -1366,24 +1367,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
   const hasDentalExaminationData =
     Array.isArray(dentalExaminationData?.tooth_states) &&
-    dentalExaminationData.tooth_states.some((toothState) => {
-      const historyItems = (toothState.treatment_history || [])
-        .map((item) => item.name || item.type || "")
-        .filter(Boolean);
-      const findingItems = (toothState.findings || [])
-        .map((item) => item.name || item.type || "")
-        .filter(Boolean);
-      const procedureItems = (toothState.procedures || [])
-        .map((item) => item.name || item.type || "")
-        .filter(Boolean);
-      const overallNotes = (toothState.overall_notes || "").trim();
-      return (
-        historyItems.length > 0 ||
-        findingItems.length > 0 ||
-        procedureItems.length > 0 ||
-        overallNotes.length > 0
-      );
-    });
+    dentalExaminationData.tooth_states.some((toothState) =>
+      toothHasDentalPrintData(toothState)
+    );
 
   const dentalPrintOption = printSettings?.prescription?.case_option?.find(
     (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID,

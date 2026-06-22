@@ -23,7 +23,6 @@ export function renderDentalExamPdf({
   }
   const showDentalChart = dentalOption?.showDentalChart !== false;
   const chartOnly = dentalOption?.chartOnly === true;
-  const showPastHistory = dentalOption?.includeHistorical === true;
   const groupBy = resolveDentalGroupBy(dentalOption?.groupDentalExaminationBy);
   const hasPayload = hasDentalExamPayload(dentalExaminationData);
   if (!hasPayload && !showDentalChart) {
@@ -50,7 +49,6 @@ export function renderDentalExamPdf({
         printSettings={printSettings}
         dentalExaminationData={dentalExaminationData}
         consultationDate={consultationDate}
-        showPastHistory={showPastHistory}
         groupBy={groupBy}
       />
     );
@@ -61,7 +59,6 @@ export function renderDentalExamPdf({
         printSettings={printSettings}
         dentalExaminationData={dentalExaminationData}
         consultationDate={consultationDate}
-        showPastHistory={showPastHistory}
         groupBy={groupBy}
       />
     );
@@ -72,7 +69,6 @@ export function renderDentalExamPdf({
         printSettings={printSettings}
         dentalExaminationData={dentalExaminationData}
         consultationDate={consultationDate}
-        showPastHistory={showPastHistory}
         groupBy={groupBy}
       />
     );
