@@ -655,6 +655,7 @@ function ConsultationLayout({ children, headerProps }) {
   const [isSelectLetterHead, setIsSelectLetterHead] = useState(false);
   const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
   const [activeDentalTab, setActiveDentalTab] = useState("dental");
+  const [clinicalEverOpened, setClinicalEverOpened] = useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
   const [vaccineRefreshKey, setVaccineRefreshKey] = useState(0);
   const [growthRefreshKey, setGrowthRefreshKey] = useState(0);
@@ -2710,7 +2711,7 @@ function ConsultationLayout({ children, headerProps }) {
                       <button
                         type="button"
                         className={`dental-tab-btn ${activeDentalTab === "clinical" ? "active" : "inactive"}`}
-                        onClick={() => setActiveDentalTab("clinical")}
+                        onClick={() => { setClinicalEverOpened(true); setActiveDentalTab("clinical"); }}
                       >
                         <ClipboardText
                           size={20}
@@ -2736,9 +2737,18 @@ function ConsultationLayout({ children, headerProps }) {
                       </button>
                     </div>
                   </div>
-                  <div className="dental-tab-content flex-grow-1 overflow-auto" style={{ backgroundColor: "#F8F8FB" }}>
-                    {activeDentalTab === "clinical" ? (
-                      <div className="p-3">
+                  <div className="dental-tab-content flex-grow-1" style={{ backgroundColor: "#F8F8FB", position: "relative", overflow: "hidden" }}>
+                    {clinicalEverOpened && (
+                      <div
+                        className="p-3"
+                        style={{
+                          position: "absolute", inset: 0,
+                          visibility: activeDentalTab === "clinical" ? "visible" : "hidden",
+                          pointerEvents: activeDentalTab === "clinical" ? "auto" : "none",
+                          overflowY: "auto",
+                        }}
+                        aria-hidden={activeDentalTab !== "clinical"}
+                      >
                         <ClinicalExaminationContent
                           allAvailableModules={allAvailableModules}
                           showShimmer={showShimmer}
@@ -2761,7 +2771,15 @@ function ConsultationLayout({ children, headerProps }) {
                           showVoiceRxModule={canUseVoiceRxModuleUi}
                         />
                       </div>
-                    ) : (
+                    )}
+                    <div
+                      style={{
+                        position: "absolute", inset: 0,
+                        visibility: activeDentalTab === "dental" ? "visible" : "hidden",
+                        pointerEvents: activeDentalTab === "dental" ? "auto" : "none",
+                      }}
+                      aria-hidden={activeDentalTab !== "dental"}
+                    >
                       <Suspense fallback={
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
                           <span style={{ color: '#64748b', fontSize: 13 }}>Loading Dental Examination…</span>
@@ -2772,7 +2790,7 @@ function ConsultationLayout({ children, headerProps }) {
                           patientAge={patient_data?.ageYears}
                         />
                       </Suspense>
-                    )}
+                    </div>
                   </div>
                 </Content>
               ) : (
