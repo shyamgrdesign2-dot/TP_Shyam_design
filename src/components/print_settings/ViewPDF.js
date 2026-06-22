@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
+import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence, calculateFollowUpText } from '../../utils/utils'
-import { EXTRA_OPTIONS, EXTERNAL_HOSPITAL_BUSINESS_IDS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
+import { EXTRA_OPTIONS, EXTERNAL_HOSPITAL_BUSINESS_IDS, GB_DENTAL_MODULE, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
 import moment from 'moment';
 import {
     getCvtExtHosPatientDataShowValue,
@@ -427,6 +428,7 @@ const getSmartSyncUploadedFileUri = (file) =>
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, drawingCanvases } = props
+    const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
     const filteredDrawingCanvases = useMemo(() => {
         const canvasFilename = caseManagerData?.canvas_filename;
         const hasCanvasFilenameField =
@@ -461,9 +463,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const isRxDigitizeBool = !!(
         caseManagerData?.isRxDigitize ||
         isDigitisedPrintConfig ||
-        caseManagerData?.doctor_data?.dp_id == 26 ||
-        (caseManagerData?.doctor_data?.dp_name &&
-          String(caseManagerData.doctor_data.dp_name).toLowerCase().includes("dental"))
+        isDentalEnabled
     );
     const isCvtExtHosAccessableFromGB =
         isCvtExtHosFromProps ?? caseManagerData?.isCvtExtHosAccessableFromGB ?? false;

@@ -84,9 +84,7 @@ function PrescriptionPrintView() {
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID, isVoiceRxNewUiFlow } = state;
     const isDentalGB = useFeatureIsOn(GB_DENTAL_MODULE);
-    const isDental = state?.from === DENTAL_RX_PAD_ROUTE ||
-                     profile?.dp_name?.toLowerCase().includes("dental") ||
-                     profile?.dp_name?.toLowerCase().includes("dentist") || isDentalGB;
+    const isDental = state?.from === DENTAL_RX_PAD_ROUTE || isDentalGB;
 
     // Detect a hard refresh on the first mount after document load.
     const isFirstMountAfterLoad = ppvMountCount === 0;

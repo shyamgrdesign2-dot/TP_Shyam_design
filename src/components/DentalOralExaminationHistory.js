@@ -165,7 +165,7 @@ function DentalOralExaminationHistory() {
   const isDentalDoctor =
     profile?.dp_id === 26 ||
     String(profile?.dp_name || "").toLowerCase().includes("dental");
-  const showDentalOralHistory = isDentalEnabled || isDentalDoctor;
+  const showDentalOralHistory = isDentalEnabled;
 
   useEffect(() => {
     if (!showDentalOralHistory || !patientId) {

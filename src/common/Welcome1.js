@@ -95,7 +95,7 @@ function Welcome1(props) {
         () => profile?.dp_id === 26 || (profile?.dp_name && profile.dp_name.toLowerCase() === "dental"),
         [profile?.dp_id, profile?.dp_name]
     );
-    const consultRoute = (isDentalDoctor || isDentalEnabled) ? DENTAL_RX_PAD_ROUTE : "/prescription";
+    const consultRoute = (isDentalEnabled) ? DENTAL_RX_PAD_ROUTE : "/prescription";
 
     const modifyFormat = useMemo(() => {
         if (viewCaseManagerData) {

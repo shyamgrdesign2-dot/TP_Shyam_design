@@ -109,7 +109,7 @@ const PrimaryActionButton = ({
 
   const isDental = dpid === 26 || (department && department.toLowerCase() === 'dental');
   const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
-  const isDentalAndEnabled = isDental || isDentalEnabled;
+  const isDentalAndEnabled = isDentalEnabled;
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
   if (isCvtExtHosAccessableFromGB) {

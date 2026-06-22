@@ -1993,7 +1993,7 @@ function Cardiology(props) {
           ...(videoConsultData ? { videoConsultData } : {}),
       };
       const isDental = profile?.dp_id === 26 || (profile?.dp_name && profile?.dp_name.toLowerCase() === 'dental');
-      if (isDental || isDentalEnabled) {
+      if (isDentalEnabled) {
         navigate(DENTAL_RX_PAD_ROUTE, { state: prescriptionState });
       } else {
         navigate("/prescription", { state: prescriptionState });
