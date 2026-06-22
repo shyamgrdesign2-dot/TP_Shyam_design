@@ -152,7 +152,8 @@ export function VoiceRxSiriWaveform({ stream, paused = false, className, levelRe
     if (!stream) return;
 
     try {
-      const ctx = new AudioContext();
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContextCtor();
       const analyser = ctx.createAnalyser();
       analyser.smoothingTimeConstant = opts.smoothing;
       analyser.fftSize = 2 ** opts.fft;
@@ -164,6 +165,9 @@ export function VoiceRxSiriWaveform({ stream, paused = false, className, levelRe
       analyserRef.current = analyser;
       freqsRef.current = new Uint8Array(analyser.frequencyBinCount);
       sourceRef.current = src;
+      if (ctx.state === "suspended") {
+        void ctx.resume().catch(() => {});
+      }
     } catch {
       /* idle line only */
     }

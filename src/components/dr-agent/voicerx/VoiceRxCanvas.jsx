@@ -74,6 +74,7 @@ export function VoiceRxCanvas({
   onAddDetailsByVoice,
   onQuickEditSubmit,
   audioChunkContext,
+  analyticsContext,
   voiceLocked = false
 }) {
   const canvasTitle = "Back";
@@ -453,6 +454,12 @@ export function VoiceRxCanvas({
               processingTranscript={voiceEditTranscript}
               processingLabel={voiceEditPhase === "creating_transcript" ? "Refining your captured consultation..." : "Updating clinical notes…"}
               audioChunkContext={audioChunkContext}
+              analyticsContext={{
+                ...analyticsContext,
+                moduleName: "Clinical Notes",
+                sourceSurface: analyticsContext?.sourceSurface || "dr_agent",
+                voiceInputLocation: "Clinical Notes",
+              }}
               onCancel={handleVoiceEditCancel}
               onSubmit={handleVoiceEditSubmit}
               radiusClassName="rounded-t-[18px]"

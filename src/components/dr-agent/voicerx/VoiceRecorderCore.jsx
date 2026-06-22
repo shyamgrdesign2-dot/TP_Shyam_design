@@ -12,6 +12,8 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFeatureValue } from "@growthbook/growthbook-react";
+import { useMicVAD } from "@ricky0123/vad-react";
 import { playSubmitSound, playVoiceRxStartSound, playVoiceRxErrorSound } from "./audio";
 import { AlertCircle, Check, ChevronDown, Mic, MicOff, WifiOff } from "../atoms/icons/lucide";
 import {
@@ -36,6 +38,7 @@ import {
   isAudioChunkContextReady,
   uploadAudioChunk,
 } from "./api/audio-chunk-upload";
+import { trackVoiceRx2RecorderEvent } from "./voiceRx2Logging";
 import fsStyles from "./VoiceRxActiveAgent.module.scss";
 import osStyles from "./VoiceRxModuleRecorder.module.scss";
 import canvasStyles from "./VoiceRxCanvas.module.scss";
@@ -81,6 +84,66 @@ function formatElapsed(ms) {
   return `${mm}:${ss}`;
 }
 
+const MIC_PERMISSION_STATE = {
+  UNKNOWN: "unknown",
+  PROMPT: "prompt",
+  GRANTED: "granted",
+  DENIED: "denied",
+};
+const MIC_PERMISSION_REVOKED_MESSAGE = "Microphone permission was revoked. Allow microphone access again to continue recording.";
+const TP_CONFIG_DATA_FEATURE_KEY = "tp-config-data";
+const DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS = 60000;
+const VAD_ASSET_BASE_PATH = "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/";
+const VAD_ONNX_WASM_BASE_PATH = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/";
+const VAD_MODEL = "v5";
+const VAD_POSITIVE_SPEECH_THRESHOLD = 0.5;
+const VAD_NEGATIVE_SPEECH_THRESHOLD = 0.35;
+const VAD_MIN_SPEECH_MS = 400;
+const VAD_WAVEFORM_SPEECH_THRESHOLD = 0.5;
+const VAD_WAVEFORM_ON_MS = 160;
+const VAD_WAVEFORM_OFF_MS = 450;
+const VAD_DEBUG_STORAGE_KEY = "voiceRxVadDebug";
+const CAPTION_AUDIO_ACTIVITY_THRESHOLD = 0.018;
+const CAPTION_AUDIO_ACTIVITY_ON_MS = 120;
+const CAPTION_AUDIO_ACTIVITY_OFF_MS = 650;
+const SILENCE_REMINDER_TONE_COUNT = 1;
+const SILENCE_REMINDER_TONE_GAP_MS = 420;
+
+function isMicPermissionDeniedError(error) {
+  return error?.name === "NotAllowedError" || error?.name === "SecurityError";
+}
+
+function isMicNotFoundError(error) {
+  return error?.name === "NotFoundError" || error?.name === "DevicesNotFoundError";
+}
+
+function getMicErrorMessage(error) {
+  if (isMicPermissionDeniedError(error)) {
+    return "Microphone access is blocked. Enable it from your browser site settings.";
+  }
+  if (isMicNotFoundError(error)) {
+    return "No microphone was found on this device.";
+  }
+  return error instanceof Error ? error.message : "Microphone access denied";
+}
+
+function getSilenceDetectorThresholdMs(config) {
+  const value = Number(config?.silenceDetectorThresholdInMs);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS;
+}
+
+function isVadEnabled(config) {
+  return config?.enableVAD === true;
+}
+
+function playSilenceReminderSound() {
+  for (let index = 0; index < SILENCE_REMINDER_TONE_COUNT; index += 1) {
+    window.setTimeout(() => {
+      playVoiceRxErrorSound();
+    }, index * SILENCE_REMINDER_TONE_GAP_MS);
+  }
+}
+
 // ── Shared hooks ─────────────────────────────────────────────────────────────
 
 function useRecordingTimer(active) {
@@ -96,12 +159,362 @@ function useRecordingTimer(active) {
   return ms;
 }
 
+function useSelectedStreamAudioActivity(stream, active) {
+  const [audioActive, setAudioActive] = useState(false);
+  const audioActiveRef = useRef(false);
+  const activeStartedAtRef = useRef(0);
+  const inactiveStartedAtRef = useRef(0);
+
+  useEffect(() => {
+    if (!active || !stream) {
+      audioActiveRef.current = false;
+      activeStartedAtRef.current = 0;
+      inactiveStartedAtRef.current = 0;
+      setAudioActive(false);
+      return undefined;
+    }
+
+    if (typeof window === "undefined") return undefined;
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return undefined;
+
+    let rafId = 0;
+    let source = null;
+    let audioContext = null;
+    let analyser = null;
+    let samples = null;
+
+    const setAudioActiveState = (nextActive) => {
+      if (audioActiveRef.current === nextActive) return;
+      audioActiveRef.current = nextActive;
+      setAudioActive(nextActive);
+    };
+
+    try {
+      audioContext = new AudioContextCtor();
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.55;
+      source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      samples = new Uint8Array(analyser.fftSize);
+      if (audioContext.state === "suspended") {
+        void audioContext.resume().catch(() => {});
+      }
+    } catch {
+      return undefined;
+    }
+
+    const tick = () => {
+      if (!analyser || !samples) return;
+      analyser.getByteTimeDomainData(samples);
+      let sumSquares = 0;
+      for (let index = 0; index < samples.length; index += 1) {
+        const centered = (samples[index] - 128) / 128;
+        sumSquares += centered * centered;
+      }
+      const rms = Math.sqrt(sumSquares / samples.length);
+      const now = performance.now();
+
+      if (rms >= CAPTION_AUDIO_ACTIVITY_THRESHOLD) {
+        inactiveStartedAtRef.current = 0;
+        if (!activeStartedAtRef.current) activeStartedAtRef.current = now;
+        if (!audioActiveRef.current && now - activeStartedAtRef.current >= CAPTION_AUDIO_ACTIVITY_ON_MS) {
+          setAudioActiveState(true);
+        }
+      } else {
+        activeStartedAtRef.current = 0;
+        if (!inactiveStartedAtRef.current) inactiveStartedAtRef.current = now;
+        if (audioActiveRef.current && now - inactiveStartedAtRef.current >= CAPTION_AUDIO_ACTIVITY_OFF_MS) {
+          setAudioActiveState(false);
+        }
+      }
+
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      source?.disconnect();
+      void audioContext?.close().catch(() => {});
+      audioActiveRef.current = false;
+      activeStartedAtRef.current = 0;
+      inactiveStartedAtRef.current = 0;
+      setAudioActive(false);
+    };
+  }, [active, stream]);
+
+  return audioActive;
+}
+
+function useHumanVoiceSilenceDetector(stream, active, onNoHumanVoice, {
+  timeoutMs = DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS,
+} = {}) {
+  const [humanVoiceActive, setHumanVoiceActive] = useState(false);
+  const humanVoiceActiveRef = useRef(false);
+  const streamRef = useRef(stream);
+  const activeRef = useRef(active);
+  const onNoHumanVoiceRef = useRef(onNoHumanVoice);
+  const lastHumanVoiceAtRef = useRef(0);
+  const speechCandidateStartedAtRef = useRef(0);
+  const lastSpeechFrameAtRef = useRef(0);
+  const lastVadDebugAtRef = useRef(0);
+
+  useEffect(() => { streamRef.current = stream; }, [stream]);
+  useEffect(() => { activeRef.current = active; }, [active]);
+  useEffect(() => { onNoHumanVoiceRef.current = onNoHumanVoice; }, [onNoHumanVoice]);
+
+  const markHumanVoice = useCallback(() => {
+    lastHumanVoiceAtRef.current = performance.now();
+  }, []);
+
+  const setHumanVoiceActiveState = useCallback((nextActive) => {
+    humanVoiceActiveRef.current = nextActive;
+    setHumanVoiceActive(nextActive);
+  }, []);
+
+  const debugVad = useCallback((message, payload = {}) => {
+    if (typeof window === "undefined") return;
+    try {
+      if (window.localStorage?.getItem(VAD_DEBUG_STORAGE_KEY) !== "1") return;
+    } catch {
+      return;
+    }
+    console.debug(`[VoiceRx VAD] ${message}`, payload);
+  }, []);
+
+  const markHumanVoiceActive = useCallback((reason = "speech") => {
+    markHumanVoice();
+    setHumanVoiceActiveState(true);
+    debugVad("human-voice-active", { reason });
+  }, [debugVad, markHumanVoice, setHumanVoiceActiveState]);
+
+  const handleVadFrameProcessed = useCallback((probs) => {
+    if (typeof performance === "undefined") return;
+    const now = performance.now();
+    const speechProbability = Number(probs?.isSpeech || 0);
+    const vadSpeechFrame = speechProbability >= VAD_WAVEFORM_SPEECH_THRESHOLD;
+
+    if (vadSpeechFrame) {
+      if (!speechCandidateStartedAtRef.current) speechCandidateStartedAtRef.current = now;
+      lastSpeechFrameAtRef.current = now;
+      markHumanVoice();
+      if (!humanVoiceActiveRef.current && now - speechCandidateStartedAtRef.current >= VAD_WAVEFORM_ON_MS) {
+        markHumanVoiceActive("sustained-vad-frames");
+      }
+    } else {
+      speechCandidateStartedAtRef.current = 0;
+      if (humanVoiceActiveRef.current && now - lastSpeechFrameAtRef.current >= VAD_WAVEFORM_OFF_MS) {
+        setHumanVoiceActiveState(false);
+        debugVad("human-voice-inactive", { reason: "vad-probability-low" });
+      }
+    }
+
+    if (now - lastVadDebugAtRef.current < 1000) return;
+    lastVadDebugAtRef.current = now;
+    debugVad("frame", {
+      isSpeech: speechProbability.toFixed(3),
+      vadSpeechFrame,
+      humanVoiceActive: humanVoiceActiveRef.current,
+    });
+  }, [debugVad, markHumanVoice, markHumanVoiceActive, setHumanVoiceActiveState]);
+
+  const getVadStream = useCallback(async () => {
+    if (!streamRef.current) throw new Error("No active VoiceRx stream for VAD.");
+    return streamRef.current;
+  }, []);
+
+  const keepRecorderStreamAlive = useCallback(async () => {}, []);
+
+  const {
+    listening,
+    errored,
+    loading,
+    userSpeaking,
+    pause,
+    start,
+  } = useMicVAD({
+    model: VAD_MODEL,
+    startOnLoad: true,
+    getStream: getVadStream,
+    pauseStream: keepRecorderStreamAlive,
+    resumeStream: getVadStream,
+    positiveSpeechThreshold: VAD_POSITIVE_SPEECH_THRESHOLD,
+    negativeSpeechThreshold: VAD_NEGATIVE_SPEECH_THRESHOLD,
+    minSpeechMs: VAD_MIN_SPEECH_MS,
+    userSpeakingThreshold: VAD_POSITIVE_SPEECH_THRESHOLD,
+    onFrameProcessed: handleVadFrameProcessed,
+    onSpeechStart: () => {
+      debugVad("speech-start-candidate");
+    },
+    onSpeechRealStart: () => {
+      debugVad("speech-real-start");
+      markHumanVoiceActive("speech-real-start");
+    },
+    onSpeechEnd: () => {
+      debugVad("speech-end");
+      markHumanVoice();
+      speechCandidateStartedAtRef.current = 0;
+      setHumanVoiceActiveState(false);
+    },
+    onVADMisfire: () => {
+      debugVad("misfire");
+      speechCandidateStartedAtRef.current = 0;
+      setHumanVoiceActiveState(false);
+    },
+    baseAssetPath: VAD_ASSET_BASE_PATH,
+    onnxWASMBasePath: VAD_ONNX_WASM_BASE_PATH,
+  });
+
+  useEffect(() => {
+    debugVad("user-speaking-state", { userSpeaking });
+  }, [debugVad, userSpeaking]);
+
+  useEffect(() => {
+    debugVad("runtime-state", { listening, loading, errored });
+  }, [debugVad, errored, listening, loading]);
+
+  useEffect(() => {
+    if (!active || !stream || loading || errored) {
+      speechCandidateStartedAtRef.current = 0;
+      lastSpeechFrameAtRef.current = 0;
+      setHumanVoiceActiveState(false);
+      void pause().catch(() => {});
+      return undefined;
+    }
+    markHumanVoice();
+    void start().catch(() => {});
+    return () => {
+      speechCandidateStartedAtRef.current = 0;
+      lastSpeechFrameAtRef.current = 0;
+      setHumanVoiceActiveState(false);
+      void pause().catch(() => {});
+    };
+  }, [active, errored, loading, markHumanVoice, pause, setHumanVoiceActiveState, start, stream]);
+
+  useEffect(() => {
+    if (!active || !stream || loading || errored || typeof window === "undefined") return undefined;
+    const checkIntervalMs = Math.min(1000, Math.max(250, timeoutMs / 4));
+    const intervalId = window.setInterval(() => {
+      if (!activeRef.current) return;
+      const lastHumanVoiceAt = lastHumanVoiceAtRef.current || performance.now();
+      if (performance.now() - lastHumanVoiceAt < timeoutMs) return;
+      lastHumanVoiceAtRef.current = performance.now();
+      onNoHumanVoiceRef.current?.({
+        vadListening: listening,
+        vadUserSpeaking: userSpeaking,
+        vadErrored: errored || "",
+        vadLoading: loading,
+      });
+    }, checkIntervalMs);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [active, errored, listening, loading, stream, timeoutMs, userSpeaking]);
+
+  return {
+    humanVoiceActive: Boolean(active && humanVoiceActive),
+    vadListening: listening,
+    vadUserSpeaking: userSpeaking,
+    vadErrored: errored,
+    vadLoading: loading,
+  };
+}
+
+function HumanVoiceSilenceDetector({
+  stream,
+  active,
+  onNoHumanVoice,
+  timeoutMs,
+  onHumanVoiceActiveChange,
+}) {
+  const { humanVoiceActive } = useHumanVoiceSilenceDetector(
+    stream,
+    active,
+    onNoHumanVoice,
+    { timeoutMs }
+  );
+
+  useEffect(() => {
+    onHumanVoiceActiveChange(humanVoiceActive);
+    return () => onHumanVoiceActiveChange(false);
+  }, [humanVoiceActive, onHumanVoiceActiveChange]);
+
+  return null;
+}
+
 function useMicStream(deviceId, enabled) {
   const [stream, setStream] = useState(null);
   const [devices, setDevices] = useState([]);
   const [error, setError] = useState(null);
+  const [permissionState, setPermissionState] = useState(MIC_PERMISSION_STATE.UNKNOWN);
   const [retryKey, setRetryKey] = useState(0);
+  const streamRef = useRef(null);
+  const permissionWasGrantedRef = useRef(false);
+  const intentionalStopRef = useRef(false);
+  const permissionRecoveryPendingRef = useRef(false);
   const retry = useCallback(() => { setError(null); setRetryKey((k) => k + 1); }, []);
+
+  const stopActiveStream = useCallback(({ intentional = false } = {}) => {
+    intentionalStopRef.current = intentional;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setStream(null);
+    window.setTimeout(() => {
+      if (intentionalStopRef.current === intentional) intentionalStopRef.current = false;
+    }, 0);
+  }, []);
+
+  const markPermissionRevoked = useCallback(() => {
+    permissionWasGrantedRef.current = false;
+    permissionRecoveryPendingRef.current = true;
+    stopActiveStream();
+    setError(MIC_PERMISSION_REVOKED_MESSAGE);
+  }, [stopActiveStream]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.permissions?.query) return undefined;
+    let cancelled = false;
+    let permissionStatus = null;
+    let hasInitialPermissionState = false;
+    const handlePermissionChange = () => {
+      if (!cancelled && permissionStatus?.state) {
+        const isInitialPermissionState = !hasInitialPermissionState;
+        hasInitialPermissionState = true;
+        setPermissionState(permissionStatus.state);
+        if (permissionStatus.state === MIC_PERMISSION_STATE.GRANTED) {
+          permissionWasGrantedRef.current = true;
+          if (!permissionRecoveryPendingRef.current) setError(null);
+          if (!isInitialPermissionState && enabled) setRetryKey((k) => k + 1);
+          return;
+        }
+        if (permissionWasGrantedRef.current) {
+          markPermissionRevoked();
+          return;
+        }
+        if (permissionStatus.state !== MIC_PERMISSION_STATE.DENIED) setError(null);
+      }
+    };
+    navigator.permissions.query({ name: "microphone" })
+      .then((status) => {
+        if (cancelled) return;
+        permissionStatus = status;
+        handlePermissionChange();
+        if (permissionStatus.addEventListener) {
+          permissionStatus.addEventListener("change", handlePermissionChange);
+        } else {
+          permissionStatus.onchange = handlePermissionChange;
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      permissionStatus?.removeEventListener?.("change", handlePermissionChange);
+      if (permissionStatus?.onchange === handlePermissionChange) permissionStatus.onchange = null;
+    };
+  }, [enabled, markPermissionRevoked]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -124,22 +537,45 @@ function useMicStream(deviceId, enabled) {
         }
         if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
         acquired = s;
+        streamRef.current = s;
+        permissionWasGrantedRef.current = true;
+        permissionRecoveryPendingRef.current = false;
         setStream(s);
         setError(null);
+        setPermissionState(MIC_PERMISSION_STATE.GRANTED);
+        s.getAudioTracks().forEach((track) => {
+          track.onended = () => {
+            if (!intentionalStopRef.current) markPermissionRevoked();
+          };
+          track.onmute = () => {
+            if (!intentionalStopRef.current && track.readyState === "ended") markPermissionRevoked();
+          };
+        });
         try {
           const all = await navigator.mediaDevices.enumerateDevices();
           if (!cancelled) setDevices(all.filter((d) => d.kind === "audioinput"));
         } catch { /* ignore */ }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Microphone access denied");
+        if (!cancelled) {
+          setError(getMicErrorMessage(e));
+          if (isMicPermissionDeniedError(e)) {
+            permissionRecoveryPendingRef.current = true;
+            setPermissionState(MIC_PERMISSION_STATE.DENIED);
+          }
+        }
       }
     })();
     return () => {
       cancelled = true;
+      intentionalStopRef.current = true;
       acquired?.getTracks().forEach((t) => t.stop());
+      if (streamRef.current === acquired) streamRef.current = null;
       setStream(null);
+      window.setTimeout(() => {
+        intentionalStopRef.current = false;
+      }, 0);
     };
-  }, [deviceId, enabled, retryKey]);
+  }, [deviceId, enabled, retryKey, markPermissionRevoked]);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices) return;
@@ -154,12 +590,14 @@ function useMicStream(deviceId, enabled) {
     return () => navigator.mediaDevices.removeEventListener?.("devicechange", onChange);
   }, [deviceId, enabled]);
 
-  return { stream, devices, error, retry };
+  return { stream, devices, error, permissionState, retry };
 }
 
 function useBlobRecorder(stream, paused, enabled) {
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const recorderOrderRef = useRef(0);
+  const finalizedRef = useRef(false);
   const mimeRef = useRef("audio/webm");
 
   useEffect(() => {
@@ -179,16 +617,32 @@ function useBlobRecorder(stream, paused, enabled) {
       console.error("MediaRecorder init failed", e);
       return;
     }
-    chunksRef.current = [];
+    if (finalizedRef.current) {
+      chunksRef.current = [];
+      finalizedRef.current = false;
+    }
+    const recorderOrder = recorderOrderRef.current;
+    recorderOrderRef.current += 1;
+    let chunkOrder = 0;
     mimeRef.current = rec.mimeType || mime || "audio/webm";
-    rec.ondataavailable = (ev) => { if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data); };
+    rec.ondataavailable = (ev) => {
+      if (ev.data && ev.data.size > 0) {
+        chunksRef.current.push({
+          data: ev.data,
+          recorderOrder,
+          chunkOrder,
+        });
+        chunkOrder += 1;
+      }
+    };
     try { rec.start(1000); } catch (e) { console.error("MediaRecorder start failed", e); return; }
     recorderRef.current = rec;
     return () => {
+      try { if (rec.state === "recording") rec.requestData(); } catch { /* ignore */ }
       try { if (rec.state !== "inactive") rec.stop(); } catch { /* ignore */ }
       recorderRef.current = null;
     };
-  }, [stream, enabled]);
+  }, [enabled, stream]);
 
   useEffect(() => {
     const rec = recorderRef.current;
@@ -203,11 +657,19 @@ function useBlobRecorder(stream, paused, enabled) {
     const rec = recorderRef.current;
     const buildBlob = () => {
       if (!chunksRef.current.length) return null;
-      return new Blob(chunksRef.current, { type: mimeRef.current || "audio/webm" });
+      const orderedChunks = [...chunksRef.current]
+        .sort((a, b) => (a.recorderOrder - b.recorderOrder) || (a.chunkOrder - b.chunkOrder))
+        .map((chunk) => chunk.data);
+      return new Blob(orderedChunks, { type: mimeRef.current || "audio/webm" });
     };
-    if (!rec || rec.state === "inactive") { resolve(buildBlob()); return; }
-    const finalize = () => resolve(buildBlob());
+    const finalize = () => {
+      const blob = buildBlob();
+      finalizedRef.current = true;
+      resolve(blob);
+    };
+    if (!rec || rec.state === "inactive") { finalize(); return; }
     rec.addEventListener("stop", finalize, { once: true });
+    try { if (rec.state === "recording") rec.requestData(); } catch { /* ignore */ }
     try { rec.stop(); } catch { finalize(); }
   }), []);
 
@@ -235,22 +697,21 @@ function createAudioRecorder(stream) {
 
 function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
   const recorderRef = useRef(null);
-  const recorderStreamRef = useRef(null);
   const segmentChunksRef = useRef([]);
   const segmentStartedAtRef = useRef(0);
   const chunkIndexRef = useRef(0);
-  const emittedChunksRef = useRef(false);
   const uploadQueueRef = useRef(Promise.resolve());
   const intervalTimerRef = useRef(null);
   const pausedRef = useRef(paused);
   const enabledRef = useRef(enabled);
   const streamRef = useRef(stream);
   const contextRef = useRef(audioChunkContext);
+  const stoppingSegmentRef = useRef(false);
+  const pendingStartAfterStopRef = useRef(false);
   const localErrorNotifiedRef = useRef(false);
 
   useEffect(() => { pausedRef.current = paused; }, [paused]);
   useEffect(() => { enabledRef.current = enabled; }, [enabled]);
-  useEffect(() => { streamRef.current = stream; }, [stream]);
   useEffect(() => { contextRef.current = audioChunkContext; }, [audioChunkContext]);
 
   const clearIntervalTimer = useCallback(() => {
@@ -269,6 +730,8 @@ function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
         sessionId: context.sessionId,
         doctorId: context.doctorId,
         patientId: context.patientId,
+        doctorName: context.doctorName,
+        patientName: context.patientName,
       }))
       .catch((error) => {
         console.error("[voice-rx] audio chunk upload failed", { chunkIndex, error });
@@ -280,48 +743,34 @@ function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
     return uploadQueueRef.current;
   }, []);
 
-  const disposeRecorderStream = useCallback(() => {
-    const chunkStream = recorderStreamRef.current;
-    recorderStreamRef.current = null;
-    if (chunkStream && chunkStream !== streamRef.current) {
-      chunkStream.getTracks().forEach((track) => track.stop());
-    }
-  }, []);
-
-  const stopSegment = useCallback(({ reason, forceUpload = false, restart = false } = {}) => {
+  const stopSegment = useCallback(({ forceUpload = false, restart = false } = {}) => {
     clearIntervalTimer();
     const recorder = recorderRef.current;
     if (!recorder) {
-      disposeRecorderStream();
+      stoppingSegmentRef.current = false;
       return Promise.resolve();
     }
 
+    stoppingSegmentRef.current = true;
     recorderRef.current = null;
     return new Promise((resolve) => {
-      const startedAt = segmentStartedAtRef.current || Date.now();
-      const elapsedMs = Math.max(0, Date.now() - startedAt);
       const finish = () => {
         const chunks = segmentChunksRef.current;
         segmentChunksRef.current = [];
         segmentStartedAtRef.current = 0;
-        disposeRecorderStream();
+        stoppingSegmentRef.current = false;
 
-        const shouldUpload =
-          forceUpload ||
-          elapsedMs >= VOICE_CHUNK_UPLOAD_INTERVAL_MS ||
-          (emittedChunksRef.current && reason === "final" && elapsedMs > 0);
-
-        if (shouldUpload && chunks.length) {
-          const type = recorder.mimeType || chunks[0]?.type || "audio/webm";
-          const audioBlob = new Blob(chunks, { type });
+        if (forceUpload && chunks.length) {
+          const audioBlob = new Blob(chunks, { type: recorder.mimeType || chunks[0]?.type || "audio/webm" });
           if (audioBlob.size > 0) {
-            emittedChunksRef.current = true;
             chunkIndexRef.current += 1;
             queueUpload(audioBlob, chunkIndexRef.current);
           }
         }
 
-        if (restart && enabledRef.current && !pausedRef.current && streamRef.current && isAudioChunkContextReady(contextRef.current)) {
+        const shouldRestart = restart || pendingStartAfterStopRef.current;
+        pendingStartAfterStopRef.current = false;
+        if (shouldRestart && enabledRef.current && !pausedRef.current && streamRef.current && isAudioChunkContextReady(contextRef.current)) {
           window.setTimeout(() => {
             const start = startSegmentRef.current;
             start?.();
@@ -333,6 +782,7 @@ function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
       recorder.addEventListener("stop", finish, { once: true });
       try {
         if (recorder.state !== "inactive") {
+          if (recorder.state === "recording") recorder.requestData();
           recorder.stop();
         } else {
           finish();
@@ -341,24 +791,20 @@ function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
         finish();
       }
     });
-  }, [clearIntervalTimer, disposeRecorderStream, queueUpload]);
+  }, [clearIntervalTimer, queueUpload]);
 
   const startSegmentRef = useRef(null);
   const startSegment = useCallback(() => {
     if (!streamRef.current || recorderRef.current || pausedRef.current || !enabledRef.current) return;
     if (!isAudioChunkContextReady(contextRef.current)) return;
-
-    const sourceStream = streamRef.current;
-    const chunkStream = typeof sourceStream.clone === "function" ? sourceStream.clone() : sourceStream;
-    const recorder = createAudioRecorder(chunkStream);
-    if (!recorder) {
-      if (chunkStream !== sourceStream) {
-        chunkStream.getTracks().forEach((track) => track.stop());
-      }
+    if (stoppingSegmentRef.current) {
+      pendingStartAfterStopRef.current = true;
       return;
     }
 
-    recorderStreamRef.current = chunkStream;
+    const recorder = createAudioRecorder(streamRef.current);
+    if (!recorder) return;
+
     segmentChunksRef.current = [];
     segmentStartedAtRef.current = Date.now();
     recorder.ondataavailable = (event) => {
@@ -368,28 +814,27 @@ function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
     };
 
     try {
-      recorder.start();
+      recorder.start(1000);
       recorderRef.current = recorder;
       intervalTimerRef.current = window.setTimeout(() => {
-        stopSegment({ reason: "interval", restart: true });
+        stopSegment({ forceUpload: true, restart: true });
       }, VOICE_CHUNK_UPLOAD_INTERVAL_MS);
     } catch (error) {
       console.error("Audio chunk recorder start failed", error);
       recorderRef.current = null;
-      disposeRecorderStream();
     }
-  }, [disposeRecorderStream, stopSegment]);
+  }, [stopSegment]);
   startSegmentRef.current = startSegment;
 
   useEffect(() => {
-    if (!enabled || paused || !stream || !isAudioChunkContextReady(audioChunkContext)) return undefined;
-    startSegment();
-    return undefined;
-  }, [audioChunkContext, enabled, paused, startSegment, stream]);
+    if (streamRef.current === stream) return;
+    streamRef.current = stream;
+    stopSegment({ forceUpload: true, restart: Boolean(stream) });
+  }, [stopSegment, stream]);
 
   useEffect(() => {
     if (paused) {
-      stopSegment({ reason: "pause", forceUpload: true });
+      stopSegment({ forceUpload: true });
       return;
     }
     if (enabled && stream && isAudioChunkContextReady(audioChunkContext)) {
@@ -399,12 +844,12 @@ function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
 
   useEffect(() => {
     return () => {
-      stopSegment({ reason: "cleanup", forceUpload: false });
+      stopSegment({ forceUpload: false });
     };
   }, [stopSegment]);
 
   const flushFinalChunks = useCallback(async () => {
-    await stopSegment({ reason: "final", forceUpload: false });
+    await stopSegment({ forceUpload: true });
     await uploadQueueRef.current;
   }, [stopSegment]);
 
@@ -556,6 +1001,7 @@ export function VoiceRecorderCore({
   onCancelRequest,
   onSubmit,
   audioChunkContext,
+  analyticsContext,
   sectionLabel,
   showSectionInStatus = true,
 
@@ -586,10 +1032,17 @@ export function VoiceRecorderCore({
   onClose: onErrorClose,
 }) {
   const isFullscreen = layout === "fullscreen";
+  const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
+  const enableVAD = isVadEnabled(tpConfigData);
+  const silenceDetectorThresholdMs = getSilenceDetectorThresholdMs(tpConfigData);
   const publishesCollapsedVoiceSession = isFullscreen || enableCollapsedVoiceSession;
   const rootRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const levelRef = useRef(0);
+  const analyticsContextRef = useRef(analyticsContext);
+  const audioChunkContextRef = useRef(audioChunkContext);
+  analyticsContextRef.current = analyticsContext;
+  audioChunkContextRef.current = audioChunkContext;
 
   const [manualMute, setManualMute] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState(() => getSessionPreferredMicDeviceId());
@@ -598,6 +1051,8 @@ export function VoiceRecorderCore({
   const [isCompactLayout, setIsCompactLayout] = useState(!isFullscreen && variant === "stack");
   const [isUltraCompact, setIsUltraCompact] = useState(false);
   const [submitProcessing, setSubmitProcessing] = useState(false);
+  const [humanVoiceActive, setHumanVoiceActive] = useState(false);
+  const [acceptedExternalTranscript, setAcceptedExternalTranscript] = useState("");
   const submitProcessingRef = useRef(false);
 
   // Fullscreen: processing phase → bottom loader transition
@@ -629,18 +1084,26 @@ export function VoiceRecorderCore({
 
   // Derived paused state
   const paused = manualMute || networkPaused || isAwaitingResponse || submitProcessing;
-  const chunkPaused = manualMute || networkPaused;
-
-  // Recording timer
-  const elapsedMs = useRecordingTimer(!paused);
 
   // Mic stream — disabled after submit/awaiting
   const micEnabled = isFullscreen ? !isAwaitingResponse : !submitProcessing;
-  const { stream, devices, error: micError, retry: retryMic } = useMicStream(selectedDeviceId, micEnabled);
+  const {
+    stream,
+    devices,
+    error: micError,
+    permissionState: micPermissionState,
+    retry: retryMic,
+  } = useMicStream(selectedDeviceId, micEnabled);
+  const micReady = Boolean(stream && !micError);
+  const recordingActive = micReady && !paused;
+  const selectedStreamAudioActive = useSelectedStreamAudioActivity(stream, recordingActive);
+
+  // Recording timer
+  const elapsedMs = useRecordingTimer(recordingActive);
 
   // Blob recorder
   const { getBlob } = useBlobRecorder(stream, paused, micEnabled);
-  const { flushFinalChunks } = useAudioChunkRecorder(stream, chunkPaused, micEnabled, audioChunkContext);
+  const { flushFinalChunks } = useAudioChunkRecorder(stream, paused, micEnabled, audioChunkContext);
 
   // Active mic tracking
   const { activeDevice } = useActiveMic(stream, devices, selectedDeviceId);
@@ -661,12 +1124,45 @@ export function VoiceRecorderCore({
     }
   }, [devices, selectedDeviceId]);
 
+  const liveTranscriptAllowed = enableVAD ? humanVoiceActive : selectedStreamAudioActive;
+  const liveTranscriptEnabled = !isFullscreen && recordingActive && liveTranscriptAllowed;
+
   // Live transcript (overlay only; fullscreen receives transcript from parent via externalTranscript)
-  const { transcript: liveFinal, error: liveError } = useLiveTranscript({
-    enabled: !isFullscreen && !paused,
-    paused: !isFullscreen && paused,
+  const {
+    transcript: liveFinal,
+    error: liveError,
+    reset: resetLiveTranscript,
+  } = useLiveTranscript({
+    enabled: liveTranscriptEnabled,
+    paused: !liveTranscriptEnabled,
     lang: "en-US",
   });
+  const liveTranscriptDeviceRef = useRef(null);
+
+  useEffect(() => {
+    const deviceId = activeDevice?.deviceId || selectedDeviceId || "";
+    if (!deviceId) return;
+    if (liveTranscriptDeviceRef.current === null) {
+      liveTranscriptDeviceRef.current = deviceId;
+      return;
+    }
+    if (liveTranscriptDeviceRef.current === deviceId) return;
+    liveTranscriptDeviceRef.current = deviceId;
+    setHumanVoiceActive(false);
+    setAcceptedExternalTranscript("");
+    resetLiveTranscript();
+  }, [activeDevice?.deviceId, resetLiveTranscript, selectedDeviceId]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    if (!recordingActive && !isAwaitingResponse) {
+      setAcceptedExternalTranscript("");
+      return;
+    }
+    if (liveTranscriptAllowed) {
+      setAcceptedExternalTranscript(externalTranscript || "");
+    }
+  }, [externalTranscript, isAwaitingResponse, isFullscreen, liveTranscriptAllowed, recordingActive]);
 
   // Sync context (safe without provider — context has no-op defaults)
   const {
@@ -693,13 +1189,13 @@ export function VoiceRecorderCore({
   useEffect(() => {
     if (!sectionLabel) return;
     const lockId = voiceLockIdRef.current;
-    if (!paused && micEnabled) {
+    if (recordingActive && micEnabled) {
       claimActiveVoiceModule(lockId, sectionLabel);
     } else {
       releaseActiveVoiceModule(lockId);
     }
     return () => releaseActiveVoiceModule(lockId);
-  }, [claimActiveVoiceModule, micEnabled, paused, releaseActiveVoiceModule, sectionLabel]);
+  }, [claimActiveVoiceModule, micEnabled, recordingActive, releaseActiveVoiceModule, sectionLabel]);
 
   // Mute stream tracks
   useEffect(() => {
@@ -707,7 +1203,8 @@ export function VoiceRecorderCore({
     stream.getAudioTracks().forEach((t) => { t.enabled = !paused; });
   }, [stream, paused]);
 
-  useEffect(() => { onPauseChange?.(paused); }, [paused, onPauseChange]);
+  const captionsPaused = paused || !liveTranscriptAllowed;
+  useEffect(() => { onPauseChange?.(captionsPaused); }, [captionsPaused, onPauseChange]);
 
   const pauseRequestSeenRef = useRef(voicePauseToggleRequest);
   useEffect(() => {
@@ -795,6 +1292,7 @@ export function VoiceRecorderCore({
   useEffect(() => { playVoiceRxStartSound(); }, []);
 
   const lastErrorToneRef = useRef(null);
+  const micErrorForcedMuteRef = useRef(false);
 
   // ── Derived: critical block ─────────────────────────────────────────────────
 
@@ -809,14 +1307,32 @@ export function VoiceRecorderCore({
     if (micError) return {
       kind: "mic",
       icon: <MicOff size={isFullscreen ? 40 : 32} strokeWidth={2.2} absoluteStrokeWidth />,
-      title: "Microphone unavailable",
-      description: "Please allow microphone access in your browser.",
+      title: micError === MIC_PERMISSION_REVOKED_MESSAGE
+        ? "Microphone permission revoked"
+        : micPermissionState === MIC_PERMISSION_STATE.DENIED ? "Microphone blocked" : "Microphone unavailable",
+      description: micError === MIC_PERMISSION_REVOKED_MESSAGE
+        ? MIC_PERMISSION_REVOKED_MESSAGE
+        : micPermissionState === MIC_PERMISSION_STATE.DENIED
+        ? "Enable microphone access from your browser site settings, then try again."
+        : "Please allow microphone access in your browser.",
+      actionLabel: micPermissionState === MIC_PERMISSION_STATE.DENIED ? "How to enable microphone" : "Allow microphone access",
       canRetry: true,
     };
     return null;
-  }, [online, micError, isFullscreen]);
+  }, [online, micError, micPermissionState, isFullscreen]);
 
-  useEffect(() => { if (criticalBlock) setManualMute(true); }, [criticalBlock]);
+  useEffect(() => {
+    if (micError) {
+      micErrorForcedMuteRef.current = true;
+      setManualMute(true);
+    }
+  }, [micError]);
+
+  useEffect(() => {
+    if (!stream || micError || !micErrorForcedMuteRef.current) return;
+    micErrorForcedMuteRef.current = false;
+    setManualMute(false);
+  }, [stream, micError]);
 
   useEffect(() => {
     const key = criticalBlock ? `${criticalBlock.kind}:${criticalBlock.title}` : null;
@@ -826,22 +1342,31 @@ export function VoiceRecorderCore({
     playVoiceRxErrorSound();
   }, [criticalBlock]);
 
+  const handleAllowMicClick = useCallback(() => {
+    if (micPermissionState === MIC_PERMISSION_STATE.DENIED) {
+      toast.warning("Microphone is blocked. Enable it from browser site settings, then return to VoiceRx.");
+      return;
+    }
+    retryMic();
+  }, [micPermissionState, retryMic]);
+
   // ── Derived: display transcript ─────────────────────────────────────────────
 
   // For fullscreen: externalTranscript is the live caption fed from parent (useDrAgentPanel)
   // For overlay: prefer externalTranscript (scripted), fall back to live
   const liveDisplayText = isFullscreen ? "" : (externalTranscript?.trim() ? externalTranscript : (liveError ? "" : liveFinal));
+  const syncedExternalTranscript = isFullscreen ? acceptedExternalTranscript : externalTranscript;
 
   // Fullscreen: resolve which transcript to display given processing phases
   const fsDisplayTranscript = useMemo(() => {
     if (!isFullscreen) return "";
-    const liveHasText = hasTranscriptContent(externalTranscript);
+    const liveHasText = hasTranscriptContent(syncedExternalTranscript);
     const submittedHasText = hasTranscriptContent(submittedTranscript);
     const processingHasText = hasTranscriptContent(processingTranscriptProp);
     return processingHasText ? processingTranscriptProp
       : (isAwaitingResponse && submittedHasText ? submittedTranscript
-        : liveHasText ? externalTranscript : "");
-  }, [isFullscreen, externalTranscript, submittedTranscript, processingTranscriptProp, isAwaitingResponse]);
+        : liveHasText ? syncedExternalTranscript : "");
+  }, [isFullscreen, syncedExternalTranscript, submittedTranscript, processingTranscriptProp, isAwaitingResponse]);
 
   // Freeze transcript on criticalBlock (fullscreen only)
   const frozenFsTranscriptRef = useRef(null);
@@ -859,8 +1384,8 @@ export function VoiceRecorderCore({
   // ── Derived: canSubmit ──────────────────────────────────────────────────────
 
   const canSubmit = isFullscreen
-    ? (!isAwaitingResponse && !submitProcessing && !networkPaused && !micError && (externalTranscript?.trim()?.length > 0 || elapsedMs >= 2000))
-    : (!submitProcessing && !criticalBlock && (overlayHasTranscript || elapsedMs >= 2000));
+    ? (!isAwaitingResponse && !submitProcessing && !networkPaused && micReady && (syncedExternalTranscript?.trim()?.length > 0 || elapsedMs >= 2000))
+    : (!submitProcessing && !criticalBlock && micReady && (overlayHasTranscript || elapsedMs >= 2000));
 
   // ── Derived: status label ───────────────────────────────────────────────────
 
@@ -868,9 +1393,112 @@ export function VoiceRecorderCore({
     if (isAwaitingResponse || submitProcessing) return "Processing";
     if (!online) return "Waiting for connection";
     if (micError) return "Mic unavailable";
+    if (!stream) return "Give microphone permission";
     if (manualMute) return "Paused";
     return "Listening";
-  }, [isAwaitingResponse, submitProcessing, online, micError, manualMute]);
+  }, [isAwaitingResponse, submitProcessing, online, micError, stream, manualMute]);
+
+  const buildRecorderEventPayload = useCallback((extra = {}) => ({
+    patientData: analyticsContextRef.current?.patientData,
+    profile: analyticsContextRef.current?.profile,
+    sessionId: analyticsContextRef.current?.sessionId || audioChunkContextRef.current?.sessionId || "",
+    submitId: analyticsContextRef.current?.submitId || "",
+    requestId: analyticsContextRef.current?.requestId || "",
+    durationMs: elapsedMs,
+    mode: analyticsContextRef.current?.mode || mode || (isFullscreen ? "dictation" : "module"),
+    fromVoiceRecording: analyticsContextRef.current?.fromVoiceRecording ?? true,
+    voicecall: analyticsContextRef.current?.voicecall || 0,
+    moduleName: analyticsContextRef.current?.moduleName || sectionLabel || "",
+    sourceSurface: analyticsContextRef.current?.sourceSurface || (isFullscreen ? "dr_agent" : "module_recorder"),
+    voiceInputLocation: analyticsContextRef.current?.voiceInputLocation || sectionLabel || "",
+    isDoctorAgent: analyticsContextRef.current?.isDoctorAgent ?? isFullscreen,
+    micBeingUsed: activeDevice?.label || "",
+    extra: {
+      doctorId: analyticsContextRef.current?.doctorId || audioChunkContextRef.current?.doctorId || "",
+      patientId: analyticsContextRef.current?.patientId || audioChunkContextRef.current?.patientId || "",
+      selectedPatientId: analyticsContextRef.current?.selectedPatientId || "",
+      permissionState: micPermissionState,
+      layout,
+      sectionLabel: sectionLabel || "",
+      statusLabel,
+      manualMute,
+      micReady,
+      recordingActive,
+      audioLevel: Math.max(0, Math.min(1, levelRef.current || 0)),
+      ...extra,
+    },
+  }), [
+    activeDevice?.label,
+    elapsedMs,
+    isFullscreen,
+    layout,
+    manualMute,
+    micPermissionState,
+    micReady,
+    mode,
+    recordingActive,
+    sectionLabel,
+    statusLabel,
+  ]);
+
+  const handleNoHumanVoiceDetected = useCallback((vadState = {}) => {
+    trackVoiceRx2RecorderEvent("TP_Voice_V2_Silent_Detection", buildRecorderEventPayload({
+      action: "alert_after_no_human_voice",
+      silenceDurationMs: silenceDetectorThresholdMs,
+      detector: "ricky0123_vad",
+      humanVoiceDetected: false,
+      ...vadState,
+    }));
+    playSilenceReminderSound();
+    toast.warning("Still listening. It's been quiet for a bit, say a word when you're ready.");
+  }, [buildRecorderEventPayload, silenceDetectorThresholdMs]);
+
+  const trackedMicDeviceRef = useRef(null);
+  useEffect(() => {
+    const currentMic = {
+      deviceId: activeDevice?.deviceId || "",
+      label: activeDevice?.label || "",
+      groupId: activeDevice?.groupId || "",
+    };
+    if (!currentMic.deviceId && !currentMic.label) return;
+
+    const previousMic = trackedMicDeviceRef.current;
+    if (!previousMic) {
+      trackedMicDeviceRef.current = currentMic;
+      return;
+    }
+    if (previousMic.deviceId === currentMic.deviceId && previousMic.label === currentMic.label) return;
+
+    trackedMicDeviceRef.current = currentMic;
+    trackVoiceRx2RecorderEvent("TP_Voice_V2_Mic_Changed", buildRecorderEventPayload({
+      action: "microphone_changed",
+      previousMicDeviceId: previousMic.deviceId,
+      previousMicLabel: previousMic.label,
+      previousMicGroupId: previousMic.groupId,
+      currentMicDeviceId: currentMic.deviceId,
+      currentMicLabel: currentMic.label,
+      currentMicGroupId: currentMic.groupId,
+      selectedMicDeviceId: selectedDeviceId || "",
+    }));
+  }, [
+    activeDevice?.deviceId,
+    activeDevice?.groupId,
+    activeDevice?.label,
+    buildRecorderEventPayload,
+    selectedDeviceId,
+  ]);
+
+  const vadActive = Boolean(enableVAD && stream && micEnabled && recordingActive && online);
+  const effectiveHumanVoiceActive = liveTranscriptAllowed;
+  const vadSilenceDetector = vadActive ? (
+    <HumanVoiceSilenceDetector
+      key={stream.id || "voice-rx-vad-stream"}
+      stream={stream}
+      active={vadActive}
+      onNoHumanVoice={handleNoHumanVoiceDetected}
+      timeoutMs={silenceDetectorThresholdMs}
+      onHumanVoiceActiveChange={setHumanVoiceActive} />
+  ) : null;
 
   const isListening = statusLabel === "Listening";
   const shouldShowSectionLabel = showSectionInStatus && sectionLabel && sectionLabel !== "Dr Agent";
@@ -878,17 +1506,19 @@ export function VoiceRecorderCore({
   useEffect(() => {
     if (!publishesCollapsedVoiceSession) return;
     setCollapsedVoiceSession({
-      active: !isAwaitingResponse && !submitProcessing,
-      paused,
+      active: recordingActive && !isAwaitingResponse && !submitProcessing,
+      paused: !recordingActive || paused,
       statusLabel,
       elapsedLabel: formatElapsed(elapsedMs),
-      audioLevel: paused ? 0 : Math.max(0, Math.min(1, levelRef.current || 0))
+      audioLevel: recordingActive && effectiveHumanVoiceActive ? Math.max(0, Math.min(1, levelRef.current || 0)) : 0
     });
   }, [
     publishesCollapsedVoiceSession,
     setCollapsedVoiceSession,
     isAwaitingResponse,
     submitProcessing,
+    recordingActive,
+    effectiveHumanVoiceActive,
     paused,
     statusLabel,
     elapsedMs
@@ -919,7 +1549,7 @@ export function VoiceRecorderCore({
     let audioBlob = null;
     try { audioBlob = await getBlob(); } catch (e) { console.error("Failed to capture audio blob", e); }
     try { await flushFinalChunks(); } catch (e) { console.error("Failed to flush audio chunks", e); }
-    const transcript = isFullscreen ? externalTranscript : liveDisplayText;
+    const transcript = isFullscreen ? syncedExternalTranscript : liveDisplayText;
     try {
       await onSubmit?.({ audioBlob, transcript, durationMs: elapsedMs, submitClickedAt, submitClickedAtMs, micBeingUsed: activeDevice?.label || "" });
     } catch (e) {
@@ -928,7 +1558,7 @@ export function VoiceRecorderCore({
       submitProcessingRef.current = false;
       setSubmitProcessing(false);
     }
-  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, flushFinalChunks, onSubmit, externalTranscript, liveDisplayText, elapsedMs, activeDevice?.label]);
+  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, flushFinalChunks, onSubmit, syncedExternalTranscript, liveDisplayText, elapsedMs, activeDevice?.label]);
 
   const submitRequestSeenRef = useRef(voiceSubmitRequest);
   useEffect(() => {
@@ -994,7 +1624,17 @@ export function VoiceRecorderCore({
         type="button"
         onClick={() => {
           if (resumeBlockedByOtherVoice) return;
-          setManualMute((v) => !v);
+          setManualMute((value) => {
+            const nextMuted = !value;
+            if (nextMuted) {
+              trackVoiceRx2RecorderEvent("TP_Voice_V2_Pause_Click", buildRecorderEventPayload({
+                action: "manual_pause",
+                previousMuted: value,
+                nextMuted,
+              }));
+            }
+            return nextMuted;
+          });
         }}
         disabled={isFullscreen ? (networkPaused || isAwaitingResponse || resumeBlockedByOtherVoice) : (!!criticalBlock || resumeBlockedByOtherVoice)}
         aria-label={manualMute ? "Unmute microphone" : "Mute microphone"}
@@ -1098,7 +1738,7 @@ export function VoiceRecorderCore({
         isFullscreen
           ? ["h-[42px] gap-[8px]", canSubmit ? s.submitEnabled : "vrx-submit-dim cursor-not-allowed", criticalBlock ? s.submitCritical : ""].filter(Boolean).join(" ")
           : [isUltraCompact ? s.submitBtnUltra : compactControls ? s.submitBtnCompact : s.submitBtnNormal,
-            (submitProcessing || (!criticalBlock && (overlayHasTranscript || elapsedMs >= 2000))) ? s.submitEnabled : criticalBlock ? "vrx-submit-dim cursor-not-allowed opacity-40" : "vrx-submit-dim cursor-not-allowed"].join(" "),
+            (submitProcessing || (!criticalBlock && micReady && (overlayHasTranscript || elapsedMs >= 2000))) ? s.submitEnabled : criticalBlock ? "vrx-submit-dim cursor-not-allowed opacity-40" : "vrx-submit-dim cursor-not-allowed"].join(" "),
       ].join(" ")}>
       <span className="vrx-submit-gradient absolute inset-0 rounded-[inherit]" aria-hidden />
       <span className={[s.submitTopSheen, "pointer-events-none absolute inset-x-0 top-0 h-[55%] rounded-[inherit]"].join(" ")} aria-hidden />
@@ -1184,6 +1824,7 @@ export function VoiceRecorderCore({
   if (isFullscreen) {
     return (
       <>
+        {vadSilenceDetector}
         <div
           ref={rootRef}
           className={[fsStyles.root, !isPanelVisible && fsStyles.invisible].filter(Boolean).join(" ")}
@@ -1294,9 +1935,9 @@ export function VoiceRecorderCore({
                       {criticalBlock.description}
                     </p>
                     {criticalBlock.kind === "mic" && (
-                      <button type="button" onClick={retryMic} className={fsStyles.retryMicBtn}>
+                      <button type="button" onClick={handleAllowMicClick} className={fsStyles.retryMicBtn}>
                         <Mic size={14} strokeWidth={2.2} aria-hidden />
-                        Allow microphone access
+                        {criticalBlock.actionLabel}
                       </button>
                     )}
                   </div>
@@ -1318,7 +1959,7 @@ export function VoiceRecorderCore({
                     }}>
                     <VoiceRxSiriWaveform
                       stream={stream}
-                      paused={paused}
+                      paused={paused || !effectiveHumanVoiceActive}
                       levelRef={levelRef}
                       className={["relative px-0", fsStyles.waveformOpacity, isCompactLayout ? fsStyles.waveformCompact : fsStyles.waveformNormal].join(" ")} />
                   </div>
@@ -1358,7 +1999,7 @@ export function VoiceRecorderCore({
         : isUltraCompact ? osStyles.waveStripUltra
         : compactControls ? osStyles.waveStripCompact : osStyles.waveStripNormal,
     ].join(" ")}>
-      <VoiceRxSiriWaveform className="absolute inset-0 h-full w-full" stream={stream} paused={paused} levelRef={levelRef} />
+      <VoiceRxSiriWaveform className="absolute inset-0 h-full w-full" stream={stream} paused={paused || !effectiveHumanVoiceActive} levelRef={levelRef} />
       {paused && <div className={osStyles.waveStripPausedOverlay} />}
     </div>
   );
@@ -1373,9 +2014,9 @@ export function VoiceRecorderCore({
         <h3 className={osStyles.errorTitleStack}>{criticalBlock.title}</h3>
         <p className={osStyles.errorDescStack}>{criticalBlock.description}</p>
         {criticalBlock.canRetry && (
-          <button type="button" onClick={retryMic} className={osStyles.retryBtn}>
+          <button type="button" onClick={handleAllowMicClick} className={osStyles.retryBtn}>
             <Mic size={13} strokeWidth={2.2} aria-hidden />
-            Allow microphone access
+            {criticalBlock.actionLabel}
           </button>
         )}
       </div>
@@ -1387,9 +2028,9 @@ export function VoiceRecorderCore({
         </div>
         <h3 className={osStyles.errorTitleRow}>{criticalBlock.title}</h3>
         {criticalBlock.canRetry ? (
-          <button type="button" onClick={retryMic} className={osStyles.retryBtnRow}>
+          <button type="button" onClick={handleAllowMicClick} className={osStyles.retryBtnRow}>
             <Mic size={11} strokeWidth={2.2} aria-hidden />
-            Allow microphone access
+            {criticalBlock.actionLabel}
           </button>
         ) : (
           <p className={osStyles.errorDescRow}>{criticalBlock.description}</p>
@@ -1446,6 +2087,8 @@ export function VoiceRecorderCore({
         radiusClassName,
         showProcessingView || variant !== "stack" ? osStyles.recorderBg : osStyles.recorderBgStack,
       ].filter(Boolean).join(" ")}>
+
+      {vadSilenceDetector}
 
       {showProcessingView ? (
         <OverlayProcessingView
