@@ -18,6 +18,9 @@ import CashManagerContext from "../context/CashManagerContext";
 import HeaderPrescription from "../common/HeaderPrescription";
 import SymptomsBox from "../components/SymptomsBox";
 import ExaminationBox from "../components/ExaminationBox";
+import ReferralBox from "../components/ReferralBox";
+import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
+import { useCrossConsult } from "../hooks/useCrossConsult";
 import OphthalmologyExamPanel from "../components/ophthalmology/OphthalmologyExamPanel";
 import DiagnosisBox from "../components/DiagnosisBox";
 import MedicationsBox from "../components/MedicationsBox";
@@ -414,6 +417,8 @@ function Prescription() {
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
@@ -550,6 +555,8 @@ function Prescription() {
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     startTime,
     customModuleContents,
     setCustomModuleContents,
@@ -1052,6 +1059,23 @@ function Prescription() {
         ) !== -1
       ) {
         setAdditionalNote(caseManagerData.visit_advice);
+      }
+      const crossConsultRaw =
+        caseManagerData.cross_consult ?? caseManagerData.crossConsult;
+      if (crossConsultRaw && isCrossConsultAccessable) {
+        const list = Array.isArray(crossConsultRaw)
+          ? crossConsultRaw
+          : crossConsultRaw?.content ?? crossConsultRaw?.referrals ?? [];
+        const item = Array.isArray(list) ? list[0] : crossConsultRaw;
+        if (item?.um_id) {
+          setReferralData({
+            um_id: item.um_id,
+            um_name: item.um_name ?? "",
+            dp_id: item.dp_id ?? item.department_id ?? null,
+            department_name: item.department_name ?? "",
+            reason_for_cross_consult: item.reason_for_cross_consult ?? "",
+          });
+        }
       }
       if (caseManagerData?.moduleContents?.length) {
         // Don't filter out modules - they should all be rendered even if deleted
@@ -2266,9 +2290,16 @@ function Prescription() {
                       </div>
                     </div>
                   ) : e.tmdpm_id === 10 && e.tmdpm_status === 0 ? (
-                    <div key={i} className="prescription-box-sm">
-                      <ExaminationBox />
-                    </div>
+                    <React.Fragment key={i}>
+                      <div className="prescription-box-sm">
+                        <ExaminationBox />
+                      </div>
+                      {isCrossConsultAccessable && (
+                        <div className="prescription-box-sm">
+                          <ReferralBox />
+                        </div>
+                      )}
+                    </React.Fragment>
                   ) : e.tmdpm_id === 21 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <SurgicalBox />

@@ -19,7 +19,6 @@
 }
 
 .referral-doctor-search .ant-input,
-.referral-date-picker,
 .referral-notes-input {
   border-radius: 8px !important;
   border-color: var(--tp-slate-100, #e5e7eb) !important;
@@ -74,4 +73,27 @@
 
 .referral-panel-form--side-nav {
   padding-top: 10px;
+}
+
+.referral-panel-form--prescription {
+  .referral-fields-row {
+    display: grid;
+    grid-template-columns: minmax(0, 40%) minmax(0, 60%);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .referral-field {
+    min-width: 0;
+  }
+
+  .referral-notes-input {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 767px) {
+  .referral-panel-form--prescription .referral-fields-row {
+    grid-template-columns: 1fr;
+  }
 }

@@ -56,67 +56,87 @@ function ReferralPanelForm({
     onChange?.({ ...referral, ...patch });
   };
 
+  const doctorField = (
+    <div className="referral-field">
+      <label className="referral-field-label" htmlFor="referral-doctor-search">
+        Doctor
+      </label>
+      <AutoComplete
+        id="referral-doctor-search"
+        className="referral-doctor-search w-100"
+        value={doctorInputValue}
+        options={options}
+        onSearch={(query) => {
+          setSearchQuery(query);
+          if (!query.trim()) {
+            updateReferral({
+              um_id: null,
+              um_name: "",
+              dp_id: null,
+              department_name: "",
+            });
+          }
+        }}
+        onSelect={(_, option) => {
+          const doctor = option?.doctor;
+          if (!doctor) return;
+          setSearchQuery("");
+          updateReferral({
+            um_id: doctor.um_id,
+            um_name: doctor.um_name || "",
+            dp_id: doctor.dp_id ?? null,
+            department_name: doctor.department_name || "",
+          });
+        }}
+        onBlur={() => setSearchQuery("")}
+      >
+        <Input placeholder="Search by doctor or specialty" />
+      </AutoComplete>
+    </div>
+  );
+
+  const notesField = (
+    <div className="referral-field">
+      <label className="referral-field-label" htmlFor="referral-notes">
+        Referral notes
+      </label>
+      <TextArea
+        id="referral-notes"
+        className="referral-notes-input"
+        placeholder="Reason for referral, clinical context, instructions..."
+        value={referral.reason_for_cross_consult || ""}
+        onChange={(event) =>
+          updateReferral({ reason_for_cross_consult: event.target.value })
+        }
+        rows={2}
+      />
+    </div>
+  );
+
   return (
     <div
       className={`referral-panel-form ${
         variant === "sideNav" ? "referral-panel-form--side-nav" : ""
+      } ${
+        variant === "prescription" ? "referral-panel-form--prescription" : ""
       } ${className}`.trim()}
     >
-      <div className="referral-field">
-        <label className="referral-field-label" htmlFor="referral-doctor-search">
-          Doctor
-        </label>
-        <AutoComplete
-          id="referral-doctor-search"
-          className="referral-doctor-search w-100"
-          value={doctorInputValue}
-          options={options}
-          onSearch={(query) => {
-            setSearchQuery(query);
-            if (!query.trim()) {
-              updateReferral({
-                um_id: null,
-                um_name: "",
-                dp_id: null,
-                department_name: "",
-              });
-            }
-          }}
-          onSelect={(_, option) => {
-            const doctor = option?.doctor;
-            if (!doctor) return;
-            setSearchQuery("");
-            updateReferral({
-              um_id: doctor.um_id,
-              um_name: doctor.um_name || "",
-              dp_id: doctor.dp_id ?? null,
-              department_name: doctor.department_name || "",
-            });
-          }}
-          onBlur={() => setSearchQuery("")}
-        >
-          <Input placeholder="Search by doctor or specialty" />
-        </AutoComplete>
-      </div>
-
-      <div className="referral-field">
-        <label className="referral-field-label" htmlFor="referral-notes">
-          Referral notes
-        </label>
-        <TextArea
-          id="referral-notes"
-          className="referral-notes-input"
-          placeholder="Reason for referral, clinical context, instructions..."
-          value={referral.reason_for_cross_consult || ""}
-          onChange={(event) =>
-            updateReferral({ reason_for_cross_consult: event.target.value })
-          }
-          rows={5}
-        />
-      </div>
-      <span className="opacity-08 fs-12">
-        This referral appears on the printed prescription.
-      </span>
+      {variant === "prescription" ? (
+        <div className="referral-fields-row">
+          {doctorField}
+          {notesField}
+        </div>
+      ) : (
+        <>
+          {doctorField}
+          {notesField}
+        </>
+      )}
+      {variant !== "prescription" && (
+        <span className="opacity-08 fs-12">
+          This referral appears on the printed prescription.
+        </span>
+      )}
     </div>
   );
 }
