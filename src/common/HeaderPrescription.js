@@ -53,7 +53,6 @@ import GenRxButton from '../components/GenRxButton';
 
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import { getDecodedToken } from '../utils/localStorage';
-import { appendStripped, stripEmptyRows } from '../utils/voiceRxRowStrip';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
@@ -662,19 +661,18 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         },
     ];
     async function onResetClick() {
-        const canShowVoiceRxNewRows = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
-        setSymptomsData(canShowVoiceRxNewRows ? [{ symptom_name: "", unique_id: uuidv4(), since: "", severity: "", note: "", change: 1, pms_default: 0 }] : [])
-        setExaminationData(canShowVoiceRxNewRows ? [{ examination_name: "", unique_id: uuidv4(), note: "", change: 1, pms_default: 0 }] : [])
-        setDiagnosisData(canShowVoiceRxNewRows ? [{ tds_name: "", tds_id: 0, unique_id: uuidv4(), change: 1, pms_default: 0, icd_code: "", since: "", status: "", note: "" }] : [])
+        setSymptomsData([])
+        setExaminationData([])
+        setDiagnosisData([])
         setAdviceData([])
-        setInvestigationData(canShowVoiceRxNewRows ? [{ investigation_name: "", note: "", unique_id: uuidv4(), change: 1, pms_default: 0 }] : [])
+        setInvestigationData([])
         setMedicationData([])
         // setVitalsData([])
         // setMedicalHistoryData([])
         setPrivateNotesData(null)
         setFollowUpDate(null)
         setAdditionalNote('')
-        setSurgeriesData(canShowVoiceRxNewRows ? [{ masterId: uuidv4(), name: "", notes: "" }] : []);
+        setSurgeriesData([]);
         setCustomModuleContents([]);
         dispatch(resetOpthalForm());
     }
@@ -773,25 +771,25 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const updatedData = data.symptoms.map(e => {
                         return { ...e, unique_id: uuidv4(), since: "", severity: "", note: "" }
                     })
-                    setSymptomsData(appendStripped(symptomsData, updatedData, "symptoms"));
+                    setSymptomsData([...symptomsData, ...updatedData]);
                 }
                 if (data.examination.length > 0) {
                     const updatedData = data.examination.map(e => {
                         return { ...e, unique_id: uuidv4(), note: "" }
                     })
-                    setExaminationData(appendStripped(examinationData, updatedData, "examinations"));
+                    setExaminationData([...examinationData, ...updatedData]);
                 }
                 if (data?.surgeries && data.surgeries?.length > 0) {
                   const updatedData = data.surgeries.map((e) => {
                     return { ...e, unique_id: uuidv4(), notes: "" };
                   });
-                  setSurgeriesData(appendStripped(surgeriesData, updatedData, "surgeries"));
+                  setSurgeriesData([...surgeriesData, ...updatedData]);
                 }
                 if (data.diagnosis.length > 0) {
                     const updatedData = data.diagnosis.map(e => {
                         return { ...e, unique_id: uuidv4(), since: "", status: e.hasOwnProperty('status') ? e.status : "", note: "" }
                     })
-                    setDiagnosisData(appendStripped(diagnosisData, updatedData, "diagnosis"));
+                    setDiagnosisData([...diagnosisData, ...updatedData]);
                 }
                 if (data.advice.length > 0) {
                     const updatedData = data.advice.map(e => {
@@ -803,7 +801,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const updatedData = data.investigation.map(e => {
                         return { ...e, unique_id: uuidv4(), note: "" }
                     })
-                    setInvestigationData(appendStripped(investigationData, updatedData, "investigations"));
+                    setInvestigationData([...investigationData, ...updatedData]);
                 }
                 if (data.medicine.length > 0) {
                     if (!isMobile) {
@@ -971,11 +969,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 };
             });
         }
-        const templateSymptoms = isNewPrescriptionUi ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
-        const templateExaminations = isNewPrescriptionUi ? stripEmptyRows(examinationData, "examinations") : examinationData;
-        const templateSurgeries = isNewPrescriptionUi ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
-        const templateDiagnosis = isNewPrescriptionUi ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
-        const templateInvestigations = isNewPrescriptionUi ? stripEmptyRows(investigationData, "investigations") : investigationData;
+        const templateSymptoms = symptomsData;
+        const templateExaminations = examinationData;
+        const templateSurgeries = surgeriesData;
+        const templateDiagnosis = diagnosisData;
+        const templateInvestigations = investigationData;
         
         var sendData = {
             tmoc_template_name: inputTemplateName,
@@ -1105,11 +1103,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 };
             });
         }
-        const templateSymptoms = isNewPrescriptionUi ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
-        const templateExaminations = isNewPrescriptionUi ? stripEmptyRows(examinationData, "examinations") : examinationData;
-        const templateSurgeries = isNewPrescriptionUi ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
-        const templateDiagnosis = isNewPrescriptionUi ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
-        const templateInvestigations = isNewPrescriptionUi ? stripEmptyRows(investigationData, "investigations") : investigationData;
+        const templateSymptoms = symptomsData;
+        const templateExaminations = examinationData;
+        const templateSurgeries = surgeriesData;
+        const templateDiagnosis = diagnosisData;
+        const templateInvestigations = investigationData;
 
         var data = JSON.parse(inputTemplateName);
         var sendData = {
@@ -1777,29 +1775,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
         setSaveDraftLoading(true);
 
-        let cleanedSymptoms = symptomsData;
-        let cleanedExaminations = examinationData;
-        let cleanedSurgeries = surgeriesData;
-        let cleanedDiagnosis = diagnosisData;
-        let cleanedInvestigations = investigationData;
-        if (isVoiceRxNewFromGB) {
-            const stripEmpty = (arr, keys) => arr.filter(r => keys.some(k => String(r?.[k] ?? "").trim() !== ""));
-            cleanedSymptoms = stripEmpty(symptomsData, ["symptom_name", "since", "severity", "note"]);
-            cleanedExaminations = stripEmpty(examinationData, ["examination_name", "note"]);
-            cleanedSurgeries = stripEmpty(surgeriesData, ["name", "notes"]);
-            cleanedDiagnosis = stripEmpty(diagnosisData, ["tds_name", "icd_code", "since", "status", "note"]);
-            cleanedInvestigations = stripEmpty(investigationData, ["investigation_name", "note"]);
-
-            console.log("[save-draft] payload before strip:", { symptoms: symptomsData, examinations: examinationData, surgeries: surgeriesData, diagnosis: diagnosisData, investigations: investigationData });
-            console.log("[save-draft] payload after strip:", { symptoms: cleanedSymptoms, examinations: cleanedExaminations, surgeries: cleanedSurgeries, diagnosis: cleanedDiagnosis, investigations: cleanedInvestigations });
-
-            if (cleanedSymptoms.length !== symptomsData.length) setSymptomsData(cleanedSymptoms);
-            if (cleanedExaminations.length !== examinationData.length) setExaminationData(cleanedExaminations);
-            if (cleanedSurgeries.length !== surgeriesData.length) setSurgeriesData(cleanedSurgeries);
-            if (cleanedDiagnosis.length !== diagnosisData.length) setDiagnosisData(cleanedDiagnosis);
-            if (cleanedInvestigations.length !== investigationData.length) setInvestigationData(cleanedInvestigations);
-        }
-
         try {
           const opthalPayload = buildOpthalPayload({
             sections: OPHTHALMOLOGY_SECTIONS,
@@ -1828,13 +1803,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                   : pamId
                 : 0,
             consultation_date: consultationDate,
-            symptoms: cleanedSymptoms,
-            examination: cleanedExaminations,
-            surgeries: cleanedSurgeries,
-            diagnosis: cleanedDiagnosis,
+            symptoms: symptomsData,
+            examination: examinationData,
+            surgeries: surgeriesData,
+            diagnosis: diagnosisData,
             medicine: medicinePayload,
             advice: adviceData,
-            investigation: cleanedInvestigations,
+            investigation: investigationData,
             vitals: vitalsData,
             follow_up_date: followUpDate,
             visit_advice: additionalNote,
@@ -1996,42 +1971,19 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     }; 
 
     async function onEndVisitClick() {
-        let cleanedSymptoms = symptomsData;
-        let cleanedExaminations = examinationData;
-        let cleanedSurgeries = surgeriesData;
-        let cleanedDiagnosis = diagnosisData;
-        let cleanedInvestigations = investigationData;
-        if (isVoiceRxNewFromGB) {
-            const stripEmpty = (arr, keys) => arr.filter(r => keys.some(k => String(r?.[k] ?? "").trim() !== ""));
-            cleanedSymptoms = stripEmpty(symptomsData, ["symptom_name", "since", "severity", "note"]);
-            cleanedExaminations = stripEmpty(examinationData, ["examination_name", "note"]);
-            cleanedSurgeries = stripEmpty(surgeriesData, ["name", "notes"]);
-            cleanedDiagnosis = stripEmpty(diagnosisData, ["tds_name", "icd_code", "since", "status", "note"]);
-            cleanedInvestigations = stripEmpty(investigationData, ["investigation_name", "note"]);
-
-            console.log("[end-visit] payload before strip:", { symptoms: symptomsData, examinations: examinationData, surgeries: surgeriesData, diagnosis: diagnosisData, investigations: investigationData });
-            console.log("[end-visit] payload after strip:", { symptoms: cleanedSymptoms, examinations: cleanedExaminations, surgeries: cleanedSurgeries, diagnosis: cleanedDiagnosis, investigations: cleanedInvestigations });
-
-            if (cleanedSymptoms.length !== symptomsData.length) setSymptomsData(cleanedSymptoms);
-            if (cleanedExaminations.length !== examinationData.length) setExaminationData(cleanedExaminations);
-            if (cleanedSurgeries.length !== surgeriesData.length) setSurgeriesData(cleanedSurgeries);
-            if (cleanedDiagnosis.length !== diagnosisData.length) setDiagnosisData(cleanedDiagnosis);
-            if (cleanedInvestigations.length !== investigationData.length) setInvestigationData(cleanedInvestigations);
-        }
-
-        if (cleanedSymptoms.length > 0 && cleanedSymptoms.filter(e => e.symptom_name == "").length > 0) {
+        if (symptomsData.length > 0 && symptomsData.filter(e => e.symptom_name == "").length > 0) {
             errorMessage('Please fillup symptom name')
-        } else if (cleanedExaminations.length > 0 && cleanedExaminations.filter(e => e.examination_name == "").length > 0) {
+        } else if (examinationData.length > 0 && examinationData.filter(e => e.examination_name == "").length > 0) {
             errorMessage('Please fillup examination name')
-        } else if (cleanedSurgeries.length > 0 && cleanedSurgeries.filter(e => e.name == "").length > 0) {
+        } else if (surgeriesData.length > 0 && surgeriesData.filter(e => e.name == "").length > 0) {
             errorMessage('Please fillup surgery name')
-        } else if (cleanedDiagnosis.length > 0 && cleanedDiagnosis.filter((e) => e.tds_name == "").length > 0) {
+        } else if (diagnosisData.length > 0 && diagnosisData.filter((e) => e.tds_name == "").length > 0) {
             errorMessage('Please fillup diagnosis name')
         } else if (medicationData.length > 0 && medicationData.filter((e) => e.tmm_medicine_name == "").length > 0) {
             errorMessage('Please fillup medication name')
         } else if (adviceData.length > 0 && adviceData.filter(e => e.advice_name == "").length > 0) {
             errorMessage('Please fillup advice name')
-        } else if (cleanedInvestigations.length > 0 && cleanedInvestigations.filter(e => e.investigation_name == "").length > 0) {
+        } else if (investigationData.length > 0 && investigationData.filter(e => e.investigation_name == "").length > 0) {
             errorMessage('Please fillup investigation name')
         } else {
             const opthalPayload = buildOpthalPayload({
@@ -2055,13 +2007,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
                 pam_id: patient_data !== undefined ? patient_data.hasOwnProperty('pam_id') ? patient_data.pam_id : pamId : 0,
                 consultation_date: consultationDate,
-                symptoms: cleanedSymptoms,
-                examination: cleanedExaminations,
-                surgeries: cleanedSurgeries,
-                diagnosis: cleanedDiagnosis,
+                symptoms: symptomsData,
+                examination: examinationData,
+                surgeries: surgeriesData,
+                diagnosis: diagnosisData,
                 medicine: medicinePayload,
                 advice: adviceData,
-                investigation: cleanedInvestigations,
+                investigation: investigationData,
                 vitals: vitalsData,
                 follow_up_date: followUpDate,
                 visit_advice: additionalNote,
@@ -2198,16 +2150,16 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const voiceEditedData = {
                         patientDetails: {},
                         vitalsAndBodyComposition: vitalsData,
-                        symptoms: cleanedSymptoms,
-                        examinations: cleanedExaminations,
-                        diagnosis: cleanedDiagnosis,
+                        symptoms: symptomsData,
+                        examinations: examinationData,
+                        diagnosis: diagnosisData,
                         medications: medicinePayload,
                         vaccinations: givenVaccines,
-                        surgeries: cleanedSurgeries,
+                        surgeries: surgeriesData,
                         labResults: [],
                         medicalHistory: medicalHistoryData,
                         advice: adviceData,
-                        labInvestigation: cleanedInvestigations,
+                        labInvestigation: investigationData,
                         followUp: followUpDate,
                         others: customModuleContents,
                     };
@@ -2775,9 +2727,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0
                               );
                               // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
-                              const canEndVisit = isVoiceRxNewFromGB
-                                ? hasPrescriptionModuleData : isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0
-                                : (hasPrescriptionModuleData || hasSidebarOnlyData);
+                              const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0 : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
                                 <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
                                     <Button type='button' data-testid="prescription-end-visit" className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>

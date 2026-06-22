@@ -19,9 +19,8 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
-import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 
-import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
+import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
   updateTemplate,
@@ -45,8 +44,6 @@ import {
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
 const {
   alerticon: alertIcon,
   examination: Examinationicon,
@@ -54,8 +51,6 @@ const {
 
 function ExaminationBox({ showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
-  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
   const {
     selectedExaminationList,
     parentOptionsList,
@@ -92,35 +87,12 @@ function ExaminationBox({ showVoiceRxModule }) {
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
-  const emptyExaminationRow = () => ({ examination_name: "", unique_id: uuidv4(), note: "", change: 1, pms_default: 0 });
-
   const applyVoiceExaminations = useCallback((nextExaminations) => {
     if (nextExaminations.length > 0) {
-      if (canShowVoiceRxNewRows) {
-        const last = nextExaminations[nextExaminations.length - 1];
-        const withTrailing = (!last || last.examination_name !== "") ? [...nextExaminations, emptyExaminationRow()] : nextExaminations;
-        setExaminationData(withTrailing);
-      } else {
-        setExaminationData(nextExaminations);
-      }
+      setExaminationData(nextExaminations);
     }
-  }, [canShowVoiceRxNewRows, setExaminationData]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // add one trailing empty row on mount (only when flag is on)
-  useEffect(() => {
-    if (!canShowVoiceRxNewRows) return;
-    setExaminationData(prev => {
-      const last = prev[prev.length - 1];
-      if (!last || last.examination_name !== "") {
-        return [...prev, emptyExaminationRow()];
-      }
-      return prev;
-    });
-  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleAddRow = useCallback(() => {
-    setExaminationData(prev => [...prev, emptyExaminationRow()]);
   }, [setExaminationData]);
+
   const examinationsVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(examinationData, "examinations"),
     [examinationData]
@@ -305,11 +277,8 @@ function ExaminationBox({ showVoiceRxModule }) {
       setExaminationData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).examination_name, index: i });
       dispatch(setIsDDxReadyToGenerate(true));
-      if (canShowVoiceRxNewRows && i === examinationData.length - 1) {
-        setExaminationData((prev) => [...prev, emptyExaminationRow()]);
-      }
     },
-    [searchChildQuery, examinationData, canShowVoiceRxNewRows]
+    [searchChildQuery, examinationData]
   );
 
   const onChangeNoteChild = useCallback(
@@ -324,11 +293,7 @@ function ExaminationBox({ showVoiceRxModule }) {
 
   const onRemoveRow = (index) => {
     examinationData.splice(index, 1);
-    if (canShowVoiceRxNewRows && examinationData.length === 0) {
-      setExaminationData([emptyExaminationRow()]);
-    } else {
-      setExaminationData((prev) => [...prev]);
-    }
+    setExaminationData((prev) => [...prev]);
     if (examinationData?.length > 0) {
       dispatch(setIsDDxReadyToGenerate(true));
     } else if (symptomsData?.length === 0) {
@@ -359,7 +324,7 @@ function ExaminationBox({ showVoiceRxModule }) {
     const action = await dispatch(singleTemplateDetails(template.tet_id));
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action?.payload;
-      setExaminationData(appendStripped(examinationData, updatedData, "examinations"));
+      setExaminationData([...examinationData, ...updatedData]);
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)
@@ -396,7 +361,7 @@ function ExaminationBox({ showVoiceRxModule }) {
   );
 
   const onAddTemplateClicked = async () => {
-    const templateExamination = canShowVoiceRxNewRows ? stripEmptyRows(examinationData, "examinations") : examinationData;
+    const templateExamination = examinationData;
     if (templateExamination.length === 0) {
       errorMessage('At least 1 examination added')
     } else if (templateExamination.filter(e => String(e.examination_name ?? "").trim() === "").length > 0) {
@@ -426,7 +391,7 @@ function ExaminationBox({ showVoiceRxModule }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    const templateExamination = canShowVoiceRxNewRows ? stripEmptyRows(examinationData, "examinations") : examinationData;
+    const templateExamination = examinationData;
     if (templateExamination.length === 0) {
       errorMessage('At least 1 examination added')
     } else if (templateExamination.filter(e => String(e.examination_name ?? "").trim() === "").length > 0) {
@@ -789,7 +754,7 @@ function ExaminationBox({ showVoiceRxModule }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setExaminationData(canShowVoiceRxNewRows ? [emptyExaminationRow()] : [])
+    setExaminationData([])
     showHideClearData()
   };
 
@@ -912,20 +877,7 @@ function ExaminationBox({ showVoiceRxModule }) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
-        {canShowVoiceRxNewRows && (
-          <div className="p-2">
-            <Button
-              type="link"
-              icon={<PlusOutlined />}
-              className="add-custom-module-link"
-              onClick={handleAddRow}
-            >
-              Add New Line
-            </Button>
-          </div>
-        )}
-
-        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Examinations"
@@ -933,7 +885,7 @@ function ExaminationBox({ showVoiceRxModule }) {
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.examination}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : !isVoiceRxModuleEnabled ? (
+          ) : (
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -948,7 +900,7 @@ function ExaminationBox({ showVoiceRxModule }) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          ) : null}
+          )}
         </div>
       </div>
     </>
