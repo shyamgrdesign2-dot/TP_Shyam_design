@@ -170,7 +170,14 @@ export function EntryTab({ state, kind }) {
         "Plaque",
         "Calculus",
       ];
-      return defaults.filter((name) => catalog.includes(name) && !selected.has(name.toLowerCase()));
+      const matchedChips = [];
+      for (const defName of defaults) {
+        const match = catalog.find((c) => c.toLowerCase() === defName.toLowerCase());
+        if (match && !selected.has(match.toLowerCase())) {
+          matchedChips.push(match);
+        }
+      }
+      if (matchedChips.length > 0) return matchedChips;
     }
     return catalog.filter((name) => !selected.has(name.toLowerCase())).slice(0, 8);
   }, [catalog, entries, isGroupedScope, kind]);

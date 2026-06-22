@@ -52,6 +52,63 @@ function normalizeInMemoryDental(rawDental) {
   return null;
 }
 
+function mergeDentalToothStates(primary, secondary) {
+  const primaryStates = Array.isArray(primary?.tooth_states) ? primary.tooth_states : [];
+  const secondaryStates = Array.isArray(secondary?.tooth_states) ? secondary.tooth_states : [];
+  if (primaryStates.length === 0 && secondaryStates.length === 0) return null;
+
+  const byToothCode = new Map();
+  secondaryStates.forEach((toothState) => {
+    const code = toothState?.tooth_code;
+    if (code != null && String(code).trim() !== "") {
+      byToothCode.set(String(code), toothState);
+    }
+  });
+  primaryStates.forEach((toothState) => {
+    const code = toothState?.tooth_code;
+    if (code != null && String(code).trim() !== "") {
+      byToothCode.set(String(code), toothState);
+    }
+  });
+
+  const merged = { tooth_states: Array.from(byToothCode.values()) };
+  return hasDentalExamPayload(merged) ? merged : null;
+}
+
+function mergeOralExamCharts(primary, secondary) {
+  const hasPrimary = hasOralExamChartData(primary);
+  const hasSecondary = hasOralExamChartData(secondary);
+  if (!hasPrimary) return hasSecondary ? secondary : null;
+  if (!hasSecondary) return primary;
+
+  const primaryEntries = Array.isArray(primary.oralEntries) ? primary.oralEntries : [];
+  const secondaryEntries = Array.isArray(secondary.oralEntries) ? secondary.oralEntries : [];
+  const seenIds = new Set(
+    primaryEntries.map((entry) => entry?.id).filter((id) => id != null).map(String),
+  );
+  const mergedEntries = [
+    ...primaryEntries,
+    ...secondaryEntries.filter((entry) => {
+      const id = entry?.id;
+      if (id == null) return true;
+      const key = String(id);
+      if (seenIds.has(key)) return false;
+      seenIds.add(key);
+      return true;
+    }),
+  ];
+
+  const noteParts = [primary.oralNotes, secondary.oralNotes]
+    .map((note) => String(note || "").trim())
+    .filter(Boolean);
+
+  const chart = {
+    oralEntries: mergedEntries,
+    oralNotes: noteParts.join("\n"),
+  };
+  return hasOralExamChartData(chart) ? chart : null;
+}
+
 function mergeOralHistoryToChart(historyPayload) {
   const list = normalizeOralHistoryList(historyPayload);
   if (list.length === 0) {
@@ -163,13 +220,16 @@ export async function resolveDentalOralForPrint({
 
   if (dentalEnabled) {
     if (dentalHistorical) {
-      // Toggle ON: today-only API data for this visit.
+      // Historical mode: merge saved today-only API data with unsaved in-memory session edits.
+      // In-memory wins per tooth_code so current-session chart changes appear in print.
+      let apiDental = null;
       if (patientId) {
-        dentalExaminationData = await fetchDentalTodayOnly(
-          patientId,
-          allowFullApiFallback
-        );
+        apiDental = await fetchDentalTodayOnly(patientId, allowFullApiFallback);
       }
+      dentalExaminationData = mergeDentalToothStates(
+        normalizedInMemoryDental,
+        apiDental,
+      );
     } else if (hasDentalExamPayload(normalizedInMemoryDental)) {
       // Toggle OFF: full in-memory dental examination chart.
       dentalExaminationData = normalizedInMemoryDental;
@@ -178,14 +238,21 @@ export async function resolveDentalOralForPrint({
 
   if (oralEnabled) {
     if (oralHistorical) {
+      let apiOral = null;
       if (patientId) {
-        examChart = await fetchOralTodayOnly(
+        apiOral = await fetchOralTodayOnly(
           patientId,
           allowFullApiFallback,
           tcmId,
-          consultationDate
+          consultationDate,
         );
       }
+      const inMemoryChart = hasOralExamChartData(inMemoryOralChart)
+        ? inMemoryOralChart
+        : hasOralExamChartData(contextOralChart)
+          ? contextOralChart
+          : null;
+      examChart = mergeOralExamCharts(inMemoryChart, apiOral);
     } else if (hasOralExamChartData(inMemoryOralChart)) {
       examChart = inMemoryOralChart;
     } else if (hasOralExamChartData(contextOralChart)) {

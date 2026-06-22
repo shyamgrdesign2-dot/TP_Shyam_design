@@ -668,7 +668,7 @@ function OralTable({ state, kind, catalog, list }) {
 // OralExamPanel — sidebar accordions for Findings, Past work, etc.
 // ──────────────────────────────────────────────────────────────
 export function OralExamPanel({ state, onSave, saving }) {
-  const { activeProcedures, activeSurfaceFindings } = useDentalMasters();
+  const { activeOralProcedures, activeOralSurfaceFindings } = useDentalMasters();
   const entries = Array.isArray(state.oralEntries) ? state.oralEntries : [];
   const pastProcedures = entries.filter((e) => e.kind === "past");
   const findings = entries.filter((e) => e.kind === "finding");
@@ -848,7 +848,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("past")}
             />
           }>
-          <OralTable state={state} kind="past" catalog={activeProcedures} list={pastProcedures} />
+          <OralTable state={state} kind="past" catalog={activeOralProcedures} list={pastProcedures} />
         </AccordionWrap>
 
         <AccordionWrap
@@ -889,7 +889,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("findings")}
             />
           }>
-          <OralTable state={state} kind="finding" catalog={activeSurfaceFindings} list={findings} />
+          <OralTable state={state} kind="finding" catalog={activeOralSurfaceFindings} list={findings} />
         </AccordionWrap>
 
         <AccordionWrap
@@ -930,7 +930,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("procedures")}
             />
           }>
-          <OralTable state={state} kind="procedure" catalog={activeProcedures} list={procedures} />
+          <OralTable state={state} kind="procedure" catalog={activeOralProcedures} list={procedures} />
         </AccordionWrap>
 
         <AccordionWrap

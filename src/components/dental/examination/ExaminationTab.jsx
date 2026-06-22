@@ -238,6 +238,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
             </div>
           }>
             <DentalCanvas
+              key={patientId}
               patientId={patientId}
               patientAge={patientAge}
               initialData={initialCanvasData}

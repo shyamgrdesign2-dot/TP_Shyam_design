@@ -10,7 +10,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { InfoCircle } from "iconsax-reactjs";
 import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
-import { QUADRANT_LABELS, TEETH } from "./types";
+import { QUADRANT_LABELS } from "./types";
+import { getTeethForPatientType } from "./hooks/canvas-interaction-helpers";
 import { ExpandIcon } from "./ui-icons";
 import { MiniToothCanvas } from "./MiniToothCanvas";
 import { TPMedicalIcon } from "../tp-ui";
@@ -118,7 +119,8 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
   }, [summary]);
   const openTooth = (fdi) => {
     if (!state) return;
-    const tooth = TEETH.find((t) => t.fdi === fdi);
+    const teeth = getTeethForPatientType(state.patientType);
+    const tooth = teeth.find((t) => t.fdi === fdi);
     if (tooth) state.onSelectTooth(tooth);
   };
   const hasOral = Array.isArray(state?.oralEntries) && state.oralEntries.length > 0;
@@ -136,7 +138,7 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
               <div className={ui.recordsList}>
                 {summary.length > 0 ? (
                   summary.map((entry) => {
-                    const tooth = TEETH.find((t) => t.fdi === entry.fdi);
+                    const tooth = getTeethForPatientType(state?.patientType).find((t) => t.fdi === entry.fdi);
                     const toothName = tooth ?
                       `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` :
                       "";

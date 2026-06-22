@@ -49,7 +49,7 @@ export function getDefaultTreatmentSurfaces(name) {
 
 // ponytail: all CSV FDIs resolve to the same 5 zones; extend here if per-FDI surfaces diverge
 export function getSurfacesForFdi(_fdi) {
-  return ["mesial", "distal", "buccal", "lingual", "occlusal"];
+  return ["mesial", "distal", "buccal", "lingual", "occlusal", "root"];
 }
 
 export const DIAGNOSES = [
