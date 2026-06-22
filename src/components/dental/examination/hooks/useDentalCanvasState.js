@@ -7,7 +7,6 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { QUADRANT_LABELS } from "../types";
 import { VISUAL_TYPE, toVisualTypeSet } from "../../../../utils/dentalVisualTypes";
 import { useDentalMasters } from "../../../../hooks/useDentalMasters";
-import { INITIAL_TOOTH_STATE } from "../../mock-data";
 import {
   getTeethForPatientType,
   getDefaultFdiForPatientType
@@ -30,7 +29,7 @@ export function useDentalCanvasState({ patientId, patientAge = 30, initialData }
   );
 
   // ── Seed data ──────────────────────────────────────────────────────────────
-  const initialState = initialData || INITIAL_TOOTH_STATE[patientId];
+  const initialState = initialData;
 
   const initialToothDiagnoses = useMemo(() => {
     if (!initialState?.toothDiagnoses) return {};
