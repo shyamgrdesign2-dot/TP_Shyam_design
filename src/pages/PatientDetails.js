@@ -8,6 +8,7 @@ import Welcome1 from '../common/Welcome1'
 import VitalsBodyComposition from '../components/VitalsBodyComposition';
 // import LabParameters from '../components/LabParameters';
 import MedicalHistory from '../components/MedicalHistory';
+import DentalOralExaminationHistory from '../components/DentalOralExaminationHistory';
 import CarePlanBox from '../components/CarePlanBox';
 // import Vaccination from '../components/Vaccination';
 import Cardiology from '../components/Cardiology';
@@ -500,7 +501,7 @@ function PatientDetails() {
                 </Sider>
 
                 <Content>
-                    <div className='w-100 vh-100 overflow-y-auto'>
+                    <div className={`w-100 vh-100 overflow-y-auto`}>
                         { sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT &&
                             <Welcome1
                                 locationPath={locationPath}
@@ -526,6 +527,7 @@ function PatientDetails() {
                                         )}
                                         
                                         <MedicalHistory loading={loading} medicalHistoryData={viewCaseManagerData?.medical_history} doctorId={viewCaseManagerData?.doctor_data?.um_id} />
+                                        <DentalOralExaminationHistory />
                                         
                                         {isVaccinationAccessable && <VisitVaccination />}
                                         {isGrowthChartAccessable && <VisitGrowthChart />}

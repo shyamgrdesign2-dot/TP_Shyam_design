@@ -59,6 +59,7 @@ import {
 } from "../../../../utils/constants";
 import {
   assignCarePlan,
+  getCarePlanAssignments,
   updateCarePlanName,
 } from "../../../../pages/smartSync/services/carePlanService";
 
@@ -1951,6 +1952,25 @@ function TabRxHeader({
           console.error("Care plan sync after submit failed:", error);
         }
 
+        let carePlanAssignments = [];
+        try {
+          if (patient_data?.patient_unique_id) {
+            const assignmentsResp = await getCarePlanAssignments(
+              patient_data.patient_unique_id,
+            );
+            carePlanAssignments = Array.isArray(assignmentsResp?.data)
+              ? assignmentsResp.data
+              : Array.isArray(assignmentsResp)
+                ? assignmentsResp
+                : assignmentsResp?.assignments || [];
+          }
+        } catch (cpFetchErr) {
+          console.error(
+            "Failed to fetch care plan assignments for print state:",
+            cpFetchErr,
+          );
+        }
+
         message.open({
           key: MESSAGE_KEY,
           type: "",
@@ -2152,6 +2172,8 @@ function TabRxHeader({
             labParamsData: labParamsData,
             zydusSelectedLabParams: zydusSelectedLabParams,
             labReportID: labReportID,
+            carePlanAssignments,
+            from: window.location.pathname,
           },
         });
       } else {

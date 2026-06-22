@@ -71,6 +71,7 @@ import { getDecodedToken } from "../../utils/localStorage";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import { env } from "../../EnvironmentConfig";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
+import { getSideNavMedicalIconUrl } from "./sideNavbarMedicalIcons";
 import "./sideNavbar.css";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartTooltip, Legend, Filler);
@@ -557,7 +558,7 @@ function extractLabNumericValue(raw) {
 }
 
 function buildLegacyLabEntries(labParamsData = []) {
-  const sorted = [...labParamsData].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sorted = [...legacyArray(labParamsData)].sort((a, b) => new Date(b.date) - new Date(a.date));
   return sorted.reduce((entries, entry) => {
     const rows = (entry.inputs || [])
       .filter((input) => input.testName && input.testName !== "Remarks")
@@ -2653,13 +2654,14 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
 }
 
 function MedicalMaskIcon({ name, active }) {
-  const variant = active ? "bulk" : "line";
-  const src = `/new-assets/icons/medical/${name}--${variant}.svg`;
+  const src = getSideNavMedicalIconUrl(name, active);
+  if (!src) return null;
   return (
     <span
       className="snv-medical-icon"
       style={{
-        "--snv-icon-url": `url("${src}")`,
+        WebkitMaskImage: `url("${src}")`,
+        maskImage: `url("${src}")`,
       }}
       aria-hidden="true"
     />
@@ -5426,6 +5428,9 @@ function createSessionId() {
   return `snv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+const EMPTY_PAST_VISIT_ROWS = [];
+const EMPTY_PAST_VISIT_DETAILS = {};
+
 
 export function SideNavbar({
   onSectionSelect,
@@ -5463,8 +5468,8 @@ export function SideNavbar({
   const [sideNavSignals, setSideNavSignals] = useState({});
   const [vitalsCopyUpdating, setVitalsCopyUpdating] = useState(false);
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
-  const pastVisitRows = useSelector((state) => state.pastVisits.rowsByPatient[patientId]?.rows ?? []);
-  const pastVisitDetails = useSelector((state) => state.pastVisits.detailsByPatient[patientId] ?? {});
+  const pastVisitRows = useSelector((state) => state.pastVisits.rowsByPatient[patientId]?.rows ?? EMPTY_PAST_VISIT_ROWS);
+  const pastVisitDetails = useSelector((state) => state.pastVisits.detailsByPatient[patientId] ?? EMPTY_PAST_VISIT_DETAILS);
   const [pastVisitLoadingIds, setPastVisitLoadingIds] = useState({});
   const pastVisitDetailsRef = useRef({});
   const pastVisitLoadingIdsRef = useRef({});
