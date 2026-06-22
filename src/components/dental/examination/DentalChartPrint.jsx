@@ -17,7 +17,13 @@ import { renderPrintPayloadToBlob } from "../../../utils/printPayload";
 import { resolveDentalOralForPrint } from "../../../utils/resolveDentalOralPrintData";
 import { printBlobInNewTab } from "../../../pages/opdBilling/utils/helper";
 import { GB_DENTAL_MODULE } from "../../../utils/constants";
-import { isIPad } from "../../../utils/utils";
+import { isIPad, getClinic } from "../../../utils/utils";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  setDentalAnalyticsContext,
+  setDentalVisitFlag,
+  trackDentalEvent,
+} from "../../../utils/dentalMoengage";
 import dcp from "./DentalChartPrint.module.scss";
 
 function triggerPdfPrint(pdfBlob) {
@@ -140,6 +146,18 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
   }, [customModules, hospitalSearchResults, userId]);
 
   useEffect(() => {
+    setDentalAnalyticsContext({
+      profile,
+      userId,
+      patientData: patient_data,
+      clinic: getClinic(profile?.hospital_data),
+      pamId,
+      tcmId,
+      sourcePage: "/dental",
+    });
+  }, [profile, userId, patient_data, pamId, tcmId]);
+
+  useEffect(() => {
     if (!open) return;
     setHistoricalAvailable(hasHistoricalData(patientId));
     const onDoc = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
@@ -229,6 +247,13 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
       }
 
       triggerPdfPrint(pdfBlob);
+      setDentalVisitFlag("print_completed_before_end", true);
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.CHART_PRINT_STARTED, {
+        print_type: mode,
+        include_patient_information: includePatient,
+        include_historic_data: mode === "historical",
+        source_page: "/dental",
+      });
     } catch (err) {
       console.error("Failed to print dental chart:", err);
       message.error(err?.message || "Failed to print dental chart.");
@@ -239,6 +264,12 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
 
   const choose = (mode) => {
     if (mode === "historical" && !historicalAvailable) return;
+    trackDentalEvent(DENTAL_MOENGAGE_EVENTS.CHART_PRINT_TYPE_SELECTED, {
+      print_type: mode,
+      include_historic_data: mode === "historical",
+      has_historic_data: historicalAvailable,
+      source_page: "/dental",
+    });
     runPrint(mode);
   };
 
@@ -296,7 +327,13 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
-              setIncludePatient((prev) => !prev);
+              const next = !includePatient;
+              setIncludePatient(next);
+              trackDentalEvent(DENTAL_MOENGAGE_EVENTS.CHART_PATIENT_INFO_TOGGLED, {
+                include_patient_information: next,
+                print_type: "chart",
+                source_page: "/dental",
+              });
             }}
             onKeyDown={(e) => {
               if (e.key === " " || e.key === "Enter") {
@@ -336,7 +373,17 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
         <button
           type="button"
           aria-label="Print dental chart"
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            const next = !open;
+            setOpen(next);
+            if (next) {
+              trackDentalEvent(DENTAL_MOENGAGE_EVENTS.CHART_PRINT_CLICKED, {
+                source_page: "/dental",
+                chart_type: patientType,
+                has_historic_data: hasHistoricalData(patientId),
+              });
+            }
+          }}
           disabled={isPrinting}
           className={dcp.printTriggerBtn}
         >

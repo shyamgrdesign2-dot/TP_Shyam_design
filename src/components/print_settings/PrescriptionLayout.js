@@ -30,6 +30,10 @@ import {
 import { loadExamChart, hasOralExamChartData } from "../../utils/examChartStorage";
 import { hasHistoricalData } from "../dental/examination/DentalChartPrint";
 import { trackEvent } from "../../utils/utils";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  trackDentalEvent,
+} from "../../utils/dentalMoengage";
 // const CustomRow = ({ children, ...props }) => {
 //     const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
 //         id: props['data-row-key'],
@@ -246,6 +250,37 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
   const showOralExamRow = isDentalEnabled || hasOralExaminationData || hasOralPrintOption;
 
   const onExamPrintToggleChange = (caseOptionIndex, key, value) => {
+    const currentOption = printSettings?.prescription?.case_option?.[caseOptionIndex];
+    if (showDentalExamRow || isDentalEnabled) {
+      if (key === "showDentalChart") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_DENTAL_CHART_TOGGLED, {
+          show_dental_chart: value,
+          tooth_records_total_present: hasDentalExaminationData ? 1 : 0,
+          oral_exam_total_present: hasOralExaminationData ? 1 : 0,
+        });
+      }
+      if (key === "includeHistorical") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_PAST_DENTAL_HISTORY_TOGGLED, {
+          include_past_dental_history: value,
+          historic_tooth_record_count: historyAvailable ? 1 : 0,
+          historic_oral_exam_count: historyAvailable ? 1 : 0,
+        });
+      }
+      if (key === "format") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_VIEW_TYPE_SELECTED, {
+          section_type: currentOption?.id === ORAL_EXAM_CASE_OPTION_ID ? "oral" : "dental",
+          view_type: value,
+          layout_type: printSettings?.prescription?.format || "",
+        });
+      }
+      if (key === "groupDentalExaminationBy") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_LAYOUT_SELECTED, {
+          old_layout_type: currentOption?.groupDentalExaminationBy || "type",
+          new_layout_type: value,
+          source_page: "/configure_print_setting",
+        });
+      }
+    }
     setPrintSettings((prev) => {
       const caseOption = [...(prev?.prescription?.case_option || [])];
       if (!caseOption[caseOptionIndex]) return prev;
