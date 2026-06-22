@@ -1730,6 +1730,7 @@ export function VoiceRecorderCore({
       type="button"
       onClick={handleSubmitClick}
       disabled={!canSubmit}
+      data-testid="voicerx-submit-recording"
       aria-label="Submit"
       style={isFullscreen ? { paddingLeft: 18, paddingRight: 22 } : undefined}
       className={[

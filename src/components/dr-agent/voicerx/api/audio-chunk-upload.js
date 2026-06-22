@@ -68,6 +68,8 @@ export async function uploadAudioChunk({
   const fileName = getChunkFileName(chunkIndex, audioBlob.type);
   formData.append("session_id", String(sessionId));
   appendVoiceApiMetadata(formData, { doctorId, doctorName, patientName });
+  formData.append("doctor_id", String(doctorId));
+  formData.append("patient_id", String(patientId));
   formData.append("metadata", JSON.stringify(metadata));
   formData.append("audio", audioBlob, fileName);
 

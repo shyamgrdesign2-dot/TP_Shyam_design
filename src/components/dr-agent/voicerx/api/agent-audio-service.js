@@ -55,8 +55,8 @@ export function extractAnyAudioTranscript(responseJson) {
 
 export async function transcribeAnyAudio({
   audioBlob,
-  prompt = PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
   context,
+  prompt = PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
   timeoutMs = TRANSCRIBE_ANY_AUDIO_TIMEOUT_MS,
   signal,
 } = {}) {
@@ -65,6 +65,9 @@ export async function transcribeAnyAudio({
   }
 
   const formData = new FormData();
+  formData.append("patient_id", String(context.patientId));
+  formData.append("doctor_id", String(context.doctorId));
+  formData.append("session_id", String(context.sessionId));
   formData.append("prompt", prompt);
   appendVoiceApiMetadata(formData, context);
   formData.append("audio", audioBlob, "audio.webm");

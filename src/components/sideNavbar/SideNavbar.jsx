@@ -6134,6 +6134,7 @@ export function SideNavbar({
     const effectivePatientId = patientId || patientData?.patient_unique_id || "";
     const doctorName = profile?.um_name || "";
     const patientName = getSideNavPatientName(patientData);
+
     let voiceRxLogTranscript = "";
     let voiceRxLogDigitizeData = null;
     let transcriptCompletedAtMs = null;
@@ -6156,6 +6157,7 @@ export function SideNavbar({
             patientId: effectivePatientId,
             doctorName,
             patientName,
+            sessionId
           },
         })
         : await requestSideNavModuleDigitise({

@@ -184,7 +184,7 @@ const PrimaryActionButton = ({
       }
 
       items.push({
-        label: labelText,
+        label: <span data-testid={`primary-action-option-${option.type}`}>{labelText}</span>,
         key: option.type,
         onClick: handleClick,
       });
@@ -375,6 +375,7 @@ const PrimaryActionButton = ({
     <div 
       ref={buttonRef}
       className="d-flex btn btn-smart-rx-walkin"
+      data-testid={`primary-action-${primaryOption.type}`}
       style={{ ...containerStyle, position: "relative", zIndex: 1 }}
     >
       {primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" ? (
@@ -382,6 +383,7 @@ const PrimaryActionButton = ({
           {/* <img src={smartPad} alt="vitals" /> */}
           <button 
             className="btn btn-smartRx-text"
+            data-testid={`primary-action-main-${primaryOption.type}`}
             style={fullWidth ? { width: "100%", textAlign: "left" } : {}}
           >
             {primaryOption.label}
@@ -392,6 +394,7 @@ const PrimaryActionButton = ({
           {/* <img src={smartPad} alt="vitals" /> */}
           <button 
             className="btn btn-smartRx-text"
+            data-testid={`primary-action-main-${primaryOption.type}`}
             style={fullWidth ? { width: "100%", textAlign: "left" } : {}}
           >
             {getPrimaryButtonText()}
@@ -441,6 +444,7 @@ const PrimaryActionButton = ({
               }}
             >
               <a
+                data-testid={`primary-action-dropdown-${primaryOption.type}`}
                 onClick={(e) => {
                   e.preventDefault();
                 }}

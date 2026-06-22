@@ -25,7 +25,6 @@ import {
     VoiceRxModuleActionButton,
 } from '../components/dr-agent/voicerx/VoiceRxModuleCapture';
 import voiceModuleStyles from '../components/dr-agent/voicerx/VoiceRxModuleCapture.module.scss';
-import { DictationIcon, VoiceRxIcon } from '../components/dr-agent/voicerx/voice-consult-icons';
 import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncContext';
 
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType, trackEvent } from "../utils/utils";
@@ -162,7 +161,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     } = useSelector((state) => state.caseManager);
     const dispatch = useDispatch();
     const isChikitsalayAccessable = useChikitsalay();
-    const { activeVoiceModule, headerDictation, setHeaderDictation } = useRxPadSync();
+    const { activeVoiceModule, setHeaderDictation } = useRxPadSync();
 
     const {customModules} = useSelector((state) => state.customModules);
 
@@ -212,7 +211,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
     const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
     // header transcribe voice state
-    const [headerVoiceState, setHeaderVoiceStateRaw] = useState("idle"); // "idle" | "recording" | "transcribing"
+    const [, setHeaderVoiceStateRaw] = useState("idle"); // "idle" | "recording" | "transcribing"
     const headerVoiceStateRef = useRef("idle");
     const setHeaderVoiceState = useCallback((s) => { headerVoiceStateRef.current = s; setHeaderVoiceStateRaw(s); }, []);
     const headerVoiceMediaRecorderRef = useRef(null);
@@ -231,12 +230,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false, isVoiceRxNewUiFlow = false} = location.state || {};
     const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx && !isVoiceRxNewUiFlow;
-    const headerDictationTargetId = headerDictation?.targetId || HEADER_DICTATION_TARGET;
-    const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
-    const headerIconVoiceState = headerDictationTargetId === HEADER_DICTATION_TARGET ? headerVoiceState : "idle";
-    const headerVoiceDisabledByModule = !!activeVoiceModule;
-    const headerVoiceLockedByOtherSurface = headerDictationBusy && headerDictationTargetId !== HEADER_DICTATION_TARGET;
-    const headerVoiceSoftLocked = headerVoiceDisabledByModule || headerVoiceLockedByOtherSurface;
     const shouldHideLegacyVoiceRxCta = isNewPrescriptionUi;
     const shouldShowLegacyVoiceRxCta =
         !shouldHideLegacyVoiceRxCta &&
@@ -348,7 +341,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const audioBlob = new Blob(headerVoiceAudioChunksRef.current, { type: mimeType });
         const cursor = headerVoiceCursorRef.current;
         try {
-            const { transcript } = await transcribeAnyAudio({ audioBlob });
+            const transcribeAnyAudioContext = {
+                patientId: patient_data?.patient_unique_id,
+                doctorId: profile?.doctor_unique_id,
+                sessionId: voiceDigitization?.sessionId || submitId,
+            };
+            const { transcript } = await transcribeAnyAudio({
+                audioBlob,
+                context: transcribeAnyAudioContext,
+            });
             const clinicalCompletedAtMs = Date.now();
             if (transcript) {
                 const inserted = insertTranscriptAtCursor(transcript, cursor);
@@ -2525,37 +2526,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             <ProfilePopover patient_data={patient_data} isPrescriptionPage />
                         </div>
                     </Col>
-                    <Col sm="auto" className="headerprescription-actions-col">
-                        <div className="align-items-center d-flex h-100 headerprescription-actions">
-                        {showVoiceRxModule && (
-                                <Tooltip
-                                    placement="bottom"
-                                    title={headerIconVoiceState === "recording" ? "Recording… double-shift or click to stop" : headerIconVoiceState === "transcribing" ? "Transcribing…" : "Voice input (double-shift to start)"}
-                                    zIndex={headerOverlayZIndex}
-                                    destroyTooltipOnHide
-                                    trigger={["hover"]}
-                                    mouseLeaveDelay={0}
-                                >
-                                    <button
-                                        type="button"
-                                        data-header-dictation-trigger="true"
-                                        className={`btn align-items-center justify-content-center d-flex btn-41 me-2 ${headerIconVoiceState === "recording" ? " header-voice-recording" : headerIconVoiceState === "transcribing" ? " header-voice-transcribing" : ""} ${headerVoiceSoftLocked ? " header-voice-locked" : ""}`}
-                                        style={{ position: "relative" }}
-                                        onClick={headerVoiceSoftLocked ? undefined : headerVoiceState === "recording" ? headerVoiceStopAndTranscribe : headerVoiceState === "transcribing" ? undefined : headerVoiceStartRecording}
-                                        disabled={headerIconVoiceState === "transcribing"}
-                                        aria-disabled={headerVoiceSoftLocked || undefined}
-                                    >
-                                        {headerIconVoiceState === "transcribing" ? (
-                                            <LoadingOutlined style={{ fontSize: 20 }} />
-                                        ) : (
-                                            <VoiceRxIcon size={22} color={headerIconVoiceState === "recording" ? "#e53935" : "#673AAC"} />
-                                        )}
-                                        {headerIconVoiceState === "recording" && (
-                                            <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: "50%", background: "#e53935", animation: "headerVoicePulse 1s infinite" }} />
-                                        )}
-                                    </button>
-                                </Tooltip>
-                            )}
+                    <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
+                        <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
                             {!showVoiceRxModule && (
                                 <Popover
                                     open={popOverVideo}
@@ -2808,7 +2780,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
                                 <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
-                                    <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
+                                    <Button type='button' data-testid="prescription-end-visit" className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
                                         <i className='icon-exit me-2'></i>
                                         {isCompactHeader ? "End" : "End Visit"}
                                     </Button>
