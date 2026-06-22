@@ -102,15 +102,27 @@ const hasPatientReportedData = (data) =>
     )
   );
 
-const normalizeHistoryItem = (item) => {
+const normalizeHistoryItem = (item, typeOverride = "") => {
   if (!item) return null;
   if (typeof item === "string") return cleanText(item);
   const name = cleanText(item.name || item.history_name || item.lineItem || item.notes);
+  if (!name) return null;
   const detail = [item.duration || item.since, item.status, item.relation, item.notes || item.note]
     .map(cleanText)
     .filter(Boolean)
     .join(", ");
-  return detail ? `${name} (${detail})` : name;
+  return {
+    ...item,
+    type: item.type || typeOverride,
+    name,
+    lineItem: item.lineItem || name,
+    duration: item.duration || item.since || "",
+    since: item.since || item.duration || "",
+    status: item.status || "",
+    relation: item.relation || item.relationship || "",
+    notes: item.notes || item.note || "",
+    detail,
+  };
 };
 
 const normalizeQuestionList = (notes) => {
@@ -150,7 +162,7 @@ const normalizeSymptomCollectorData = (raw) => {
           if (allergy) allergies.push(allergy);
           return;
         }
-        const normalized = normalizeHistoryItem(child);
+        const normalized = normalizeHistoryItem(child, item.title);
         if (normalized) medicalHistory.push(normalized);
       });
       return;
@@ -167,7 +179,7 @@ const normalizeSymptomCollectorData = (raw) => {
       if (medication) currentMedications.push(medication);
       return;
     }
-    const normalized = normalizeHistoryItem(item);
+    const normalized = normalizeHistoryItem(item, item.type);
     if (normalized) medicalHistory.push(normalized);
   });
 

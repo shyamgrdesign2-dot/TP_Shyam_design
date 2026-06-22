@@ -558,14 +558,16 @@ function PrescriptionNewRxPadCopyListener() {
       normalizeModuleRows({ advice: toArray(advice) }, "advice")
     );
 
-    const copiedVitals = firstNonEmpty(
-      digitization.vitals_and_body_composition,
-      digitization.vitalsAndBodyComposition,
-      digitization.vitals,
-      payload.vitals_and_body_composition,
-      payload.vitalsAndBodyComposition,
-      payload.vitals
-    );
+    const copiedVitals = payload.skipVitalsSync
+      ? null
+      : firstNonEmpty(
+        digitization.vitals_and_body_composition,
+        digitization.vitalsAndBodyComposition,
+        digitization.vitals,
+        payload.vitals_and_body_composition,
+        payload.vitalsAndBodyComposition,
+        payload.vitals
+      );
     const copiedVitalsObject = getCopiedVitalsObject(copiedVitals);
     if (copiedVitalsObject && patient_data?.patient_unique_id) {
       const today = moment().format("YYYY-MM-DD");
