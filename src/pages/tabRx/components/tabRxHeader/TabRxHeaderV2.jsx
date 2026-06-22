@@ -24,15 +24,18 @@ import { isMobile, isDesktop } from "react-device-detect";
 import { v4 as uuidv4 } from "uuid";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
-import "./HeaderV2.scss";
+import "./TabRxHeaderV2.scss";
 
-import CustomizeSetting from "../../common/CustomizeSetting";
+import CustomizeSetting from "../../../../common/CustomizeSetting";
 
-import ProfilePopover from "../../common/ProfilePopover";
-import CommonModal from "../../common/CommonModal";
+import ProfilePopover from "../../../../common/ProfilePopover";
+import CommonModal from "../../../../common/CommonModal";
 
-import VideoModal from "../../common/VideoModal";
-import TabVoiceRxButton from "../../components/tab_design/TabVoiceRxButton";
+// import videoimg1 from '../assets/images/tutorial-img1.png';
+// import videoimg2 from '../assets/images/tutorial-img2.png';
+
+import VideoModal from "../../../../common/VideoModal";
+import TabVoiceRxButton from "../../../../components/tab_design/TabVoiceRxButton";
 
 import {
     errorMessage,
@@ -41,7 +44,7 @@ import {
     removeBeforeWhiteSpace,
     isVoiceRxFree,
     filterCustomModuleContent,
-} from "../../utils/utils";
+} from "../../../../utils/utils";
 
 import {
     EXTRA_OPTIONS,
@@ -53,11 +56,11 @@ import {
     S_VOICE_RX,
     OPTHAL_PAD_MODULE_ID,
     GB_VOICE_RX_FREE,
-} from "../../utils/constants";
+} from "../../../../utils/constants";
 import {
     assignCarePlan,
     updateCarePlanName,
-} from "../../pages/smartSync/services/carePlanService";
+} from "../../../../pages/smartSync/services/carePlanService";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -70,41 +73,38 @@ import {
     addCaseManager,
     editCaseManager,
     getInvestigationAndMedicine,
-} from "../../redux/caseManagerSlice";
-import { customizedPad, listVideo } from "../../redux/doctorsSlice";
-import GenRxButton from "../../components/GenRxButton";
+} from "../../../../redux/caseManagerSlice";
+import { customizedPad, listVideo } from "../../../../redux/doctorsSlice";
+import GenRxButton from "../../../../components/GenRxButton";
 
-import { placeIctOrder } from "../../redux/appointmentsSlice";
-import { getDecodedToken } from "../../utils/localStorage";
-import { env } from "../../EnvironmentConfig";
-import { updateCredits } from "../../redux/monetizationSlice";
-import { setAddToRx } from "../../api/services/ApiGenRx";
-import { setSelectAutofill } from "../../redux/ddxSlice";
-import VideoConsultButton from "../../components/VideoConsultButton";
-import { OPHTHALMOLOGY_SECTIONS } from "../../utils/ophthalmologyExamConstants";
-import { buildOpthalPayload } from "../../utils/ophthalmologyPayload";
+import { placeIctOrder } from "../../../../redux/appointmentsSlice";
+import { getDecodedToken } from "../../../../utils/localStorage";
+import { env } from "../../../../EnvironmentConfig";
+import { updateCredits } from "../../../../redux/monetizationSlice";
+import { setAddToRx } from "../../../../api/services/ApiGenRx";
+import { setSelectAutofill } from "../../../../redux/ddxSlice";
+import VideoConsultButton from "../../../../components/VideoConsultButton";
+import { OPHTHALMOLOGY_SECTIONS } from "../../../../utils/ophthalmologyExamConstants";
+import { buildOpthalPayload } from "../../../../utils/ophthalmologyPayload";
 import {
     createOpthalPrescription,
     updateOpthalPrescription,
-} from "../../pages/ophthalmology/service";
+} from "../../../../pages/ophthalmology/service";
 import {
     resetOpthalForm,
     setTableValues as setOpthalTableValues,
-} from "../../redux/ophthalmologyExamSlice";
-import useTabletViewport from "../../hooks/useTabletViewport";
-import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
-import CashManagerContext from "../../context/CashManagerContext";
-import { getTabRxFiles, upsertTabRxRx } from "../../pages/tabRx/services/tabRxService";
+} from "../../../../redux/ophthalmologyExamSlice";
+import useTabletViewport from "../../../../hooks/useTabletViewport";
+import { useChikitsalay } from "../../../../pages/chikitsalay/useChikitsalay";
+import CashManagerContext from "../../../../context/CashManagerContext";
+import { getTabRxFiles, upsertTabRxRx } from "../../services/tabRxService";
 import {
     getMetadata,
     setMetadata,
     getTemplates,
-} from "../../pages/tabRx/services/templateService";
-import { setDefaultCustomSyncPadTemplate } from "../../pages/smartSync/services/uploadService";
-import { saveDentalExamination, selectDentalExamination } from "../../redux/dentalExaminationSlice";
-import { selectDentalPlan } from "../../redux/dentalPlanSlice";
-import { transformToothStateToApi } from "../dental/lib/examination-helpers";
-import { ASSETS } from "../../assets";
+} from "../../services/templateService";
+import { setDefaultCustomSyncPadTemplate } from "../../../smartSync/services/uploadService";
+import { ASSETS } from "../../../../assets";
 const {
   alerticon: alertIcon,
   tutorial: tutorial2,
@@ -121,7 +121,7 @@ const {
 
 var oneClickCosultationTemplateId = 0;
 
-function HeaderV2({
+function TabRxHeaderV2({
     isVaccinationEnabled,
     isGrowthChartEnabled,
     gynecHistory,
@@ -167,8 +167,6 @@ function HeaderV2({
     const { measurements } = useSelector((state) => state.growthChart);
     const { isObstetricDetailsUpdated } = useSelector((state) => state.obstetric);
     const { templates, loading } = useSelector((state) => state.caseManager);
-    const dentalExamination = useSelector(selectDentalExamination);
-    const { plans: dentalPlans } = useSelector(selectDentalPlan);
     const dispatch = useDispatch();
     const isChikitsalayAccessable = useChikitsalay();
 
@@ -1918,27 +1916,6 @@ function HeaderV2({
                     });
                     dispatch(setSelectAutofill(false));
                 }
-                // --------------------------------------------------------
-                // Dental Integration - Save Examination
-                // --------------------------------------------------------
-                if (dentalExamination && Object.keys(dentalExamination.toothState).length > 0) {
-                  try {
-                    const tooth_states = transformToothStateToApi(dentalExamination.toothState);
-                    await dispatch(saveDentalExamination({
-                      patientId: patient_data?.patient_unique_id,
-                      data: {
-                        dentition_type: dentalExamination.dentitionType,
-                        tooth_states: tooth_states,
-                        version: dentalExamination.version
-                      }
-                    })).unwrap();
-                  } catch (dentalErr) {
-                    console.error("[TabRxHeaderV2] Dental save failed:", dentalErr);
-                    // We might want to warn the user but proceed with main end visit
-                    message.warning("Dental examination could not be saved, but proceeding with prescription.");
-                  }
-                }
-
                 // const filesResponse = await getTabRxFiles(action.payload?.tcm_id, patient_data?.patient_unique_id);
 
                 navigate("/tab-rx-prescription", {
@@ -2125,9 +2102,7 @@ function HeaderV2({
                 );
             }) ||
             hasOpthalValues() ||
-            hasCustomModuleContent() ||
-            Object.keys(dentalExamination?.toothState || {}).length > 0 ||
-            dentalPlans?.length > 0
+            hasCustomModuleContent()
         );
     };
 
@@ -2406,4 +2381,4 @@ function HeaderV2({
     );
 }
 
-export default React.memo(HeaderV2);
+export default React.memo(TabRxHeaderV2);
