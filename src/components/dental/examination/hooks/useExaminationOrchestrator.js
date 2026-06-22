@@ -89,9 +89,9 @@ export function useExaminationOrchestrator({
         if (data.treatmentHistory) out.treatmentHistoryDetailsByTooth[fdi] = data.treatmentHistory;
 
         // Findings → allEntries (kind="finding") so the Findings accordion list is populated
-        (data.findings || []).forEach((f) => {
+        (data.findings || []).forEach((f, i) => {
           out.allEntries.push({
-            id: f.id,
+            id: f.id || `seed-${fdi}-${i}`,  // must match findingsByTooth id generation in useDentalCanvasState
             toothFdi: fdi,
             kind: "finding",
             name: f.type,
@@ -102,9 +102,9 @@ export function useExaminationOrchestrator({
         });
 
         // Procedures → allEntries (kind="planned") so the Procedures accordion list is populated
-        (data.procedures || []).forEach((p) => {
+        (data.procedures || []).forEach((p, i) => {
           out.allEntries.push({
-            id: p.id,
+            id: p.id || `proc-${fdi}-${i}`,  // unique namespace prevents null-id collision with findings
             toothFdi: fdi,
             kind: "planned",
             name: p.name,
