@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Line } from "react-chartjs-2";
 import { useDispatch, useSelector } from "react-redux";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import moment from "moment";
 import axios from "axios";
@@ -50,6 +51,7 @@ import { ASSETS } from "../../assets";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
+import { getResponseRequestId as getVoiceResponseRequestId } from "../dr-agent/voicerx/api/voice-api-utils";
 import { uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
@@ -65,6 +67,9 @@ import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers"
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitizationSlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
+import { getDecodedToken } from "../../utils/localStorage";
+import { GB_ZYDUS_USER } from "../../utils/constants";
+import { env } from "../../EnvironmentConfig";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
 import { getSideNavMedicalIconUrl } from "./sideNavbarMedicalIcons";
 import "./sideNavbar.css";
@@ -2583,6 +2588,7 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
     if (error?.name === "AbortError") {
       const timeoutError = new Error("Section voice digitise timed out after 120 seconds.");
       decorateVoiceV2ApiError(timeoutError, { statusCode: 408 });
+      timeoutError.previousContext = hasSideNavPreviousContext(previousContext) ? previousContext : null;
       trackVoiceV2ApiResponse({
         apiName: "agentsModule",
         endpoint: SIDE_NAV_MODULE_ENDPOINT,
@@ -2594,6 +2600,7 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
       });
       throw timeoutError;
     }
+    error.previousContext = hasSideNavPreviousContext(previousContext) ? previousContext : null;
     trackVoiceV2ApiResponse({
       apiName: "agentsModule",
       endpoint: SIDE_NAV_MODULE_ENDPOINT,
@@ -2609,8 +2616,11 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    const requestId = getVoiceResponseRequestId(response);
     const error = new Error(`Section voice digitise failed with ${response.status}. ${detail}`.trim());
     decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+    error.requestId = requestId;
+    error.previousContext = hasSideNavPreviousContext(previousContext) ? previousContext : null;
     trackVoiceV2ApiResponse({
       apiName: "agentsModule",
       endpoint: SIDE_NAV_MODULE_ENDPOINT,
@@ -2624,6 +2634,7 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
   }
 
   const responseJson = await response.json();
+  const requestId = getVoiceResponseRequestId(response);
   trackVoiceV2ApiResponse({
     apiName: "agentsModule",
     endpoint: SIDE_NAV_MODULE_ENDPOINT,
@@ -2637,6 +2648,8 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
     conversation: extractSideNavModuleConversation(responseJson),
     rawResponse: responseJson,
     moduleApiName: moduleName,
+    requestId,
+    previousContext: hasSideNavPreviousContext(previousContext) ? previousContext : null,
   };
 }
 
@@ -3815,6 +3828,18 @@ function ObstetricContent({ sections = [], emptyState }) {
 }
 
 const RECORD_FILTER_TYPES = ["All", "Pathology", "Prescription", "Radiology"];
+const MEDICAL_RECORD_ALL_CATEGORY = {
+  category_id: -1,
+  category_name: "All",
+};
+const MEDICAL_RECORD_ZYDUS_LAB_CATEGORY = {
+  category_id: -2,
+  category_name: "Zydus Lab",
+};
+const MEDICAL_RECORD_ZYDUS_RADIO_CATEGORY = {
+  category_id: -3,
+  category_name: "Zydus Radio",
+};
 
 const NOOP = () => {};
 
@@ -3828,31 +3853,36 @@ function RecordsContent({
   setUploadDocDrawer = NOOP,
 }) {
   const scrollRef = useRef(null);
-  const [activeFilter, setActiveFilter] = useState("All");
+  const [activeCategory, setActiveCategory] = useState(-1);
   const hasRawDocs = rawDocs.length > 0;
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const decodedToken = getDecodedToken();
+  const tokenData = decodedToken?.result;
+  const shouldShowZydusCategories = tokenData?.hospital_business_id == env.zydus_business_id && isZydusUserAccessableFromGB;
 
-  const availableFilters = useMemo(() => {
+  const availableCategories = useMemo(() => {
     if (hasRawDocs) {
-      return ["All", ...Array.from(new Set(
-      rawDocs.map((doc) => CATEGORY_TO_FILTER[resolveCategoryName(doc.category_id, uploadDocCategories)] || "Other")
-      ))];
+      const categories = shouldShowZydusCategories
+        ? [MEDICAL_RECORD_ALL_CATEGORY, MEDICAL_RECORD_ZYDUS_LAB_CATEGORY, MEDICAL_RECORD_ZYDUS_RADIO_CATEGORY, ...uploadDocCategories]
+        : [MEDICAL_RECORD_ALL_CATEGORY, ...uploadDocCategories];
+      return categories.filter(Boolean);
     }
-    return RECORD_FILTER_TYPES;
-  }, [hasRawDocs, rawDocs, uploadDocCategories]);
+    return RECORD_FILTER_TYPES.map((categoryName, index) => ({
+      category_id: index === 0 ? -1 : categoryName,
+      category_name: categoryName,
+    }));
+  }, [hasRawDocs, shouldShowZydusCategories, uploadDocCategories]);
 
   const filteredDocs = useMemo(() => {
     if (!hasRawDocs) return [];
-    return activeFilter === "All"
+    return activeCategory === -1
       ? rawDocs
-      : rawDocs.filter((doc) => {
-          const catName = resolveCategoryName(doc.category_id, uploadDocCategories);
-          return (CATEGORY_TO_FILTER[catName] || "Other") === activeFilter;
-        });
-  }, [activeFilter, hasRawDocs, rawDocs, uploadDocCategories]);
+      : rawDocs.filter((doc) => doc.category_id === activeCategory);
+  }, [activeCategory, hasRawDocs, rawDocs]);
 
   const filteredRecords = useMemo(
-    () => activeFilter === "All" ? records : records.filter((record) => record.filterType === activeFilter),
-    [activeFilter, records]
+    () => activeCategory === -1 ? records : records.filter((record) => record.categoryName === activeCategory || record.filterType === activeCategory),
+    [activeCategory, records]
   );
 
   const visibleItems = hasRawDocs ? filteredDocs : filteredRecords;
@@ -3867,7 +3897,14 @@ function RecordsContent({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
-  }, [activeFilter]);
+  }, [activeCategory]);
+
+  useEffect(() => {
+    const hasActiveCategory = availableCategories.some((category) => category.category_id === activeCategory);
+    if (!hasActiveCategory) {
+      setActiveCategory(-1);
+    }
+  }, [activeCategory, availableCategories]);
 
   return (
     <div
@@ -3879,14 +3916,14 @@ function RecordsContent({
         <div className="snv-empty-state">No data recorded.</div>
       ) : (
         <div className="snv-filter-strip">
-          {availableFilters.map((f) => (
+          {availableCategories.map((category) => (
             <button
-              key={f}
+              key={`${category.category_id}-${category.category_name}`}
               type="button"
-              className={`snv-filter-chip ${activeFilter === f ? "snv-filter-chip-active" : ""}`}
-              onClick={() => setActiveFilter(f)}
+              className={`snv-filter-chip ${activeCategory === category.category_id ? "snv-filter-chip-active" : ""}`}
+              onClick={() => setActiveCategory(category.category_id)}
             >
-              {f}
+              {category.category_name}
             </button>
           ))}
         </div>
@@ -5245,10 +5282,11 @@ function isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating) {
   return false;
 }
 
-function sectionActionLabel(activeId, actionLabels = {}) {
-  if (actionLabels[activeId]) return actionLabels[activeId];
-  if (activeId === "medicalRecords") return "Add New Records";
-  return "Add/Edit Details";
+function sectionActionLabel(activeId, actionLabels = {}, counts = {}) {
+  const baseLabel = actionLabels[activeId] || (activeId === "medicalRecords" ? "Add New Records" : "Add/Edit Details");
+  const count = Number(counts[activeId] || 0);
+  if (count > 0) return `${baseLabel} (${count})`;
+  return baseLabel;
 }
 
 function sectionVoiceLabel(activeId) {
@@ -5256,12 +5294,12 @@ function sectionVoiceLabel(activeId) {
   return title.replace(/\s+History$/i, "").replace(/^Medical\s+/, "").trim() || "Details";
 }
 
-function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, hidePlusIcon, voiceEnabled, voiceLocked }) {
+function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, actionCounts, hidePlusIcon, voiceEnabled, voiceLocked }) {
   if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal") return null;
   const status = voiceState?.status || "idle";
   const busy = status === "recording" || status === "transcribing" || status === "digitizing";
   const disabled = busy || voiceLocked;
-  const label = sectionActionLabel(activeId, actionLabels);
+  const label = sectionActionLabel(activeId, actionLabels, actionCounts);
 
   return (
     <div className="snv-action-row">
@@ -5289,7 +5327,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, voiceSessionId, medicalRecordActions }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, voiceSessionId, medicalRecordActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -5331,6 +5369,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           onVoiceClick={onVoiceClick}
           onActionClick={onActionClick}
           actionLabels={actionLabels}
+          actionCounts={actionCounts}
           hidePlusIcon={actionHidePlusIcons?.[activeId]}
           voiceEnabled={voiceEnabled}
           voiceLocked={voiceLocked}
@@ -5865,10 +5904,13 @@ export function SideNavbar({
     growth: "Add/Edit Details",
   }), []);
 
+  const actionCounts = useMemo(() => ({
+    medicalRecords: allUploadedDocs.length,
+  }), [allUploadedDocs.length]);
+
   const actionHidePlusIcons = useMemo(() => ({
     labResults: labParamsDataProp?.length > 0,
-    medicalRecords: allUploadedDocs.length > 0,
-  }), [allUploadedDocs.length, labParamsDataProp?.length]);
+  }), [labParamsDataProp?.length]);
 
   const navItems = useMemo(() => {
     const seen = new Set(["pastVisits", "vitals", "history"]);
@@ -6141,7 +6183,7 @@ export function SideNavbar({
         profile,
         sessionId,
         submitId,
-        requestId,
+        requestId: result?.requestId || "",
         submitClickedAt,
         submitClickedAtMs,
         durationMs: meta?.durationMs ?? 0,
@@ -6159,6 +6201,7 @@ export function SideNavbar({
         digitizeCompletedAtMs,
         transcript: voiceRxLogTranscript,
         digitizeData: voiceRxLogDigitizeData,
+        previousContext: result?.previousContext ?? null,
       });
     } catch (error) {
       if (voiceDelayTimerRef.current) {
@@ -6172,7 +6215,7 @@ export function SideNavbar({
         profile,
         sessionId,
         submitId,
-        requestId,
+        requestId: error?.requestId || "",
         submitClickedAt,
         submitClickedAtMs,
         durationMs: meta?.durationMs ?? 0,
@@ -6193,6 +6236,7 @@ export function SideNavbar({
         digitizeCompletedAtMs,
         transcript: voiceRxLogTranscript,
         digitizeData: voiceRxLogDigitizeData,
+        previousContext: error?.previousContext ?? null,
       });
       toast.error(error?.message || "Voice processing failed.");
       updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
@@ -6250,6 +6294,7 @@ export function SideNavbar({
           pastVisitsState={pastVisitsState}
           onActionClick={handleSectionAction}
           actionLabels={actionLabels}
+          actionCounts={actionCounts}
           actionHidePlusIcons={actionHidePlusIcons}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={handlePrivateNotesChange}
