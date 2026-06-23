@@ -19,7 +19,7 @@ const initialState = {
   toothMapAdult: null,
   toothMapPediatric: null,
   oralAreaItems: [],
-  visualTypeMap: {},
+  visualTypeMap: null,
   billingItems: buildInitialDentalBillingItems(),
   fetchedAt: null,
   loading: false,
@@ -86,12 +86,13 @@ export const fetchAllDentalMasters = createAsyncThunk(
           : Array.isArray(oralDiagnosesPayload)
             ? oralDiagnosesPayload
             : [];
+      const rawProcedures = getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes) || [];
       return {
         surfaces: normalize(getDentalApiPayload(surfacesRes)?.items || getDentalApiPayload(surfacesRes), ALL_ZONES),
-        rawDiagnosesMeta: rawToothDiagnoses,
+        rawDiagnosesMeta: [...rawToothDiagnoses, ...(Array.isArray(rawProcedures) ? rawProcedures : [])],
         diagnoses: normalize(rawToothDiagnoses, []),
         surfaceFindings: normalize(rawSurfaceFindings, DIAGNOSES),
-        procedures: normalize(getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes), PROCEDURE_CATALOG, 'label'),
+        procedures: normalize(Array.isArray(rawProcedures) ? rawProcedures : [], PROCEDURE_CATALOG, 'label'),
         toothMapAdult: getDentalApiPayload(toothMapAdultRes) || null,
         toothMapPediatric: getDentalApiPayload(toothMapPediatricRes) || null,
         oralAreaItems: getDentalApiPayload(oralAreasRes)?.items || [],
