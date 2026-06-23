@@ -2820,9 +2820,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                               );
                               // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
                               const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0 && hasMedicationsFrequencyAndDuration :
-                               isVoiceRxNewFromGB
-                                ? hasPrescriptionModuleData
-                                : (hasPrescriptionModuleData || hasSidebarOnlyData);
+                                (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
                                 <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
                                     <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
