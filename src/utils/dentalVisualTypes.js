@@ -75,10 +75,10 @@ export function getVisualType(name, dynamicMap) {
  * Converts a Set of raw diagnosis name strings into a Set of VISUAL_TYPEs.
  * Names with no visual mapping are silently dropped.
  */
-export function toVisualTypeSet(diagNamesSet) {
+export function toVisualTypeSet(diagNamesSet, dynamicMap) {
   const out = new Set();
   for (const name of diagNamesSet) {
-    const vt = getVisualType(name);
+    const vt = getVisualType(name, dynamicMap);
     if (vt != null) out.add(vt);
   }
   return out;
@@ -91,12 +91,21 @@ export function toVisualTypeSet(diagNamesSet) {
 export function buildVisualTypeMap(masterItems) {
   const map = { ...SYNONYMS };
   for (const item of (masterItems ?? [])) {
-    const key = (item.name || "").toLowerCase().trim();
-    if (!key) continue;
-    const vt = item.visual_type
-      ? VISUAL_TYPE[item.visual_type.toUpperCase()]
-      : null;
-    if (vt) map[key] = vt;
+    if (typeof item === "string") {
+      const key = item.toLowerCase().trim();
+      if (!key) continue;
+      const vt = VISUAL_TYPE[item.toUpperCase()] ?? null;
+      if (vt) map[key] = vt;
+    } else if (item && typeof item === "object") {
+      const vtKey = item.visual_type?.toUpperCase();
+      const vt = vtKey ? VISUAL_TYPE[vtKey] : null;
+      if (!vt) continue;
+      // Map label (procedures), code, and name — all three may be stored in toothDiagnoses
+      for (const field of [item.label, item.code, item.name]) {
+        const key = field?.toLowerCase().trim();
+        if (key) map[key] = vt;
+      }
+    }
   }
   return map;
 }

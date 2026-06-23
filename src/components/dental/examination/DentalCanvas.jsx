@@ -152,7 +152,8 @@ export function DentalCanvas({
     updateOralEntry,
     updateOralNotes,
     enterOralExam,
-    setOralHighlight
+    setOralHighlight,
+    visualTypeMap
   } = interaction;
 
   const toothEntriesForTooth = useMemo(
@@ -573,6 +574,7 @@ export function DentalCanvas({
                 agentPulseFdis={agentApplyPulseFdis}
                 treatmentHistoryDetailsByTooth={treatmentHistoryDetailsByTooth}
                 oralEntries={oralEntries}
+                visualTypeMap={visualTypeMap}
               />
             ) : selectionScope.type !== "tooth" ? (
               <DentitionView
@@ -594,6 +596,7 @@ export function DentalCanvas({
                 agentPulseFdis={agentApplyPulseFdis}
                 treatmentHistoryDetailsByTooth={treatmentHistoryDetailsByTooth}
                 oralEntries={oralEntries}
+                visualTypeMap={visualTypeMap}
               />
             ) : (
               <group position={[0, 0.04, 0]}>

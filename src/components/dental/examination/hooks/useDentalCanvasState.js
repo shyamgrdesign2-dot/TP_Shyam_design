@@ -140,8 +140,8 @@ export function useDentalCanvasState({ patientId, patientAge = 30, initialData }
     [toothDiagnoses, selectedTooth.fdi]
   );
   const currentToothVisualTypes = useMemo(
-    () => toVisualTypeSet(currentToothDiagnoses),
-    [currentToothDiagnoses]
+    () => toVisualTypeSet(currentToothDiagnoses, visualTypeMap),
+    [currentToothDiagnoses, visualTypeMap]
   );
   const isImplant =
     currentToothVisualTypes.has(VISUAL_TYPE.IMPLANT) || implantTeeth.has(selectedTooth.fdi);

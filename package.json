@@ -104,7 +104,7 @@
   "scripts": {
     "start": "craco start",
     "start:dev": "env-cmd -f .env.dev craco start",
-    "build": "craco build",
+    "build": "craco build && npm run sentry:sourcemaps",
     "lint:assets": "node scripts/check-no-raster-imports.js",
     "lint": "eslint --max-warnings=0 \"src/**/*.{js,jsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx}\"",
