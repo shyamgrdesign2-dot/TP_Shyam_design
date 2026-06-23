@@ -221,6 +221,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         const raw = getHmTypeIndicator(e, true);
         // Legacy label only shows Z when hm_type === 1 && um_id === 0; never add Z via helper (avoids widening Z to all hm_type===1).
         if (raw && raw !== "Z") supplementaryIndicator = raw;
+        if (e.hm_type !== 15 && e.um_id !== 0) return null;
       }
       const isWideSupplementary = supplementaryIndicator.length > 1;
       return data.push({
@@ -269,7 +270,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       });
     }
     else {
-      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB &&
+      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB && !isChikitsalayAccessable &&
         data.push({
           key: JSON.stringify({
             unique_id: uuidv4(),
