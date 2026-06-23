@@ -2819,8 +2819,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0
                               );
                               // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
-                              const canEndVisit = isVoiceRxNewFromGB
-                                ? hasPrescriptionModuleData : isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0 && hasMedicationsFrequencyAndDuration
+                              const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0 && hasMedicationsFrequencyAndDuration :
+                               isVoiceRxNewFromGB
+                                ? hasPrescriptionModuleData
                                 : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
                                 <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
