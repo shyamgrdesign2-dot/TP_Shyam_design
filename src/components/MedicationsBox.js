@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator, getMedicineStockLabel } from "../utils/utils";
+import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator, getMedicineStockLabel, hasMedicineFrequency, hasMedicineDuration } from "../utils/utils";
 
 import { MenuOutlined } from '@ant-design/icons';
 
@@ -1625,7 +1625,10 @@ function MedicationsBox({ showVoiceRxModule }) {
                 </Col>
                 <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationFrequencyCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome d-flex align-items-center flex-wrap">
-                    <label>FREQUENCY </label>
+                    <label>
+                      FREQUENCY
+                      {isChikitsalayAccessable ? <span className="text-danger"> *</span> : null}
+                    </label>
                     <Popover
                       open={frequencyPopOver}
                       content={FREQUENCY_CONTENT}
@@ -1645,7 +1648,10 @@ function MedicationsBox({ showVoiceRxModule }) {
                 </Col>
                 <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDurationCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
-                    <label>DURATION</label>
+                    <label>
+                      DURATION
+                      {isChikitsalayAccessable ? <span className="text-danger"> *</span> : null}
+                    </label>
                   </div>
                 </Col>
                 <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
@@ -1814,7 +1820,16 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     <Select
                                       showSearch
                                       className="autocomplete-custom w-100 h-100 inputborder"
-                                      placeholder="e.g 1-0-1"
+                                      placeholder={
+                                        isChikitsalayAccessable ? (
+                                          <span>
+                                            <span style={{ opacity: 0.6 }}>e.g 1-0-1</span>{" "}
+                                            <span className="text-danger">*</span>
+                                          </span>
+                                        ) : (
+                                          "e.g 1-0-1"
+                                        )
+                                      }
                                       defaultValue={item.tmm_freq_type_name != "" ? item.tmm_freq_type_name : null}
                                       value={item.tmm_freq_type_name != "" ? item.tmm_freq_type_name : null}
                                       onSearch={(query) => onSearchFrequencyChild(query, item?.index)}
@@ -1849,7 +1864,16 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     <AutoComplete
                                       defaultValue={item.tmm_days_duration_type}
                                       value={hasNumber(item.tmm_days_duration_type) ? item.tmm_days_duration_type : capitalize(item.tmm_days_duration_type, true)}
-                                      placeholder="e.g 1 Day"
+                                      placeholder={
+                                        isChikitsalayAccessable ? (
+                                          <span>
+                                            <span style={{ opacity: 0.6 }}>e.g 1 Day</span>{" "}
+                                            <span className="text-danger">*</span>
+                                          </span>
+                                        ) : (
+                                          "e.g 1 Day"
+                                        )
+                                      }
                                       bordered={false}
                                       defaultOpen={false}
                                       onSearch={(query) => onSearchSinceChid(query, item?.index)}
