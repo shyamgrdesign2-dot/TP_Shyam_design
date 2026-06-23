@@ -19,11 +19,7 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
-import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
-
-import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
+import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
   updateTemplate,
@@ -57,8 +53,6 @@ const {
 
 function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
-  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
   const {
     selectedSymptomsList,
     parentOptionsList,
@@ -135,35 +129,12 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
   const [showShimmer, setShowShimmer] = useState(false);
-  const emptySymptomRow = () => ({ symptom_name: "", unique_id: uuidv4(), since: "", severity: "", note: "", change: 1, pms_default: 0 });
-
   const applyVoiceSymptoms = useCallback((nextSymptoms) => {
     if (nextSymptoms.length > 0) {
-      if (canShowVoiceRxNewRows) {
-        const last = nextSymptoms[nextSymptoms.length - 1];
-        const withTrailing = (!last || last.symptom_name !== "") ? [...nextSymptoms, emptySymptomRow()] : nextSymptoms;
-        setSymptomsData(withTrailing);
-      } else {
-        setSymptomsData(nextSymptoms);
-      }
+      setSymptomsData(nextSymptoms);
     }
-  }, [canShowVoiceRxNewRows, setSymptomsData]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // add one trailing empty row on mount (only when flag is on)
-  useEffect(() => {
-    if (!canShowVoiceRxNewRows) return;
-    setSymptomsData(prev => {
-      const last = prev[prev.length - 1];
-      if (!last || last.symptom_name !== "") {
-        return [...prev, emptySymptomRow()];
-      }
-      return prev;
-    });
-  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleAddRow = useCallback(() => {
-    setSymptomsData(prev => [...prev, emptySymptomRow()]);
   }, [setSymptomsData]);
+
   const symptomsVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(symptomsData, "symptoms"),
     [symptomsData]
@@ -404,11 +375,8 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
       setSymptomsData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).symptom_name, index: i });
       dispatch(setIsDDxReadyToGenerate(true));
-      if (canShowVoiceRxNewRows && i === symptomsData.length - 1) {
-        setSymptomsData((prev) => [...prev, emptySymptomRow()]);
-      }
     },
-    [searchChildQuery, symptomsData, canShowVoiceRxNewRows]
+    [searchChildQuery, symptomsData]
   );
 
   const onSearchSinceChid = useCallback(
@@ -473,11 +441,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
 
   const onRemoveRow = (index) => {
     symptomsData.splice(index, 1);
-    if (canShowVoiceRxNewRows && symptomsData.length === 0) {
-      setSymptomsData([emptySymptomRow()]);
-    } else {
-      setSymptomsData((prev) => [...prev]);
-    }
+    setSymptomsData((prev) => [...prev]);
     if (symptomsData?.length > 0) {
       dispatch(setIsDDxReadyToGenerate(true));
     } else if (examinationData?.length === 0) {
@@ -511,7 +475,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
     const action = await dispatch(singleTemplateDetails(template.tst_id));
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action?.payload;
-      setSymptomsData(appendStripped(symptomsData, updatedData, "symptoms"));
+      setSymptomsData([...symptomsData, ...updatedData]);
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)
@@ -548,7 +512,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   );
 
   const onAddTemplateClicked = async () => {
-    const templateSymptoms = canShowVoiceRxNewRows ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
+    const templateSymptoms = symptomsData;
     if (templateSymptoms.length === 0) {
       errorMessage('At least 1 symptom added')
     } else if (templateSymptoms.filter(e => String(e.symptom_name ?? "").trim() === "").length > 0) {
@@ -578,7 +542,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    const templateSymptoms = canShowVoiceRxNewRows ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
+    const templateSymptoms = symptomsData;
     if (templateSymptoms.length === 0) {
       errorMessage('At least 1 symptom added')
     } else if (templateSymptoms.filter(e => String(e.symptom_name ?? "").trim() === "").length > 0) {
@@ -1000,7 +964,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setSymptomsData(canShowVoiceRxNewRows ? [emptySymptomRow()] : [])
+    setSymptomsData([])
     showHideClearData()
   };
 
@@ -1146,19 +1110,6 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
             {DELETE_MODAL}
             {REMOVE_ALL_ROWS}
             {TABLE_SYMPTOMS}
-            {canShowVoiceRxNewRows && (
-              <div className="p-2">
-                <Button
-                  type="link"
-                  icon={<PlusOutlined />}
-                  className="add-custom-module-link"
-                  onClick={handleAddRow}
-                >
-                  Add New Line
-                </Button>
-              </div>
-            )}
-
         {/* {ddxOptionsList?.length > 0 && (
           <div style={{ padding: "0 14px" }}>
             <DifferentialDiagnosis
@@ -1169,7 +1120,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
             />
           </div>
         )} */}
-        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Symptoms"
@@ -1177,7 +1128,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.symptoms}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : !isVoiceRxModuleEnabled ? (
+          ) : (
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1192,7 +1143,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          ) : null}
+          )}
         </div>
         </>
         )}

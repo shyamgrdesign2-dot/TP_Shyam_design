@@ -2,6 +2,7 @@ import {
 	postJson,
 	withRetry,
 	buildIdentityPayload,
+	buildVoiceRequestPayload,
 	extractResultData,
 	MODULE_TIMEOUT_MS
 } from "./clinical-processing";
@@ -29,7 +30,7 @@ function normalizeSoapPreviousContext(raw) {
 }
 
 function buildSoapPayload(context, previousContext) {
-	const payload = buildIdentityPayload(context);
+	const payload = buildVoiceRequestPayload(context);
 	const ctx = normalizeSoapPreviousContext(previousContext);
 	if (ctx) payload.previous_context = ctx;
 	return payload;
