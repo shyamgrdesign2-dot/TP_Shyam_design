@@ -63,6 +63,7 @@ import {
 } from "../../utils/medicalHistoryUtils";
 import { convertAgentMedicalHistoryRowsToSections } from "../../utils/medicalHistoryConverters";
 import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers";
+import { normalizeGynaecHistoryFromDigitiseData } from "../../utils/gynecHistoryUtils";
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitizationSlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
@@ -142,6 +143,7 @@ const SECTION_TITLES = {
 const SIDE_NAV_MODULE_NAMES = {
   // vitals: "vitals_body",
   history: "medical_history",
+  gynec: "gynaec_history",
   // labResults: "lab_investigations",
 };
 
@@ -1392,9 +1394,7 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
         ? { ...base, digitization: { vitalsAndBodyComposition: rx.vitalsPayload } }
         : null;
     case "gynec":
-      return objectHasRenderableValue(rx.gynecPayload)
-        ? { ...base, digitization: { gyneacHistory: rx.gynecPayload } }
-        : null;
+      return null;
     case "obstetric":
       return objectHasRenderableValue(rx.obstetricPayload)
         ? { ...base, digitization: { obstetricHistory: rx.obstetricPayload } }
@@ -2550,6 +2550,8 @@ function normalizeSideNavModuleResponse(responseJson, sectionId) {
       return { vitals: normalizeSideNavVitals(payload) };
     case "history":
       return { history: normalizeSideNavHistorySections(payload) };
+    case "gynec":
+      return { gynaec_history: normalizeGynaecHistoryFromDigitiseData(payload) };
     case "labResults":
       return { labResults: normalizeSideNavLabItems(payload) };
     default:
@@ -3527,7 +3529,7 @@ const EMPTY_SECTION_CONFIG = {
   gynec: {
     message: "No gynec history has been recorded for this patient yet.",
     addLabel: "Add Gynec History",
-    showVoice: false,
+    showVoice: true,
   },
   obstetric: {
     message: "No obstetric history has been recorded for this patient yet.",
@@ -5544,6 +5546,7 @@ export function SideNavbar({
     pamId,
     privateNotesData,
     setPrivateNotesData,
+    setUpdatedGynecHistory,
   } = useContext(CashManagerContext) || {};
   const getSideNavVoiceSessionId = useCallback(() => {
     if (tcmId && Number(tcmId) !== 0) return tcmId;
@@ -6128,6 +6131,18 @@ export function SideNavbar({
       return;
     }
 
+    if (sectionId === "gynec" && result?.gynaec_history && sideNavObjectHasContent(result.gynaec_history)) {
+      const nextGynecHistory = Object.entries(result.gynaec_history).reduce((acc, [key, value]) => {
+        if (hasValue(value)) acc[key] = value;
+        return acc;
+      }, {});
+      setUpdatedGynecHistory?.((prev) => ({
+        ...((prev && typeof prev === "object" && !Array.isArray(prev)) ? prev : {}),
+        ...nextGynecHistory,
+      }));
+      return;
+    }
+
     if (sectionId === "labResults" && Array.isArray(result?.labResults) && result.labResults.length > 0) {
       const entry = {
         date: moment().format("YYYY-MM-DD"),
@@ -6141,7 +6156,7 @@ export function SideNavbar({
       setLabParamsData?.((prev = []) => [entry, ...prev]);
       setDigitizedOverrides((prev) => ({ ...prev, labResults: { lab_investigations: result.labResults } }));
     }
-  }, [medicalHistoryDefaultList, setLabParamsData, setMedicalHistoryData, setVitalsData]);
+  }, [medicalHistoryDefaultList, setLabParamsData, setMedicalHistoryData, setUpdatedGynecHistory, setVitalsData]);
 
   const transcribeSectionAudio = useCallback(async (sectionId, meta = {}) => {
     if (!isSideNavVoiceSupported(sectionId)) {
