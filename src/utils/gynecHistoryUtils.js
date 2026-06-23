@@ -38,24 +38,31 @@ export function normalizeGynecHistoryFromApi(gynecRaw) {
   const g = gynecRaw;
   const rawClots = g.clots ?? g.clotsDuringFlow;
   const clots = normalizeClotsValue(rawClots);
-  const occurrenceOfPain = normalizeOccurrenceOfPain(g.occurrenceOfPain);
+  const occurrenceOfPain = normalizeOccurrenceOfPain(g.occurrenceOfPain ?? g.occurrence_of_pain);
   return {
     ...g,
     lastMenstrualPeriod: g.lastMenstrualPeriod ?? g.lmp,
     lmp: g.lmp ?? g.lastMenstrualPeriod,
-    intervalOfCycle: g.intervalOfCycle ?? g.intervalCycle,
-    intervalCycle: g.intervalCycle ?? g.intervalOfCycle,
-    cycleNotes: g.cycleNotes ?? g.intervalNotes,
-    intervalNotes: g.intervalNotes ?? g.cycleNotes,
+    ageAtMenarche: g.ageAtMenarche ?? g.age_at_menarche,
+    menarcheNotes: g.menarcheNotes ?? g.menarche_notes,
+    intervalOfCycle: g.intervalOfCycle ?? g.intervalCycle ?? g.interval_of_cycle,
+    intervalCycle: g.intervalCycle ?? g.intervalOfCycle ?? g.interval_of_cycle,
+    cycleNotes: g.cycleNotes ?? g.intervalNotes ?? g.cycle_notes,
+    intervalNotes: g.intervalNotes ?? g.cycleNotes ?? g.cycle_notes,
     clots,
     clotsDuringFlow: g.clotsDuringFlow ?? g.clots,
-    flowNotes: g.flowNotes ?? g.clotsNotes,
-    clotsNotes: g.clotsNotes ?? g.flowNotes,
+    durationOfMenstrualFlow: g.durationOfMenstrualFlow ?? g.duration_of_menstrual_flow,
+    numberOfPadsPerDay: g.numberOfPadsPerDay ?? g.number_of_pads_per_day,
+    flowNotes: g.flowNotes ?? g.clotsNotes ?? g.flow_notes,
+    clotsNotes: g.clotsNotes ?? g.flowNotes ?? g.flow_notes,
     occurrenceOfPain,
-    reproductiveLifeStages: g.reproductiveLifeStages ?? g.lifecycleHarmonialChanges,
-    lifecycleHarmonialChanges: g.lifecycleHarmonialChanges ?? g.reproductiveLifeStages,
-    reproductiveNotes: g.reproductiveNotes ?? g.lifecycleHarmonialChangesNotes,
-    lifecycleHarmonialChangesNotes: g.lifecycleHarmonialChangesNotes ?? g.reproductiveNotes,
+    painNotes: g.painNotes ?? g.pain_notes,
+    reproductiveLifeStages: g.reproductiveLifeStages ?? g.lifecycleHarmonialChanges ?? g.reproductive_life_stages,
+    lifecycleHarmonialChanges: g.lifecycleHarmonialChanges ?? g.reproductiveLifeStages ?? g.reproductive_life_stages,
+    ageAtMenopause: g.ageAtMenopause ?? g.age_at_menopause,
+    typeOfMenopause: g.typeOfMenopause ?? g.type_of_menopause,
+    reproductiveNotes: g.reproductiveNotes ?? g.lifecycleHarmonialChangesNotes ?? g.reproductive_notes,
+    lifecycleHarmonialChangesNotes: g.lifecycleHarmonialChangesNotes ?? g.reproductiveNotes ?? g.reproductive_notes,
   };
 }
 
@@ -65,8 +72,36 @@ export function normalizeGynecHistoryFromApi(gynecRaw) {
  * @returns {object} Normalized gynec history (or {}) for use in Rx pad / drawer
  */
 export function getNormalizedGynecHistory(data) {
-  const raw = data?.gynecHistory ?? data?.gynec_history ?? data?.gyneacHistory;
+  const source = data?.data && typeof data.data === "object" ? data.data : data;
+  const raw = source?.gynaec_history ?? source?.gynecHistory ?? source?.gynec_history ?? source?.gyneacHistory;
   return normalizeGynecHistoryFromApi(raw);
+}
+
+export function normalizeGynaecHistoryFromDigitiseData(digitization) {
+  const g = digitization?.gynaec_history;
+  if (!g || typeof g !== "object") return {};
+  return {
+    ...g,
+    lmp: g.lmp,
+    ageAtMenarche: g.age_at_menarche,
+    menarcheNotes: g.menarche_notes,
+    cycle: g.cycle,
+    intervalOfCycle: g.interval_of_cycle,
+    cycleNotes: g.cycle_notes,
+    flow: g.flow,
+    durationOfMenstrualFlow: g.duration_of_menstrual_flow,
+    clots: normalizeClotsValue(g.clots),
+    numberOfPadsPerDay: g.number_of_pads_per_day,
+    flowNotes: g.flow_notes,
+    pain: g.pain,
+    occurrenceOfPain: normalizeOccurrenceOfPain(g.occurrence_of_pain),
+    painNotes: g.pain_notes,
+    reproductiveLifeStages: g.reproductive_life_stages,
+    ageAtMenopause: g.age_at_menopause,
+    typeOfMenopause: g.type_of_menopause,
+    reproductiveNotes: g.reproductive_notes,
+    notes: g.notes,
+  };
 }
 
 const META_KEYS = ["createdAt", "createdBy", "updatedAt", "updatedBy"];
@@ -178,6 +213,130 @@ export function formatGynecDisplayLines(gynec) {
   return lines;
 }
 
+function formatGynecValue(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "number" && value === 0) return null;
+  const text = String(value).trim();
+  if (!text || text === "0") return null;
+  return text;
+}
+
+function formatGynecLmp(value) {
+  const formatted = formatGynecValue(value);
+  if (!formatted) return null;
+  const parsed = moment(formatted, ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", moment.ISO_8601], true);
+  return parsed.isValid() ? parsed.format("DD MMM YYYY") : formatted;
+}
+
+function gynecItem(name, parts, payload) {
+  const detail = parts.filter(Boolean).join(" | ");
+  return detail ? { name, detail, payload } : null;
+}
+
+export function getGynecClinicalNoteItems(gynecRaw) {
+  const gynec = normalizeGynecHistoryFromApi(gynecRaw);
+  if (isGynecDataEmpty(gynec)) return [];
+
+  const items = [];
+  const lmp = formatGynecLmp(gynec.lmp ?? gynec.lastMenstrualPeriod);
+  if (lmp) {
+    items.push({ name: "LMP", detail: lmp, payload: { lmp: gynec.lmp ?? gynec.lastMenstrualPeriod } });
+  }
+
+  const ageAtMenarche = formatGynecValue(gynec.ageAtMenarche);
+  const menarcheNotes = formatGynecValue(gynec.menarcheNotes);
+  const menarche = gynecItem(
+    "Menarche",
+    [
+      ageAtMenarche ? `Age at: ${ageAtMenarche} years` : null,
+      menarcheNotes ? `Notes: ${menarcheNotes}` : null,
+    ],
+    { age_at_menarche: gynec.ageAtMenarche, menarche_notes: gynec.menarcheNotes }
+  );
+  if (menarche) items.push(menarche);
+
+  const cycle = formatGynecValue(gynec.cycle);
+  const interval = formatGynecValue(gynec.intervalOfCycle ?? gynec.intervalCycle);
+  const cycleNotes = formatGynecValue(gynec.cycleNotes);
+  const cycleItem = gynecItem(
+    "Cycle",
+    [
+      cycle ? `Type: ${cycle}` : null,
+      interval ? `Interval: ${interval} days` : null,
+      cycleNotes ? `Notes: ${cycleNotes}` : null,
+    ],
+    { cycle: gynec.cycle, interval_of_cycle: gynec.intervalOfCycle ?? gynec.intervalCycle, cycle_notes: gynec.cycleNotes }
+  );
+  if (cycleItem) items.push(cycleItem);
+
+  const flow = formatGynecValue(gynec.flow);
+  const duration = formatGynecValue(gynec.durationOfMenstrualFlow);
+  const clots = formatGynecValue(gynec.clots);
+  const pads = formatGynecValue(gynec.numberOfPadsPerDay);
+  const flowNotes = formatGynecValue(gynec.flowNotes);
+  const flowItem = gynecItem(
+    "Flow",
+    [
+      flow ? `Volume: ${flow}` : null,
+      duration ? `Duration: ${duration} days` : null,
+      clots ? `Clots: ${clots}` : null,
+      pads ? `Pads/day: ${pads}` : null,
+      flowNotes ? `Notes: ${flowNotes}` : null,
+    ],
+    {
+      flow: gynec.flow,
+      duration_of_menstrual_flow: gynec.durationOfMenstrualFlow,
+      clots: gynec.clots,
+      number_of_pads_per_day: gynec.numberOfPadsPerDay,
+      flow_notes: gynec.flowNotes,
+    }
+  );
+  if (flowItem) items.push(flowItem);
+
+  const pain = formatGynecValue(gynec.pain);
+  const occurrence = formatGynecValue(gynec.occurrenceOfPain);
+  const painNotes = formatGynecValue(gynec.painNotes);
+  const painItem = gynecItem(
+    "Pain",
+    [
+      pain ? `Severity: ${pain}` : null,
+      occurrence ? `Occurrence: ${occurrence}` : null,
+      painNotes ? `Notes: ${painNotes}` : null,
+    ],
+    { pain: gynec.pain, occurrence_of_pain: gynec.occurrenceOfPain, pain_notes: gynec.painNotes }
+  );
+  if (painItem) items.push(painItem);
+
+  const stage = formatGynecValue(gynec.reproductiveLifeStages ?? gynec.lifecycleHarmonialChanges);
+  const ageAtMenopause = formatGynecValue(gynec.ageAtMenopause);
+  const typeOfMenopause = formatGynecValue(gynec.typeOfMenopause);
+  const reproductiveNotes = formatGynecValue(gynec.reproductiveNotes);
+  const lifecycleItem = gynecItem(
+    "Lifecycle Hormonal Changes",
+    [
+      stage ? `Stage: ${stage}` : null,
+      ageAtMenopause ? `Age at menopause: ${ageAtMenopause} years` : null,
+      typeOfMenopause ? `Type: ${typeOfMenopause}` : null,
+      reproductiveNotes ? `Notes: ${reproductiveNotes}` : null,
+    ],
+    {
+      reproductive_life_stages: gynec.reproductiveLifeStages ?? gynec.lifecycleHarmonialChanges,
+      age_at_menopause: gynec.ageAtMenopause,
+      type_of_menopause: gynec.typeOfMenopause,
+      reproductive_notes: gynec.reproductiveNotes,
+    }
+  );
+  if (lifecycleItem) items.push(lifecycleItem);
+
+  const notes = formatGynecValue(gynec.notes);
+  if (notes) {
+    items.push({ name: "Notes", detail: notes, payload: { notes: gynec.notes } });
+  }
+
+  return items;
+}
+
 /**
  * Build payload for gynec POST (timeline item) or PATCH. Normalizes lmp to YYYY-MM-DD.
  * Excludes UI-only keys; sends API field names (e.g. lmp, clots, occurrenceOfPain).
@@ -190,17 +349,22 @@ export function buildGynecPayloadForApi(gynec, userId) {
   const payload = {
     lmp: lmp ?? undefined,
     ageAtMenarche: gynec.ageAtMenarche,
+    menarcheNotes: gynec.menarcheNotes,
     cycle: gynec.cycle,
     intervalOfCycle: gynec.intervalOfCycle,
+    cycleNotes: gynec.cycleNotes,
     flow: gynec.flow,
     durationOfMenstrualFlow: gynec.durationOfMenstrualFlow,
     clots: gynec.clots,
     numberOfPadsPerDay: gynec.numberOfPadsPerDay,
+    flowNotes: gynec.flowNotes,
     pain: gynec.pain,
     occurrenceOfPain: gynec.occurrenceOfPain,
+    painNotes: gynec.painNotes,
     reproductiveLifeStages: gynec.reproductiveLifeStages ?? gynec.lifecycleHarmonialChanges,
     ageAtMenopause: gynec.ageAtMenopause,
     typeOfMenopause: gynec.typeOfMenopause,
+    reproductiveNotes: gynec.reproductiveNotes,
     notes: gynec.notes,
     createdAt: now,
     createdBy: userId,

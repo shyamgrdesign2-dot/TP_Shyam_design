@@ -876,6 +876,8 @@ function ConsultationLayout({ children, headerProps }) {
     setVitalsData,
     medicalHistoryData,
     setMedicalHistoryData,
+    updatedGynecHistory,
+    setUpdatedGynecHistory,
     privateNotesData,
     setPrivateNotesData,
     followUpDate,

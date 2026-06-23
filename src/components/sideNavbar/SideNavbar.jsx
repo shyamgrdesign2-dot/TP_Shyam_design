@@ -1706,13 +1706,22 @@ function copyPayloadHasVitals(payload = {}) {
   return hasVitalsSignalContext(digitization.vitals_and_body_composition);
 }
 
+function copyPayloadHasGynec(payload = {}) {
+  const digitization = payload?.digitization || {};
+  return sideNavObjectHasContent(digitization.gynaec_history);
+}
+
 function getSideNavSignalTargetsFromCopyRequest(copyRequest) {
   const payload = copyRequest?.payload || {};
   const explicitTarget = payload.sideNavSignalTarget;
   const hasVitals = copyPayloadHasVitals(payload);
   const hasMedicalHistory = copyPayloadHasMedicalHistory(payload);
+  const hasGynec = copyPayloadHasGynec(payload);
 
   if (explicitTarget === "vitals" && hasVitals) {
+    return [explicitTarget];
+  }
+  if (explicitTarget === "gynec" && hasGynec) {
     return [explicitTarget];
   }
   if (SIDE_NAV_SIGNAL_SECTIONS.has(explicitTarget) && hasMedicalHistory) {
@@ -1722,6 +1731,7 @@ function getSideNavSignalTargetsFromCopyRequest(copyRequest) {
   const targets = [];
   if (hasMedicalHistory) targets.push("history");
   if (hasVitals) targets.push("vitals");
+  if (hasGynec) targets.push("gynec");
   return targets;
 }
 
