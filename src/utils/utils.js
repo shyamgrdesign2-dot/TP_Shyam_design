@@ -848,28 +848,8 @@ export const getMedicineStockLabel = (med) => {
   return null;
 };
 
-export const hasMedicineFrequency = (medicine) => {
-  if (!medicine) return false;
-
-  const freqName = String(medicine?.tmm_freq_type_name ?? "").trim();
-  if (freqName && freqName !== "0 -0 -0" && freqName !== "0-0-0") {
-    return true;
-  }
-
-  if (medicine?.tmm_freq_type && Number(medicine.tmm_freq_type) !== 0) {
-    return true;
-  }
-
-  return [
-    medicine?.tcm_tmm_freq_morning,
-    medicine?.tcm_tmm_freq_afternoon,
-    medicine?.tcm_tmm_freq_evening,
-    medicine?.tcm_tmm_freq_night,
-  ].some(
-    (value) =>
-      value !== undefined && value !== null && value !== "" && Number(value) !== 0
-  );
-};
+export const hasMedicineFrequency = (medicine) => 
+  String(medicine?.tmm_freq_type_name ?? "").trim() !== "";
 
 export const hasMedicineDuration = (medicine) =>
   String(medicine?.tmm_days_duration_type ?? "").trim() !== "";
