@@ -132,6 +132,7 @@ function Welcome(props) {
                   <Button
                     variant="primary"
                     className="px-3 btn-41"
+                    data-testid="start-walkin-consultation"
                     onClick={clickWalkInConsultation}>
                     {`Start Walk-in ${isTablet ? "" : "Consultation"}`}
                   </Button>

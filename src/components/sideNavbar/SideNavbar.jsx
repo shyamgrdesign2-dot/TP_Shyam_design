@@ -48,10 +48,9 @@ import growthChartStaticData from "../../pages/growthChart/GrowthChart.json";
 import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../../assets";
-import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
+import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
-import { getResponseRequestId as getVoiceResponseRequestId } from "../dr-agent/voicerx/api/voice-api-utils";
 import { uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
@@ -71,6 +70,7 @@ import { getDecodedToken } from "../../utils/localStorage";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import { env } from "../../EnvironmentConfig";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
+import { getSideNavMedicalIconUrl } from "./sideNavbarMedicalIcons";
 import "./sideNavbar.css";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartTooltip, Legend, Filler);
@@ -349,6 +349,13 @@ function sortLegacyVitalEntriesByDate(entries = []) {
   });
 }
 
+function getPersistedVitalsKey(item = {}) {
+  const ids = [item?.tcv_id, item?.tcbc_id, item?.dev_unique_id]
+    .map((value) => Number(value) || 0);
+  if (!ids.some((value) => value > 0)) return "";
+  return ids.join("-");
+}
+
 function buildLegacyVitalsEntries({
   vitalsData = [],
   vitalsPastList = [],
@@ -358,6 +365,9 @@ function buildLegacyVitalsEntries({
 }) {
   const entries = [];
   const birthWeight = vitalsData?.[0]?.patient_birth_weight || patientBirthWeight;
+  const currentVitalsKeys = new Set(
+    vitalsData.map(getPersistedVitalsKey).filter(Boolean)
+  );
 
   const collectVitalItem = (item, index, source, sourceIndex) => {
     const rows = buildLegacyVitalRows(item, isPediatricAccessable);
@@ -389,6 +399,7 @@ function buildLegacyVitalsEntries({
   });
 
   vitalsPastList.forEach((item, index) => {
+    if (currentVitalsKeys.has(getPersistedVitalsKey(item))) return;
     collectVitalItem(item, index, "past", vitalsData.length + index);
   });
 
@@ -557,7 +568,7 @@ function extractLabNumericValue(raw) {
 }
 
 function buildLegacyLabEntries(labParamsData = []) {
-  const sorted = [...labParamsData].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sorted = [...legacyArray(labParamsData)].sort((a, b) => new Date(b.date) - new Date(a.date));
   return sorted.reduce((entries, entry) => {
     const rows = (entry.inputs || [])
       .filter((input) => input.testName && input.testName !== "Remarks")
@@ -1638,6 +1649,10 @@ function appendSideNavJsonFormField(formData, key, value) {
   formData.append(key, JSON.stringify(value));
 }
 
+function getVoiceResponseRequestId(response) {
+  return response?.headers?.get?.("x-request-id") || "";
+}
+
 function medicalHistoryTagHasContextValue(tag = {}) {
   const enable = String(tag?.enable || "").trim();
   if (enable === "Y" || enable === "N") return true;
@@ -2544,7 +2559,13 @@ function appendPrivateNotesTranscript(existingNotes, transcript) {
   return current ? `${current}\n${next}` : next;
 }
 
-async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, doctorId, sessionId, previousContext }) {
+function getSideNavPatientName(patientData) {
+  return patientData?.pm_fullname ||
+    patientData?.patient_name ||
+    [patientData?.pm_first_name, patientData?.pm_last_name].filter(Boolean).join(" ");
+}
+
+async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, doctorId, sessionId, previousContext, doctorName, patientName }) {
   const moduleName = SIDE_NAV_MODULE_NAMES[sectionId];
   if (!moduleName) {
     throw new Error("Voice input is not available for this section.");
@@ -2560,6 +2581,7 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
   formData.append("patient_id", String(patientId));
   formData.append("doctor_id", String(doctorId));
   formData.append("session_id", String(sessionId));
+  appendVoiceApiMetadata(formData, { doctorId, doctorName, patientName });
   formData.append("module_name", moduleName);
   appendSideNavJsonFormField(formData, "previous_context", previousContext);
   formData.append("audio", audioBlob, "audio.webm");
@@ -2653,13 +2675,14 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
 }
 
 function MedicalMaskIcon({ name, active }) {
-  const variant = active ? "bulk" : "line";
-  const src = `/new-assets/icons/medical/${name}--${variant}.svg`;
+  const src = getSideNavMedicalIconUrl(name, active);
+  if (!src) return null;
   return (
     <span
       className="snv-medical-icon"
       style={{
-        "--snv-icon-url": `url("${src}")`,
+        WebkitMaskImage: `url("${src}")`,
+        maskImage: `url("${src}")`,
       }}
       aria-hidden="true"
     />
@@ -5325,7 +5348,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, voiceSessionId, medicalRecordActions }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, medicalRecordActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -5410,6 +5433,8 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
               sessionId: voiceSessionId,
               doctorId,
               patientId,
+              doctorName,
+              patientName,
             }}
             onClose={onVoiceOverlayClose}
             onCancel={onVoiceCancel}
@@ -5425,6 +5450,9 @@ function createSessionId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `snv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
+
+const EMPTY_PAST_VISIT_ROWS = [];
+const EMPTY_PAST_VISIT_DETAILS = {};
 
 
 export function SideNavbar({
@@ -5463,8 +5491,8 @@ export function SideNavbar({
   const [sideNavSignals, setSideNavSignals] = useState({});
   const [vitalsCopyUpdating, setVitalsCopyUpdating] = useState(false);
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
-  const pastVisitRows = useSelector((state) => state.pastVisits.rowsByPatient[patientId]?.rows ?? []);
-  const pastVisitDetails = useSelector((state) => state.pastVisits.detailsByPatient[patientId] ?? {});
+  const pastVisitRows = useSelector((state) => state.pastVisits.rowsByPatient[patientId]?.rows ?? EMPTY_PAST_VISIT_ROWS);
+  const pastVisitDetails = useSelector((state) => state.pastVisits.detailsByPatient[patientId] ?? EMPTY_PAST_VISIT_DETAILS);
   const [pastVisitLoadingIds, setPastVisitLoadingIds] = useState({});
   const pastVisitDetailsRef = useRef({});
   const pastVisitLoadingIdsRef = useRef({});
@@ -6118,6 +6146,11 @@ export function SideNavbar({
     const submitId = `voice-rx-2-side-nav-${sectionId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const requestId = submitId;
     const sessionId = getSideNavVoiceSessionId();
+    const effectiveDoctorId = doctorId || profile?.doctor_unique_id || "";
+    const effectivePatientId = patientId || patientData?.patient_unique_id || "";
+    const doctorName = profile?.um_name || "";
+    const patientName = getSideNavPatientName(patientData);
+
     let voiceRxLogTranscript = "";
     let voiceRxLogDigitizeData = null;
     let transcriptCompletedAtMs = null;
@@ -6135,13 +6168,22 @@ export function SideNavbar({
         ? await transcribeAnyAudio({
           audioBlob,
           prompt: PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
+          context: {
+            doctorId: effectiveDoctorId,
+            patientId: effectivePatientId,
+            doctorName,
+            patientName,
+            sessionId
+          },
         })
         : await requestSideNavModuleDigitise({
           sectionId,
           audioBlob,
-          patientId,
-          doctorId,
+          patientId: effectivePatientId,
+          doctorId: effectiveDoctorId,
           sessionId,
+          doctorName,
+          patientName,
           previousContext: sectionId === "history"
             ? buildSideNavMedicalHistoryPreviousContext(medicalHistoryData)
             : undefined,
@@ -6299,8 +6341,10 @@ export function SideNavbar({
           showVoiceRx={showVoiceRx}
           vitalsUpdating={vitalsCopyUpdating}
           zydusSelectedLabParams={zydusSelectedLabParams}
-          patientId={patientId}
-          doctorId={doctorId}
+          patientId={patientId || patientData?.patient_unique_id || ""}
+          doctorId={doctorId || profile?.doctor_unique_id || ""}
+          doctorName={profile?.um_name || ""}
+          patientName={getSideNavPatientName(patientData)}
           patientGender={patientGender}
           voiceSessionId={getSideNavVoiceSessionId()}
           medicalRecordActions={{

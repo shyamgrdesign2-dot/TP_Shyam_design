@@ -20,6 +20,13 @@ import {
 } from "../../../../utils/utils";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../../../../redux/dentalExaminationSlice";
+import {
+  DENTAL_RX_PAD_ROUTE,
+  DENTAL_RX_PRINT_VIEW_ROUTE,
+  TAB_RX_PRESCRIPTION_ROUTE,
+  isDentalPrintViewPath,
+} from "../../../../utils/dentalRoutes";
 import { useAccess } from "../../../vaccination/useAccess";
 
 import { viewCaseManager } from "../../../../redux/caseManagerSlice";
@@ -155,20 +162,25 @@ function TabRxPrescriptionPrintView() {
   const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
   const { isOpdBillChecked } = useSelector((state) => state.billing);
   const { isOpdBillingAccessable } = useOpdBilling();
-  const [showDigitalRx, setShowDigitalRx] = useState(false);
+
+  const { state, pathname } = useLocation();
+  const isDental =
+    state?.page === "dental" || isDentalPrintViewPath(pathname);
+  const [showDigitalRx, setShowDigitalRx] = useState(isDental);
 
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
 
-  const { state } = useLocation();
   const {
     patient_data,
     pam_id,
     zydusSelectedLabParams,
     smartRxFilesData,
   } = state || {};
-
+  // const dentalExaminationData = state?.dentalExaminationData || state?.dentalData || null;
+  const dentalExaminationData = useSelector(selectDentalExamination);
+  const oralExamination = useSelector((state) => state.oralExamination);
   const [selectedLang, setSelectedLang] = useState(
     defaultPrintSettings?.default_language &&
       defaultPrintSettings?.default_language !== "English"
@@ -182,6 +194,7 @@ function TabRxPrescriptionPrintView() {
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
   const [showProgressbar, setShowProgressbar] = useState(false);
+  // const [dentalExaminationData, setDentalExaminationData] = useState(null);
   const progressRef = useRef(null);
   const [printUrl, setPrintUrl] = useState(
     state !== undefined
@@ -266,8 +279,9 @@ function TabRxPrescriptionPrintView() {
         setSmartRxFile([]);
       }
     };
-
+    if(!isDental){
     fetchTabRxFiles();
+    }
   }, [smartRxFilesData, state]);
 
   const getCaseManagerData = async () => {
@@ -453,15 +467,19 @@ function TabRxPrescriptionPrintView() {
     printBlob: generatedPrintBlob,
     isGenerating: isPdfGenerating,
     error: printPayloadError,
+
   } = usePrintPayloadPdf({
     printUrl,
     selectedLang,
     isGynaecHistoryAccessable,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
-    patientId: patient_data?.patient_unique_id,
-    tcmId: state?.tcm_id,
-    isCvtExtHosAccessableFromGB,
+        dentalExaminationData,
+        oralExamination,
+        patientUniqueId: patient_data?.patient_unique_id,
+        patientId: patient_data?.patient_unique_id,
+        tcmId: state?.tcm_id,
+        isCvtExtHosAccessableFromGB,
   });
 
 
@@ -703,6 +721,16 @@ function TabRxPrescriptionPrintView() {
   const onEditPrescriptionClick = async () => {
     // Best-effort: sync care plan assignment/update based on available info
     await syncCarePlanAssignmentIfNeeded();
+    if (isDental) {
+      navigate(DENTAL_RX_PAD_ROUTE, {
+        replace: true,
+        state: {
+          patient_data: patient_data,
+          caseManagerData: viewCaseManagerData || state?.caseManagerData || state
+        }
+      });
+      return;
+    }
     if (showDigitalRx) {
       navigate("/tabrx-digitization", {
         state: {
@@ -947,7 +975,8 @@ function TabRxPrescriptionPrintView() {
           },
           pam_id: pam_id,
           smartRxFile,
-          from: "/tab-rx-prescription",
+          dentalExaminationData,
+          from: isDental ? DENTAL_RX_PRINT_VIEW_ROUTE : TAB_RX_PRESCRIPTION_ROUTE,
         },
       });
     } else {

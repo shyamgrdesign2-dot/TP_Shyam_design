@@ -1,0 +1,230 @@
+@use "../styles/tp-tokens" as tp;
+
+.patientTypeHost {
+  position: absolute;
+  right: 16px;
+  top: 12px;
+  z-index: 20;
+}
+
+.patientTypeTrack {
+  display: inline-flex;
+  height: 36px;
+  align-items: center;
+  gap: 4px;
+  border-radius: 10px;
+  background: #e9e9ef;
+  padding: 3px;
+  color: rgb(160 160 167 / 1) !important;
+}
+
+.patientTypeBtn {
+  position: relative;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+  color: tp.$slate-500 !important;
+
+  &:hover {
+    color: tp.$slate-700;
+    background: rgb(255 255 255 / 0.7);
+  }
+}
+
+.patientTypeBtnActive {
+  background: #fff;
+  color: tp.$slate-800 !important;
+  pointer-events: none;
+}
+
+/* Dentition scope: flat row, vertical dividers only — no panel shadow or button chrome. */
+.scopeHost {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  top: auto;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+
+  & > * {
+    pointer-events: auto;
+  }
+}
+
+.scopeTrack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0;
+  row-gap: 6px;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.scopeDivider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 14px;
+  margin: 0 1px;
+  opacity: 0.45;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, tp.$slate-300 55%, transparent) 45%,
+    color-mix(in srgb, tp.$slate-300 55%, transparent) 55%,
+    transparent 100%
+  );
+}
+
+.scopeBtn {
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: tp.$slate-600 !important;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    color 0.12s ease,
+    background-color 0.12s ease;
+
+  &:hover {
+    color: tp.$blue-700 !important;
+    background: color-mix(in srgb, tp.$blue-50 80%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid color-mix(in srgb, tp.$blue-500 55%, transparent);
+    outline-offset: 1px;
+  }
+}
+
+.scopeBtnActive {
+  color: tp.$blue-700 !important;
+  font-weight: 700;
+  background: transparent;
+  box-shadow: inset 0 -2px 0 0 tp.$blue-600;
+
+  &:hover {
+    color: tp.$blue-700 !important;
+    background: color-mix(in srgb, tp.$blue-50 55%, transparent);
+  }
+}
+
+.scopeBtnCompact {
+  composes: scopeBtn;
+  min-height: 24px;
+  padding: 2px 7px;
+  font-size: 9px;
+}
+
+/* ── Back-chevron nav ─────────────────────────────────────────────────────── */
+.toothNameBack {
+  padding-left: 6px;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.backChevron {
+  flex-shrink: 0;
+}
+
+/* ── Examine hint overlay ────────────────────────────────────────────────── */
+.examineHint {
+  position: absolute;
+  bottom: 86px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  font-family: "Inter", sans-serif;
+}
+
+.examineHintText {
+  font-size: 14px;
+  color: #b7c3d4 !important;
+  font-weight: 500;
+  opacity: 0.72;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+/* ── Print button wrapper ─────────────────────────────────────────────────── */
+.printBtnWrap {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 100;
+  pointer-events: none;
+
+  & > * {
+    pointer-events: auto;
+  }
+}
+
+/* ── scopeHost z-index bump ──────────────────────────────────────────────── */
+/* Override the existing z-index: 20 with 21 so it sits above printBtnWrap  */
+.scopeHost {
+  z-index: 21;
+}
+
+/* ── Oral Examination button ─────────────────────────────────────────────── */
+.oralExamBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: "Inter", sans-serif;
+  background: #fff;
+  color: var(--tp-blue-500) !important;
+  border: 1.5px solid var(--tp-blue-500);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+
+  span {
+    color: var(--tp-blue-500) !important;
+  }
+
+  &:hover {
+    background-color: rgba(75, 74, 213, 0.06);
+  }
+}
+
+.oralExamBtnPlus {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--tp-blue-500);
+}
+

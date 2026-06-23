@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Eraser, Grid5, Ram, Refresh2, Setting2 } from "iconsax-reactjs";
 import { VoiceRecorderCore } from "./VoiceRecorderCore";
-import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./api/clinical-api";
+import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "./api/stacks-api-tracking";
 import {
   CaptionCarousel,
@@ -29,7 +29,6 @@ import {
   uploadAndLogVoiceRx2,
 } from "./voiceRx2Logging";
 import { transcribeAnyAudio } from "./api/agent-audio-service";
-import { getResponseRequestId } from "./api/voice-api-utils";
 import { toast } from "./toast";
 import styles from "./VoiceRxModuleCapture.module.scss";
 
@@ -392,6 +391,10 @@ function appendJsonFormField(formData, key, value) {
   formData.append(key, JSON.stringify(value));
 }
 
+function getResponseRequestId(response) {
+  return response?.headers?.get?.("x-request-id") || "";
+}
+
 function hasModulePreviousContext(value) {
   if (value === undefined || value === null) return false;
   if (Array.isArray(value)) return value.length > 0;
@@ -676,12 +679,21 @@ function normalizeDosageText(dosage) {
   };
 }
 
-function appendDosageToMedicineName(name, dosage) {
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function medicineNameContainsExactDosage(name, dosage) {
   const medicineName = String(name || "").trim();
   const dosageText = String(dosage || "").trim();
-  if (!medicineName || !dosageText) return medicineName;
-  if (medicineName.toLowerCase().includes(dosageText.toLowerCase())) return medicineName;
-  return `${medicineName} ${dosageText}`;
+  if (!medicineName || !dosageText) return false;
+
+  const numericUnitMatch = dosageText.match(/^(\d+(?:\.\d+)?)(?:\s*)([a-z].*)$/i);
+  const dosagePattern = numericUnitMatch
+    ? `${escapeRegExp(numericUnitMatch[1])}\\s*${escapeRegExp(numericUnitMatch[2])}`
+    : dosageText.split(/\s+/).map(escapeRegExp).join("\\s+");
+  const exactDosagePattern = new RegExp(`(^|[^a-z0-9.])${dosagePattern}(?=$|[^a-z0-9.])`, "i");
+  return exactDosagePattern.test(medicineName);
 }
 
 function firstTextValue(...values) {
@@ -838,8 +850,9 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
           row?.title,
           name
         );
-        const medicineNameWithDosage = appendDosageToMedicineName(medicineName, dosageText);
-        const dosage = normalizeDosageText(row?.tmm_dosage ?? "");
+        const dosage = normalizeDosageText(row?.tmm_dosage ?? dosageText);
+        const unitPerDoseText = firstTextValue(row?.tmm_dosage_unit_name, row?.unitPerDose, dosage.label);
+        const shouldUseUnitPerDose = !medicineNameContainsExactDosage(medicineName, unitPerDoseText);
         const tmmId = hasMedicineMasterId(row?.tmm_id) ? row.tmm_id : 0;
         const voiceGroupId = row?.voice_rx_group_id || row?.unique_id || createModuleVoiceId();
         return {
@@ -847,15 +860,15 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
           tmm_id: tmmId,
           voice_rx_group_id: voiceGroupId,
           voice_rx_from_module: true,
-          voice_rx_original_name: medicineNameWithDosage,
+          voice_rx_original_name: medicineName,
           tcm_tmr_type: row?.tcm_tmr_type || "M",
-          tmm_medicine_name: medicineNameWithDosage,
+          tmm_medicine_name: medicineName,
           tmm_generic: row?.tmm_generic || "",
           tmm_company: row?.tmm_company || "",
           tmm_type: row?.tmm_type || 0,
           tmm_days: row?.tmm_days ?? duration.days,
           tmm_duration_type: row?.tmm_duration_type || duration.type,
-          tmm_dosage: row?.tmm_dosage ?? dosage.value,
+          tmm_dosage: shouldUseUnitPerDose ? (row?.tmm_dosage ?? dosage.value) : "",
           tmm_unit: row?.tmm_unit ?? 0,
           tcm_tmm_freq_morning: row?.tcm_tmm_freq_morning ?? frequency.morning,
           tcm_tmm_freq_afternoon: row?.tcm_tmm_freq_afternoon ?? frequency.afternoon,
@@ -871,7 +884,7 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
           tmm_freq_type_name: row?.tmm_freq_type_name || frequency.label,
           tmf_block_val: row?.tmf_block_val || "",
           tmm_time_name: row?.tmm_time_name || row?.schedule || row?.when || "",
-          tmm_dosage_unit_name: !dosageText ? (row?.tmm_dosage_unit_name || row?.unitPerDose || "") : "",
+          tmm_dosage_unit_name: shouldUseUnitPerDose ? unitPerDoseText : "",
           tmm_days_duration_type: row?.tmm_days_duration_type || duration.label,
           quantity: row?.quantity ?? 0,
           unique_id: row?.unique_id || createModuleVoiceId(),
@@ -930,7 +943,9 @@ async function requestTranscribeAndDigitise({
   previousContext,
   patientId,
   doctorId,
-  sessionId
+  sessionId,
+  doctorName,
+  patientName
 }) {
   const moduleApiName = moduleApiNameOverride || resolveModuleApiName(moduleName);
   if (!patientId || !doctorId || !sessionId) {
@@ -944,6 +959,7 @@ async function requestTranscribeAndDigitise({
   formData.append("patient_id", String(patientId));
   formData.append("doctor_id", String(doctorId));
   formData.append("session_id", String(sessionId));
+  appendVoiceApiMetadata(formData, { doctorId, doctorName, patientName });
   formData.append("module_name", moduleApiName);
   if (customModuleName) {
     formData.append("custom_module_name", String(customModuleName));
@@ -1242,8 +1258,19 @@ export function VoiceRxModuleCapture({
   }, []);
 
   const getDigitisedData = useCallback(async ({ audioBlob }) => {
+    const doctorName = profile?.um_name || "";
+    const patientName = patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" ");
     if (isTranscribeMode) {
-      return transcribeAnyAudio({ audioBlob });
+      return transcribeAnyAudio({
+        audioBlob,
+        context: {
+          doctorName,
+          patientName,
+          patientId: patient_data?.patient_unique_id,
+          doctorId: profile?.doctor_unique_id,
+          sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+        },
+      });
     }
 
     return ENABLE_REAL_MODULE_DIGITISE_API
@@ -1257,9 +1284,11 @@ export function VoiceRxModuleCapture({
         patientId: patient_data?.patient_unique_id,
         doctorId: profile?.doctor_unique_id,
         sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+        doctorName,
+        patientName,
       })
       : { rows: dummyDigitisedData, rawResponse: null, conversation: [], moduleApiName: moduleApiName || resolveModuleApiName(moduleName) };
-  }, [customModuleName, dummyDigitisedData, getModuleSessionId, isTranscribeMode, moduleApiName, moduleName, patient_data?.patient_unique_id, previousContext, profile?.doctor_unique_id, requiredFields, voiceDigitization?.sessionId]);
+  }, [customModuleName, dummyDigitisedData, getModuleSessionId, isTranscribeMode, moduleApiName, moduleName, patient_data, previousContext, profile?.doctor_unique_id, profile?.um_name, requiredFields, voiceDigitization?.sessionId]);
 
   const handleSubmit = useCallback(({ audioBlob, transcript, durationMs, submitClickedAt, submitClickedAtMs, micBeingUsed }) => {
     if (submitInFlightRef.current) return;
@@ -1421,6 +1450,21 @@ export function VoiceRxModuleCapture({
             hideCaptions={hideCaptions}
             audioChunkContext={{
               sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+              doctorId: profile?.doctor_unique_id,
+              patientId: patient_data?.patient_unique_id,
+              doctorName: profile?.um_name,
+              patientName: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
+            }}
+            analyticsContext={{
+              patientData: patient_data,
+              profile,
+              sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+              mode: "module",
+              voicecall: voiceDigitization?.voiceCallCount || 0,
+              moduleName,
+              sourceSurface: "module",
+              voiceInputLocation: moduleName,
+              isDoctorAgent: false,
               doctorId: profile?.doctor_unique_id,
               patientId: patient_data?.patient_unique_id,
             }}

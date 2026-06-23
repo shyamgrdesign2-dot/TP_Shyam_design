@@ -1,0 +1,80 @@
+.consultation-sidebar-container {
+  display: flex;
+  height: calc(100vh - 64px);
+
+  .nav-panel {
+    width: 80px;
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 80 1133' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(64.518 65.21 -19.503 89.302 -155.96 413.08)'><stop stop-color='rgba(22,21,88,1)' offset='0'/><stop stop-color='rgba(35,34,119,1)' offset='0.25'/><stop stop-color='rgba(49,48,151,1)' offset='0.5'/><stop stop-color='rgba(75,74,213,1)' offset='1'/></radialGradient></defs></svg>"), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 10px;
+    overflow-y: auto;
+
+    .nav-item {
+      width: 100%;
+      padding: 12px 4px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+
+      .item-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+
+        .icon-container {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.2);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+
+          img {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+          }
+        }
+
+        .item-label {
+          color: #ffffff;
+          font-size: 11px;
+          text-align: center;
+          margin-top: 4px;
+          font-weight: 500;
+        }
+      }
+
+      &.active {
+        background: rgba(255, 255, 255, 0.15);
+        .icon-container {
+          background: #ffffff;
+          img {
+            filter: none; // Assuming primary icons are colored
+          }
+        }
+      }
+
+      &.ai-item {
+        margin-top: auto;
+        padding-bottom: 24px;
+      }
+    }
+  }
+
+  .tabsider, .tabsider1 {
+    background: #f8f9fa;
+    border-right: 1px solid #e0e0e0;
+    
+    .sider-content {
+      height: 100%;
+      overflow-y: auto;
+    }
+  }
+}

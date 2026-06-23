@@ -18,6 +18,7 @@ import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharect
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import { GB_ISCRIBE, GB_SNAP_RX, PAID, S_VOICE_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import moment from "moment";
@@ -207,6 +208,16 @@ function WalkInConsultationZydus() {
         if (action.meta.requestStatus === "fulfilled") {
             const result = action.payload;
             navigate("/tab-rx", { state: { patient_data: { ...result, mrno: record.mrno } } });
+        } else {
+            errorMessage(action.error);
+        }
+    };
+
+    const onTypeRxClick = async (record) => {
+        const action = await dispatch(synczyduspatient(record));
+        if (action.meta.requestStatus === "fulfilled") {
+            const result = action.payload;
+            navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: { ...result, mrno: record.mrno } } });
         } else {
             errorMessage(action.error);
         }
@@ -425,6 +436,7 @@ function WalkInConsultationZydus() {
                                 onSnapRxClick={onSnapRxClick}
                                 onVoiceRxClick={onVoiceRxClick}
                                 onTabRxClick={onTabRxClick}
+                                onTypeRxClick={onTypeRxClick}
                                 onConsultClick={onConsultClick}
                                 patient={patient}
                                 buttonStyle="walkin"
@@ -555,6 +567,7 @@ function WalkInConsultationZydus() {
                                             onSnapRxClick={onSnapRxClick}
                                             onVoiceRxClick={onVoiceRxClick}
                                             onTabRxClick={onTabRxClick}
+                                            onTypeRxClick={onTypeRxClick}
                                             onConsultClick={onConsultClick}
                                             patient={clickedPatient}
                                             setAutoCompleteFlag={setAutoCompleteFlag}
@@ -632,6 +645,7 @@ function WalkInConsultationZydus() {
                         value={searchQuery}
                         onSearch={onSearchParent}
                         options={searchOptions}
+                        data-testid="walkin-patient-search-autocomplete"
                         className={`${isMobileOnly ? "autocomplete-ios" : "w-100"
                             } autocomplete-custom`}
                         onFocus={onFocusParent}
@@ -645,6 +659,7 @@ function WalkInConsultationZydus() {
                             }`}
                     >
                         <Input
+                            data-testid="walkin-patient-search-input"
                             placeholder="Search via name, phn No or MRN (use * followed by last 6 digits of MRN eg: *234567)"
                             prefix={<i className="icon-search"></i>}
                             suffix={
