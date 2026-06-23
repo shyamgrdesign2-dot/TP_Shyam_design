@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { Col, Radio, Row, Form, Table, Collapse, Checkbox, Button, Modal, Tooltip, Switch } from "antd";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { MenuOutlined } from "@ant-design/icons";
 import { DndContext } from "@dnd-kit/core";
@@ -22,7 +21,8 @@ import { useAccess } from "../../pages/vaccination/useAccess";
 import { graphsToPrintData } from "../../pages/growthChart/growthChartHelper";
 import { getDecodedToken } from "../../utils/localStorage";
 import { env } from "../../EnvironmentConfig";
-import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE, GB_DENTAL_MODULE } from "../../utils/constants";
+import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE } from "../../utils/constants";
+import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import {
   DENTAL_EXAM_CASE_OPTION_ID,
   ORAL_EXAM_CASE_OPTION_ID,
@@ -217,8 +217,8 @@ const diagnosisCheckboxOptions = [
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
   const contextValue = useContext(PrintSettingsContext);
   const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile, isDigitisedPrintConfig, dentalExaminationData, isDentalEnabled: isDentalEnabledContext, drawingCanvases } = contextValue || {};
-  const isDentalEnabledFeature = useFeatureIsOn(GB_DENTAL_MODULE);
-  const isDentalEnabled = isDentalEnabledContext || isDentalEnabledFeature;
+  const isDentalEnabledFromHook = useIsDentalEnabled();
+  const isDentalEnabled = isDentalEnabledContext || isDentalEnabledFromHook;
 
   let dentalExamData = dentalExaminationData;
   if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {

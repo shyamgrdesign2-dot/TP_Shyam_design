@@ -24,7 +24,8 @@ import { viewDoctorWebsite } from "../redux/doctorWebsiteSlice";
 import { verifyAndAddDentalModule, verifyAndAddDentalPrintOptions } from "../utils/dentalModuleUtils";
 
 import { useLocalStorage, clearLocalStorage, getDecodedToken } from "../utils/localStorage";
-import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP, GB_DENTAL_MODULE, GB_CVT_EXT_HOS } from "../utils/constants";
+import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP, GB_CVT_EXT_HOS } from "../utils/constants";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { errorMessage, getClinicName, makeDefaultLogo, shouldMonetizationDisabled, getTokenData, getDeviceSdkData } from "../utils/utils";
 import { createAbhaPrintHandlerConfig, createAbhaDownloadHandler } from "./abhaQrHelper";
 import { Modal, Card } from "antd";
@@ -92,7 +93,7 @@ function Header({ locationPath }) {
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isAbhaQRAccessableFromGB = useFeatureIsOn("abha-qr");
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = useIsDentalEnabled();
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const tp_monetization_enable = !shouldMonetizationDisabled();
 
