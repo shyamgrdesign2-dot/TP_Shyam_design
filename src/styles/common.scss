@@ -239,15 +239,19 @@ body {
     .textcolor-29 {
         color: #92929D;
     }
-    table:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
-    p:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
-    div:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
-    span:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
-    tr:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
-    th:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
-    td:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)) {
+    table:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *, .treatment-plan, .treatment-plan *)),
+    p:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *, .treatment-plan, .treatment-plan *)),
+    div:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *, .treatment-plan, .treatment-plan *)),
+    span:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *, .treatment-plan, .treatment-plan *)),
+    tr:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *, .treatment-plan, .treatment-plan *)),
+    th:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *, .treatment-plan, .treatment-plan *)),
+    td:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *, .treatment-plan, .treatment-plan *)) {
         font-family: 'Poppins' !important;
         color: $maincolor;
+    }
+    .treatment-plan {
+        font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+        color: var(--tp-slate-800, #2C2C35);
     }
     .closable-chips .chip-vc-badge {
         color: #fff !important;

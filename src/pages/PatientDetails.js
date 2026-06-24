@@ -607,7 +607,7 @@ function PatientDetails() {
                                 }}
                             />
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? (
-                            <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
+                            <div className="treatment-plan" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
                                 <TreatmentPlanEmbed patientId={patient_data?.patient_unique_id} />
                             </div>
                         ) : null}
