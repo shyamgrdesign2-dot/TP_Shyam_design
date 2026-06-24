@@ -576,7 +576,7 @@ function MedicationsBox({ showVoiceRxModule }) {
     parentOptionsList.map((e) => {
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-        value: e.tmm_medicine_name,
+        value: isChikitsalayAccessable ? String(e.reference_id) : e.tmm_medicine_name,
         label: (
           <div data-testid="medicine-search-option">
             <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>
@@ -603,19 +603,19 @@ function MedicationsBox({ showVoiceRxModule }) {
         });
       } else {
         searchMLQuery && !isChikitsalayAccessable &&
-          data.push({
-            key: JSON.stringify({
+        data.push({
+          key: JSON.stringify({
               unique_id: uuidv4(),
-              tmm_id: 0,
-              tmm_medicine_name: searchMLQuery
-            }),
+            tmm_id: 0,
+            tmm_medicine_name: searchMLQuery
+          }),
             value: `${searchMLQuery}${Math.random()}`,
-            label: (
-              <>
-                <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{searchMLQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
-              </>
-            ),
-          });
+          label: (
+            <>
+              <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{searchMLQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
+            </>
+          ),
+        });
       }
     } else {
       if (activeSearchQuery.length == 0) {
@@ -629,19 +629,19 @@ function MedicationsBox({ showVoiceRxModule }) {
         });
       } else {
         activeSearchQuery && !isChikitsalayAccessable &&
-          data.push({
-            key: JSON.stringify({
+        data.push({
+          key: JSON.stringify({
               unique_id: uuidv4(),
-              tmm_id: 0,
-              tmm_medicine_name: activeSearchQuery
-            }),
+            tmm_id: 0,
+            tmm_medicine_name: activeSearchQuery
+          }),
             value: `${activeSearchQuery}${Math.random()}`,
-            label: (
-              <>
-                <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{activeSearchQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
-              </>
-            ),
-          });
+          label: (
+            <>
+              <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{activeSearchQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
+            </>
+          ),
+        });
       }
     }
     setParentSearchOptions(data);

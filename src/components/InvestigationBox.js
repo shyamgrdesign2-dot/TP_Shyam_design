@@ -215,7 +215,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   useEffect(() => {
     const data = [];
-    parentOptionsList.map((e) => {
+    const optionsList = isChikitsalayAccessable
+      ? parentOptionsList.filter((e) => e.hm_type === 15 && Number(e.um_id) === 0)
+      : parentOptionsList;
+
+    optionsList.forEach((e) => {
       let supplementaryIndicator = "";
       if (isChikitsalayAccessable) {
         const raw = getHmTypeIndicator(e, true);
@@ -223,7 +227,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         if (raw && raw !== "Z") supplementaryIndicator = raw;
       }
       const isWideSupplementary = supplementaryIndicator.length > 1;
-      return data.push({
+      data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.investigation_name,
         label: (
@@ -269,7 +273,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       });
     }
     else {
-      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB &&
+      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB && !isChikitsalayAccessable &&
         data.push({
           key: JSON.stringify({
             unique_id: uuidv4(),
@@ -285,7 +289,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, isChikitsalayAccessable]);
 
   const onSearchParent = useCallback(
     (query) => {
