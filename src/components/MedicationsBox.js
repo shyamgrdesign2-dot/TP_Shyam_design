@@ -1754,7 +1754,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     <Tooltip
                                       placement="top"
                                       overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                      title={`Click to search and add the medicine from your from ${inventorySourceName} list.`}
+                                      title={`Click to search and add the medicine from the ${inventorySourceName} list.`}
                                     >
                                       <InfoCircleOutlined
                                         className="fs-18"

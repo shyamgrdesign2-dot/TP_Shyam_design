@@ -50,6 +50,7 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 const {
   alerticon: alertIcon,
   lab: Investigationicon,
@@ -69,24 +70,8 @@ const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   padding: "12px 16px",
   textAlign: "center",
 };
-const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
-
 function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
-  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
-  const getPrescriptionNewPopupProps = useCallback(
-    (popupClassName = "") => {
-      if (!isPrescriptionNewContext) {
-        return popupClassName ? { popupClassName } : {};
-      }
-      return {
-        popupMatchSelectWidth: false,
-        popupClassName: [PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS, popupClassName]
-          .filter(Boolean)
-          .join(" "),
-      };
-    },
-    [isPrescriptionNewContext]
-  );
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const isChikitsalayAccessable = useChikitsalay();
   const {
     selectedInvestigationList,
@@ -433,7 +418,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
           const data = [];
           const rows = Array.isArray(action.payload) ? action.payload : [];
-          rows.map((e) => {
+          rows.forEach((e) => {
             const option = buildInvestigationSearchOption(e);
             if (option) data.push(option);
           });
@@ -876,7 +861,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                               <Tooltip
                                 placement="top"
                                 overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                title={`This ${INVESTIGATION_TITLE.toLowerCase()} is not from your ${inventorySourceName} list. Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()}.`}
+                                title={`Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()} from the ${inventorySourceName} list.`}
                               >
                                 <InfoCircleOutlined
                                   className="fs-18 flex-shrink-0"
