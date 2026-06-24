@@ -68,6 +68,7 @@ const {
 } = ASSETS.images;
 
 const { TextArea } = Input;
+const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
 const hasMedicineMasterId = (tmmId) => (
   tmmId !== undefined &&
@@ -438,17 +439,21 @@ function MedicationsBox({ showVoiceRxModule }) {
   const hasUngroundedMedications = isZydusAccount && medicationData.some(isVoiceRxUngroundedMedication);
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
-      if (!isVoiceRxModuleEnabled) {
+      if (!isPrescriptionNewContext) {
         return popupClassName ? { popupClassName } : {};
       }
       return {
         popupMatchSelectWidth: false,
-        popupClassName: [popupClassName, voiceModuleStyles.medicationWideDropdown]
+        popupClassName: [
+          PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS,
+          popupClassName,
+          isVoiceRxModuleEnabled ? voiceModuleStyles.medicationWideDropdown : "",
+        ]
           .filter(Boolean)
           .join(" "),
       };
     },
-    [isVoiceRxModuleEnabled]
+    [isPrescriptionNewContext, isVoiceRxModuleEnabled]
   );
 
   const handleViewDoseCalcDrawer = (tab, value) => {

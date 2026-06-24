@@ -69,8 +69,24 @@ const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   padding: "12px 16px",
   textAlign: "center",
 };
+const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
 function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
+  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
+  const getPrescriptionNewPopupProps = useCallback(
+    (popupClassName = "") => {
+      if (!isPrescriptionNewContext) {
+        return popupClassName ? { popupClassName } : {};
+      }
+      return {
+        popupMatchSelectWidth: false,
+        popupClassName: [PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS, popupClassName]
+          .filter(Boolean)
+          .join(" "),
+      };
+    },
+    [isPrescriptionNewContext]
+  );
   const isChikitsalayAccessable = useChikitsalay();
   const {
     selectedInvestigationList,
@@ -850,6 +866,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                   onBlur={() => handleVoiceInvestigationBlur(index)}
                                   options={childSearchOptions}
                                   className="autocomplete-custom w-100 inputborder"
+                                  {...getPrescriptionNewPopupProps()}
                                   defaultActiveFirstOption={true}
                                   onSelect={(data, e) => onSelectChild(data, e, index)}
                                 />
@@ -1050,6 +1067,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -1249,7 +1267,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
               className="autocomplete-custom w-100"
               onSelect={onSelectParent}
               defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
+              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
             >
               <Input
                 placeholder={`Search ${INVESTIGATION_TITLE}`}

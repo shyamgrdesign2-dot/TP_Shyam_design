@@ -57,8 +57,24 @@ const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
 } = ASSETS.images;
+const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
 function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoading, handleDDxKnowMore, isDDxGenerated, showVoiceRxModule}) {
+  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
+  const getPrescriptionNewPopupProps = useCallback(
+    (popupClassName = "") => {
+      if (!isPrescriptionNewContext) {
+        return popupClassName ? { popupClassName } : {};
+      }
+      return {
+        popupMatchSelectWidth: false,
+        popupClassName: [PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS, popupClassName]
+          .filter(Boolean)
+          .join(" "),
+      };
+    },
+    [isPrescriptionNewContext]
+  );
   const {
     selectedDiagnosisList,
     parentOptionsList,
@@ -697,6 +713,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                               onFocus={() => onFocusChid(index)}
                               options={childSearchOptions}
                               className="autocomplete-custom w-100 inputborder"
+                              {...getPrescriptionNewPopupProps()}
                               defaultActiveFirstOption={true}
                               onSelect={(data, e) => onSelectChild(data, e, index)}
                             />
@@ -713,6 +730,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onBlur={() => onBlurSinceChid(index)}
                             options={sinceOptions}
                             className="autocomplete-custom w-100 inputborder"
+                            {...getPrescriptionNewPopupProps()}
                             defaultActiveFirstOption={true}
                             onSelect={(data) => onSelectSinceChild(data, index)}
                           />
@@ -725,6 +743,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             value={item.status != "" ? item.status : null}
                             onSelect={(data) => onSelectStatusChild(data, index)}
                             options={STATUS_LIST}
+                            {...getPrescriptionNewPopupProps()}
                             onClear={() => onSelectStatusChild("", index)}
                             allowClear
                           />
@@ -876,6 +895,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -1089,7 +1109,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               className="autocomplete-custom w-100"
               onSelect={onSelectParent}
               defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
+              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
             >
               <Input
                 placeholder="Search Diagnosis"

@@ -50,9 +50,25 @@ const {
   alerticon: alertIcon,
   symptoms: Symptomsicon,
 } = ASSETS.images;
+const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
 function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
+  const getPrescriptionNewPopupProps = useCallback(
+    (popupClassName = "") => {
+      if (!isPrescriptionNewContext) {
+        return popupClassName ? { popupClassName } : {};
+      }
+      return {
+        popupMatchSelectWidth: false,
+        popupClassName: [PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS, popupClassName]
+          .filter(Boolean)
+          .join(" "),
+      };
+    },
+    [isPrescriptionNewContext]
+  );
   const {
     selectedSymptomsList,
     parentOptionsList,
@@ -735,6 +751,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                             onFocus={() => onFocusChid(index)}
                             options={childSearchOptions}
                             className="autocomplete-custom w-100"
+                            {...getPrescriptionNewPopupProps()}
                             defaultActiveFirstOption={true}
                             onSelect={(data, e) => onSelectChild(data, e, index)}
                           />
@@ -750,6 +767,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                             onBlur={() => onBlurSinceChid(index)}
                             options={sinceOptions}
                             className="autocomplete-custom w-100"
+                            {...getPrescriptionNewPopupProps()}
                             defaultActiveFirstOption={true}
                             onSelect={(data) => onSelectSinceChild(data, index)}
                           />
@@ -762,6 +780,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                             value={item.severity !== "" ? item.severity : null}
                             onSelect={(data) => onSelectSeverityChild(data, index)}
                             options={SEVERITY_LIST}
+                            {...getPrescriptionNewPopupProps()}
                             onClear={() => onSelectSeverityChild("", index)}
                             allowClear
                           />
@@ -922,6 +941,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -1136,7 +1156,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
               className="autocomplete-custom w-100"
               onSelect={onSelectParent}
               defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
+              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
             >
               <Input
                 placeholder="Search Symptoms"

@@ -48,9 +48,25 @@ const {
   alerticon: alertIcon,
   examination: Examinationicon,
 } = ASSETS.images;
+const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
 function ExaminationBox({ showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
+  const getPrescriptionNewPopupProps = useCallback(
+    (popupClassName = "") => {
+      if (!isPrescriptionNewContext) {
+        return popupClassName ? { popupClassName } : {};
+      }
+      return {
+        popupMatchSelectWidth: false,
+        popupClassName: [PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS, popupClassName]
+          .filter(Boolean)
+          .join(" "),
+      };
+    },
+    [isPrescriptionNewContext]
+  );
   const {
     selectedExaminationList,
     parentOptionsList,
@@ -509,6 +525,7 @@ function ExaminationBox({ showVoiceRxModule }) {
                               onFocus={() => onFocusChid(index)}
                               options={childSearchOptions}
                               className="autocomplete-custom w-100 inputborder"
+                              {...getPrescriptionNewPopupProps()}
                               defaultActiveFirstOption={true}
                               onSelect={(data, e) => onSelectChild(data, e, index)}
                             />
@@ -712,6 +729,7 @@ function ExaminationBox({ showVoiceRxModule }) {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -893,7 +911,7 @@ function ExaminationBox({ showVoiceRxModule }) {
               className="autocomplete-custom w-100"
               onSelect={onSelectParent}
               defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
+              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
             >
               <Input
                 placeholder="Search Examinations"

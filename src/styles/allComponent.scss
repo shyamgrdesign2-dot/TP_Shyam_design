@@ -1521,6 +1521,35 @@ body {
     }
   }
 }
+
+.prescription-new-wide-dropdown {
+  width: max-content !important;
+  min-width: 140px;
+  max-width: calc(100vw - 32px);
+  overflow-x: auto;
+
+  .rc-virtual-list,
+  .rc-virtual-list-holder,
+  .rc-virtual-list-holder-inner {
+    width: max-content !important;
+    min-width: 100%;
+    max-width: calc(100vw - 32px);
+  }
+
+  .ant-select-item {
+    width: max-content;
+    min-width: 100%;
+    max-width: calc(100vw - 48px);
+  }
+
+  .ant-select-item-option-content,
+  .ant-select-item-option-content .text-truncate {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    max-width: none !important;
+  }
+}
 .upload-headfoot {
   border: 1px solid $bordercolor;
   height: 100px;
