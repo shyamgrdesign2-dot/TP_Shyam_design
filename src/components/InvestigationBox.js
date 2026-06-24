@@ -124,6 +124,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
   const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
+  const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
+  const inventorySourceName = isZydusAccount ? "Zydus inventory" : "Chikitsalay investigation";
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
 
@@ -167,6 +169,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const [childSearchOptions, setChildSearchOptions] = useState([]);
   const [activeVoiceInvestigationIndex, setActiveVoiceInvestigationIndex] = useState(null);
   const voiceInvestigationSearchRequestRef = useRef(0);
+  const voiceInvestigationBlurTimeoutRef = useRef(null);
 
   //PopOver2
   const [popOver2, setPopOver2] = useState(false);
@@ -190,6 +193,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   useEffect(() => {
     dispatch(getInvestigationTemplates());
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (voiceInvestigationBlurTimeoutRef.current) {
+        window.clearTimeout(voiceInvestigationBlurTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -385,19 +396,39 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     if (isVoiceInvestigationFuzzySearchActive) return;
 
     if (searchChildQuery) {
+      const requestId = voiceInvestigationSearchRequestRef.current + 1;
+      voiceInvestigationSearchRequestRef.current = requestId;
+      const query = searchChildQuery.query;
+      const index = searchChildQuery.index;
       const timeOutId = setTimeout(() => {
         dispatch(
           searchInvestigation({
-            searchQuery: searchChildQuery.query,
+            searchQuery: query,
             type: "child",
           })
-        );
+        ).then((action) => {
+          if (
+            voiceInvestigationSearchRequestRef.current !== requestId ||
+            activeVoiceInvestigationIndex !== index ||
+            action.meta.requestStatus !== "fulfilled"
+          ) {
+            return;
+          }
+
+          const data = [];
+          const rows = Array.isArray(action.payload) ? action.payload : [];
+          rows.map((e) => {
+            const option = buildInvestigationSearchOption(e);
+            if (option) data.push(option);
+          });
+          setChildSearchOptions(data);
+        });
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     }
-  }, [isVoiceInvestigationFuzzySearchActive, searchChildQuery]);
+  }, [activeVoiceInvestigationIndex, buildInvestigationSearchOption, dispatch, isVoiceInvestigationFuzzySearchActive, searchChildQuery]);
 
   useEffect(() => {
     if (!isVoiceInvestigationFuzzySearchActive) return;
@@ -413,6 +444,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   useEffect(() => {
     if (isVoiceInvestigationFuzzySearchActive) return;
+    if (activeVoiceInvestigationIndex !== null) return;
 
     const data = [];
     childOptionsList.map((e) => {
@@ -436,12 +468,13 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     //   });
     // }
     setChildSearchOptions(data);
-  }, [buildInvestigationSearchOption, childOptionsList, isVoiceInvestigationFuzzySearchActive]);
+  }, [activeVoiceInvestigationIndex, buildInvestigationSearchOption, childOptionsList, isVoiceInvestigationFuzzySearchActive]);
 
   const onFocusChid = (i) => {
+    voiceInvestigationSearchRequestRef.current += 1;
+    setChildSearchOptions([]);
     if (isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(investigationData[i])) {
       setSearchChildQuery({ query: investigationData[i].investigation_name, index: i });
-      setChildSearchOptions([]);
       return;
     }
     setSearchChildQuery({ query: investigationData[i].investigation_name, index: i });
@@ -451,14 +484,19 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   };
 
   const handleVoiceInvestigationClick = (i) => {
+    if (voiceInvestigationBlurTimeoutRef.current) {
+      window.clearTimeout(voiceInvestigationBlurTimeoutRef.current);
+      voiceInvestigationBlurTimeoutRef.current = null;
+    }
     setActiveVoiceInvestigationIndex(i);
     onFocusChid(i);
   };
 
-  const handleVoiceInvestigationBlur = () => {
+  const handleVoiceInvestigationBlur = (i) => {
     voiceInvestigationSearchRequestRef.current += 1;
-    window.setTimeout(() => {
-      setActiveVoiceInvestigationIndex(null);
+    voiceInvestigationBlurTimeoutRef.current = window.setTimeout(() => {
+      setActiveVoiceInvestigationIndex((currentIndex) => currentIndex === i ? null : currentIndex);
+      voiceInvestigationBlurTimeoutRef.current = null;
     }, 150);
   };
 
@@ -490,6 +528,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       setInvestigationData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).investigation_name, index: i });
       setActiveVoiceInvestigationIndex(null);
+      setChildSearchOptions([]);
     },
     [searchChildQuery, investigationData]
   );
@@ -784,7 +823,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                               handleVoiceInvestigationClick(index);
                             }
                           }}
-                          style={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
+                          style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
                         >
                           <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
@@ -808,7 +847,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                   open={activeVoiceInvestigationIndex === index ? true : undefined}
                                   onSearch={(query) => onSearchChild(query, index)}
                                   onFocus={() => onFocusChid(index)}
-                                  onBlur={handleVoiceInvestigationBlur}
+                                  onBlur={() => handleVoiceInvestigationBlur(index)}
                                   options={childSearchOptions}
                                   className="autocomplete-custom w-100 inputborder"
                                   defaultActiveFirstOption={true}
@@ -816,11 +855,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                 />
                               )}
                             </div>
-                            {isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) && (
+                            {isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isVoiceRxModuleInvestigation(item) && (
                               <Tooltip
                                 placement="top"
                                 overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                title={`This ${INVESTIGATION_TITLE.toLowerCase()} is not from your Zydus inventory list. Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()}.`}
+                                title={`This ${INVESTIGATION_TITLE.toLowerCase()} is not from your ${inventorySourceName} list. Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()}.`}
                               >
                                 <InfoCircleOutlined
                                   className="fs-18 flex-shrink-0"
@@ -831,7 +870,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                             {supplementaryIndicator && (
                               <span
                                 className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${
-                                  isWideSupplementary ? "rounded-pill" : "rounded-circle"
+                                  isWideSupplementary ? "rounded-pill me-2" : "rounded-circle"
                                 }`}
                                 style={{
                                   minWidth: isWideSupplementary ? 26 : 18,
@@ -878,7 +917,15 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         </Droppable>
       </DragDropContext>
     );
-  }, [activeVoiceInvestigationIndex, investigationData, childSearchOptions, isChikitsalayAccessable]);
+  }, [
+    activeVoiceInvestigationIndex,
+    childSearchOptions,
+    investigationData,
+    inventorySourceName,
+    isChikitsalayAccessable,
+    isVoiceRxModuleEnabled,
+    shouldShowInventorySourceWarning,
+  ]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
