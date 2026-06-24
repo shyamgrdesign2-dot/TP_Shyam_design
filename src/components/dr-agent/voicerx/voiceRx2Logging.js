@@ -108,6 +108,98 @@ export function trackVoiceRx2RecorderEvent(eventName, payload = {}) {
   }
 }
 
+export async function uploadAndTrackVoiceRx2LowSpeechBlock({
+  audioBlob,
+  patientData,
+  profile,
+  sessionId,
+  submitId,
+  requestId,
+  submitClickedAt,
+  submitClickedAtMs,
+  durationMs = 0,
+  mode = "dictation",
+  fromVoiceRecording = false,
+  voicecall = 0,
+  moduleName = "",
+  sourceSurface = "",
+  voiceInputLocation = "",
+  isDoctorAgent = false,
+  micBeingUsed = "",
+  extra = {},
+  speechAnalysis = {},
+}) {
+  const startedAtMs = submitClickedAtMs || Date.now();
+  let uploadResponse = null;
+  let uploadError = null;
+  let source = "";
+  const uploadStartedAtMs = Date.now();
+
+  try {
+    if (!audioBlob?.size) {
+      throw new Error("No audio recording found for upload.");
+    }
+    uploadResponse = await uploadVoiceAudio(createAudioFile(audioBlob, "voice-rx-2-low-speech"));
+    source = normalizeUploadSource(uploadResponse);
+  } catch (error) {
+    uploadError = error;
+  }
+
+  const uploadCompletedAtMs = Date.now();
+  const uploadFailed = Boolean(uploadError);
+  const eventPayload = buildVoiceRx2EventPayload({
+    patientData,
+    profile,
+    sessionId,
+    submitId,
+    requestId,
+    durationMs,
+    mode,
+    fromVoiceRecording,
+    voicecall,
+    moduleName,
+    sourceSurface,
+    voiceInputLocation,
+    isDoctorAgent,
+    micBeingUsed,
+    extra: {
+      ...extra,
+      prescriptionUrl: source,
+      prescriptionUrls: source ? [source] : [],
+      network: uploadFailed ? "unstable" : "stable",
+      voiceApiCalled: false,
+      audioSizeBytes: audioBlob?.size || 0,
+      audioMimeType: audioBlob?.type || "audio/webm",
+      upload_latency_ms: uploadCompletedAtMs - uploadStartedAtMs,
+      upload_failed: uploadFailed,
+      upload_error_message: getErrorMessage(uploadError),
+      status: "blocked",
+      voice_failed: true,
+      failedPhase: "vad-precheck",
+      error_message: "Speech coverage below threshold. User must re-record.",
+      retry_attempts: 0,
+      submitClickedAt,
+      uploadCompletedAt: new Date(uploadCompletedAtMs).toISOString(),
+      timeFromSubmitToUploadMs: uploadCompletedAtMs - startedAtMs,
+      timeFromSubmitToLogMs: Date.now() - startedAtMs,
+      ...speechAnalysis,
+    },
+  });
+
+  try {
+    trackEvent("TP_Voice_V2_Low_Speech_Ratio_Blocked", eventPayload);
+  } catch (error) {
+    console.error("[voice-rx-2/low-speech-event] Failed", error?.message || error);
+  }
+
+  return {
+    source,
+    uploadResponse,
+    uploadError,
+    eventPayload,
+  };
+}
+
 export function buildVoiceHistoryEntry({
   type,
   source = "",
