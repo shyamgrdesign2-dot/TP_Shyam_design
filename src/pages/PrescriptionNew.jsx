@@ -93,7 +93,7 @@ import {
 import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
-import { appendStripped } from "../utils/voiceRxRowStrip";
+import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
@@ -226,13 +226,10 @@ function parseFollowUpDate(value, baseDate) {
   return base.clone().add(amount, unit).format("YYYY-MM-DD");
 }
 
-function appendFollowUpNote(setAdditionalNote, value) {
+function appendAdditionalNote(setAdditionalNote, value) {
   const text = String(value ?? "").trim();
   if (!text) return;
-  setAdditionalNote((prev) => {
-    const current = String(prev || "").trim();
-    return current ? `${current}\n${text}` : text;
-  });
+  setAdditionalNote((prev) => appendDedupedText(prev, text));
 }
 
 function hasCopiedCustomModuleValue(value) {
@@ -503,7 +500,7 @@ function PrescriptionNewRxPadCopyListener() {
     const digitization = payload.digitization || {};
     const appendRows = (setter, rows, moduleKey) => {
       if (!rows.length) return;
-      setter((prev) => appendStripped(prev, rows, moduleKey));
+      setter((prev) => mergeCopiedRows(prev, rows, moduleKey));
     };
 
     const symptoms = firstNonEmpty(digitization.symptoms, payload.symptoms);
@@ -536,7 +533,8 @@ function PrescriptionNewRxPadCopyListener() {
           frequencyList
         ),
         timingList
-      )
+      ),
+      "medications"
     );
 
     const investigations = firstNonEmpty(
@@ -554,7 +552,8 @@ function PrescriptionNewRxPadCopyListener() {
     const advice = firstNonEmpty(digitization.advice, payload.advice);
     appendRows(
       setAdviceData,
-      normalizeModuleRows({ advice: toArray(advice) }, "advice")
+      normalizeModuleRows({ advice: toArray(advice) }, "advice"),
+      "advice"
     );
 
     const copiedVitals = payload.skipVitalsSync
@@ -664,7 +663,8 @@ function PrescriptionNewRxPadCopyListener() {
       if (parsedDate) {
         setFollowUpDate(parsedDate);
       } else {
-        appendFollowUpNote(setAdditionalNote, item);
+        const followUpText = String(item ?? "").trim();
+        if (followUpText) setFollowUpDate(followUpText);
       }
     });
 
@@ -673,7 +673,7 @@ function PrescriptionNewRxPadCopyListener() {
       digitization.additionalNotes,
       payload.additionalNotes
     );
-    toArray(additionalNotes).forEach((item) => appendFollowUpNote(setAdditionalNote, item));
+    toArray(additionalNotes).forEach((item) => appendAdditionalNote(setAdditionalNote, item));
 
     const copiedModuleContents = firstNonEmpty(
       digitization.moduleContents,
