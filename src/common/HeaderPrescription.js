@@ -225,8 +225,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tokenData = getDecodedToken()?.result;
     const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
-    const shouldRequireInventoryLinkedMedications = isZydusAccount || isChikitsalayAccessable;
-    const hasUngroundedMedications = shouldRequireInventoryLinkedMedications && medicationData.some(
+    const hasUngroundedMedications = isZydusAccount && medicationData.some(
       (item) => !!item?.voice_rx_from_module && !(Number(item?.tmm_id) > 0)
     );
     const [saveDraftLoading, setSaveDraftLoading] = useState(false);

@@ -7,7 +7,7 @@ import CashManagerContext from "../context/CashManagerContext";
 import { useRxPadSync } from "./dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { normalizeModuleRows } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import { toast } from "./dr-agent/voicerx/toast";
-import { appendStripped } from "../utils/voiceRxRowStrip";
+import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
 import { addUpdateVitals } from "../redux/vitalsSlice";
 import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
 import { errorMessage } from "../utils/utils";
@@ -77,13 +77,10 @@ function parseFollowUpDate(value, baseDate) {
   return base.clone().add(amount, unit).format("YYYY-MM-DD");
 }
 
-function appendFollowUpNote(setAdditionalNote, value) {
+function appendAdditionalNote(setAdditionalNote, value) {
   const text = String(value ?? "").trim();
   if (!text) return;
-  setAdditionalNote((prev) => {
-    const current = String(prev || "").trim();
-    return current ? `${current}\n${text}` : text;
-  });
+  setAdditionalNote((prev) => appendDedupedText(prev, text));
 }
 
 function hasCopiedCustomModuleValue(value) {
@@ -354,7 +351,7 @@ export default function ConsultationRxPadCopyListener() {
     const digitization = payload.digitization || {};
     const appendRows = (setter, rows, moduleKey) => {
       if (!rows.length) return;
-      setter((prev) => appendStripped(prev, rows, moduleKey));
+      setter((prev) => mergeCopiedRows(prev, rows, moduleKey));
     };
 
     const symptoms = firstNonEmpty(digitization.symptoms, payload.symptoms);
@@ -387,7 +384,8 @@ export default function ConsultationRxPadCopyListener() {
           frequencyList
         ),
         timingList
-      )
+      ),
+      "medications"
     );
 
     const investigations = firstNonEmpty(
@@ -405,7 +403,8 @@ export default function ConsultationRxPadCopyListener() {
     const advice = firstNonEmpty(digitization.advice, payload.advice);
     appendRows(
       setAdviceData,
-      normalizeModuleRows({ advice: toArray(advice) }, "advice")
+      normalizeModuleRows({ advice: toArray(advice) }, "advice"),
+      "advice"
     );
 
     const copiedVitals = firstNonEmpty(
@@ -513,7 +512,8 @@ export default function ConsultationRxPadCopyListener() {
       if (parsedDate) {
         setFollowUpDate(parsedDate);
       } else {
-        appendFollowUpNote(setAdditionalNote, item);
+        const followUpText = String(item ?? "").trim();
+        if (followUpText) setFollowUpDate(followUpText);
       }
     });
 
@@ -522,7 +522,7 @@ export default function ConsultationRxPadCopyListener() {
       digitization.additionalNotes,
       payload.additionalNotes
     );
-    toArray(additionalNotes).forEach((item) => appendFollowUpNote(setAdditionalNote, item));
+    toArray(additionalNotes).forEach((item) => appendAdditionalNote(setAdditionalNote, item));
 
     const copiedModuleContents = firstNonEmpty(
       digitization.moduleContents,

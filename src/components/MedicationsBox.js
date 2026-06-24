@@ -68,6 +68,7 @@ const {
 } = ASSETS.images;
 
 const { TextArea } = Input;
+const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
 const hasMedicineMasterId = (tmmId) => (
   tmmId !== undefined &&
@@ -433,21 +434,26 @@ function MedicationsBox({ showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const isTablet = useTabletViewport();
   const prescriptionNewTabletOverlayZIndex = isVoiceRxModuleEnabled && isTablet ? 1305 : undefined;
-  const shouldRequireInventoryLinkedMedications = isZydusAccount || isChikitsalayAccessable;
-  const hasUngroundedMedications = shouldRequireInventoryLinkedMedications && medicationData.some(isVoiceRxUngroundedMedication);
+  const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
+  const inventorySourceName = isZydusAccount ? "Zydus inventory" : "Chikitsalay medicine";
+  const hasUngroundedMedications = isZydusAccount && medicationData.some(isVoiceRxUngroundedMedication);
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
-      if (!isVoiceRxModuleEnabled) {
+      if (!isPrescriptionNewContext) {
         return popupClassName ? { popupClassName } : {};
       }
       return {
         popupMatchSelectWidth: false,
-        popupClassName: [popupClassName, voiceModuleStyles.medicationWideDropdown]
+        popupClassName: [
+          PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS,
+          popupClassName,
+          isVoiceRxModuleEnabled ? voiceModuleStyles.medicationWideDropdown : "",
+        ]
           .filter(Boolean)
           .join(" "),
       };
     },
-    [isVoiceRxModuleEnabled]
+    [isPrescriptionNewContext, isVoiceRxModuleEnabled]
   );
 
   const handleViewDoseCalcDrawer = (tab, value) => {
@@ -1708,7 +1714,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
-                            style={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
+                            style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
                           >
                             <div className={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
                               {isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? (
@@ -1744,11 +1750,11 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     )}
                                     {renderHmTypeBadge(item, { hideZ: !isPrescriptionNewContext })}
                                   </div>
-                                  {isZydusAccount && (
+                                  {shouldShowInventorySourceWarning && (
                                     <Tooltip
                                       placement="top"
                                       overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                      title="This medication is not from your Zydus inventory list. Click to search and add the medicine."
+                                      title={`Click to search and add the medicine from the ${inventorySourceName} list.`}
                                     >
                                       <InfoCircleOutlined
                                         className="fs-18"
@@ -1930,7 +1936,18 @@ function MedicationsBox({ showVoiceRxModule }) {
         </DragDropContext>
       </div>
     );
-  }, [medicationData, frequencyPopOver, parentSearchOptions, renderHmTypeBadge, renderSelectedMedicineStock, voiceMedicineEdit, isVoiceRxModuleEnabled, isPrescriptionNewContext]);
+  }, [
+    frequencyPopOver,
+    inventorySourceName,
+    isPrescriptionNewContext,
+    isVoiceRxModuleEnabled,
+    medicationData,
+    parentSearchOptions,
+    renderHmTypeBadge,
+    renderSelectedMedicineStock,
+    shouldShowInventorySourceWarning,
+    voiceMedicineEdit,
+  ]);
 
   //Child Component
   // const TABLE_MEDICATION = useMemo(() => {
