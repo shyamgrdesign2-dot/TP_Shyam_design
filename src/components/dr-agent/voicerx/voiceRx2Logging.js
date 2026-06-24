@@ -255,6 +255,7 @@ export async function uploadAndLogVoiceRx2({
   transcript,
   digitizeData,
   previousContext = null,
+  speechAnalysis = {},
 }) {
   const startedAtMs = submitClickedAtMs || Date.now();
   let uploadResponse = null;
@@ -322,6 +323,7 @@ export async function uploadAndLogVoiceRx2({
       transcript: transcript ?? "",
       digitizeData: digitizeData != null ? JSON.stringify(digitizeData) : null,
       previousContext: previousContext != null ? JSON.stringify(previousContext) : null,
+      ...speechAnalysis,
     },
   });
   trackEvent("TP_Voice_V2_Submit_Click", eventPayload);

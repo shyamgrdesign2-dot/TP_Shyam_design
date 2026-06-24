@@ -135,6 +135,14 @@ function getSilenceDetectorThresholdMs(config) {
   return Number.isFinite(value) && value > 0 ? value : DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS;
 }
 
+function getVadMinSpeechCoverageRatio(config) {
+  const value = Number(config?.vadMinSpeechCoverageRatio);
+  if (!Number.isFinite(value) || value <= 0) return VAD_MIN_SPEECH_COVERAGE_RATIO;
+  if (value > 1 && value <= 100) return value / 100;
+  if (value <= 1) return value;
+  return VAD_MIN_SPEECH_COVERAGE_RATIO;
+}
+
 function isVadEnabled(config) {
   return config?.enableVAD === true;
 }
@@ -162,7 +170,7 @@ function createEmptyVadSpeechAnalysis() {
   };
 }
 
-function buildVadSpeechAnalysisSnapshot(stats, durationMs) {
+function buildVadSpeechAnalysisSnapshot(stats, durationMs, minSpeechCoverageRatio = VAD_MIN_SPEECH_COVERAGE_RATIO) {
   const analyzedDurationMs = Math.max(0, Math.round(stats?.analyzedDurationMs || 0));
   const speechDurationMs = Math.max(0, Math.round(stats?.speechDurationMs || 0));
   const totalFrames = Math.max(0, stats?.totalFrames || 0);
@@ -174,8 +182,8 @@ function buildVadSpeechAnalysisSnapshot(stats, durationMs) {
   return {
     vadEnabled: true,
     detector: "ricky0123_vad",
-    minSpeechCoverageRatio: VAD_MIN_SPEECH_COVERAGE_RATIO,
-    minSpeechCoveragePercent: Math.round(VAD_MIN_SPEECH_COVERAGE_RATIO * 100),
+    minSpeechCoverageRatio,
+    minSpeechCoveragePercent: Math.round(minSpeechCoverageRatio * 100),
     speechCoverageRatio,
     speechCoveragePercent: Math.round(speechCoverageRatio * 100),
     speechFrameRatio,
@@ -1092,6 +1100,7 @@ export function VoiceRecorderCore({
   const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
   const enableVAD = isVadEnabled(tpConfigData);
   const silenceDetectorThresholdMs = getSilenceDetectorThresholdMs(tpConfigData);
+  const vadMinSpeechCoverageRatio = getVadMinSpeechCoverageRatio(tpConfigData);
   const publishesCollapsedVoiceSession = isFullscreen || enableCollapsedVoiceSession;
   const rootRef = useRef(null);
   const transcriptScrollRef = useRef(null);
@@ -1686,12 +1695,12 @@ export function VoiceRecorderCore({
     try { audioBlob = await getBlob(); } catch (e) { console.error("Failed to capture audio blob", e); }
     try { await flushFinalChunks(); } catch (e) { console.error("Failed to flush audio chunks", e); }
     const transcript = isFullscreen ? syncedExternalTranscript : liveDisplayText;
-    const speechAnalysis = buildVadSpeechAnalysisSnapshot(vadSpeechAnalysisRef.current, elapsedMs);
+    const speechAnalysis = buildVadSpeechAnalysisSnapshot(vadSpeechAnalysisRef.current, elapsedMs, vadMinSpeechCoverageRatio);
     const shouldBlockForLowSpeechCoverage = Boolean(
       enableVAD &&
       audioBlob?.size &&
       speechAnalysis.canEvaluateSpeechCoverage &&
-      speechAnalysis.speechCoverageRatio < VAD_MIN_SPEECH_COVERAGE_RATIO
+      speechAnalysis.speechCoverageRatio < vadMinSpeechCoverageRatio
     );
     if (shouldBlockForLowSpeechCoverage) {
       submitProcessingRef.current = false;
@@ -1706,14 +1715,14 @@ export function VoiceRecorderCore({
     }
     resetVadSpeechAnalysis();
     try {
-      await onSubmit?.({ audioBlob, transcript, durationMs: elapsedMs, submitClickedAt, submitClickedAtMs, micBeingUsed: activeDevice?.label || "" });
+      await onSubmit?.({ audioBlob, transcript, durationMs: elapsedMs, submitClickedAt, submitClickedAtMs, micBeingUsed: activeDevice?.label || "", speechAnalysis });
     } catch (e) {
       console.error("Voice submit failed", e);
     } finally {
       submitProcessingRef.current = false;
       setSubmitProcessing(false);
     }
-  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, flushFinalChunks, onSubmit, syncedExternalTranscript, liveDisplayText, elapsedMs, enableVAD, handleLowSpeechCoverageBlock, resetVadSpeechAnalysis, activeDevice?.label]);
+  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, flushFinalChunks, onSubmit, syncedExternalTranscript, liveDisplayText, elapsedMs, enableVAD, vadMinSpeechCoverageRatio, handleLowSpeechCoverageBlock, resetVadSpeechAnalysis, activeDevice?.label]);
 
   const submitRequestSeenRef = useRef(voiceSubmitRequest);
   useEffect(() => {
