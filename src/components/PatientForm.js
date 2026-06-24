@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { errorMessage, getClinic, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { useDeviceType } from "../utils/deviceDetection";
 
@@ -395,7 +396,7 @@ function PatientForm({ mode = ADD, patient_data }) {
         navigate("/tab-rx", { state: { patient_data: patient } });
     };
     const onTypeRxClick = (patient) => {
-        navigate("/dental", { state: { patient_data: patient } });
+        navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: patient } });
     };
 
     return (

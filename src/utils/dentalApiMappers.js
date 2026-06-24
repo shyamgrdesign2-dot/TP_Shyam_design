@@ -51,12 +51,15 @@ export const toDentalToothState = (payload = {}) => {
     const toothCode = String(tooth.tooth_code || "");
     if (!toothCode) return;
 
-    // Split treatment_history into primary-diagnosis chips (marked __dx__) and real rows.
-    const diagnosisNames = [];
+    // Every non-__dx__ history row is an active chip. Keep __dx__ as a read-only
+    // backward-compat path for records saved before this change. Set deduplicates
+    // old records that have both a __dx__ row and a real row for the same name.
+    const diagnosisNamesSet = new Set();
     const historyRows = [];
     for (const h of tooth.treatment_history || []) {
       if (h.notes === DX_MARKER) {
-        diagnosisNames.push(h.name);
+        // ponytail: backward compat only — never written by new code
+        diagnosisNamesSet.add(h.name);
       } else {
         historyRows.push({
           id: h.id,
@@ -66,6 +69,7 @@ export const toDentalToothState = (payload = {}) => {
           notes: h.notes || "",
           version: h.version,
         });
+        diagnosisNamesSet.add(h.name);
       }
     }
 
@@ -88,8 +92,8 @@ export const toDentalToothState = (payload = {}) => {
         version: procedure.version,
       })),
       treatmentHistory: historyRows,
-      diagnoses: diagnosisNames,
-      visualTypes: [...toVisualTypeSet(new Set(diagnosisNames))],
+      diagnoses: [...diagnosisNamesSet],
+      visualTypes: [...toVisualTypeSet(diagnosisNamesSet)],
       notes: tooth.overall_notes || "",
     };
   });

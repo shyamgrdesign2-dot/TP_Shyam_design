@@ -9,6 +9,7 @@ import { getOralAreas } from "../api/services/ApiOral";
 import { DIAGNOSES, PROCEDURE_CATALOG, ALL_ZONES } from "../components/dental/examination/types";
 import { buildInitialDentalBillingItems } from "../utils/dentalBillingCatalog";
 import { getDentalApiPayload } from "../utils/dentalApiMappers";
+import { buildVisualTypeMap } from "../utils/dentalVisualTypes";
 
 const initialState = {
   surfaces: [],
@@ -18,10 +19,14 @@ const initialState = {
   toothMapAdult: null,
   toothMapPediatric: null,
   oralAreaItems: [],
+  visualTypeMap: null,
   billingItems: buildInitialDentalBillingItems(),
   fetchedAt: null,
   loading: false,
   error: null,
+  oralDiagnoses: [],
+  oralSurfaceFindings: [],
+  oralProcedures: [],
 };
 
 // Helper to normalize API data with fallbacks
@@ -42,13 +47,17 @@ export const fetchAllDentalMasters = createAsyncThunk(
         surfacesRes,
         diagnosesRes,
         proceduresRes,
+        oralDiagnosesRes,
+        oralProceduresRes,
         toothMapAdultRes,
         toothMapPediatricRes,
         oralAreasRes,
       ] = await Promise.all([
         getSurfaces(),
-        getDiagnoses(),
-        getProcedures(),
+        getDiagnoses("dental"),
+        getProcedures("dental"),
+        getDiagnoses("oral"),
+        getProcedures("oral"),
         getToothMap("adult"),
         getToothMap("pediatric"),
         getOralAreas(),
@@ -65,14 +74,31 @@ export const fetchAllDentalMasters = createAsyncThunk(
           : Array.isArray(diagnosesPayload)
             ? diagnosesPayload
             : [];
+
+      const oralDiagnosesPayload = getDentalApiPayload(oralDiagnosesRes);
+      const rawOralSurfaceFindings = Array.isArray(oralDiagnosesPayload?.surface_findings)
+        ? oralDiagnosesPayload.surface_findings
+        : [];
+      const rawOralDiagnoses = Array.isArray(oralDiagnosesPayload?.tooth_diagnoses)
+        ? oralDiagnosesPayload.tooth_diagnoses
+        : Array.isArray(oralDiagnosesPayload?.items)
+          ? oralDiagnosesPayload.items
+          : Array.isArray(oralDiagnosesPayload)
+            ? oralDiagnosesPayload
+            : [];
+      const rawProcedures = getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes) || [];
       return {
         surfaces: normalize(getDentalApiPayload(surfacesRes)?.items || getDentalApiPayload(surfacesRes), ALL_ZONES),
+        rawDiagnosesMeta: [...rawToothDiagnoses, ...(Array.isArray(rawProcedures) ? rawProcedures : [])],
         diagnoses: normalize(rawToothDiagnoses, []),
         surfaceFindings: normalize(rawSurfaceFindings, DIAGNOSES),
-        procedures: normalize(getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes), PROCEDURE_CATALOG, 'label'),
+        procedures: normalize(Array.isArray(rawProcedures) ? rawProcedures : [], PROCEDURE_CATALOG, 'label'),
         toothMapAdult: getDentalApiPayload(toothMapAdultRes) || null,
         toothMapPediatric: getDentalApiPayload(toothMapPediatricRes) || null,
         oralAreaItems: getDentalApiPayload(oralAreasRes)?.items || [],
+        oralDiagnoses: normalize(rawOralDiagnoses, []),
+        oralSurfaceFindings: normalize(rawOralSurfaceFindings, []),
+        oralProcedures: normalize(getDentalApiPayload(oralProceduresRes)?.items || getDentalApiPayload(oralProceduresRes), [], 'label'),
       };
     } catch (err) {
       return rejectWithValue(err.message);
@@ -106,6 +132,10 @@ const dentalMastersSlice = createSlice({
         state.toothMapAdult = action.payload.toothMapAdult;
         state.toothMapPediatric = action.payload.toothMapPediatric;
         state.oralAreaItems = action.payload.oralAreaItems;
+        state.oralDiagnoses = action.payload.oralDiagnoses;
+        state.oralSurfaceFindings = action.payload.oralSurfaceFindings;
+        state.oralProcedures = action.payload.oralProcedures;
+        state.visualTypeMap = buildVisualTypeMap(action.payload.rawDiagnosesMeta);
         state.fetchedAt = Date.now();
       })
       .addCase(fetchAllDentalMasters.rejected, (state, action) => {
@@ -118,4 +148,5 @@ const dentalMastersSlice = createSlice({
 export const { setDentalBillingItems, addDentalBillingItem } = dentalMastersSlice.actions;
 export const selectDentalMasters = (state) => state.dentalMasters;
 export const selectDentalBillingItems = (state) => state.dentalMasters.billingItems;
+export const selectVisualTypeMap = (state) => state.dentalMasters.visualTypeMap;
 export default dentalMastersSlice.reducer;

@@ -14,10 +14,9 @@
 const COMPATIBLE = {
   Missing: [],
   Denture: [],
-  Bridge: [],
+  Bridge:  [],
   Implant: ["Crown"],
-  RCT: ["Crown"],
-  Crown: ["Implant", "RCT"],
+  RCT:     ["Crown"],
 };
 
 export function applyDiagnosisSelection(current, clicked) {
@@ -27,10 +26,13 @@ export function applyDiagnosisSelection(current, clicked) {
     next.delete(clicked);
     return next;
   }
-  // Drop any existing diagnosis not in clicked's compatibility list.
-  const allowed = new Set(COMPATIBLE[clicked] ?? []);
-  for (const d of Array.from(next)) {
-    if (!allowed.has(d)) next.delete(d);
+  // Compatibility rules only apply between COMPATIBLE-tracked procedures.
+  // Catalog procedures not in the map are purely additive.
+  if (clicked in COMPATIBLE) {
+    const allowed = new Set(COMPATIBLE[clicked] ?? []);
+    for (const d of Array.from(next)) {
+      if (d in COMPATIBLE && !allowed.has(d)) next.delete(d);
+    }
   }
   next.add(clicked);
   return next;

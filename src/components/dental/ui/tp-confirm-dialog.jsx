@@ -3,6 +3,12 @@ import { Danger } from "iconsax-reactjs";
 import { X } from "lucide-react";
 import styles from "./tp-confirm-dialog.module.scss";
 
+import {
+  trackConfirmDialogPrimary,
+  trackConfirmDialogSecondary,
+  trackConfirmDialogShown,
+} from "../../../utils/dentalMoengage";
+
 export function TPConfirmDialog({
   open,
   onOpenChange,
@@ -16,14 +22,28 @@ export function TPConfirmDialog({
   primaryLabel,
   onPrimary,
   primaryTone = "primary",
-  primaryDisabled = false
+  primaryDisabled = false,
+  analytics = null,
 }) {
+  const handleOpenChange = (nextOpen) => {
+    if (nextOpen && analytics) {
+      trackConfirmDialogShown(analytics);
+    }
+    onOpenChange?.(nextOpen);
+  };
+
   const handleSecondary = (e) => {
+    if (analytics) {
+      trackConfirmDialogSecondary(analytics);
+    }
     if (onSecondary) {
       onSecondary();
     }
   };
   const handlePrimary = (e) => {
+    if (analytics) {
+      trackConfirmDialogPrimary(analytics);
+    }
     if (onPrimary) {
       onPrimary();
     }
@@ -40,7 +60,7 @@ export function TPConfirmDialog({
     secondaryTone === "muted" ? styles.secondaryBtnMuted : styles.secondaryBtnLink;
 
   return (
-    <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <AlertDialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <AlertDialogPrimitive.Portal>
         <AlertDialogPrimitive.Overlay className={styles.overlay} />
         <AlertDialogPrimitive.Content className={styles.content} aria-describedby={undefined}>

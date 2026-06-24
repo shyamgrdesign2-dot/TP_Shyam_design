@@ -1,6 +1,5 @@
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import { DX_MARKER } from "../../../utils/dentalApiMappers";
 
 dayjs.extend(customParseFormat);
 
@@ -34,15 +33,6 @@ export const transformToothStateToApi = (toothState) => {
     const entryFindings = Array.isArray(data.entryFindings) ? data.entryFindings : [];
     const procedures = Array.isArray(data.procedures) ? data.procedures : [];
 
-    // Primary diagnosis chips (Missing, Crown, RCT…) serialized as treatment_history entries
-    // with DX_MARKER in notes so they can be round-tripped back to toothDiagnoses on load.
-    const diagnoses = Array.isArray(data.diagnoses) ? data.diagnoses : [];
-    const diagEntries = diagnoses.map((name) => ({
-      name,
-      surface_codes: ["whole"],
-      notes: DX_MARKER,
-    }));
-
     // treatmentHistory may be an array (legacy) or an object map { name: { surfaces, since, note } }
     const rawHistory = data.treatmentHistory;
     const historyEntries = Array.isArray(rawHistory)
@@ -58,6 +48,19 @@ export const transformToothStateToApi = (toothState) => {
     // to prevent duplicates when the same finding is hydrated into both paths on load.
     const seenFindingIds = new Set();
     const combinedFindings = [
+      // Entry-tab findings first: most authoritative source (latest notes, full surface list, since).
+      ...entryFindings.map((f) => {
+        const since = sinceToDate(f.since || "");
+        return {
+          ...(f.id ? { id: f.id } : {}),
+          name: f.name,
+          surface_codes: f.surfaces?.length ? f.surfaces : ["whole"],
+          notes: f.notes || "",
+          ...(since ? { since_date: since } : {}),
+        };
+      }),
+      // Canvas zone findings second: fallback for findings added directly on the canvas
+      // that have no entry-tab counterpart.
       ...findings.map((f) => {
         const since = sinceToDate(f.since_date || "");
         return {
@@ -68,12 +71,6 @@ export const transformToothStateToApi = (toothState) => {
           ...(since ? { since_date: since } : {}),
         };
       }),
-      ...entryFindings.map((f) => ({
-        ...(f.id ? { id: f.id } : {}),
-        name: f.name,
-        surface_codes: f.surfaces?.length ? f.surfaces : ["whole"],
-        notes: f.notes || "",
-      })),
     ].filter((f) => {
       if (f.id && seenFindingIds.has(f.id)) return false;
       if (f.id) seenFindingIds.add(f.id);
@@ -92,7 +89,6 @@ export const transformToothStateToApi = (toothState) => {
         notes: p.notes || "",
       })),
       treatment_history: [
-        ...diagEntries,
         ...historyEntries.map((h) => {
           const since = sinceToDate(h.since_date || h.since || "");
           return {

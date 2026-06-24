@@ -18,6 +18,7 @@ import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharect
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import { GB_ISCRIBE, GB_SNAP_RX, PAID, S_VOICE_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import moment from "moment";
@@ -216,7 +217,7 @@ function WalkInConsultationZydus() {
         const action = await dispatch(synczyduspatient(record));
         if (action.meta.requestStatus === "fulfilled") {
             const result = action.payload;
-            navigate("/dental", { state: { patient_data: { ...result, mrno: record.mrno } } });
+            navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: { ...result, mrno: record.mrno } } });
         } else {
             errorMessage(action.error);
         }

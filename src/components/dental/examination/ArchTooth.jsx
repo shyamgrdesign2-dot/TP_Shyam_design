@@ -41,6 +41,7 @@ const ArchTooth = memo(function ArchTooth({
   onClick,
   onPin,
   treatmentHistoryDetails = {},
+  visualTypeMap,
 }) {
   const { gl, camera } = useThree();
   const gltf = useGLTF(tooth.modelPath, "/draco/");
@@ -49,7 +50,7 @@ const ArchTooth = memo(function ArchTooth({
   const outerGroupRef = useRef(null); // mirrorX group (parentGroup for diagnosis visuals)
   const meshRef = useRef(null);
 
-  const resolvedVisualTypes = toVisualTypeSet(diagnoses ?? new Set());
+  const resolvedVisualTypes = toVisualTypeSet(diagnoses ?? new Set(), visualTypeMap);
   const hasCrown = resolvedVisualTypes.has(VISUAL_TYPE.CROWN) || Boolean(treatmentHistoryDetails?.Crown);
   const hasRCT = resolvedVisualTypes.has(VISUAL_TYPE.RCT) || Boolean(treatmentHistoryDetails?.RCT);
   const hasBridge = resolvedVisualTypes.has(VISUAL_TYPE.BRIDGE) || Boolean(treatmentHistoryDetails?.Bridge);

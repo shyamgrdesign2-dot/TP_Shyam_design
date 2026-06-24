@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Trash, Add, SearchNormal1 } from "iconsax-reactjs";
+import { Trash, Add, SearchNormal1, Warning2 } from "iconsax-reactjs";
 import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
-import { getDefaultTreatmentSurfaces } from "./types";
+import { getDefaultTreatmentSurfaces, QUADRANT_LABELS } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { DiagnosisNameCell, SurfaceCellDropdown } from "./entry-cells";
 import { SinceDropdown } from "./examination-shared-ui";
+import { AlertDialog, AlertDialogContent } from "../ui/alert-dialog";
 import ui from "./ExaminationTab.ui.module.scss";
 
 const PRIMARY_DIAG_COLOR = {
@@ -26,7 +27,7 @@ const PRIMARY_DIAG_COLOR = {
 };
 
 export function PrimaryDiagnosisBody({ state }) {
-  const { activeProcedures } = useDentalMasters();
+  const { activeProcedures, visualTypeMap } = useDentalMasters();
   const [activeCell, setActiveCell] = useState(null);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -56,9 +57,9 @@ export function PrimaryDiagnosisBody({ state }) {
   const activeRows = useMemo(() => {
     const list = [];
     state.currentToothDiagnoses.forEach((d) => list.push(d));
-    if (state.isImplant && !list.some((d) => getVisualType(d) === VISUAL_TYPE.IMPLANT)) list.push("Implant");
+    if (state.isImplant && !list.some((d) => getVisualType(d, visualTypeMap) === VISUAL_TYPE.IMPLANT)) list.push("Implant");
     return list;
-  }, [state.currentToothDiagnoses, state.isImplant]);
+  }, [state.currentToothDiagnoses, state.isImplant, visualTypeMap]);
   const displayRows = useMemo(() => {
     const detailMap = state.currentTreatmentHistoryDetails ?? {};
     const keys = Object.keys(detailMap);
@@ -95,7 +96,8 @@ export function PrimaryDiagnosisBody({ state }) {
   }, [searchOpen, filteredCatalog, query]);
   // Track most recently added diagnosis so we can auto-open its Since dropdown.
   const [lastAddedName, setLastAddedName] = useState(null);
-  const addDiagnosis = (name) => {
+  const [pendingDiagnosis, setPendingDiagnosis] = useState(null);
+  const commitDiagnosis = (name) => {
     if (name === "Implant") state.onToggleImplant(); else
       state.onToggleToothDiagnosis(name);
     const existing = state.currentTreatmentHistoryDetails[name];
@@ -113,6 +115,25 @@ export function PrimaryDiagnosisBody({ state }) {
     setLastAddedName(name);
     setQuery("");
     setSearchOpen(false);
+  };
+  const addDiagnosis = (name) => {
+    if ((name === "Missing" || name === "Extraction") && activeRows.length > 0) {
+      setPendingDiagnosis(name);
+      return;
+    }
+    commitDiagnosis(name);
+  };
+  const confirmMarkAs = () => {
+    state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d));
+    // ponytail: no onToggleImplant() here — toggleToothDiagnosis above already clears
+    // implantTeeth when the last IMPLANT-visual-type diagnosis is removed. Calling
+    // toggleImplant() after would re-add the hardcoded "Implant" string since it wasn't
+    // in toothDiagnoses (the procedure label was, e.g. "Implant abutment placement").
+    state.onClearTreatmentHistoryDetails?.();
+    state.currentToothEntries?.forEach((e) => state.onRemoveEntry(e.id));
+    state.onUpdateToothNotes?.("");
+    commitDiagnosis(pendingDiagnosis);
+    setPendingDiagnosis(null);
   };
   const removeRow = (name) => {
     const isDiagnosisRow = activeRows.includes(name);
@@ -177,6 +198,12 @@ export function PrimaryDiagnosisBody({ state }) {
     },
     []
   ); // eslint-disable-line react-hooks/exhaustive-deps
+  const toothLabel = state.selectedTooth
+    ? `${QUADRANT_LABELS[state.selectedTooth.quadrant] ?? ""} ${state.selectedTooth.name} (T${state.selectedTooth.fdi})`
+    : "This tooth";
+  const procedureSummary = activeRows.length > 0
+    ? `${activeRows.join(", ")}, ${displayRows.length} procedure${displayRows.length !== 1 ? "s" : ""}`
+    : "";
   return (
     <div data-rx-module-root={true} className={ui.entryRoot}>
       {displayRows.length > 0 &&
@@ -522,6 +549,39 @@ export function PrimaryDiagnosisBody({ state }) {
           </div>}
 
       </div>
+      {pendingDiagnosis !== null && (
+        <AlertDialog open onOpenChange={(open) => { if (!open) setPendingDiagnosis(null); }}>
+          <AlertDialogContent className={ui.markAsDialogContent}>
+            <div className={ui.markAsDialogHeader}>
+              <span className={ui.markAsDialogTitle}>
+                Are you sure you want to mark as {pendingDiagnosis}?
+              </span>
+              <button type="button" className={ui.markAsDialogClose} onClick={() => setPendingDiagnosis(null)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className={ui.markAsDialogDivider} />
+            <div className={ui.markAsDialogBody}>
+              <div className={ui.markAsDialogWarning}>
+                <span className={ui.markAsDialogWarningIcon}>
+                  <Warning2 size={18} color="#f59e0b" variant="Bold" />
+                </span>
+                <p className={ui.markAsDialogWarningText}>
+                  {toothLabel} already has {procedureSummary}. Marking it as {pendingDiagnosis} will remove all existing data for this tooth. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className={ui.markAsDialogFooter}>
+              <button type="button" onClick={confirmMarkAs} className={ui.markAsDialogYes}>
+                Yes, Mark as {pendingDiagnosis}
+              </button>
+              <button type="button" onClick={() => setPendingDiagnosis(null)} className={ui.markAsDialogNo}>
+                No, Keep It
+              </button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>);
 
 }

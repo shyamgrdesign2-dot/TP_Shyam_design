@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence, calculateFollowUpText } from '../../utils/utils'
 import { EXTRA_OPTIONS, EXTERNAL_HOSPITAL_BUSINESS_IDS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
+import { useIsDentalEnabled } from '../../hooks/useIsDentalEnabled';
 import moment from 'moment';
 import {
     getCvtExtHosPatientDataShowValue,
@@ -25,6 +26,7 @@ import {
 import { resolveExamChartForPrint, hasOralExamChartData } from '../../utils/examChartStorage';
 import { renderOralExamPdf } from './oral/renderOralExamPdf';
 import { renderDentalExamPdf } from './dental/renderDentalExamPdf';
+import { toothHasDentalPrintData } from './dental/dentalPrintHelpers';
 import { normalizeCanvasIds } from '../../pages/drawingCanvas/utils/drawingCanvasPrintUtils';
 
 const PX_TO_PT = 0.75
@@ -425,7 +427,8 @@ const getSmartSyncUploadedFileUri = (file) =>
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, drawingCanvases } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, isDentalEnabled: isDentalEnabledFromProps, drawingCanvases } = props
+    const isDentalEnabledDoc = useIsDentalEnabled();
     const filteredDrawingCanvases = useMemo(() => {
         const canvasFilename = caseManagerData?.canvas_filename;
         const hasCanvasFilenameField =
@@ -457,12 +460,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             console.error("Failed to transform toothState inside ViewPDF:", err);
         }
     }
+    const isDentalEnabled =
+     isDentalEnabledDoc ??
+        (onlyShowDental ||
+        Boolean(
+            dentalData ||
+            dentalExaminationData?.toothState ||
+            (Array.isArray(dentalExaminationData?.tooth_states) &&
+                dentalExaminationData.tooth_states.length > 0)
+    ));
     const isRxDigitizeBool = !!(
         caseManagerData?.isRxDigitize ||
-        isDigitisedPrintConfig ||
-        caseManagerData?.doctor_data?.dp_id == 26 ||
-        (caseManagerData?.doctor_data?.dp_name &&
-          String(caseManagerData.doctor_data.dp_name).toLowerCase().includes("dental"))
+        isDigitisedPrintConfig
     );
     const isCvtExtHosAccessableFromGB =
         isCvtExtHosFromProps ?? caseManagerData?.isCvtExtHosAccessableFromGB ?? false;
@@ -649,24 +658,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     const hasDentalExaminationData =
         Array.isArray(dentalExaminationData?.tooth_states) &&
-        dentalExaminationData.tooth_states.some((toothState) => {
-            const historyItems = (toothState.treatment_history || [])
-                .map((item) => item.name || item.type || "")
-                .filter(Boolean);
-            const findingItems = (toothState.findings || [])
-                .map((item) => item.name || item.type || "")
-                .filter(Boolean);
-            const procedureItems = (toothState.procedures || [])
-                .map((item) => item.name || item.type || "")
-                .filter(Boolean);
-            const overallNotes = (toothState.overall_notes || "").trim();
-            return (
-                historyItems.length > 0 ||
-                findingItems.length > 0 ||
-                procedureItems.length > 0 ||
-                overallNotes.length > 0
-            );
-        });
+        dentalExaminationData.tooth_states.some((toothState) =>
+            toothHasDentalPrintData(toothState)
+        );
 
     const dentalPrintOption = printSettings?.prescription?.case_option?.find(
         (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID,

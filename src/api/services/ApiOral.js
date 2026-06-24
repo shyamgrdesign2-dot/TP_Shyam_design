@@ -23,7 +23,7 @@ export const deleteOralTemplateById = (type, id) =>
 
 // 2. Masters
 export const getOralAreas = () =>
-  api.get(`/api/v1/dental/masters/oral-areas`, oralBaseUrl);
+  api.get(`/api/v1/dental/masters/oral-areas?type=oral`, oralBaseUrl);
 
 // 3. Examinations
 export const getOralExamination = (patientId) =>

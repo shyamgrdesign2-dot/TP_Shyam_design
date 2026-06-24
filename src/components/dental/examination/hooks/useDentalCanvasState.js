@@ -7,7 +7,6 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { QUADRANT_LABELS } from "../types";
 import { VISUAL_TYPE, toVisualTypeSet } from "../../../../utils/dentalVisualTypes";
 import { useDentalMasters } from "../../../../hooks/useDentalMasters";
-import { INITIAL_TOOTH_STATE } from "../../mock-data";
 import {
   getTeethForPatientType,
   getDefaultFdiForPatientType
@@ -19,7 +18,7 @@ const EMPTY_DIAGNOSES = new Set();
 const EMPTY_TREATMENTS = {};
 
 export function useDentalCanvasState({ patientId, patientAge = 30, initialData }) {
-  const { activeDiagnoses, activeToothDiagnoses } = useDentalMasters();
+  const { activeDiagnoses, activeToothDiagnoses, visualTypeMap } = useDentalMasters();
   const VALID_TOOTH_DIAG = useMemo(
     () => new Set(activeToothDiagnoses),
     [activeToothDiagnoses]
@@ -30,7 +29,7 @@ export function useDentalCanvasState({ patientId, patientAge = 30, initialData }
   );
 
   // ── Seed data ──────────────────────────────────────────────────────────────
-  const initialState = initialData || INITIAL_TOOTH_STATE[patientId];
+  const initialState = initialData;
 
   const initialToothDiagnoses = useMemo(() => {
     if (!initialState?.toothDiagnoses) return {};
@@ -141,8 +140,8 @@ export function useDentalCanvasState({ patientId, patientAge = 30, initialData }
     [toothDiagnoses, selectedTooth.fdi]
   );
   const currentToothVisualTypes = useMemo(
-    () => toVisualTypeSet(currentToothDiagnoses),
-    [currentToothDiagnoses]
+    () => toVisualTypeSet(currentToothDiagnoses, visualTypeMap),
+    [currentToothDiagnoses, visualTypeMap]
   );
   const isImplant =
     currentToothVisualTypes.has(VISUAL_TYPE.IMPLANT) || implantTeeth.has(selectedTooth.fdi);
@@ -202,6 +201,7 @@ export function useDentalCanvasState({ patientId, patientAge = 30, initialData }
     currentToothNotes,
     currentTreatmentHistoryDetails,
     findings,
-    currentToothEntries
+    currentToothEntries,
+    visualTypeMap,
   };
 }

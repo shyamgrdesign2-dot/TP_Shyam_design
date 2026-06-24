@@ -1,5 +1,6 @@
 import { buildClinicalApiHeaders, joinClinicalApiUrl } from './clinical-api';
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from './stacks-api-tracking';
+import { getResponseRequestId } from './voice-api-utils';
 
 const TRANSCRIPT_TIMEOUT_MS = 10 * 60 * 1000;
 export const MODULE_TIMEOUT_MS = 30 * 1000;
@@ -24,6 +25,7 @@ function createTimeoutSignal(timeoutMs) {
 	}, timeoutMs);
 	return { signal: controller.signal, clear: () => clearTimeout(timeoutId) };
 }
+
 
 function abortSignal(controller, reason) {
 	if (reason !== undefined) {
@@ -188,7 +190,9 @@ async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIME
 	if (!response.ok) {
 		const detail = await response.text().catch(() => '');
 		const error = new Error(`${name} API failed (${response.status}). ${detail}`.trim());
+		const requestId = getResponseRequestId(response);
 		decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+		error.requestId = requestId;
 		if (tracking?.apiName) {
 			trackVoiceV2ApiResponse({
 				...tracking,
@@ -203,6 +207,7 @@ async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIME
 	}
 
 	const responseJson = await response.json();
+	const requestId = getResponseRequestId(response);
 	if (tracking?.apiName) {
 		trackVoiceV2ApiResponse({
 			...tracking,
@@ -212,7 +217,7 @@ async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIME
 			startedAtMs,
 		});
 	}
-	return responseJson;
+	return { data: responseJson, requestId };
 }
 
 async function getJson(path, name, { timeoutMs = MODULE_TIMEOUT_MS, signal } = {}) {
@@ -407,8 +412,9 @@ export async function transcribeAudio({ audioBlob, context, signal }) {
 
 	return withRetry(async () => {
 		let responseJson;
+		let requestId = '';
 		try {
-			responseJson = await postMultipart('/agents/transcribe-audio', formData, 'Transcribe audio', {
+			const transcriptResponse = await postMultipart('/agents/transcribe-audio', formData, 'Transcribe audio', {
 				timeoutMs: TRANSCRIPT_TIMEOUT_MS,
 				signal,
 				tracking: {
@@ -416,17 +422,22 @@ export async function transcribeAudio({ audioBlob, context, signal }) {
 					extra: buildIdentityPayload(context)
 				}
 			});
+			responseJson = transcriptResponse?.data;
+			requestId = transcriptResponse?.requestId || '';
 		} catch (error) {
 			if (error?.status === 409) {
-				return fetchExistingTranscript({ context, signal });
+				const existingTranscript = await fetchExistingTranscript({ context, signal });
+				return { transcript: existingTranscript, requestId: error?.requestId || '' };
 			}
 			throw error;
 		}
 		const text = extractTranscript(responseJson);
 		if (!hasTranscriptContent(text)) {
-			throw new Error('Transcription API returned an empty transcript.');
+			const error = new Error('Transcription API returned an empty transcript.');
+			error.requestId = requestId;
+			throw error;
 		}
-		return text;
+		return { transcript: text, requestId };
 	});
 }
 

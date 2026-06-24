@@ -44,7 +44,8 @@ export function useDentalCanvasPersistence(s) {
     setSelectionScope,
     setDentitionVerticalNudgeByType,
     setDentitionCameraByType,
-    setHideExamineHint
+    setHideExamineHint,
+    visualTypeMap,
   } = s;
 
   // ── Hydrate dental canvas state from API initialData (one-time per patient) ──
@@ -115,7 +116,7 @@ export function useDentalCanvasPersistence(s) {
         const next = new Set(prev);
         for (const [fdi, diags] of Object.entries(rawDiagnoses)) {
           const arr = Array.isArray(diags) ? diags : diags instanceof Set ? [...diags] : [];
-          if (arr.some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) next.add(fdi);
+          if (arr.some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT)) next.add(fdi);
         }
         return next;
       });
@@ -177,12 +178,6 @@ export function useDentalCanvasPersistence(s) {
       if (saved.dentitionCameraByType) {
         setDentitionCameraByType(saved.dentitionCameraByType);
       }
-      if (Array.isArray(saved.oralEntries)) {
-        setOralEntries(saved.oralEntries);
-      }
-      if (typeof saved.oralNotes === "string") {
-        setOralNotes(saved.oralNotes);
-      }
     } catch {
       // ignore corrupted localStorage payload
     }
@@ -200,6 +195,7 @@ export function useDentalCanvasPersistence(s) {
   // ── Persist UI state ───────────────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // ponytail: oralEntries/oralNotes excluded — oral data is API-only; caching causes cross-patient leakage
     const payload = {
       patientType,
       viewMode,
@@ -207,8 +203,6 @@ export function useDentalCanvasPersistence(s) {
       selectionScope,
       dentitionVerticalNudgeByType,
       dentitionCameraByType,
-      oralEntries,
-      oralNotes
     };
     window.localStorage.setItem(
       `dental.canvas.state.${patientId}`,
@@ -222,8 +216,6 @@ export function useDentalCanvasPersistence(s) {
     selectionScope,
     dentitionVerticalNudgeByType,
     dentitionCameraByType,
-    oralEntries,
-    oralNotes
   ]);
 
   // ── Persist clinical chart data ────────────────────────────────────────────

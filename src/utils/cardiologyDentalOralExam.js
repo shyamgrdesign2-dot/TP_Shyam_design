@@ -1,5 +1,8 @@
 import moment from "moment";
 import { getDentalApiPayload } from "./dentalApiMappers";
+import {
+  toothHasDentalPrintData,
+} from "../components/print_settings/dental/dentalPrintHelpers";
 import { hasOralExamChartData } from "./examChartStorage";
 import { ORAL_POSITION_LABEL } from "../components/dental/examination/types";
 
@@ -93,9 +96,8 @@ export function formatDentalExamItem(item, toothCode) {
   }
   const dateStr = item?.since_date || item?.since || item?.procedure_date || item?.plannedDate || "";
   const notesStr = String(item?.notes || item?.note || "").trim();
-  const cleanNotes = notesStr === "__dx__" ? "" : notesStr;
   const statusStr = String(item?.status || "").trim();
-  const parts = [surfacesStr, dateStr, statusStr, cleanNotes].filter(Boolean);
+  const parts = [surfacesStr, dateStr, statusStr, notesStr].filter(Boolean);
   return {
     name,
     details: parts.length > 0 ? `(${parts.join(" | ")})` : "",
@@ -104,24 +106,7 @@ export function formatDentalExamItem(item, toothCode) {
 
 export function hasDentalExamPayload(data) {
   if (!Array.isArray(data?.tooth_states)) return false;
-  return data.tooth_states.some((toothState) => {
-    const historyItems = (toothState.treatment_history || [])
-      .map((item) => item?.name || item?.type || "")
-      .filter(Boolean);
-    const findingItems = (toothState.findings || [])
-      .map((item) => item?.name || item?.type || "")
-      .filter(Boolean);
-    const procedureItems = (toothState.procedures || [])
-      .map((item) => item?.name || item?.type || "")
-      .filter(Boolean);
-    const overallNotes = String(toothState.overall_notes || "").trim();
-    return (
-      historyItems.length > 0 ||
-      findingItems.length > 0 ||
-      procedureItems.length > 0 ||
-      overallNotes.length > 0
-    );
-  });
+  return data.tooth_states.some((toothState) => toothHasDentalPrintData(toothState));
 }
 
 export function mapOralApiToChart(api = {}) {

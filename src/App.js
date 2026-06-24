@@ -251,6 +251,7 @@ function App() {
 
   const isLoginPage = location.pathname === "/login";
   const isRootPath = location.pathname === "/";
+  const shouldShowPlanBanners = location.pathname === "/";
   const token = getToken();
   const isMobileOrPWA = isMobileDevice || isPWA;
 
@@ -735,6 +736,7 @@ function App() {
             element={<SmartPrescription />}
           />
           <Route path="tab-rx-prescription" element={<TabRxPrescriptionPrintView />} />
+          <Route path="dentalrx-print-view" element={<TabRxPrescriptionPrintView />} />
           <Route path="print-smart-rx" element={<SmartRxPreview />} />
           <Route path="doctor_profile" element={<DoctorProfile />} />
           <Route
@@ -798,8 +800,8 @@ function App() {
             path="tabrx-digitization"
             element={<TabRxDigitization />}
           />
-          <Route path="dental" element={<ConsultationLayout />} />
-          {/* <Route path="dental" element={<DentalModuleShell />} /> */}
+          <Route path="dental-rx-pad" element={<ConsultationLayout />} />
+          {/* <Route path="dental-rx-pad" element={<DentalModuleShell />} /> */}
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />
       </SentryRoutes>
@@ -847,10 +849,10 @@ function App() {
                     zIndex: 199,
                   }}
                 >
-                  {!isMobileOrPWA && (
+                  {!isMobileOrPWA && shouldShowPlanBanners && (
                     <>
                       <DemoExpirationBanner />
-                      {/* <PlanExpirationBanner /> */}
+                      <PlanExpirationBanner />
                       <ExpiredPlanCard />
                     </>
                   )}

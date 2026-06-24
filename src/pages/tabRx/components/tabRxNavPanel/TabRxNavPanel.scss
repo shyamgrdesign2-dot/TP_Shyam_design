@@ -1,4 +1,4 @@
-@import '../../styles/variables.scss';
+@import '../../../../styles/variables.scss';
 
 $primary-purple: #4b4ad5;
 $dark-purple: #161558;
@@ -8,7 +8,7 @@ $mid-purple: #313097;
     width: 80px;
     flex: 0 0 80px;
     min-width: 80px;
-    max-width: 80px !important;
+    max-width: 80px;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -115,7 +115,7 @@ $mid-purple: #313097;
                 .lab-icon.active {
                     background-color: #4b4ad5 !important;
                     mask-image: url('#{$tp-assets-base}/images/lab-primary.svg') !important;
-                }
+                  }
 
                 img {
                     width: 20px;

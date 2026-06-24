@@ -42,7 +42,8 @@ export function OralListView({ PX_TO_PT, printSettings, oralChart, consultationD
           marginBottom: PX_TO_PT * 8,
         }}
       >
-        Oral Examination ({dateStr})
+        Oral Examination 
+        {/* ({dateStr}) */}
       </Text>
       {groups.map((g) => {
         const list = entries.filter(g.filter);

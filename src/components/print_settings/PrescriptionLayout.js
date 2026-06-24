@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { Col, Radio, Row, Form, Table, Collapse, Checkbox, Button, Modal, Tooltip, Switch } from "antd";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { MenuOutlined } from "@ant-design/icons";
 import { DndContext } from "@dnd-kit/core";
@@ -22,14 +21,20 @@ import { useAccess } from "../../pages/vaccination/useAccess";
 import { graphsToPrintData } from "../../pages/growthChart/growthChartHelper";
 import { getDecodedToken } from "../../utils/localStorage";
 import { env } from "../../EnvironmentConfig";
-import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE, GB_DENTAL_MODULE } from "../../utils/constants";
+import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE } from "../../utils/constants";
+import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import {
   DENTAL_EXAM_CASE_OPTION_ID,
   ORAL_EXAM_CASE_OPTION_ID,
 } from "../../utils/dentalDefaultPrintSettings";
 import { loadExamChart, hasOralExamChartData } from "../../utils/examChartStorage";
 import { hasHistoricalData } from "../dental/examination/DentalChartPrint";
+import { toothHasDentalPrintData } from "../print_settings/dental/dentalPrintHelpers";
 import { trackEvent } from "../../utils/utils";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  trackDentalEvent,
+} from "../../utils/dentalMoengage";
 // const CustomRow = ({ children, ...props }) => {
 //     const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
 //         id: props['data-row-key'],
@@ -212,8 +217,8 @@ const diagnosisCheckboxOptions = [
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
   const contextValue = useContext(PrintSettingsContext);
   const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile, isDigitisedPrintConfig, dentalExaminationData, isDentalEnabled: isDentalEnabledContext, drawingCanvases } = contextValue || {};
-  const isDentalEnabledFeature = useFeatureIsOn(GB_DENTAL_MODULE);
-  const isDentalEnabled = isDentalEnabledContext || isDentalEnabledFeature;
+  const isDentalEnabledFromHook = useIsDentalEnabled();
+  const isDentalEnabled = isDentalEnabledContext || isDentalEnabledFromHook;
 
   let dentalExamData = dentalExaminationData;
   if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {
@@ -222,13 +227,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
       tooth_states: transformToothStateToApi(dentalExamData.toothState)
     };
   }
-  const hasDentalExaminationData = Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.some((toothState) => {
-    const hasHistory = (toothState.treatment_history || []).length > 0;
-    const hasFindings = (toothState.findings || []).length > 0;
-    const hasProcedures = (toothState.procedures || []).length > 0;
-    const hasNotes = (toothState.overall_notes || "").trim().length > 0;
-    return hasHistory || hasFindings || hasProcedures || hasNotes;
-  });
+  const hasDentalExaminationData = Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.some((toothState) =>
+    toothHasDentalPrintData(toothState)
+  );
 
   const patientId = caseManagerData?.patient_data?.patient_unique_id;
   const examChart = loadExamChart(patientId);
@@ -246,6 +247,37 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
   const showOralExamRow = isDentalEnabled || hasOralExaminationData || hasOralPrintOption;
 
   const onExamPrintToggleChange = (caseOptionIndex, key, value) => {
+    const currentOption = printSettings?.prescription?.case_option?.[caseOptionIndex];
+    if (showDentalExamRow || isDentalEnabled) {
+      if (key === "showDentalChart") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_DENTAL_CHART_TOGGLED, {
+          show_dental_chart: value,
+          tooth_records_total_present: hasDentalExaminationData ? 1 : 0,
+          oral_exam_total_present: hasOralExaminationData ? 1 : 0,
+        });
+      }
+      if (key === "includeHistorical") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_PAST_DENTAL_HISTORY_TOGGLED, {
+          include_past_dental_history: value,
+          historic_tooth_record_count: historyAvailable ? 1 : 0,
+          historic_oral_exam_count: historyAvailable ? 1 : 0,
+        });
+      }
+      if (key === "format") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_VIEW_TYPE_SELECTED, {
+          section_type: currentOption?.id === ORAL_EXAM_CASE_OPTION_ID ? "oral" : "dental",
+          view_type: value,
+          layout_type: printSettings?.prescription?.format || "",
+        });
+      }
+      if (key === "groupDentalExaminationBy") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_LAYOUT_SELECTED, {
+          old_layout_type: currentOption?.groupDentalExaminationBy || "type",
+          new_layout_type: value,
+          source_page: "/configure_print_setting",
+        });
+      }
+    }
     setPrintSettings((prev) => {
       const caseOption = [...(prev?.prescription?.case_option || [])];
       if (!caseOption[caseOptionIndex]) return prev;

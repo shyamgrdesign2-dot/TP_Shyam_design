@@ -127,11 +127,11 @@ export function DentalListView({
 
   const teethWithData =
     resolvedGroupBy === DENTAL_GROUP_BY_TOOTH
-      ? buildDentalGroupsByTooth(toothStates, showPastHistory)
+      ? buildDentalGroupsByTooth(toothStates)
       : [];
   const typeGroups =
     resolvedGroupBy !== DENTAL_GROUP_BY_TOOTH
-      ? buildDentalGroupsByType(toothStates, showPastHistory)
+      ? buildDentalGroupsByType(toothStates)
       : [];
 
   const hasContent =
@@ -168,7 +168,8 @@ export function DentalListView({
             fontWeight: "700",
           }}
         >
-          Dental Examination ({dateStr})
+          Dental Examination 
+          {/* ({dateStr}) */}
         </Text>
       </View>
 

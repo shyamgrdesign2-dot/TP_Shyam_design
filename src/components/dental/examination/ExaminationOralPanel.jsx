@@ -14,13 +14,19 @@ import { createPortal } from "react-dom";
 import { Trash, Eraser, Add, SearchNormal1 } from "iconsax-reactjs";
 import {
   oralPositionShort,
-  reconcileOralPositions
+  reconcileOralPositions,
+  ORAL_POSITION_LABEL,
 } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { ExpandIcon } from "./ui-icons";
 import { MiniScopeCanvas } from "./MiniScopeCanvas";
 import { TPMedicalIcon, TPTooltip } from "../tp-ui";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  trackDentalEvent,
+} from "../../../utils/dentalMoengage";
+import { DENTAL_RX_PAD_ROUTE } from "../../../utils/dentalRoutes";
 import { useStickyActionEdge } from "./useStickyActionEdge";
 import {
   AccordionWrap,
@@ -35,7 +41,7 @@ import { useExaminationTemplates } from "./hooks/useExaminationTemplates";
 // ──────────────────────────────────────────────────────────────
 // OralPositionCell — multi-select dropdown for oral regions
 // ──────────────────────────────────────────────────────────────
-function OralPositionCell({ value = [], onChange, onHoverPreview }) {
+function OralPositionCell({ value = [], onChange, onHoverPreview, oralKind = "" }) {
   const { oralPositionGroups } = useDentalMasters();
   const positionLabelMap = useMemo(
     () => Object.fromEntries(oralPositionGroups.flatMap((g) => g.items.map((i) => [i.id, i.label]))),
@@ -174,6 +180,15 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
     const arr = reconcileOralPositions(value, id);
     onChange(arr);
     onHoverPreview?.(arr);
+    if (arr.length > value.length) {
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_LOCATION_SELECTED, {
+        location_group: oralKind || "oral",
+        region_id: id,
+        region_label: ORAL_POSITION_LABEL[id] || positionLabelMap[id] || id,
+        selection_count_after: arr.length,
+        oral_kind: oralKind || "",
+      });
+    }
   };
 
   const shownPills = value;
@@ -385,7 +400,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
 // ──────────────────────────────────────────────────────────────
 // OralTable — record/edit grid with quick-add chips for a given kind
 // ──────────────────────────────────────────────────────────────
-function OralTable({ state, kind, catalog, list }) {
+function OralTable({ state, kind, catalog = [], list = [] }) {
   const hasStatus = kind === "procedure";
   const { wrapRef, showEdge } = useStickyActionEdge(list.length);
   const [query, setQuery] = useState("");
@@ -411,8 +426,17 @@ function OralTable({ state, kind, catalog, list }) {
       ? "Search & add past procedure"
       : "Search & add oral procedure";
 
-  const addAndClear = (name) => {
+  const addAndClear = (name, opts = {}) => {
     if (name) state.onAddOralEntry(kind, name);
+    if (opts.isCustom) {
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_CUSTOM_ENTRY_ADDED, {
+        oral_kind: kind,
+        location_group: "",
+        region_count: 0,
+        has_incidence: false,
+        has_note: false,
+      });
+    }
     setQuery("");
     setSearchOpen(false);
   };
@@ -484,6 +508,7 @@ function OralTable({ state, kind, catalog, list }) {
                       value={e.surfaces || []}
                       onChange={(arr) => state.onUpdateOralEntry(e.id, { surfaces: arr })}
                       onHoverPreview={(arr) => state.onSetOralHighlight?.(arr)}
+                      oralKind={kind}
                     />
                   </td>
                   <td className={ui.tdPlain}>
@@ -643,7 +668,7 @@ function OralTable({ state, kind, catalog, list }) {
 // OralExamPanel — sidebar accordions for Findings, Past work, etc.
 // ──────────────────────────────────────────────────────────────
 export function OralExamPanel({ state, onSave, saving }) {
-  const { activeProcedures, activeSurfaceFindings } = useDentalMasters();
+  const { activeOralProcedures, activeOralSurfaceFindings } = useDentalMasters();
   const entries = Array.isArray(state.oralEntries) ? state.oralEntries : [];
   const pastProcedures = entries.filter((e) => e.kind === "past");
   const findings = entries.filter((e) => e.kind === "finding");
@@ -692,9 +717,14 @@ export function OralExamPanel({ state, onSave, saving }) {
   };
 
   const clearAll = () => {
+    const cleared = entries.length;
     entries.forEach((e) => state.onRemoveOralEntry(e.id));
     state.onUpdateOralNotes?.("");
     setShowClearConfirm(false);
+    trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_CLEAR_ALL_CONFIRMED, {
+      entries_cleared_count: cleared,
+      had_oral_notes: notes.trim().length > 0,
+    });
   };
 
   return (
@@ -742,6 +772,7 @@ export function OralExamPanel({ state, onSave, saving }) {
             overall_notes: notes,
           })}
           btnClassName={ui.panelIconBtn}
+          oralSection="examination"
         />
       }
       clearSection={
@@ -750,13 +781,26 @@ export function OralExamPanel({ state, onSave, saving }) {
             type="button"
             title="Clear all oral examination data"
             disabled={!hasAnyData}
-            onClick={() => setShowClearConfirm(true)}
+            onClick={() => {
+              trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_CLEAR_ALL_CLICKED, {
+                oral_exam_count_total: entries.length,
+                has_oral_notes: notes.trim().length > 0,
+              });
+              setShowClearConfirm(true);
+            }}
             className={ui.panelIconBtnDanger}>
             <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
           </button>
           <TPConfirmDialog
             open={showClearConfirm}
             onOpenChange={setShowClearConfirm}
+            analytics={{
+              dialog_type: "oral_clear_all",
+              source_page: DENTAL_RX_PAD_ROUTE,
+              source_action: "clear_all",
+              primary_label: "No, Keep It",
+              secondary_label: "Yes, Clear All",
+            }}
             title="Are you sure you want to clear oral examination?"
             warning="This will remove all oral findings, procedures, and notes from this visit. This action cannot be undone."
             secondaryLabel="Yes, Clear All"
@@ -787,6 +831,7 @@ export function OralExamPanel({ state, onSave, saving }) {
                       onSaveNew={(name) => pastTpl.onSaveNew(name, { treatment_history: pastProcedures.map(toOralRow) })}
                       onUpdate={(sel) => pastTpl.onUpdate(sel, { treatment_history: pastProcedures.map(toOralRow) })}
                       btnClassName={ui.secToolBtn}
+                      oralSection="past_procedures"
                     />
                   : undefined
               }
@@ -803,7 +848,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("past")}
             />
           }>
-          <OralTable state={state} kind="past" catalog={activeProcedures} list={pastProcedures} />
+          <OralTable state={state} kind="past" catalog={activeOralProcedures} list={pastProcedures} />
         </AccordionWrap>
 
         <AccordionWrap
@@ -827,6 +872,7 @@ export function OralExamPanel({ state, onSave, saving }) {
                       onSaveNew={(name) => findingsTpl.onSaveNew(name, { findings: findings.map(toOralRow) })}
                       onUpdate={(sel) => findingsTpl.onUpdate(sel, { findings: findings.map(toOralRow) })}
                       btnClassName={ui.secToolBtn}
+                      oralSection="findings"
                     />
                   : undefined
               }
@@ -843,7 +889,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("findings")}
             />
           }>
-          <OralTable state={state} kind="finding" catalog={activeSurfaceFindings} list={findings} />
+          <OralTable state={state} kind="finding" catalog={activeOralSurfaceFindings} list={findings} />
         </AccordionWrap>
 
         <AccordionWrap
@@ -867,6 +913,7 @@ export function OralExamPanel({ state, onSave, saving }) {
                       onSaveNew={(name) => procTpl.onSaveNew(name, { procedures: procedures.map(toProcedureRow) })}
                       onUpdate={(sel) => procTpl.onUpdate(sel, { procedures: procedures.map(toProcedureRow) })}
                       btnClassName={ui.secToolBtn}
+                      oralSection="procedures"
                     />
                   : undefined
               }
@@ -883,7 +930,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("procedures")}
             />
           }>
-          <OralTable state={state} kind="procedure" catalog={activeProcedures} list={procedures} />
+          <OralTable state={state} kind="procedure" catalog={activeOralProcedures} list={procedures} />
         </AccordionWrap>
 
         <AccordionWrap
@@ -906,6 +953,7 @@ export function OralExamPanel({ state, onSave, saving }) {
                       onSaveNew={(name) => notesTpl.onSaveNew(name, { overall_notes: notes })}
                       onUpdate={(sel) => notesTpl.onUpdate(sel, { overall_notes: notes })}
                       btnClassName={ui.secToolBtn}
+                      oralSection="notes"
                     />
                   : undefined
               }
@@ -954,7 +1002,7 @@ export function OralRecordsList({ state }) {
   const onCardClick = () => {
     fire(null);
     state?.onSetOralHighlight?.([]);
-    state.onEnterOralExam?.();
+    state.onEnterOralExam?.({ entrySource: "record_card" });
   };
 
   const onItemEnter = (kind, name) => {
@@ -1077,9 +1125,8 @@ export function OralRecordsList({ state }) {
         <div className={ui.toothRowHeader}>
           <div className={ui.toothThumb}>
             <MiniScopeCanvas
-              patientType="adult"
+              patientType={state?.patientType || "adult"}
               scopeType="full-mouth"
-              fdis={[]}
               toothDiagnoses={{}}
               findingsByTooth={{}}
               implantTeeth={new Set()}

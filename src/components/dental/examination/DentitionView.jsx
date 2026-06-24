@@ -51,6 +51,7 @@ export default function DentitionView({
   highlightFdis,
   oralEntries = [],
   oralForceShowAll = false,
+  visualTypeMap,
 }) {
   const USE_SPLIT_QUADRANT_EXPERIMENT = layoutMode === "split";
   const [hoveredTooth, setHoveredToothInternal] = useState(null);
@@ -336,6 +337,7 @@ export default function DentitionView({
             onClick={disableSelection ? () => {} : onSelectTooth}
             onPin={setPinnedTooth}
             treatmentHistoryDetails={historyDetails}
+            visualTypeMap={visualTypeMap}
           />
         );
       })}

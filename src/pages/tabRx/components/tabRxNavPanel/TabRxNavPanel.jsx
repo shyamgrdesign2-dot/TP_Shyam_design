@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
-import "./NavPanel.scss";
-import { ASSETS } from "../../assets";
+import "./TabRxNavPanel.scss";
+import { ASSETS } from "../../../../assets";
 const {
   ddxTabVector: ddxVector,
   groundingWhite: groundingImgWhite,
@@ -32,7 +32,7 @@ const {
 // Reusing existing image path imports from TabRx.jsx
 // Ensure all correct paths are mapped (Vitals, Medical History, etc.)
 
-const NavPanel = ({
+const TabRxNavPanel = ({
     isApexAISelected,
     handleApexAIClose,
     isGroundingAccessableForZydus,
@@ -452,4 +452,4 @@ const NavPanel = ({
     );
 };
 
-export default NavPanel;
+export default TabRxNavPanel;

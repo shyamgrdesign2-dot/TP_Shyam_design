@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Input, Button, Popover, Tabs, Select, Tooltip } from "antd";
 import { Grid5, Ram } from "iconsax-reactjs";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  trackDentalEvent,
+} from "../../../utils/dentalMoengage";
 
 const TAB_ADD = "add";
 const TAB_UPDATE = "update";
@@ -28,6 +32,7 @@ export function ExaminationTemplateActions({
   onSaveNew,
   onUpdate,
   btnClassName,
+  oralSection = "",
 }) {
   const [listOpen, setListOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -35,6 +40,56 @@ export function ExaminationTemplateActions({
   const [templateName, setTemplateName] = useState("");
   const [activeTab, setActiveTab] = useState(TAB_ADD);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+
+  const handleListOpenChange = (open) => {
+    if (open && oralSection) {
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_TEMPLATE_SELECT_CLICKED, {
+        oral_section: oralSection,
+        available_template_count: templates.length,
+      });
+    }
+    setListOpen(open);
+  };
+
+  const handleSaveOpenChange = (open) => {
+    if (open && oralSection) {
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_TEMPLATE_SAVE_CLICKED, {
+        oral_section: oralSection,
+        has_oral_notes: hasData,
+      });
+    }
+    if (hasData) setSaveOpen(open);
+  };
+
+  const handleSelectTemplate = (t) => {
+    onSelect?.(t);
+    setListOpen(false);
+    if (oralSection) {
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_TEMPLATE_APPLIED, {
+        oral_section: oralSection,
+        template_id: t.id,
+        entries_applied_count: t._raw?.payload
+          ? Object.values(t._raw.payload).reduce(
+              (acc, v) => acc + (Array.isArray(v) ? v.length : 0),
+              0
+            )
+          : 0,
+      });
+    }
+  };
+
+  const handleSaveTemplate = () => {
+    onSaveNew?.(templateName);
+    if (oralSection) {
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_TEMPLATE_SAVED, {
+        oral_section: oralSection,
+        template_id: "",
+        entry_count: 0,
+      });
+    }
+    setTemplateName("");
+    setSaveOpen(false);
+  };
 
   const filtered = templates.filter(
     (t) => !search || t.name.toLowerCase().includes(search.toLowerCase())
@@ -63,10 +118,10 @@ export function ExaminationTemplateActions({
       <div className="pop-body">
         {filtered.map((t) => (
           <div className="align-items-center d-flex medicine-templates" key={t.id}>
-            <div className="round-box" onClick={() => { onSelect?.(t); setListOpen(false); }}>
+            <div className="round-box" onClick={() => handleSelectTemplate(t)}>
               <i className="icon-template" />
             </div>
-            <div className="text-truncate w-100" onClick={() => { onSelect?.(t); setListOpen(false); }}>
+            <div className="text-truncate w-100" onClick={() => handleSelectTemplate(t)}>
               <div className="title text-main2">{t.name}</div>
               {t.description && <div className="text-truncate"><span>{t.description}</span></div>}
             </div>
@@ -105,7 +160,7 @@ export function ExaminationTemplateActions({
             className="btn btn-primary3 btn-41 ms-3"
             loading={saving}
             disabled={!templateName}
-            onClick={() => { onSaveNew?.(templateName); setTemplateName(""); setSaveOpen(false); }}
+            onClick={handleSaveTemplate}
           >
             Save
           </Button>
@@ -138,7 +193,7 @@ export function ExaminationTemplateActions({
     <>
       <Popover
         open={listOpen}
-        onOpenChange={setListOpen}
+        onOpenChange={handleListOpenChange}
         content={listContent}
         trigger="click"
         overlayClassName="pop-350 pp-0"
@@ -154,7 +209,7 @@ export function ExaminationTemplateActions({
       >
         <Popover
           open={saveOpen}
-          onOpenChange={(open) => hasData && setSaveOpen(open)}
+          onOpenChange={handleSaveOpenChange}
           content={saveContent}
           trigger="click"
           overlayClassName="pop-450 pp-0"

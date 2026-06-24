@@ -1,8 +1,10 @@
+import { DX_MARKER } from "../../../utils/dentalApiMappers";
+
 export const DENTAL_GROUP_BY_TYPE = "type";
 export const DENTAL_GROUP_BY_TOOTH = "tooth";
 
 export const DENTAL_EXAM_CATEGORIES = [
-  { key: "past", label: "Past Procedures", field: "treatment_history", requiresPastHistory: true },
+  { key: "past", label: "Past Procedures", field: "treatment_history" },
   { key: "findings", label: "Findings", field: "findings" },
   { key: "procedures", label: "Procedures", field: "procedures" },
   { key: "notes", label: "Notes", isNotes: true },
@@ -21,6 +23,35 @@ const TOOTH_NAMES = {
 
 export function resolveDentalGroupBy(value) {
   return value === DENTAL_GROUP_BY_TOOTH ? DENTAL_GROUP_BY_TOOTH : DENTAL_GROUP_BY_TYPE;
+}
+
+/** API snake_case or in-memory camelCase treatment history rows. */
+export function getTreatmentHistoryRaw(toothState) {
+  if (!toothState || typeof toothState !== "object") return [];
+  const raw = toothState.treatment_history ?? toothState.treatmentHistory;
+  return Array.isArray(raw) ? raw : [];
+}
+
+/** Diagnosis chips serialized with DX_MARKER — not past-procedure rows. */
+export function isDiagnosisHistoryMarker(item) {
+  const notes = String(item?.notes ?? item?.note ?? "").trim();
+  return notes === DX_MARKER;
+}
+
+/** Past procedures for print: treatment_history minus primary-diagnosis markers. */
+export function getPastProcedureItems(toothState) {
+  return getTreatmentHistoryRaw(toothState).filter((item) => !isDiagnosisHistoryMarker(item));
+}
+
+export function toothHasPastProcedures(toothState) {
+  return getPastProcedureItems(toothState).length > 0;
+}
+
+export function toothHasDentalPrintData(toothState) {
+  const hasFindings = (toothState?.findings || []).length > 0;
+  const hasProcedures = (toothState?.procedures || []).length > 0;
+  const hasNotes = String(toothState?.overall_notes || "").trim().length > 0;
+  return toothHasPastProcedures(toothState) || hasFindings || hasProcedures || hasNotes;
 }
 
 export function getToothFullName(toothCode) {
@@ -106,42 +137,34 @@ export function formatDentalItemData(item, toothCode) {
 
   const dateStr = item?.since_date || item?.since || item?.procedure_date || item?.plannedDate || "";
   const notesStr = String(item?.notes || item?.note || "").trim();
-  const cleanNotes = notesStr === "__dx__" ? "" : notesStr;
   const statusStr = String(item?.status || "").trim();
 
-  const parts = [surfacesStr, dateStr, statusStr, cleanNotes].filter(Boolean);
+  const parts = [surfacesStr, dateStr, statusStr, notesStr].filter(Boolean);
 
   return {
     name,
     details: parts.length > 0 ? `(${parts.join(" | ")})` : "",
     surfaces: surfacesStr || "—",
     since: dateStr ? String(dateStr).trim() : "—",
-    notes: cleanNotes || "—",
+    notes: notesStr || "—",
     rawItem: item,
   };
 }
 
-export function getTeethWithDentalData(toothStates, showPastHistory = true) {
+export function getTeethWithDentalData(toothStates) {
   const states = Array.isArray(toothStates) ? toothStates : [];
-  return states.filter((toothState) => {
-    const hasHistory = showPastHistory && (toothState.treatment_history || []).length > 0;
-    const hasFindings = (toothState.findings || []).length > 0;
-    const hasProcedures = (toothState.procedures || []).length > 0;
-    const hasNotes = String(toothState.overall_notes || "").trim().length > 0;
-    return hasHistory || hasFindings || hasProcedures || hasNotes;
-  });
+  return states.filter((toothState) => toothHasDentalPrintData(toothState));
 }
 
-export function buildToothCategories(toothState, showPastHistory = true) {
+export function buildToothCategories(toothState) {
   const toothCode = toothState.tooth_code;
   const categories = [];
 
-  if (showPastHistory && (toothState.treatment_history || []).length > 0) {
+  const pastItems = getPastProcedureItems(toothState);
+  if (pastItems.length > 0) {
     categories.push({
       label: "Past Procedures",
-      items: (toothState.treatment_history || []).map((item) =>
-        formatDentalItemData(item, toothCode)
-      ),
+      items: pastItems.map((item) => formatDentalItemData(item, toothCode)),
     });
   }
   if ((toothState.findings || []).length > 0) {
@@ -171,8 +194,8 @@ export function buildToothCategories(toothState, showPastHistory = true) {
   };
 }
 
-export function buildDentalGroupsByType(toothStates, showPastHistory = true) {
-  const teethWithData = getTeethWithDentalData(toothStates, showPastHistory);
+export function buildDentalGroupsByType(toothStates) {
+  const teethWithData = getTeethWithDentalData(toothStates);
 
   return DENTAL_EXAM_CATEGORIES.map((category) => {
     const entries = [];
@@ -193,11 +216,10 @@ export function buildDentalGroupsByType(toothStates, showPastHistory = true) {
         return;
       }
 
-      if (category.requiresPastHistory && !showPastHistory) {
-        return;
-      }
-
-      const rawItems = toothState[category.field] || [];
+      const rawItems =
+        category.key === "past"
+          ? getPastProcedureItems(toothState)
+          : toothState[category.field] || [];
       if (!rawItems.length) return;
 
       entries.push({
@@ -214,8 +236,8 @@ export function buildDentalGroupsByType(toothStates, showPastHistory = true) {
   }).filter((group) => group.entries.length > 0);
 }
 
-export function buildDentalGroupsByTooth(toothStates, showPastHistory = true) {
-  return getTeethWithDentalData(toothStates, showPastHistory)
-    .map((toothState) => buildToothCategories(toothState, showPastHistory))
+export function buildDentalGroupsByTooth(toothStates) {
+  return getTeethWithDentalData(toothStates)
+    .map((toothState) => buildToothCategories(toothState))
     .filter((tooth) => tooth.categories.length > 0);
 }

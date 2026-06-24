@@ -7,6 +7,19 @@
 import { useCallback, useEffect, useRef } from "react";
 import { VISUAL_TYPE, getVisualType } from "../../../../utils/dentalVisualTypes";
 import {
+  DENTAL_MOENGAGE_EVENTS,
+  getNoteLengthBucket,
+  getPatientAgeGroup,
+  getToothAnalyticsMeta,
+  markDentalPanelClosed,
+  markDentalPanelOpened,
+  trackDentalEvent,
+  trackOralRecordAdded,
+  trackSurfaceSelected,
+  trackToothHovered,
+  trackToothRecordAdded,
+} from "../../../../utils/dentalMoengage";
+import {
   QUADRANT_LABELS,
   getDefaultTreatmentSurfaces,
   ALL_ZONES,
@@ -43,6 +56,7 @@ export function useDentalCanvasEvents(s) {
     oralIdRef,
     VALID_TOOTH_DIAG,
     VALID_SURFACE_FINDING,
+    visualTypeMap,
     allEntries,
     setPatientType,
     setViewMode,
@@ -58,6 +72,7 @@ export function useDentalCanvasEvents(s) {
     setToothNotes,
     setAllEntries,
     setOralEntries,
+    oralNotes,
     setOralNotes,
     setOralHighlightFdis,
     setTreatmentHistoryDetailsByTooth,
@@ -113,7 +128,37 @@ export function useDentalCanvasEvents(s) {
     [patientType]
   );
 
+  const orbitDragActiveRef = useRef(false);
+  const orbitStartPosRef = useRef(null);
+  const toothNotesDebounceRef = useRef(null);
+
+  const handleOrbitControlsStart = useCallback(() => {
+    if (!controlsRef.current) return;
+    orbitDragActiveRef.current = true;
+    const p = controlsRef.current.object?.position;
+    if (p) orbitStartPosRef.current = [p.x, p.y, p.z];
+  }, [controlsRef]);
+
   const handleDentitionControlsEnd = useCallback(() => {
+    if (orbitDragActiveRef.current && orbitStartPosRef.current && controlsRef.current) {
+      const p = controlsRef.current.object?.position;
+      if (p) {
+        const dx = p.x - orbitStartPosRef.current[0];
+        const dy = p.y - orbitStartPosRef.current[1];
+        const dz = p.z - orbitStartPosRef.current[2];
+        if (dx * dx + dy * dy + dz * dz > 0.01) {
+          trackDentalEvent(DENTAL_MOENGAGE_EVENTS.CHART_ROTATED, {
+            view_mode: viewMode,
+            rotation_source: "orbit_controls",
+            patient_age_group: getPatientAgeGroup(),
+            tooth_count_visible: activeTeeth.length,
+          });
+        }
+      }
+    }
+    orbitDragActiveRef.current = false;
+    orbitStartPosRef.current = null;
+
     if (viewMode !== "dentition" || !controlsRef.current) return;
     const ctrl = controlsRef.current;
     const p = ctrl.object?.position;
@@ -121,7 +166,7 @@ export function useDentalCanvasEvents(s) {
     if (!p || !t) return;
     const pose = { position: [p.x, p.y, p.z], target: [t.x, t.y, t.z] };
     setDentitionCameraByType((prev) => ({ ...prev, [patientType]: pose }));
-  }, [patientType, viewMode]);
+  }, [activeTeeth.length, patientType, viewMode, controlsRef]);
 
   // ── Diagnosis / implant toggles ────────────────────────────────────────────
   const toggleToothDiagnosisRef = useRef(null);
@@ -131,31 +176,54 @@ export function useDentalCanvasEvents(s) {
       const fdi = selectedTooth.fdi;
       setToothDiagnoses((prev) => {
         const current = new Set(prev[fdi] || []);
+        const wasPresent = current.has(diagnosis);
         const next = applyDiagnosisSelection(current, diagnosis);
-        if ([...current].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT) &&
-            ![...next].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) {
+        const toothMeta = getToothAnalyticsMeta(fdi, selectedTooth);
+        if (!wasPresent && next.has(diagnosis)) {
+          trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PAST_PROCEDURE_ADDED, {
+            ...toothMeta,
+            procedure_name: diagnosis,
+            entry_source: "manual",
+          });
+          trackToothRecordAdded({
+            recordType: "past_procedure",
+            recordName: diagnosis,
+            tooth: selectedTooth,
+          });
+        } else if (wasPresent && !next.has(diagnosis)) {
+          trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PAST_PROCEDURE_DELETED, {
+            ...toothMeta,
+            procedure_name: diagnosis,
+            delete_source: "manual",
+          });
+        }
+        if ([...current].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT) &&
+            ![...next].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT)) {
           setImplantTeeth((ip) => {
             const n = new Set(ip);
             n.delete(fdi);
             return n;
           });
         }
-        if (![...current].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT) &&
-            [...next].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) {
+        if (![...current].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT) &&
+            [...next].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT)) {
           setImplantTeeth((ip) => {
             const n = new Set(ip);
             n.add(fdi);
             return n;
           });
         }
+        const removed = [...current].filter(n => !next.has(n));
+        if (removed.length > 0) {
+          setTreatmentHistoryDetailsByTooth((prevDetails) => {
+            const toothMap = { ...(prevDetails[fdi] || {}) };
+            removed.forEach(n => { delete toothMap[n]; });
+            return { ...prevDetails, [fdi]: toothMap };
+          });
+        }
         return { ...prev, [fdi]: next };
       });
-      setFindingsByTooth((prev) => {
-        const next = { ...prev };
-        delete next[fdi];
-        return next;
-      });
-      if (getVisualType(diagnosis) === VISUAL_TYPE.MISSING) {
+      if (getVisualType(diagnosis, visualTypeMap) === VISUAL_TYPE.MISSING) {
         setImplantTeeth((prev) => {
           const next = new Set(prev);
           next.delete(selectedTooth.fdi);
@@ -176,8 +244,8 @@ export function useDentalCanvasEvents(s) {
         const current = new Set(prev[fdi] || []);
         if (current.has(diagnosis)) return prev;
         const next = applyDiagnosisSelection(current, diagnosis);
-        if (![...current].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT) &&
-            [...next].some((n) => getVisualType(n) === VISUAL_TYPE.IMPLANT)) {
+        if (![...current].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT) &&
+            [...next].some((n) => getVisualType(n, visualTypeMap) === VISUAL_TYPE.IMPLANT)) {
           setImplantTeeth((ip) => {
             const n = new Set(ip);
             n.add(fdi);
@@ -203,12 +271,22 @@ export function useDentalCanvasEvents(s) {
   const updateToothNotes = useCallback(
     (notes) => {
       setToothNotes((prev) => ({ ...prev, [selectedTooth.fdi]: notes }));
+      if (toothNotesDebounceRef.current) clearTimeout(toothNotesDebounceRef.current);
+      toothNotesDebounceRef.current = setTimeout(() => {
+        const toothMeta = getToothAnalyticsMeta(selectedTooth.fdi, selectedTooth);
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_NOTE_UPDATED, {
+          ...toothMeta,
+          has_note: String(notes || "").trim().length > 0,
+          note_length_bucket: getNoteLengthBucket(notes),
+        });
+      }, 800);
     },
-    [selectedTooth.fdi]
+    [selectedTooth]
   );
 
   // ── Navigation ─────────────────────────────────────────────────────────────
-  const handleSelectTooth = useCallback((tooth) => {
+  const handleSelectTooth = useCallback((tooth, meta = {}) => {
+    const prevView = viewMode;
     setSelectedTooth(tooth);
     setSelectionScope({
       type: "tooth",
@@ -218,9 +296,40 @@ export function useDentalCanvasEvents(s) {
     });
     setSelectedZone(null);
     setViewMode("single-tooth");
-  }, []);
+    const toothMeta = getToothAnalyticsMeta(tooth.fdi, tooth);
+    trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_SELECTED, {
+      ...toothMeta,
+      selection_source: meta.selectionSource || "3d_chart",
+      has_existing_tooth_data: Boolean(meta.tooth_entry_count),
+      tooth_entry_count: meta.tooth_entry_count ?? 0,
+    });
+    trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_VIEW_OPENED, {
+      ...toothMeta,
+      previous_view: prevView,
+      current_view: "single-tooth",
+      has_existing_tooth_data: Boolean(meta.tooth_entry_count),
+    });
+    markDentalPanelOpened(`tooth:${tooth.fdi}`);
+    trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_EXPANDED_OPENED, {
+      ...toothMeta,
+      tooth_entry_count: meta.tooth_entry_count ?? 0,
+    });
+  }, [viewMode]);
 
   const handleBackToDentition = useCallback(() => {
+    if (viewMode === "oral") {
+      const timeSpent = markDentalPanelClosed("oral");
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_MINIMIZED, {
+        time_spent_ms: timeSpent,
+      });
+    } else if (viewMode === "single-tooth") {
+      const timeSpent = markDentalPanelClosed(`tooth:${selectedTooth.fdi}`);
+      const toothMeta = getToothAnalyticsMeta(selectedTooth.fdi, selectedTooth);
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_EXPANDED_MINIMIZED, {
+        ...toothMeta,
+        time_spent_ms: timeSpent,
+      });
+    }
     setViewMode("dentition");
     setSelectionScope((prevScope) => ({
       type: "tooth",
@@ -230,7 +339,7 @@ export function useDentalCanvasEvents(s) {
     }));
     setSelectedZone(null);
     setHoveredZone(null);
-  }, []);
+  }, [viewMode, selectedTooth]);
 
   const handleSelectScope = useCallback(
     (scope) => {
@@ -322,9 +431,21 @@ export function useDentalCanvasEvents(s) {
         });
         return;
       }
-      setSelectedZone((prev) => (prev === zone ? null : zone));
+      setSelectedZone((prev) => {
+        const next = prev === zone ? null : zone;
+        if (prev !== zone && zone) {
+          trackSurfaceSelected({
+            tooth: selectedTooth,
+            surfaceId: zone,
+            selectionMode: opts?.multi ? "multi" : "single",
+            surfaceCount: 1,
+            entryContext: "3d_tooth",
+          });
+        }
+        return next;
+      });
     },
-    [currentToothDiagnoses, selectedTooth.fdi]
+    [currentToothVisualTypes, selectedTooth]
   );
 
   const handleToggleZoneMultiSelect = useCallback(
@@ -400,6 +521,7 @@ export function useDentalCanvasEvents(s) {
 
   const handleSetHoveredTooth = useCallback((fdi) => {
     setHoveredToothFdi(fdi);
+    if (fdi) trackToothHovered(fdi);
   }, []);
 
   // ── Findings ───────────────────────────────────────────────────────────────
@@ -443,6 +565,7 @@ export function useDentalCanvasEvents(s) {
   const handleAddEntry = useCallback(
     (partial) => {
       const fdi = selectedTooth.fdi;
+      const toothMeta = getToothAnalyticsMeta(fdi, selectedTooth);
       const id = `entry-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       setAllEntries((prev) => [...prev, { ...partial, id, toothFdi: fdi }]);
       if (partial.kind === "finding") {
@@ -454,12 +577,76 @@ export function useDentalCanvasEvents(s) {
           }
           return { ...fp, [fdi]: list };
         });
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_FINDING_ADDED, {
+          ...toothMeta,
+          finding_name: partial.name,
+          surface_count: surfaces.length,
+          surfaces,
+          incidence_unit: partial.since || "",
+          entry_source: "manual",
+        });
+        trackToothRecordAdded({
+          recordType: "finding",
+          recordName: partial.name,
+          tooth: selectedTooth,
+          extra: { surface_count: surfaces.length },
+        });
+      } else if (partial.kind === "planned") {
+        const surfaces = partial.surfaces || [];
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PROCEDURE_ADDED, {
+          ...toothMeta,
+          procedure_name: partial.name,
+          surface_count: surfaces.length,
+          surfaces,
+          procedure_status: partial.status || "PLANNED",
+          entry_source: "manual",
+        });
+        trackToothRecordAdded({
+          recordType: "procedure",
+          recordName: partial.name,
+          tooth: selectedTooth,
+          extra: {
+            surface_count: surfaces.length,
+            procedure_status: partial.status || "PLANNED",
+          },
+        });
       }
     },
-    [selectedTooth.fdi, setFindingsByTooth]
+    [selectedTooth, setFindingsByTooth]
   );
 
   const handleUpdateEntry = useCallback((id, patch) => {
+    const existing = allEntries.find((e) => e.id === id);
+    if (existing) {
+      const toothMeta = getToothAnalyticsMeta(existing.toothFdi, selectedTooth);
+      const fieldChanged = Object.keys(patch).join(",");
+      if (existing.kind === "finding") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_FINDING_UPDATED, {
+          ...toothMeta,
+          finding_name: existing.name,
+          field_changed: fieldChanged,
+          surface_count: (patch.surfaces || existing.surfaces || []).length,
+          incidence_unit: patch.since ?? existing.since ?? "",
+        });
+      } else if (existing.kind === "planned") {
+        if (patch.status && patch.status !== existing.status) {
+          trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PROCEDURE_STATUS_CHANGED, {
+            ...toothMeta,
+            procedure_name: existing.name,
+            old_status: existing.status || "PLANNED",
+            new_status: patch.status,
+            surface_count: (existing.surfaces || []).length,
+          });
+        }
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PROCEDURE_UPDATED, {
+          ...toothMeta,
+          procedure_name: existing.name,
+          field_changed: fieldChanged,
+          surface_count: (patch.surfaces || existing.surfaces || []).length,
+          procedure_status: patch.status ?? existing.status ?? "PLANNED",
+        });
+      }
+    }
     setAllEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
     if (patch.surfaces !== undefined) {
       const entry = allEntries.find((e) => e.id === id);
@@ -475,10 +662,29 @@ export function useDentalCanvasEvents(s) {
         });
       }
     }
-  }, [allEntries, setFindingsByTooth]);
+  }, [allEntries, selectedTooth, setFindingsByTooth]);
 
   const handleRemoveEntry = useCallback((id) => {
     const entry = allEntries.find((e) => e.id === id);
+    if (entry) {
+      const toothMeta = getToothAnalyticsMeta(entry.toothFdi, selectedTooth);
+      if (entry.kind === "finding") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_FINDING_DELETED, {
+          ...toothMeta,
+          finding_name: entry.name,
+          surface_count: (entry.surfaces || []).length,
+          delete_source: "manual",
+        });
+      } else if (entry.kind === "planned") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PROCEDURE_DELETED, {
+          ...toothMeta,
+          procedure_name: entry.name,
+          procedure_status: entry.status || "PLANNED",
+          surface_count: (entry.surfaces || []).length,
+          delete_source: "manual",
+        });
+      }
+    }
     setAllEntries((prev) => prev.filter((e) => e.id !== id));
     if (entry?.kind === "finding" && entry.toothFdi) {
       setFindingsByTooth((fp) => {
@@ -491,43 +697,16 @@ export function useDentalCanvasEvents(s) {
     }
   }, [allEntries, setFindingsByTooth]);
 
-  const updateOralNotes = useCallback((v) => setOralNotes(v ?? ""), []);
-
-  const addOralEntry = useCallback((kind, name, extra) => {
-    if (!name) return;
-    setOralEntries((prev) => {
-      if (prev.some((e) => e.kind === kind && e.name === name)) return prev;
-      const id = `oral-${Date.now().toString(36)}-${++oralIdRef.current}`;
-      return [...prev, {
-        id, kind, name,
-        surfaces: extra?.surfaces ?? ["WHOLE"],
-        since: extra?.since ?? "",
-        note: extra?.note ?? "",
-      }];
-    });
+  const updateOralNotes = useCallback((v) => {
+    setOralNotes(v ?? "");
+    if (toothNotesDebounceRef.current) clearTimeout(toothNotesDebounceRef.current);
+    toothNotesDebounceRef.current = setTimeout(() => {
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_NOTE_UPDATED, {
+        has_note: String(v || "").trim().length > 0,
+        note_length_bucket: getNoteLengthBucket(v),
+      });
+    }, 800);
   }, []);
-
-  const removeOralEntry = useCallback((id) => {
-    setOralEntries((prev) => prev.filter((e) => e.id !== id));
-  }, []);
-
-  const updateOralEntry = useCallback((id, patch) => {
-    setOralEntries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, ...patch } : e))
-    );
-  }, []);
-
-  const enterOralExam = useCallback(() => {
-    setSelectionScope({
-      type: "full-mouth",
-      id: "FULL",
-      label: "Full mouth",
-      fdis: getScopeFdis("FULL")
-    });
-    setSelectedZone(null);
-    setOralHighlightFdis(new Set());
-    setViewMode("oral");
-  }, [getScopeFdis]);
 
   const setOralHighlight = useCallback((positionIds) => {
     const ids = Array.isArray(positionIds) ? positionIds : [];
@@ -545,35 +724,143 @@ export function useDentalCanvasEvents(s) {
     setOralHighlightFdis(fdis);
   }, [getScopeFdis]);
 
+  const addOralEntry = useCallback((kind, name, extra) => {
+    if (!name) return;
+    setOralEntries((prev) => {
+      if (prev.some((e) => e.kind === kind && e.name === name)) return prev;
+      const id = `oral-${Date.now().toString(36)}-${++oralIdRef.current}`;
+      const surfaces = extra?.surfaces ?? ["WHOLE"];
+      const oralBase = {
+        procedure_name: name,
+        finding_name: name,
+        location_group: surfaces[0] || "",
+        region_ids: surfaces,
+        region_count: surfaces.length,
+        oral_site_ids: surfaces,
+        incidence_value: extra?.since || "",
+        incidence_unit: extra?.since || "",
+        is_custom_entry: false,
+      };
+      if (kind === "past") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_PAST_PROCEDURE_ADDED, oralBase);
+        trackOralRecordAdded({ recordType: "past_procedure", recordName: name, extra: { region_count: surfaces.length } });
+      } else if (kind === "finding") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_FINDING_ADDED, oralBase);
+        trackOralRecordAdded({ recordType: "finding", recordName: name, extra: { region_count: surfaces.length } });
+      } else if (kind === "procedure") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_PROCEDURE_ADDED, {
+          ...oralBase,
+          procedure_status: extra?.status || "PLANNED",
+        });
+        trackOralRecordAdded({ recordType: "procedure", recordName: name, extra: { region_count: surfaces.length } });
+      }
+      return [...prev, {
+        id, kind, name,
+        surfaces,
+        since: extra?.since ?? "",
+        note: extra?.note ?? "",
+      }];
+    });
+  }, []);
+
+  const removeOralEntry = useCallback((id) => {
+    setOralEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const updateOralEntry = useCallback((id, patch) => {
+    setOralEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...patch } : e))
+    );
+    if (patch.surfaces !== undefined) {
+      setOralHighlight(patch.surfaces);
+    }
+  }, [setOralHighlight]);
+
+  const enterOralExam = useCallback((meta = {}) => {
+    setSelectionScope({
+      type: "full-mouth",
+      id: "FULL",
+      label: "Full mouth",
+      fdis: getScopeFdis("FULL")
+    });
+    setSelectedZone(null);
+    setOralHighlightFdis(new Set());
+    setViewMode("oral");
+    markDentalPanelOpened("oral");
+    trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_EXAM_OPENED, {
+      entry_source: meta.entrySource || "canvas_cta",
+      has_oral_notes: String(oralNotes || "").trim().length > 0,
+    });
+    trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_EXPANDED_OPENED, {
+      has_oral_notes: String(oralNotes || "").trim().length > 0,
+    });
+  }, [getScopeFdis, oralNotes]);
+
   // ── Treatment history details ──────────────────────────────────────────────
   const handleUpdateTreatmentHistoryDetail = useCallback(
     (name, patch) => {
       const fdi = selectedTooth.fdi;
+      const toothMeta = getToothAnalyticsMeta(fdi, selectedTooth);
       setTreatmentHistoryDetailsByTooth((prev) => {
         const currentToothDetails = prev[fdi] || {};
-        const previous = currentToothDetails[name] || {
-          surfaces: getDefaultTreatmentSurfaces(name)
+        const previous = currentToothDetails[name];
+        const isNew = !previous;
+        const merged = {
+          surfaces: getDefaultTreatmentSurfaces(name),
+          ...previous,
+          ...patch,
         };
+        if (isNew) {
+          trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PAST_PROCEDURE_ADDED, {
+            ...toothMeta,
+            procedure_name: name,
+            surface_count: (merged.surfaces || []).length,
+            surfaces: merged.surfaces || [],
+            incidence_unit: merged.since || "",
+            entry_source: "manual",
+          });
+          trackToothRecordAdded({
+            recordType: "past_procedure",
+            recordName: name,
+            tooth: selectedTooth,
+            extra: { surface_count: (merged.surfaces || []).length },
+          });
+        } else {
+          trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PAST_PROCEDURE_UPDATED, {
+            ...toothMeta,
+            procedure_name: name,
+            field_changed: Object.keys(patch).join(","),
+            surface_count: (merged.surfaces || []).length,
+            incidence_unit: merged.since || "",
+          });
+        }
         return {
           ...prev,
-          [fdi]: { ...currentToothDetails, [name]: { ...previous, ...patch } }
+          [fdi]: { ...currentToothDetails, [name]: merged },
         };
       });
     },
-    [selectedTooth.fdi]
+    [selectedTooth]
   );
 
   const handleRemoveTreatmentHistoryDetail = useCallback(
     (name) => {
       const fdi = selectedTooth.fdi;
+      const toothMeta = getToothAnalyticsMeta(fdi, selectedTooth);
       setTreatmentHistoryDetailsByTooth((prev) => {
         const toothMap = prev[fdi];
         if (!toothMap || !toothMap[name]) return prev;
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PAST_PROCEDURE_DELETED, {
+          ...toothMeta,
+          procedure_name: name,
+          surface_count: (toothMap[name]?.surfaces || []).length,
+          delete_source: "manual",
+        });
         const { [name]: _removed, ...rest } = toothMap;
         return { ...prev, [fdi]: rest };
       });
     },
-    [selectedTooth.fdi]
+    [selectedTooth]
   );
 
   const handleClearTreatmentHistoryDetails = useCallback(() => {
@@ -802,6 +1089,7 @@ export function useDentalCanvasEvents(s) {
     getScopeFdis,
     handleDentitionVerticalNudgeChange,
     handleDentitionControlsEnd,
+    handleOrbitControlsStart,
     toggleImplant,
     toggleToothDiagnosis,
     setToothDiagnosis,

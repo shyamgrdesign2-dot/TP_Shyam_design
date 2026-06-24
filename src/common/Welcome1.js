@@ -9,8 +9,10 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, GB_DENTAL_MODULE, GB_CVT_EXT_HOS, CLINIC_TARGET_STATUS } from '../utils/constants';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, GB_CVT_EXT_HOS, CLINIC_TARGET_STATUS } from '../utils/constants';
+import { useIsDentalEnabled } from '../hooks/useIsDentalEnabled';
 import { shouldUseNewPrescriptionUi } from '../utils/prescriptionRouting';
+import { DENTAL_RX_PAD_ROUTE } from '../utils/dentalRoutes';
 import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId, getDraftMoengageDoctorAttributes } from '../utils/utils';
 import { copyVoiceRx, copyAmbientRx, getAmbientRx, getGenRx } from '../api/services/ApiGenRx';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
@@ -52,7 +54,7 @@ function Welcome1(props) {
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tp_monetization_enable = !shouldMonetizationDisabled();
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
-    const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+    const isDentalEnabled = useIsDentalEnabled();
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
     const isChikitsalayAccessable = useChikitsalay();
 
@@ -94,7 +96,7 @@ function Welcome1(props) {
         () => profile?.dp_id === 26 || (profile?.dp_name && profile.dp_name.toLowerCase() === "dental"),
         [profile?.dp_id, profile?.dp_name]
     );
-    const consultRoute = (isDentalDoctor || isDentalEnabled) ? "/dental" : "/prescription";
+    const consultRoute = (isDentalEnabled) ? DENTAL_RX_PAD_ROUTE : "/prescription";
 
     const modifyFormat = useMemo(() => {
         if (viewCaseManagerData) {
@@ -183,7 +185,7 @@ function Welcome1(props) {
     };
 
     const onTypeRxClick = async (patient) => {
-        navigate("/dental", { state: { patient_data: patient } });
+        navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: patient } });
     };
 
     const onVoiceRxClick = async (patient) => {

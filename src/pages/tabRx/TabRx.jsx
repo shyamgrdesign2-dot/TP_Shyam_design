@@ -120,8 +120,8 @@ import {
   isVoiceRxFree,
 } from "../../utils/utils";
 
-import NavPanel from "../../components/shell/NavPanel";
-import HeaderV2 from "../../components/shell/HeaderV2";
+import TabRxNavPanel from "./components/tabRxNavPanel/TabRxNavPanel";
+import TabRxHeaderV2 from "./components/tabRxHeader/TabRxHeaderV2";
 import TabRxCanvas from "./components/TabRxCanvas";
 import { uploadTabRxFiles } from "./services/tabRxService";
 import { getMetadata, getTemplates } from "./services/templateService";
@@ -2134,7 +2134,7 @@ function TabRx() {
           />
         )} */}
         <>
-          <HeaderV2
+          <TabRxHeaderV2
             isVaccinationEnabled={isVaccinationAccessable}
             isGrowthChartEnabled={isGrowthChartAccessable}
             gynecHistory={updatedGynecHistory}
@@ -2163,7 +2163,7 @@ function TabRx() {
             isTeleconsultActive={!!joinToken}
             isSelectLetterHead={isSelectLetterHead}
           />
-          <div
+          <div 
             className="w-100 bg-body wrapper2 prescription-wrapper p-0"
             style={{
               overflowY: "hidden",
@@ -2172,7 +2172,7 @@ function TabRx() {
             }}
           >
             <Layout>
-              <NavPanel
+              <TabRxNavPanel
                 isApexAISelected={isApexAISelected}
                 handleApexAIClose={handleApexAIClose}
                 isGroundingAccessableForZydus={isGroundingAccessableForZydus}

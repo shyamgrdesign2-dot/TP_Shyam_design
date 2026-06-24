@@ -5,10 +5,16 @@
  * useDentalCanvasInteraction; all scene/camera R3F components live in
  * useThreeDentalScene (CameraController, ZoneCameraRotator).
  */
-import { Suspense, useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { VISUAL_TYPE } from "../../../utils/dentalVisualTypes";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  fireDentalOnce,
+  getPatientAgeGroup,
+  trackDentalEvent,
+} from "../../../utils/dentalMoengage";
 import { Tooth } from "./Tooth";
 import DentitionView from "./DentitionView";
 import { ToothSelector } from "./ToothSelector";
@@ -78,6 +84,7 @@ export function DentalCanvas({
 
   const {
     patientType,
+    activeTeeth,
     viewMode,
     selectedTooth,
     selectionScope,
@@ -107,6 +114,7 @@ export function DentalCanvas({
     currentToothEntries,
     handleDentitionVerticalNudgeChange,
     handleDentitionControlsEnd,
+    handleOrbitControlsStart,
     toggleImplant,
     toggleToothDiagnosis,
     setToothDiagnosis,
@@ -144,7 +152,8 @@ export function DentalCanvas({
     updateOralEntry,
     updateOralNotes,
     enterOralExam,
-    setOralHighlight
+    setOralHighlight,
+    visualTypeMap
   } = interaction;
 
   const toothEntriesForTooth = useMemo(
@@ -153,6 +162,26 @@ export function DentalCanvas({
   );
 
   const isDentitionView = viewMode === "dentition";
+  const chartViewedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isDentitionView || chartViewedRef.current) return;
+    chartViewedRef.current = true;
+    fireDentalOnce("chart_viewed", () => {
+      trackDentalEvent(DENTAL_MOENGAGE_EVENTS.CHART_VIEWED, {
+        patient_age_group: getPatientAgeGroup(patientAge),
+        chart_type: patientType,
+        view_mode: viewMode,
+        is_rotatable: true,
+        tooth_count_visible: activeTeeth?.length || 0,
+      });
+    });
+  }, [isDentitionView, patientAge, patientType, viewMode, activeTeeth?.length]);
+
+  const onSelectToothFromChart = (tooth) =>
+    handleSelectTooth(tooth, { selectionSource: "3d_chart" });
+
+  const onOpenOralExam = () => enterOralExam({ entrySource: "canvas_cta" });
 
   const dentitionTitle =
     patientType === "adult"
@@ -202,7 +231,8 @@ export function DentalCanvas({
       onUpdateNotes: handleUpdateNotes,
       onUpdateToothNotes: updateToothNotes,
       onBackToDentition: handleBackToDentition,
-      onSelectTooth: handleSelectTooth,
+      onSelectTooth: (tooth) =>
+        handleSelectTooth(tooth, { selectionSource: "record_card" }),
       onSelectZone: handleSelectZone,
       onClearSelectedZone: handleClearSelectedZone,
       onAddEntry: handleAddEntry,
@@ -212,7 +242,7 @@ export function DentalCanvas({
       onRemoveOralEntry: removeOralEntry,
       onUpdateOralEntry: updateOralEntry,
       onUpdateOralNotes: updateOralNotes,
-      onEnterOralExam: enterOralExam,
+      onEnterOralExam: (meta) => enterOralExam(meta),
       onSetOralHighlight: setOralHighlight,
       onUpdateTreatmentHistoryDetail: handleUpdateTreatmentHistoryDetail,
       onRemoveTreatmentHistoryDetail: handleRemoveTreatmentHistoryDetail,
@@ -295,12 +325,20 @@ export function DentalCanvas({
     window.__DENTAL_CHANGE_PATIENT_TYPE = handlePatientTypeChange;
     // Expose oral highlight seam and a snapshot of canvas state for 3D effect testing
     window.__DENTAL_SET_ORAL_HIGHLIGHT = setOralHighlight;
+    window.__DENTAL_ADD_ORAL_ENTRY = addOralEntry;
+    window.__DENTAL_UPDATE_ORAL_ENTRY = updateOralEntry;
+    window.__DENTAL_HANDLE_ADD_FINDING = handleAddFinding;
+    window.__DENTAL_SELECT_SCOPE = handleSelectScope;
+    window.__DENTAL_HANDLE_ADD_ENTRY = handleAddEntry;
+    window.__DENTAL_TOGGLE_TOOTH_DIAGNOSIS = toggleToothDiagnosis;
     window.__DENTAL_GET_CANVAS_STATE = () => ({
       viewMode,
       patientType,
       selectedToothFdi: selectedTooth?.fdi ?? null,
       oralHighlightFdis: [...oralHighlightFdis],
       selectionScopeId: selectionScope?.id ?? null,
+      findingsByTooth: JSON.parse(JSON.stringify(findingsByTooth)),
+      oralEntries: JSON.parse(JSON.stringify(oralEntries)),
     });
     return () => {
       delete window.__DENTAL_SELECT_TOOTH;
@@ -308,10 +346,19 @@ export function DentalCanvas({
       delete window.__DENTAL_ENTER_ORAL_EXAM;
       delete window.__DENTAL_CHANGE_PATIENT_TYPE;
       delete window.__DENTAL_SET_ORAL_HIGHLIGHT;
+      delete window.__DENTAL_ADD_ORAL_ENTRY;
+      delete window.__DENTAL_UPDATE_ORAL_ENTRY;
+      delete window.__DENTAL_HANDLE_ADD_FINDING;
+      delete window.__DENTAL_SELECT_SCOPE;
+      delete window.__DENTAL_HANDLE_ADD_ENTRY;
+      delete window.__DENTAL_TOGGLE_TOOTH_DIAGNOSIS;
       delete window.__DENTAL_GET_CANVAS_STATE;
     };
   }, [handleSelectTooth, handleBackToDentition, enterOralExam, handlePatientTypeChange,
-      setOralHighlight, viewMode, patientType, selectedTooth, oralHighlightFdis, selectionScope]);
+      setOralHighlight, addOralEntry, updateOralEntry, handleAddFinding,
+      handleSelectScope, handleAddEntry, toggleToothDiagnosis,
+      viewMode, patientType, selectedTooth, oralHighlightFdis, selectionScope, findingsByTooth,
+      oralEntries]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -428,7 +475,7 @@ export function DentalCanvas({
             <div className={dc.scopeHost}>
               <button
                 type="button"
-                onClick={enterOralExam}
+                onClick={onOpenOralExam}
                 title="Record region-level oral findings & procedures"
                 className={dc.oralExamBtn}
               >
@@ -443,7 +490,8 @@ export function DentalCanvas({
           <ToothSelector
             selectedTooth={selectedTooth}
             patientType={patientType}
-            onSelectTooth={handleSelectTooth}
+            onSelectTooth={(tooth) =>
+              handleSelectTooth(tooth, { selectionSource: "tooth_selector" })}
             toothDiagnoses={toothDiagnoses}
             viewMode={viewMode}
             onBackToDentition={handleBackToDentition}
@@ -518,7 +566,7 @@ export function DentalCanvas({
                 toothDiagnoses={toothDiagnoses}
                 findingsByTooth={findingsByTooth}
                 implantTeeth={implantTeeth}
-                onSelectTooth={handleSelectTooth}
+                onSelectTooth={onSelectToothFromChart}
                 onHoverTooth={setHoveredToothFdi}
                 externalHoveredFdi={hoveredToothFdi}
                 allEntries={allEntries}
@@ -526,6 +574,7 @@ export function DentalCanvas({
                 agentPulseFdis={agentApplyPulseFdis}
                 treatmentHistoryDetailsByTooth={treatmentHistoryDetailsByTooth}
                 oralEntries={oralEntries}
+                visualTypeMap={visualTypeMap}
               />
             ) : selectionScope.type !== "tooth" ? (
               <DentitionView
@@ -539,7 +588,7 @@ export function DentalCanvas({
                 toothDiagnoses={toothDiagnoses}
                 findingsByTooth={findingsByTooth}
                 implantTeeth={implantTeeth}
-                onSelectTooth={handleSelectTooth}
+                onSelectTooth={onSelectToothFromChart}
                 onHoverTooth={setHoveredToothFdi}
                 externalHoveredFdi={hoveredToothFdi}
                 allEntries={allEntries}
@@ -547,6 +596,7 @@ export function DentalCanvas({
                 agentPulseFdis={agentApplyPulseFdis}
                 treatmentHistoryDetailsByTooth={treatmentHistoryDetailsByTooth}
                 oralEntries={oralEntries}
+                visualTypeMap={visualTypeMap}
               />
             ) : (
               <group position={[0, 0.04, 0]}>
@@ -580,6 +630,7 @@ export function DentalCanvas({
           <OrbitControls
             ref={controlsRef}
             target={selectionScope.type === "tooth" ? SINGLE_TOOTH_TARGET : undefined}
+            onStart={handleOrbitControlsStart}
             onEnd={handleDentitionControlsEnd}
             enableDamping={true}
             dampingFactor={0.12}

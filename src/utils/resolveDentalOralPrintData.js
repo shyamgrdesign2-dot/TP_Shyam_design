@@ -52,6 +52,63 @@ function normalizeInMemoryDental(rawDental) {
   return null;
 }
 
+function mergeDentalToothStates(primary, secondary) {
+  const primaryStates = Array.isArray(primary?.tooth_states) ? primary.tooth_states : [];
+  const secondaryStates = Array.isArray(secondary?.tooth_states) ? secondary.tooth_states : [];
+  if (primaryStates.length === 0 && secondaryStates.length === 0) return null;
+
+  const byToothCode = new Map();
+  secondaryStates.forEach((toothState) => {
+    const code = toothState?.tooth_code;
+    if (code != null && String(code).trim() !== "") {
+      byToothCode.set(String(code), toothState);
+    }
+  });
+  primaryStates.forEach((toothState) => {
+    const code = toothState?.tooth_code;
+    if (code != null && String(code).trim() !== "") {
+      byToothCode.set(String(code), toothState);
+    }
+  });
+
+  const merged = { tooth_states: Array.from(byToothCode.values()) };
+  return hasDentalExamPayload(merged) ? merged : null;
+}
+
+function mergeOralExamCharts(primary, secondary) {
+  const hasPrimary = hasOralExamChartData(primary);
+  const hasSecondary = hasOralExamChartData(secondary);
+  if (!hasPrimary) return hasSecondary ? secondary : null;
+  if (!hasSecondary) return primary;
+
+  const primaryEntries = Array.isArray(primary.oralEntries) ? primary.oralEntries : [];
+  const secondaryEntries = Array.isArray(secondary.oralEntries) ? secondary.oralEntries : [];
+  const seenIds = new Set(
+    primaryEntries.map((entry) => entry?.id).filter((id) => id != null).map(String),
+  );
+  const mergedEntries = [
+    ...primaryEntries,
+    ...secondaryEntries.filter((entry) => {
+      const id = entry?.id;
+      if (id == null) return true;
+      const key = String(id);
+      if (seenIds.has(key)) return false;
+      seenIds.add(key);
+      return true;
+    }),
+  ];
+
+  const noteParts = [primary.oralNotes, secondary.oralNotes]
+    .map((note) => String(note || "").trim())
+    .filter(Boolean);
+
+  const chart = {
+    oralEntries: mergedEntries,
+    oralNotes: noteParts.join("\n"),
+  };
+  return hasOralExamChartData(chart) ? chart : null;
+}
+
 function mergeOralHistoryToChart(historyPayload) {
   const list = normalizeOralHistoryList(historyPayload);
   if (list.length === 0) {
@@ -78,14 +135,8 @@ function mergeOralHistoryToChart(historyPayload) {
   return hasOralExamChartData(chart) ? chart : null;
 }
 
-async function fetchDentalFromApi(patientId, includeHistorical, allowFullApiFallback) {
+async function fetchDentalTodayOnly(patientId, allowFullApiFallback) {
   if (!patientId) return null;
-
-  if (includeHistorical) {
-    const res = await getExamination(patientId).catch(() => null);
-    const full = extractDentalApiPayload(res);
-    return hasDentalExamPayload(full) ? full : null;
-  }
 
   const todayRes = await getExaminationTodayOnly(patientId).catch(() => null);
   const today = extractDentalApiPayload(todayRes);
@@ -100,20 +151,13 @@ async function fetchDentalFromApi(patientId, includeHistorical, allowFullApiFall
   return null;
 }
 
-async function fetchOralFromApi(
+async function fetchOralTodayOnly(
   patientId,
-  includeHistorical,
   allowFullApiFallback,
   tcmId,
   consultationDate
 ) {
   if (!patientId) return null;
-
-  if (includeHistorical) {
-    const res = await getOralExamination(patientId).catch(() => null);
-    const payload = extractDentalApiPayload(res);
-    return mergeOralHistoryToChart(payload);
-  }
 
   const todayRes = await getOralExaminationTodayOnly(patientId).catch(() => null);
   const todayPayload = extractDentalApiPayload(todayRes);
@@ -128,7 +172,7 @@ async function fetchOralFromApi(
     const fullPayload = extractDentalApiPayload(fullRes);
     const visitChart = pickOralExamForVisit(fullPayload, tcmId, consultationDate);
     if (hasOralExamChartData(visitChart)) return visitChart;
-    return mergeOralHistoryToChart(fullPayload);
+    return mapOralApiToChart(fullPayload);
   }
 
   return null;
@@ -175,37 +219,44 @@ export async function resolveDentalOralForPrint({
   let examChart = null;
 
   if (dentalEnabled) {
-    if (patientId) {
-      dentalExaminationData = await fetchDentalFromApi(
-        patientId,
-        dentalHistorical,
-        allowFullApiFallback
+    if (dentalHistorical) {
+      // Historical mode: merge saved today-only API data with unsaved in-memory session edits.
+      // In-memory wins per tooth_code so current-session chart changes appear in print.
+      let apiDental = null;
+      if (patientId) {
+        apiDental = await fetchDentalTodayOnly(patientId, allowFullApiFallback);
+      }
+      dentalExaminationData = mergeDentalToothStates(
+        normalizedInMemoryDental,
+        apiDental,
       );
-    }
-    if (
-      !hasDentalExamPayload(dentalExaminationData) &&
-      hasDentalExamPayload(normalizedInMemoryDental)
-    ) {
+    } else if (hasDentalExamPayload(normalizedInMemoryDental)) {
+      // Toggle OFF: full in-memory dental examination chart.
       dentalExaminationData = normalizedInMemoryDental;
     }
   }
 
   if (oralEnabled) {
-    if (patientId) {
-      examChart = await fetchOralFromApi(
-        patientId,
-        oralHistorical,
-        allowFullApiFallback,
-        tcmId,
-        consultationDate
-      );
-    }
-    if (!hasOralExamChartData(examChart)) {
-      if (hasOralExamChartData(inMemoryOralChart)) {
-        examChart = inMemoryOralChart;
-      } else if (hasOralExamChartData(contextOralChart)) {
-        examChart = contextOralChart;
+    if (oralHistorical) {
+      let apiOral = null;
+      if (patientId) {
+        apiOral = await fetchOralTodayOnly(
+          patientId,
+          allowFullApiFallback,
+          tcmId,
+          consultationDate,
+        );
       }
+      const inMemoryChart = hasOralExamChartData(inMemoryOralChart)
+        ? inMemoryOralChart
+        : hasOralExamChartData(contextOralChart)
+          ? contextOralChart
+          : null;
+      examChart = mergeOralExamCharts(inMemoryChart, apiOral);
+    } else if (hasOralExamChartData(inMemoryOralChart)) {
+      examChart = inMemoryOralChart;
+    } else if (hasOralExamChartData(contextOralChart)) {
+      examChart = contextOralChart;
     }
   }
 

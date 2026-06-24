@@ -10,7 +10,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { InfoCircle } from "iconsax-reactjs";
 import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
-import { QUADRANT_LABELS, TEETH } from "./types";
+import { QUADRANT_LABELS } from "./types";
+import { getTeethForPatientType } from "./hooks/canvas-interaction-helpers";
 import { ExpandIcon } from "./ui-icons";
 import { MiniToothCanvas } from "./MiniToothCanvas";
 import { TPMedicalIcon } from "../tp-ui";
@@ -46,19 +47,6 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
       const e = seed(fdi);
       if (!e.diagnoses.some((d) => getVisualType(d) === VISUAL_TYPE.IMPLANT)) e.diagnoses.push("Implant");
     });
-    // Treatment history details (e.g. Crown stored without __dx__ marker from older saves)
-    // must also surface in Tooth records, de-duped against toothDiagnoses entries.
-    const historyByTooth = state.treatmentHistoryDetailsByTooth ?? {};
-    for (const [fdi, histMap] of Object.entries(historyByTooth)) {
-      if (!histMap || !Object.keys(histMap).length) continue;
-      const row = seed(fdi);
-      const existingLower = new Set(row.diagnoses.map((d) => d.toLowerCase()));
-      for (const name of Object.keys(histMap)) {
-        if (name && !existingLower.has(name.toLowerCase())) {
-          row.diagnoses.push(name);
-        }
-      }
-    }
     const findingsByTooth = state.findingsByTooth ?? {};
     for (const [fdi, list] of Object.entries(findingsByTooth)) {
       if (!list?.length) continue;
@@ -131,7 +119,8 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
   }, [summary]);
   const openTooth = (fdi) => {
     if (!state) return;
-    const tooth = TEETH.find((t) => t.fdi === fdi);
+    const teeth = getTeethForPatientType(state.patientType);
+    const tooth = teeth.find((t) => t.fdi === fdi);
     if (tooth) state.onSelectTooth(tooth);
   };
   const hasOral = Array.isArray(state?.oralEntries) && state.oralEntries.length > 0;
@@ -149,7 +138,7 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
               <div className={ui.recordsList}>
                 {summary.length > 0 ? (
                   summary.map((entry) => {
-                    const tooth = TEETH.find((t) => t.fdi === entry.fdi);
+                    const tooth = getTeethForPatientType(state?.patientType).find((t) => t.fdi === entry.fdi);
                     const toothName = tooth ?
                       `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` :
                       "";
