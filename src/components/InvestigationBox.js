@@ -215,16 +215,19 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   useEffect(() => {
     const data = [];
-    parentOptionsList.map((e) => {
+    const optionsList = isChikitsalayAccessable
+      ? parentOptionsList.filter((e) => e.hm_type === 15 && Number(e.um_id) === 0)
+      : parentOptionsList;
+
+    optionsList.forEach((e) => {
       let supplementaryIndicator = "";
       if (isChikitsalayAccessable) {
         const raw = getHmTypeIndicator(e, true);
         // Legacy label only shows Z when hm_type === 1 && um_id === 0; never add Z via helper (avoids widening Z to all hm_type===1).
         if (raw && raw !== "Z") supplementaryIndicator = raw;
-        if (e.hm_type !== 15 && e.um_id !== 0) return null;
       }
       const isWideSupplementary = supplementaryIndicator.length > 1;
-      return data.push({
+      data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.investigation_name,
         label: (
@@ -286,7 +289,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, isChikitsalayAccessable]);
 
   const onSearchParent = useCallback(
     (query) => {
