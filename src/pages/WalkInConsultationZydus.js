@@ -645,6 +645,7 @@ function WalkInConsultationZydus() {
                         value={searchQuery}
                         onSearch={onSearchParent}
                         options={searchOptions}
+                        data-testid="walkin-patient-search-autocomplete"
                         className={`${isMobileOnly ? "autocomplete-ios" : "w-100"
                             } autocomplete-custom`}
                         onFocus={onFocusParent}
@@ -658,6 +659,7 @@ function WalkInConsultationZydus() {
                             }`}
                     >
                         <Input
+                            data-testid="walkin-patient-search-input"
                             placeholder="Search via name, phn No or MRN (use * followed by last 6 digits of MRN eg: *234567)"
                             prefix={<i className="icon-search"></i>}
                             suffix={

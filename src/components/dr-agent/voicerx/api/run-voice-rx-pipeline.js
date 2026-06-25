@@ -1,16 +1,18 @@
 import { transcribeAudio, digitiseClinicalData } from "./clinical-processing";
 
-export function createVoiceRxSessionContext({ patientId, doctorId, sessionId }) {
+export function createVoiceRxSessionContext({ patientId, doctorId, sessionId, doctorName, patientName }) {
   return {
     patientId: String(patientId ?? ""),
     doctorId: String(doctorId ?? ""),
-    sessionId: sessionId || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`)
+    sessionId: sessionId || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`),
+    doctorName: String(doctorName || ""),
+    patientName: String(patientName || "")
   };
 }
 
 export async function runVoiceRxPipeline({ audioBlob, context, signal, onPhase }) {
   onPhase?.("transcribing");
-  const { transcript } = await transcribeAudio({ audioBlob, context, signal });
+  const transcript = await transcribeAudio({ audioBlob, context, signal });
 
   onPhase?.("digitising");
   const digitizeResult = await digitiseClinicalData({ context, signal });

@@ -102,15 +102,27 @@ const hasPatientReportedData = (data) =>
     )
   );
 
-const normalizeHistoryItem = (item) => {
+const normalizeHistoryItem = (item, typeOverride = "") => {
   if (!item) return null;
   if (typeof item === "string") return cleanText(item);
   const name = cleanText(item.name || item.history_name || item.lineItem || item.notes);
+  if (!name) return null;
   const detail = [item.duration || item.since, item.status, item.relation, item.notes || item.note]
     .map(cleanText)
     .filter(Boolean)
     .join(", ");
-  return detail ? `${name} (${detail})` : name;
+  return {
+    ...item,
+    type: item.type || typeOverride,
+    name,
+    lineItem: item.lineItem || name,
+    duration: item.duration || item.since || "",
+    since: item.since || item.duration || "",
+    status: item.status || "",
+    relation: item.relation || item.relationship || "",
+    notes: item.notes || item.note || "",
+    detail,
+  };
 };
 
 const normalizeQuestionList = (notes) => {
@@ -150,7 +162,7 @@ const normalizeSymptomCollectorData = (raw) => {
           if (allergy) allergies.push(allergy);
           return;
         }
-        const normalized = normalizeHistoryItem(child);
+        const normalized = normalizeHistoryItem(child, item.title);
         if (normalized) medicalHistory.push(normalized);
       });
       return;
@@ -167,7 +179,7 @@ const normalizeSymptomCollectorData = (raw) => {
       if (medication) currentMedications.push(medication);
       return;
     }
-    const normalized = normalizeHistoryItem(item);
+    const normalized = normalizeHistoryItem(item, item.type);
     if (normalized) medicalHistory.push(normalized);
   });
 
@@ -210,6 +222,20 @@ const buildPatientFromData = (patientData, fallback) => {
     kind: "patient",
   };
 };
+
+const getPatientNameFromData = (patientData) => cleanText(
+  patientData?.pm_fullname ||
+  patientData?.patient_name ||
+  [patientData?.pm_first_name, patientData?.pm_last_name].map(cleanText).filter(Boolean).join(" ")
+);
+
+const buildVoiceRxContextParams = ({ patientId, doctorId, sessionId, patientData, profile }) => ({
+  patientId,
+  doctorId,
+  sessionId,
+  doctorName: profile?.um_name || "",
+  patientName: getPatientNameFromData(patientData),
+});
 
 export function useDrAgentPanel({
   voiceRxMode,
@@ -495,12 +521,40 @@ export function useDrAgentPanel({
     setVoiceRxScriptedTranscript("");
     resetLiveTranscript();
     voiceRxSessionRef.current = createVoiceRxSessionContext({
-      patientId: patientId || "1111",
-      doctorId: doctorId || "3333",
-      sessionId: voiceDigitization?.sessionId,
+      ...buildVoiceRxContextParams({
+        patientId: patientId || "1111",
+        doctorId: doctorId || "3333",
+        sessionId: voiceDigitization?.sessionId,
+        patientData,
+        profile,
+      }),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceRxRecording]);
+
+  const patientSwitchCleanupSeenRef = useRef(selectedPatientId);
+  useEffect(() => {
+    if (patientSwitchCleanupSeenRef.current === selectedPatientId) return;
+    patientSwitchCleanupSeenRef.current = selectedPatientId;
+    if (voiceRxTimeoutRef.current) {
+      clearTimeout(voiceRxTimeoutRef.current);
+      voiceRxTimeoutRef.current = null;
+    }
+    abortActiveVoiceRxRequest(VOICE_V2_ABORT_REASONS.USER_DISCARDED_VOICE_RX);
+    voiceRxSessionRef.current = null;
+    pendingInitialVoiceUserMsgIdRef.current = null;
+    priorVoiceResultRef.current = null;
+    setVoiceRxRecording(false);
+    setVoiceRxScriptedTranscript("");
+    setVoiceRxSubmittedTranscript("");
+    setVoiceRxProcessingTranscript("");
+    setVoiceRxAwaitingResponse(false);
+    setVoiceRxPaused(false);
+    voiceRxPausedRef.current = false;
+    resetLiveTranscript();
+    onVoiceCaptureModeChange?.(null);
+    setAiFillInProgress(false);
+  }, [abortActiveVoiceRxRequest, onVoiceCaptureModeChange, resetLiveTranscript, selectedPatientId, setAiFillInProgress]);
 
   const needsSnapshotSeedRef = useRef(false);
 
@@ -623,9 +677,13 @@ export function useDrAgentPanel({
     let voiceRxLogPreviousContext = null;
 
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
-      patientId: patientId || "1111",
-      doctorId: doctorId || "3333",
-      sessionId: voiceDigitization?.sessionId,
+      ...buildVoiceRxContextParams({
+        patientId: patientId || "1111",
+        doctorId: doctorId || "3333",
+        sessionId: voiceDigitization?.sessionId,
+        patientData,
+        profile,
+      }),
     });
     voiceRxSessionRef.current = context;
 
@@ -659,7 +717,8 @@ export function useDrAgentPanel({
       const transcriptResponse = await transcribeAudio({
         audioBlob,
         context,
-        signal: abortController.signal
+        signal: abortController.signal,
+        includeMetadata: true
       });
       voiceRxTranscriptRequestId = transcriptResponse?.requestId || "";
       const apiTranscript = transcriptResponse?.transcript;
@@ -951,9 +1010,13 @@ export function useDrAgentPanel({
     onVoiceCaptureModeChange?.(null);
 
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
-      patientId: patientId || "1111",
-      doctorId: doctorId || "3333",
-      sessionId: voiceDigitization?.sessionId,
+      ...buildVoiceRxContextParams({
+        patientId: patientId || "1111",
+        doctorId: doctorId || "3333",
+        sessionId: voiceDigitization?.sessionId,
+        patientData,
+        profile,
+      }),
     });
     voiceRxSessionRef.current = context;
 
@@ -989,7 +1052,8 @@ export function useDrAgentPanel({
           const transcriptResponse = await transcribeAudio({
             audioBlob,
             context,
-            signal: abortController.signal
+            signal: abortController.signal,
+            includeMetadata: true
           });
           voiceRxTranscriptRequestId = transcriptResponse?.requestId || "";
           apiTranscript = transcriptResponse?.transcript;
@@ -1961,9 +2025,13 @@ export function useDrAgentPanel({
     if (soapRetryInFlightRef.current || voiceRxResult.soapStatus === "pending") return;
     soapRetryInFlightRef.current = true;
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
-      patientId: patientId || "1111",
-      doctorId: doctorId || "3333",
-      sessionId: voiceDigitization?.sessionId,
+      ...buildVoiceRxContextParams({
+        patientId: patientId || "1111",
+        doctorId: doctorId || "3333",
+        sessionId: voiceDigitization?.sessionId,
+        patientData,
+        profile,
+      }),
     });
     voiceRxSessionRef.current = context;
     setVoiceRxResult((prev) => prev ? { ...prev, soapStatus: "pending", soapError: null } : prev);
@@ -1992,7 +2060,7 @@ export function useDrAgentPanel({
     } finally {
       soapRetryInFlightRef.current = false;
     }
-  }, [dispatch, doctorId, patientId, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
+  }, [dispatch, doctorId, patientData, patientId, profile, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
 
   // Flip only while actively recording — submit flips back immediately so the chat loader
   // (VoiceRxLoaderCard) + RxPad processing overlay become visible.
@@ -2002,7 +2070,7 @@ export function useDrAgentPanel({
   // result tabs (which clears voiceRxResult) or by cancelling.
   // Flip for active voice recording/loading, OR when viewing a restored session
   // result (from chat card expand). The latter doesn't require voiceRxMode prop.
-  const isFlipped = voiceRxMode && (voiceRxRecording || voiceRxAwaitingResponse) || voiceRxResult !== null && !voiceRxResultMinimized;
+  const isFlipped = (voiceRxMode && (voiceRxRecording || voiceRxAwaitingResponse)) || (voiceRxResult !== null && !voiceRxResultMinimized);
 
   // Flip-step counter — increments on every toggle of isFlipped so the
   // 3D wrapper always rotates by an additional 180° in the SAME

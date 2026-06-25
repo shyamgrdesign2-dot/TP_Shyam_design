@@ -731,6 +731,7 @@ function WalkInConsultation() {
             value={searchQuery}
             onSearch={onSearchParent}
             options={searchOptions}
+            data-testid="walkin-patient-search-autocomplete"
             className={`${isMobileOnly ? "autocomplete-ios" : "w-100"
               } autocomplete-custom`}
             // onSelect={onSelect}
@@ -745,6 +746,7 @@ function WalkInConsultation() {
               }`}
           >
             <Input
+              data-testid="walkin-patient-search-input"
               placeholder="Search by Patient’s Name, Phone number or Id"
               prefix={<i className="icon-search"></i>}
               suffix={
