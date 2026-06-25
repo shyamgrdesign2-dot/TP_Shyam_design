@@ -2836,14 +2836,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             size="middle"
             style={{ display: "flex", justifyContent: "space-between" }}
           >
-            {(selectedTab === TAB_CLINIC_QUEUE && isChikitsalayAccessable) ? 
-              <button
-              className="btn btn-outline-primary btn-resume-draft-rx"
-              onClick={() => onConsultClick(record)}
-              >
-                Consult
-              </button>
-             : selectedTab === TAB_DRAFT_RX ? (
+            {selectedTab === TAB_DRAFT_RX ? (
               <button
                 className="btn btn-outline-primary btn-resume-draft-rx"
                 onClick={() => handleResumeDraftRx(record)}
@@ -2878,7 +2871,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </>
                 )
               ) : (
-                (selectedTab === TAB_QUEUE ||
+                (selectedTab === TAB_QUEUE || selectedTab === TAB_CLINIC_QUEUE ||
                   (selectedTab === TAB_ZYDUS_ENCOUNTER &&
                     !finishedData.some(
                       (x) => x.pam_ref_id == record.encounterId
