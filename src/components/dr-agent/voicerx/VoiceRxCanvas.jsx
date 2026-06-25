@@ -137,12 +137,12 @@ export function VoiceRxCanvas({
     onAddDetailsByVoice?.();
   };
 
-  const handleVoiceEditSubmit = async ({ audioBlob, transcript, durationMs } = {}) => {
+  const handleVoiceEditSubmit = async ({ audioBlob, transcript, durationMs, speechAnalysis } = {}) => {
     setVoiceEditProcessing(true);
     setVoiceEditPhase("creating_transcript");
     setVoiceEditTranscript("");
     try {
-      await onQuickEditSubmit?.({ audioBlob, transcript, durationMs }, {
+      await onQuickEditSubmit?.({ audioBlob, transcript, durationMs, speechAnalysis }, {
         onPhase: (phase, payload = {}) => {
           setVoiceEditPhase(phase);
           if (Object.prototype.hasOwnProperty.call(payload, "transcript")) {

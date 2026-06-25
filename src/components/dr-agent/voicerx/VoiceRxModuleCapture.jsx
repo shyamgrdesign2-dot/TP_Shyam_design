@@ -1290,7 +1290,7 @@ export function VoiceRxModuleCapture({
       : { rows: dummyDigitisedData, rawResponse: null, conversation: [], moduleApiName: moduleApiName || resolveModuleApiName(moduleName) };
   }, [customModuleName, dummyDigitisedData, getModuleSessionId, isTranscribeMode, moduleApiName, moduleName, patient_data, previousContext, profile?.doctor_unique_id, profile?.um_name, requiredFields, voiceDigitization?.sessionId]);
 
-  const handleSubmit = useCallback(({ audioBlob, transcript, durationMs, submitClickedAt, submitClickedAtMs, micBeingUsed }) => {
+  const handleSubmit = useCallback(({ audioBlob, transcript, durationMs, submitClickedAt, submitClickedAtMs, micBeingUsed, speechAnalysis }) => {
     if (submitInFlightRef.current) return;
     submitInFlightRef.current = true;
     dispatch(beginVoiceAttempt());
@@ -1355,6 +1355,7 @@ export function VoiceRxModuleCapture({
           transcript: digitisedResult?.rawTranscript ?? digitisedResult?.transcript ?? digitisedResult?.conversation ?? "",
           digitizeData: digitisedResult?.rawResponse ?? (isTranscribeMode ? null : digitisedResult),
           previousContext: digitisedResult?.previousContext ?? null,
+          speechAnalysis,
         });
         dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
           type: !isTranscribeMode && hasModulePreviousContext(previousContext) ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
@@ -1399,6 +1400,7 @@ export function VoiceRxModuleCapture({
           transcript: error?.rawTranscript ?? error?.transcript ?? error?.conversation ?? "",
           digitizeData: error?.rawResponse ?? error?.digitizeData ?? null,
           previousContext: error?.previousContext ?? null,
+          speechAnalysis,
         });
         toast.error(error.message || (isTranscribeMode ? "Module voice transcription failed" : "Module voice digitisation failed"));
         onCancel?.();
