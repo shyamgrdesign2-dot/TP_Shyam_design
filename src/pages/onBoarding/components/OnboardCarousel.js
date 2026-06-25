@@ -6,6 +6,7 @@ import LoopingVideo from "../../../components/common/LoopingVideo";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
 import { detectOperatingSystem } from "../../../utils/loginUtils";
 import { ASSETS } from "../../../assets";
+const doctorsDayBanner = "/assets/images/Doctors_day.png";
 const smartSync = ASSETS.images.websiteImages.smartsyncbanner;
 const practiceManagement = ASSETS.images.websiteImages.practicemanagementbanner;
 const ddxBanner = ASSETS.images.websiteImages.ddxbanner;
@@ -23,6 +24,14 @@ const OnboardingCarousel = () => {
   const utm = getUtmParams();
 
   const baseCarouselItems = [
+    {
+      id: 0,
+      title: "Your care makes",
+      subtitle: "a big difference daily.",
+      image: doctorsDayBanner,
+      imageAvif: null,
+      utmKey: "doctorsday",
+    },
     {
       id: 1,
       title: "Boost Your Practice with",
