@@ -50,6 +50,7 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 const {
   alerticon: alertIcon,
   lab: Investigationicon,
@@ -69,24 +70,8 @@ const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   padding: "12px 16px",
   textAlign: "center",
 };
-const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
-
 function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
-  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
-  const getPrescriptionNewPopupProps = useCallback(
-    (popupClassName = "") => {
-      if (!isPrescriptionNewContext) {
-        return popupClassName ? { popupClassName } : {};
-      }
-      return {
-        popupMatchSelectWidth: false,
-        popupClassName: [PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS, popupClassName]
-          .filter(Boolean)
-          .join(" "),
-      };
-    },
-    [isPrescriptionNewContext]
-  );
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const isChikitsalayAccessable = useChikitsalay();
   const {
     selectedInvestigationList,
@@ -242,7 +227,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   useEffect(() => {
     const data = [];
-    parentOptionsList.map((e) => {
+    const optionsList = isChikitsalayAccessable
+      ? parentOptionsList.filter((e) => e.hm_type === 15 && Number(e.um_id) === 0)
+      : parentOptionsList;
+
+    optionsList.forEach((e) => {
       let supplementaryIndicator = "";
       if (isChikitsalayAccessable) {
         const raw = getHmTypeIndicator(e, true);
@@ -250,7 +239,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         if (raw && raw !== "Z") supplementaryIndicator = raw;
       }
       const isWideSupplementary = supplementaryIndicator.length > 1;
-      return data.push({
+      data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.investigation_name,
         label: (
@@ -296,7 +285,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       });
     }
     else {
-      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB &&
+      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB && !isChikitsalayAccessable &&
         data.push({
           key: JSON.stringify({
             unique_id: uuidv4(),
@@ -312,7 +301,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, isChikitsalayAccessable]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -433,7 +422,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
           const data = [];
           const rows = Array.isArray(action.payload) ? action.payload : [];
-          rows.map((e) => {
+          rows.forEach((e) => {
             const option = buildInvestigationSearchOption(e);
             if (option) data.push(option);
           });
@@ -876,7 +865,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                               <Tooltip
                                 placement="top"
                                 overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                title={`This ${INVESTIGATION_TITLE.toLowerCase()} is not from your ${inventorySourceName} list. Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()}.`}
+                                title={`Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()} from the ${inventorySourceName} list.`}
                               >
                                 <InfoCircleOutlined
                                   className="fs-18 flex-shrink-0"

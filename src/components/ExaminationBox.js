@@ -44,29 +44,15 @@ import {
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 const {
   alerticon: alertIcon,
   examination: Examinationicon,
 } = ASSETS.images;
-const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
 function ExaminationBox({ showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
-  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
-  const getPrescriptionNewPopupProps = useCallback(
-    (popupClassName = "") => {
-      if (!isPrescriptionNewContext) {
-        return popupClassName ? { popupClassName } : {};
-      }
-      return {
-        popupMatchSelectWidth: false,
-        popupClassName: [PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS, popupClassName]
-          .filter(Boolean)
-          .join(" "),
-      };
-    },
-    [isPrescriptionNewContext]
-  );
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedExaminationList,
     parentOptionsList,

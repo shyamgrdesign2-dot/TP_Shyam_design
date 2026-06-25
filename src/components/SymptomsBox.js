@@ -46,29 +46,15 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 const {
   alerticon: alertIcon,
   symptoms: Symptomsicon,
 } = ASSETS.images;
-const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
 function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
-  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
-  const getPrescriptionNewPopupProps = useCallback(
-    (popupClassName = "") => {
-      if (!isPrescriptionNewContext) {
-        return popupClassName ? { popupClassName } : {};
-      }
-      return {
-        popupMatchSelectWidth: false,
-        popupClassName: [PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS, popupClassName]
-          .filter(Boolean)
-          .join(" "),
-      };
-    },
-    [isPrescriptionNewContext]
-  );
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedSymptomsList,
     parentOptionsList,

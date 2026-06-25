@@ -1558,6 +1558,17 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         [medicationData]
     );
 
+    const hasDiagnosisNameAndIcdCode = useMemo(
+        () =>
+            diagnosisData.length > 0 &&
+            diagnosisData.every(
+                (diagnosis) =>
+                    String(diagnosis?.tds_name ?? "").trim() !== "" &&
+                    String(diagnosis?.icd_code ?? "").trim() !== ""
+            ),
+        [diagnosisData]
+    );
+
     const endVisitTooltipMessage = useMemo(() => {
         if (isChikitsalayAccessable) {
             const missingMedicationFields =
@@ -1569,6 +1580,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 return "Please fill Symptoms and Since to end the consultation.";
             } else if (diagnosisData.length === 0) {
                 return "Please fill Diagnosis to end the consultation.";
+            } else if (!hasDiagnosisNameAndIcdCode) {
+                return "Please fill Diagnosis names that has ICD codes for all diagnoses to end the consultation.";
             } else if (missingMedicationFields) {
                 return "Please fill Frequency and Duration for all medicines to end the consultation.";
             }
@@ -1578,6 +1591,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         isChikitsalayAccessable,
         hasSymptomsWithSince,
         diagnosisData,
+        hasDiagnosisNameAndIcdCode,
         medicationData.length,
         hasMedicationsFrequencyAndDuration,
     ]);
@@ -1998,6 +2012,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             errorMessage('Please fillup surgery name')
         } else if (diagnosisData.length > 0 && diagnosisData.filter((e) => e.tds_name == "").length > 0) {
             errorMessage('Please fillup diagnosis name')
+        } else if (isChikitsalayAccessable && !hasDiagnosisNameAndIcdCode) {
+            errorMessage('Please add Diagnosis names that has ICD codes for all diagnoses')
         } else if (medicationData.length > 0 && medicationData.filter((e) => e.tmm_medicine_name == "").length > 0) {
             errorMessage('Please fillup medication name')
         } else if (adviceData.length > 0 && adviceData.filter(e => e.advice_name == "").length > 0) {
@@ -2747,7 +2763,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0
                               );
                               // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
-                              const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0 && hasMedicationsFrequencyAndDuration : (hasPrescriptionModuleData || hasSidebarOnlyData);
+                              const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && hasDiagnosisNameAndIcdCode && hasMedicationsFrequencyAndDuration : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
                                 <>
                                 {onSelectLetterHead && !isDentalConsultation && (
