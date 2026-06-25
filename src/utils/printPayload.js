@@ -7,6 +7,7 @@ import { resolveDentitionType } from "../components/dental/examination/dentalCha
 import { resolveExamChartForPrintWithContext } from "./examChartStorage";
 import { DENTAL_EXAM_CASE_OPTION_ID } from "./dentalDefaultPrintSettings";
 import { hasDentalExamPayload } from "./cardiologyDentalOralExam";
+import { normalizeSmartRxDataForPrint } from "./smartRxPrintUtils";
 
 function shouldPrefetchDentalToothImages({
   dentalExaminationData,
@@ -165,7 +166,7 @@ export const renderPrintPayloadToBlob = async (
       givenVaccines={givenVaccines}
       dueVaccines={dueVaccines}
       carePlanAssignments={carePlanAssignments}
-      smartRxData={smartDigitizeRxData}
+      smartRxData={normalizeSmartRxDataForPrint(smartDigitizeRxData)}
       growthChartDetails={growthChartDetails}
       isGynaecHistoryAccessable={isGynaecHistoryAccessable}
       gynecHistoryData={gynecHistoryData}

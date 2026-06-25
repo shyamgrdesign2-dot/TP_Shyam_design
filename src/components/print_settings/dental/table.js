@@ -32,7 +32,8 @@ function TableSectionHeader({ title, PX_TO_PT, fontFamily, baseFontSize }) {
     <View
       style={{
         backgroundColor: "#f8fafc",
-        padding: `${PX_TO_PT * 5}px ${PX_TO_PT * 10}px`,
+        paddingVertical: PX_TO_PT * 5,
+        paddingHorizontal: PX_TO_PT * 10,
         borderBottom: "1px solid #e2e8f0",
       }}
     >
@@ -45,6 +46,24 @@ function TableSectionHeader({ title, PX_TO_PT, fontFamily, baseFontSize }) {
         }}
       >
         {title}
+      </Text>
+    </View>
+  );
+}
+
+function TableCell({ flex, fontFamily, fontSize, fontWeight = "400", color = "#334155", children }) {
+  return (
+    <View style={{ flex, paddingRight: 4 }}>
+      <Text
+        style={{
+          fontFamily,
+          fontWeight,
+          fontSize,
+          color,
+          lineHeight: 1.35,
+        }}
+      >
+        {children ?? "—"}
       </Text>
     </View>
   );
@@ -70,16 +89,16 @@ function TableByTooth({
           border: "1px solid #e2e8f0",
           borderRadius: 6,
           marginBottom: PX_TO_PT * 10,
-          overflow: "hidden",
         }}
-        wrap={false}
       >
         <View
           style={{
             backgroundColor: "#f1f5f9",
-            padding: `${PX_TO_PT * 6}px ${PX_TO_PT * 10}px`,
+            paddingVertical: PX_TO_PT * 6,
+            paddingHorizontal: PX_TO_PT * 10,
             borderBottom: "1px solid #e2e8f0",
           }}
+          wrap={false}
         >
           <Text
             style={{
@@ -104,7 +123,13 @@ function TableByTooth({
           : null}
 
         {notesText ? (
-          <View style={{ padding: `${PX_TO_PT * 6}px ${PX_TO_PT * 10}px`, backgroundColor: "#ffffff" }}>
+          <View
+            style={{
+              paddingVertical: PX_TO_PT * 6,
+              paddingHorizontal: PX_TO_PT * 10,
+              backgroundColor: "#ffffff",
+            }}
+          >
             <Text
               style={{
                 fontFamily,
@@ -140,7 +165,6 @@ function TableByType({ typeGroups, PX_TO_PT, fontFamily, baseFontSize, renderTab
       style={{
         border: "1px solid #e2e8f0",
         borderRadius: 6,
-        overflow: "hidden",
         marginBottom: PX_TO_PT * 10,
       }}
     >
@@ -231,68 +255,61 @@ export function DentalTableView({
         <View
           style={{
             flexDirection: "row",
-            padding: `${PX_TO_PT * 4}px ${PX_TO_PT * 10}px`,
+            alignItems: "flex-start",
+            paddingVertical: PX_TO_PT * 4,
+            paddingHorizontal: PX_TO_PT * 10,
             borderBottom: "1px solid #e2e8f0",
             backgroundColor: "#ffffff",
           }}
+          wrap={false}
         >
           {includeToothColumn ? (
-            <Text
-              style={{
-                flex: 0.35,
-                fontFamily,
-                fontWeight: "700",
-                fontSize: PX_TO_PT * (baseFontSize - 2),
-                color: "#94a3b8",
-              }}
+            <TableCell
+              flex={0.35}
+              fontFamily={fontFamily}
+              fontSize={PX_TO_PT * (baseFontSize - 2)}
+              fontWeight="700"
+              color="#94a3b8"
             >
               TOOTH
-            </Text>
+            </TableCell>
           ) : null}
-          <Text
-            style={{
-              flex: includeToothColumn ? 0.2 : 0.35,
-              fontFamily,
-              fontWeight: "700",
-              fontSize: PX_TO_PT * (baseFontSize - 2),
-              color: "#94a3b8",
-            }}
+          <TableCell
+            flex={includeToothColumn ? 0.2 : 0.35}
+            fontFamily={fontFamily}
+            fontSize={PX_TO_PT * (baseFontSize - 2)}
+            fontWeight="700"
+            color="#94a3b8"
           >
             NAME
-          </Text>
-          <Text
-            style={{
-              flex: includeToothColumn ? 0.15 : 0.25,
-              fontFamily,
-              fontWeight: "700",
-              fontSize: PX_TO_PT * (baseFontSize - 2),
-              color: "#94a3b8",
-            }}
+          </TableCell>
+          <TableCell
+            flex={includeToothColumn ? 0.15 : 0.25}
+            fontFamily={fontFamily}
+            fontSize={PX_TO_PT * (baseFontSize - 2)}
+            fontWeight="700"
+            color="#94a3b8"
           >
             SURFACES
-          </Text>
-          <Text
-            style={{
-              flex: 0.15,
-              fontFamily,
-              fontWeight: "700",
-              fontSize: PX_TO_PT * (baseFontSize - 2),
-              color: "#94a3b8",
-            }}
+          </TableCell>
+          <TableCell
+            flex={0.15}
+            fontFamily={fontFamily}
+            fontSize={PX_TO_PT * (baseFontSize - 2)}
+            fontWeight="700"
+            color="#94a3b8"
           >
             SINCE
-          </Text>
-          <Text
-            style={{
-              flex: includeToothColumn ? 0.15 : 0.2,
-              fontFamily,
-              fontWeight: "700",
-              fontSize: PX_TO_PT * (baseFontSize - 2),
-              color: "#94a3b8",
-            }}
+          </TableCell>
+          <TableCell
+            flex={includeToothColumn ? 0.15 : 0.2}
+            fontFamily={fontFamily}
+            fontSize={PX_TO_PT * (baseFontSize - 2)}
+            fontWeight="700"
+            color="#94a3b8"
           >
             NOTES
-          </Text>
+          </TableCell>
         </View>
 
         {normalizedRows.map((row, idx) => {
@@ -303,69 +320,53 @@ export function DentalTableView({
               key={idx}
               style={{
                 flexDirection: "row",
-                padding: `${PX_TO_PT * 6}px ${PX_TO_PT * 10}px`,
+                alignItems: "flex-start",
+                paddingVertical: PX_TO_PT * 6,
+                paddingHorizontal: PX_TO_PT * 10,
                 borderBottom: isLastRow ? "none" : "1px solid #f1f5f9",
                 backgroundColor: "#ffffff",
+                minHeight: PX_TO_PT * 18,
               }}
-              wrap={false}
             >
               {includeToothColumn ? (
-                <Text
-                  style={{
-                    flex: 0.35,
-                    fontFamily,
-                    fontWeight: "500",
-                    fontSize: PX_TO_PT * (baseFontSize - 1),
-                    color: "#334155",
-                  }}
+                <TableCell
+                  flex={0.35}
+                  fontFamily={fontFamily}
+                  fontSize={PX_TO_PT * (baseFontSize - 1)}
+                  fontWeight="500"
                 >
                   {row.toothName || "—"}
-                </Text>
+                </TableCell>
               ) : null}
-              <Text
-                style={{
-                  flex: includeToothColumn ? 0.2 : 0.35,
-                  fontFamily,
-                  fontWeight: "500",
-                  fontSize: PX_TO_PT * (baseFontSize - 1),
-                  color: "#334155",
-                }}
+              <TableCell
+                flex={includeToothColumn ? 0.2 : 0.35}
+                fontFamily={fontFamily}
+                fontSize={PX_TO_PT * (baseFontSize - 1)}
+                fontWeight="500"
               >
                 {item.name || item.type || "—"}
-              </Text>
-              <Text
-                style={{
-                  flex: includeToothColumn ? 0.15 : 0.25,
-                  fontFamily,
-                  fontWeight: "400",
-                  fontSize: PX_TO_PT * (baseFontSize - 1),
-                  color: "#334155",
-                }}
+              </TableCell>
+              <TableCell
+                flex={includeToothColumn ? 0.15 : 0.25}
+                fontFamily={fontFamily}
+                fontSize={PX_TO_PT * (baseFontSize - 1)}
               >
                 {item.surfaces}
-              </Text>
-              <Text
-                style={{
-                  flex: 0.15,
-                  fontFamily,
-                  fontWeight: "400",
-                  fontSize: PX_TO_PT * (baseFontSize - 1),
-                  color: "#334155",
-                }}
+              </TableCell>
+              <TableCell
+                flex={0.15}
+                fontFamily={fontFamily}
+                fontSize={PX_TO_PT * (baseFontSize - 1)}
               >
                 {item.since}
-              </Text>
-              <Text
-                style={{
-                  flex: includeToothColumn ? 0.15 : 0.2,
-                  fontFamily,
-                  fontWeight: "400",
-                  fontSize: PX_TO_PT * (baseFontSize - 1),
-                  color: "#334155",
-                }}
+              </TableCell>
+              <TableCell
+                flex={includeToothColumn ? 0.15 : 0.2}
+                fontFamily={fontFamily}
+                fontSize={PX_TO_PT * (baseFontSize - 1)}
               >
                 {item.notes}
-              </Text>
+              </TableCell>
             </View>
           );
         })}

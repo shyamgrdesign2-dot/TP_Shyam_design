@@ -85,11 +85,7 @@ import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } 
 import PrimaryActionButton from "./PrimaryActionButton";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
-import { renderPrintPayloadToBlob } from "../utils/printPayload";
-import {
-  ensureDrawingCanvasCaseOption,
-  loadDrawingCanvasesForPrint,
-} from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
+import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
 import { ASSETS } from "../assets";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import ApiMedication from "../api/services/ApiMedication";
@@ -969,6 +965,7 @@ function Cardiology(props) {
     payload: printPayloadData,
     printBlob: printPayloadBlob,
     isGenerating: isPrintPayloadGenerating,
+    error: printPayloadError,
   } = usePrintPayloadPdf({
     printUrl: printUrlWithLang,
     selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
@@ -1034,6 +1031,11 @@ function Cardiology(props) {
     );
   }, [parseObjectValue, printPayloadData, unwrapDigitizePayload]);
 
+  useEffect(() => {
+    if (!printPayloadError) return;
+    message.error("Failed to generate prescription PDF.");
+  }, [printPayloadError]);
+
   const legacyVoiceRxDisplayData = voiceRxPrintPayloadData || genRxData;
 
   const buildPayloadBlobFromPrintUrl = useCallback(async (sourceUrl) => {
@@ -1044,34 +1046,22 @@ function Cardiology(props) {
     const payload = response?.data?.data || null;
     if (!payload) return null;
 
-    const resolvedCanvasFilename =
-      viewCaseManagerData?.canvas_filename ?? payload?.caseManagerData?.canvas_filename;
-    const { drawingCanvases } = await loadDrawingCanvasesForPrint({
-      patientId: patient_data?.patient_unique_id,
-      tcmId: viewCaseManagerData?.tcm_id ?? payload?.caseManagerData?.tcm_id,
-      canvasFilename: resolvedCanvasFilename,
-    });
-    const printSettingsWithCanvas =
-      drawingCanvases.length > 0
-        ? ensureDrawingCanvasCaseOption(payload.printSettings)
-        : payload.printSettings;
-
-    const blob = await renderPrintPayloadToBlob(
-      {
-        ...payload,
-        printSettings: printSettingsWithCanvas,
-        drawingCanvases,
-        isCvtExtHosAccessableFromGB,
-      },
-      {
+    try {
+      const { blob } = await buildPrintPdfBlobFromPayload(payload, {
         selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
         isGynaecHistoryAccessable: false,
-      },
-    );
-    if (!(blob instanceof Blob)) return null;
-    const header = await blob.slice(0, 5).text();
-    if (header !== "%PDF-") return null;
-    return blob;
+        patientId: patient_data?.patient_unique_id,
+        tcmId: viewCaseManagerData?.tcm_id ?? payload?.caseManagerData?.tcm_id,
+        canvasFilename:
+          viewCaseManagerData?.canvas_filename ?? payload?.caseManagerData?.canvas_filename,
+        isCvtExtHosAccessableFromGB,
+        allowFullApiFallback: true,
+      });
+      return blob instanceof Blob ? blob : null;
+    } catch (err) {
+      console.error("Failed to build print PDF blob", err);
+      return null;
+    }
   }, [
     selectedLang,
     isCvtExtHosAccessableFromGB,

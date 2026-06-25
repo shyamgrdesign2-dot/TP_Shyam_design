@@ -428,7 +428,7 @@ const getSmartSyncUploadedFileUri = (file) =>
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, isDentalEnabled: isDentalEnabledFromProps, drawingCanvases } = props
-    const isDentalEnabledDoc = useIsDentalEnabled();
+    // const isDentalEnabledDoc = useIsDentalEnabled();
     const filteredDrawingCanvases = useMemo(() => {
         const canvasFilename = caseManagerData?.canvas_filename;
         const hasCanvasFilenameField =
@@ -462,7 +462,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         }
     }
     const isDentalEnabled =
-     isDentalEnabledDoc ??
+        isDentalEnabledFromProps ??
         (onlyShowDental ||
         Boolean(
             dentalData ||

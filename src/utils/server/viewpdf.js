@@ -66,10 +66,10 @@ import OphthalmologyTableView from "../../components/print_settings/ophthalmolog
 import ThenConnector from "../../components/print_settings/ThenConnector";
 import { getDecodedToken } from "../localStorage";
 import { ASSETS } from "../../assets";
-import { getUploadedFilePublicUrl } from "../../pages/smartSync/services/templateUtils";
-
-const getSmartSyncUploadedFileUri = (file) =>
-  getUploadedFilePublicUrl(file) || file?.fileUrl || file?.showFile || null;
+import {
+  getSmartSyncUploadedFileUri,
+  normalizeSmartRxDataForPrint,
+} from "../smartRxPrintUtils";
 
 const PX_TO_PT = 0.75;
 
@@ -678,7 +678,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     givenVaccines,
     dueVaccines,
     carePlanAssignments,
-    smartRxData,
+    smartRxData: rawSmartRxData,
     growthChartDetails,
     gynecHistoryData,
     obsHistoryData,
@@ -698,6 +698,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     isCvtExtHosAccessableFromGB,
     drawingCanvases,
   } = props;
+  const smartRxData = normalizeSmartRxDataForPrint(rawSmartRxData);
   let dentalExaminationData = rawDentalData || props.dentalExaminationData;
   if (dentalExaminationData && dentalExaminationData.toothState && typeof dentalExaminationData.toothState === "object") {
     try {
@@ -4053,26 +4054,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       : null}
                   </>
                 )}
-                {/* {hasBlankSmartSyncCanvas &&
+                {hasBlankSmartSyncCanvas &&
                   uploaded_files
                     ?.filter((item) => getSmartSyncUploadedFileUri(item))
                     ?.map((item, i) => (
-                    <View key={`blank-smartsync-canvas-${i}`}>
-                      <View
-                        style={{
-                          marginTop: PX_TO_PT * 15,
-                          width: "100%",
-                          height: 800,
-                        }}
-                      >
-                        <Image
-                          style={{ width: "100%", height: "100%" }}
-                          source={{ uri: getSmartSyncUploadedFileUri(item) }}
-                          resizeMode="contain"
-                        />
+                      <View key={`blank-smartsync-canvas-${i}`}>
+                        <View
+                          style={{
+                            marginTop: PX_TO_PT * 15,
+                            width: "100%",
+                            height: 800,
+                          }}
+                        >
+                          <Image
+                            style={{ width: "100%", height: "100%" }}
+                            source={{ uri: getSmartSyncUploadedFileUri(item) }}
+                            resizeMode="contain"
+                          />
+                        </View>
                       </View>
-                    </View>
-                  ))} */}
+                    ))}
                 {printSettings?.prescription?.case_option?.map(
                   (option, index) => {
                     if (onlyShowDental) {
@@ -13856,8 +13857,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               caseManagerData.isCustomSSRX === "0" &&
                               !isSnapRx &&
                               !isDigitizedFlow() &&
-                              // !hasBlankSmartSyncCanvas &&
-                              uploaded_files?.map((item, i) => (
+                              !hasBlankSmartSyncCanvas &&
+                              uploaded_files
+                                ?.filter((item) => getSmartSyncUploadedFileUri(item))
+                                ?.map((item, i) => (
                                 <View key={i}>
                                   <View
                                     style={{

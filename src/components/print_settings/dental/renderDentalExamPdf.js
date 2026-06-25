@@ -72,17 +72,19 @@ export function renderDentalExamPdf({
     );
   }
   return (
-    <View>
+    <>
       {showDentalChart ? (
-        <PdfDentalChart
-          PX_TO_PT={PX_TO_PT}
-          printSettings={printSettings}
-          dentalExaminationData={dentalExaminationData}
-          toothImageMap={toothImageMap}
-        />
+        <View wrap={false}>
+          <PdfDentalChart
+            PX_TO_PT={PX_TO_PT}
+            printSettings={printSettings}
+            dentalExaminationData={dentalExaminationData}
+            toothImageMap={toothImageMap}
+          />
+        </View>
       ) : null}
       {viewNode}
-    </View>
+    </>
   );
 }
 
