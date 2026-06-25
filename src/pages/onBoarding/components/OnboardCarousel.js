@@ -6,7 +6,7 @@ import LoopingVideo from "../../../components/common/LoopingVideo";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
 import { detectOperatingSystem } from "../../../utils/loginUtils";
 import { ASSETS } from "../../../assets";
-const doctorsDayBanner = "/assets/images/Doctors_day.png";
+const doctorsDayBanner = ASSETS.images.offerings.doctorsDay;
 const smartSync = ASSETS.images.websiteImages.smartsyncbanner;
 const practiceManagement = ASSETS.images.websiteImages.practicemanagementbanner;
 const ddxBanner = ASSETS.images.websiteImages.ddxbanner;
