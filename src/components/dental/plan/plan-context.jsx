@@ -76,11 +76,11 @@ export function PlanProvider({
 
   // 3. Derived selectors
   const estimatePlans = useMemo(
-    () => plans.filter((p) => p.status === "draft" || p.status === "active"),
+    () => plans.filter((p) => p.status === "draft"),
     [plans]
   );
   const inProgressPlans = useMemo(
-    () => plans.filter((p) => p.status === "in-progress"),
+    () => plans.filter((p) => p.status === "active" || p.status === "in-progress"),
     [plans]
   );
   const completedPlans = useMemo(

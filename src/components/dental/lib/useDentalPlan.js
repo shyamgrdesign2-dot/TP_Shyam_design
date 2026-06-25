@@ -58,9 +58,13 @@ export function useDentalPlan(patientId) {
     return dispatch(duplicateDentalPlan({ patientId, planId }));
   }, [patientId, dispatch]);
 
-  const activatePlan = useCallback((planId, data) => {
+  const activatePlan = useCallback(async (planId, data) => {
     if (!patientId) return;
-    return dispatch(activateDentalPlan({ patientId, planId, data }));
+    const result = await dispatch(activateDentalPlan({ patientId, planId, data }));
+    if (!result.error) {
+      dispatch(fetchDentalPlans(patientId));
+    }
+    return result;
   }, [patientId, dispatch]);
 
   const startTreatment = useCallback((planId, data) => {
