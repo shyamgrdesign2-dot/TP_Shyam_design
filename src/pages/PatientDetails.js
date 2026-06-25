@@ -8,6 +8,7 @@ import Welcome1 from '../common/Welcome1'
 import VitalsBodyComposition from '../components/VitalsBodyComposition';
 // import LabParameters from '../components/LabParameters';
 import MedicalHistory from '../components/MedicalHistory';
+import DentalOralExaminationHistory from '../components/DentalOralExaminationHistory';
 import CarePlanBox from '../components/CarePlanBox';
 // import Vaccination from '../components/Vaccination';
 import Cardiology from '../components/Cardiology';
@@ -52,11 +53,14 @@ import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
 import { lazyRetry } from "../utils/lazyRetry";
 import { searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
-import { errorMessage } from "../utils/utils";
+import { errorMessage, trackEvent } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
+import VisitDrawingCanvases from "./drawingCanvas/components/VisitDrawingCanvases";
+
 const variables = ASSETS.scss.variables;
 const alertIcon = ASSETS.images.alerticon;
 const BillingDashboard = React.lazy(() =>
@@ -78,6 +82,7 @@ function PatientDetails() {
         (state) => state.billing
       );
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -249,11 +254,12 @@ function PatientDetails() {
             });
             var sendData = {
                 patient_unique_id: patient_data?.patient_unique_id,
-                tcm_id: currentConsultation.tcm_id
+                tcm_id: currentConsultation.tcm_id,
+                isChikitsalayAccessable,
             };
             dispatch(viewCaseManager(sendData));
         }
-    }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch]);
+    }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch, isChikitsalayAccessable]);
 
     useEffect(() => {
         const tcmId = viewCaseManagerData?.tcm_id;
@@ -428,6 +434,18 @@ function PatientDetails() {
         setSidebarKey(key)
     }, [sidebarKey])
 
+    useEffect(() => {
+        if (sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES) {
+            trackEvent("drawing_canvas_patient_history_viewed", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: patient_data?.patient_unique_id,
+            });
+        }
+    }, [sidebarKey, profile, patient_data?.patient_unique_id]);
+
     const handleUploadDocPopup = () => {
         setShowUploadDocPopup((prev) => !prev);
     };
@@ -483,7 +501,7 @@ function PatientDetails() {
                 </Sider>
 
                 <Content>
-                    <div className='w-100 vh-100 overflow-y-auto'>
+                    <div className={`w-100 vh-100 overflow-y-auto`}>
                         { sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT &&
                             <Welcome1
                                 locationPath={locationPath}
@@ -509,6 +527,7 @@ function PatientDetails() {
                                         )}
                                         
                                         <MedicalHistory loading={loading} medicalHistoryData={viewCaseManagerData?.medical_history} doctorId={viewCaseManagerData?.doctor_data?.um_id} />
+                                        <DentalOralExaminationHistory />
                                         
                                         {isVaccinationAccessable && <VisitVaccination />}
                                         {isGrowthChartAccessable && <VisitGrowthChart />}
@@ -575,6 +594,17 @@ function PatientDetails() {
                             <div className="appointment-wrap PatientDetailswrap">
                                 <HealthCheckupReport patient_data={patient_data} showHealthCheckupReportDrawer={showHealthCheckupReportDrawer} setShowHealthCheckupReportDrawer={setShowHealthCheckupReportDrawer} />
                             </div>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES ? (
+                            <VisitDrawingCanvases 
+                                patientId={patient_data?.patient_unique_id}
+                                trackingAttrs={{
+                                    specialty: profile?.dp_name,
+                                    specialty_id: profile?.dp_id,
+                                    doctor_unique_id: profile?.doctor_unique_id,
+                                    doctor_name: profile?.um_name,
+                                    patient_id: patient_data?.patient_unique_id,
+                                }}
+                            />
                         ) : null}
                     </div>
                 </Content>

@@ -55,7 +55,6 @@ import {
   moveCopiedVitalsRowToEnd,
   normalizeCopiedVitalsRow,
   normalizeVitalsInputRow,
-  vitalsRowHasCapturedData,
 } from "../utils/vitalsHelpers";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
@@ -95,7 +94,7 @@ import {
 import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
-import { appendStripped } from "../utils/voiceRxRowStrip";
+import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
@@ -228,13 +227,10 @@ function parseFollowUpDate(value, baseDate) {
   return base.clone().add(amount, unit).format("YYYY-MM-DD");
 }
 
-function appendFollowUpNote(setAdditionalNote, value) {
+function appendAdditionalNote(setAdditionalNote, value) {
   const text = String(value ?? "").trim();
   if (!text) return;
-  setAdditionalNote((prev) => {
-    const current = String(prev || "").trim();
-    return current ? `${current}\n${text}` : text;
-  });
+  setAdditionalNote((prev) => appendDedupedText(prev, text));
 }
 
 function hasCopiedCustomModuleValue(value) {
@@ -505,7 +501,7 @@ function PrescriptionNewRxPadCopyListener() {
     const digitization = payload.digitization || {};
     const appendRows = (setter, rows, moduleKey) => {
       if (!rows.length) return;
-      setter((prev) => appendStripped(prev, rows, moduleKey));
+      setter((prev) => mergeCopiedRows(prev, rows, moduleKey));
     };
 
     const symptoms = firstNonEmpty(digitization.symptoms, payload.symptoms);
@@ -538,7 +534,8 @@ function PrescriptionNewRxPadCopyListener() {
           frequencyList
         ),
         timingList
-      )
+      ),
+      "medications"
     );
 
     const investigations = firstNonEmpty(
@@ -556,31 +553,29 @@ function PrescriptionNewRxPadCopyListener() {
     const advice = firstNonEmpty(digitization.advice, payload.advice);
     appendRows(
       setAdviceData,
-      normalizeModuleRows({ advice: toArray(advice) }, "advice")
+      normalizeModuleRows({ advice: toArray(advice) }, "advice"),
+      "advice"
     );
 
-    const copiedVitals = firstNonEmpty(
-      digitization.vitals_and_body_composition,
-      digitization.vitalsAndBodyComposition,
-      digitization.vitals,
-      payload.vitals_and_body_composition,
-      payload.vitalsAndBodyComposition,
-      payload.vitals
-    );
+    const copiedVitals = payload.skipVitalsSync
+      ? null
+      : firstNonEmpty(
+        digitization.vitals_and_body_composition,
+        digitization.vitalsAndBodyComposition,
+        digitization.vitals,
+        payload.vitals_and_body_composition,
+        payload.vitalsAndBodyComposition,
+        payload.vitals
+      );
     const copiedVitalsObject = getCopiedVitalsObject(copiedVitals);
     if (copiedVitalsObject && patient_data?.patient_unique_id) {
       const today = moment().format("YYYY-MM-DD");
-      const isIndividualVitalsCopy = payload.vitalsCopyMode === "item" && !lastCopyRequest.isBulk;
       const modalRows = Array.isArray(vitalsData) ? vitalsData : [];
-      const normalizedModalRows = modalRows.map((row) => normalizeVitalsInputRow(row, patient_data));
-      const modalHasVitalsData = normalizedModalRows.some(vitalsRowHasCapturedData);
       const existingRows = Array.isArray(selectedVitalsList) && selectedVitalsList.length
         ? selectedVitalsList
         : modalRows;
       const normalizedExistingRows = existingRows.map((row) => normalizeVitalsInputRow(row, patient_data));
-      const editTargetIndex = isIndividualVitalsCopy && modalHasVitalsData
-        ? findLatestVitalsRowIndexForDate(normalizedExistingRows, today)
-        : -1;
+      const editTargetIndex = findLatestVitalsRowIndexForDate(normalizedExistingRows, today);
       const editTargetRow = editTargetIndex >= 0 ? normalizedExistingRows[editTargetIndex] : {};
       const copiedVitalsRow = editTargetIndex >= 0
         ? normalizeCopiedVitalsRow(
@@ -669,7 +664,8 @@ function PrescriptionNewRxPadCopyListener() {
       if (parsedDate) {
         setFollowUpDate(parsedDate);
       } else {
-        appendFollowUpNote(setAdditionalNote, item);
+        const followUpText = String(item ?? "").trim();
+        if (followUpText) setFollowUpDate(followUpText);
       }
     });
 
@@ -678,7 +674,7 @@ function PrescriptionNewRxPadCopyListener() {
       digitization.additionalNotes,
       payload.additionalNotes
     );
-    toArray(additionalNotes).forEach((item) => appendFollowUpNote(setAdditionalNote, item));
+    toArray(additionalNotes).forEach((item) => appendAdditionalNote(setAdditionalNote, item));
 
     const copiedModuleContents = firstNonEmpty(
       digitization.moduleContents,

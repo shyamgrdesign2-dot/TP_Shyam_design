@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import { Col, Radio, Row, Form, Table, Collapse, Checkbox, Button, Modal, Tooltip } from "antd";
+import { Col, Radio, Row, Form, Table, Collapse, Checkbox, Button, Modal, Tooltip, Switch } from "antd";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { MenuOutlined } from "@ant-design/icons";
 import { DndContext } from "@dnd-kit/core";
@@ -14,13 +15,26 @@ import { CSS } from "@dnd-kit/utilities";
 
 import PrintSettingsContext from "../../context/PrintSettingsContext";
 import PageBreakComponent from "./PageBreakComponent";
+import { transformToothStateToApi } from "../dental/lib/examination-helpers";
 
 import { isMobile } from "react-device-detect";
 import { useAccess } from "../../pages/vaccination/useAccess";
 import { graphsToPrintData } from "../../pages/growthChart/growthChartHelper";
 import { getDecodedToken } from "../../utils/localStorage";
 import { env } from "../../EnvironmentConfig";
-import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE } from "../../utils/constants";
+import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE, GB_DENTAL_MODULE } from "../../utils/constants";
+import {
+  DENTAL_EXAM_CASE_OPTION_ID,
+  ORAL_EXAM_CASE_OPTION_ID,
+} from "../../utils/dentalDefaultPrintSettings";
+import { loadExamChart, hasOralExamChartData } from "../../utils/examChartStorage";
+import { hasHistoricalData } from "../dental/examination/DentalChartPrint";
+import { toothHasDentalPrintData } from "../print_settings/dental/dentalPrintHelpers";
+import { trackEvent } from "../../utils/utils";
+import {
+  DENTAL_MOENGAGE_EVENTS,
+  trackDentalEvent,
+} from "../../utils/dentalMoengage";
 // const CustomRow = ({ children, ...props }) => {
 //     const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
 //         id: props['data-row-key'],
@@ -202,7 +216,85 @@ const diagnosisCheckboxOptions = [
 
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills, crossConsultData }) {
   const contextValue = useContext(PrintSettingsContext);
-  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile, isDigitisedPrintConfig } = contextValue || {};
+  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile, isDigitisedPrintConfig, dentalExaminationData, isDentalEnabled: isDentalEnabledContext, drawingCanvases } = contextValue || {};
+  const isDentalEnabledFeature = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = isDentalEnabledContext || isDentalEnabledFeature;
+
+  let dentalExamData = dentalExaminationData;
+  if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {
+    dentalExamData = {
+      ...dentalExamData,
+      tooth_states: transformToothStateToApi(dentalExamData.toothState)
+    };
+  }
+  const hasDentalExaminationData = Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.some((toothState) =>
+    toothHasDentalPrintData(toothState)
+  );
+
+  const patientId = caseManagerData?.patient_data?.patient_unique_id;
+  const examChart = loadExamChart(patientId);
+  const hasOralExaminationData = hasOralExamChartData(examChart);
+  const historyAvailable = hasHistoricalData(patientId);
+
+  const hasDentalPrintOption = printSettings?.prescription?.case_option?.some(
+    (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID
+  );
+  const hasOralPrintOption = printSettings?.prescription?.case_option?.some(
+    (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID
+  );
+
+  const showDentalExamRow = isDentalEnabled || hasDentalExaminationData || hasDentalPrintOption;
+  const showOralExamRow = isDentalEnabled || hasOralExaminationData || hasOralPrintOption;
+
+  const onExamPrintToggleChange = (caseOptionIndex, key, value) => {
+    const currentOption = printSettings?.prescription?.case_option?.[caseOptionIndex];
+    if (showDentalExamRow || isDentalEnabled) {
+      if (key === "showDentalChart") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_DENTAL_CHART_TOGGLED, {
+          show_dental_chart: value,
+          tooth_records_total_present: hasDentalExaminationData ? 1 : 0,
+          oral_exam_total_present: hasOralExaminationData ? 1 : 0,
+        });
+      }
+      if (key === "includeHistorical") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_PAST_DENTAL_HISTORY_TOGGLED, {
+          include_past_dental_history: value,
+          historic_tooth_record_count: historyAvailable ? 1 : 0,
+          historic_oral_exam_count: historyAvailable ? 1 : 0,
+        });
+      }
+      if (key === "format") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_VIEW_TYPE_SELECTED, {
+          section_type: currentOption?.id === ORAL_EXAM_CASE_OPTION_ID ? "oral" : "dental",
+          view_type: value,
+          layout_type: printSettings?.prescription?.format || "",
+        });
+      }
+      if (key === "groupDentalExaminationBy") {
+        trackDentalEvent(DENTAL_MOENGAGE_EVENTS.PRINT_LAYOUT_SELECTED, {
+          old_layout_type: currentOption?.groupDentalExaminationBy || "type",
+          new_layout_type: value,
+          source_page: "/configure_print_setting",
+        });
+      }
+    }
+    setPrintSettings((prev) => {
+      const caseOption = [...(prev?.prescription?.case_option || [])];
+      if (!caseOption[caseOptionIndex]) return prev;
+      caseOption[caseOptionIndex] = {
+        ...caseOption[caseOptionIndex],
+        [key]: value,
+      };
+      return {
+        ...prev,
+        prescription: {
+          ...prev.prescription,
+          case_option: caseOption,
+        },
+      };
+    });
+  };
+
   const { isVaccinationAccessable, isGrowthChartAccessable, isGynaecHistoryAccessable } = useAccess(
     caseManagerData?.patient_data?.patient_age
   );
@@ -231,6 +323,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
       const updatedData = printSettings.prescription.case_option.map((x) => {
         if (x.type === "page_break") {
           return x;
+        }
+        if (x.id === 25) {
+          return { ...x, format: "inline" };
         }
         return { ...x, format: e.target.value };
       });
@@ -697,6 +792,119 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
     // ];
   };
 
+  const sectionToggleCard = (title, description, checked, disabled, onChange) => (
+    <div
+      className="d-flex align-items-center justify-content-between"
+      style={{
+        padding: "12px 14px",
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        opacity: disabled ? 0.55 : 1,
+      }}
+      title={disabled ? description : undefined}
+    >
+      <div className="text-start pe-3">
+        <div style={{ fontWeight: 600, color: "#334155", fontSize: 14 }}>{title}</div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }}>{description}</div>
+      </div>
+      <Switch checked={checked} disabled={disabled} onChange={onChange} />
+    </div>
+  );
+
+  const dentalSectionsAccordionItems = (record, i) => [
+    {
+      key: "1",
+      label: (
+        <div className="text-start">
+          <div className="fw-semibold">Sections</div>
+          <div className="subtitle-customize">Control what appears in the dental examination printout</div>
+        </div>
+      ),
+      children: (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
+          <div
+            style={{
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid #e2e8f0",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#94a3b8",
+                letterSpacing: "0.04em",
+                marginBottom: 10,
+              }}
+            >
+              GROUP DENTAL EXAMINATION BY
+            </div>
+            <Radio.Group
+              value={record.groupDentalExaminationBy === "tooth" ? "tooth" : "type"}
+              onChange={(e) => onExamPrintToggleChange(i, "groupDentalExaminationBy", e.target.value)}
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
+              <Radio value="type">
+                <span style={{ fontWeight: 600, color: "#334155" }}>By Type</span>
+              </Radio>
+              <Radio value="tooth">
+                <span style={{ fontWeight: 600, color: "#334155" }}>By Tooth</span>
+              </Radio>
+            </Radio.Group>
+            {record.groupDentalExaminationBy !== "tooth" ? (
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 8, lineHeight: 1.45 }}>
+                Each kind is a heading (Past Procedures, Findings, Procedures, Notes) with the
+                teeth listed underneath.
+              </div>
+            ) : null}
+          </div>
+          {sectionToggleCard(
+            "Show dental chart",
+            "Include the odontogram in the printout",
+            record.showDentalChart !== false,
+            false,
+            (checked) => onExamPrintToggleChange(i, "showDentalChart", checked)
+          )}
+          {sectionToggleCard(
+            "Include past dental history",
+            historyAvailable
+              ? "Adds dental examination entries from past visits."
+              : "There is no past dental or oral history for this patient.",
+            record.includeHistorical === true && historyAvailable,
+            !historyAvailable,
+            (checked) => onExamPrintToggleChange(i, "includeHistorical", checked)
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const oralSectionsAccordionItems = (record, i) => [
+    {
+      key: "1",
+      label: (
+        <div className="text-start">
+          <div className="fw-semibold">Sections</div>
+          <div className="subtitle-customize">Control what appears in the oral examination printout</div>
+        </div>
+      ),
+      children: (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
+          {sectionToggleCard(
+            "Include past oral history",
+            historyAvailable
+              ? "Adds oral examination entries from past visits."
+              : "There is no past dental or oral history for this patient.",
+            record.includeHistorical === true && historyAvailable,
+            !historyAvailable,
+            (checked) => onExamPrintToggleChange(i, "includeHistorical", checked)
+          )}
+        </div>
+      ),
+    },
+  ];
+
   const growthChartAccordionItems = (record, i) => [
     {
       key: "1",
@@ -819,17 +1027,17 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""
                       }`}
                     onChange={(e) => onCaseOptionChange(e, "radio", printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
-                    value={record.format}
+                    value={record.format || "inline"}
                   >
                     <Radio.Button className="w-100 text-center" value="inline" disabled={record?.id === 17}>
                       {record?.id === 12 ? "Graph View" : "Inline"}
                     </Radio.Button>
-                    {record?.id !== 12 &&
+                    {record?.id !== 12 && record?.id !== 25 &&
                       <Radio.Button className="w-100 text-center" value="listview" disabled={record?.id === 17}>
                         List View
                       </Radio.Button>
                     }
-                    <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17}>
+                    <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17 || record?.id === 25}>
                       Table
                     </Radio.Button>
                   </Radio.Group>
@@ -1011,26 +1219,28 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                 <span style={{ wordBreak: "break-word" }}>{record?.id === 11 && caseManagerData?.smart_prescription_filename?.includes("tab_rx") ? "Tab Rx" : record?.id === INVESTIGATION_PRINT_ID ? INVESTIGATION_TITLE : record.title}</span>
               </div>
               <div className="d-flex align-items-center gap-2">
-                <Form.Item className="mb-0 form_addnewpatient ">
-                  <Radio.Group
-                    className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""
-                      }`}
-                    onChange={(e) => onCaseOptionChange(e, "radio", printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
-                    value={record.format}
-                  >
-                    <Radio.Button className="w-100 text-center" value="inline" disabled={record?.id === 17}>
-                      {record?.id === 12 ? "Graph View" : "Inline"}
-                    </Radio.Button>
-                    {record?.id !== 12 &&
-                      <Radio.Button className="w-100 text-center" value="listview" disabled={record?.id === 17}>
-                        List View
+                {record?.id !== 25 && (
+                  <Form.Item className="mb-0 form_addnewpatient ">
+                    <Radio.Group
+                      className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""
+                        }`}
+                      onChange={(e) => onCaseOptionChange(e, "radio", printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                      value={record.format || "inline"}
+                    >
+                      <Radio.Button className="w-100 text-center" value="inline" disabled={record?.id === 17}>
+                        {record?.id === 12 ? "Graph View" : "Inline"}
                       </Radio.Button>
-                    }
-                    <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17}>
-                      Table
-                    </Radio.Button>
-                  </Radio.Group>
-                </Form.Item>
+                      {record?.id !== 12 && (
+                        <Radio.Button className="w-100 text-center" value="listview" disabled={record?.id === 17}>
+                          List View
+                        </Radio.Button>
+                      )}
+                      <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17}>
+                        Table
+                      </Radio.Button>
+                    </Radio.Group>
+                  </Form.Item>
+                )}
               </div>
             </div>
           {record.id === 3 && (
@@ -1131,6 +1341,34 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
               </div>
             </div>
           )}
+          {record.id === DENTAL_EXAM_CASE_OPTION_ID && (
+            <div style={{ marginLeft: -40, display: "flex" }}>
+              <div style={{ flex: 1 }}>
+                <div className="border mt-3 rounded-4 p-3 bg-white ">
+                  <Collapse
+                    items={dentalSectionsAccordionItems(record, printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                    defaultActiveKey={["1"]}
+                    className="prescriptiontab-accordian"
+                    expandIconPosition={"end"}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          {record.id === ORAL_EXAM_CASE_OPTION_ID && (
+            <div style={{ marginLeft: -40, display: "flex" }}>
+              <div style={{ flex: 1 }}>
+                <div className="border mt-3 rounded-4 p-3 bg-white ">
+                  <Collapse
+                    items={oralSectionsAccordionItems(record, printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                    defaultActiveKey={["1"]}
+                    className="prescriptiontab-accordian"
+                    expandIconPosition={"end"}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           </>
         );
       },
@@ -1145,6 +1383,15 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
         if (activeIndex === -1 || overIndex === -1) {
           console.warn('Invalid drag operation: activeIndex or overIndex not found');
           return prev;
+        }
+        // Track reorder if the Drawing Canvas section (id 25) is moved
+        if (active.id === 25 || over?.id === 25) {
+          trackEvent("drawing_canvas_print_section_reordered", {
+            patient_id: caseManagerData?.patient_data?.patient_unique_id,
+            consultation_id: caseManagerData?.tcm_id,
+            old_position: activeIndex,
+            new_position: overIndex,
+          });
         }
         return {
           ...prev,
@@ -1242,9 +1489,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
           <Form.Item className="mb-0">
             <Radio.Group className={`d-flex gender-radio all-change-radio ${isMobile ? 'segmented-radio-mobile' : ''}`} onChange={onMainCaseOptionChange}
               value={
-                printSettings?.prescription?.case_option.every(e => e.format === 'inline') ? 'inline'
-                  : printSettings?.prescription?.case_option.every(e => e.format === 'listview') ? 'listview'
-                    : printSettings?.prescription?.case_option.every(e => e.format === 'table') ? 'table'
+                printSettings?.prescription?.case_option.every(e => (e.format || 'inline') === 'inline') ? 'inline'
+                  : printSettings?.prescription?.case_option.every(e => (e.format || 'inline') === 'listview') ? 'listview'
+                    : printSettings?.prescription?.case_option.every(e => (e.format || 'inline') === 'table') ? 'table'
                       : null}>
               <Radio.Button className="w-100 text-center" value="inline">Inline</Radio.Button>
               <Radio.Button className="w-100 text-center" value="listview">List View</Radio.Button>
@@ -1303,7 +1550,12 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     (patientBills?.length > 0 && option.id === 17) ||
                     ((option.id === 19) && (Array.isArray(carePlanAssignments) ? carePlanAssignments.length > 0 : false)) ||
                     (option.id === 20 && ophthalModuleData && Object.keys(ophthalModuleData).length > 0) ||
-                    (crossConsultData && option.id === 26)
+                    (crossConsultData && option.id === 26) ||
+                    (option.id === DENTAL_EXAM_CASE_OPTION_ID && showDentalExamRow) ||
+                    (option.id === ORAL_EXAM_CASE_OPTION_ID && showOralExamRow) ||
+                    (option.id === 25 &&
+                      ((Array.isArray(drawingCanvases) && drawingCanvases.length > 0) ||
+                        (Array.isArray(caseManagerData?.canvas_filename) && caseManagerData.canvas_filename.length > 0)))
                 }).map(option => ({ ...option, key: option.id }));
                 return filtered;
               })()}
@@ -1421,7 +1673,12 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                   (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
                   (patientBills?.length > 0 && option.id === 17) ||
                   (option.id === 20 && ((ophthalModuleData && Object.keys(ophthalModuleData).length > 0) || true)) ||
-                  (crossConsultData && option.id === 26)
+                  (crossConsultData && option.id === 26) ||
+                  (option.id === DENTAL_EXAM_CASE_OPTION_ID && showDentalExamRow) ||
+                  (option.id === ORAL_EXAM_CASE_OPTION_ID && showOralExamRow) ||
+                  (option.id === 25 &&
+                    ((Array.isArray(drawingCanvases) && drawingCanvases.length > 0) ||
+                      (Array.isArray(caseManagerData?.canvas_filename) && caseManagerData.canvas_filename.length > 0)))
                 );
               }) || [];
 
@@ -1503,7 +1760,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                         </span>
                       )}
                     </div>
-                    {option.type !== "page_break" && (
+                    {option.type !== "page_break" && option?.id !== 25 && (
                       <div style={{ 
                         marginRight: '12px',
                         display: 'flex',

@@ -1,5 +1,6 @@
 import api from "./axiosService";
 import config from '../../config';
+import ApiMedication from "./ApiMedication";
 
 const baseUrl = { customBaseUrl: config.casemanager_api_url }
 const consultationBaseUrl = { customBaseUrl: config.consultation_api_url }
@@ -23,8 +24,38 @@ ApiCaseManager.oneClickTemplatesList = function () {
     return api.get(`/api/v1/casemanager/oneclickTemplateList`, baseUrl);
 };
 
-ApiCaseManager.oneClickSingleTemplateDetails = function (templateId) {
-    return api.get(`/api/v1/casemanager/oneclickSingleTemplateDetails/${templateId}`, baseUrl);
+ApiCaseManager.oneClickSingleTemplateDetails = async function (
+    templateId,
+    { mergeInventory = false } = {}
+) {
+    const result = await api.get(
+        `/api/v1/casemanager/oneclickSingleTemplateDetails/${templateId}`,
+        baseUrl
+    );
+
+    if (!mergeInventory || !result?.status) {
+        return result;
+    }
+
+    const templateData = result.data;
+    const medicines = Array.isArray(templateData?.medicine)
+        ? templateData.medicine
+        : [];
+
+    if (medicines.length === 0) {
+        return result;
+    }
+
+    const mergedMedicines =
+        await ApiMedication.mergeSearchResultsWithInventory(medicines);
+
+    return {
+        ...result,
+        data: {
+            ...templateData,
+            medicine: mergedMedicines,
+        },
+    };
 };
 
 ApiCaseManager.addFollowupTemplate = function (template) {

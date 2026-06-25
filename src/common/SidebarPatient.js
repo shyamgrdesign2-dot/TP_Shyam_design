@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 import { useSelector } from "react-redux";
 
-import { getClinicName, makeDefaultLogo } from "../utils/utils";
+import { getClinicName, makeDefaultLogo, trackEvent } from "../utils/utils";
 import { getDecodedToken } from '../utils/localStorage';
 import config from '../config';
 import { useOpdBilling } from '../pages/opdBilling/useOpdBilling';
@@ -105,6 +105,12 @@ function SidebarPatient({
             icon_image: sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? HealthCheckupReportIcon : HealthCheckupReportIconSecondary,
             short_title: "Health Checkup",
             long_title: "Health Checkup Report",
+        },
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES,
+            icon_name: "icon-Edit",
+            short_title: "Canvases",
+            long_title: "Canvases",
         },
         // { icon_name: 'icon-Discharge-Summary', short_title: 'Discharge', long_title: 'Discharge Summary' },
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },
@@ -273,7 +279,19 @@ function SidebarPatient({
                     return (
                         <div key={index}>
                             <Nav.Item className={collapsed && 'text-center'}>
-                                <Nav.Link className={`${item.key == sidebarKey && 'active'} ${!collapsed && 'd-flex align-items-center'}`} onClick={() => onClickSidebarHandle(item?.key)}>
+                                <Nav.Link className={`${item.key == sidebarKey && 'active'} ${!collapsed && 'd-flex align-items-center'}`} onClick={() => {
+                                        if (item?.key === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES) {
+                                            trackEvent("drawing_canvas_module_viewed", {
+                                                specialty: profile?.dp_name,
+                                                specialty_id: profile?.dp_id,
+                                                doctor_unique_id: profile?.doctor_unique_id,
+                                                doctor_name: profile?.um_name,
+                                                patient_id: patient_data?.patient_unique_id,
+                                                entry_point: "patient_details_sidebar",
+                                            });
+                                        }
+                                        onClickSidebarHandle(item?.key);
+                                    }}>
                                     {item.icon_image ? (
                                         <img src={item.icon_image} alt={item.long_title} style={{ width: '21px', height: '21px' }} />
                                     ) : (

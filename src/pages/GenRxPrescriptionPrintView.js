@@ -23,6 +23,7 @@ import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../redux/dentalExaminationSlice";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
@@ -62,6 +63,8 @@ function GenRxPrescriptionPrintView() {
   const sessionRxUrlRef = useRef(null);
 
   const { loading } = useSelector((state) => state.caseManager);
+  const dentalExaminationData = useSelector(selectDentalExamination);
+  const oralExamination = useSelector((state) => state.oralExamination);
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
   const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const dispatch = useDispatch();
@@ -207,6 +210,11 @@ function GenRxPrescriptionPrintView() {
     selectedLang,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
+    dentalExaminationData,
+    oralExamination,
+    patientUniqueId: patient_data?.patient_unique_id,
+    patientId: patient_data?.patient_unique_id,
+    tcmId: state?.tcm_id,
   });
 
   useEffect(() => {

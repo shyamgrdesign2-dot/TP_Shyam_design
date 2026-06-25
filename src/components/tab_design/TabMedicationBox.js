@@ -48,7 +48,8 @@ import {
   capitalizeAfterSentence,
   capitalize,
   replaceCommasAndSemicolons,
-  calculateDose
+  calculateDose,
+  getMedicineStockLabel
 } from "../../utils/utils";
 
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
@@ -97,19 +98,7 @@ function TabMedicationBox() {
   const isChikitsalayAccessable = useChikitsalay();
   const renderLowStockBadge = useCallback((med) => {
     if (!isChikitsalayAccessable) return null;
-    const available = Number(med?.quantity);
-    if (!Number.isFinite(available)) return null;
-
-    let label = null;
-    if (available <= 0) {
-      label = "No stock";
-    } else {
-      const required = 200;
-      if (available <= required) {
-        label = `Qty: ${available}`;
-      }
-    }
-
+    const label = getMedicineStockLabel(med);
     if (!label) return null;
     const isQtyLabel = label.startsWith("Qty:");
     return (
@@ -419,6 +408,7 @@ function TabMedicationBox() {
             ...e,
             objectID: item.objectID,
             quantity: item.quantity,
+            stock_status: item.stock_status,
             tmm_hm_type: e.tmm_hm_type ?? item.tmm_hm_type,
             um_id: e.um_id ?? item.um_id,
             // tmm_unit_name: unitObj && unitObj !== undefined ? JSON.parse(unitObj.key).tmu_title : "",
@@ -548,6 +538,7 @@ function TabMedicationBox() {
       patient_unique_id:
         patient_data !== undefined ? patient_data.patient_unique_id : 0,
       tcm_id: tcmId,
+      isChikitsalayAccessable,
     };
     const action = await dispatch(getLoadPreviousRx(sendData));
     if (action.meta.requestStatus === "fulfilled") {
@@ -594,7 +585,12 @@ function TabMedicationBox() {
     window.Moengage.track_event("medication_template_used", {
       "template_name": tmtd_id.tmtd_template_name
     });
-    const action = await dispatch(singleTemplateDetails(tmtd_id));
+    const action = await dispatch(
+      singleTemplateDetails({
+        templateId: tmtd_id,
+        isChikitsalayAccessable,
+      })
+    );
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action.payload.map((e) => {
         const medicineUnit = e?.medicineUnit.map((e1) => {
@@ -750,14 +746,7 @@ function TabMedicationBox() {
     tmm_freq_type_name = tmm_freq_type_name === `0 -0 -0 -0 |None` || tmm_freq_type_name === `0 -0 -0 |None` ? "" : tmm_freq_type_name;
     const hmType = item?.tmm_hm_type ?? item?.hm_type;
     const showVC = hmType == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable;
-    const available = Number(item?.quantity);
-    const selectedChipStockLabel = Number.isFinite(available)
-      ? available <= 0
-        ? "No stock"
-        : available <= 200
-          ? `Qty: ${available}`
-          : ""
-      : "";
+    const selectedChipStockLabel = getMedicineStockLabel(item) || "";
     const isQtyLabel = selectedChipStockLabel.startsWith("Qty:");
 
     return (

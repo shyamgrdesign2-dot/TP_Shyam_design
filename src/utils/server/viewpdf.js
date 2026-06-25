@@ -7,6 +7,9 @@ import {
   Image,
   Document,
   StyleSheet,
+  Svg,
+  Path,
+  Circle,
 } from "@react-pdf/renderer";
 import {
   isNumeric,
@@ -35,6 +38,18 @@ import {
   MISSION_HOSPITAL_ADDRESS,
 } from "../constants";
 import moment from "moment";
+import { transformToothStateToApi } from "../../components/dental/lib/examination-helpers";
+import {
+  DENTAL_EXAM_CASE_OPTION_ID,
+  ORAL_EXAM_CASE_OPTION_ID,
+} from "../dentalDefaultPrintSettings";
+import {
+  resolveExamChartForPrint,
+  hasOralExamChartData,
+} from "../examChartStorage";
+import { renderOralExamPdf } from "../../components/print_settings/oral/renderOralExamPdf";
+import { renderDentalExamPdf } from "../../components/print_settings/dental/renderDentalExamPdf";
+import { toothHasDentalPrintData } from "../../components/print_settings/dental/dentalPrintHelpers";
 import {
   getCvtExtHosPatientDataShowValue,
   shouldUseCvtExtHosDigitisedPatientMapping,
@@ -677,8 +692,24 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     customModules,
     abhaDetails,
     isDigitisedPrintConfig,
+    dentalExaminationData: rawDentalData,
+    onlyShowDental = false,
+    toothImageMap = {},
+    examChart: examChartProp,
     isCvtExtHosAccessableFromGB,
+    drawingCanvases,
   } = props;
+  let dentalExaminationData = rawDentalData || props.dentalExaminationData;
+  if (dentalExaminationData && dentalExaminationData.toothState && typeof dentalExaminationData.toothState === "object") {
+    try {
+      dentalExaminationData = {
+        ...dentalExaminationData,
+        tooth_states: transformToothStateToApi(dentalExaminationData.toothState),
+      };
+    } catch (err) {
+      console.error("Failed to transform toothState inside viewpdf.js:", err);
+    }
+  }
   const isPediatricAccessable =
     caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID ||
     caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
@@ -1119,6 +1150,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     history = [],
     editedData = null,
   } = smartRxData || {};
+  // const isRxDigitizeBool = !!(
+  //   rawRxDigitizeBool ||
+  //   caseManagerData?.isRxDigitize ||
+  //   isDigitisedPrintConfig ||
+  //   caseManagerData?.doctor_data?.dp_id == 26 ||
+  //   (caseManagerData?.doctor_data?.dp_name &&
+  //     String(caseManagerData.doctor_data.dp_name).toLowerCase().includes("dental"))
+  // );
   const isSnapRx = uploaded_files?.[0]?.filename?.includes("snap_rx");
   const hasUploadedFileWithUri =
     Array.isArray(uploaded_files) &&
@@ -1305,6 +1344,46 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       )
     : [];
   const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
+  const examChart =
+    examChartProp !== undefined
+      ? hasOralExamChartData(examChartProp)
+        ? examChartProp
+        : null
+      : resolveExamChartForPrint(caseManagerData, examChartProp);
+  const hasOralExaminationData = hasOralExamChartData(examChart);
+  const oralExamEnabledInCaseOptions = printSettings?.prescription?.case_option?.some(
+    (o) =>
+      o?.id === ORAL_EXAM_CASE_OPTION_ID &&
+      o?.enable === "Y" &&
+      o?.custom_status === "Y",
+  );
+  const oralPrintOption = printSettings?.prescription?.case_option?.find(
+    (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+  );
+  const isOralPrintOptionEnabled =
+    oralPrintOption?.enable === "Y" && oralPrintOption?.custom_status === "Y";
+  const shouldRenderOralInDentalBlock =
+    hasOralExaminationData &&
+    (onlyShowDental ? isOralPrintOptionEnabled : !oralExamEnabledInCaseOptions);
+
+  const hasDentalExaminationData =
+    Array.isArray(dentalExaminationData?.tooth_states) &&
+    dentalExaminationData.tooth_states.some((toothState) =>
+      toothHasDentalPrintData(toothState)
+    );
+
+  const dentalPrintOption = printSettings?.prescription?.case_option?.find(
+    (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID,
+  );
+  const shouldShowDentalChartOnly =
+    onlyShowDental &&
+    dentalPrintOption?.enable === "Y" &&
+    dentalPrintOption?.custom_status === "Y" &&
+    dentalPrintOption?.showDentalChart !== false;
+
+  const showPatientInfoHeader =
+    printSettings?.header_footer?.show_patient_info !== "none";
+
   const hasDentalSectionData =
     dentalComplaintRowsFiltered.length > 0 ||
     dentalMedicationRowsFiltered.length > 0 ||
@@ -1314,11 +1393,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     hasToothDiagramNotes ||
     dentalWorkDoneRowsFiltered.length > 0 ||
     hasWorkDoneNotes;
+
   const shouldHidePrimaryMedicationSection =
     (isRxDigitizeBool ||
       caseManagerData?.isRxDigitize ||
       isDigitisedPrintConfig) &&
     dentalMedicationRowsFiltered.length > 0;
+
   const dentalQuadrantSections = [
     { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
     { key: "UPPER_LEFT", label: "UPPER LEFT" },
@@ -2005,7 +2086,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         (isRxDigitizeBool ||
           isVoiceRxDigitizeBool ||
           isAmbientVoiceRxDigitizeBool ||
-          (caseManagerData.isCustomSSRX === "0" && uploaded_files?.length > 0)))
+          (caseManagerData.isCustomSSRX === "0" && uploaded_files?.length > 0))) ||
+      hasDentalExaminationData ||
+      hasOralExaminationData ||
+      shouldShowDentalChartOnly
 
       // // Check case manager data
       // hasAnyCaseManagerData(caseManagerData) ||
@@ -2181,6 +2265,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           return caseManagerData?.visit_advice;
         case 20: // Ophthal Module
           return hasOphthalModuleData;
+        case 21: // Dental Examination
+          return hasDentalExaminationData;
+        case 22: // Oral Examination
+          return hasOralExaminationData;
         default:
           return false;
       }
@@ -2725,16 +2813,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
               />
             )}
           {/* Patient Info */}
-          <View
-            style={{
-              backgroundColor: "#171725",
-              height: PX_TO_PT * 2,
-              width: "100%",
-            }}
-            fixed={printSettings?.header_footer?.show_patient_info === "all"}
-          />
+          <>
+            <View
+              style={{
+                backgroundColor: "#171725",
+                height: PX_TO_PT * 2,
+                width: "100%",
+              }}
+              fixed={printSettings?.header_footer?.show_patient_info === "all"}
+            />
 
-          {printSettings?.header_footer?.show_patient_info === "all" ? (
+            {showPatientInfoHeader &&
+              (printSettings?.header_footer?.show_patient_info === "all" ? (
             <>
               <View
                 style={{ flexDirection: "row", marginVertical: PX_TO_PT * 15 }}
@@ -2845,7 +2935,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 fixed
               />
             </>
-          ) : (
+              ) : (
             <>
               <View
                 style={{ flexDirection: "row", marginVertical: PX_TO_PT * 15 }}
@@ -2954,7 +3044,19 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 }}
               />
             </>
-          )}
+              ))}
+
+            {!showPatientInfoHeader && (
+              <View
+                style={{
+                  marginBottom: PX_TO_PT * 15,
+                  backgroundColor: "#171725",
+                  height: PX_TO_PT * 1,
+                  width: "100%",
+                }}
+              />
+            )}
+          </>
 
           {/* <View style={{
                         marginTop: (printSettings?.header_footer?.show_patient_info === 'first' ||
@@ -3015,6 +3117,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                   return advanceReceipts?.length > 0;
                 case 20:
                   return hasOphthalModuleData;
+                case 21:
+                  return hasDentalExaminationData;
+                case 22:
+                  return hasOralExaminationData;
                 default:
                   if (option.is_custom_module) {
                     const customModule = caseManagerData?.moduleContents?.find(
@@ -3542,6 +3648,32 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       </View>
                     )}
 
+                    {/* {hasDentalExaminationData
+                      ? renderDentalExamPdf({
+                          dentalExaminationData,
+                          dentalOption: printSettings?.prescription?.case_option?.find(
+                            (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID,
+                          ),
+                          printSettings,
+                          consultationDate:
+                            caseManagerData?.patient_data?.patient_consultaion_date,
+                          PX_TO_PT,
+                          toothImageMap,
+                        })
+                      : null}
+                    {shouldRenderOralInDentalBlock
+                      ? renderOralExamPdf({
+                          examChart,
+                          oralOption: printSettings?.prescription?.case_option?.find(
+                            (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+                          ),
+                          printSettings,
+                          consultationDate:
+                            caseManagerData?.patient_data?.patient_consultaion_date,
+                          PX_TO_PT,
+                        })
+                      : null} */}
+
                     {hasTeethData && (
                       <View style={styles.dentalQuadrantGrid}>
                         {[0, 1].map((rowIndex) => (
@@ -3894,6 +4026,33 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     )}
                   </View>
                 )}
+                {onlyShowDental && (
+                  <>
+                    {(hasDentalExaminationData || shouldShowDentalChartOnly)
+                      ? renderDentalExamPdf({
+                          dentalExaminationData,
+                          dentalOption: dentalPrintOption,
+                          printSettings,
+                          consultationDate:
+                            caseManagerData?.patient_data?.patient_consultaion_date,
+                          PX_TO_PT,
+                          toothImageMap,
+                        })
+                      : null}
+                    {shouldRenderOralInDentalBlock
+                      ? renderOralExamPdf({
+                          examChart,
+                          oralOption: printSettings?.prescription?.case_option?.find(
+                            (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+                          ),
+                          printSettings,
+                          consultationDate:
+                            caseManagerData?.patient_data?.patient_consultaion_date,
+                          PX_TO_PT,
+                        })
+                      : null}
+                  </>
+                )}
                 {/* {hasBlankSmartSyncCanvas &&
                   uploaded_files
                     ?.filter((item) => getSmartSyncUploadedFileUri(item))
@@ -3916,6 +4075,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                   ))} */}
                 {printSettings?.prescription?.case_option?.map(
                   (option, index) => {
+                    if (onlyShowDental) {
+                      return null;
+                    }
                     if (
                       isCvtExtHosAccessableForPrint &&
                       !isRxDigitizeBool &&
@@ -13652,6 +13814,38 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 </>
                               ))}
                           </>
+                        ) : option?.id === DENTAL_EXAM_CASE_OPTION_ID &&
+                          option?.enable === "Y" &&
+                          option?.custom_status === "Y" ? (
+                          <>
+                            {hasDentalExaminationData ? renderDentalExamPdf({
+                              dentalExaminationData,
+                              dentalOption: option,
+                              printSettings,
+                              consultationDate:
+                                caseManagerData?.patient_data
+                                  ?.patient_consultaion_date,
+                              PX_TO_PT,
+                              toothImageMap,
+                            })
+                            : null}
+                          </>
+                        ) : option?.id === ORAL_EXAM_CASE_OPTION_ID &&
+                          option?.enable === "Y" &&
+                          option?.custom_status === "Y" ? (
+                          <>
+                            {hasOralExaminationData
+                              ? renderOralExamPdf({
+                                  examChart,
+                                  oralOption: option,
+                                  printSettings,
+                                  consultationDate:
+                                    caseManagerData?.patient_data
+                                      ?.patient_consultaion_date,
+                                  PX_TO_PT,
+                                })
+                              : null}
+                          </>
                         ) : option?.id === 11 &&
                           ((option?.enable === "Y" &&
                             option?.custom_status === "Y") ||
@@ -16970,6 +17164,34 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
               )
             )}
           </View>
+
+          {/* Rendering the Excalidraw Canvases */}
+          {shouldRenderSection(25) && drawingCanvases && drawingCanvases.length > 0 && (
+            <View style={{ marginTop: PX_TO_PT * 20 }} wrap={true}>
+              {drawingCanvases.map((canvasObj, i) => (
+                <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                  <Text
+                    style={{
+                      fontSize: PX_TO_PT * 14,
+                      fontWeight: 700,
+                      color: "#171725",
+                      marginBottom: PX_TO_PT * 10,
+                      fontFamily: "Roboto",
+                    }}
+                  >
+                    {canvasObj.name}
+                  </Text>
+                  <Image
+                    src={canvasObj.imageUrl}
+                    style={{
+                      width: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* </View> */}
           {/* <View

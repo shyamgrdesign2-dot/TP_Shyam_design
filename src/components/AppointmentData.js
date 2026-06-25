@@ -96,7 +96,9 @@ import {
   TAB_REFERRAL_AP_STATUS,
   CLINIC_TARGET_STATUS,
   GB_CVT_EXT_HOS,
+  GB_MANYA_DENTAL,
 } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import config from "../config";
@@ -269,6 +271,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
   const [modalOpen, setModalOpen] = useState(false);
+  const isManyaDentalAccessableFromGB = useFeatureIsOn(GB_MANYA_DENTAL);
 
   useEffect(() => {
     if (!isChikitsalayAccessable) return;
@@ -485,8 +488,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const getAllDocumentCategories = useCallback(async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
-  }, [dispatch]);
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
+  }, [dispatch, isChikitsalayAccessable]);
 
   const handleFileUpload = (event, record) => {
     const files = event.target.files;
@@ -566,6 +571,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     payloadOverride: null,
     skipFetch: !pendingFinishedPrint?.printUrl || pendingFinishedPrint?.printChannel === "in_app",
     isCvtExtHosAccessableFromGB,
+    patientId: pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    tcmId: pendingFinishedPrint?.caseManagerData?.tcm_id,
   });
 
   useEffect(() => {
@@ -1960,6 +1967,19 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     navigate("/tab-rx", { state: { patient_data: record, videoConsultData } });
   };
 
+  const onTypeRxClick = async (record) => {
+    const videoConsultData =
+      record.pam_status_type_appointment === 1 ||
+      record.pam_status_type_appointment === 2
+        ? {
+            pam_id: record.pam_id,
+            pam_status_type_appointment: record.pam_status_type_appointment,
+          }
+        : undefined;
+
+    navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: record, videoConsultData } });
+  };
+
   const onAppointmentAgentClick = async () => {
     // window.Moengage.track_event("patient_search_consult", {
     //     "doctor_id": profile?.doctor_unique_id,
@@ -2578,7 +2598,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     });
     const sendData = {
       patient_unique_id: record !== undefined ? record.patient_unique_id : 0,
-      tcm_id: record?.tcm_id
+      tcm_id: record?.tcm_id,
+      isChikitsalayAccessable
     }
     const action = await dispatch(viewCaseManager(sendData));
     if (action.meta.requestStatus === "fulfilled") {
@@ -2761,7 +2782,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               ? record.toct_type
               : record.appointmentStatus}
               <br />{" "}
-              <small> {record.pt_name || "--"}</small>
+              <small> {isManyaDentalAccessableFromGB ? record.appointment_pt_name || "--" : record.pt_name || "--"}</small>
           </div>
           {!isCvtExtHosAccessableFromGB &&
             advancedSettings?.billingStatusInAppointmentScreen &&
@@ -2774,6 +2795,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                 {record.billStatus}
               </div>
             )}
+            <div className="d-flex py-1">
+            {record.pam_appointment_remark && <Tooltip
+                placement="right"
+                title={record.pam_appointment_remark}
+            >
+              <i className="icon-info ms-1" style={{fontSize: "18px"}}></i>
+            </Tooltip>}
+            </div>
         </div>
       ),
     },
@@ -3009,6 +3038,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     onSnapRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSnapRxClick : handleSnapRxClick}
                     onVoiceRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusVoiceRxClick : onVoiceRxClick}
                     onTabRxClick={onTabRxClick}
+                    onTypeRxClick={onTypeRxClick}
                     onConsultClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusConsultClick : onConsultClick}
                     patient={record}
                     buttonStyle="walkin"
@@ -3077,6 +3107,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     onSnapRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSnapRxClick : handleSnapRxClick}
                     onVoiceRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusVoiceRxClick : onVoiceRxClick}
                     onTabRxClick={onTabRxClick}
+                    onTypeRxClick={onTypeRxClick}
                     onConsultClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusConsultClick : onConsultClick}
                     patient={record}
                     buttonStyle="walkin"

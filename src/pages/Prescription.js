@@ -27,6 +27,7 @@ import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
 import InvestigationBox from "../components/InvestigationBox";
 import TabFollowUpBox from "../components/tab_design/TabFollowUpBox";
+import { listPatientCanvasMapping } from "./drawingCanvas/service";
 
 import VitalsBox from "../components/VitalsBox";
 import VitalsList from "../components/VitalsList";
@@ -50,6 +51,7 @@ import { addObstetricDetails } from "../redux/obstetricSlice";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, isValidMongoId } from "../utils/utils";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
+import DrawingCanvas from "./drawingCanvas/DrawingCanvas";
 import {
   fetchAllDocumentCategories,
   fetchAllPatientDocs,
@@ -63,6 +65,7 @@ import {
   zydusRadioList,
 } from "../redux/uploadDocSlice";
 import UploadDocumentList from "./medicalRecords/components/uploadDocumentList/UploadDocumentList";
+import DrawingCanvasList from "./drawingCanvas/components/DrawingCanvasList";
 import {
   generateUniqueFileName,
   getCorrectedFileName,
@@ -137,6 +140,7 @@ import {
   VITALS_ROW_DATE_FORMAT,
 } from "../utils/symptomCollectorVitalsMerge";
 import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 
 function Prescription() {
   const {
@@ -166,7 +170,10 @@ function Prescription() {
     carePlanActive: carePlanIcon,
   } = ASSETS.images;
 
-  console.log("vitals", hey);
+  const customizedPadLeftListForUI =
+    customizedPadLeftList && customizedPadLeftList.length > 0
+      ? customizedPadLeftList
+      : [];
   
   // Local state to manage customizedPadRightList with deleted modules for edit case
   const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
@@ -179,7 +186,6 @@ function Prescription() {
   const { privateNotesList } = useSelector((state) => state.medicalhistory);
   const {
     obstetricDetails: allObstetricDetails,
-    isObstetricDetailsFetched,
     isNavigateToObstetric,
   } = useSelector((state) => state.obstetric);
   const obstetricDetails = allObstetricDetails?.currentPregnancy || {};
@@ -206,6 +212,7 @@ function Prescription() {
   );
   const { customModules, hospitalSearchResults } = useSelector((state) => state.customModules);
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
@@ -523,6 +530,22 @@ function Prescription() {
     setIsSubModalOpen(!isSubModalOpen);
   }
 
+  const normalizeCanvasIds = React.useCallback((value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      return value
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, []);
+
+  const [drawingCanvases, setDrawingCanvases] = useState([]);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState(() =>
+    normalizeCanvasIds(caseManagerData?.canvas_filename)
+  );
+
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
   const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
   const contextApi = {
@@ -582,7 +605,8 @@ function Prescription() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
-    isDraft: caseManagerData?.is_draft
+    isDraft: caseManagerData?.is_draft,
+    rxDrawingCanvasIds,
   };
 
   const [vitalDrawer, setVitalDrawer] = useState(false);
@@ -595,6 +619,72 @@ function Prescription() {
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
+  const [drawingCanvasDrawer, setDrawingCanvasDrawer] = useState(false);
+
+  const fetchPatientCanvases = async () => {
+    const pId = patient_data?.patient_unique_id;
+    if (pId) {
+      const res = await listPatientCanvasMapping(pId, tcmId);
+      if (res.status && res.records) {
+        const mapped = res.records.map(r => ({
+          id: r.mapping_id,
+          name: r.canvas_name,
+          url: r.canvas_url,
+          created_at: r.created_at || r.createdAt || r.canvas_created_at,
+          scene: null
+        }));
+        setDrawingCanvases(mapped);
+      }
+    }
+  };
+
+  const canvasModuleViewedRef = useRef(false);
+  useEffect(() => {
+    fetchPatientCanvases();
+  }, [patient_data?.patient_unique_id, tcmId]);
+
+  // Track module viewed once when canvas module becomes available in the pad
+  useEffect(() => {
+    const isCanvasModuleVisible = customizedPadLeftListForUI?.some(
+      (e) => (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0
+    );
+    if (isCanvasModuleVisible && !canvasModuleViewedRef.current) {
+      canvasModuleViewedRef.current = true;
+      trackEvent("drawing_canvas_module_viewed", {
+        ...getCanvasTrackingAttrs(),
+        has_existing_canvas: drawingCanvases.length > 0,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customizedPadLeftListForUI, drawingCanvases.length]);
+
+  const handleSaveDrawingCanvas = (updatedCanvases, meta) => {
+    if (updatedCanvases && Array.isArray(updatedCanvases)) {
+      setDrawingCanvases(updatedCanvases);
+      const knownIds = new Set(
+        updatedCanvases.map((c) => String(c?.id)).filter(Boolean)
+      );
+      setRxDrawingCanvasIds((prev) =>
+        prev.filter((id) => knownIds.has(String(id)))
+      );
+    } else {
+      fetchPatientCanvases();
+    }
+    if (meta && meta.mappingId != null && meta.mappingId !== "") {
+      setRxDrawingCanvasIds((prev) => {
+        if (meta.showInRx !== false) {
+          return [...new Set([...prev, meta.mappingId])];
+        }
+        return prev.filter((id) => String(id) !== String(meta.mappingId));
+      });
+    }
+  };
+
+  // Session list: hydrate from case manager only when consultation identity changes (not on every CM patch).
+  useEffect(() => {
+    const next = caseManagerData?.canvas_filename;
+    setRxDrawingCanvasIds(normalizeCanvasIds(next));
+  }, [tcmId, pamId, normalizeCanvasIds]);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [filesData, setFilesData] = useState([]);
@@ -685,7 +775,9 @@ function Prescription() {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   const handleVideoConsult = async () => {
@@ -884,7 +976,7 @@ function Prescription() {
     if (caseManagerData !== undefined) {
       if (
         caseManagerData.vitals?.length > 0 &&
-        customizedPadLeftList.findIndex(
+        customizedPadLeftListForUI.findIndex(
           (e) => e.tmdpm_id === 1 && e.tmdpm_status === 0
         ) !== -1
       ) {
@@ -901,7 +993,7 @@ function Prescription() {
       }
       if (
         caseManagerData.medical_history?.length > 0 &&
-        customizedPadLeftList.findIndex(
+        customizedPadLeftListForUI.findIndex(
           (e) => e.tmdpm_id === 3 && e.tmdpm_status === 0
         ) !== -1
       ) {
@@ -1146,6 +1238,41 @@ function Prescription() {
     setMedicalReportDrawer(!medicalReportDrawer);
   };
 
+  // Drawer Drawing Canvas
+  const canvasDrawerOpenTimeRef = useRef(null);
+  const getCanvasTrackingAttrs = useCallback(() => ({
+    specialty: profile?.dp_name,
+    specialty_id: profile?.dp_id,
+    user_id: tokenData?.user_id,
+    doctor_unique_id: profile?.doctor_unique_id,
+    doctor_name: profile?.um_name,
+    patient_id: patient_data?.patient_unique_id,
+    consultation_id: tcmId,
+    prescription_type: "normal_rx",
+  }), [profile, tokenData, patient_data, tcmId]);
+
+  const handleDrawerDrawingCanvas = useCallback(() => {
+    const opening = !drawingCanvasDrawer;
+    if (opening) {
+      canvasDrawerOpenTimeRef.current = Date.now();
+      trackEvent("drawing_canvas_drawer_opened", {
+        ...getCanvasTrackingAttrs(),
+        entry_point: "rx_pad",
+        existing_canvas_count: drawingCanvases.length,
+      });
+    } else {
+      const timeSpent = canvasDrawerOpenTimeRef.current
+        ? Math.round((Date.now() - canvasDrawerOpenTimeRef.current) / 1000)
+        : 0;
+      trackEvent("drawing_canvas_drawer_closed", {
+        ...getCanvasTrackingAttrs(),
+        time_spent_seconds: timeSpent,
+      });
+      canvasDrawerOpenTimeRef.current = null;
+    }
+    setDrawingCanvasDrawer(opening);
+  }, [drawingCanvasDrawer, drawingCanvases.length, getCanvasTrackingAttrs]);
+
   // Drawer Obstetric
   const handleDrawerObstetric = (obstetricKey) => {
     setObstetricDrawer(
@@ -1277,7 +1404,7 @@ function Prescription() {
     if (caseManagerData !== undefined) {
       if (
         caseManagerData.private_notes &&
-        customizedPadLeftList.findIndex(
+        customizedPadLeftListForUI.findIndex(
           (e) => e.tmdpm_id === 8 && e.tmdpm_status === 0
         ) !== -1 &&
         privateNotesList.findIndex(
@@ -1613,8 +1740,52 @@ function Prescription() {
   };
 
   const CUSTOMIZED_PAD_LEFT_LIST = () => {
-    const modules = customizedPadLeftList?.map((e, i) => {
-      return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
+    const modules = customizedPadLeftListForUI?.map((e, i) => {
+      return (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0 ? (
+        <div key={i} className="prescription-box-sm p-14">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              <img
+                src={"https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/brush-square.svg" || e?.tmdpm_icon_url}
+                alt="Canvas"
+                width={22}
+                height={22}
+                className="me-3"
+                style={{ flex: "0 0 auto" }}
+              />
+              <div className="title-common">Canvas</div>
+            </div>
+
+            <button
+              className="btn d-flex align-items-center btn-text"
+              style={{ paddingRight: drawingCanvases.length > 0 ? 0 : 12 }}
+              onClick={() => {
+                trackEvent("drawing_canvas_cta_clicked", {
+                  ...getCanvasTrackingAttrs(),
+                  cta_type: drawingCanvases.length > 0 ? "view_all" : "add",
+                  existing_canvas_count: drawingCanvases.length,
+                });
+                handleDrawerDrawingCanvas();
+              }}
+            >
+              {drawingCanvases.length === 0 && (
+                <i className="icon-Add me-1 fs-5" />
+              )}
+              <span>{`${
+                drawingCanvases.length > 0 ? "View All" : "Add"
+              }`}</span>
+              {drawingCanvases.length > 0 && (
+                <i className="icon-right iconrotate180 ms-auto me-1 fs-5" />
+              )}
+            </button>
+          </div>
+          <DrawingCanvasList
+            drawingCanvases={drawingCanvases}
+            setDrawingCanvases={setDrawingCanvases}
+            handleDrawerDrawingCanvas={handleDrawerDrawingCanvas}
+          />
+        </div>
+      ) : e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
         <div key={i} className="prescription-box-sm p-14">
           <div className="d-flex align-items-center justify-content-between">
             <div className="d-flex align-items-center">
@@ -2491,6 +2662,35 @@ function Prescription() {
               setFilesData={setFilesData}
               setIsEditDocument={setIsEditDocument}
               setUploadDocDrawer={setUploadDocDrawer}
+            />
+          </Drawer>
+        )}
+        {drawingCanvasDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            bodyStyle={{ backgroundColor: "white" }}
+            onClose={handleDrawerDrawingCanvas}
+            open={drawingCanvasDrawer}
+            width="60%"
+            push={false}
+          >
+            <DrawingCanvas
+              patientId={patient_data?.patient_unique_id}
+              tcmId={tcmId}
+              canvases={drawingCanvases}
+              rxDrawingCanvasIds={rxDrawingCanvasIds}
+              onToggleRx={(canvasId, checked) => {
+                 setRxDrawingCanvasIds(prev =>
+                   checked
+                     ? [...Array.from(new Set([...prev, canvasId]))]
+                     : prev.filter((id) => String(id) !== String(canvasId))
+                 );
+              }}
+              onCreateCanvas={() => {}}
+              onSave={handleSaveDrawingCanvas}
+              onClose={handleDrawerDrawingCanvas}
+              trackingAttrs={getCanvasTrackingAttrs()}
             />
           </Drawer>
         )}

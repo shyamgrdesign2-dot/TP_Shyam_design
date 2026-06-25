@@ -110,6 +110,12 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../../redux/ophthalmologyExamSlice";
+import { listPatientCanvasMapping } from "../drawingCanvas/service";
+import DrawingCanvas from "../drawingCanvas/DrawingCanvas";
+import CanvasSidebarIcon, {
+  CANVAS_ICON_ACTIVE_COLOR,
+  CANVAS_ICON_INACTIVE_COLOR,
+} from "../drawingCanvas/components/CanvasSidebarIcon";
 import {
   hasVitalsAndBodyCompositionData,
   mapVitalsAndBodyCompositionToRowPatch,
@@ -117,6 +123,9 @@ import {
   VITALS_ROW_DATE_FORMAT,
 } from "../../utils/symptomCollectorVitalsMerge";
 import { computeRxPadVitalsDerivedMetrics } from "../../utils/vitalsCalculations";
+import { useChikitsalay } from "../chikitsalay/useChikitsalay";
+
+const CANVAS_SIDEBAR_FLAG = 24;
 
 function TabPrescription() {
   const {
@@ -218,6 +227,7 @@ function TabPrescription() {
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -525,6 +535,22 @@ function TabPrescription() {
     setIsSubModalOpen(!isSubModalOpen);
   }
 
+  const normalizeCanvasIds = React.useCallback((value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      return value
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, []);
+
+  const [drawingCanvases, setDrawingCanvases] = useState([]);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState(() =>
+    normalizeCanvasIds(caseManagerData?.canvas_filename)
+  );
+
   const contextApi = {
     patient_data,
     tcmId,
@@ -578,7 +604,8 @@ function TabPrescription() {
     useDDX,
     setUseDDX,
     selectedCarePlan,
-    setSelectedCarePlan
+    setSelectedCarePlan,
+    rxDrawingCanvasIds,
   };
 
   const [collapsed, setCollapsed] = useState(false);
@@ -591,6 +618,7 @@ function TabPrescription() {
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
+  const [drawingCanvasDrawer, setDrawingCanvasDrawer] = useState(false);
   const [labReportID, setLabReportID] = useState(null);
   const [labParamsDrawer, setLabParamsDrawer] = useState(false);
   const [viewlabparamsDrawer, setViewlabparamsDrawer] = useState(false);
@@ -622,6 +650,82 @@ function TabPrescription() {
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
   const [showShimmer, setShowShimmer] = useState(false);
   const [mobileRxData, setMobileRxData] = useState(null);
+
+  const fetchPatientCanvases = async () => {
+    const pId = patient_data?.patient_unique_id;
+    if (pId) {
+      const res = await listPatientCanvasMapping(pId, tcmId);
+      if (res.status && res.records) {
+        const mapped = res.records.map((r) => ({
+          id: r.mapping_id,
+          name: r.canvas_name,
+          url: r.canvas_url,
+          created_at: r.created_at || r.createdAt || r.canvas_created_at,
+          scene: null,
+        }));
+        setDrawingCanvases(mapped);
+      }
+    }
+  };
+
+  const canvasDrawerOpenTimeRef = useRef(null);
+  const canvasModuleViewedRef = useRef(false);
+  const getCanvasTrackingAttrs = useCallback(() => ({
+    specialty: profile?.dp_name,
+    specialty_id: profile?.dp_id,
+    user_id: tokenData?.user_id,
+    doctor_unique_id: profile?.doctor_unique_id,
+    doctor_name: profile?.um_name,
+    patient_id: patient_data?.patient_unique_id,
+    consultation_id: tcmId,
+    prescription_type: "tab_rx",
+  }), [profile, tokenData, patient_data, tcmId]);
+
+  useEffect(() => {
+    fetchPatientCanvases();
+  }, [patient_data?.patient_unique_id, tcmId]);
+
+  // Track module viewed once when canvas module becomes available in the pad
+  useEffect(() => {
+    const isCanvasModuleVisible = customizedPadLeftList?.some(
+      (e) => (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0
+    );
+    if (isCanvasModuleVisible && !canvasModuleViewedRef.current) {
+      canvasModuleViewedRef.current = true;
+      trackEvent("drawing_canvas_module_viewed", {
+        ...getCanvasTrackingAttrs(),
+        has_existing_canvas: drawingCanvases.length > 0,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customizedPadLeftList, drawingCanvases.length]);
+
+  const handleSaveDrawingCanvas = (updatedCanvases, meta) => {
+    if (updatedCanvases && Array.isArray(updatedCanvases)) {
+      setDrawingCanvases(updatedCanvases);
+      const knownIds = new Set(
+        updatedCanvases.map((c) => String(c?.id)).filter(Boolean)
+      );
+      setRxDrawingCanvasIds((prev) =>
+        prev.filter((id) => knownIds.has(String(id)))
+      );
+    } else {
+      fetchPatientCanvases();
+    }
+    if (meta && meta.mappingId != null && meta.mappingId !== "") {
+      setRxDrawingCanvasIds((prev) => {
+        if (meta.showInRx !== false) {
+          return [...new Set([...prev, meta.mappingId])];
+        }
+        return prev.filter((id) => String(id) !== String(meta.mappingId));
+      });
+    }
+  };
+
+  useEffect(() => {
+    const next = caseManagerData?.canvas_filename;
+    setRxDrawingCanvasIds(normalizeCanvasIds(next));
+  }, [tcmId, pamId, normalizeCanvasIds]);
   
   // Initialize mobileQueries from location.state to persist across navigation
   // IMPORTANT: This only runs on component MOUNT, not on re-renders
@@ -710,7 +814,9 @@ function TabPrescription() {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   // Fetch custom modules on component mount
@@ -1085,27 +1191,35 @@ function TabPrescription() {
     }
   };
 
+  const dismissDrawingCanvasModule = useCallback(() => {
+    setDrawingCanvasDrawer(false);
+  }, []);
+
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(1);
     setVitalDrawer(!vitalDrawer);
-  }, [collapsedFlag, vitalDrawer]);
+  }, [collapsedFlag, vitalDrawer, dismissDrawingCanvasModule]);
 
   // Drawer Medical History
   const handleDrawerMedicalHistory = useCallback(() => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(2);
     setMedicalHistoryDrawer(!medicalHistoryDrawer);
-  }, [collapsedFlag, medicalHistoryDrawer]);
+  }, [collapsedFlag, medicalHistoryDrawer, dismissDrawingCanvasModule]);
 
   // Drawer Private Notes
   const handleDrawerPrivateNotes = useCallback((data) => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(4);
     setSelectPrivateNotes(data)
     setPrivateNotesDrawer(!privateNotesDrawer);
-  }, [privateNotesDrawer, selectPrivateNotes]);
+  }, [privateNotesDrawer, selectPrivateNotes, dismissDrawingCanvasModule]);
 
   // Drawer Vaccination
   const handleDrawerVaccination = (chartType) => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(3);
     setVaccinationDrawer(!vaccinationDrawer);
     if (!vaccinationDrawer) {
@@ -1123,6 +1237,7 @@ function TabPrescription() {
 
   // Drawer Growth Chart
   const handleDrawerGrowth = () => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(5);
     setGrowthDrawer(!growthDrawer);
     setIsGrowthChart(!isGrowthChart);
@@ -1130,6 +1245,7 @@ function TabPrescription() {
 
   // Drawer Obstetric
   const handleDrawerObstetric = (obstetricKey) => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(6);
     setObstetricDrawer(typeof obstetricKey === "string" ? obstetricKey : !obstetricDrawer);
   };
@@ -1164,6 +1280,7 @@ function TabPrescription() {
 
   // Drawer Medical History
   const handleAddLabParamsDrawer = () => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(8);
     setLabParamsDrawer(!labParamsDrawer);
   }
@@ -1213,6 +1330,7 @@ function TabPrescription() {
 
   // Drawer Upload Document
   const handleDrawerUploadDoc = () => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(7);
     setUploadDocDrawer(!uploadDocDrawer);
   };
@@ -1229,6 +1347,32 @@ function TabPrescription() {
   const handleDrawerMedicalReport = () => {
     setMedicalReportDrawer(!medicalReportDrawer);
   };
+
+  // Drawer Drawing Canvas
+  const handleDrawerDrawingCanvas = useCallback(() => {
+    const opening = !drawingCanvasDrawer;
+    if (opening) {
+      canvasDrawerOpenTimeRef.current = Date.now();
+      setCollapsedFlag(CANVAS_SIDEBAR_FLAG);
+      setCollapsed(false);
+      trackEvent("drawing_canvas_drawer_opened", {
+        ...getCanvasTrackingAttrs(),
+        entry_point: "rx_pad",
+        existing_canvas_count: drawingCanvases.length,
+      });
+    } else {
+      const timeSpent = canvasDrawerOpenTimeRef.current
+        ? Math.round((Date.now() - canvasDrawerOpenTimeRef.current) / 1000)
+        : 0;
+      trackEvent("drawing_canvas_drawer_closed", {
+        ...getCanvasTrackingAttrs(),
+        time_spent_seconds: timeSpent,
+      });
+      canvasDrawerOpenTimeRef.current = null;
+      setCollapsedFlag((prev) => (prev === CANVAS_SIDEBAR_FLAG ? null : prev));
+    }
+    setDrawingCanvasDrawer(opening);
+  }, [drawingCanvasDrawer, drawingCanvases.length, getCanvasTrackingAttrs]);
 
   useEffect(() => {
     if (chartType === "vaccination") {
@@ -1253,10 +1397,11 @@ function TabPrescription() {
   //Handle Sider
   const openCollapsed = useCallback(
     (flag) => {
+      dismissDrawingCanvasModule();
       setCollapsedFlag(flag);
       setCollapsed(true);
     },
-    [collapsedFlag, collapsed]
+    [dismissDrawingCanvasModule]
   );
 
   const handleCollapsed = useCallback(
@@ -2054,7 +2199,32 @@ function TabPrescription() {
                     </button>
                   )}
                   {customizedPadLeftList?.map((e, i) => {
-                    return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
+                    return (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0 ? (
+                      <button
+                        key={i}
+                        type="button"
+                        className="mb-3 text-center btn btn-action"
+                        onClick={() => {
+                          trackEvent("drawing_canvas_cta_clicked", {
+                            ...getCanvasTrackingAttrs(),
+                            cta_type: drawingCanvases.length > 0 ? "view_all" : "add",
+                            existing_canvas_count: drawingCanvases.length,
+                          });
+                          handleDrawerDrawingCanvas();
+                        }}
+                      >
+                        <div
+                          className={`prescription-tab-button rounded-10px ${collapsedFlag === CANVAS_SIDEBAR_FLAG ? "active" : ""}`}
+                          style={{ position: "relative" }}
+                        >
+                          <CanvasSidebarIcon
+                            color={collapsedFlag === CANVAS_SIDEBAR_FLAG ? CANVAS_ICON_ACTIVE_COLOR : CANVAS_ICON_INACTIVE_COLOR}
+                            size={20}
+                          />
+                        </div>
+                        <label className="text-white mt-1">Canvas</label>
+                      </button>
+                    ) : e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
                       <button
                         key={i}
                         type="button"
@@ -2742,6 +2912,35 @@ function TabPrescription() {
               setIsEditDocument={setIsEditDocument}
               handleUploadDocPopup={handleUploadDocPopup}
               setUploadDocDrawer={setUploadDocDrawer}
+            />
+          </Drawer>
+        )}
+        {drawingCanvasDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            bodyStyle={{ backgroundColor: "white" }}
+            onClose={handleDrawerDrawingCanvas}
+            open={drawingCanvasDrawer}
+            width="60%"
+            push={false}
+          >
+            <DrawingCanvas
+              patientId={patient_data?.patient_unique_id}
+              tcmId={tcmId}
+              canvases={drawingCanvases}
+              rxDrawingCanvasIds={rxDrawingCanvasIds}
+              onToggleRx={(canvasId, checked) => {
+                setRxDrawingCanvasIds((prev) =>
+                  checked
+                    ? [...Array.from(new Set([...prev, canvasId]))]
+                    : prev.filter((id) => String(id) !== String(canvasId))
+                );
+              }}
+              onCreateCanvas={() => {}}
+              onSave={handleSaveDrawingCanvas}
+              onClose={handleDrawerDrawingCanvas}
+              trackingAttrs={getCanvasTrackingAttrs()}
             />
           </Drawer>
         )}

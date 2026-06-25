@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { message } from "antd";
+import { useSelector } from "react-redux";
 import { cn } from "../../utils";
 import styles from "./DrAgentPanel.module.scss";
 
@@ -45,6 +46,8 @@ export function DrAgentPanel({
   voiceHydrationStatus,
   symptomCollectorStatus
 }) {
+  const { profile } = useSelector((state) => state.doctors || {});
+  const voiceDigitization = useSelector((state) => state.voiceDigitization || {});
   const {
     // State
     selectedPatientId,
@@ -73,6 +76,7 @@ export function DrAgentPanel({
     setVoiceRxRecording,
     beginVoiceAddOn,
     submitQuickEdit,
+    retryVoiceRxSoap,
     flipDeg,
     voiceRxAwaitingResponse,
     voiceRxHandoffExiting,
@@ -145,6 +149,32 @@ export function DrAgentPanel({
   const { activeVoiceModule, headerDictation } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const voiceLocked = !!activeVoiceModule || headerDictationBusy;
+  const voiceRecorderAnalyticsContext = useMemo(() => {
+    const activePatientId = patientData?.patient_unique_id || patientId || selectedPatientId || "";
+    return {
+      patientData,
+      profile,
+      sessionId: voiceDigitization?.sessionId || "",
+      mode: voiceRxDialogChoice,
+      voicecall: voiceDigitization?.voiceCallCount || 0,
+      moduleName: "Dr Agent",
+      sourceSurface: "dr_agent",
+      voiceInputLocation: "Dr Agent",
+      isDoctorAgent: true,
+      doctorId,
+      patientId: activePatientId,
+      selectedPatientId,
+    };
+  }, [
+    doctorId,
+    patientData,
+    patientId,
+    profile,
+    selectedPatientId,
+    voiceDigitization?.sessionId,
+    voiceDigitization?.voiceCallCount,
+    voiceRxDialogChoice,
+  ]);
 
   useEffect(() => {
     toast.setHandler(({ type, msg }) => {
@@ -304,6 +334,7 @@ export function DrAgentPanel({
           patientName={patient.label}
           patientId={patientId}
           doctorId={doctorId}
+          analyticsContext={voiceRecorderAnalyticsContext}
           onCancel={cancelVoiceRxRecording}
           onSubmit={submitVoiceRxRecording}
           onCollapse={onClose}
@@ -313,6 +344,7 @@ export function DrAgentPanel({
           onMinimize={onClose}
           onAddDetailsByVoice={beginVoiceAddOn}
           onQuickEditSubmit={submitQuickEdit}
+          onRetrySoap={retryVoiceRxSoap}
           voiceLocked={voiceLocked}
           onCopyResult={(payload, opts) => {
             if (opts?.copyTracking) {

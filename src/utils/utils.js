@@ -2,7 +2,7 @@ import moment from "moment";
 
 import config from "../config";
 import { message } from "antd";
-import { MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS_DP_ID, SNAP_RX_TOKENS_STORAGE_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { MESSAGE_KEY, MEDICINE_STOCK_STATUS, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS_DP_ID, SNAP_RX_TOKENS_STORAGE_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { browserName, deviceDetect, isBrowser, isMobile } from "react-device-detect";
 import html2pdf from "html2pdf.js";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
@@ -836,6 +836,32 @@ export const getHmTypeIndicator = (item, isChikitsalayAccessable = false) => {
   if (hmType == 2 ) return 'A';
   if (hmType == 15 && Number(umId) === 0 && isChikitsalayAccessable) return 'VC';
   return '';
+};
+
+export const getMedicineStockLabel = (med) => {
+  if (med?.stock_status === MEDICINE_STOCK_STATUS.NO_STOCK) {
+    return "Out of stock";
+  }
+  if (med?.stock_status === MEDICINE_STOCK_STATUS.LOW_STOCK) {
+    return `Qty: ${med?.quantity ?? 0}`;
+  }
+  return null;
+};
+
+export const hasMedicineFrequency = (medicine) => 
+  String(medicine?.tmm_freq_type_name ?? "").trim() !== "";
+
+export const hasMedicineDuration = (medicine) =>
+  String(medicine?.tmm_days_duration_type ?? "").trim() !== "";
+
+export const medicationsHaveFrequencyAndDuration = (medicationData = []) => {
+  if (!Array.isArray(medicationData) || medicationData.length === 0) {
+    return true;
+  }
+
+  return medicationData.every(
+    (medicine) => hasMedicineFrequency(medicine) && hasMedicineDuration(medicine)
+  );
 };
 
 export const getClinicName = (hospitalData) => {

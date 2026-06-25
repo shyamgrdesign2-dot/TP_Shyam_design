@@ -1010,6 +1010,7 @@ function SmartRxDigitise() {
                   patient_data={patient_data}
                   vitalsFlow="smart"
                   digitiseSplitLayout
+                  isManyaDental={shouldUseCustomRxDigitize}
                 />
               </div>
             </div>

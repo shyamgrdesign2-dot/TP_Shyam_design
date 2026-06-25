@@ -14,7 +14,7 @@ const showDateFormat = 'DD MMM, YY'
 function VitalsList(props) {
 
     const { state } = useLocation();
-    const { patient_data } = state;
+    const { patient_data } = state || {};
     const { vitalsPastList, patientBirthWeight } = useSelector(
       (state) => state.vitals
     );

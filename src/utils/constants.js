@@ -3,7 +3,7 @@ import { env } from "../EnvironmentConfig";
 
 /** Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js */
 export const TP_ASSETS_BASE =
-  "https://pmdoctorportal.blob.core.windows.net/tp-assets/assets";
+  "https://pmdoctorportal.tatvacare.in/tp-assets/assets";
 
 const codeIcon = `${TP_ASSETS_BASE}/images/code.svg`;
 const validateHealthcareIcon = `${TP_ASSETS_BASE}/images/validate-heathcare.svg`;
@@ -38,6 +38,8 @@ export const PATIENT_DETAILS_SIDEBAR_KEYS = {
   BILL_PAYMENT: 4,
   ABHA_RECORDS: 5,
   HEALTH_CHECKUP_REPORT: 6,
+  CANVASES: 7,
+  DENTAL_PLAN: 8,
 };
 
 export const TAB_QUEUE = 0;
@@ -109,10 +111,18 @@ export const GB_ZYDUS_ACCOUNT_USERS = "zydus-account-users";
 export const GB_CHIKITSALAY = "chikitsalay";
 export const GB_CROSS_CONSULT = "cross-consult";
 export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
+export const GB_VOICE_RX_MAX_SESSION_MINUTES = "VOICE_RX_MAX_SESSION_MINUTES";
+export const GB_VOICE_OLD_UI_NEW_PIPELINE = "voice-old-ui-new-pipeline";
 export const CLINIC_TARGET_STATUS = {
   SERVING: "SERVING",
   COMPLETED: "COMPLETED",
 }
+
+export const MEDICINE_STOCK_STATUS = {
+  AVAILABLE: "AVAILABLE",
+  NO_STOCK: "NO_STOCK",
+  LOW_STOCK: "LOW_STOCK",
+};
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,
@@ -136,6 +146,7 @@ export const GB_VIDEO_CONSULT = "video-consult";
 export const GB_TELE_CONSULT = "tele-consult";
 export const GB_TAB_RX = "tab-rx";
 export const GB_TAB_RX_CVT = "tab-rx-cvt";
+export const GB_DENTAL_MODULE = "dental-module";
 export const GB_CVT_EXT_HOS = "cvt-external-hospitals";
 export const EXTERNAL_HOSPITAL_BUSINESS_IDS = {
   MISSION_HOSPITAL: String(env.mission_hospital_business_id),
@@ -177,6 +188,16 @@ export const MAX_DOCUMENT_FILE_SIZE = 15728640; // 15 MB
 export const MAX_VIDEO_FILE_SIZE = 31457280; // 30 MB
 export const MAX_FILES_PER_UPLOAD = 5;
 export const VIDEO_THUMBNAIL_TIME = 1; // Extract thumbnail at 1 second
+export const CLINIC_UPLOAD_CATEGORIES = [
+  { category_id: 7, category_name: "Clinics_Pathology" },
+  { category_id: 8, category_name: "Clinics_Radiology" },
+];
+
+export const isClinicUploadCategory = (category_name) =>
+  CLINIC_UPLOAD_CATEGORIES.some(
+    (category) =>
+      category.category_name === category_name
+  );
 
 export const EXTRA_OPTIONS = [
   {

@@ -2,8 +2,8 @@ import { Button, Drawer, Dropdown, Popover, Tooltip } from "antd";
 import "./RecordCard.scss";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { deleteDocById, fetchAllPatientDocs } from "../../service";
-import { setAllUploadedDocs } from "../../../../redux/uploadDocSlice";
+import { deleteDocById, fetchAllPatientDocs, fetchDocsUploadedByPatient } from "../../service";
+import { setAllUploadedDocs, setPatientUploadedDocs } from "../../../../redux/uploadDocSlice";
 import { useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { isMobile } from "react-device-detect";
@@ -15,7 +15,7 @@ import dayjs from "dayjs";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../../../firebase";
 import { loadPdf, loadVideoThumbnail, mergeDocuments, shortenText, isVideoFile } from "../../utils/helper";
-import { VIDEO_THUMBNAIL_TIME } from "../../../../utils/constants";
+import { isClinicUploadCategory, VIDEO_THUMBNAIL_TIME } from "../../../../utils/constants";
 import config from "../../../../config";
 import { PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from "../../../../utils/constants";
 import { getDecodedToken } from "../../../../utils/localStorage";
@@ -30,8 +30,12 @@ const {
   documentEdit: edit,
   trash,
   alerticon: alertIcon,
+  viewMore: viewMoreIcon,
 } = ASSETS.images;
 const closeIcon = ASSETS.mobile.close2;
+
+const isZydusMedicalRecord = (doc) => doc?.category_id === -2 || doc?.category_id === -3;
+const getMedicalRecordKey = (doc) => `${doc?.category_id || ""}-${doc?.id || doc?.document_id || doc?.url || ""}`;
 
 const RecordCard = ({
   cardData,
@@ -46,7 +50,7 @@ const RecordCard = ({
   const location = useLocation();
   const { state } = location;
   const { patient_data } = state;
-  const { uploadDocCategories, patientUploadedDocs } = useSelector(
+  const { uploadDocCategories, allUploadedDocs } = useSelector(
     (state) => state.uploadDoc
   );
   const {
@@ -57,6 +61,7 @@ const RecordCard = ({
     investigation_date,
     category_id,
     display_name,
+    dicom_url
   } = cardData || {};
 
   let thumbnailUrl = thumbnail_url;
@@ -82,7 +87,7 @@ const RecordCard = ({
     (item) => item?.category_id === category_id
   )?.category_name;
   const isZydusRecord = category_id === -2 || category_id === -3 || url?.startsWith(config.zydus_proxy_url);
-
+  const isClinicRecord = isClinicUploadCategory(categoryName);
   const [showTooltip, setShowTooltip] = useState(false);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [shouldShowReadOnlyPopup, setShowReadOnlyPopup] = useState(false);
@@ -122,12 +127,20 @@ const RecordCard = ({
 
   const handleDelete = async () => {
     await deleteDocById(id);
-    const doctorUploadedDocs = await fetchAllPatientDocs(
-      patient_data.patient_unique_id
+    const [doctorUploadedDocs, latestPatientUploadedDocs] = await Promise.all([
+      fetchAllPatientDocs(patient_data.patient_unique_id),
+      fetchDocsUploadedByPatient(patient_data.patient_unique_id),
+    ]);
+    const refreshedDocKeys = new Set(
+      [...doctorUploadedDocs, ...latestPatientUploadedDocs].map(getMedicalRecordKey)
     );
+    const zydusUploadedDocs = allUploadedDocs.filter((doc) => (
+      isZydusMedicalRecord(doc) && !refreshedDocKeys.has(getMedicalRecordKey(doc))
+    ));
+    dispatch(setPatientUploadedDocs(latestPatientUploadedDocs));
     dispatch(
       setAllUploadedDocs(
-        mergeDocuments(doctorUploadedDocs, patientUploadedDocs)
+        mergeDocuments([...doctorUploadedDocs, ...zydusUploadedDocs], latestPatientUploadedDocs)
       )
     );
     toggleDeletePopup();
@@ -261,8 +274,24 @@ const RecordCard = ({
     }
   };
 
+  const handleDicomPreview = () => {
+    window.open(dicom_url, "_blank");
+  };
+
   const getMenuItems = () => {
     return [
+      dicom_url && {
+        label: (
+          <div 
+            onClick={handleDicomPreview}
+            className="d-flex align-items-center"
+          >
+            <img src={viewMoreIcon} alt="preview" className="me-2" style={{ width: 22, height: 20 }} />
+            View Image
+          </div>
+        ),
+        key: "preview",
+      },
       {
         label: (
           <div
@@ -276,7 +305,7 @@ const RecordCard = ({
         ),
         key: "download",
       },
-      !isZydusRecord && {
+      !isZydusRecord && !isClinicRecord && {
         label: (
           <div onClick={handleEdit}>
             <img src={edit} alt="edit" className="me-2" />
@@ -285,7 +314,7 @@ const RecordCard = ({
         ),
         key: "edit",
       },
-      !isZydusRecord && {
+      !isZydusRecord && !isClinicRecord && {
         label: (
           <div onClick={toggleDeletePopup}>
             <img src={trash} alt="delete" className="me-2" />

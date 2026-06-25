@@ -17,6 +17,7 @@ import {
   getCorrectedFileName,
 } from "../../utils/helper";
 import { ASSETS } from "../../../../assets";
+import { useChikitsalay } from "../../../chikitsalay/useChikitsalay";
 const emptyDocument = ASSETS.images.emptyDocument;
 const emptyIllustration = ASSETS.mobile.emptyIllustration;
 
@@ -29,6 +30,7 @@ const VisitMedicalRecords = ({
   handleDrawerUploadDoc,
 }) => {
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   const { allUploadedDocs, uploadDocCategories } = useSelector(
     (state) => state.uploadDoc
   );
@@ -73,7 +75,9 @@ const VisitMedicalRecords = ({
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   const categoryOptionHandler = (index) => {

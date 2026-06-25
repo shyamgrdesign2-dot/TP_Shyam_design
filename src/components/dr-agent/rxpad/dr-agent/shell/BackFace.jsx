@@ -41,6 +41,7 @@ export function BackFace({
   patientName,
   patientId,
   doctorId,
+  analyticsContext,
   onCancel,
   onSubmit,
   onCollapse,
@@ -50,6 +51,7 @@ export function BackFace({
   onMinimize,
   onAddDetailsByVoice,
   onQuickEditSubmit,
+  onRetrySoap,
   onCopyResult,
   onCopyAll,
   onCopySoap,
@@ -98,7 +100,7 @@ export function BackFace({
               <SoapNoteCard
                 status={effectiveSoapStatus}
                 html={effectiveSoapHtml}
-                error={voiceRxResult.soapError}
+                onRetry={onRetrySoap}
                 onChange={(html) => dispatch(updateVoiceSoapHtml(html))}
               />
             }
@@ -114,7 +116,10 @@ export function BackFace({
               sessionId: voiceSessionId,
               doctorId,
               patientId,
+              doctorName: analyticsContext?.profile?.um_name,
+              patientName,
             }}
+            analyticsContext={analyticsContext}
             voiceLocked={voiceLocked}
           />
         ) : isFlipped ? (
@@ -138,7 +143,10 @@ export function BackFace({
                 sessionId: voiceSessionId,
                 doctorId,
                 patientId,
+                doctorName: analyticsContext?.profile?.um_name,
+                patientName,
               }}
+              analyticsContext={analyticsContext}
             />
           </VoiceErrorBoundary>
         ) : null}

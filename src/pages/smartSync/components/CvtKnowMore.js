@@ -51,7 +51,6 @@ const CvtKnowMore = ({ handleCollapsed }) => {
     link: "https://www.youtube.com/embed//UgeyXlHItXI",
     thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.jpg",
   };
-  console.log(isZydus,"isZydus")
 
   return (
     <div className="drawer-container">

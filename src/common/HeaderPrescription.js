@@ -4,6 +4,7 @@ import { Button, Dropdown, Tooltip, Popover, Input, Spin, Tabs, Select, Drawer, 
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isMobile, isDesktop } from 'react-device-detect';
+import { useCompactPrescriptionHeader } from '../hooks/useCompactPrescriptionHeader';
 import { useTabletViewport } from '../hooks/useTabletViewport';
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -24,10 +25,9 @@ import {
     VoiceRxModuleActionButton,
 } from '../components/dr-agent/voicerx/VoiceRxModuleCapture';
 import voiceModuleStyles from '../components/dr-agent/voicerx/VoiceRxModuleCapture.module.scss';
-import { DictationIcon, VoiceRxIcon } from '../components/dr-agent/voicerx/voice-consult-icons';
 import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncContext';
 
-import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType, trackEvent, medicationsHaveFrequencyAndDuration } from "../utils/utils";
 import { transcribeAnyAudio } from '../components/dr-agent/voicerx/api/agent-audio-service';
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
@@ -53,7 +53,6 @@ import GenRxButton from '../components/GenRxButton';
 
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import { getDecodedToken } from '../utils/localStorage';
-import { appendStripped, stripEmptyRows } from '../utils/voiceRxRowStrip';
 import { syncCrossConsultReferral } from '../utils/crossConsultHelpers';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
@@ -71,6 +70,7 @@ import {
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
 import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
+import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
 const {
   alerticon: alertIcon,
@@ -81,10 +81,12 @@ const {
   endVisit: visitEnd,
   closeVisit: imgCloseVisit,
   video: videoSvg,
+  notesMultiple,
 } = ASSETS.images;
 
 var oneClickCosultationTemplateId = 0
 const HEADER_DICTATION_TARGET = "header";
+const HEADER_DICTATION_NO_INPUT_LOCATION = "no input field selected and no cursor is active";
 
 function getVoiceDictationTargetId(element) {
     const targetNode = element?.closest?.("[data-voice-rx-dictation-target]");
@@ -140,7 +142,7 @@ function normalizeVoiceHistoryForStore(history) {
     });
 }
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false, onEndVisit, isEndVisitLoading = false, hasDentalData = false, onPreviewClick, showPreviewButton = false, onSelectLetterHead, isDentalConsultation = false }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
@@ -159,15 +161,17 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         loading,
     } = useSelector((state) => state.caseManager);
     const dispatch = useDispatch();
-    const { activeVoiceModule, headerDictation, setHeaderDictation } = useRxPadSync();
+    const isChikitsalayAccessable = useChikitsalay();
+    const { activeVoiceModule, setHeaderDictation } = useRxPadSync();
 
     const {customModules} = useSelector((state) => state.customModules);
 
     const navigate = useNavigate();
     const isTablet = useTabletViewport();
+    const isCompactHeader = useCompactPrescriptionHeader();
     const headerOverlayZIndex = isNewPrescriptionUi ? 1305 : undefined;
     const shouldUseMobileTemplateContent = isMobile && !isTablet;
-    const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, referralData, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft } = useContext(CashManagerContext);
+    const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft, rxDrawingCanvasIds, referralData } = useContext(CashManagerContext);
     const { isAutofillSelected, selectedSymptomsCollector, symptomCollector } = useSelector(
         (state) => state.ddx
     );
@@ -208,7 +212,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
     const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
     // header transcribe voice state
-    const [headerVoiceState, setHeaderVoiceStateRaw] = useState("idle"); // "idle" | "recording" | "transcribing"
+    const [, setHeaderVoiceStateRaw] = useState("idle"); // "idle" | "recording" | "transcribing"
     const headerVoiceStateRef = useRef("idle");
     const setHeaderVoiceState = useCallback((s) => { headerVoiceStateRef.current = s; setHeaderVoiceStateRaw(s); }, []);
     const headerVoiceMediaRecorderRef = useRef(null);
@@ -217,21 +221,18 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceLastShiftTimeRef = useRef(0);
     const headerVoiceCursorRef = useRef(null); // { element, selectionStart, selectionEnd, targetId }
     const headerVoiceTargetIdRef = useRef(HEADER_DICTATION_TARGET);
+    const headerVoiceInputLocationRef = useRef(HEADER_DICTATION_NO_INPUT_LOCATION);
     const headerVoiceRecordStartMsRef = useRef(0);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
-    const hasUngroundedMedications = medicationData.some(
+    const tokenData = getDecodedToken()?.result;
+    const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
+    const hasUngroundedMedications = isZydusAccount && medicationData.some(
       (item) => !!item?.voice_rx_from_module && !(Number(item?.tmm_id) > 0)
     );
     const [saveDraftLoading, setSaveDraftLoading] = useState(false);
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false, isVoiceRxNewUiFlow = false} = location.state || {};
     const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx && !isVoiceRxNewUiFlow;
-    const headerDictationTargetId = headerDictation?.targetId || HEADER_DICTATION_TARGET;
-    const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
-    const headerIconVoiceState = headerDictationTargetId === HEADER_DICTATION_TARGET ? headerVoiceState : "idle";
-    const headerVoiceDisabledByModule = !!activeVoiceModule;
-    const headerVoiceLockedByOtherSurface = headerDictationBusy && headerDictationTargetId !== HEADER_DICTATION_TARGET;
-    const headerVoiceSoftLocked = headerVoiceDisabledByModule || headerVoiceLockedByOtherSurface;
     const shouldHideLegacyVoiceRxCta = isNewPrescriptionUi;
     const shouldShowLegacyVoiceRxCta =
         !shouldHideLegacyVoiceRxCta &&
@@ -325,6 +326,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const recorder = headerVoiceMediaRecorderRef.current;
         if (!recorder || recorder.state === 'inactive') return;
         const targetId = headerVoiceTargetIdRef.current || headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
+        const voiceInputLocation = headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION;
         setHeaderVoiceState("transcribing");
         publishHeaderDictation("transcribing", targetId);
         const submitClickedAtMs = Date.now();
@@ -342,7 +344,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const audioBlob = new Blob(headerVoiceAudioChunksRef.current, { type: mimeType });
         const cursor = headerVoiceCursorRef.current;
         try {
-            const { transcript } = await transcribeAnyAudio({ audioBlob });
+            const transcribeAnyAudioContext = {
+                patientId: patient_data?.patient_unique_id,
+                doctorId: profile?.doctor_unique_id,
+                sessionId: voiceDigitization?.sessionId || submitId,
+            };
+            const { transcript } = await transcribeAnyAudio({
+                audioBlob,
+                context: transcribeAnyAudioContext,
+            });
             const clinicalCompletedAtMs = Date.now();
             if (transcript) {
                 const inserted = insertTranscriptAtCursor(transcript, cursor);
@@ -365,6 +375,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
                 moduleName: "header-dictation",
                 sourceSurface: "header",
+                voiceInputLocation,
                 isDoctorAgent: false,
                 voiceLogCreated: voiceDigitization?.voiceLogCreated,
                 markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -400,6 +411,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
                 moduleName: "header-dictation",
                 sourceSurface: "header",
+                voiceInputLocation,
                 isDoctorAgent: false,
                 voiceLogCreated: voiceDigitization?.voiceLogCreated,
                 markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -408,14 +420,18 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
         setHeaderVoiceState("idle");
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
     }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const headerVoiceStartRecording = useCallback(async () => {
         if (headerVoiceStateRef.current !== "idle") return;
         if (activeVoiceModule) return;
-        const targetId = headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
+        const cursor = headerVoiceCursorRef.current;
+        const hasCursor = cursor?.element && document.activeElement === cursor.element;
+        const targetId = hasCursor ? cursor.targetId : HEADER_DICTATION_TARGET;
         headerVoiceTargetIdRef.current = targetId;
+        headerVoiceInputLocationRef.current = hasCursor ? targetId : HEADER_DICTATION_NO_INPUT_LOCATION;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             headerVoiceStreamRef.current = stream;
@@ -431,6 +447,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         } catch (err) {
             console.error('[HeaderTranscribe] mic access failed', err);
             headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+            headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         }
     }, [activeVoiceModule, publishHeaderDictation, setHeaderVoiceState]);
@@ -447,6 +464,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceAudioChunksRef.current = [];
         setHeaderVoiceState("idle");
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
     }, [publishHeaderDictation, setHeaderVoiceState]);
 
@@ -522,6 +540,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
             });
     }, [dispatch, patient_data?.patient_unique_id, medicationData, investigationData, profile?.hospital_data]);
+
+    const hasRxDrawingCanvasIds =
+        (Array.isArray(rxDrawingCanvasIds) && rxDrawingCanvasIds.length > 0) ||
+        (typeof rxDrawingCanvasIds === "string" && rxDrawingCanvasIds.split(",").filter(Boolean).length > 0);
 
     const trackSaveDraftEvent = useCallback(() => {
         window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.save, {
@@ -643,19 +665,18 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         },
     ];
     async function onResetClick() {
-        const canShowVoiceRxNewRows = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
-        setSymptomsData(canShowVoiceRxNewRows ? [{ symptom_name: "", unique_id: uuidv4(), since: "", severity: "", note: "", change: 1, pms_default: 0 }] : [])
-        setExaminationData(canShowVoiceRxNewRows ? [{ examination_name: "", unique_id: uuidv4(), note: "", change: 1, pms_default: 0 }] : [])
-        setDiagnosisData(canShowVoiceRxNewRows ? [{ tds_name: "", tds_id: 0, unique_id: uuidv4(), change: 1, pms_default: 0, icd_code: "", since: "", status: "", note: "" }] : [])
+        setSymptomsData([])
+        setExaminationData([])
+        setDiagnosisData([])
         setAdviceData([])
-        setInvestigationData(canShowVoiceRxNewRows ? [{ investigation_name: "", note: "", unique_id: uuidv4(), change: 1, pms_default: 0 }] : [])
+        setInvestigationData([])
         setMedicationData([])
         // setVitalsData([])
         // setMedicalHistoryData([])
         setPrivateNotesData(null)
         setFollowUpDate(null)
         setAdditionalNote('')
-        setSurgeriesData(canShowVoiceRxNewRows ? [{ masterId: uuidv4(), name: "", notes: "" }] : []);
+        setSurgeriesData([]);
         setCustomModuleContents([]);
         dispatch(resetOpthalForm());
     }
@@ -729,7 +750,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         window.Moengage.track_event("one_click_template_select", {
             "template_name": tmoc_template_name
         });
-        const action = await dispatch(oneClickSingleTemplateDetails(tmoc_id));
+        const action = await dispatch(
+            oneClickSingleTemplateDetails({
+                templateId: tmoc_id,
+                isChikitsalayAccessable,
+            })
+        );
         if (action.meta.requestStatus === "fulfilled") {
             const data = action.payload
             if (data !== undefined) {
@@ -749,25 +775,25 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const updatedData = data.symptoms.map(e => {
                         return { ...e, unique_id: uuidv4(), since: "", severity: "", note: "" }
                     })
-                    setSymptomsData(appendStripped(symptomsData, updatedData, "symptoms"));
+                    setSymptomsData([...symptomsData, ...updatedData]);
                 }
                 if (data.examination.length > 0) {
                     const updatedData = data.examination.map(e => {
                         return { ...e, unique_id: uuidv4(), note: "" }
                     })
-                    setExaminationData(appendStripped(examinationData, updatedData, "examinations"));
+                    setExaminationData([...examinationData, ...updatedData]);
                 }
                 if (data?.surgeries && data.surgeries?.length > 0) {
                   const updatedData = data.surgeries.map((e) => {
                     return { ...e, unique_id: uuidv4(), notes: "" };
                   });
-                  setSurgeriesData(appendStripped(surgeriesData, updatedData, "surgeries"));
+                  setSurgeriesData([...surgeriesData, ...updatedData]);
                 }
                 if (data.diagnosis.length > 0) {
                     const updatedData = data.diagnosis.map(e => {
                         return { ...e, unique_id: uuidv4(), since: "", status: e.hasOwnProperty('status') ? e.status : "", note: "" }
                     })
-                    setDiagnosisData(appendStripped(diagnosisData, updatedData, "diagnosis"));
+                    setDiagnosisData([...diagnosisData, ...updatedData]);
                 }
                 if (data.advice.length > 0) {
                     const updatedData = data.advice.map(e => {
@@ -779,7 +805,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const updatedData = data.investigation.map(e => {
                         return { ...e, unique_id: uuidv4(), note: "" }
                     })
-                    setInvestigationData(appendStripped(investigationData, updatedData, "investigations"));
+                    setInvestigationData([...investigationData, ...updatedData]);
                 }
                 if (data.medicine.length > 0) {
                     if (!isMobile) {
@@ -894,7 +920,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     setCustomModuleContents(Array.from(moduleMap.values()));
                 }
             }
-            (isMobile || (isTablet && isNewPrescriptionUi)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
+            (isMobile || (isTablet && isNewPrescriptionUi) || (isCompactHeader && showVoiceRxModule)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
         } else {
             errorMessage(action.error)
         }
@@ -947,11 +973,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 };
             });
         }
-        const templateSymptoms = isNewPrescriptionUi ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
-        const templateExaminations = isNewPrescriptionUi ? stripEmptyRows(examinationData, "examinations") : examinationData;
-        const templateSurgeries = isNewPrescriptionUi ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
-        const templateDiagnosis = isNewPrescriptionUi ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
-        const templateInvestigations = isNewPrescriptionUi ? stripEmptyRows(investigationData, "investigations") : investigationData;
+        const templateSymptoms = symptomsData;
+        const templateExaminations = examinationData;
+        const templateSurgeries = surgeriesData;
+        const templateDiagnosis = diagnosisData;
+        const templateInvestigations = investigationData;
         
         var sendData = {
             tmoc_template_name: inputTemplateName,
@@ -962,7 +988,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 diagnosis: templateDiagnosis.map(({ tds_id, tds_name, icd_code, status, pms_default, change }) => ({ tds_id, tds_name, icd_code, status, pms_default, ...(change !== undefined && { change }) })),
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
-                investigation: templateInvestigations.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
+                investigation: templateInvestigations.map(({ investigation_name, change, id, service_code }) => ({ investigation_name, ...(change !== undefined && { change }), ...(id != null && String(id).trim() !== "" && { id }), ...(service_code != null && String(service_code).trim() !== "" && { service_code }) })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -1081,11 +1107,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 };
             });
         }
-        const templateSymptoms = isNewPrescriptionUi ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
-        const templateExaminations = isNewPrescriptionUi ? stripEmptyRows(examinationData, "examinations") : examinationData;
-        const templateSurgeries = isNewPrescriptionUi ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
-        const templateDiagnosis = isNewPrescriptionUi ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
-        const templateInvestigations = isNewPrescriptionUi ? stripEmptyRows(investigationData, "investigations") : investigationData;
+        const templateSymptoms = symptomsData;
+        const templateExaminations = examinationData;
+        const templateSurgeries = surgeriesData;
+        const templateDiagnosis = diagnosisData;
+        const templateInvestigations = investigationData;
 
         var data = JSON.parse(inputTemplateName);
         var sendData = {
@@ -1098,7 +1124,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 diagnosis: templateDiagnosis.map(({ tds_id, tds_name, status, pms_default }) => ({ tds_id, tds_name, status, pms_default })),
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
-                investigation: templateInvestigations.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
+                investigation: templateInvestigations.map(({ investigation_name, change, id, service_code }) => ({ investigation_name, ...(change !== undefined && { change }), ...(id != null && String(id).trim() !== "" && { id }), ...(service_code != null && String(service_code).trim() !== "" && { service_code }) })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -1519,6 +1545,44 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [ophthalmologyExam]);
 
+    const hasSymptomsWithSince = useMemo(
+        () =>
+            symptomsData.length > 0 &&
+            symptomsData.every(
+                (symptom) => String(symptom?.since ?? "").trim() !== ""
+            ),
+        [symptomsData]
+    );
+
+    const hasMedicationsFrequencyAndDuration = useMemo(
+        () => medicationsHaveFrequencyAndDuration(medicationData),
+        [medicationData]
+    );
+
+    const endVisitTooltipMessage = useMemo(() => {
+        if (isChikitsalayAccessable) {
+            const missingMedicationFields =
+                medicationData.length > 0 && !hasMedicationsFrequencyAndDuration;
+
+            if (!hasSymptomsWithSince && diagnosisData.length === 0) {
+                return "Please fill Symptoms and Diagnosis to end the consultation.";
+            } else if (!hasSymptomsWithSince) {
+                return "Please fill Symptoms and Since to end the consultation.";
+            } else if (diagnosisData.length === 0) {
+                return "Please fill Diagnosis to end the consultation.";
+            } else if (missingMedicationFields) {
+                return "Please fill Frequency and Duration for all medicines to end the consultation.";
+            }
+        }
+        return "Please fill your prescription to end visit.";
+    }, [
+        isChikitsalayAccessable,
+        hasSymptomsWithSince,
+        diagnosisData,
+        medicationData.length,
+        hasMedicationsFrequencyAndDuration,
+    ]);
+
     const opthalTablesById = useMemo(() => {
         return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
             section.tables.forEach((table) => {
@@ -1643,7 +1707,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             item.medicine_name ||
             item.voice_rx_original_name ||
             item.name ||
-            "Intel"
+            ""
         );
 
         const hasMedicineId = (item = {}) => {
@@ -1715,30 +1779,21 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const onSaveAsDraft = async () => {
         if (saveDraftLoading) return;
         trackSaveDraftEvent();
-        setSaveDraftLoading(true);
-
-        let cleanedSymptoms = symptomsData;
-        let cleanedExaminations = examinationData;
-        let cleanedSurgeries = surgeriesData;
-        let cleanedDiagnosis = diagnosisData;
-        let cleanedInvestigations = investigationData;
-        if (isVoiceRxNewFromGB) {
-            const stripEmpty = (arr, keys) => arr.filter(r => keys.some(k => String(r?.[k] ?? "").trim() !== ""));
-            cleanedSymptoms = stripEmpty(symptomsData, ["symptom_name", "since", "severity", "note"]);
-            cleanedExaminations = stripEmpty(examinationData, ["examination_name", "note"]);
-            cleanedSurgeries = stripEmpty(surgeriesData, ["name", "notes"]);
-            cleanedDiagnosis = stripEmpty(diagnosisData, ["tds_name", "icd_code", "since", "status", "note"]);
-            cleanedInvestigations = stripEmpty(investigationData, ["investigation_name", "note"]);
-
-            console.log("[save-draft] payload before strip:", { symptoms: symptomsData, examinations: examinationData, surgeries: surgeriesData, diagnosis: diagnosisData, investigations: investigationData });
-            console.log("[save-draft] payload after strip:", { symptoms: cleanedSymptoms, examinations: cleanedExaminations, surgeries: cleanedSurgeries, diagnosis: cleanedDiagnosis, investigations: cleanedInvestigations });
-
-            if (cleanedSymptoms.length !== symptomsData.length) setSymptomsData(cleanedSymptoms);
-            if (cleanedExaminations.length !== examinationData.length) setExaminationData(cleanedExaminations);
-            if (cleanedSurgeries.length !== surgeriesData.length) setSurgeriesData(cleanedSurgeries);
-            if (cleanedDiagnosis.length !== diagnosisData.length) setDiagnosisData(cleanedDiagnosis);
-            if (cleanedInvestigations.length !== investigationData.length) setInvestigationData(cleanedInvestigations);
+        const selectedCanvasCount = Array.isArray(rxDrawingCanvasIds) ? rxDrawingCanvasIds.length
+          : typeof rxDrawingCanvasIds === "string" ? rxDrawingCanvasIds.split(",").filter(Boolean).length : 0;
+        if (selectedCanvasCount > 0) {
+          trackEvent("drawing_canvas_saved_in_draft", {
+            specialty: profile?.dp_name,
+            specialty_id: profile?.dp_id,
+            doctor_unique_id: profile?.doctor_unique_id,
+            doctor_name: profile?.um_name,
+            patient_id: patient_data?.patient_unique_id,
+            consultation_id: tcmId,
+            selected_canvas_count: selectedCanvasCount,
+            prescription_type: isTabPrescription ? "tab_rx" : "normal_rx",
+          });
         }
+        setSaveDraftLoading(true);
 
         try {
           const opthalPayload = buildOpthalPayload({
@@ -1768,13 +1823,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                   : pamId
                 : 0,
             consultation_date: consultationDate,
-            symptoms: cleanedSymptoms,
-            examination: cleanedExaminations,
-            surgeries: cleanedSurgeries,
-            diagnosis: cleanedDiagnosis,
+            symptoms: symptomsData,
+            examination: examinationData,
+            surgeries: surgeriesData,
+            diagnosis: diagnosisData,
             medicine: medicinePayload,
             advice: adviceData,
-            investigation: cleanedInvestigations,
+            investigation: investigationData,
             vitals: vitalsData,
             follow_up_date: followUpDate,
             visit_advice: additionalNote,
@@ -1791,6 +1846,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
             labReportID: labReportID,
             zydusSelectedLabParams: zydusSelectedLabParams,
+            canvas_filename: rxDrawingCanvasIds,
           };
       
           const decodedToken = getDecodedToken();
@@ -1935,42 +1991,19 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     }; 
 
     async function onEndVisitClick() {
-        let cleanedSymptoms = symptomsData;
-        let cleanedExaminations = examinationData;
-        let cleanedSurgeries = surgeriesData;
-        let cleanedDiagnosis = diagnosisData;
-        let cleanedInvestigations = investigationData;
-        if (isVoiceRxNewFromGB) {
-            const stripEmpty = (arr, keys) => arr.filter(r => keys.some(k => String(r?.[k] ?? "").trim() !== ""));
-            cleanedSymptoms = stripEmpty(symptomsData, ["symptom_name", "since", "severity", "note"]);
-            cleanedExaminations = stripEmpty(examinationData, ["examination_name", "note"]);
-            cleanedSurgeries = stripEmpty(surgeriesData, ["name", "notes"]);
-            cleanedDiagnosis = stripEmpty(diagnosisData, ["tds_name", "icd_code", "since", "status", "note"]);
-            cleanedInvestigations = stripEmpty(investigationData, ["investigation_name", "note"]);
-
-            console.log("[end-visit] payload before strip:", { symptoms: symptomsData, examinations: examinationData, surgeries: surgeriesData, diagnosis: diagnosisData, investigations: investigationData });
-            console.log("[end-visit] payload after strip:", { symptoms: cleanedSymptoms, examinations: cleanedExaminations, surgeries: cleanedSurgeries, diagnosis: cleanedDiagnosis, investigations: cleanedInvestigations });
-
-            if (cleanedSymptoms.length !== symptomsData.length) setSymptomsData(cleanedSymptoms);
-            if (cleanedExaminations.length !== examinationData.length) setExaminationData(cleanedExaminations);
-            if (cleanedSurgeries.length !== surgeriesData.length) setSurgeriesData(cleanedSurgeries);
-            if (cleanedDiagnosis.length !== diagnosisData.length) setDiagnosisData(cleanedDiagnosis);
-            if (cleanedInvestigations.length !== investigationData.length) setInvestigationData(cleanedInvestigations);
-        }
-
-        if (cleanedSymptoms.length > 0 && cleanedSymptoms.filter(e => e.symptom_name == "").length > 0) {
+        if (symptomsData.length > 0 && symptomsData.filter(e => e.symptom_name == "").length > 0) {
             errorMessage('Please fillup symptom name')
-        } else if (cleanedExaminations.length > 0 && cleanedExaminations.filter(e => e.examination_name == "").length > 0) {
+        } else if (examinationData.length > 0 && examinationData.filter(e => e.examination_name == "").length > 0) {
             errorMessage('Please fillup examination name')
-        } else if (cleanedSurgeries.length > 0 && cleanedSurgeries.filter(e => e.name == "").length > 0) {
+        } else if (surgeriesData.length > 0 && surgeriesData.filter(e => e.name == "").length > 0) {
             errorMessage('Please fillup surgery name')
-        } else if (cleanedDiagnosis.length > 0 && cleanedDiagnosis.filter((e) => e.tds_name == "").length > 0) {
+        } else if (diagnosisData.length > 0 && diagnosisData.filter((e) => e.tds_name == "").length > 0) {
             errorMessage('Please fillup diagnosis name')
         } else if (medicationData.length > 0 && medicationData.filter((e) => e.tmm_medicine_name == "").length > 0) {
             errorMessage('Please fillup medication name')
         } else if (adviceData.length > 0 && adviceData.filter(e => e.advice_name == "").length > 0) {
             errorMessage('Please fillup advice name')
-        } else if (cleanedInvestigations.length > 0 && cleanedInvestigations.filter(e => e.investigation_name == "").length > 0) {
+        } else if (investigationData.length > 0 && investigationData.filter(e => e.investigation_name == "").length > 0) {
             errorMessage('Please fillup investigation name')
         } else {
             const opthalPayload = buildOpthalPayload({
@@ -1994,13 +2027,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
                 pam_id: patient_data !== undefined ? patient_data.hasOwnProperty('pam_id') ? patient_data.pam_id : pamId : 0,
                 consultation_date: consultationDate,
-                symptoms: cleanedSymptoms,
-                examination: cleanedExaminations,
-                surgeries: cleanedSurgeries,
-                diagnosis: cleanedDiagnosis,
+                symptoms: symptomsData,
+                examination: examinationData,
+                surgeries: surgeriesData,
+                diagnosis: diagnosisData,
                 medicine: medicinePayload,
                 advice: adviceData,
-                investigation: cleanedInvestigations,
+                investigation: investigationData,
                 vitals: vitalsData,
                 follow_up_date: followUpDate,
                 visit_advice: additionalNote,
@@ -2049,7 +2082,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     .filter(Boolean),
                 pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
                 labReportID: labReportID,
-                zydusSelectedLabParams: zydusSelectedLabParams
+                zydusSelectedLabParams: zydusSelectedLabParams,
+                canvas_filename: rxDrawingCanvasIds
             };
 
             const decodedToken = getDecodedToken();
@@ -2082,6 +2116,20 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 :
                 window.Moengage.track_event("TP_Consultation_edited", consultationEventPayload)
 
+            const finalSelectedCanvasCount = Array.isArray(rxDrawingCanvasIds) ? rxDrawingCanvasIds.length
+              : typeof rxDrawingCanvasIds === "string" ? rxDrawingCanvasIds.split(",").filter(Boolean).length : 0;
+            if (finalSelectedCanvasCount > 0) {
+              trackEvent("drawing_canvas_saved_in_final_rx", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: patient_data?.patient_unique_id,
+                consultation_id: tcmId,
+                selected_canvas_count: finalSelectedCanvasCount,
+                prescription_type: isTabPrescription ? "tab_rx" : "normal_rx",
+              });
+            }
             const caseManagerPromise = isDraft 
                 ? dispatch(draftToConsultation(sendData))
                 : tcmId == 0
@@ -2122,16 +2170,16 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const voiceEditedData = {
                         patientDetails: {},
                         vitalsAndBodyComposition: vitalsData,
-                        symptoms: cleanedSymptoms,
-                        examinations: cleanedExaminations,
-                        diagnosis: cleanedDiagnosis,
+                        symptoms: symptomsData,
+                        examinations: examinationData,
+                        diagnosis: diagnosisData,
                         medications: medicinePayload,
                         vaccinations: givenVaccines,
-                        surgeries: cleanedSurgeries,
+                        surgeries: surgeriesData,
                         labResults: [],
                         medicalHistory: medicalHistoryData,
                         advice: adviceData,
-                        labInvestigation: cleanedInvestigations,
+                        labInvestigation: investigationData,
                         followUp: followUpDate,
                         others: customModuleContents,
                     };
@@ -2352,7 +2400,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     }
                 }
 
-                navigate('/prescription_print_view', { replace: true, state: { ...action.payload, patient_data: patient_data, labParamsData: labParamsData, zydusSelectedLabParams: zydusSelectedLabParams, labReportID: labReportID, isVoiceRxNewUiFlow } })
+                navigate('/prescription_print_view', { replace: true, state: { ...action.payload, patient_data: patient_data, labParamsData: labParamsData, zydusSelectedLabParams: zydusSelectedLabParams, labReportID: labReportID, from: window.location.pathname, isVoiceRxNewUiFlow } })
             } else {
                 errorMessage(action.error)
             }
@@ -2360,7 +2408,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     }
 
     const checkDataFillOrNot = () => {
-        if (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || medicationData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasOpthalValues() || hasCustomModuleContent() || followUpDate || additionalNote || givenVaccines?.length > 0 || updatedDueVaccines?.length > 0 || measurements?.length > 0 || selectedCarePlan?.plan_name) {
+        if (hasDentalData || symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || medicationData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasOpthalValues() || hasCustomModuleContent() || followUpDate || additionalNote || givenVaccines?.length > 0 || updatedDueVaccines?.length > 0 || measurements?.length > 0 || selectedCarePlan?.plan_name) {
             showHideBackModal()
         } else {
             if (send_path !== undefined) {
@@ -2418,10 +2466,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [popOverVideo]);
     return (
-        <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}${isNewPrescriptionUi ? ' headerprescription--new-ui' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
+        <Navbar className={`justify-content-between headerprescription p-0 ${isCompactHeader ? ' headerprescription--tablet' : ''}${isNewPrescriptionUi ? ' headerprescription--new-ui' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
             <Container fluid className='h-100 gx-0 w-100'>
                 <Row className='h-100 align-items-center w-100 justify-content-between'>
-                    <Col sm="auto" className={`h-100 ${isTablet ? 'pr-0' : ''}`}>
+                    <Col sm="auto" className={`h-100 ${isCompactHeader ? 'pr-0' : ''}`}>
                         <div className='align-items-center d-flex h-100'>
                             <div className='border-end h-100 text-center'>
                                 <div onClick={checkDataFillOrNot} className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
@@ -2462,35 +2510,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     </Col>
                     <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
                         <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
-                        {showVoiceRxModule && (
-                                <Tooltip
-                                    placement="bottom"
-                                    title={headerIconVoiceState === "recording" ? "Recording… double-shift or click to stop" : headerIconVoiceState === "transcribing" ? "Transcribing…" : "Voice input (double-shift to start)"}
-                                    zIndex={headerOverlayZIndex}
-                                    destroyTooltipOnHide
-                                    trigger={["hover"]}
-                                    mouseLeaveDelay={0}
-                                >
-                                    <button
-                                        type="button"
-                                        data-header-dictation-trigger="true"
-                                        className={`btn align-items-center justify-content-center d-flex btn-41 me-2 ${headerIconVoiceState === "recording" ? " header-voice-recording" : headerIconVoiceState === "transcribing" ? " header-voice-transcribing" : ""} ${headerVoiceSoftLocked ? " header-voice-locked" : ""}`}
-                                        style={{ position: "relative" }}
-                                        onClick={headerVoiceSoftLocked ? undefined : headerVoiceState === "recording" ? headerVoiceStopAndTranscribe : headerVoiceState === "transcribing" ? undefined : headerVoiceStartRecording}
-                                        disabled={headerIconVoiceState === "transcribing"}
-                                        aria-disabled={headerVoiceSoftLocked || undefined}
-                                    >
-                                        {headerIconVoiceState === "transcribing" ? (
-                                            <LoadingOutlined style={{ fontSize: 20 }} />
-                                        ) : (
-                                            <VoiceRxIcon size={22} color={headerIconVoiceState === "recording" ? "#e53935" : "#673AAC"} />
-                                        )}
-                                        {headerIconVoiceState === "recording" && (
-                                            <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: "50%", background: "#e53935", animation: "headerVoicePulse 1s infinite" }} />
-                                        )}
-                                    </button>
-                                </Tooltip>
-                            )}
                             {!showVoiceRxModule && (
                                 <Popover
                                     open={popOverVideo}
@@ -2501,7 +2520,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     placement="bottom"
                                     zIndex={headerOverlayZIndex}
                                 >
-                                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? 'me-20' : ''}`}>
+                                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isCompactHeader ? 'me-20' : ''}`}>
                                         {/* onClick={showHideVideoListPopover} */}
                                         <span><img src={tutorial2} /></span>
                                     </button>
@@ -2524,7 +2543,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         </button>
                                     </Popover>
                                     <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
-                                    {isTablet ? (
+                                    {isCompactHeader ? (
                                         <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
                                             <span>
                                                 <VoiceRxModuleActionButton type="template" label="Browse prescription templates" onClick={handleDrawerTemplate} />
@@ -2593,7 +2612,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     >
                                         <button className="btn d-flex align-items-center btn-text">
                                             {" "}
-                                            <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
+                                            <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                         </button>
                                     </Popover>
                                     <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
@@ -2618,7 +2637,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             ) : (
                                 <div className="d-flex align-items-center">
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
-                                        <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
+                                        <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                     </button>
                                     <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <span>
@@ -2632,14 +2651,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
                             {!showVoiceRxModule && (
                                 <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
-                                    {isTablet ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isTablet) ? "Custom" : "Customize"}</span>
+                                    {isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
                                 </button>
                             )}
 
                             {/* <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
                                <span><img height={42} src={tutorial} /></span>
                             </button> */}
-
 
                             <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
                                 {TEMPLATE_CONTENT_TAB}
@@ -2687,15 +2705,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <span className={isTeleconsultActive ? "d-inline-block" : ""}>
                                         <button
                                             type="button"
-                                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isTablet ? 'me-20' : ''}`}
-                                            style={isTablet ? {marginLeft: '10px'} : {}}
+                                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isCompactHeader ? 'me-20' : ''}`}
+                                            style={isCompactHeader ? {marginLeft: '10px'} : {}}
                                             onClick={onTeleconsultClick}
                                             disabled={isTeleconsultJoinLoading || isTeleconsultActive}
                                         >
                                             {isTeleconsultJoinLoading ? (
-                                                <LoadingOutlined style={{ fontSize: 24, ...(!isTablet && { marginLeft: '10px' }) }} />
+                                                <LoadingOutlined style={{ fontSize: 24, ...(!isCompactHeader && { marginLeft: '10px' }) }} />
                                             ) : (
-                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isTablet ? { marginLeft: '10px' } : {}} />
+                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isCompactHeader ? { marginLeft: '10px' } : {}} />
                                             )}
                                         </button>
                                     </span>
@@ -2709,7 +2727,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             )}
                             {/* Legacy VoiceRx CTA belongs only to the old prescription UI. */}
                             {shouldShowLegacyVoiceRxCta ? (
-                                isTablet ?
+                                isCompactHeader ?
                                     <>
                                         <div className="headerprescription-tablet-sep" aria-hidden="true" />
                                         <TabVoiceRxButton onClick={handleGenRx} />
@@ -2718,19 +2736,20 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <GenRxButton onClick={handleGenRx} />
                             ) : null}
 
-                            {isTablet && <div className="headerprescription-tablet-sep" aria-hidden="true" />}
+                            {isCompactHeader && <div className="headerprescription-tablet-sep" aria-hidden="true" />}
 
-                            {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isTablet ? 'Draft' : 'Save as Draft'} />}
+                            {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isCompactHeader ? 'Draft' : 'Save as Draft'} />}
 
                             {(() => {
-                              // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes).
+                              // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes/drawing canvas).
                               const hasPrescriptionModuleData = (
+                                hasDentalData ||
                                 symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 ||
                                 diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 ||
                                 medicationData.length > 0 || privateNotesData || followUpDate || additionalNote ||
                                 givenVaccines.length > 0 || updatedDueVaccines?.length > 0 ||
                                 customModuleContents?.some((e) => e?.content?.length && e?.content?.some(c => c.title || c.notes)) ||
-                                hasOpthalValues() || hasCustomModuleContent()
+                                hasOpthalValues() || hasCustomModuleContent() || hasRxDrawingCanvasIds
                               );
                               // Sidebar-only signals (vitals/medical history/measurements/gynec/obstetric/lab params/zydus labs).
                               const hasSidebarOnlyData = (
@@ -2739,16 +2758,38 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0
                               );
                               // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
-                              const canEndVisit = isVoiceRxNewFromGB
-                                ? hasPrescriptionModuleData
-                                : (hasPrescriptionModuleData || hasSidebarOnlyData);
+                              const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0 && hasMedicationsFrequencyAndDuration : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
-                                <Tooltip placement="bottom" title={canEndVisit ? "" : "Please fill your prescription to end visit."} zIndex={headerOverlayZIndex}>
-                                    <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
+                                <>
+                                {onSelectLetterHead && !isDentalConsultation && (
+                                  <Tooltip placement="bottom" title="Letterhead" zIndex={headerOverlayZIndex}>
+                                    <button type="button" className="btn align-items-center justify-content-center d-flex btn-41 me-2" onClick={onSelectLetterHead}>
+                                      <img src={notesMultiple} alt="Notes" />
+                                    </button>
+                                  </Tooltip>
+                                )}
+                                {showPreviewButton && onPreviewClick && (
+                                  <>
+                                    <div className="headerprescription-preview-divider" aria-hidden="true" />
+                                    <Tooltip placement="bottom" title="Preview Rx" zIndex={headerOverlayZIndex}>
+                                      <Button
+                                        type="button"
+                                        className="btn-41 btn px-2 me-2 ant-btn-text btn-input align-items-center d-flex consultation-preview-btn"
+                                        onClick={onPreviewClick}
+                                        icon={<i className="icon-Preview" />}
+                                      >
+                                        Preview
+                                      </Button>
+                                    </Tooltip>
+                                  </>
+                                )}
+                                <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
+                                    <Button type='button' data-testid="prescription-end-visit" className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && (onEndVisit ? onEndVisit() : onEndVisitClick())} loading={onEndVisit ? isEndVisitLoading : (loading && !saveDraftLoading)}>
                                         <i className='icon-exit me-2'></i>
-                                        {isTablet ? "End" : "End Visit"}
+                                        {isCompactHeader ? "End" : "End Visit"}
                                     </Button>
                                 </Tooltip>
+                                </>
                               );
                             })()}
 

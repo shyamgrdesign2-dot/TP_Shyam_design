@@ -11,17 +11,19 @@ import { useReactToPrint } from 'react-to-print';
 
 import { errorMessage, getClinic, isIPad, isValidMongoId, sendMessageToParent, trackEvent } from "../utils/utils";
 import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../redux/dentalExaminationSlice";
 import { useAccess } from "./vaccination/useAccess";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { pdfjs, Document, Page } from "react-pdf";
 import { getGynecDetails } from "../api/services/ApiGynec";
-import { GB_HEALTH_CHECKUP_REPORT, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
+import { GB_DENTAL_MODULE, GB_HEALTH_CHECKUP_REPORT, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import CreateBill from "./opdBilling/components/createBill/CreateBill";
 import RecentBills from "./opdBilling/components/recentBills/RecentBills";
@@ -38,6 +40,7 @@ import { EVENTS } from "../utils/events";
 import { uploadDocsToAzure } from "./medicalRecords/service";
 
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { useZydusWhatsapp } from "../hooks/useZydusWhatsapp";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
@@ -67,8 +70,11 @@ function PrescriptionPrintView() {
     } = useSelector((state) => state.caseManager);
     const { userId, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
     const { isOpdBillChecked } = useSelector((state) => state.billing);
+    const dentalExaminationData = useSelector(selectDentalExamination);
+    const oralExamination = useSelector((state) => state.oralExamination);
     const { isOpdBillingAccessable } = useOpdBilling();
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const navigate = useNavigate();
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
@@ -77,6 +83,8 @@ function PrescriptionPrintView() {
 
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID, isVoiceRxNewUiFlow } = state;
+    const isDentalGB = useFeatureIsOn(GB_DENTAL_MODULE);
+    const isDental = state?.from === DENTAL_RX_PAD_ROUTE || isDentalGB;
 
     // Detect a hard refresh on the first mount after document load.
     const isFirstMountAfterLoad = ppvMountCount === 0;
@@ -205,6 +213,11 @@ function PrescriptionPrintView() {
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
         zydusSelectedLabParams,
+        dentalExaminationData,
+        oralExamination,
+        patientUniqueId: patient_data?.patient_unique_id,
+        patientId: patient_data?.patient_unique_id,
+        tcmId: state?.tcm_id,
     });
 
     useEffect(() => {
@@ -480,11 +493,17 @@ function PrescriptionPrintView() {
         await syncCarePlanAssignmentIfNeeded();
         var sendData = {
             patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
-            tcm_id: state.tcm_id
-        }
+            tcm_id: state.tcm_id,
+            isChikitsalayAccessable,
+        };
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload, ...(shouldUseNewPrescriptionUi(action.payload, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
+            const caseManagerData = action.payload;
+            if (isDental) {
+                navigate(DENTAL_RX_PAD_ROUTE, { replace: true, state: { patient_data: patient_data, caseManagerData } })
+            } else {
+                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
+            }
         } else {
             errorMessage(action.error)
         }
@@ -697,6 +716,7 @@ function PrescriptionPrintView() {
                                     type="text"
                                     className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                                     icon={<i className="icon-download"></i>}
+                                    data-testid="download-prescription"
                                     disabled={isPdfGenerating}
                                     onClick={() => (browserName == "Chrome WebView" || browserName == "WebKit") ? handleInAppDownload() : handleDownload()}
                                 >

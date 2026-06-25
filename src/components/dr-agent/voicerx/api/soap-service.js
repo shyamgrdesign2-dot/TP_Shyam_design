@@ -2,6 +2,7 @@ import {
 	postJson,
 	withRetry,
 	buildIdentityPayload,
+	buildVoiceRequestPayload,
 	extractResultData,
 	MODULE_TIMEOUT_MS
 } from "./clinical-processing";
@@ -29,14 +30,21 @@ function normalizeSoapPreviousContext(raw) {
 }
 
 function buildSoapPayload(context, previousContext) {
-	const payload = buildIdentityPayload(context);
+	const payload = buildVoiceRequestPayload(context);
 	const ctx = normalizeSoapPreviousContext(previousContext);
 	if (ctx) payload.previous_context = ctx;
 	return payload;
 }
 
 function runSoapModule({ context, previousContext, signal, onResult }) {
-	return withRetry(() => postJson(SOAP_PATH, buildSoapPayload(context, previousContext), SOAP_NAME, { timeoutMs: MODULE_TIMEOUT_MS, signal }))
+	return withRetry(() => postJson(SOAP_PATH, buildSoapPayload(context, previousContext), SOAP_NAME, {
+		timeoutMs: MODULE_TIMEOUT_MS,
+		signal,
+		tracking: {
+			apiName: "getSoapNotes",
+			extra: buildIdentityPayload(context)
+		}
+	}))
 		.then((responseJson) => {
 			const result = {
 				name: SOAP_TAB,
