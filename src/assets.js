@@ -483,6 +483,7 @@ export const ASSETS = {
     offerings: {
       askTatva: `${BASE_URL}/images/offerings/Ask_Tatva.webp`,
       ddx: `${BASE_URL}/images/offerings/DDx.webp`,
+      doctorsDay: `${BASE_URL}/images/offerings/Doctors_day.png`,
       qr: `${BASE_URL}/images/offerings/qr.webp`,
       remoteCare: `${BASE_URL}/images/offerings/Remote_Care.webp`,
       shethoscope: `${BASE_URL}/images/offerings/Shethoscope.webp`,
