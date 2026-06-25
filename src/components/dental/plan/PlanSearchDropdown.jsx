@@ -198,8 +198,7 @@ export const PlanSearchDropdown = forwardRef(function PlanSearchDropdown(
       {showSearchEmptyHint && (
         <div className={styles.searchEmptyWrap}>
           <p className={styles.searchEmptyText}>
-            Nothing from today's dental examination yet. Type above to search
-            dental services.
+            Type above to search dental services.
           </p>
         </div>
       )}

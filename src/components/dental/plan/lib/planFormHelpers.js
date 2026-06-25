@@ -68,19 +68,16 @@ export function computeDiscount(row) {
  * @returns {object[]} Flat list of service objects
  */
 export function fanOutServices(rows, editPlanId) {
-  const services = [];
   const planId = editPlanId ?? genId("plan");
-  for (const row of rows) {
-    if (!row.treatment) continue;
-    const teeth = row.teeth.length > 0 ? row.teeth : ["full-mouth"];
-    const discAmt = computeDiscount(row);
-    for (const fdi of teeth) {
-      services.push({
+  return rows
+    .filter((row) => row.treatment)
+    .map((row) => {
+      const discAmt = computeDiscount(row);
+      return {
         id: genId("svc"),
         planId,
         treatment: row.treatment,
-        toothFdi: fdi,
-        toothLabel: fdiToLabel(fdi),
+        teeth: row.teeth.length > 0 ? row.teeth : ["full-mouth"],
         surfaces: [...row.surfaces],
         rate: row.rate,
         discount: discAmt,
@@ -90,10 +87,8 @@ export function fanOutServices(rows, editPlanId) {
         procedures: [],
         procedureDate: row.procedureDate?.trim() || undefined,
         notes: row.notes?.trim() || undefined,
-      });
-    }
-  }
-  return services;
+      };
+    });
 }
 
 /**

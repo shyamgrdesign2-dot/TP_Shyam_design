@@ -14,12 +14,11 @@
  */
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Search } from "lucide-react";
-import { Grid5, Ram, Eraser, InfoCircle } from "iconsax-reactjs";
+import { Grid5, Ram, Eraser } from "iconsax-reactjs";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider,
 } from "../ui/tooltip";
 import { createPortal } from "react-dom";
 import { TPDrawer, TPDrawerContent } from "../tp-ui/tp-drawer";
@@ -31,7 +30,7 @@ import {
   PLAN_DRAWER_WIDE_PANEL_CLASS,
 } from "./plan-shared";
 import { genId } from "./plan-types";
-import { SURFACE_COLORS, SURFACE_ABBR, getDefaultPlanSurfaces } from "./plan-types";
+import { getDefaultPlanSurfaces } from "./plan-types";
 import { fdiToLabel, buildExamSuggestions } from "./exam-suggestions";
 import {
   getUniqueDentalBillItems,
@@ -153,9 +152,12 @@ export function AddEditPlanDrawer() {
       );
       const grouped = new Map();
       for (const svc of editPlan.services) {
+        const svcTeeth = svc.teeth?.length > 0 ? svc.teeth : [svc.toothFdi];
         const existing = grouped.get(svc.treatment);
         if (existing) {
-          existing.teeth.push(svc.toothFdi);
+          for (const t of svcTeeth) {
+            if (!existing.teeth.includes(t)) existing.teeth.push(t);
+          }
           for (const s of svc.surfaces) {
             if (!existing.surfaces.includes(s)) existing.surfaces.push(s);
           }
@@ -163,7 +165,7 @@ export function AddEditPlanDrawer() {
           grouped.set(svc.treatment, {
             id: genId("row"),
             treatment: svc.treatment,
-            teeth: [svc.toothFdi],
+            teeth: [...svcTeeth],
             surfaces: [...svc.surfaces],
             rate: svc.rate,
             discount: svc.discount,
@@ -210,17 +212,6 @@ export function AddEditPlanDrawer() {
         `T${s.toothFdi}`.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [searchQuery, examSuggestions]);
-
-  // Remaining exam suggestions (not yet added)
-  const remainingExamSuggestions = useMemo(() => {
-    return examSuggestions.filter(
-      (sug) =>
-        !rows.some(
-          (r) =>
-            r.treatment === sug.treatment && r.teeth.includes(sug.toothFdi)
-        )
-    );
-  }, [examSuggestions, rows]);
 
   // Remaining catalog chips (not yet added)
   const remainingCatalogChips = useMemo(() => {
@@ -436,10 +427,9 @@ export function AddEditPlanDrawer() {
   };
 
   const showCatalogInDropdown = searchQuery.trim().length > 0;
-  const showChartDropdownSection = filteredExamSuggestions.length > 0;
+  const showChartDropdownSection = false;
   const showDentalServiceDropdownSection = showCatalogInDropdown;
-  const showSearchEmptyHint =
-    searchQuery.trim() === "" && !showChartDropdownSection;
+  const showSearchEmptyHint = searchQuery.trim() === "";
 
   const blockPlanSheetDismissFromPortals = (e) => {
     if (catalogDentalDrawerOpen) {
@@ -662,95 +652,6 @@ export function AddEditPlanDrawer() {
                     />
                   </div>
                   <div className={styles.searchSections}>
-                    {remainingExamSuggestions.length > 0 && (
-                      <div className={styles.examCard}>
-                        <div className={styles.examHeaderRow}>
-                          <TPMedicalIcon
-                            name="tooth"
-                            variant="bulk"
-                            size={18}
-                            color="var(--tp-blue-600)"
-                          />
-                          <p className={styles.examHeaderText}>
-                            From today's dental examination
-                          </p>
-                          <TooltipProvider delayDuration={120}>
-                            <Tooltip>
-                              <TooltipTrigger asChild={true}>
-                                <button
-                                  type="button"
-                                  aria-label="About this section"
-                                  className={styles.examInfoBtn}
-                                >
-                                  <InfoCircle
-                                    size={14}
-                                    variant="Linear"
-                                    color="currentColor"
-                                  />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent
-                                side="top"
-                                align="start"
-                                className={styles.examInfoTooltip}
-                              >
-                                These are treatments suggested from findings
-                                charted in today's dental examination. Each chip
-                                is already linked to the tooth it was recorded
-                                on — tap to add it to this plan in one click.
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        <div className={styles.examChipList}>
-                          {remainingExamSuggestions.map((sug) => (
-                            <button
-                              key={`${sug.treatment}-${sug.toothFdi}`}
-                              type="button"
-                              title={sug.hint}
-                              onClick={() =>
-                                addTreatmentRow(
-                                  sug.treatment,
-                                  [sug.toothFdi],
-                                  sug.surfaces
-                                )
-                              }
-                              className={styles.examChip}
-                            >
-                              <span className={styles.examChipTooth}>
-                                T{sug.toothFdi}
-                              </span>
-                              <span className={styles.examChipMain}>
-                                <span className={styles.examChipTitle}>
-                                  {sug.treatment}
-                                </span>
-                                {sug.surfaces.length > 0 && (
-                                  <span className={styles.examSurfaceList}>
-                                    {sug.surfaces.map((s, si) => (
-                                      <span
-                                        key={`${s}-${si}`}
-                                        className={styles.examSurfaceItem}
-                                      >
-                                        <span
-                                          className={styles.examSurfaceDot}
-                                          style={{
-                                            backgroundColor:
-                                              SURFACE_COLORS[s] || "#94a3b8",
-                                          }}
-                                        />
-                                        <span className={styles.examSurfaceAbbr}>
-                                          {SURFACE_ABBR[s] || s}
-                                        </span>
-                                      </span>
-                                    ))}
-                                  </span>
-                                )}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     {remainingCatalogChips.length > 0 && (
                       <div>
                         <p className={styles.catalogChipTitle}>

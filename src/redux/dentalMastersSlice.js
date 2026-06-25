@@ -4,10 +4,11 @@ import {
   getDiagnoses,
   getProcedures,
   getToothMap,
+  fetchDentalBillItems,
 } from "../api/services/ApiDental";
 import { getOralAreas } from "../api/services/ApiOral";
 import { DIAGNOSES, PROCEDURE_CATALOG, ALL_ZONES } from "../components/dental/examination/types";
-import { buildInitialDentalBillingItems } from "../utils/dentalBillingCatalog";
+import { mapApiBillItemToDentalCatalog } from "../components/dental/lib/billing-catalog";
 import { getDentalApiPayload } from "../utils/dentalApiMappers";
 import { buildVisualTypeMap } from "../utils/dentalVisualTypes";
 
@@ -20,7 +21,9 @@ const initialState = {
   toothMapPediatric: null,
   oralAreaItems: [],
   visualTypeMap: null,
-  billingItems: buildInitialDentalBillingItems(),
+  billingItems: [],
+  billingItemsLoaded: false,
+  billingItemsLoading: false,
   fetchedAt: null,
   loading: false,
   error: null,
@@ -106,6 +109,25 @@ export const fetchAllDentalMasters = createAsyncThunk(
   }
 );
 
+export const loadDentalBillItems = createAsyncThunk(
+  "dentalMasters/loadBillItems",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await fetchDentalBillItems(1, 100);
+      const raw = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+      return raw.map(mapApiBillItemToDentalCatalog).filter(Boolean);
+    } catch (err) {
+      return rejectWithValue(err?.message ?? "Failed to load dental bill items");
+    }
+  },
+  {
+    condition: (_, { getState }) => {
+      const { billingItemsLoaded, billingItemsLoading } = getState().dentalMasters;
+      return !billingItemsLoaded && !billingItemsLoading;
+    },
+  }
+);
+
 const dentalMastersSlice = createSlice({
   name: "dentalMasters",
   initialState,
@@ -141,6 +163,17 @@ const dentalMastersSlice = createSlice({
       .addCase(fetchAllDentalMasters.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      .addCase(loadDentalBillItems.pending, (state) => {
+        state.billingItemsLoading = true;
+      })
+      .addCase(loadDentalBillItems.fulfilled, (state, action) => {
+        state.billingItems = action.payload;
+        state.billingItemsLoaded = true;
+        state.billingItemsLoading = false;
+      })
+      .addCase(loadDentalBillItems.rejected, (state) => {
+        state.billingItemsLoading = false;
       });
   },
 });
@@ -148,5 +181,6 @@ const dentalMastersSlice = createSlice({
 export const { setDentalBillingItems, addDentalBillingItem } = dentalMastersSlice.actions;
 export const selectDentalMasters = (state) => state.dentalMasters;
 export const selectDentalBillingItems = (state) => state.dentalMasters.billingItems;
+export const selectDentalBillingItemsLoaded = (state) => state.dentalMasters.billingItemsLoaded;
 export const selectVisualTypeMap = (state) => state.dentalMasters.visualTypeMap;
 export default dentalMastersSlice.reducer;

@@ -113,7 +113,16 @@ const getServiceTooth = (service = {}) => {
 };
 
 export const toDentalService = (service = {}) => {
-  const toothFdi = String(getServiceTooth(service));
+  // tooth_fdi may be an array (new) or a string (legacy)
+  const rawTooth = service.tooth_fdi ?? service.toothFdi;
+  const teeth = Array.isArray(rawTooth)
+    ? rawTooth
+    : rawTooth
+    ? [String(rawTooth)]
+    : Array.isArray(service.teeth) && service.teeth.length > 0
+    ? service.teeth
+    : ["full-mouth"];
+  const toothFdi = teeth[0] || "full-mouth";
   const rate = Number(service.rate) || 0;
   const discount = Number(service.discount) || 0;
   return {
@@ -121,6 +130,7 @@ export const toDentalService = (service = {}) => {
     id: service.id,
     planId: service.planId,
     treatment: service.treatment || service.name || "",
+    teeth,
     toothFdi,
     toothLabel: toothFdi === "full-mouth" ? "Full Mouth" : `Tooth ${toothFdi}`,
     surfaces: service.surfaces || service.surface_codes || ["whole"],
@@ -222,8 +232,14 @@ export const toDentalServiceRequest = (service = {}) => {
     status: service.status === "planned" ? undefined : toApiStatus(service.status),
     version: service.version,
   });
-  if (toothFdi && toothFdi !== "full-mouth") request.tooth_fdi = String(toothFdi);
-  else if (Array.isArray(service.teeth) && service.teeth.length > 0) request.teeth = service.teeth;
-  else request.teeth = ["full-mouth"];
+  const teethArr = Array.isArray(service.teeth) ? service.teeth : [];
+  const normalTeeth = teethArr.filter((t) => t !== "full-mouth");
+  if (normalTeeth.length > 0) {
+    request.teeth = normalTeeth;
+  } else if (toothFdi && toothFdi !== "full-mouth") {
+    request.teeth = [String(toothFdi)];
+  } else {
+    request.teeth = ["full-mouth"];
+  }
   return request;
 };

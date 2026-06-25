@@ -355,7 +355,7 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
             className={styles.markAllDoneBtn}
           >
             <TickCircle size={20} variant="Linear" />
-            Mark All Done
+            End Plan
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild={true}>

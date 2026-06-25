@@ -2,6 +2,13 @@ import api from "./axiosService";
 import config from "../../config";
 
 const dentalBaseUrl = { customBaseUrl: config.snap_rx_api_url };
+const billingBaseUrl = { customBaseUrl: config.lab_params_api_url };
+
+export const fetchDentalBillItems = (page = 1, limit = 200) =>
+  api.get(
+    `/api/v1/billing/billItem/list?type=Dental_Service&page=${page}&limit=${limit}`,
+    billingBaseUrl
+  );
 
 // 1. Templates
 export const listTemplates = (type) =>
