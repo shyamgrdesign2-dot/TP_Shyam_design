@@ -1124,9 +1124,10 @@ function TabPrescription() {
     let cancelled = false;
 
     const loadReferralData = async () => {
-      const referral = await fetchReferralDataForCaseManager(caseManagerData, {
-        tcmId,
-      });
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
       if (!cancelled && referral) {
         setReferralData(referral);
       }
@@ -1137,7 +1138,7 @@ function TabPrescription() {
     return () => {
       cancelled = true;
     };
-  }, [caseManagerData, customizedPadLeftList, isCrossConsultAccessable, tcmId]);
+  }, [caseManagerData, customizedPadLeftList, isCrossConsultAccessable, patient_data]);
 
   // Separate useEffect to handle customModuleContents after customModules are loaded
   useEffect(() => {

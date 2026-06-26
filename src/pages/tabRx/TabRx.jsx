@@ -59,6 +59,7 @@ import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList
 import TabReferralPanel from "../../components/tab_design/TabReferralPanel";
 import { EMPTY_REFERRAL_DATA } from "../../components/referral/ReferralPanelForm";
 import { fetchReferralDataForCaseManager } from "../../utils/crossConsultHelpers";
+import { useCrossConsult } from "../../hooks/useCrossConsult";
 
 // 
 // 
@@ -231,6 +232,7 @@ function TabRx() {
   const { examinationHistory = [] } = obstetricDetails || [];
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
+  const isCrossConsultAccessable = useCrossConsult();
   const shouldShowAncHistory = obstetricDetails?.ancHistory?.find(
     (item) =>
       !item?.deleted &&
@@ -1321,7 +1323,7 @@ function TabRx() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined) return;
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
 
     const isReferralModuleEnabled =
       customizedPadLeftList.findIndex(
@@ -1332,9 +1334,10 @@ function TabRx() {
     let cancelled = false;
 
     const loadReferralData = async () => {
-      const referral = await fetchReferralDataForCaseManager(caseManagerData, {
-        tcmId,
-      });
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
       if (!cancelled && referral) {
         setReferralData(referral);
       }
@@ -1345,7 +1348,7 @@ function TabRx() {
     return () => {
       cancelled = true;
     };
-  }, [caseManagerData, customizedPadLeftList, tcmId]);
+  }, [caseManagerData, customizedPadLeftList, patient_data, isCrossConsultAccessable]);
 
   // Separate useEffect to handle customModuleContents after customModules are loaded
   useEffect(() => {
@@ -2329,7 +2332,7 @@ function TabRx() {
                     carePlanPlaceholder={carePlanPlaceholder}
                     isTabRx={true}
                   />
-                ) : collapsedFlag === 13 ? (
+                ) : collapsedFlag === 13 && isCrossConsultAccessable ? (
                   <TabReferralPanel
                     handleCollapsed={() => setCollapsed(!collapsed)}
                     referralData={referralData}

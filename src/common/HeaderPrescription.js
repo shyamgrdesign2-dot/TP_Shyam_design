@@ -54,7 +54,7 @@ import GenRxButton from '../components/GenRxButton';
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import { getDecodedToken } from '../utils/localStorage';
 import { appendStripped, stripEmptyRows } from '../utils/voiceRxRowStrip';
-import { syncCrossConsultReferral, getCrossConsultFromRecord } from '../utils/crossConsultHelpers';
+import { syncCrossConsultReferral } from '../utils/crossConsultHelpers';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
@@ -2256,10 +2256,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                         tcmId: generatedTcmId,
                         patientUniqueId: patient_data?.patient_unique_id,
                         referredBy: profile?.um_name,
-                        pendingCrossConsult: getCrossConsultFromRecord(patient_data),
+                        pendingCrossConsult: patient_data,
                     });
                 } catch (error) {
-                    console.error('[cross-consult] Failed', error?.message || error);
+                    console.error('Cross consult sync failed:', error);
                 }
                 
                 message.open({

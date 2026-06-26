@@ -44,7 +44,7 @@ import { fetchAgents } from "./appointmentAgent/service";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
-import SnapRxDigitization from "../api/services/SnapRxDigitization";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
 import { transformToothStateToApi } from "../components/dental/lib/examination-helpers";
 import { toothHasDentalPrintData } from "../components/print_settings/dental/dentalPrintHelpers";
@@ -65,7 +65,7 @@ function ConfigurePrintSetting() {
     const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
 
     const { state } = useLocation();
-    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, dentalExaminationData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
+    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, dentalExaminationData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt, patient_data } = state;
     const isAfterDigitization = page === "digitise";
     const snapRxSessionId = stateSessionId ?? stateSessionIdAlt ?? caseManagerData?.session_id;
 
@@ -175,12 +175,30 @@ function ConfigurePrintSetting() {
     useEffect(() => {
         growthChartDetails.getGrowthChartDetails();
         getPatientBills();
-        if (caseManagerData?.crossconsultrefNo) {
-            fetchCrossConsultData();
-        }
         fetchAbhaDetails();
     }, []);
 
+    useEffect(() => {
+        if (!caseManagerData) return;
+
+        let cancelled = false;
+
+        const loadCrossConsultData = async () => {
+            const referral = await fetchReferralDataForCaseManager(
+                caseManagerData,
+                patient_data
+            );
+            if (!cancelled && referral) {
+                setCrossConsultData(referral);
+            }
+        };
+
+        loadCrossConsultData();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [caseManagerData, patient_data]);
 
     useEffect(() => {
         const fetchVoiceAmbientData = async () => {
@@ -1033,18 +1051,6 @@ function ConfigurePrintSetting() {
         }
     };
 
-    const fetchCrossConsultData = async () => {
-        try {
-            const response = await SnapRxDigitization.getCrossConsultData(
-                caseManagerData.crossconsultrefNo
-            );
-            if (response?.data) {
-                setCrossConsultData(response?.data);
-            }
-        } catch (error) {
-            console.error("Error fetching cross consult data:", error);
-        }
-    };
 
     return (
         <PrintSettingsContext.Provider value={contextApi}>

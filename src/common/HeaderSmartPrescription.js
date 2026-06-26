@@ -581,9 +581,10 @@ function HeaderPrescription({
           tcmId: generatedTcmId,
           patientUniqueId: patient_data?.patient_unique_id,
           referredBy: profile?.um_name,
+          pendingCrossConsult: patient_data,
         });
       } catch (error) {
-        console.error('[cross-consult] Failed', error?.message || error);
+        console.error('Cross consult sync failed:', error);
       }
 
       navigate("/print-smart-rx", {

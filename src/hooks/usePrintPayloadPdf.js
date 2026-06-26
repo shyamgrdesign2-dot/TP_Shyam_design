@@ -27,6 +27,7 @@ export const usePrintPayloadPdf = ({
   allowFullApiFallback = true,
   isCvtExtHosAccessableFromGB,
   canvasFilename = null,
+  patientRecord = null,
 }) => {
   const [payload, setPayload] = useState(null);
   const [printBlob, setPrintBlob] = useState(null);
@@ -177,7 +178,7 @@ export const usePrintPayloadPdf = ({
 
         const crossConsultData = await fetchReferralDataForCaseManager(
           caseManagerData,
-          { tcmId: resolvedTcmId }
+          patientRecord ?? caseManagerData?.patient_data
         );
 
         const printSettingsWithCanvas =
@@ -267,6 +268,7 @@ export const usePrintPayloadPdf = ({
     allowFullApiFallback,
     isCvtExtHosAccessableFromGB,
     canvasFilename,
+    patientRecord,
   ]);
 
   return { payload, printBlob, isGenerating, error };

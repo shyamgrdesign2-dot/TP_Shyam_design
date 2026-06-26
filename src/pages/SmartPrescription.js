@@ -922,9 +922,10 @@ function SmartPrescription() {
     let cancelled = false;
 
     const loadReferralData = async () => {
-      const referral = await fetchReferralDataForCaseManager(caseManagerData, {
-        tcmId,
-      });
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
       if (!cancelled && referral) {
         setReferralData(referral);
       }
@@ -935,7 +936,7 @@ function SmartPrescription() {
     return () => {
       cancelled = true;
     };
-  }, [caseManagerData, isCrossConsultAccessable, tcmId]);
+  }, [caseManagerData, isCrossConsultAccessable, patient_data]);
 
   useEffect(() => {
     getSymptomsCollectorData();

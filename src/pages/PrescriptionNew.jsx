@@ -27,6 +27,7 @@ import InvestigationBox from "../components/InvestigationBox";
 import TabFollowUpBox from "../components/tab_design/TabFollowUpBox";
 import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
 import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
+import { useCrossConsult } from "../hooks/useCrossConsult";
 
 import VitalsBox from "../components/VitalsBox";
 import VitalsList from "../components/VitalsList";
@@ -1002,6 +1003,7 @@ function PrescriptionNew() {
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
   const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
@@ -1776,7 +1778,7 @@ function PrescriptionNew() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined) return;
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
 
     const isReferralModuleEnabled =
       customizedPadLeftList.findIndex(
@@ -1787,9 +1789,10 @@ function PrescriptionNew() {
     let cancelled = false;
 
     const loadReferralData = async () => {
-      const referral = await fetchReferralDataForCaseManager(caseManagerData, {
-        tcmId,
-      });
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
       if (!cancelled && referral) {
         setReferralData(referral);
       }
@@ -1800,7 +1803,7 @@ function PrescriptionNew() {
     return () => {
       cancelled = true;
     };
-  }, [caseManagerData, customizedPadLeftList, tcmId]);
+  }, [caseManagerData, customizedPadLeftList, patient_data, isCrossConsultAccessable]);
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {

@@ -979,6 +979,7 @@ function Cardiology(props) {
     patientId: patient_data?.patient_unique_id,
     tcmId: viewCaseManagerData?.tcm_id,
     canvasFilename: viewCaseManagerData?.canvas_filename,
+    patientRecord: patient_data,
   });
 
   const parseObjectValue = useCallback((value) => {

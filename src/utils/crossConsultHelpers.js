@@ -3,7 +3,41 @@ import SnapRxDigitization from "../api/services/SnapRxDigitization";
 
 export const getCrossConsultFromRecord = (record) => {
   const crossConsult = record?.cross_consult ?? record?.crossConsult;
-  return crossConsult && typeof crossConsult === "object" ? crossConsult : null;
+  if (!crossConsult) return null;
+
+  if (Array.isArray(crossConsult)) {
+    const item = crossConsult.find((entry) => entry && typeof entry === "object");
+    return item ?? null;
+  }
+
+  if (typeof crossConsult !== "object") return null;
+
+  const nestedList = crossConsult?.content ?? crossConsult?.referrals;
+  if (Array.isArray(nestedList) && nestedList[0] && typeof nestedList[0] === "object") {
+    return { ...crossConsult, ...nestedList[0] };
+  }
+
+  return crossConsult;
+};
+
+export const getCrossConsultRecordId = (record) => {
+  if (!record) return null;
+
+  const crossConsult = getCrossConsultFromRecord(record);
+  const candidates = [
+    crossConsult?._id,
+    crossConsult?.id,
+    crossConsult?.crossconsultrefNo,
+    record?.crossconsultrefNo,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate != null && String(candidate).trim() !== "") {
+      return candidate;
+    }
+  }
+
+  return null;
 };
 
 export const hasCrossConsultReferralData = (referralData) =>
@@ -17,43 +51,68 @@ const normalizeCrossConsultToReferralData = (data) => {
     : data?.content ?? data?.referrals ?? null;
   const item = Array.isArray(list) ? list[0] : data;
 
-  if (!item?.um_id) return null;
+  if (!item || typeof item !== "object") return null;
+
+  const umName =
+    item.um_name ??
+    item.umName ??
+    item.referred_by ??
+    item.referredBy ??
+    "";
+  if (!String(umName).trim()) return null;
 
   return {
-    um_id: item.um_id,
-    um_name: item.um_name ?? "",
-    dp_id: item.dp_id ?? item.department_id ?? null,
-    department_name: item.department_name ?? "",
+    um_id: item.um_id ?? item.umId ?? null,
+    um_name: umName,
+    dp_id: item.dp_id ?? item.department_id ?? item.dpId ?? null,
+    department_name: item.department_name ?? item.departmentName ?? "",
     reason_for_cross_consult: item.reason_for_cross_consult ?? "",
     date_of_referral: item.date_of_referral ?? data?.date_of_referral ?? "",
   };
 };
 
+const resolveInlineReferralData = (...sources) => {
+  for (const source of sources) {
+    if (!source) continue;
+
+    const nestedRaw = source?.cross_consult ?? source?.crossConsult;
+    const fromNested = normalizeCrossConsultToReferralData(nestedRaw);
+    if (fromNested) return fromNested;
+
+    const direct = normalizeCrossConsultToReferralData(source);
+    if (direct) return direct;
+  }
+  return null;
+};
+
+const resolveCrossConsultRefId = (caseManagerData, patientRecord) => {
+  for (const source of [caseManagerData, caseManagerData?.patient_data, patientRecord]) {
+    const refId = getCrossConsultRecordId(source);
+    if (refId) return refId;
+  }
+  return null;
+};
+
 export const fetchReferralDataForCaseManager = async (
   caseManagerData,
-  { tcmId } = {}
+  patientRecord = null
 ) => {
-  const crossConsultRaw =
-    caseManagerData?.cross_consult ?? caseManagerData?.crossConsult;
-  const inlineReferral = normalizeCrossConsultToReferralData(crossConsultRaw);
+  const inlineReferral = resolveInlineReferralData(
+    caseManagerData,
+    caseManagerData?.patient_data,
+    patientRecord
+  );
   if (inlineReferral) return inlineReferral;
 
-  const lookupIds = [
-    caseManagerData?.crossconsultrefNo,
-    tcmId > 0 ? tcmId : null,
-  ].filter(Boolean);
+  const crossConsultRefId = resolveCrossConsultRefId(caseManagerData, patientRecord);
+  if (!crossConsultRefId) return null;
 
-  for (const lookupId of [...new Set(lookupIds)]) {
-    try {
-      const response = await SnapRxDigitization.getCrossConsultData(lookupId);
-      const fetchedReferral = normalizeCrossConsultToReferralData(response?.data);
-      if (fetchedReferral) return fetchedReferral;
-    } catch (error) {
-      console.error("[cross-consult] Failed to fetch referral data:", error);
-    }
+  try {
+    const response = await SnapRxDigitization.getCrossConsultData(crossConsultRefId);
+    return normalizeCrossConsultToReferralData(response?.data);
+  } catch {
+    return null;
   }
-
-  return null;
 };
 
 export const buildCrossConsultPayload = (
@@ -77,21 +136,20 @@ export const syncCrossConsultReferral = async (
 ) => {
   if (!tcmId || !patientUniqueId) return null;
 
-  if (pendingCrossConsult?._id && !Number(pendingCrossConsult.tcm_id)) {
-    return SnapRxDigitization.updateCrossConsult(pendingCrossConsult._id, {
+  const crossConsultId = getCrossConsultRecordId(pendingCrossConsult);
+  if (crossConsultId) {
+    return SnapRxDigitization.updateCrossConsult(crossConsultId, {
       tcm_id: Number(tcmId),
     });
   }
 
-  if (!hasCrossConsultReferralData(referralData)) {
-    return null;
-  }
+  if (!hasCrossConsultReferralData(referralData)) return null;
 
-  const payload = buildCrossConsultPayload(referralData, {
-    tcmId,
-    patientUniqueId,
-    referredBy,
-  });
-
-  return SnapRxDigitization.createCrossConsult(payload);
+  return SnapRxDigitization.createCrossConsult(
+    buildCrossConsultPayload(referralData, {
+      tcmId,
+      patientUniqueId,
+      referredBy,
+    })
+  );
 };

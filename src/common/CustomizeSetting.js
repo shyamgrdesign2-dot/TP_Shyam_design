@@ -24,6 +24,7 @@ import CommonModal from './CommonModal';
 import { ASSETS } from "../assets";
 import { env } from "../EnvironmentConfig";
 import { useCrossConsult } from '../hooks/useCrossConsult';
+import { ReferralIcon } from '../pages/snapRx/components/ReferralIcon';
 const {
   tutorialIcon: tutorial,
   playCover2: playcover2,
@@ -51,6 +52,14 @@ const isCanvasLeftModule = (record) =>
   record?.tmdpm_id === CANVAS_LEFT_MODULE.tmdpm_id ||
   String(record?.tmdpm_name || "").toLowerCase() === "canvas";
 
+const isReferralLeftModule = (record) =>
+  record?.tmdpm_id === 25 ||
+  String(record?.tmdpm_name || "").toLowerCase() === "referral";
+
+const isReferralRightModule = (record) =>
+  record?.tmdpm_id === 26 ||
+  String(record?.tmdpm_name || "").toLowerCase() === "referral";
+
 const PadLeftModuleIcon = ({ record }) => {
   const isCanvas = isCanvasLeftModule(record);
   const fallbackUrl = record?.tmdpm_icon_url;
@@ -61,6 +70,17 @@ const PadLeftModuleIcon = ({ record }) => {
   useEffect(() => {
     setIconSrc(isCanvas ? CANVAS_ICON_PRIMARY_URL : fallbackUrl);
   }, [isCanvas, fallbackUrl]);
+
+  if (isReferralLeftModule(record)) {
+    return (
+      <span
+        className="me-3 d-inline-flex align-items-center justify-content-center"
+        style={{ marginLeft: -12, width: 28, height: 28 }}
+      >
+        <ReferralIcon size={22} color="#7C3AED" variant="bulk" />
+      </span>
+    );
+  }
 
   return (
     <img
@@ -73,6 +93,28 @@ const PadLeftModuleIcon = ({ record }) => {
           setIconSrc(fallbackUrl);
         }
       }}
+    />
+  );
+};
+
+const PadRightModuleIcon = ({ record }) => {
+  if (isReferralRightModule(record)) {
+    return (
+      <span
+        className="me-3 d-inline-flex align-items-center justify-content-center"
+        style={{ marginLeft: -12, width: 28, height: 28 }}
+      >
+        <ReferralIcon size={22} color="#7C3AED" variant="bulk" />
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={record.is_custom_module ? customModuleIcon : record.tmdpm_icon_url}
+      alt={record?.tmdpm_name || ""}
+      className="me-3"
+      style={{ marginLeft: -12, width: 28, height: 28, objectFit: "contain" }}
     />
   );
 };
@@ -155,7 +197,13 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       }
 
       let updatedData = leftList
-        .filter((e) => (e.tmdpm_id === 22 ? isCarePlanEnabled : e.tmdpm_id === 25 ? isTabRx && isCrossConsultEnabled : true))
+        .filter((e) =>
+          e.tmdpm_id === 22
+            ? isCarePlanEnabled
+            : isReferralLeftModule(e)
+              ? isCrossConsultEnabled
+              : true
+        )
         .filter((e) =>
           e.tmdpm_id === 7 && e.tmdpm_status === 0
             ? isVaccinationEnabled
@@ -193,11 +241,31 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     },
     [
       isCarePlanEnabled,
+      isCrossConsultEnabled,
       isVaccinationEnabled,
       isGrowthChartEnabled,
       isGynaecHistoryAccessable,
       shouldHideCanvasInDrawer,
     ]
+  );
+
+  const buildRightDataSource = useCallback(
+    (rightList) => {
+      if (!Array.isArray(rightList) || rightList.length === 0) {
+        return [];
+      }
+
+      return rightList
+        .filter((e) =>
+          e.tmdpm_id === 22
+            ? isCarePlanEnabled
+            : isReferralRightModule(e)
+              ? isCrossConsultEnabled
+              : true
+        )
+        .map((e) => ({ ...e }));
+    },
+    [isCarePlanEnabled, isCrossConsultEnabled]
   );
 
   useEffect(() => {
@@ -246,8 +314,8 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       setDataSourceRight([]);
       return;
     }
-    setDataSourceRight(customizedPadRightList.map((e) => ({ ...e })));
-  }, [customizedPadRightList]);
+    setDataSourceRight(buildRightDataSource(customizedPadRightList));
+  }, [customizedPadRightList, buildRightDataSource]);
 
   // Update module names in dataSourceRight when customModules change
   useEffect(() => {
@@ -580,11 +648,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       key: 'tmdpm_name',
       render: (text, record) => (
         <div className='align-items-center d-flex'>
-          <img
-            src={record.is_custom_module ? customModuleIcon : record.tmdpm_icon_url}
-            className='me-3'
-            style={{ marginLeft: -12, width: 28, height: 28, objectFit: "contain" }}
-          />
+          <PadRightModuleIcon record={record} />
           {record?.tmdpm_id === INVESTIGATION_MODULE_ID ? INVESTIGATION_TITLE : record.tmdpm_name}
         </div>
       )

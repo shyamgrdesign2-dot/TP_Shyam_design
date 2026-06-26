@@ -1173,9 +1173,10 @@ function Prescription() {
     let cancelled = false;
 
     const loadReferralData = async () => {
-      const referral = await fetchReferralDataForCaseManager(caseManagerData, {
-        tcmId,
-      });
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
       if (!cancelled && referral) {
         setReferralData(referral);
       }
@@ -1186,7 +1187,7 @@ function Prescription() {
     return () => {
       cancelled = true;
     };
-  }, [caseManagerData, isCrossConsultAccessable, tcmId]);
+  }, [caseManagerData, isCrossConsultAccessable, patient_data]);
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
@@ -2514,7 +2515,7 @@ function Prescription() {
                     <div key={i} className="prescription-box-sm">
                       <TabFollowUpBox />
                     </div>
-                  ) : e.tmdpm_id === 26 && e.tmdpm_status === 0 ? (
+                  ) : e.tmdpm_id === 26 && e.tmdpm_status === 0 && isCrossConsultAccessable ? (
                     <div key={i} className="prescription-box-sm">
                       <ReferralBox />
                     </div>

@@ -47,6 +47,7 @@ import {
 import growthChartStaticData from "../../pages/growthChart/GrowthChart.json";
 import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
+import { useCrossConsult } from "../../hooks/useCrossConsult";
 import { ASSETS } from "../../assets";
 import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
@@ -123,7 +124,7 @@ function getCustomizedPadNavId(item, access = {}) {
     case 19:
       return "labResults";
     case 25:
-      return "referral";
+      return access.isCrossConsultAccessable ? "referral" : null;
     default:
       return null;
   }
@@ -5554,6 +5555,7 @@ export function SideNavbar({
   const { profile } = useSelector((state) => state.doctors);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
   const { isPediatricAccessable } = useAccess();
+  const isCrossConsultAccessable = useCrossConsult();
   const {
     vitalsData = [],
     setVitalsData,
@@ -5978,6 +5980,7 @@ export function SideNavbar({
       isVaccinationAccessable,
       isGrowthChartAccessable,
       isGynaecHistoryAccessable,
+      isCrossConsultAccessable,
     };
 
     (customizedPadLeftList || []).forEach((item) => {
@@ -6009,6 +6012,7 @@ export function SideNavbar({
     isOpthalModuleAccessible,
     isVaccinationAccessable,
     isZydusUserAccessable,
+    isCrossConsultAccessable,
   ]);
 
   const navSequence = useMemo(() => navItems.map((item) => item.id), [navItems]);

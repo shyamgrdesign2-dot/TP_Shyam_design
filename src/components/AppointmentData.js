@@ -578,6 +578,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     isCvtExtHosAccessableFromGB,
     patientId: pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
     tcmId: pendingFinishedPrint?.caseManagerData?.tcm_id,
+    patientRecord: pendingFinishedPrint?.caseManagerData?.patient_data,
   });
 
   useEffect(() => {
@@ -2620,6 +2621,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   };
 
+  const isQueueOrReferralTab =
+    selectedTab === TAB_QUEUE || selectedTab === TAB_REFERRAL;
+
   const columns = [
     {
       title: "#",
@@ -2971,33 +2975,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             size="middle"
             style={{ display: "flex", justifyContent: "space-between" }}
           >
-            {selectedTab === TAB_REFERRAL &&
-            (isSnapRxAccessable ||
-              isSmartSyncAccessableFromGB ||
-              isFreeVoiceRxUser ||
-              tp_monetization_enable) &&
-            shouldShowVoiceRx() ? (
-              <PrimaryActionButton
-                isSmartRxAccessible={isSmartSyncAccessableFromGB}
-                isSnapRxAccessible={isSnapRxAccessable}
-                isVoiceRxAccessible={isFreeVoiceRxUser || tp_monetization_enable}
-                isVoiceRxPaid={isVoiceRxPaid}
-                onSmartRxClick={onSmartRxClick}
-                onSnapRxClick={handleSnapRxClick}
-                onVoiceRxClick={onVoiceRxClick}
-                onTabRxClick={onTabRxClick}
-                onConsultClick={onConsultClick}
-                patient={record}
-                buttonStyle="walkin"
-              />
-            ) : selectedTab === TAB_REFERRAL ? (
-              <button
-                className="btn btn-outline-primary btn-smart-rx"
-                onClick={() => onTabRxClick(record)}
-              >
-                TabRx
-              </button>
-            ) : (selectedTab === TAB_CLINIC_QUEUE && isChikitsalayAccessable) ? 
+            {(selectedTab === TAB_CLINIC_QUEUE && isChikitsalayAccessable) ? 
               <button
               className="btn btn-outline-primary btn-resume-draft-rx"
               onClick={() => onConsultClick(record)}
@@ -3039,7 +3017,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </>
                 )
               ) : (
-                (selectedTab === TAB_QUEUE ||
+                (isQueueOrReferralTab ||
                   (selectedTab === TAB_ZYDUS_ENCOUNTER &&
                     !finishedData.some(
                       (x) => x.pam_ref_id == record.encounterId
@@ -3071,11 +3049,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                             : "btn-smart-rx"
                         }`}
                         onClick={() =>
-                          (selectedTab === TAB_QUEUE && isSmartSyncAccessableFromGB)
+                          (isQueueOrReferralTab && isSmartSyncAccessableFromGB)
                             ? onSmartRxClick(record)
-                            : (selectedTab === TAB_QUEUE && isSnapRxAccessable)
+                            : (isQueueOrReferralTab && isSnapRxAccessable)
                               ? handleSnapRxClick(record)
-                              : (selectedTab === TAB_QUEUE && (isFreeVoiceRxUser || tp_monetization_enable))
+                              : (isQueueOrReferralTab && (isFreeVoiceRxUser || tp_monetization_enable))
                                 ? (isVoiceRxPaid ? onVoiceRxClick(record) : onConsultClick(record))
                                 : onPrintRxUrlClick(record)
                         }
@@ -3108,7 +3086,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               //   </>
               // ) :
                (
-                (selectedTab === TAB_QUEUE ||
+                (isQueueOrReferralTab ||
                   (selectedTab === TAB_ZYDUS_ENCOUNTER &&
                     !finishedData.some(
                       (x) => x.pam_ref_id == record.encounterId
@@ -3141,7 +3119,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                             : "btn-smart-rx"
                         }`}
                         onClick={() =>
-                          selectedTab === TAB_QUEUE
+                          isQueueOrReferralTab
                             ? (isSmartSyncAccessableFromGB
                                 ? onSmartRxClick(record)
                                 : isSnapRxAccessable
@@ -3175,7 +3153,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     <button
                       className="btn btn-outline-primary"
                       onClick={() =>
-                        selectedTab === TAB_QUEUE
+                        isQueueOrReferralTab
                           ? onConsultClick(record)
                           : selectedTab === TAB_ZYDUS_ENCOUNTER
                           ? onZydus_Consult_PatientDetails_Click(record, 1)
