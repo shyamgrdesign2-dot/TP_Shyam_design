@@ -99,6 +99,11 @@ import CarePlanDropdown from "../../components/CarePlanDropdown";
 import CarePlanList from "../../components/CarePlanList";
 import { getCarePlanNames, getCarePlanAssignments } from "../smartSync/services/carePlanService";
 import TabCarePlanList from "../../components/tab_design/TabCarePlanList";
+import TabReferralPanel from "../../components/tab_design/TabReferralPanel";
+import { EMPTY_REFERRAL_DATA } from "../../components/referral/ReferralPanelForm";
+import { fetchReferralDataForCaseManager } from "../../utils/crossConsultHelpers";
+import { useCrossConsult } from "../../hooks/useCrossConsult";
+import { ReferralIcon } from "../snapRx/components/ReferralIcon";
 import GroundingBox from "../../components/GroundingBox";
 import GroundingKnowMore from "../../components/GroundingKnowMore";
 import { AddCustomModuleDrawer, AddCustomModuleV2, CustomModuleV2 } from "../../components/customModulesV2";
@@ -192,6 +197,7 @@ function TabPrescription() {
   const obstetricDetails = allObstetricDetails?.currentPregnancy || {};
   const { examinationHistory = [] } = obstetricDetails || [];
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
+  const isCrossConsultAccessable = useCrossConsult();
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const shouldShowAncHistory = obstetricDetails?.ancHistory?.find(
     (item) =>
@@ -468,6 +474,7 @@ function TabPrescription() {
   const [useVoiceRx, setUseVoiceRx] = useState(false);
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
   const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
@@ -605,6 +612,8 @@ function TabPrescription() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
+    referralData,
+    setReferralData,
     rxDrawingCanvasIds,
   };
 
@@ -1102,6 +1111,33 @@ function TabPrescription() {
       setPillupSwitch(caseManagerData?.pillup_fulfilment == 1 ? true : false)
     }
   }, []);
+
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    const isReferralModuleEnabled =
+      customizedPadLeftList.findIndex(
+        (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
+      ) !== -1;
+    if (!isReferralModuleEnabled) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(caseManagerData, {
+        tcmId,
+      });
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, customizedPadLeftList, isCrossConsultAccessable, tcmId]);
 
   // Separate useEffect to handle customModuleContents after customModules are loaded
   useEffect(() => {
@@ -2483,6 +2519,30 @@ function TabPrescription() {
                         </div>
                         <label className="text-white mt-1">Care Plan</label>
                       </button>
+                    ) : e.tmdpm_id === 25 &&
+                      e.tmdpm_status === 0 &&
+                      isCrossConsultAccessable ? (
+                      <button
+                        type="button"
+                        className="mb-3 text-center btn btn-action"
+                        style={{ padding: "0px" }}
+                        onClick={() => openCollapsed(13)}
+                      >
+                        <div
+                          className={`prescription-tab-button rounded-10px ${collapsedFlag === 13 && "active"
+                            }`}
+                        >
+                          <ReferralIcon
+                            size={24}
+                            color={
+                              collapsedFlag === 13
+                                ? "rgba(49,48,151,1)"
+                                : "#fff"
+                            }
+                          />
+                        </div>
+                        <label className="text-white mt-1">Referral</label>
+                      </button>
                     ) : null;
                   })}
                 </>
@@ -2594,6 +2654,13 @@ function TabPrescription() {
                         userId={userId}
                         clinicId={decodedToken?.result?.clinic_id}
                         carePlanPlaceholder={carePlanPlaceholder}
+                    />
+                  ) : collapsedFlag === 13 && isCrossConsultAccessable ? (
+                    <TabReferralPanel
+                      handleCollapsed={() => setCollapsed(!collapsed)}
+                      referralData={referralData}
+                      onReferralChange={setReferralData}
+                      isTabRx={false}
                     />
                   ) : collapsedFlag === 12 && isGroundingAccessableForZydus && (
                     <GroundingBox handleGroundingKnowMore={handleGroundingKnowMore} />

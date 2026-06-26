@@ -25,6 +25,7 @@ const normalizeCrossConsultToReferralData = (data) => {
     dp_id: item.dp_id ?? item.department_id ?? null,
     department_name: item.department_name ?? "",
     reason_for_cross_consult: item.reason_for_cross_consult ?? "",
+    date_of_referral: item.date_of_referral ?? data?.date_of_referral ?? "",
   };
 };
 

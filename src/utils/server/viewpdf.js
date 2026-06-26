@@ -698,6 +698,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     examChart: examChartProp,
     isCvtExtHosAccessableFromGB,
     drawingCanvases,
+    crossConsultData,
   } = props;
   let dentalExaminationData = rawDentalData || props.dentalExaminationData;
   if (dentalExaminationData && dentalExaminationData.toothState && typeof dentalExaminationData.toothState === "object") {
@@ -13729,6 +13730,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 </View>
                               ))}
                           </>
+                        ) : option?.id === 26 &&
+                          option?.enable === "Y" &&
+                          option?.custom_status === "Y" ? (
+                          <CrossConsult
+                            option={option}
+                            crossConsultData={crossConsultData}
+                            PX_TO_PT={PX_TO_PT}
+                            styles={styles}
+                            printSettings={printSettings}
+                          />
                         ) : option?.id === 20 &&
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (
@@ -15446,18 +15457,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   </View>
                                 </View>
                               ))}
-                              <CrossConsult
-                                option={option}
-                                crossConsultData={
-                                  caseManagerData?.cross_consult ??
-                                  caseManagerData?.crossConsult ??
-                                  digitizedData?.cross_consult ??
-                                  digitizedData?.crossConsult
-                                }
-                                PX_TO_PT={PX_TO_PT}
-                                styles={styles}
-                                printSettings={printSettings}
-                              />
                           </>
                         ) : option?.is_custom_module === true &&
                           option?.enable === "Y" &&

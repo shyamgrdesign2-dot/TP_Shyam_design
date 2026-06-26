@@ -7,6 +7,7 @@ import {
   loadDrawingCanvasesForPrint,
 } from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
 import { trackEvent } from "../utils/utils";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 
 export const usePrintPayloadPdf = ({
   printUrl,
@@ -174,6 +175,11 @@ export const usePrintPayloadPdf = ({
             },
           });
 
+        const crossConsultData = await fetchReferralDataForCaseManager(
+          caseManagerData,
+          { tcmId: resolvedTcmId }
+        );
+
         const printSettingsWithCanvas =
           drawingCanvases.length > 0
             ? ensureDrawingCanvasCaseOption(payload.printSettings)
@@ -182,6 +188,7 @@ export const usePrintPayloadPdf = ({
         const blob = await renderPrintPayloadToBlob({
           ...payload,
           printSettings: printSettingsWithCanvas,
+          crossConsultData,
           zydusLabData: zydusSelectedLabParams,
           dentalExaminationData: normalizedDentalData,
           examChart,

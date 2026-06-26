@@ -21,6 +21,7 @@ import ExaminationBox from "../components/ExaminationBox";
 import ReferralBox from "../components/ReferralBox";
 import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
 import { useCrossConsult } from "../hooks/useCrossConsult";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 import OphthalmologyExamPanel from "../components/ophthalmology/OphthalmologyExamPanel";
 import DiagnosisBox from "../components/DiagnosisBox";
 import MedicationsBox from "../components/MedicationsBox";
@@ -1152,23 +1153,6 @@ function Prescription() {
       ) {
         setAdditionalNote(caseManagerData.visit_advice);
       }
-      const crossConsultRaw =
-        caseManagerData.cross_consult ?? caseManagerData.crossConsult;
-      if (crossConsultRaw && isCrossConsultAccessable) {
-        const list = Array.isArray(crossConsultRaw)
-          ? crossConsultRaw
-          : crossConsultRaw?.content ?? crossConsultRaw?.referrals ?? [];
-        const item = Array.isArray(list) ? list[0] : crossConsultRaw;
-        if (item?.um_id) {
-          setReferralData({
-            um_id: item.um_id,
-            um_name: item.um_name ?? "",
-            dp_id: item.dp_id ?? item.department_id ?? null,
-            department_name: item.department_name ?? "",
-            reason_for_cross_consult: item.reason_for_cross_consult ?? "",
-          });
-        }
-      }
       if (caseManagerData?.moduleContents?.length) {
         // Don't filter out modules - they should all be rendered even if deleted
         // The allAvailableModules list will include deleted modules from hospital search
@@ -1182,6 +1166,27 @@ function Prescription() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(caseManagerData, {
+        tcmId,
+      });
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, isCrossConsultAccessable, tcmId]);
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
