@@ -59,7 +59,7 @@ export function createRow(
 export function computeDiscount(row) {
   const raw = Number(row.discount);
   const d = Number.isFinite(raw) && raw > 0 ? raw : 0;
-  if (row.discountType === "percent") {
+  if (row.discountType === "percentage") {
     return Math.round((row.rate * Math.min(d, 100)) / 100);
   }
   return Math.min(row.rate, d);
@@ -115,7 +115,7 @@ export function rowsToTemplatePayload(rows, additionalDiscount = 0, notes = "") 
         surfaces,
         rate,
         discount,
-        discountType: discountType === "percent" ? "percentage" : "flat",
+        discountType: discountType || "flat",
         procedureDate: procedureDate || undefined,
         notes: notes || undefined,
       })),
@@ -136,7 +136,7 @@ export function rowsToServiceTemplatePayload(rows) {
     surfaces: row.surfaces || [],
     rate: row.rate || 0,
     discount: row.discount || 0,
-    discountType: row.discountType === "percent" ? "percentage" : "flat",
+    discountType: row.discountType || "flat",
     notes: row.notes || "",
   };
 }
@@ -162,7 +162,7 @@ export function mergeTemplateRows(payload, existingRows) {
       surfaces: singleService.surfaces || ["whole"],
       rate: singleService.rate,
       discount: singleService.discount,
-      discountType: singleService.discountType === "percentage" ? "percent" : (singleService.discountType || "flat"),
+      discountType: singleService.discountType || "flat",
       notes: singleService.notes
     }];
   } else {
@@ -181,7 +181,7 @@ export function mergeTemplateRows(payload, existingRows) {
       surfaces: svc.surfaces?.length > 0 ? svc.surfaces : ["whole"],
       rate: svc.rate ?? 0,
       discount: svc.discount ?? 0,
-      discountType: svc.discountType === "percentage" ? "percent" : (svc.discountType || "flat"),
+      discountType: svc.discountType || "flat",
       procedureDate: svc.procedureDate || "",
       notes: svc.notes || "",
     });

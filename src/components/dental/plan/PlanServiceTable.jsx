@@ -327,14 +327,14 @@ function PlanServiceTableInner({
                         onClick={() =>
                           updateRow(row.id, {
                             discountType:
-                              row.discountType === "percent" ? "flat" : "percent",
+                              row.discountType === "percentage" ? "flat" : "percentage",
                             discount: 0,
                           })
                         }
                         title="Toggle discount type"
                       >
                         <span className={styles.discountTypeBtnSymbol}>
-                          {row.discountType === "percent" ? "%" : "₹"}
+                          {row.discountType === "percentage" ? "%" : "₹"}
                         </span>
                         <svg
                           width="8"
@@ -356,7 +356,7 @@ function PlanServiceTableInner({
                         onChange={(e) => {
                           const v = e.target.value.replace(/\D/g, "");
                           const max =
-                            row.discountType === "percent" ? 100 : 999999999;
+                            row.discountType === "percentage" ? 100 : 999999999;
                           updateRow(row.id, {
                             discount:
                               v === ""

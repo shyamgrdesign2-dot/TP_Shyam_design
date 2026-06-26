@@ -127,9 +127,7 @@ export const toDentalService = (service = {}) => {
   const toothFdi = teeth[0] || "full-mouth";
   const rate = Number(service.rate) || 0;
   const discount = Number(service.discount) || 0;
-  const rawDiscountType = service.discountType;
-  const discountType =
-    rawDiscountType === "percentage" ? "percent" : rawDiscountType || "flat";
+  const discountType = service.discountType || "flat";
   const rawVisits =
     service.sittings ||
     service.quickVisitRecords ||
@@ -387,7 +385,7 @@ export const toDentalServicePatchRequest = (data = {}) => {
   if (data.rate !== undefined) patch.rate = data.rate;
   if (data.discount !== undefined) patch.discount = data.discount;
   if (data.discountType !== undefined) {
-    patch.discountType = data.discountType === "percent" ? "percentage" : "flat";
+    patch.discountType = data.discountType;
   }
   if (data.procedureDate || data.procedure_date) {
     patch.procedure_date = data.procedureDate || data.procedure_date;
@@ -405,7 +403,7 @@ export const toDentalServiceRequest = (service = {}) => {
     surfaces: service.surfaces || ["whole"],
     rate: service.rate,
     discount: service.discount,
-    discountType: service.discountType === "percent" ? "percentage" : service.discountType ? "flat" : undefined,
+    discountType: service.discountType || undefined,
     notes: service.notes,
     procedure_date: service.procedureDate || service.procedure_date || undefined,
     status: service.status === "planned" ? undefined : toApiStatus(service.status),
