@@ -12,7 +12,7 @@ import { addUpdateVitals } from "../redux/vitalsSlice";
 import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
 import { errorMessage } from "../utils/utils";
 import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
-import { isGynecDataEmpty, normalizeGynaecHistoryFromDigitiseData, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
+import { isGynecDataEmpty, mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import {
   findLatestVitalsRowIndexForDate,
   getCopiedVitalsObject,
@@ -338,6 +338,7 @@ export default function ConsultationRxPadCopyListener() {
     setInvestigationData,
     setAdviceData,
     setMedicalHistoryData,
+    updatedGynecHistory,
     setUpdatedGynecHistory,
     setSurgeriesData,
     setFollowUpDate,
@@ -503,26 +504,19 @@ export default function ConsultationRxPadCopyListener() {
     }
 
     const copiedGynecHistory = normalizeGynaecHistoryFromDigitiseData(digitization);
-    if (!isGynecDataEmpty(copiedGynecHistory) && patient_data?.patient_unique_id && userId !== undefined && userId !== null) {
+    if (!isGynecDataEmpty(copiedGynecHistory)) {
+      const mergedGynecHistory = mergeGynecHistory(updatedGynecHistory, copiedGynecHistory);
       setUpdatedGynecHistory?.((prev) => {
-        const nextGynecHistory = {
-          ...(prev && !Array.isArray(prev) ? prev : {}),
-          ...Object.keys(copiedGynecHistory).reduce((acc, key) => {
-            const value = copiedGynecHistory[key];
-            if (value !== undefined && value !== null && value !== "") {
-              acc[key] = value;
-            }
-            return acc;
-          }, {}),
-        };
-        return nextGynecHistory;
+        return mergeGynecHistory(prev, copiedGynecHistory);
       });
-      syncGynecHistoryAfterEndVisit(
-        patient_data.patient_unique_id,
-        userId,
-        copiedGynecHistory,
-        { getGynecDetails, postGynecDetails, updateGynecDetails }
-      );
+      if (patient_data?.patient_unique_id && userId !== undefined && userId !== null) {
+        syncGynecHistoryAfterEndVisit(
+          patient_data.patient_unique_id,
+          userId,
+          mergedGynecHistory,
+          { getGynecDetails, postGynecDetails, updateGynecDetails }
+        );
+      }
     }
 
     const surgeries = firstNonEmpty(digitization.surgeries, payload.surgeries);
@@ -583,6 +577,7 @@ export default function ConsultationRxPadCopyListener() {
     setUpdatedGynecHistory,
     setVitalsData,
     timingList,
+    updatedGynecHistory,
     userId,
     vitalsData,
   ]);

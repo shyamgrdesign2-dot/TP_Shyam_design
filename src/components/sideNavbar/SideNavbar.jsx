@@ -63,7 +63,7 @@ import {
 } from "../../utils/medicalHistoryUtils";
 import { convertAgentMedicalHistoryRowsToSections } from "../../utils/medicalHistoryConverters";
 import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers";
-import { normalizeGynaecHistoryFromDigitiseData } from "../../utils/gynecHistoryUtils";
+import { mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, normalizeGynecHistoryFromApi } from "../../utils/gynecHistoryUtils";
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitizationSlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
@@ -1509,7 +1509,6 @@ async function fetchPastVisitPrintPayload(printUrl, detail) {
   const fetchUrl = buildPastVisitPrintPayloadUrl(printUrl, detail);
   if (!fetchUrl) return null;
   try {
-    console.log("[SideNavbar][PastVisits] print payload URL:", fetchUrl);
     const response = await axios.get(fetchUrl);
     return response?.data?.data || response?.data || null;
   } catch (error) {
@@ -2074,49 +2073,50 @@ function joinParts(parts) {
 
 function buildLegacyGynecSections(gynecHistory) {
   if (!gynecHistory || Object.keys(gynecHistory).length === 0) return [];
+  const normalizedGynecHistory = normalizeGynecHistoryFromApi(gynecHistory);
   const cards = [];
 
-  if (gynecHistory.lmp) {
-    cards.push({ id: "gynec-lmp", title: "LMP", lines: [`LMP: ${moment(gynecHistory.lmp).format("DD MMM'YY")}`] });
+  if (normalizedGynecHistory.lmp) {
+    cards.push({ id: "gynec-lmp", title: "LMP", lines: [`LMP: ${moment(normalizedGynecHistory.lmp).format("DD MMM'YY")}`] });
   }
 
   const menarcheLines = joinParts([
-    gynecHistory.ageAtMenarche && `Age at: ${gynecHistory.ageAtMenarche} years`,
-    gynecHistory.menarcheNotes && `Notes: ${gynecHistory.menarcheNotes}`,
+    normalizedGynecHistory.ageAtMenarche && `Age at: ${normalizedGynecHistory.ageAtMenarche} years`,
+    normalizedGynecHistory.menarcheNotes && `Notes: ${normalizedGynecHistory.menarcheNotes}`,
   ]);
   if (menarcheLines) cards.push({ id: "gynec-menarche", title: "Menarche", lines: [menarcheLines] });
 
   const cycleLine = joinParts([
-    gynecHistory.cycle && `Type: ${gynecHistory.cycle}`,
-    gynecHistory.intervalOfCycle && `Interval: ${gynecHistory.intervalOfCycle} days`,
-    gynecHistory.cycleNotes && `Note: ${gynecHistory.cycleNotes}`,
+    normalizedGynecHistory.cycle && `Type: ${normalizedGynecHistory.cycle}`,
+    normalizedGynecHistory.intervalOfCycle && `Interval: ${normalizedGynecHistory.intervalOfCycle} days`,
+    normalizedGynecHistory.cycleNotes && `Note: ${normalizedGynecHistory.cycleNotes}`,
   ]);
   if (cycleLine) cards.push({ id: "gynec-cycle", title: "Cycle", lines: [cycleLine] });
 
   const flowLine = joinParts([
-    gynecHistory.flow && `Volume: ${gynecHistory.flow}`,
-    gynecHistory.durationOfMenstrualFlow && `Duration: ${gynecHistory.durationOfMenstrualFlow} days`,
-    gynecHistory.clots !== undefined && gynecHistory.clots !== "" && `Clots: ${gynecHistory.clots ? "Yes" : "No"}`,
-    gynecHistory.numberOfPadsPerDay && `Pads/day: ${gynecHistory.numberOfPadsPerDay}`,
-    gynecHistory.flowNotes && `Notes: ${gynecHistory.flowNotes}`,
+    normalizedGynecHistory.flow && `Volume: ${normalizedGynecHistory.flow}`,
+    normalizedGynecHistory.durationOfMenstrualFlow && `Duration: ${normalizedGynecHistory.durationOfMenstrualFlow} days`,
+    normalizedGynecHistory.clots !== undefined && normalizedGynecHistory.clots !== "" && `Clots: ${normalizedGynecHistory.clots ? "Yes" : "No"}`,
+    normalizedGynecHistory.numberOfPadsPerDay && `Pads/day: ${normalizedGynecHistory.numberOfPadsPerDay}`,
+    normalizedGynecHistory.flowNotes && `Notes: ${normalizedGynecHistory.flowNotes}`,
   ]);
   if (flowLine) cards.push({ id: "gynec-flow", title: "Flow", lines: [flowLine] });
 
   const painLine = joinParts([
-    gynecHistory.pain && `Severity: ${gynecHistory.pain}`,
-    gynecHistory.occurrenceOfPain && `Occurrence: ${gynecHistory.occurrenceOfPain}`,
-    gynecHistory.painNotes && `Notes: ${gynecHistory.painNotes}`,
+    normalizedGynecHistory.pain && `Severity: ${normalizedGynecHistory.pain}`,
+    normalizedGynecHistory.occurrenceOfPain && `Occurrence: ${normalizedGynecHistory.occurrenceOfPain}`,
+    normalizedGynecHistory.painNotes && `Notes: ${normalizedGynecHistory.painNotes}`,
   ]);
   if (painLine) cards.push({ id: "gynec-pain", title: "Pain", lines: [painLine] });
 
   const hormLines = [];
-  if (gynecHistory.reproductiveLifeStages) hormLines.push(`Stage: ${gynecHistory.reproductiveLifeStages}`);
-  if (gynecHistory.ageAtMenopause) hormLines.push(`Age at: ${gynecHistory.ageAtMenopause} years`);
-  if (gynecHistory.typeOfMenopause) hormLines.push(`Type: ${gynecHistory.typeOfMenopause}`);
-  if (gynecHistory.reproductiveNotes) hormLines.push(`Notes: ${gynecHistory.reproductiveNotes}`);
+  if (normalizedGynecHistory.reproductiveLifeStages) hormLines.push(`Stage: ${normalizedGynecHistory.reproductiveLifeStages}`);
+  if (normalizedGynecHistory.ageAtMenopause) hormLines.push(`Age at: ${normalizedGynecHistory.ageAtMenopause} years`);
+  if (normalizedGynecHistory.typeOfMenopause) hormLines.push(`Type: ${normalizedGynecHistory.typeOfMenopause}`);
+  if (normalizedGynecHistory.reproductiveNotes) hormLines.push(`Notes: ${normalizedGynecHistory.reproductiveNotes}`);
   if (hormLines.length) cards.push({ id: "gynec-hormonal", title: "Lifecycle Hormonal Changes", lines: hormLines });
 
-  if (gynecHistory.notes) cards.push({ id: "gynec-notes", title: "Notes", lines: [gynecHistory.notes] });
+  if (normalizedGynecHistory.notes) cards.push({ id: "gynec-notes", title: "Notes", lines: [normalizedGynecHistory.notes] });
 
   return cards;
 }
@@ -5836,9 +5836,6 @@ export function SideNavbar({
   const legacyGynecSections = useMemo(
     () => {
       const sections = buildLegacyGynecSections(gynecHistoryProp);
-      console.log("[SideNavbar][Gynec] active patient:", patientId);
-      console.log("[SideNavbar][Gynec] incoming gynecHistory prop:", gynecHistoryProp);
-      console.log("[SideNavbar][Gynec] mapped gynec sections:", sections);
       return sections;
     },
     [gynecHistoryProp, patientId]
@@ -5999,7 +5996,6 @@ export function SideNavbar({
       onSectionAction(sectionId);
       return;
     }
-    console.log("[sideNavbar] add/edit details clicked", { sectionId });
   }, [onSectionAction]);
 
   const setActiveSection = useCallback((id, dir = null) => {
@@ -6120,25 +6116,14 @@ export function SideNavbar({
         const defaultSource = medicalHistoryDefaultList?.length ? medicalHistoryDefaultList : prev;
         const mappedHistory = mapSideNavMedicalHistoryIdsFromDefaultList(result.history, defaultSource);
         const finalMedicalHistoryData = mergeSideNavMedicalHistorySections(prev, mappedHistory);
-        console.groupCollapsed("[SideNav MedicalHistory] agents/module mapped result");
-        console.log("raw normalized result.history", result.history);
-        console.log("default source used for id mapping", defaultSource);
-        console.log("mapped history after default-list conversion", mappedHistory);
-        console.log("final data passed to setMedicalHistoryData", finalMedicalHistoryData);
-        console.groupEnd();
         return finalMedicalHistoryData;
       });
       return;
     }
 
     if (sectionId === "gynec" && result?.gynaec_history && sideNavObjectHasContent(result.gynaec_history)) {
-      const nextGynecHistory = Object.entries(result.gynaec_history).reduce((acc, [key, value]) => {
-        if (hasValue(value)) acc[key] = value;
-        return acc;
-      }, {});
       setUpdatedGynecHistory?.((prev) => ({
-        ...((prev && typeof prev === "object" && !Array.isArray(prev)) ? prev : {}),
-        ...nextGynecHistory,
+        ...mergeGynecHistory(prev, result.gynaec_history),
       }));
       return;
     }

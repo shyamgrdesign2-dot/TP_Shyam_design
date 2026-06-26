@@ -28,6 +28,14 @@ function normalizeOccurrenceOfPain(rawOccurrence) {
   return OCCURRENCE_OF_PAIN_MAP[key] ?? rawOccurrence;
 }
 
+function hasMeaningfulGynecValue(value) {
+  if (value === undefined || value === null || value === "") return false;
+  if (typeof value === "boolean") return true;
+  if (typeof value === "number") return value !== 0;
+  const text = String(value).trim();
+  return Boolean(text) && text !== "0";
+}
+
 /**
  * Normalizes raw gynec/gyneac history from API to UI shape.
  * @param {object} gynecRaw - Raw object from digitizeData.gynecHistory or digitizeData.gyneacHistory
@@ -77,31 +85,50 @@ export function getNormalizedGynecHistory(data) {
   return normalizeGynecHistoryFromApi(raw);
 }
 
-export function normalizeGynaecHistoryFromDigitiseData(digitization) {
-  const g = digitization?.gynaec_history;
-  if (!g || typeof g !== "object") return {};
+function mapGynecHistoryToForm(data) {
+  const source = data?.gynaec_history && typeof data.gynaec_history === "object"
+    ? data.gynaec_history
+    : data;
+  if (!source || typeof source !== "object") return {};
+
   return {
-    ...g,
-    lmp: g.lmp,
-    ageAtMenarche: g.age_at_menarche,
-    menarcheNotes: g.menarche_notes,
-    cycle: g.cycle,
-    intervalOfCycle: g.interval_of_cycle,
-    cycleNotes: g.cycle_notes,
-    flow: g.flow,
-    durationOfMenstrualFlow: g.duration_of_menstrual_flow,
-    clots: normalizeClotsValue(g.clots),
-    numberOfPadsPerDay: g.number_of_pads_per_day,
-    flowNotes: g.flow_notes,
-    pain: g.pain,
-    occurrenceOfPain: normalizeOccurrenceOfPain(g.occurrence_of_pain),
-    painNotes: g.pain_notes,
-    reproductiveLifeStages: g.reproductive_life_stages,
-    ageAtMenopause: g.age_at_menopause,
-    typeOfMenopause: g.type_of_menopause,
-    reproductiveNotes: g.reproductive_notes,
-    notes: g.notes,
+    lmp: source.lmp ?? source.lastMenstrualPeriod ?? "",
+    ageAtMenarche: source.ageAtMenarche ?? source.age_at_menarche ?? 0,
+    menarcheNotes: source.menarcheNotes ?? source.menarche_notes ?? "",
+    cycle: source.cycle ?? "",
+    intervalOfCycle: source.intervalOfCycle ?? source.intervalCycle ?? source.interval_of_cycle ?? 0,
+    cycleNotes: source.cycleNotes ?? source.intervalNotes ?? source.cycle_notes ?? "",
+    flow: source.flow ?? "",
+    durationOfMenstrualFlow: source.durationOfMenstrualFlow ?? source.duration_of_menstrual_flow ?? 0,
+    clots: normalizeClotsValue(source.clots ?? source.clotsDuringFlow ?? ""),
+    numberOfPadsPerDay: source.numberOfPadsPerDay ?? source.number_of_pads_per_day ?? 0,
+    flowNotes: source.flowNotes ?? source.clotsNotes ?? source.flow_notes ?? "",
+    pain: source.pain ?? "",
+    occurrenceOfPain: normalizeOccurrenceOfPain(source.occurrenceOfPain ?? source.occurrence_of_pain ?? ""),
+    painNotes: source.painNotes ?? source.pain_notes ?? "",
+    reproductiveLifeStages: source.reproductiveLifeStages ?? source.lifecycleHarmonialChanges ?? source.reproductive_life_stages ?? "",
+    ageAtMenopause: source.ageAtMenopause ?? source.age_at_menopause ?? 0,
+    typeOfMenopause: source.typeOfMenopause ?? source.type_of_menopause ?? "",
+    reproductiveNotes: source.reproductiveNotes ?? source.lifecycleHarmonialChangesNotes ?? source.reproductive_notes ?? "",
+    notes: source.notes ?? "",
   };
+}
+
+export function normalizeGynaecHistoryFromDigitiseData(digitization) {
+  return mapGynecHistoryToForm(digitization);
+}
+
+export function mergeGynecHistory(existingGynec, incomingGynec) {
+  const existing = mapGynecHistoryToForm(existingGynec);
+  const incoming = mapGynecHistoryToForm(incomingGynec);
+  if (isGynecDataEmpty(incoming)) return existing;
+  const merged = { ...existing };
+  Object.entries(incoming).forEach(([key, value]) => {
+    if (hasMeaningfulGynecValue(value)) {
+      merged[key] = value;
+    }
+  });
+  return merged;
 }
 
 const META_KEYS = ["createdAt", "createdBy", "updatedAt", "updatedBy"];
@@ -338,34 +365,26 @@ export function getGynecClinicalNoteItems(gynecRaw) {
 }
 
 /**
- * Build payload for gynec POST (timeline item) or PATCH. Normalizes lmp to YYYY-MM-DD.
- * Excludes UI-only keys; sends API field names (e.g. lmp, clots, occurrenceOfPain).
+ * Maps digitise/backend gynec history into the exact legacy form/API shape
+ * sent by the manual Gynec History modal.
+ */
+export function mapGynecHistoryBackendToUi(data) {
+  return mapGynecHistoryToForm(data);
+}
+
+/**
+ * Build payload for gynec POST (timeline item) or PATCH. Matches the manual
+ * Gynec History modal PATCH body.
  */
 export function buildGynecPayloadForApi(gynec, userId) {
   if (!gynec || typeof gynec !== "object") return null;
-  const lmpRaw = gynec.lmp ?? gynec.lastMenstrualPeriod;
+  const apiGynec = mapGynecHistoryBackendToUi(gynec);
+  const lmpRaw = apiGynec.lmp;
   const lmp = toApiLmp(lmpRaw);
   const now = moment().toISOString();
   const payload = {
-    lmp: lmp ?? undefined,
-    ageAtMenarche: gynec.ageAtMenarche,
-    menarcheNotes: gynec.menarcheNotes,
-    cycle: gynec.cycle,
-    intervalOfCycle: gynec.intervalOfCycle,
-    cycleNotes: gynec.cycleNotes,
-    flow: gynec.flow,
-    durationOfMenstrualFlow: gynec.durationOfMenstrualFlow,
-    clots: gynec.clots,
-    numberOfPadsPerDay: gynec.numberOfPadsPerDay,
-    flowNotes: gynec.flowNotes,
-    pain: gynec.pain,
-    occurrenceOfPain: gynec.occurrenceOfPain,
-    painNotes: gynec.painNotes,
-    reproductiveLifeStages: gynec.reproductiveLifeStages ?? gynec.lifecycleHarmonialChanges,
-    ageAtMenopause: gynec.ageAtMenopause,
-    typeOfMenopause: gynec.typeOfMenopause,
-    reproductiveNotes: gynec.reproductiveNotes,
-    notes: gynec.notes,
+    ...apiGynec,
+    lmp: lmp ?? apiGynec.lmp,
     createdAt: now,
     createdBy: userId,
   };
@@ -383,11 +402,13 @@ export function buildGynecPayloadForApi(gynec, userId) {
 
 export function isGynecEqual(apiGynec, rxGynec) {
   if (!rxGynec || typeof rxGynec !== "object") return true;
-  const keys = new Set([...Object.keys(rxGynec), ...Object.keys(apiGynec || {}).filter((k) => !META_KEYS.includes(k))]);
+  const apiUiGynec = mapGynecHistoryBackendToUi(apiGynec);
+  const rxUiGynec = mapGynecHistoryBackendToUi(rxGynec);
+  const keys = new Set([...Object.keys(rxUiGynec), ...Object.keys(apiUiGynec).filter((k) => !META_KEYS.includes(k))]);
   for (const k of keys) {
     if (META_KEYS.includes(k)) continue;
-    const a = apiGynec?.[k];
-    const r = rxGynec[k];
+    const a = apiUiGynec?.[k];
+    const r = rxUiGynec[k];
     if (a === r) continue;
     const aEmpty = a === null || a === undefined;
     const rEmpty = r === null || r === undefined;
@@ -410,6 +431,9 @@ export async function syncGynecHistoryAfterEndVisit(patientId, userId, rxGynec, 
   if (!patientId || userId === null || userId === undefined) return;
   if (isGynecDataEmpty(rxGynec)) return;
   const { getGynecDetails, postGynecDetails, updateGynecDetails } = api;
+  const finalGynecHistory = mapGynecHistoryBackendToUi(rxGynec);
+  const payload = buildGynecPayloadForApi(finalGynecHistory, userId);
+  if (!payload) return;
   let existing = null;
   try {
     existing = await getGynecDetails(patientId, userId);
@@ -417,9 +441,6 @@ export async function syncGynecHistoryAfterEndVisit(patientId, userId, rxGynec, 
     return;
   }
   const hasExisting = existing && typeof existing === "object" && !isGynecDataEmpty(existing);
-  const payload = buildGynecPayloadForApi(rxGynec, userId);
-  if (!payload) return;
-  const existingNormalized = normalizeGynecHistoryFromApi(existing);
   if (!hasExisting) {
     try {
       await postGynecDetails({
@@ -433,7 +454,7 @@ export async function syncGynecHistoryAfterEndVisit(patientId, userId, rxGynec, 
     }
     return;
   }
-  if (!isGynecEqual(existingNormalized, rxGynec)) {
+  if (!isGynecEqual(existing, finalGynecHistory)) {
     try {
       await updateGynecDetails(patientId, payload, userId);
     } catch (e) {

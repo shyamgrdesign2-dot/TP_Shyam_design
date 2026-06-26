@@ -165,7 +165,7 @@ import { normalizeModuleRows } from "../components/dr-agent/voicerx/VoiceRxModul
 import { toast } from "../components/dr-agent/voicerx/toast";
 import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
-import { isGynecDataEmpty, normalizeGynaecHistoryFromDigitiseData, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
+import { isGynecDataEmpty, mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
 import { useTabletViewport } from "../hooks/useTabletViewport";
@@ -485,6 +485,7 @@ function PrescriptionNewRxPadCopyListener() {
     setInvestigationData,
     setAdviceData,
     setMedicalHistoryData,
+    updatedGynecHistory,
     setUpdatedGynecHistory,
     setSurgeriesData,
     setFollowUpDate,
@@ -652,26 +653,19 @@ function PrescriptionNewRxPadCopyListener() {
     }
 
     const copiedGynecHistory = normalizeGynaecHistoryFromDigitiseData(digitization);
-    if (!isGynecDataEmpty(copiedGynecHistory) && patient_data?.patient_unique_id && userId !== undefined && userId !== null) {
+    if (!isGynecDataEmpty(copiedGynecHistory)) {
+      const mergedGynecHistory = mergeGynecHistory(updatedGynecHistory, copiedGynecHistory);
       setUpdatedGynecHistory((prev) => {
-        const nextGynecHistory = {
-          ...(prev && !Array.isArray(prev) ? prev : {}),
-          ...Object.keys(copiedGynecHistory).reduce((acc, key) => {
-          const value = copiedGynecHistory[key];
-          if (value !== undefined && value !== null && value !== "") {
-            acc[key] = value;
-          }
-          return acc;
-        }, {}),
-        };
-        return nextGynecHistory;
+        return mergeGynecHistory(prev, copiedGynecHistory);
       });
-      syncGynecHistoryAfterEndVisit(
-        patient_data.patient_unique_id,
-        userId,
-        copiedGynecHistory,
-        { getGynecDetails, postGynecDetails, updateGynecDetails }
-      );
+      if (patient_data?.patient_unique_id && userId !== undefined && userId !== null) {
+        syncGynecHistoryAfterEndVisit(
+          patient_data.patient_unique_id,
+          userId,
+          mergedGynecHistory,
+          { getGynecDetails, postGynecDetails, updateGynecDetails }
+        );
+      }
     }
 
     const surgeries = firstNonEmpty(digitization.surgeries, payload.surgeries);
@@ -732,6 +726,7 @@ function PrescriptionNewRxPadCopyListener() {
     setUpdatedGynecHistory,
     setVitalsData,
     timingList,
+    updatedGynecHistory,
     userId,
     vitalsData,
   ]);
@@ -764,8 +759,6 @@ function PrescriptionNew() {
     blinkingdot_2: blinkingDotMp4,
     carePlanActive: carePlanIcon,
   } = ASSETS.images;
-
-  console.log("vitals", hey);
   
   // Local state to manage customizedPadRightList with deleted modules for edit case
   const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
