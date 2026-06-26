@@ -138,6 +138,7 @@ export const toDentalService = (service = {}) => {
     discount,
     amount: Number(service.amount) || Math.max(0, rate - discount),
     status: fromApiServiceStatus(service.status) || "planned",
+    procedureDate: service.procedureDate || service.procedure_date || "",
     quickVisitRecords: service.quickVisitRecords || service.quick_visit_records || [],
     appointmentIds: service.appointmentIds || service.appointment_ids || [],
   };
@@ -229,6 +230,7 @@ export const toDentalServiceRequest = (service = {}) => {
     rate: service.rate,
     discount: service.discount,
     notes: service.notes,
+    procedure_date: service.procedureDate || service.procedure_date || undefined,
     status: service.status === "planned" ? undefined : toApiStatus(service.status),
     version: service.version,
   });
