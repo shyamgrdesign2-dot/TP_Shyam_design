@@ -5,7 +5,7 @@
  *
  * Exports: ServiceActions
  */
-import { Add, Trash, Receipt1, Calendar2 } from "iconsax-reactjs";
+import { Add, Trash, Receipt1, Calendar2, DocumentText } from "iconsax-reactjs";
 import { ChevronDown, MoreVertical } from "lucide-react";
 import {
   DropdownMenu,
@@ -73,6 +73,19 @@ export function ServiceActions({ service, plan, isOpen, onToggle, onDeleteOpen }
           <DropdownMenuItem
             onClick={() =>
               openDrawer({
+                type: "rx-preview",
+                planId: plan.id,
+                serviceId: service.id,
+              })
+            }
+            className={dropdownItemClass}
+          >
+            <DocumentText size={16} variant="Linear" />
+            View Consolidated Rx
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() =>
+              openDrawer({
                 type: "bill-preview",
                 planId: plan.id,
                 serviceId: service.id,
@@ -81,7 +94,7 @@ export function ServiceActions({ service, plan, isOpen, onToggle, onDeleteOpen }
             className={dropdownItemClass}
           >
             <Receipt1 size={16} variant="Linear" />
-            View work done
+            View Service Estimate
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => onDeleteOpen?.()}

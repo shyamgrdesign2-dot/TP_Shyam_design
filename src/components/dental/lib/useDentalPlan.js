@@ -124,6 +124,11 @@ export function useDentalPlan(patientId) {
     dispatch(clearPlanError());
   }, [dispatch]);
 
+  const refetchPlans = useCallback(() => {
+    if (!patientId) return Promise.resolve();
+    return dispatch(fetchDentalPlans(patientId));
+  }, [patientId, dispatch]);
+
   return {
     plans,
     loading,
@@ -144,6 +149,7 @@ export function useDentalPlan(patientId) {
     markServiceDone,
     revertServiceToProgress,
     selectPlan,
-    clearError
+    clearError,
+    refetchPlans,
   };
 }

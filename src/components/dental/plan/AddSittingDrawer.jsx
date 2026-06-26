@@ -1,27 +1,17 @@
 import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { TPDrawer, TPDrawerContent } from "../tp-ui/tp-drawer";
+import { Calendar2, Clock, Notepad2 } from "iconsax-reactjs";
 import { ChevronDown } from "lucide-react";
+import { createQvr, updateQvr } from "../../../redux/dentalQvrSlice";
+import { toApiVisitType } from "../../../utils/dentalApiMappers";
 import { usePlanContext } from "./plan-context";
 import { DrawerHeader, PLAN_DRAWER_PANEL_CLASS } from "./plan-shared";
-import { genId } from "./plan-types";
 import { useDirtyDrawerGuard } from "./use-dirty-drawer-guard";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
 import styles from "./AddSittingDrawer.module.scss";
 const DOCTORS = ["Dr. Sheela B R", "Dr. Shyam GR", "Dr. Riya Kapoor"];
-const VISIT_TYPES = ["Follow-up", "Procedure", "Emergency", "Review"];
-function formatVisitDateTimeLabel(d) {
-  const datePart = d.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-  const timePart = d.toLocaleTimeString("en-IN", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-  return `${datePart}, ${timePart}`;
-}
+const DEFAULT_VISIT_TYPE = "FOLLOW_UP";
 function toDateInputValue(d) {
   const y = d.getFullYear();
   const m = `${d.getMonth() + 1}`.padStart(2, "0");
@@ -34,6 +24,15 @@ function toTimeInputValue(d) {
   return `${hh}:${mm}`;
 }
 function parseSittingDateToInputParts(sitting) {
+  if (sitting?.visitDate) {
+    const time = sitting.visitTime
+      ? String(sitting.visitTime).slice(0, 5)
+      : toTimeInputValue(new Date());
+    return {
+      date: sitting.visitDate,
+      time,
+    };
+  }
   const fromCreatedAt = sitting?.createdAt ? new Date(sitting.createdAt) : null;
   if (fromCreatedAt && Number.isFinite(fromCreatedAt.getTime())) {
     return {
@@ -76,14 +75,6 @@ function parseSittingDateToInputParts(sitting) {
       }
     : null;
 }
-function composeVisitDateTime(visitDate, visitTime) {
-  if (!visitDate || !visitTime) return null;
-  const [y, m, d] = visitDate.split("-").map((n) => Number(n));
-  const [hh, mm] = visitTime.split(":").map((n) => Number(n));
-  const dt = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0);
-  if (!Number.isFinite(dt.getTime())) return null;
-  return dt;
-}
 function formatSurfaceLabel(surface) {
   return String(surface ?? "")
     .trim()
@@ -95,8 +86,29 @@ function formatSurfaceLabel(surface) {
         .slice(1),
     );
 }
+function formatDateDisplay(isoDate) {
+  if (!isoDate) return "";
+  const [y, m, d] = isoDate.split("-").map((n) => Number(n));
+  if (!y || !m || !d) return "";
+  return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+}
+function formatTimeDisplay(time24) {
+  if (!time24) return "";
+  const [hh, mm] = time24.split(":").map((n) => Number(n));
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return "";
+  const d = new Date();
+  d.setHours(hh, mm, 0, 0);
+  return d.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 export function AddSittingDrawer() {
-  const { state, updateService, findService, findPlanForService, closeDrawer, showSnackbar } =
+  const dispatch = useDispatch();
+  const { userId, profile } = useSelector((state) => state.doctors);
+  const doctorId = userId || profile?.doctor_unique_id;
+  const { patientId, state, findService, findPlanForService, closeDrawer, showSnackbar, refetchPlans } =
     usePlanContext();
   const drawer = state.drawer;
   const isAdd = drawer.type === "add-sitting";
@@ -112,8 +124,8 @@ export function AddSittingDrawer() {
   const [visitDate, setVisitDate] = useState(toDateInputValue(now));
   const [visitTime, setVisitTime] = useState(toTimeInputValue(now));
   const [doctor, setDoctor] = useState(DOCTORS[0]);
-  const [visitType, setVisitType] = useState(VISIT_TYPES[0]);
   const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
   const surfaceSummary = service?.surfaces?.length
     ? service.surfaces.map(formatSurfaceLabel).join(", ")
     : "All surfaces";
@@ -121,20 +133,14 @@ export function AddSittingDrawer() {
     service?.toothFdi === "full-mouth"
       ? "Full Mouth"
       : service
-        ? `T${service.toothFdi} — ${service.toothLabel}`
+        ? `T${service.toothFdi} ${service.toothLabel}`
         : "—";
-  const notesPreview = String(notes ?? "").trim()
-    ? String(notes ?? "")
-        .trim()
-        .split("\n")[0]
-        .trim()
-    : "—";
+  const serviceNotesPreview = String(service?.notes ?? "").trim() || "—";
   const resetForm = () => {
     const current = new Date();
     setVisitDate(toDateInputValue(current));
     setVisitTime(toTimeInputValue(current));
     setDoctor(DOCTORS[0]);
-    setVisitType(VISIT_TYPES[0]);
     setNotes("");
   };
   useEffect(() => {
@@ -145,8 +151,7 @@ export function AddSittingDrawer() {
         setVisitDate(parsed.date);
         setVisitTime(parsed.time);
       }
-      setDoctor(editingSitting.doctor);
-      setVisitType(editingSitting.visitType ?? VISIT_TYPES[0]);
+      setDoctor(editingSitting.doctor || DOCTORS[0]);
       setNotes(editingSitting.notes ?? "");
       return;
     }
@@ -161,53 +166,82 @@ export function AddSittingDrawer() {
       return (
         visitDate !== origDate ||
         visitTime !== origTime ||
-        doctor !== editingSitting.doctor ||
-        visitType !== (editingSitting.visitType ?? VISIT_TYPES[0]) ||
+        doctor !== (editingSitting.doctor || DOCTORS[0]) ||
         String(notes ?? "").trim() !== String(editingSitting.notes ?? "").trim()
       );
     }
     return (
       Boolean(String(notes ?? "").trim()) ||
-      doctor !== DOCTORS[0] ||
-      visitType !== VISIT_TYPES[0]
+      doctor !== DOCTORS[0]
     );
   })();
   const guard = useDirtyDrawerGuard({
     isDirty,
     onClose: () => closeDrawer(),
   });
-  const handleAdd = () => {
-    if (!serviceId) return;
-    const chosen = composeVisitDateTime(visitDate, visitTime) ?? new Date();
-    const visitLabel = formatVisitDateTimeLabel(chosen);
-    const chosenIso = chosen.toISOString();
+  const handleAdd = async () => {
+    if (!serviceId || !patientId || saving) return;
+    if (!doctorId) {
+      showSnackbar?.("Unable to save visit: doctor profile is missing.");
+      return;
+    }
     const plan = findPlanForService(serviceId);
     if (!plan) return;
-    const currentService = findService(serviceId);
-    const sittings = currentService?.sittings ?? [];
-    if (isEdit && sittingId) {
-      updateService(plan.id, serviceId, {
-        sittings: sittings.map((s) =>
-          s.id === sittingId
-            ? { ...s, date: visitLabel, doctor, visitType, createdAt: chosenIso, notes: notes.trim() || undefined }
-            : s
-        ),
-      });
-    } else {
-      updateService(plan.id, serviceId, {
-        sittings: [
-          ...sittings,
-          { id: genId("sit"), date: visitLabel, doctor, visitType, createdAt: chosenIso, notes: notes.trim() || undefined },
-        ],
-      });
+
+    const visitType = isEdit
+      ? toApiVisitType(editingSitting?.visitType ?? DEFAULT_VISIT_TYPE)
+      : DEFAULT_VISIT_TYPE;
+
+    const payload = {
+      visitDate,
+      visitTime,
+      doctorId,
+      visitType,
+      notes: notes.trim() || undefined,
+      version: isEdit ? editingSitting?.version : undefined,
+    };
+
+    setSaving(true);
+    try {
+      if (isEdit && sittingId) {
+        await dispatch(
+          updateQvr({
+            patientId,
+            planId: plan.id,
+            serviceId,
+            qvrId: sittingId,
+            data: payload,
+            doctorName: doctor,
+          }),
+        ).unwrap();
+      } else {
+        await dispatch(
+          createQvr({
+            patientId,
+            planId: plan.id,
+            serviceId,
+            data: payload,
+            doctorName: doctor,
+          }),
+        ).unwrap();
+      }
+      await refetchPlans();
+      closeDrawer();
+      resetForm();
+      showSnackbar?.(
+        isEdit
+          ? "Quick visit record updated successfully."
+          : "Quick visit record added successfully.",
+      );
+    } catch (err) {
+      const message =
+        typeof err === "string"
+          ? err
+          : "Failed to save quick visit record. Please try again.";
+      showSnackbar?.(message);
+    } finally {
+      setSaving(false);
     }
-    closeDrawer();
-    resetForm();
-    showSnackbar?.(
-      isEdit
-        ? "Quick visit record updated successfully."
-        : "Quick visit record added successfully.",
-    );
   };
   return (
     <>
@@ -229,9 +263,10 @@ export function AddSittingDrawer() {
               <button
                 type="button"
                 onClick={handleAdd}
+                disabled={saving}
                 className={styles.primaryButton}
               >
-                {isEdit ? "Save visit" : "Add visit"}
+                {saving ? "Saving…" : isEdit ? "Save visit" : "Add visit"}
               </button>
             }
           />
@@ -264,76 +299,89 @@ export function AddSittingDrawer() {
                       Notes:
                     </span>
                     <span className={styles.summaryValueMuted}>
-                      {notesPreview}
+                      {serviceNotesPreview}
                     </span>
                   </p>
                 </div>
               </div>
             )}
 
-            <div className={styles.gridCols2}>
-              <div>
-                <label className={styles.label}>Visit date</label>
-                <input
-                  type="date"
-                  value={visitDate}
-                  onChange={(e) => setVisitDate(e.target.value)}
-                  className={styles.input}
+            <div className={styles.formCard}>
+              <div className={styles.formCardHeader}>
+                <Notepad2
+                  size={18}
+                  variant="Bulk"
+                  className={styles.formCardIcon}
+                />
+                <h3 className={styles.formCardTitle}>Visit Record</h3>
+              </div>
+
+              <div className={styles.gridCols3}>
+                <div>
+                  <label className={styles.label}>Visit date</label>
+                  <div className={styles.pickerInputWrapper}>
+                    <span className={styles.pickerDisplay}>
+                      {formatDateDisplay(visitDate)}
+                    </span>
+                    <input
+                      type="date"
+                      value={visitDate}
+                      onChange={(e) => setVisitDate(e.target.value)}
+                      className={styles.pickerInput}
+                    />
+                    <span className={styles.inputIcon}>
+                      <Calendar2 size={16} variant="Linear" />
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label className={styles.label}>Visit time</label>
+                  <div className={styles.pickerInputWrapper}>
+                    <span className={styles.pickerDisplay}>
+                      {formatTimeDisplay(visitTime)}
+                    </span>
+                    <input
+                      type="time"
+                      value={visitTime}
+                      onChange={(e) => setVisitTime(e.target.value)}
+                      className={styles.pickerInput}
+                    />
+                    <span className={styles.inputIcon}>
+                      <Clock size={16} variant="Linear" />
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label className={styles.label}>Doctor</label>
+                  <div className={styles.inputWrapper}>
+                    <select
+                      value={doctor}
+                      onChange={(e) => setDoctor(e.target.value)}
+                      className={styles.select}
+                    >
+                      {DOCTORS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                    <span className={styles.inputIcon}>
+                      <ChevronDown size={16} strokeWidth={2} />
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.notesField}>
+                <label className={styles.label}>Notes</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Clinical notes, chairside findings, treatment details..."
+                  rows={6}
+                  className={styles.textarea}
                 />
               </div>
-              <div>
-                <label className={styles.label}>Visit time</label>
-                <input
-                  type="time"
-                  value={visitTime}
-                  onChange={(e) => setVisitTime(e.target.value)}
-                  className={styles.input}
-                />
-              </div>
-            </div>
-            <div>
-              <label className={styles.label}>Doctor</label>
-              <div className={styles.inputWrapper}>
-                <select
-                  value={doctor}
-                  onChange={(e) => setDoctor(e.target.value)}
-                  className={styles.select}
-                >
-                  {DOCTORS.map((d) => (
-                    <option value={d}>{d}</option>
-                  ))}
-                </select>
-                <span className={styles.inputIcon}>
-                  <ChevronDown size={16} strokeWidth={2} />
-                </span>
-              </div>
-            </div>
-            <div>
-              <label className={styles.label}>Visit type</label>
-              <div className={styles.inputWrapper}>
-                <select
-                  value={visitType}
-                  onChange={(e) => setVisitType(e.target.value)}
-                  className={styles.select}
-                >
-                  {VISIT_TYPES.map((type) => (
-                    <option value={type}>{type}</option>
-                  ))}
-                </select>
-                <span className={styles.inputIcon}>
-                  <ChevronDown size={16} strokeWidth={2} />
-                </span>
-              </div>
-            </div>
-            <div>
-              <label className={styles.label}>Consultation notes</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Chairside findings, procedures done, follow-up for this visit…"
-                rows={7}
-                className={styles.textarea}
-              />
             </div>
           </div>
         </TPDrawerContent>

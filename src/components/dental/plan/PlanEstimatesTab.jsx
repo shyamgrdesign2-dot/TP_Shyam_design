@@ -426,7 +426,12 @@ export function PlanEstimatesTab() {
                   Print All Estimates
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => openDrawer({ type: "bill-preview", planId: estimatePlans[0]?.id ?? "" })}
+                  onClick={() =>
+                    openDrawer({
+                      type: "bill-preview",
+                      mode: "combined",
+                    })
+                  }
                   className={styles.dropdownItem}
                 >
                   <Receipt1 size={16} variant="Linear" />

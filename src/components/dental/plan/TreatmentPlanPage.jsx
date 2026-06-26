@@ -73,11 +73,9 @@ function getInitialDrawer(drawerParam, tab, plans) {
       return {
         type: "closed",
       };
-    const service = firstServiceFrom(plan);
     return {
       type: "bill-preview",
       planId: plan.id,
-      serviceId: service?.id,
     };
   }
   if (drawerParam === "rx-preview") {

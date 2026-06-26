@@ -55,6 +55,7 @@ export function PlanProvider({
     markServiceDone,
     revertServiceToProgress,
     clearError,
+    refetchPlans,
   } = useDentalPlan(patientId);
 
   // 2. Local UI state (Drawer, Snackbar)
@@ -130,6 +131,7 @@ export function PlanProvider({
       removeService,
       markServiceDone,
       revertServiceToProgress,
+      refetchPlans,
       // UI state
       estimatePlans,
       inProgressPlans,
@@ -166,6 +168,7 @@ export function PlanProvider({
       removeService,
       markServiceDone,
       revertServiceToProgress,
+      refetchPlans,
       estimatePlans,
       inProgressPlans,
       completedPlans,

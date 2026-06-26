@@ -19,6 +19,7 @@ import {
 import {
   getDentalApiError,
   getDentalApiPayload,
+  qvrToSitting,
   toDentalPlan,
   toDentalPlanPatchRequest,
   toDentalPlanRequest,
@@ -28,6 +29,7 @@ import {
   toDentalServiceRequest,
   toDentalTransitionRequest,
 } from "../utils/dentalApiMappers";
+import { createQvr, updateQvr, deleteQvr } from "./dentalQvrSlice";
 
 const initialState = {
   plans: [],
@@ -385,7 +387,20 @@ const dentalPlanSlice = createSlice({
         if (plan?.services) {
           const sIndex = plan.services.findIndex(s => s.id === action.payload.serviceId);
           if (sIndex !== -1) {
-            plan.services[sIndex] = toDentalService({ ...plan.services[sIndex], ...action.payload.patch });
+            const previous = plan.services[sIndex];
+            const updated = toDentalService({
+              ...previous,
+              ...action.payload.patch,
+            });
+            plan.services[sIndex] = {
+              ...updated,
+              sittings: updated.sittings?.length
+                ? updated.sittings
+                : previous.sittings,
+              quickVisitRecords: updated.quickVisitRecords?.length
+                ? updated.quickVisitRecords
+                : previous.quickVisitRecords,
+            };
           }
         }
       })
@@ -394,6 +409,53 @@ const dentalPlanSlice = createSlice({
         const plan = state.plans.find(p => p.id === action.payload.planId);
         if (plan && plan.services) {
           plan.services = plan.services.filter(s => s.id !== action.payload.serviceId);
+        }
+      })
+      // Quick visit records — keep plan service sittings in sync with QVR API
+      .addCase(createQvr.fulfilled, (state, action) => {
+        const { serviceId, qvr } = action.payload;
+        const doctorName = action.meta?.arg?.doctorName;
+        const sitting = qvrToSitting(qvr, { doctorName });
+        for (const plan of state.plans) {
+          const svc = plan.services?.find((s) => s.id === serviceId);
+          if (!svc) continue;
+          if (!svc.sittings) svc.sittings = [];
+          svc.sittings.push(sitting);
+          if (!svc.quickVisitRecords) svc.quickVisitRecords = [];
+          svc.quickVisitRecords.push(qvr);
+          break;
+        }
+      })
+      .addCase(updateQvr.fulfilled, (state, action) => {
+        const { serviceId, qvrId, qvr } = action.payload;
+        const doctorName = action.meta?.arg?.doctorName;
+        const sitting = qvrToSitting(qvr, { doctorName });
+        for (const plan of state.plans) {
+          const svc = plan.services?.find((s) => s.id === serviceId);
+          if (!svc) continue;
+          if (!svc.sittings) svc.sittings = [];
+          const idx = svc.sittings.findIndex((s) => s.id === qvrId);
+          if (idx === -1) svc.sittings.push(sitting);
+          else svc.sittings[idx] = { ...svc.sittings[idx], ...sitting };
+          if (!svc.quickVisitRecords) svc.quickVisitRecords = [];
+          const qIdx = svc.quickVisitRecords.findIndex((q) => q.id === qvrId);
+          if (qIdx === -1) svc.quickVisitRecords.push(qvr);
+          else svc.quickVisitRecords[qIdx] = qvr;
+          break;
+        }
+      })
+      .addCase(deleteQvr.fulfilled, (state, action) => {
+        const { serviceId, qvrId } = action.payload;
+        for (const plan of state.plans) {
+          const svc = plan.services?.find((s) => s.id === serviceId);
+          if (!svc) continue;
+          if (svc.sittings) {
+            svc.sittings = svc.sittings.filter((s) => s.id !== qvrId);
+          }
+          if (svc.quickVisitRecords) {
+            svc.quickVisitRecords = svc.quickVisitRecords.filter((q) => q.id !== qvrId);
+          }
+          break;
         }
       });
   },

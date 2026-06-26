@@ -6,6 +6,7 @@
  * Exports: ServiceTimeline
  */
 import { useState, Children } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   ArrowRotateLeft,
   Add,
@@ -22,6 +23,8 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { usePlanContext } from "./plan-context";
+import { deleteQvr, updateQvr } from "../../../redux/dentalQvrSlice";
+import { formatQvrVisitTypeLabel } from "../../../utils/dentalApiMappers";
 import { buildConsultationRxUrl, PlanEmptyIcon } from "./plan-shared";
 import { TPSplitButton } from "../tp-ui/button-system";
 import {
@@ -278,6 +281,21 @@ function ConsultationSummarySurface({ children, className = "" }) {
   );
 }
 
+function resolveSittingDoctorName(sitting, { userId, profile }) {
+  if (String(sitting?.doctor ?? "").trim()) return sitting.doctor;
+  const sittingDoctorId = sitting?.doctorId;
+  const loggedInId = userId || profile?.doctor_unique_id;
+  if (
+    sittingDoctorId &&
+    loggedInId &&
+    String(sittingDoctorId) === String(loggedInId)
+  ) {
+    const name = profile?.um_name || profile?.doctor_name;
+    if (name) return name.startsWith("Dr.") ? name : `Dr. ${name}`;
+  }
+  return "Quick visit";
+}
+
 // ─── ServiceTimeline ────────────────────────────────────────
 
 /**
@@ -289,10 +307,31 @@ function ConsultationSummarySurface({ children, className = "" }) {
  *   onOpenCancelDialog: (appt: object) => void }} props
  */
 export function ServiceTimeline({ service, plan, onOpenCancelDialog }) {
-  const { updateService, openDrawer, patientId, embedInPatientShell } =
+  const dispatch = useDispatch();
+  const { userId, profile } = useSelector((state) => state.doctors);
+  const { updateService, openDrawer, patientId, embedInPatientShell, refetchPlans } =
     usePlanContext();
   const [consultPreviewId, setConsultPreviewId] = useState(null);
   const [sittingPreviewId, setSittingPreviewId] = useState(null);
+
+  const syncPlansAfterQvr = async (mutation) => {
+    await mutation.unwrap();
+    await refetchPlans();
+  };
+
+  const handleDeleteSitting = (sittingId) => {
+    if (!patientId || !sittingId) return;
+    syncPlansAfterQvr(
+      dispatch(
+        deleteQvr({
+          patientId,
+          planId: plan.id,
+          serviceId: service.id,
+          qvrId: sittingId,
+        }),
+      ),
+    ).catch(() => {});
+  };
 
   const appointmentItems = service.appointments ?? [];
   const timelineEntries = buildVisitTimelineEntries(service);
@@ -498,9 +537,9 @@ export function ServiceTimeline({ service, plan, onOpenCancelDialog }) {
                           aria-label="More actions"
                         >
                           <MoreVertical
-                            size={17}
+                            size={20}
                             color="currentColor"
-                            strokeWidth={2}
+                            strokeWidth={3}
                           />
                         </button>
                       </DropdownMenuTrigger>
@@ -682,7 +721,7 @@ export function ServiceTimeline({ service, plan, onOpenCancelDialog }) {
                           isCancelledSit ? styles.cancelledLine : ""
                         )}
                       >
-                        {sit.doctor || "Quick visit"}
+                        {resolveSittingDoctorName(sit, { userId, profile })}
                       </p>
                       {visitBadge(
                         isCancelledSit
@@ -716,7 +755,7 @@ export function ServiceTimeline({ service, plan, onOpenCancelDialog }) {
                       <span className={styles.metaItem}>
                         <span className={styles.metaLabel}>Visit Type:</span>
                         <span>
-                          {String(sit.visitType ?? "").trim() || "Follow up"}
+                          {formatQvrVisitTypeLabel(sit.visitType)}
                         </span>
                       </span>
                       <span
@@ -743,7 +782,13 @@ export function ServiceTimeline({ service, plan, onOpenCancelDialog }) {
                         type="button"
                         onClick={() => {
                           setConsultPreviewId(null);
-                          setSittingPreviewId(sit.id);
+                          setSittingPreviewId(null);
+                          openDrawer({
+                            type: "rx-preview",
+                            planId: plan.id,
+                            serviceId: service.id,
+                            sittingId: sit.id,
+                          });
                         }}
                         className={VIEW_RX_SECONDARY_CLASS}
                       >
@@ -822,42 +867,56 @@ export function ServiceTimeline({ service, plan, onOpenCancelDialog }) {
                           <>
                             <DropdownMenuItem
                               className={dropdownItemClass}
-                              onClick={() =>
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 openDrawer({
                                   type: "edit-sitting",
                                   serviceId: service.id,
                                   sittingId: sit.id,
-                                })
-                              }
+                                });
+                              }}
                             >
                               <Edit2 size={16} variant="Linear" />
                               Edit visit
                             </DropdownMenuItem>
-                            {sit.notes && (
-                              <DropdownMenuItem
-                                className={dropdownItemClass}
-                                onClick={() => {
-                                  setConsultPreviewId(null);
-                                  setSittingPreviewId(sit.id);
-                                }}
-                              >
-                                <DocumentText size={16} variant="Linear" />
-                                View Rx
-                              </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem
+                              className={styles.deleteServiceMenuItem}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteSitting(sit.id);
+                              }}
+                            >
+                              <Trash
+                                size={16}
+                                variant="Linear"
+                                className={styles.errorIcon}
+                              />
+                              <span className={styles.errorText}>Delete visit</span>
+                            </DropdownMenuItem>
                           </>
                         )}
                         {isCancelledSit && (
                           <>
                             <DropdownMenuItem
                               className={dropdownItemClass}
-                              onClick={() =>
-                                updateService(plan.id, service.id, {
-                                  sittings: (service.sittings ?? []).map((s) =>
-                                    s.id === sit.id ? { ...s, status: "completed" } : s
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!patientId) return;
+                                syncPlansAfterQvr(
+                                  dispatch(
+                                    updateQvr({
+                                      patientId,
+                                      planId: plan.id,
+                                      serviceId: service.id,
+                                      qvrId: sit.id,
+                                      data: {
+                                        status: "COMPLETED",
+                                        version: sit.version,
+                                      },
+                                    }),
                                   ),
-                                })
-                              }
+                                ).catch(() => {});
+                              }}
                             >
                               <ArrowRotateLeft
                                 size={16}
@@ -869,15 +928,18 @@ export function ServiceTimeline({ service, plan, onOpenCancelDialog }) {
                               </span>
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              className={dropdownItemClass}
-                              onClick={() =>
-                                updateService(plan.id, service.id, {
-                                  sittings: (service.sittings ?? []).filter((s) => s.id !== sit.id),
-                                })
-                              }
+                              className={styles.deleteServiceMenuItem}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteSitting(sit.id);
+                              }}
                             >
-                              <Trash size={16} variant="Linear" />
-                              Remove from timeline
+                              <Trash
+                                size={16}
+                                variant="Linear"
+                                className={styles.errorIcon}
+                              />
+                              <span className={styles.errorText}>Delete visit</span>
                             </DropdownMenuItem>
                           </>
                         )}
