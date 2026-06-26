@@ -112,8 +112,11 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
     setMarkDoneOpen(false);
   };
 
-  const toothText =
-    service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi}`;
+  const teeth = service.teeth?.length > 0 ? service.teeth : [service.toothFdi];
+  const isFullMouth = teeth.includes("full-mouth");
+  const toothText = isFullMouth
+    ? "Full Mouth"
+    : teeth.map((t) => `T${t}`).join(", ");
   const surfaceSummary =
     service.surfaces.length > 0
       ? service.surfaces.map((s) => formatSurfaceLabel(s)).join(", ")
@@ -122,10 +125,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
   const hoverDetails = [
     {
       label: "Tooth",
-      value:
-        service.toothFdi === "full-mouth"
-          ? "Full Mouth"
-          : `${service.toothLabel} (${toothText})`,
+      value: toothText,
     },
     { label: "Surfaces", value: surfaceSummary },
     {

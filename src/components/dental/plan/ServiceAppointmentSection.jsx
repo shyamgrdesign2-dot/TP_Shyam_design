@@ -53,8 +53,9 @@ export function ServiceAppointmentSection({ service, plan }) {
     closeCancelDialog();
   };
 
-  const toothText =
-    service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi}`;
+  const teeth = service.teeth?.length > 0 ? service.teeth : [service.toothFdi];
+  const isFullMouth = teeth.includes("full-mouth");
+  const toothText = isFullMouth ? "Full Mouth" : teeth.map((t) => `T${t}`).join(", ");
   const surfaceSummary =
     service.surfaces.length > 0
       ? service.surfaces.map((s) => formatSurfaceLabel(s)).join(", ")
@@ -73,16 +74,12 @@ export function ServiceAppointmentSection({ service, plan }) {
             <span aria-hidden={true} className={styles.summaryDivider} />
             <div className={styles.summaryItem}>
               <span className={styles.summaryLabel}>Tooth:</span>
-              <span>
-                {service.toothFdi === "full-mouth"
-                  ? "Full Mouth"
-                  : `${service.toothLabel} (${toothText})`}
-              </span>
+              <span>{toothText}</span>
             </div>
-            {service.toothFdi !== "full-mouth" && (
+            {!isFullMouth && (
               <span aria-hidden={true} className={styles.summaryDivider} />
             )}
-            {service.toothFdi !== "full-mouth" && (
+            {!isFullMouth && (
               <div className={styles.summaryItem}>
                 <span className={styles.summaryLabel}>Surfaces:</span>
                 <span>{surfaceSummary}</span>
