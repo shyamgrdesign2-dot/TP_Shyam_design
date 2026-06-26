@@ -705,7 +705,6 @@
 .emptyActionsRow {
   margin-top: 16px;
   display: flex;
-  width: 100%;
   flex-direction: row;
   flex-wrap: wrap;
   gap: 10px;
@@ -1302,4 +1301,60 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.incompleteServicesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.incompleteServiceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--tp-slate-100);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.incompleteServiceName {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--tp-slate-700);
+  flex: 1;
+  min-width: 0;
+}
+
+.incompleteStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status_not_started {
+  background: var(--tp-slate-100);
+  color: var(--tp-slate-600);
+}
+
+.status_in_progress {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.status_no_show,
+.status_not_interested,
+.status_cancelled {
+  background: #FEE2E2;
+  color: #991B1B;
 }

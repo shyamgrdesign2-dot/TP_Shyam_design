@@ -351,7 +351,16 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
         <div className={styles.planHeaderActions}>
           <button
             type="button"
-            onClick={() => setMarkAllOpen(true)}
+            onClick={() => {
+              const allDone = services.every(
+                (s) => getServiceWorkflowStatus(s) === "completed"
+              );
+              if (allDone) {
+                markCompleted(plan.id);
+              } else {
+                setMarkAllOpen(true);
+              }
+            }}
             className={styles.markAllDoneBtn}
           >
             <TickCircle size={20} variant="Linear" />
@@ -452,18 +461,33 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
       <TPConfirmDialog
         open={markAllOpen}
         onOpenChange={setMarkAllOpen}
-        title="Mark All Services as Completed"
-        warning={`This marks all ${services.length} service${
-          services.length === 1 ? "" : "s"
-        } in ${plan.name} as completed and moves this plan to Completed Plans.`}
+        title="End Plan"
+        warning={`Are you sure you want to end "${plan.name}"? The following services are not yet resolved and will keep their current status.`}
         secondaryLabel="Cancel"
-        primaryLabel="Mark All Done"
+        primaryLabel="End Plan"
         primaryTone="success"
         onPrimary={() => {
           markCompleted(plan.id);
           setMarkAllOpen(false);
         }}
-      />
+      >
+        <div className={styles.incompleteServicesList}>
+          {services
+            .filter((s) => getServiceWorkflowStatus(s) !== "completed")
+            .map((s) => {
+              const wfStatus = getServiceWorkflowStatus(s);
+              const label = STATUS_OPTIONS.find((o) => o.value === wfStatus)?.label ?? wfStatus;
+              return (
+                <div key={s.id} className={styles.incompleteServiceRow}>
+                  <span className={styles.incompleteServiceName}>{s.treatment}</span>
+                  <span className={cx(styles.incompleteStatusBadge, styles[`status_${wfStatus.replace(/-/g, "_")}`])}>
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+        </div>
+      </TPConfirmDialog>
       <TPConfirmDialog
         open={revertAllOpen}
         onOpenChange={setRevertAllOpen}
