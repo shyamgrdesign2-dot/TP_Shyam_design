@@ -14,12 +14,9 @@
  */
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Search } from "lucide-react";
-import { Grid5, Ram, Eraser } from "iconsax-reactjs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "../ui/tooltip";
+import { Eraser } from "iconsax-reactjs";
+import { ConfigProvider } from "antd";
+import { ExaminationTemplateActions } from "../examination/ExaminationTemplateActions";
 import { createPortal } from "react-dom";
 import { TPDrawer, TPDrawerContent } from "../tp-ui/tp-drawer";
 import { TPMedicalIcon } from "../tp-ui/medical-icons/TPMedicalIcon";
@@ -46,8 +43,16 @@ import {
   createRow,
   fanOutServices,
   computeTotalAmount,
+  rowsToTemplatePayload,
+  rowsToServiceTemplatePayload,
+  mergeTemplateRows,
 } from "./lib/planFormHelpers";
+import { useTreatmentPlanTemplates } from "./lib/useTreatmentPlanTemplates";
 import styles from "./AddEditPlanDrawer.module.scss";
+
+// Radix Sheet overlay sits at z-index 10000; antd popups default to ~1030.
+// Raise antd's base so template popovers render above the overlay.
+const ABOVE_DRAWER_THEME = { token: { zIndexPopupBase: 10001 } };
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -112,6 +117,22 @@ export function AddEditPlanDrawer() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  const planTpl = useTreatmentPlanTemplates("plan");
+  const serviceTpl = useTreatmentPlanTemplates("service");
+
+  const applyTemplate = useCallback((tpl, tplHook) => {
+    tplHook.apply(tpl, (payload) => {
+      setRows((prev) => mergeTemplateRows(payload, prev));
+      setPlanName((prevName) => {
+        if (!prevName.trim()) return tpl.name;
+        return prevName;
+      });
+      if (payload.additionalDiscount !== undefined) {
+        setAdditionalDiscount(String(payload.additionalDiscount));
+      }
+    });
   }, []);
 
   const patientId = planPatientId ?? state.plans[0]?.patientId ?? "apt-1";
@@ -271,7 +292,7 @@ export function AddEditPlanDrawer() {
       setRows((prev) =>
         prev.map((r) => {
           if (r.treatment !== treatmentName) return r;
-          const mergedTeeth = [...new Set([...r.teeth, ...teeth])];
+          const mergedTeeth = [...new Set([...r.teeth.map(String), ...teeth.map(String)])];
           const mergedSurfaces = [...new Set([...r.surfaces, ...nextSurfaces])];
           return { ...r, teeth: mergedTeeth, surfaces: mergedSurfaces };
         })
@@ -431,16 +452,28 @@ export function AddEditPlanDrawer() {
   const showDentalServiceDropdownSection = showCatalogInDropdown;
   const showSearchEmptyHint = searchQuery.trim() === "";
 
+  const isAntdOverlayTarget = (target) =>
+    target instanceof Element &&
+    !!target.closest(".ant-popover, .ant-select-dropdown, .ant-tooltip");
+
   const blockPlanSheetDismissFromPortals = (e) => {
     if (catalogDentalDrawerOpen) {
+      e.preventDefault();
+      return;
+    }
+    
+    const target = e.detail?.originalEvent?.target || e.target;
+
+    // Prevent sheet close when interacting with antd overlay portals (template popovers, selects)
+    if (isAntdOverlayTarget(target)) {
       e.preventDefault();
       return;
     }
     if (
       searchOpen &&
       dropdownRef.current &&
-      e.target instanceof Node &&
-      dropdownRef.current.contains(e.target)
+      target instanceof Node &&
+      dropdownRef.current.contains(target)
     )
       e.preventDefault();
   };
@@ -468,6 +501,12 @@ export function AddEditPlanDrawer() {
           onPointerDownOutside={blockPlanSheetDismissFromPortals}
           onInteractOutside={blockPlanSheetDismissFromPortals}
           onFocusOutside={(e) => {
+            // Allow focus to move to antd overlay content (template popover inputs, selects)
+            const focusedEl = e.detail?.originalEvent?.target;
+            if (isAntdOverlayTarget(focusedEl)) {
+              e.preventDefault();
+              return;
+            }
             if (catalogDentalDrawerOpen) e.preventDefault();
           }}
           style={{ background: "#F4F5F7" }}
@@ -477,30 +516,22 @@ export function AddEditPlanDrawer() {
             onClose={() => guard.attemptClose()}
             action={
               <div className={styles.headerActionRow}>
-                <button
-                  type="button"
-                  title="Templates"
-                  className={styles.iconBtn}
+                <ConfigProvider 
+                  theme={ABOVE_DRAWER_THEME}
+                  getPopupContainer={(trigger) => trigger?.closest('[role="dialog"]') || document.body}
                 >
-                  <Grid5
-                    color="currentColor"
-                    size={16}
-                    strokeWidth={1.5}
-                    variant="Linear"
+                  <ExaminationTemplateActions
+                    title="Plan Templates"
+                    templates={planTpl.templates}
+                    saving={planTpl.saving}
+                    hasData={rows.length > 0}
+                    onSelect={(t) => applyTemplate(t, planTpl)}
+                    onDelete={planTpl.remove}
+                    onSaveNew={(name) => planTpl.save(name, rowsToTemplatePayload(rows, additionalDiscountAmount))}
+                    onUpdate={(tpl) => planTpl.update(tpl.id, tpl.name, rowsToTemplatePayload(rows, additionalDiscountAmount))}
+                    btnClassName={styles.iconBtn}
                   />
-                </button>
-                <button
-                  type="button"
-                  title="Save as template"
-                  className={styles.iconBtn}
-                >
-                  <Ram
-                    color="currentColor"
-                    size={16}
-                    strokeWidth={1.5}
-                    variant="Linear"
-                  />
-                </button>
+                </ConfigProvider>
                 <button
                   type="button"
                   title="Erase"
@@ -576,30 +607,22 @@ export function AddEditPlanDrawer() {
                   <span className={styles.servicesCount}>{rows.length}</span>
                 )}
                 <div className={styles.servicesHeaderActions}>
-                  <button
-                    type="button"
-                    title="Templates"
-                    className={styles.iconBtn}
+                  <ConfigProvider 
+                    theme={ABOVE_DRAWER_THEME}
+                    getPopupContainer={(trigger) => trigger?.closest('[role="dialog"]') || document.body}
                   >
-                    <Grid5
-                      color="currentColor"
-                      size={16}
-                      strokeWidth={1.5}
-                      variant="Linear"
+                    <ExaminationTemplateActions
+                      title="Service Templates"
+                      templates={serviceTpl.templates}
+                      saving={serviceTpl.saving}
+                      hasData={rows.length > 0}
+                      onSelect={(t) => applyTemplate(t, serviceTpl)}
+                      onDelete={serviceTpl.remove}
+                      onSaveNew={(name) => serviceTpl.save(name, rowsToServiceTemplatePayload(rows))}
+                      onUpdate={(tpl) => serviceTpl.update(tpl.id, tpl.name, rowsToServiceTemplatePayload(rows))}
+                      btnClassName={styles.iconBtn}
                     />
-                  </button>
-                  <button
-                    type="button"
-                    title="Save as template"
-                    className={styles.iconBtn}
-                  >
-                    <Ram
-                      color="currentColor"
-                      size={16}
-                      strokeWidth={1.5}
-                      variant="Linear"
-                    />
-                  </button>
+                  </ConfigProvider>
                   <button
                     type="button"
                     title="Clear all"

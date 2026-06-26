@@ -223,7 +223,30 @@ export const createInvoice = (patientId, planId, data) =>
 export const getInvoice = (patientId, invoiceId) =>
   api.get(`/api/v1/dental/patients/${patientId}/invoices/${invoiceId}`, dentalBaseUrl);
 
-// 9. Rx Previews
+// 9. Plan & Service Templates
+export const listPlanTemplates = () =>
+  api.get(`/api/v1/dental/plan-templates/plan`, dentalBaseUrl);
+export const getPlanTemplateById = (id) =>
+  api.get(`/api/v1/dental/plan-templates/plan/${id}`, dentalBaseUrl);
+export const createPlanTemplate = (data) =>
+  api.post(`/api/v1/dental/plan-templates/plan`, data, dentalBaseUrl);
+export const updatePlanTemplateById = (id, data) =>
+  api.put(`/api/v1/dental/plan-templates/plan/${id}`, data, dentalBaseUrl);
+export const deletePlanTemplateById = (id) =>
+  api.delete(`/api/v1/dental/plan-templates/plan/${id}`, dentalBaseUrl);
+
+export const listServiceTemplates = () =>
+  api.get(`/api/v1/dental/service-templates/service`, dentalBaseUrl);
+export const getServiceTemplateById = (id) =>
+  api.get(`/api/v1/dental/service-templates/service/${id}`, dentalBaseUrl);
+export const createServiceTemplate = (data) =>
+  api.post(`/api/v1/dental/service-templates/service`, data, dentalBaseUrl);
+export const updateServiceTemplateById = (id, data) =>
+  api.put(`/api/v1/dental/service-templates/service/${id}`, data, dentalBaseUrl);
+export const deleteServiceTemplateById = (id) =>
+  api.delete(`/api/v1/dental/service-templates/service/${id}`, dentalBaseUrl);
+
+// 10. Rx Previews
 export const getPlanRxPreview = (patientId, planId) =>
   api.get(
     `/api/v1/dental/patients/${patientId}/plans/${planId}/rx-preview`,

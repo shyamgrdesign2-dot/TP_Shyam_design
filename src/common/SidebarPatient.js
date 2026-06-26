@@ -36,6 +36,7 @@ const {
   bedWithH: HospitalBedIcon,
   healthCheckupReportPrimary: HealthCheckupReportIcon,
   healthCheckupReportSecondary: HealthCheckupReportIconSecondary,
+  scissors: Scissors
 } = ASSETS.images;
 
 function SidebarPatient({
@@ -116,7 +117,7 @@ function SidebarPatient({
         },
         isDentalDoctor && {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN,
-            icon_name: "icon-Medical-Certificate",
+            icon_image: Scissors,
             short_title: "Dental",
             long_title: "Dental Plan",
         },

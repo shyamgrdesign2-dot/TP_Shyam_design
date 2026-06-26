@@ -9,9 +9,11 @@ const PLAN_STATUS_FROM_API = {
 
 const SERVICE_STATUS_FROM_API = {
   PLANNED: "planned",
+  YET_TO_START: "planned",
   IN_PROGRESS: "in-progress",
   COMPLETED: "completed",
   NO_SHOW: "no-show",
+  PATIENT_NO_SHOW: "no-show",
   NOT_INTERESTED: "not-interested",
   CANCELLED: "cancelled",
 };
@@ -19,10 +21,10 @@ const SERVICE_STATUS_FROM_API = {
 const STATUS_TO_API = {
   draft: "DRAFT",
   active: "ACTIVE",
-  planned: "PLANNED",
+  planned: "YET_TO_START",
   "in-progress": "IN_PROGRESS",
   completed: "COMPLETED",
-  "no-show": "NO_SHOW",
+  "no-show": "PATIENT_NO_SHOW",
   "not-interested": "NOT_INTERESTED",
   cancelled: "CANCELLED",
 };
@@ -125,8 +127,9 @@ export const toDentalService = (service = {}) => {
   const toothFdi = teeth[0] || "full-mouth";
   const rate = Number(service.rate) || 0;
   const discount = Number(service.discount) || 0;
+  const rawDiscountType = service.discountType;
   const discountType =
-    service.discountType || service.discount_type || "flat";
+    rawDiscountType === "percentage" ? "percent" : rawDiscountType || "flat";
   const rawVisits =
     service.sittings ||
     service.quickVisitRecords ||
@@ -383,6 +386,9 @@ export const toDentalServicePatchRequest = (data = {}) => {
   if (data.completedAt != null) patch.completed_at = data.completedAt;
   if (data.rate !== undefined) patch.rate = data.rate;
   if (data.discount !== undefined) patch.discount = data.discount;
+  if (data.discountType !== undefined) {
+    patch.discountType = data.discountType === "percent" ? "percentage" : "flat";
+  }
   if (data.procedureDate || data.procedure_date) {
     patch.procedure_date = data.procedureDate || data.procedure_date;
   }
@@ -399,6 +405,7 @@ export const toDentalServiceRequest = (service = {}) => {
     surfaces: service.surfaces || ["whole"],
     rate: service.rate,
     discount: service.discount,
+    discountType: service.discountType === "percent" ? "percentage" : service.discountType ? "flat" : undefined,
     notes: service.notes,
     procedure_date: service.procedureDate || service.procedure_date || undefined,
     status: service.status === "planned" ? undefined : toApiStatus(service.status),

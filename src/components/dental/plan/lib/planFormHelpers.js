@@ -85,7 +85,8 @@ export function fanOutServices(rows, editPlanId) {
         teeth: row.teeth.length > 0 ? row.teeth : ["full-mouth"],
         surfaces: [...row.surfaces],
         rate: row.rate,
-        discount: discAmt,
+        discount: row.discount,
+        discountType: row.discountType || "flat",
         amount: Math.max(0, row.rate - discAmt),
         status: "planned",
         sittings: [],
@@ -94,6 +95,98 @@ export function fanOutServices(rows, editPlanId) {
         notes: row.notes?.trim() || undefined,
       };
     });
+}
+
+/**
+ * Convert form rows to a template payload (strips ephemeral row ids).
+ *
+ * @param {object[]} rows
+ * @returns {{ services: object[] }}
+ */
+export function rowsToTemplatePayload(rows, additionalDiscount = 0, notes = "") {
+  return {
+    additionalDiscount,
+    notes,
+    services: rows
+      .filter((r) => r.treatment)
+      .map(({ treatment, teeth, surfaces, rate, discount, discountType, procedureDate, notes }) => ({
+        treatment,
+        teeth,
+        surfaces,
+        rate,
+        discount,
+        discountType: discountType === "percent" ? "percentage" : "flat",
+        procedureDate: procedureDate || undefined,
+        notes: notes || undefined,
+      })),
+  };
+}
+
+/**
+ * Convert form rows to a flat service template payload (single service).
+ *
+ * @param {object[]} rows
+ * @returns {object} Flat service payload
+ */
+export function rowsToServiceTemplatePayload(rows) {
+  const row = rows.find((r) => r.treatment) || {};
+  return {
+    treatment: row.treatment,
+    teeth: row.teeth || [],
+    surfaces: row.surfaces || [],
+    rate: row.rate || 0,
+    discount: row.discount || 0,
+    discountType: row.discountType === "percent" ? "percentage" : "flat",
+    notes: row.notes || "",
+  };
+}
+
+/**
+ * Convert template payload services back to form rows, merging with existing rows.
+ * Appends new treatments; for existing ones, merges teeth arrays.
+ *
+ * @param {{ services?: object[] }} payload
+ * @param {object[]} existingRows
+ * @returns {object[]}
+ */
+export function mergeTemplateRows(payload, existingRows) {
+  let services = payload?.services;
+  const singleService = payload?.service || (payload?.treatment ? payload : null);
+  if (!services && singleService?.treatment) {
+    const teeth = singleService.teeth?.length > 0 
+      ? singleService.teeth 
+      : (singleService.tooth_fdi ? String(singleService.tooth_fdi).split(",") : ["full-mouth"]);
+    services = [{
+      treatment: singleService.treatment,
+      teeth: teeth,
+      surfaces: singleService.surfaces || ["whole"],
+      rate: singleService.rate,
+      discount: singleService.discount,
+      discountType: singleService.discountType === "percentage" ? "percent" : (singleService.discountType || "flat"),
+      notes: singleService.notes
+    }];
+  } else {
+    services = services ?? [];
+  }
+  const next = [...existingRows];
+  for (const svc of services) {
+    const teeth = Array.isArray(svc.teeth) && svc.teeth.length > 0 
+      ? svc.teeth.map(String) 
+      : ["full-mouth"];
+    
+    next.push({
+      id: genId("row"),
+      treatment: svc.treatment,
+      teeth,
+      surfaces: svc.surfaces?.length > 0 ? svc.surfaces : ["whole"],
+      rate: svc.rate ?? 0,
+      discount: svc.discount ?? 0,
+      discountType: svc.discountType === "percentage" ? "percent" : (svc.discountType || "flat"),
+      procedureDate: svc.procedureDate || "",
+      notes: svc.notes || "",
+    });
+  }
+  return next;
 }
 
 /**
