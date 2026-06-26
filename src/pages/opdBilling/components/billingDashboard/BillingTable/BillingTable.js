@@ -541,6 +541,7 @@ export default function BillingTable({
         "#": index + 1,
         "BILL NO & DATE": billNoAndDate,
         "TOTAL AMOUNT": Number(bill?.payableAmount || 0),
+        "Applicable GST": Number(bill?.applicableGst || 0),
         // Match DownloadBill.js PDF: raw paidAmount, not paidDues rollup
         "PAID AMOUNT": Number(bill?.paidAmount || 0),
         "MOP": paymentModes,
@@ -559,7 +560,7 @@ export default function BillingTable({
       };
     });
 
-    // Column order matches patient-level PDF (DownloadBill): #, bill block, [patient, doctor, mobile], totals, mop, status
+    // Column order matches patient-level PDF (DownloadBill): #, bill block, [patient, doctor, mobile], totals, gst, paid, mop, status
     const billSheetColumnOrder = isDoctorDashboard
       ? [
           "#",
@@ -568,11 +569,20 @@ export default function BillingTable({
           "Doctor Name",
           "Mobile Number",
           "TOTAL AMOUNT",
+          "Applicable GST",
           "PAID AMOUNT",
           "MOP",
           "STATUS",
         ]
-      : ["#", "BILL NO & DATE", "TOTAL AMOUNT", "PAID AMOUNT", "MOP", "STATUS"];
+      : [
+          "#",
+          "BILL NO & DATE",
+          "TOTAL AMOUNT",
+          "Applicable GST",
+          "PAID AMOUNT",
+          "MOP",
+          "STATUS",
+        ];
 
     const billSheet = buildSheetWithHeader("Patient-Level Bill Summary", billRows, {
       header: billSheetColumnOrder,
