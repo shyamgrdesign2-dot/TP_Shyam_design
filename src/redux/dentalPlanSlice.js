@@ -359,7 +359,7 @@ const dentalPlanSlice = createSlice({
         const plan = state.plans.find(p => p.id === action.payload.planId);
         if (plan?.services) {
           const idx = plan.services.findIndex(s => s.id === action.payload.serviceId);
-          if (idx !== -1) plan.services[idx] = action.payload.service;
+          if (idx !== -1) plan.services[idx] = { ...plan.services[idx], ...action.payload.service };
         }
       })
       // Revert Service To Progress
@@ -367,7 +367,7 @@ const dentalPlanSlice = createSlice({
         const plan = state.plans.find(p => p.id === action.payload.planId);
         if (plan?.services) {
           const idx = plan.services.findIndex(s => s.id === action.payload.serviceId);
-          if (idx !== -1) plan.services[idx] = action.payload.service;
+          if (idx !== -1) plan.services[idx] = { ...plan.services[idx], ...action.payload.service };
         }
       })
       // Add Service
@@ -381,10 +381,10 @@ const dentalPlanSlice = createSlice({
       // Update Service
       .addCase(updatePlanService.fulfilled, (state, action) => {
         const plan = state.plans.find(p => p.id === action.payload.planId);
-        if (plan && plan.services) {
+        if (plan?.services) {
           const sIndex = plan.services.findIndex(s => s.id === action.payload.serviceId);
           if (sIndex !== -1) {
-            plan.services[sIndex] = action.payload.service;
+            plan.services[sIndex] = { ...plan.services[sIndex], ...action.payload.service };
           }
         }
       })
