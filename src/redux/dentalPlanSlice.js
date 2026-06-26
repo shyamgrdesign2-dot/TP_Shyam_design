@@ -222,7 +222,7 @@ export const updatePlanService = createAsyncThunk(
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to update service"));
       }
-      return { planId, serviceId, service: toDentalService(getDentalApiPayload(response)) };
+      return { planId, serviceId, patch: getDentalApiPayload(response) };
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -237,7 +237,7 @@ export const markDentalServiceCompleted = createAsyncThunk(
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to mark service as completed"));
       }
-      return { planId, serviceId, service: toDentalService(getDentalApiPayload(response)) };
+      return { planId, serviceId, patch: getDentalApiPayload(response) };
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -252,7 +252,7 @@ export const revertDentalServiceToProgress = createAsyncThunk(
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to revert service to in-progress"));
       }
-      return { planId, serviceId, service: toDentalService(getDentalApiPayload(response)) };
+      return { planId, serviceId, patch: getDentalApiPayload(response) };
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -359,7 +359,7 @@ const dentalPlanSlice = createSlice({
         const plan = state.plans.find(p => p.id === action.payload.planId);
         if (plan?.services) {
           const idx = plan.services.findIndex(s => s.id === action.payload.serviceId);
-          if (idx !== -1) plan.services[idx] = { ...plan.services[idx], ...action.payload.service };
+          if (idx !== -1) plan.services[idx] = toDentalService({ ...plan.services[idx], ...action.payload.patch });
         }
       })
       // Revert Service To Progress
@@ -367,7 +367,7 @@ const dentalPlanSlice = createSlice({
         const plan = state.plans.find(p => p.id === action.payload.planId);
         if (plan?.services) {
           const idx = plan.services.findIndex(s => s.id === action.payload.serviceId);
-          if (idx !== -1) plan.services[idx] = { ...plan.services[idx], ...action.payload.service };
+          if (idx !== -1) plan.services[idx] = toDentalService({ ...plan.services[idx], ...action.payload.patch });
         }
       })
       // Add Service
@@ -384,7 +384,7 @@ const dentalPlanSlice = createSlice({
         if (plan?.services) {
           const sIndex = plan.services.findIndex(s => s.id === action.payload.serviceId);
           if (sIndex !== -1) {
-            plan.services[sIndex] = { ...plan.services[sIndex], ...action.payload.service };
+            plan.services[sIndex] = toDentalService({ ...plan.services[sIndex], ...action.payload.patch });
           }
         }
       })
