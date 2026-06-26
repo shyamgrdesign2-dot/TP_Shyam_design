@@ -53,9 +53,13 @@ export function useDentalPlan(patientId) {
     return dispatch(deleteDentalPlan({ patientId, planId }));
   }, [patientId, dispatch]);
 
-  const duplicatePlan = useCallback((planId) => {
+  const duplicatePlan = useCallback(async (planId) => {
     if (!patientId) return;
-    return dispatch(duplicateDentalPlan({ patientId, planId }));
+    const result = await dispatch(duplicateDentalPlan({ patientId, planId }));
+    if (!result.error) {
+      dispatch(fetchDentalPlans(patientId));
+    }
+    return result;
   }, [patientId, dispatch]);
 
   const activatePlan = useCallback(async (planId, data) => {
