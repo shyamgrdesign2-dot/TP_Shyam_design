@@ -5,6 +5,8 @@
  * Each plan card is an accordion — first open by default, one at a time.
  */
 import { useState } from "react";
+import dayjs from "dayjs";
+import { fdiToLabel } from "./exam-suggestions";
 import {
   Add,
   Printer,
@@ -192,7 +194,8 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                 <col style={{ width: 36, minWidth: 36 }} />
                 <col />
                 <col style={{ width: 70, minWidth: 70 }} />
-                <col style={{ width: 170, minWidth: 170 }} />
+                <col style={{ width: 120, minWidth: 120 }} />
+                <col style={{ width: 90, minWidth: 90 }} />
                 <col style={{ width: 80, minWidth: 80 }} />
                 <col style={{ width: 60, minWidth: 60 }} />
                 <col style={{ width: 80, minWidth: 80 }} />
@@ -203,57 +206,68 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                   <th className={styles.th}>Service</th>
                   <th className={`${styles.th} ${styles.tooth}`}>Tooth</th>
                   <th className={`${styles.th} ${styles.surface}`}>Surface</th>
-                  <th className={`${styles.th} ${styles.rate}`}>Rate</th>
-                  <th className={`${styles.th} ${styles.disc}`}>Disc.</th>
+                  <th className={`${styles.th} ${styles.surgeryDate}`}>Surgery Date</th>
+                  <th className={`${styles.th} ${styles.rate}`}>Rate/Tooth</th>
+                  <th className={`${styles.th} ${styles.disc}`}>Discount</th>
                   <th className={`${styles.th} ${styles.amount}`}>Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {plan.services.map((svc, idx) => (
-                  <tr key={idx} className={styles.tbodyTr}>
-                    <td className={`${styles.td} ${styles.idx}`}>
-                      {idx + 1}
-                    </td>
-                    <td className={styles.td}>
-                      <div className={styles.serviceCell}>
-                        <p className={styles.treatmentName}>
-                          {svc.treatment}
-                        </p>
-                        <p className={styles.toothMeta}>
-                          {svc.toothLabel}
-                        </p>
-                      </div>
-                    </td>
-                    <td className={styles.td}>
-                      <span className={styles.tdToothPill}>
-                        {svc.toothFdi === "full-mouth"
-                          ? "Full"
-                          : `T${svc.toothFdi}`}
-                      </span>
-                    </td>
-                    <td className={styles.td}>
-                      {svc.surfaces && svc.surfaces.length > 0 ? (
-                        <PlanSurfaceAbbrTags surfaces={svc.surfaces} />
-                      ) : (
-                        <span style={{ color: "var(--tp-slate-300)" }}>—</span>
-                      )}
-                    </td>
-                    <td className={`${styles.td} ${styles.rate}`}>
-                      {formatINR(svc.rate)}
-                    </td>
-                    <td className={`${styles.td} ${styles.disc}`}>
-                      {svc.discount > 0 ? `-${formatINR(svc.discount)}` : "—"}
-                    </td>
-                    <td className={`${styles.td} ${styles.amount}`}>
-                      {formatINR(svc.amount)}
-                    </td>
-                  </tr>
-                ))}
+                {plan.services.flatMap((svc, idx) => {
+                  const teeth = svc.teeth?.length > 0 ? svc.teeth : [svc.toothFdi];
+                  const isFullMouth = teeth.includes("full-mouth");
+                  const surgeryDate = svc.procedureDate
+                    ? dayjs(svc.procedureDate).format("D MMM YY")
+                    : null;
+                  return teeth.map((fdi, tIdx) => (
+                    <tr key={`${idx}-${tIdx}`} className={styles.tbodyTr}>
+                      <td className={`${styles.td} ${styles.idx}`}>
+                        {tIdx === 0 ? idx + 1 : ""}
+                      </td>
+                      <td className={styles.td}>
+                        <div className={styles.serviceCell}>
+                          <p className={styles.treatmentName}>{svc.treatment}</p>
+                          {!isFullMouth && (
+                            <p className={styles.toothMeta}>{fdiToLabel(fdi)}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className={styles.td}>
+                        <span className={styles.tdToothPill}>
+                          {isFullMouth ? "Full" : `T${fdi}`}
+                        </span>
+                      </td>
+                      <td className={styles.td}>
+                        {svc.surfaces && svc.surfaces.length > 0 ? (
+                          <PlanSurfaceAbbrTags surfaces={svc.surfaces} />
+                        ) : (
+                          <span style={{ color: "var(--tp-slate-300)" }}>—</span>
+                        )}
+                      </td>
+                      <td className={`${styles.td} ${styles.surgeryDate}`}>
+                        {surgeryDate ? (
+                          <span>{surgeryDate}</span>
+                        ) : (
+                          <span style={{ color: "var(--tp-slate-300)" }}>—</span>
+                        )}
+                      </td>
+                      <td className={`${styles.td} ${styles.rate}`}>
+                        {formatINR(svc.rate)}
+                      </td>
+                      <td className={`${styles.td} ${styles.disc}`}>
+                        {svc.discount > 0 ? `-${formatINR(svc.discount)}` : "—"}
+                      </td>
+                      <td className={`${styles.td} ${styles.amount}`}>
+                        {formatINR(svc.amount)}
+                      </td>
+                    </tr>
+                  ));
+                })}
               </tbody>
               <tfoot>
                 {(plan.additionalDiscount ?? 0) > 0 && (
                   <tr className={styles.tfootTr}>
-                    <td colSpan={6} className={styles.tfootLabel}>
+                    <td colSpan={7} className={styles.tfootLabel}>
                       Subtotal
                     </td>
                     <td className={styles.tfootValue}>
@@ -263,7 +277,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                 )}
                 {(plan.additionalDiscount ?? 0) > 0 && (
                   <tr className={styles.tfootTr}>
-                    <td colSpan={6} className={`${styles.tfootLabel} ${styles.success}`}>
+                    <td colSpan={7} className={`${styles.tfootLabel} ${styles.success}`}>
                       Additional discount
                     </td>
                     <td className={`${styles.tfootValue} ${styles.success}`}>
@@ -274,7 +288,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                 <tr className={`${styles.tfootTr} ${
                   (plan.additionalDiscount ?? 0) > 0 ? styles.withDiscount : styles.final
                 }`}>
-                  <td colSpan={6} className={`${styles.tfootLabel} ${styles.final}`}>
+                  <td colSpan={7} className={`${styles.tfootLabel} ${styles.final}`}>
                     {(plan.additionalDiscount ?? 0) > 0 ? "Final Total" : "Plan Total"}
                   </td>
                   <td className={`${styles.tfootValue} ${styles.final}`}>
