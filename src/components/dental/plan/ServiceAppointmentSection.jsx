@@ -7,6 +7,7 @@
  * Exports: ServiceAppointmentSection
  */
 import { useState } from "react";
+import dayjs from "dayjs";
 import { usePlanContext } from "./plan-context";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
 import { formatINR } from "./plan-shared";
@@ -90,6 +91,15 @@ export function ServiceAppointmentSection({ service, plan }) {
               <span className={styles.summaryLabel}>Amount:</span>
               <span className={styles.summaryValueAmount}>
                 {formatINR(service.amount)}
+              </span>
+            </div>
+            <span aria-hidden={true} className={styles.summaryDivider} />
+            <div className={styles.summaryItem}>
+              <span className={styles.summaryLabel}>Surgery Date:</span>
+              <span className={service.procedureDate ? "" : styles.muted}>
+                {service.procedureDate
+                  ? dayjs(service.procedureDate).format("D MMM YY")
+                  : "—"}
               </span>
             </div>
             <span aria-hidden={true} className={styles.summaryDivider} />
