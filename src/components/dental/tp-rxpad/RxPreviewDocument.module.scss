@@ -1,0 +1,328 @@
+@use "../styles/tp-tokens" as tp;
+
+.page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sheet {
+  display: flex;
+  width: 100%;
+  aspect-ratio: 210 / 297;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.08);
+}
+
+.sheetBody {
+  flex: 1;
+  overflow: hidden;
+
+  :global([data-dental-flat-chart="true"]) {
+    overflow: visible;
+    padding-bottom: 4px;
+  }
+}
+
+.emptyPad {
+  padding: 20px 0;
+}
+
+.emptyText {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  color: tp.$slate-600;
+}
+
+.contentStack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.metaMuted {
+  color: tp.$slate-500;
+}
+
+.metaSep {
+  color: tp.$slate-400;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.icon14 {
+  display: inline-flex;
+  height: 14px;
+  width: 14px;
+  align-items: center;
+  justify-content: center;
+}
+
+.medIcon14 {
+  display: block;
+  height: 14px;
+  width: 14px;
+}
+
+.sectionTitle {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: tp.$slate-900;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-inline-start: 18px;
+  list-style: disc;
+  margin: 0;
+}
+
+.listLi {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  color: tp.$slate-700;
+
+  &::marker {
+    color: tp.$slate-500;
+  }
+}
+
+.rowTitle {
+  font-weight: 500;
+  color: tp.$slate-900;
+}
+
+.letterhead {
+  margin-bottom: 14px;
+  border-radius: 6px;
+  background: color-mix(in srgb, tp.$slate-100 60%, transparent);
+  padding: 8px 10px;
+}
+
+.letterRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.letterLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.logoBox {
+  display: flex;
+  height: 64px;
+  width: 64px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--tp-blue-50);
+}
+
+.buildingIcon {
+  color: var(--tp-blue-600);
+}
+
+.clinicName {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--tp-blue-700);
+}
+
+.docLine {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: tp.$slate-700;
+}
+
+.metaLine {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  line-height: 14px;
+  color: tp.$slate-600;
+}
+
+.rule {
+  height: 1px;
+  width: 100%;
+  background: tp.$slate-300;
+}
+
+.patientSection {
+  padding: 8px 0;
+}
+
+.patientRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.patientCol {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.patientLine {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  color: tp.$slate-700;
+}
+
+.patientStrong {
+  font-weight: 600;
+  color: tp.$slate-900;
+}
+
+.patientRight {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+}
+
+.footer {
+  padding-top: 10px;
+}
+
+.footerText {
+  text-align: right;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  line-height: 14px;
+  color: tp.$slate-500;
+}
+
+.dentalSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dentalTitle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: tp.$slate-900;
+}
+
+.dentalDate {
+  font-weight: 500;
+  color: tp.$slate-600;
+}
+
+.dentalBlocks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 6px;
+}
+
+.toothBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toothLabel {
+  padding-left: 12px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  color: tp.$slate-900;
+}
+
+.bullet {
+  margin-right: 6px;
+  font-size: 10px;
+  color: tp.$slate-500;
+}
+
+.subBullet {
+  margin-right: 6px;
+  color: tp.$slate-400;
+}
+
+.subStack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 18px;
+}
+
+.subLine {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  color: tp.$slate-700;
+}
+
+.subStrong {
+  font-weight: 500;
+  color: tp.$slate-900;
+}
+
+.comma {
+  color: tp.$slate-400;
+}
+
+.miniSection {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.miniBody {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  color: tp.$slate-700;
+}
+
+.continueBody {
+  flex: 1;
+  overflow: hidden;
+  padding: 8px 0;
+}

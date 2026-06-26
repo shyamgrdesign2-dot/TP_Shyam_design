@@ -18,7 +18,7 @@ import {
   Spin,
   Tooltip,
 } from "antd";
-import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
+import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
@@ -31,7 +31,6 @@ import {
   capitalizeAfterSentence,
   getClinicName,
 } from "../utils/utils";
-import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 
 import { MenuOutlined } from "@ant-design/icons";
 import {
@@ -46,7 +45,7 @@ import ApiSurgical from "../api/services/ApiSurgical";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useLocation } from "react-router-dom";
-import { GB_APOLLO_DISABLE_FEATURE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
 import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
@@ -77,13 +76,10 @@ function SurgicalBox({ showVoiceRxModule }) {
   const { profile } = useSelector((state) => state.doctors);
 
   const { state } = useLocation();
-  const { patient_data } = state;
+  const { patient_data } = state || {};
 
   const { surgeriesData, setSurgeriesData } = useContext(CashManagerContext);
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
-  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
-  const emptySurgeryRow = () => ({ masterId: uuidv4(), name: "", notes: "" });
   const mapSurgeryMasterRecord = useCallback((record) => {
     if (typeof record === "string" || typeof record === "number") {
       return { masterId: record };
@@ -161,15 +157,9 @@ function SurgicalBox({ showVoiceRxModule }) {
   const applyVoiceSurgeries = useCallback(async (nextSurgeries) => {
     if (nextSurgeries.length > 0) {
       const enrichedSurgeries = await enrichVoiceSurgeryRows(nextSurgeries);
-      if (canShowVoiceRxNewRows) {
-        const last = enrichedSurgeries[enrichedSurgeries.length - 1];
-        const withTrailing = (!last || last.name !== "") ? [...enrichedSurgeries, emptySurgeryRow()] : enrichedSurgeries;
-        setSurgeriesData(withTrailing);
-      } else {
-        setSurgeriesData(enrichedSurgeries);
-      }
+      setSurgeriesData(enrichedSurgeries);
     }
-  }, [canShowVoiceRxNewRows, enrichVoiceSurgeryRows, setSurgeriesData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enrichVoiceSurgeryRows, setSurgeriesData]);
   const surgeriesVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(surgeriesData, "surgery"),
     [surgeriesData]
@@ -188,18 +178,6 @@ function SurgicalBox({ showVoiceRxModule }) {
   });
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
-
-  useEffect(() => {
-    if (!canShowVoiceRxNewRows) return;
-    setSurgeriesData(prev => {
-      const last = prev[prev.length - 1];
-      if (!last || last.name !== "") return [...prev, emptySurgeryRow()];
-      return prev;
-    });
-  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
-  const handleAddRow = useCallback(() => {
-    setSurgeriesData(prev => [...prev, emptySurgeryRow()]);
-  }, [setSurgeriesData]);
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -459,11 +437,8 @@ function SurgicalBox({ showVoiceRxModule }) {
         query: surgeriesUpdatedData.name,
         index: i,
       });
-      if (canShowVoiceRxNewRows && i === surgeriesData.length - 1) {
-        setSurgeriesData((prev) => [...prev, emptySurgeryRow()]);
-      }
     },
-    [searchChildQuery, surgeriesData, canShowVoiceRxNewRows]
+    [searchChildQuery, surgeriesData]
   );
 
   const onChangeNoteChild = useCallback(
@@ -476,11 +451,7 @@ function SurgicalBox({ showVoiceRxModule }) {
 
   const onRemoveRow = (index) => {
     surgeriesData.splice(index, 1);
-    if (canShowVoiceRxNewRows && surgeriesData.length === 0) {
-      setSurgeriesData([emptySurgeryRow()]);
-    } else {
-      setSurgeriesData((prev) => [...prev]);
-    }
+    setSurgeriesData((prev) => [...prev]);
   };
 
   //PopOver1 function
@@ -508,7 +479,7 @@ function SurgicalBox({ showVoiceRxModule }) {
         notes: e.notes ? e.notes : "",
       };
     });
-    setSurgeriesData(appendStripped(surgeriesData, updatedData, "surgeries"));
+    setSurgeriesData([...surgeriesData, ...updatedData]);
     showHideTemplatesListPopover();
   };
 
@@ -542,7 +513,7 @@ function SurgicalBox({ showVoiceRxModule }) {
   );
 
   const onAddTemplateClicked = async () => {
-    const templateSurgeries = canShowVoiceRxNewRows ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
+    const templateSurgeries = surgeriesData;
     if (templateSurgeries.length === 0) {
       errorMessage("At least 1 surgeries/procedures added");
     } else if (templateSurgeries.filter((e) => String(e.name ?? "").trim() === "").length > 0) {
@@ -572,7 +543,7 @@ function SurgicalBox({ showVoiceRxModule }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    const templateSurgeries = canShowVoiceRxNewRows ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
+    const templateSurgeries = surgeriesData;
     if (templateSurgeries.length === 0) {
       errorMessage("At least 1 surgeries/procedures added");
     } else if (templateSurgeries.filter((e) => String(e.name ?? "").trim() === "").length > 0) {
@@ -933,7 +904,7 @@ function SurgicalBox({ showVoiceRxModule }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setSurgeriesData(canShowVoiceRxNewRows ? [emptySurgeryRow()] : []);
+    setSurgeriesData([]);
     showHideClearData();
   };
 
@@ -1065,15 +1036,7 @@ function SurgicalBox({ showVoiceRxModule }) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
-        {canShowVoiceRxNewRows && (
-          <div className="p-2">
-            <Button type="link" icon={<PlusOutlined />} className="add-custom-module-link" onClick={handleAddRow}>
-              Add New Line
-            </Button>
-          </div>
-        )}
-
-        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Surgeries/Procedures"
@@ -1081,7 +1044,7 @@ function SurgicalBox({ showVoiceRxModule }) {
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.surgeries}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : !isVoiceRxModuleEnabled ? (
+          ) : (
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1095,7 +1058,7 @@ function SurgicalBox({ showVoiceRxModule }) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          ) : null}
+          )}
         </div>
       </div>
     </>

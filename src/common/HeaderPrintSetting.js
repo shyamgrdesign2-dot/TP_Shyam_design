@@ -21,6 +21,7 @@ import { setCurrentSessionRx } from '../redux/obstetricSlice';
 import { getDecodedToken } from '../utils/localStorage';
 import { env } from '../EnvironmentConfig';
 import { GB_ZYDUS_USER } from '../utils/constants';
+import { isTabRxPrintViewRoute } from '../utils/dentalRoutes';
 import { updatePatientDefaultLanguage } from '../api/services/DefaultLanguageService';
 import { ASSETS } from "../assets";
 const {
@@ -193,9 +194,9 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                             smartRxFile: state?.smartRxFile || state?.files
                         } 
                     });
-                } else if (previousPage === "/tab-rx-prescription") {
+                } else if (isTabRxPrintViewRoute(previousPage)) {
                     const updatedSelectedLang = printSettings?.default_language || selectedLang;
-                    navigate("/tab-rx-prescription", {
+                    navigate(previousPage, {
                         replace: true,
                         state: {
                             ...state,
@@ -265,8 +266,8 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
-            } else if (previousPage === "/tab-rx-prescription") {
-                navigate("/tab-rx-prescription", {
+            } else if (isTabRxPrintViewRoute(previousPage)) {
+                navigate(previousPage, {
                     replace: true,
                     state: {
                         ...state,
@@ -332,8 +333,8 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
-            } else if (previousPage === "/tab-rx-prescription") {
-                navigate("/tab-rx-prescription", {
+            } else if (isTabRxPrintViewRoute(previousPage)) {
+                navigate(previousPage, {
                     replace: true,
                     state: {
                         ...state,
@@ -424,9 +425,9 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
-            } else if (previousPage === "/tab-rx-prescription") {
+            } else if (isTabRxPrintViewRoute(previousPage)) {
                 const updatedSelectedLang = printSettings?.default_language || selectedLang;
-                navigate("/tab-rx-prescription", {
+                navigate(previousPage, {
                     replace: true,
                     state: {
                         ...state,

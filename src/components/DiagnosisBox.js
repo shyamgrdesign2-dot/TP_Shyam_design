@@ -26,7 +26,7 @@ import CommonModal from '../common/CommonModal';
 import CashManagerContext from "../context/CashManagerContext";
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence, shouldMonetizationDisabled } from "../utils/utils";
 
-import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
+import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
   updateTemplate,
@@ -53,14 +53,14 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
-import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
-import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
 } = ASSETS.images;
 
 function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoading, handleDDxKnowMore, isDDxGenerated, showVoiceRxModule}) {
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedDiagnosisList,
     parentOptionsList,
@@ -77,8 +77,6 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
-  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
 
   const ddxOptionsList = generatedDDx?.map((item) => {
     return {
@@ -130,35 +128,12 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
-  const emptyDiagnosisRow = () => ({ tds_name: "", tds_id: 0, unique_id: uuidv4(), change: 1, pms_default: 0, icd_code: "", since: "", status: "", note: "" });
-
   const applyVoiceDiagnosis = useCallback((nextDiagnosis) => {
     if (nextDiagnosis.length > 0) {
-      if (canShowVoiceRxNewRows) {
-        const last = nextDiagnosis[nextDiagnosis.length - 1];
-        const withTrailing = (!last || last.tds_name !== "") ? [...nextDiagnosis, emptyDiagnosisRow()] : nextDiagnosis;
-        setDiagnosisData(withTrailing);
-      } else {
-        setDiagnosisData(nextDiagnosis);
-      }
+      setDiagnosisData(nextDiagnosis);
     }
-  }, [canShowVoiceRxNewRows, setDiagnosisData]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // add one trailing empty row on mount (only when flag is on)
-  useEffect(() => {
-    if (!canShowVoiceRxNewRows) return;
-    setDiagnosisData(prev => {
-      const last = prev[prev.length - 1];
-      if (!last || last.tds_name !== "") {
-        return [...prev, emptyDiagnosisRow()];
-      }
-      return prev;
-    });
-  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleAddRow = useCallback(() => {
-    setDiagnosisData(prev => [...prev, emptyDiagnosisRow()]);
   }, [setDiagnosisData]);
+
   const diagnosisVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(diagnosisData, "diagnosis"),
     [diagnosisData]
@@ -355,11 +330,8 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       diagnosisData[i] = { ...diagnosisData[i], ...JSON.parse(e.key) };
       setDiagnosisData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).tds_name, index: i });
-      if (canShowVoiceRxNewRows && i === diagnosisData.length - 1) {
-        setDiagnosisData((prev) => [...prev, emptyDiagnosisRow()]);
-      }
     },
-    [searchChildQuery, diagnosisData, canShowVoiceRxNewRows]
+    [searchChildQuery, diagnosisData]
   );
 
   const onSearchSinceChid = useCallback(
@@ -420,11 +392,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const onRemoveRow = (index) => {
     diagnosisData.splice(index, 1);
-    if (canShowVoiceRxNewRows && diagnosisData.length === 0) {
-      setDiagnosisData([emptyDiagnosisRow()]);
-    } else {
-      setDiagnosisData((prev) => [...prev]);
-    }
+    setDiagnosisData((prev) => [...prev]);
   };
 
   //PopOver1 function
@@ -467,7 +435,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     const action = await dispatch(singleTemplateDetails(template.tdt_id));
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action?.payload;
-      setDiagnosisData(appendStripped(diagnosisData, updatedData, "diagnosis"));
+      setDiagnosisData([...diagnosisData, ...updatedData]);
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)
@@ -504,7 +472,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   );
 
   const onAddTemplateClicked = async () => {
-    const templateDiagnosis = canShowVoiceRxNewRows ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
+    const templateDiagnosis = diagnosisData;
     if (templateDiagnosis.length === 0) {
       errorMessage('At least 1 diagnosis added')
     } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
@@ -534,7 +502,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   );
 
   const onUpdateTemplateClicked = async () => {
-    const templateDiagnosis = canShowVoiceRxNewRows ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
+    const templateDiagnosis = diagnosisData;
     if (templateDiagnosis.length === 0) {
       errorMessage('At least 1 diagnosis added')
     } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
@@ -731,6 +699,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                               onFocus={() => onFocusChid(index)}
                               options={childSearchOptions}
                               className="autocomplete-custom w-100 inputborder"
+                              {...getPrescriptionNewPopupProps()}
                               defaultActiveFirstOption={true}
                               onSelect={(data, e) => onSelectChild(data, e, index)}
                             />
@@ -747,6 +716,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onBlur={() => onBlurSinceChid(index)}
                             options={sinceOptions}
                             className="autocomplete-custom w-100 inputborder"
+                            {...getPrescriptionNewPopupProps()}
                             defaultActiveFirstOption={true}
                             onSelect={(data) => onSelectSinceChild(data, index)}
                           />
@@ -759,6 +729,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             value={item.status != "" ? item.status : null}
                             onSelect={(data) => onSelectStatusChild(data, index)}
                             options={STATUS_LIST}
+                            {...getPrescriptionNewPopupProps()}
                             onClear={() => onSelectStatusChild("", index)}
                             allowClear
                           />
@@ -910,6 +881,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -952,7 +924,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setDiagnosisData(canShowVoiceRxNewRows ? [emptyDiagnosisRow()] : [])
+    setDiagnosisData([])
     showHideClearData()
   };
 
@@ -1088,19 +1060,6 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_DIAGNOSIS}
-        {canShowVoiceRxNewRows && (
-          <div className="p-2">
-            <Button
-              type="link"
-              icon={<PlusOutlined />}
-              className="add-custom-module-link"
-              onClick={handleAddRow}
-            >
-              Add New Line
-            </Button>
-          </div>
-        )}
-
         {(isApexAIAccessable || tp_monetization_enable) && (
           <div style={{ padding: "0 14px" }}>
             <DifferentialDiagnosis
@@ -1120,7 +1079,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
             />
           </div>
         )}
-        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Diagnosis"
@@ -1128,7 +1087,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.diagnosis}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : !isVoiceRxModuleEnabled ? (
+          ) : (
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1136,14 +1095,14 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               className="autocomplete-custom w-100"
               onSelect={onSelectParent}
               defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
+              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
             >
               <Input
                 placeholder="Search Diagnosis"
                 prefix={<i className="icon-search" />}
               />
             </AutoComplete>
-          ) : null}
+          )}
         </div>
       </div>
     </>

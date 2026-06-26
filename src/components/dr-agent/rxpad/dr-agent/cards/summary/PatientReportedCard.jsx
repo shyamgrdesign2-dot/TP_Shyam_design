@@ -42,31 +42,60 @@ function parseMedication(value) {
 function parseHistory(value) {
   if (value && typeof value === "object") {
     const name = cleanText(value.name || value.history_name || value.lineItem || value.notes);
+    if (!name) return null;
     const detail = detailFrom([
       value.duration || value.since,
       value.status,
       value.relation,
       value.notes || value.note,
     ]);
-    return { name, detail };
+    return {
+      ...value,
+      name,
+      detail,
+      type: value.type || "medical_history",
+      duration: value.duration || value.since || "",
+      since: value.since || value.duration || "",
+      status: value.status || "",
+      relation: value.relation || value.relationship || "",
+      notes: value.notes || value.note || "",
+      lineItem: value.lineItem || name,
+    };
   }
 
   const text = cleanText(value);
   if (!text) return null;
   const parenMatch = text.match(/^([^(]+?)\s*\(([^)]+)\)\s*$/);
-  if (parenMatch) return { name: parenMatch[1].trim(), detail: parenMatch[2].trim() };
-  return { name: text };
+  if (parenMatch) {
+    return {
+      name: parenMatch[1].trim(),
+      detail: parenMatch[2].trim(),
+      type: "medical_history",
+      lineItem: parenMatch[1].trim(),
+    };
+  }
+  return { name: text, type: "medical_history", lineItem: text };
 }
 
 function parseSymptom(value) {
   if (value && typeof value === "object") {
     const name = cleanText(value.name || value.symptom_name || value.lineItem);
+    if (!name) return null;
     const detail = detailFrom([
       value.duration || value.since,
       value.severity,
       value.notes || value.note,
     ]);
-    return { name, detail };
+    return {
+      ...value,
+      name,
+      detail,
+      duration: value.duration || value.since || "",
+      since: value.since || value.duration || "",
+      severity: value.severity || "",
+      notes: value.notes || value.note || "",
+      lineItem: value.lineItem || name,
+    };
   }
 
   const text = cleanText(value);
@@ -83,7 +112,38 @@ function parseQuestion(value) {
 }
 
 function formatItem(item) {
-  return item.detail ? `${item.name} (${item.detail})` : item.name;
+  const label = item.displayName || item.name;
+  return item.detail ? `${label} (${item.detail})` : label;
+}
+
+function buildSymptomRows(items) {
+  return items.map((item) => ({
+    name: item.name,
+    symptom_name: item.symptom_name || item.name,
+    duration: item.duration || item.since || "",
+    since: item.since || item.duration || "",
+    severity: item.severity || "",
+    notes: item.notes || item.note || "",
+    lineItem: item.lineItem || item.name,
+  }));
+}
+
+function buildMedicalHistoryRows(items) {
+  return items.map((item) => ({
+    type: item.type || "medical_history",
+    name: item.name,
+    lineItem: item.lineItem || item.name,
+    duration: item.duration || item.since || "",
+    since: item.since || item.duration || "",
+    status: item.status || "Active",
+    relation: item.relation || item.relationship || "",
+    relationship: item.relationship || item.relation || "",
+    notes: item.notes || item.note || "",
+    enable: item.enable,
+    medication: item.medication,
+    date: item.date,
+    dateType: item.dateType,
+  }));
 }
 
 function buildPatientReportedPayload(sectionId, items) {
@@ -95,9 +155,14 @@ function buildPatientReportedPayload(sectionId, items) {
 
   switch (sectionId) {
     case "symptoms":
-      return { ...base, symptoms: labels };
+      return { ...base, symptoms: buildSymptomRows(items) };
     case "medicalHistory":
-      return { ...base, targetSection: "history", historyChangeSummaries: labels };
+      return {
+        ...base,
+        sideNavSignalTarget: "history",
+        sideNavSignalMode: "focused",
+        medicalHistory: buildMedicalHistoryRows(items),
+      };
     case "currentMedications":
       return {
         ...base,
@@ -121,15 +186,13 @@ function buildPatientReportedAllPayload(groups) {
   const payload = {
     sourceDateLabel: "Patient intake",
     targetSection: "rxpad",
+    skipVitalsSync: true,
   };
 
   groups.forEach((group) => {
     const next = buildPatientReportedPayload(group.id, group.items);
     payload.symptoms = [...(payload.symptoms || []), ...(next.symptoms || [])];
-    payload.historyChangeSummaries = [
-      ...(payload.historyChangeSummaries || []),
-      ...(next.historyChangeSummaries || []),
-    ];
+    payload.medicalHistory = [...(payload.medicalHistory || []), ...(next.medicalHistory || [])];
     payload.medications = [...(payload.medications || []), ...(next.medications || [])];
     payload.additionalNotes = [payload.additionalNotes, next.additionalNotes]
       .filter(Boolean)
@@ -137,7 +200,7 @@ function buildPatientReportedAllPayload(groups) {
   });
 
   if (!payload.symptoms?.length) delete payload.symptoms;
-  if (!payload.historyChangeSummaries?.length) delete payload.historyChangeSummaries;
+  if (!payload.medicalHistory?.length) delete payload.medicalHistory;
   if (!payload.medications?.length) delete payload.medications;
   if (!payload.additionalNotes) delete payload.additionalNotes;
   return payload;
@@ -158,7 +221,13 @@ const SECTION_DEFS = [
     copyTooltip: "Copy medical history to RxPad",
     getItems: (data) => [
       ...(data.medicalHistory || []).map(parseHistory),
-      ...(data.allergies || []).map(cleanText).filter(Boolean).map((item) => ({ name: `Allergy: ${item}` })),
+      ...(data.allergies || []).map(cleanText).filter(Boolean).map((item) => ({
+        name: item,
+        displayName: `Allergy: ${item}`,
+        type: "allergies",
+        status: "Active",
+        lineItem: item,
+      })),
     ],
   },
   {
@@ -270,7 +339,7 @@ export function PatientReportedCard({ data, onCopy, defaultCollapsed = false }) 
                 const canCopyItem = section.id !== "questionsToDoctor";
                 const content = (
                   <span className={styles.itemText}>
-                    <span className={styles.itemName}>{item.name}</span>
+                    <span className={styles.itemName}>{item.displayName || item.name}</span>
                     {item.detail ? <span className={styles.itemDetail}>({item.detail})</span> : null}
                   </span>
                 );

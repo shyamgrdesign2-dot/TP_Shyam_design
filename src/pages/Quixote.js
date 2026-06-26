@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { Spin } from "antd";
 
@@ -8,6 +8,8 @@ import { useSelector } from "react-redux";
 
 import { NORMAL } from "../utils/constants";
 import ViewPDF from '../components/print_settings/ViewPDF';
+import { prefetchDentalToothImageMap } from '../components/dental/examination/dentalChartPdf';
+import { resolveDentalOralForPrint } from '../utils/resolveDentalOralPrintData';
 import { renderPDF } from '../components/print_settings/renderPDF';
 import { PDF } from '../components/print_settings/PDF';
 import { pdfjs, Document, Page } from "react-pdf";
@@ -18,11 +20,13 @@ const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
 
 const showDateFormat = 'DD MMM, YY'
+const PDF_REGEN_DEBOUNCE_MS = 400;
 
 function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig, isCvtExtHosAccessableFromGB, drawingCanvases, isDrawingCanvasesLoading } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig, dentalExaminationData, isDentalEnabled, isCvtExtHosAccessableFromGB, drawingCanvases, isDrawingCanvasesLoading } = useContext(PrintSettingsContext);
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
+    const oralExamination = useSelector((state) => state.oralExamination);
     const {isGynaecHistoryAccessable} = useAccess();
     const { isPediatricAccessable } = useAccess();
     const dispatch = useDispatch();
@@ -169,6 +173,79 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
     const pdfUrlRef = useRef(null);
     const renderIdRef = useRef(0);
     const isMountedRef = useRef(true);
+    const lastSessionRxRef = useRef(null);
+
+    const pdfInputKey = useMemo(() => {
+        try {
+            return JSON.stringify({
+                mode,
+                printSettings,
+                fileHeader,
+                fileFooter,
+                fileLogo,
+                fileWatermark,
+                fileSignature,
+                caseManagerData,
+                frequencyList,
+                timingList,
+                labParamsData,
+                customModules,
+                carePlanAssignments,
+                smartRxFile,
+                isDigitisedPrintConfig,
+                dentalExaminationData,
+                oralExamination,
+                todayVaccines: props.todayVaccines,
+                growthChartDetails: props.growthChartDetails,
+                obstetricDetails: props.obstetricDetails,
+                patientBills: props.patientBills,
+                advanceReceipts: props.advanceReceipts,
+                patientWalletBalance: props.patientWalletBalance,
+                abhaDetails: props.abhaDetails,
+                dentalData: props.dentalData,
+                ophthalModuleData,
+                isGynaecHistoryAccessable,
+                printSettingsCopy: props.printSettingsCopy,
+                fileHeaderCopy: props.fileHeaderCopy,
+                fileFooterCopy: props.fileFooterCopy,
+                fileLogoCopy: props.fileLogoCopy,
+            });
+        } catch {
+            return String(Date.now());
+        }
+    }, [
+        mode,
+        printSettings,
+        fileHeader,
+        fileFooter,
+        fileLogo,
+        fileWatermark,
+        fileSignature,
+        caseManagerData,
+        frequencyList,
+        timingList,
+        labParamsData,
+        customModules,
+        carePlanAssignments,
+        smartRxFile,
+        isDigitisedPrintConfig,
+        dentalExaminationData,
+        oralExamination,
+        props.todayVaccines,
+        props.growthChartDetails,
+        props.obstetricDetails,
+        props.patientBills,
+        props.advanceReceipts,
+        props.patientWalletBalance,
+        props.abhaDetails,
+        props.dentalData,
+        ophthalModuleData,
+        isGynaecHistoryAccessable,
+        props.printSettingsCopy,
+        props.fileHeaderCopy,
+        props.fileFooterCopy,
+        props.fileLogoCopy,
+    ]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -182,103 +259,116 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
     }, []);
 
     useEffect(() => {
+        if (!caseManagerData?.patient_data) {
+            return undefined;
+        }
+
         const renderId = ++renderIdRef.current;
-        // const makePDFUrl = async () => {
-        //     var make_data = {
-        //         mode: mode,
-        //         caseManagerData: caseManagerData,
-        //         columns: columns,
-        //         initialRows: initialRows,
-        //         frequencyList: frequencyList,
-        //         timingList: timingList,
-        //         printSettings: mode == NORMAL ? printSettings : props.printSettingsCopy,
-        //         fileHeader: mode == NORMAL ? fileHeader : props.fileHeaderCopy,
-        //         fileFooter: mode == NORMAL ? fileFooter : props.fileFooterCopy,
-        //         fileLogo: mode == NORMAL ? fileLogo : props.fileLogoCopy,
-        //         fileWatermark: fileWatermark,
-        //         fileSignature: fileSignature,
-        //     }
-        //     const blob = await renderPDF({ ...make_data });
-        //     setPdfUrl(URL.createObjectURL(blob))
-        // }
-        const makePDFUrl = async () => {
-            if (!caseManagerData || !caseManagerData.patient_data) {
-                return;
-            }
+        const timer = setTimeout(() => {
+            const makePDFUrl = async () => {
+                const toothImageMap = await prefetchDentalToothImageMap();
+                const activePrintSettings = mode == NORMAL ? printSettings : props.printSettingsCopy;
+                const patientId = caseManagerData?.patient_data?.patient_unique_id;
+                const consultationDate =
+                    caseManagerData?.patient_data?.patient_consultaion_date ||
+                    caseManagerData?.consultation_date;
 
-            const renderPdfWithSmartRx = (smartRxData) => pdf(<ViewPDF
-                mode={mode}
-                caseManagerData={caseManagerData}
-                carePlanAssignments={carePlanAssignments}
-                smartRxData={smartRxData}
-                isDigitisedPrintConfig={isDigitisedPrintConfig}
-                isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
-                columns={columns}
-                initialRows={initialRows}
-                frequencyList={frequencyList}
-                timingList={timingList}
-                printSettings={mode == NORMAL ? printSettings : props.printSettingsCopy}
-                fileHeader={mode == NORMAL ? fileHeader : props.fileHeaderCopy}
-                fileFooter={mode == NORMAL ? fileFooter : props.fileFooterCopy}
-                fileLogo={mode == NORMAL ? fileLogo : props.fileLogoCopy}
-                fileWatermark={fileWatermark}
-                fileSignature={fileSignature}
-                todayVaccines={props.todayVaccines}
-                growthChartDetails={props.growthChartDetails}
-                isGynaecHistoryAccessable = {isGynaecHistoryAccessable}
-                obsHistoryData={props.obstetricDetails}
-                labParamsData={labParamsData}
-                customModules={hospitalSearchResults?.modules}
-                patientBills={props.patientBills}
-                advanceReceipts={props.advanceReceipts}
-                patientWalletBalance={props.patientWalletBalance}
-                selectedLang={printSettings?.default_language === "English" ? 1 : printSettings?.default_language}
-                ophthalModuleData={ophthalModuleData}
-                abhaDetails={props.abhaDetails}
-                dentalData={props.dentalData}
-                drawingCanvases={drawingCanvases}
-            />).toBlob();
+                const { dentalExaminationData: resolvedDental, examChart: resolvedOralChart } =
+                    await resolveDentalOralForPrint({
+                        patientId,
+                        tcmId: caseManagerData?.tcm_id,
+                        consultationDate,
+                        printSettings: activePrintSettings,
+                        inMemoryDental: dentalExaminationData,
+                        inMemoryOral: oralExamination,
+                        caseManagerData,
+                        allowFullApiFallback: false,
+                    });
 
-            const setPdfUrlSafe = (url) => {
-                if (!isMountedRef.current || renderId !== renderIdRef.current) {
-                    URL.revokeObjectURL(url);
-                    return false;
+                const renderPdfWithSmartRx = (smartRxData) => pdf(<ViewPDF
+                    mode={mode}
+                    caseManagerData={caseManagerData}
+                    carePlanAssignments={carePlanAssignments}
+                    smartRxData={smartRxData}
+                    isDigitisedPrintConfig={isDigitisedPrintConfig}
+                    isDentalEnabled={isDentalEnabled}
+                    isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
+                    columns={columns}
+                    initialRows={initialRows}
+                    frequencyList={frequencyList}
+                    timingList={timingList}
+                    printSettings={activePrintSettings}
+                    fileHeader={mode == NORMAL ? fileHeader : props.fileHeaderCopy}
+                    fileFooter={mode == NORMAL ? fileFooter : props.fileFooterCopy}
+                    fileLogo={mode == NORMAL ? fileLogo : props.fileLogoCopy}
+                    fileWatermark={fileWatermark}
+                    fileSignature={fileSignature}
+                    todayVaccines={props.todayVaccines}
+                    growthChartDetails={props.growthChartDetails}
+                    isGynaecHistoryAccessable={isGynaecHistoryAccessable}
+                    obsHistoryData={props.obstetricDetails}
+                    labParamsData={labParamsData}
+                    customModules={hospitalSearchResults?.modules ?? customModules}
+                    patientBills={props.patientBills}
+                    advanceReceipts={props.advanceReceipts}
+                    patientWalletBalance={props.patientWalletBalance}
+                    selectedLang={printSettings?.default_language === "English" ? 1 : printSettings?.default_language}
+                    ophthalModuleData={ophthalModuleData}
+                    abhaDetails={props.abhaDetails}
+                    dentalData={props.dentalData}
+                    dentalExaminationData={resolvedDental}
+                    toothImageMap={toothImageMap}
+                    examChart={resolvedOralChart}
+                    drawingCanvases={drawingCanvases}
+                />).toBlob();
+
+                const setPdfUrlSafe = (url) => {
+                    if (!isMountedRef.current || renderId !== renderIdRef.current) {
+                        URL.revokeObjectURL(url);
+                        return false;
+                    }
+                    if (pdfUrlRef.current) {
+                        URL.revokeObjectURL(pdfUrlRef.current);
+                    }
+                    pdfUrlRef.current = url;
+                    setPdfUrl(url);
+                    if (lastSessionRxRef.current !== url) {
+                        lastSessionRxRef.current = url;
+                        dispatch(setCurrentSessionRx(url));
+                    }
+                    return true;
+                };
+
+                try {
+                    const blob = await renderPdfWithSmartRx(smartRxFile);
+                    const url = URL.createObjectURL(blob);
+                    setPdfUrlSafe(url);
+                } catch (err) {
+                    if (smartRxFile) {
+                        try {
+                            const blobFallback = await renderPdfWithSmartRx([]);
+                            const fallbackUrl = URL.createObjectURL(blobFallback);
+                            setPdfUrlSafe(fallbackUrl);
+                        } catch (fallbackErr) {
+                            // keep previous preview on fallback failure
+                        }
+                    } else {
+                        console.error("Failed to render print preview PDF:", err);
+                    }
                 }
-                if (pdfUrlRef.current) {
-                    URL.revokeObjectURL(pdfUrlRef.current);
-                }
-                pdfUrlRef.current = url;
-                setPdfUrl(url);
-                dispatch(setCurrentSessionRx(url));
-                return true;
             };
 
-            try {
-                const blob = await renderPdfWithSmartRx(smartRxFile);
-                const url = URL.createObjectURL(blob);
-                setPdfUrlSafe(url);
-            } catch (err) {
-                if (smartRxFile) {
-                    try {
-                        const blobFallback = await renderPdfWithSmartRx([]);
-                        const fallbackUrl = URL.createObjectURL(blobFallback);
-                        setPdfUrlSafe(fallbackUrl);
-                    } catch (fallbackErr) {
-                    }
-                } else {
-                    throw err;
-                }
+            if (!isDrawingCanvasesLoading) {
+                makePDFUrl();
             }
-        }
-        // Only generate PDF if caseManagerData exists and has patient_data
-        // This prevents generating PDF with empty/incomplete data
-        if (caseManagerData && caseManagerData.patient_data && !isDrawingCanvasesLoading) {
-            makePDFUrl()
-        }
+        }, PDF_REGEN_DEBOUNCE_MS);
+
         return () => {
-            setLoadSuccesss(false)
+            clearTimeout(timer);
+            setLoadSuccesss(false);
         };
     }, [
+        pdfInputKey,
         mode,
         props.printSettingsCopy,
         props.fileHeaderCopy,
@@ -307,8 +397,13 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         props.patientWalletBalance,
         props.abhaDetails,
         props.dentalData,
+        dentalExaminationData,
+        oralExamination,
         drawingCanvases,
-        isDrawingCanvasesLoading
+        isDrawingCanvasesLoading,
+        isDentalEnabled,
+        isCvtExtHosAccessableFromGB,
+        ophthalModuleData,
     ]);
 
     const onDocumentLoadSuccess = ({ numPages }) => {

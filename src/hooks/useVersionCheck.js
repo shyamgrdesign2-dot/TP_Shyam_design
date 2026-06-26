@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { hardRefresh } from '../utils/hardRefresh';
+import { DENTAL_RX_PRINT_VIEW_ROUTE } from '../utils/dentalRoutes';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -9,6 +10,7 @@ const PROTECTED_ROUTES = [
   '/prescription',
   '/smart-prescription',
   '/tab-rx-prescription',
+  DENTAL_RX_PRINT_VIEW_ROUTE,
   '/voice-rx-consult',
   '/tab-rx'
 ];

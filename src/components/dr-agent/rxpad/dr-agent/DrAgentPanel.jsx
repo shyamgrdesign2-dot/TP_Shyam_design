@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { message } from "antd";
+import { useSelector } from "react-redux";
 import { cn } from "../../utils";
 import styles from "./DrAgentPanel.module.scss";
 
@@ -45,6 +46,8 @@ export function DrAgentPanel({
   voiceHydrationStatus,
   symptomCollectorStatus
 }) {
+  const { profile } = useSelector((state) => state.doctors || {});
+  const voiceDigitization = useSelector((state) => state.voiceDigitization || {});
   const {
     // State
     selectedPatientId,
@@ -146,11 +149,68 @@ export function DrAgentPanel({
   const { activeVoiceModule, headerDictation } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const voiceLocked = !!activeVoiceModule || headerDictationBusy;
+  const voiceRecorderAnalyticsContext = useMemo(() => {
+    const activePatientId = patientData?.patient_unique_id || patientId || selectedPatientId || "";
+    return {
+      patientData,
+      profile,
+      sessionId: voiceDigitization?.sessionId || "",
+      mode: voiceRxDialogChoice,
+      voicecall: voiceDigitization?.voiceCallCount || 0,
+      moduleName: "Dr Agent",
+      sourceSurface: "dr_agent",
+      voiceInputLocation: "Dr Agent",
+      isDoctorAgent: true,
+      doctorId,
+      patientId: activePatientId,
+      selectedPatientId,
+    };
+  }, [
+    doctorId,
+    patientData,
+    patientId,
+    profile,
+    selectedPatientId,
+    voiceDigitization?.sessionId,
+    voiceDigitization?.voiceCallCount,
+    voiceRxDialogChoice,
+  ]);
 
   useEffect(() => {
-    toast.setHandler(({ type, msg }) => {
+    toast.setHandler(({ type, msg, duration, closable, key, onDismiss }) => {
       const notify = message[type] || message.info;
-      notify({ content: msg, duration: 2.5 });
+      const messageKey = key || `dr-agent-toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const content = closable ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <span>{msg}</span>
+          <button
+            type="button"
+            aria-label="Dismiss notification"
+            onClick={(event) => {
+              event.stopPropagation();
+              message.destroy(messageKey);
+              onDismiss?.();
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 22,
+              height: 22,
+              border: 0,
+              borderRadius: 11,
+              background: "rgba(17, 24, 39, 0.10)",
+              color: "inherit",
+              cursor: "pointer",
+              fontSize: 16,
+              lineHeight: 1,
+              padding: 0,
+            }}>
+            {"\u00d7"}
+          </button>
+        </span>
+      ) : msg;
+      notify({ key: messageKey, content, duration: duration ?? 2.5 });
     });
     return () => toast.setHandler(null);
   }, []);
@@ -305,6 +365,7 @@ export function DrAgentPanel({
           patientName={patient.label}
           patientId={patientId}
           doctorId={doctorId}
+          analyticsContext={voiceRecorderAnalyticsContext}
           onCancel={cancelVoiceRxRecording}
           onSubmit={submitVoiceRxRecording}
           onCollapse={onClose}

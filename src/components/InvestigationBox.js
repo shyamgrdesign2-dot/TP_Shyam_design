@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from "react";
 import {
   AutoComplete,
   Input,
@@ -11,7 +11,7 @@ import {
   Spin,
   Tooltip
 } from "antd";
-import { InfoCircleOutlined, LoadingOutlined, PlusOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -20,7 +20,6 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, getHmTypeIndicator, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils/utils";
-import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 
 import { MenuOutlined } from '@ant-design/icons';
 import {
@@ -36,7 +35,7 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
-import { GB_APOLLO_DISABLE_FEATURE, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
@@ -49,7 +48,9 @@ import {
   VoiceRxModuleCapture,
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import ApiInvestigation from "../api/services/ApiInvestigation";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 const {
   alerticon: alertIcon,
   lab: Investigationicon,
@@ -59,10 +60,6 @@ const { TextArea } = Input;
 
 const isVoiceRxModuleInvestigation = (item) => !!item?.voice_rx_from_module;
 const isFrequentlyUsedHeaderOption = (option) => option?.key === -1 || option?.key === "-1";
-const getVoiceRxAutoSelectKey = (item, index) => {
-  const rowId = item?.unique_id || item?.objectID || item?.id || index;
-  return `${rowId}:${String(item?.investigation_name || "").trim().toLowerCase()}`;
-};
 const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   background: "#2f2e39",
   borderRadius: 8,
@@ -73,8 +70,8 @@ const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   padding: "12px 16px",
   textAlign: "center",
 };
-
 function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const isChikitsalayAccessable = useChikitsalay();
   const {
     selectedInvestigationList,
@@ -88,43 +85,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const { investigationData, setInvestigationData, diagnosisData } =
     useContext(CashManagerContext);
   // const [ investigationData, setInvestigationData] = useState([]);
-  const emptyInvestigationRow = () => ({ investigation_name: "", note: "", unique_id: uuidv4(), change: 1, pms_default: 0 });
-  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
-  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
-  const shouldKeepEmptyInvestigationRow = isPrescriptionNewContext;
 
   const applyVoiceInvestigation = useCallback((nextInvestigation) => {
     if (nextInvestigation.length > 0) {
-      if (canShowVoiceRxNewRows) {
-        const last = nextInvestigation[nextInvestigation.length - 1];
-        const withTrailing = (!last || last.investigation_name !== "") ? [...nextInvestigation, emptyInvestigationRow()] : nextInvestigation;
-        setInvestigationData(withTrailing);
-      } else {
-        setInvestigationData(nextInvestigation);
-      }
+      setInvestigationData(nextInvestigation);
     }
-  }, [canShowVoiceRxNewRows, setInvestigationData]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // PrescriptionNew should never render investigation without at least one editable row.
-  useEffect(() => {
-    if (!shouldKeepEmptyInvestigationRow) return;
-    setInvestigationData(prev => {
-      if (!prev?.length) {
-        return [emptyInvestigationRow()];
-      }
-      const last = prev[prev.length - 1];
-      if (canShowVoiceRxNewRows && (!last || last.investigation_name !== "")) {
-        return [...prev, emptyInvestigationRow()];
-      }
-      return prev;
-    });
-  }, [shouldKeepEmptyInvestigationRow, canShowVoiceRxNewRows, investigationData?.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleAddRow = useCallback(() => {
-    setInvestigationData(prev => [...prev, emptyInvestigationRow()]);
   }, [setInvestigationData]);
+
   const investigationVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(investigationData, "lab_investigations"),
     [investigationData]
@@ -156,6 +124,9 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
+  const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
+  const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
+  const inventorySourceName = isZydusAccount ? "Zydus inventory" : "Chikitsalay investigation";
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
 
@@ -198,7 +169,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const [searchChildQuery, setSearchChildQuery] = useState(null);
   const [childSearchOptions, setChildSearchOptions] = useState([]);
   const [activeVoiceInvestigationIndex, setActiveVoiceInvestigationIndex] = useState(null);
-  const voiceRxAutoSelectedKeysRef = React.useRef(new Set());
+  const voiceInvestigationSearchRequestRef = useRef(0);
+  const voiceInvestigationBlurTimeoutRef = useRef(null);
 
   //PopOver2
   const [popOver2, setPopOver2] = useState(false);
@@ -225,6 +197,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (voiceInvestigationBlurTimeoutRef.current) {
+        window.clearTimeout(voiceInvestigationBlurTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     setMatchedTemplates(templates);
     setAllTemplates(templates);
   }, [templates]);
@@ -247,7 +227,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   useEffect(() => {
     const data = [];
-    parentOptionsList.map((e) => {
+    const optionsList = isChikitsalayAccessable
+      ? parentOptionsList.filter((e) => e.hm_type === 15 && Number(e.um_id) === 0)
+      : parentOptionsList;
+
+    optionsList.forEach((e) => {
       let supplementaryIndicator = "";
       if (isChikitsalayAccessable) {
         const raw = getHmTypeIndicator(e, true);
@@ -255,7 +239,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         if (raw && raw !== "Z") supplementaryIndicator = raw;
       }
       const isWideSupplementary = supplementaryIndicator.length > 1;
-      return data.push({
+      data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.investigation_name,
         label: (
@@ -301,7 +285,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       });
     }
     else {
-      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB &&
+      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB && !isChikitsalayAccessable &&
         data.push({
           key: JSON.stringify({
             unique_id: uuidv4(),
@@ -317,7 +301,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, isChikitsalayAccessable]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -355,30 +339,122 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   };
 
   //Child AutoComplete
+  const activeVoiceInvestigationItem = activeVoiceInvestigationIndex !== null ? investigationData[activeVoiceInvestigationIndex] : null;
+  const isVoiceInvestigationFuzzySearchActive = (
+    isVoiceRxModuleEnabled &&
+    isZydusAccount &&
+    isVoiceRxModuleInvestigation(activeVoiceInvestigationItem)
+  );
+
+  const buildInvestigationSearchOption = useCallback(
+    (investigation) => {
+      if (!investigation?.investigation_name) return null;
+
+      return {
+        key: JSON.stringify({ ...investigation, unique_id: uuidv4() }),
+        value: investigation.investigation_name,
+        label: (
+          <div>
+            {investigation.investigation_name}{" "}
+            {isZydusAccount && (investigation?.hm_type === 1 && investigation?.um_id === 0) && (
+              <span
+                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                style={{ width: 18, height: 18, background: "#c44ea2" }}
+              >
+                Z
+              </span>
+            )}
+          </div>
+        ),
+      };
+    },
+    [isZydusAccount]
+  );
+
+  const performVoiceInvestigationFuzzySearch = useCallback(
+    async (query) => {
+      const searchQuery = String(query || "").trim();
+      const requestId = voiceInvestigationSearchRequestRef.current + 1;
+      voiceInvestigationSearchRequestRef.current = requestId;
+
+      if (!searchQuery) {
+        setChildSearchOptions([]);
+        return;
+      }
+
+      try {
+        const result = await ApiInvestigation.getFuzzySearch(searchQuery, 10);
+        if (voiceInvestigationSearchRequestRef.current !== requestId) return;
+
+        const rows = Array.isArray(result) ? result : result ? [result] : [];
+        setChildSearchOptions(rows.map(buildInvestigationSearchOption).filter(Boolean));
+      } catch (error) {
+        if (voiceInvestigationSearchRequestRef.current === requestId) {
+          setChildSearchOptions([]);
+        }
+      }
+    },
+    [buildInvestigationSearchOption]
+  );
+
   useEffect(() => {
+    if (isVoiceInvestigationFuzzySearchActive) return;
+
     if (searchChildQuery) {
+      const requestId = voiceInvestigationSearchRequestRef.current + 1;
+      voiceInvestigationSearchRequestRef.current = requestId;
+      const query = searchChildQuery.query;
+      const index = searchChildQuery.index;
       const timeOutId = setTimeout(() => {
         dispatch(
           searchInvestigation({
-            searchQuery: searchChildQuery.query,
+            searchQuery: query,
             type: "child",
           })
-        );
+        ).then((action) => {
+          if (
+            voiceInvestigationSearchRequestRef.current !== requestId ||
+            activeVoiceInvestigationIndex !== index ||
+            action.meta.requestStatus !== "fulfilled"
+          ) {
+            return;
+          }
+
+          const data = [];
+          const rows = Array.isArray(action.payload) ? action.payload : [];
+          rows.forEach((e) => {
+            const option = buildInvestigationSearchOption(e);
+            if (option) data.push(option);
+          });
+          setChildSearchOptions(data);
+        });
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     }
-  }, [searchChildQuery]);
+  }, [activeVoiceInvestigationIndex, buildInvestigationSearchOption, dispatch, isVoiceInvestigationFuzzySearchActive, searchChildQuery]);
 
   useEffect(() => {
+    if (!isVoiceInvestigationFuzzySearchActive) return;
+
+    const timeOutId = setTimeout(() => {
+      performVoiceInvestigationFuzzySearch(searchChildQuery?.query);
+    }, 500);
+
+    return () => {
+      clearTimeout(timeOutId);
+    };
+  }, [isVoiceInvestigationFuzzySearchActive, performVoiceInvestigationFuzzySearch, searchChildQuery]);
+
+  useEffect(() => {
+    if (isVoiceInvestigationFuzzySearchActive) return;
+    if (activeVoiceInvestigationIndex !== null) return;
+
     const data = [];
     childOptionsList.map((e) => {
-      return data.push({
-        key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-        value: e.investigation_name,
-        label: <div>{e.investigation_name}</div>,
-      });
+      const option = buildInvestigationSearchOption(e);
+      if (option) data.push(option);
     });
     // if (searchChildQuery?.query) {
     //   data.push({
@@ -397,11 +473,13 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     //   });
     // }
     setChildSearchOptions(data);
-  }, [childOptionsList]);
+  }, [activeVoiceInvestigationIndex, buildInvestigationSearchOption, childOptionsList, isVoiceInvestigationFuzzySearchActive]);
 
   const onFocusChid = (i) => {
-    if (canShowVoiceRxNewRows && !String(investigationData[i].investigation_name ?? "").trim()) {
-      setSearchChildQuery(null);
+    voiceInvestigationSearchRequestRef.current += 1;
+    setChildSearchOptions([]);
+    if (isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(investigationData[i])) {
+      setSearchChildQuery({ query: investigationData[i].investigation_name, index: i });
       return;
     }
     setSearchChildQuery({ query: investigationData[i].investigation_name, index: i });
@@ -411,13 +489,19 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   };
 
   const handleVoiceInvestigationClick = (i) => {
+    if (voiceInvestigationBlurTimeoutRef.current) {
+      window.clearTimeout(voiceInvestigationBlurTimeoutRef.current);
+      voiceInvestigationBlurTimeoutRef.current = null;
+    }
     setActiveVoiceInvestigationIndex(i);
     onFocusChid(i);
   };
 
-  const handleVoiceInvestigationBlur = () => {
-    window.setTimeout(() => {
-      setActiveVoiceInvestigationIndex(null);
+  const handleVoiceInvestigationBlur = (i) => {
+    voiceInvestigationSearchRequestRef.current += 1;
+    voiceInvestigationBlurTimeoutRef.current = window.setTimeout(() => {
+      setActiveVoiceInvestigationIndex((currentIndex) => currentIndex === i ? null : currentIndex);
+      voiceInvestigationBlurTimeoutRef.current = null;
     }, 150);
   };
 
@@ -449,84 +533,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       setInvestigationData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).investigation_name, index: i });
       setActiveVoiceInvestigationIndex(null);
-      if (canShowVoiceRxNewRows && i === investigationData.length - 1) {
-        setInvestigationData((prev) => [...prev, emptyInvestigationRow()]);
-      }
+      setChildSearchOptions([]);
     },
-    [searchChildQuery, investigationData, canShowVoiceRxNewRows]
+    [searchChildQuery, investigationData]
   );
-
-  useEffect(() => {
-    if (!canShowVoiceRxNewRows) return;
-
-    const rowsToResolve = investigationData
-      .map((item, index) => ({ item, index, key: getVoiceRxAutoSelectKey(item, index) }))
-      .filter(({ item, key }) => {
-        const name = String(item?.investigation_name || "").trim();
-        return (
-          name &&
-          isVoiceRxModuleInvestigation(item) &&
-          !item?.voice_rx_auto_select_failed &&
-          !voiceRxAutoSelectedKeysRef.current.has(key)
-        );
-      });
-
-    if (!rowsToResolve.length) return;
-
-    rowsToResolve.forEach(({ item, key }) => {
-      voiceRxAutoSelectedKeysRef.current.add(key);
-      dispatch(searchInvestigation({ searchQuery: item.investigation_name, type: "child" }))
-        .then((action) => {
-          const firstMatch = action?.meta?.requestStatus === "fulfilled" && Array.isArray(action.payload)
-            ? action.payload[0]
-            : null;
-
-          setInvestigationData((prev = []) => {
-            const currentIndex = prev.findIndex((row, rowIndex) => getVoiceRxAutoSelectKey(row, rowIndex) === key);
-            if (currentIndex === -1 || !isVoiceRxModuleInvestigation(prev[currentIndex])) {
-              return prev;
-            }
-
-            const currentRow = prev[currentIndex];
-            const nextRows = [...prev];
-
-            if (firstMatch) {
-              nextRows[currentIndex] = {
-                ...currentRow,
-                ...firstMatch,
-                unique_id: currentRow.unique_id || uuidv4(),
-                note: currentRow.note || "",
-                voice_rx_from_module: false,
-                voice_rx_original_name: currentRow.voice_rx_original_name || currentRow.investigation_name,
-                voice_rx_auto_select_failed: false,
-              };
-            } else {
-              nextRows[currentIndex] = {
-                ...currentRow,
-                voice_rx_auto_select_failed: true,
-              };
-            }
-
-            return nextRows;
-          });
-        })
-        .catch(() => {
-          setInvestigationData((prev = []) => {
-            const currentIndex = prev.findIndex((row, rowIndex) => getVoiceRxAutoSelectKey(row, rowIndex) === key);
-            if (currentIndex === -1 || !isVoiceRxModuleInvestigation(prev[currentIndex])) {
-              return prev;
-            }
-
-            const nextRows = [...prev];
-            nextRows[currentIndex] = {
-              ...nextRows[currentIndex],
-              voice_rx_auto_select_failed: true,
-            };
-            return nextRows;
-          });
-        });
-    });
-  }, [canShowVoiceRxNewRows, dispatch, investigationData, setInvestigationData]);
 
   const onChangeNoteChild = useCallback(
     (e, i) => {
@@ -538,11 +548,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   const onRemoveRow = (index) => {
     investigationData.splice(index, 1);
-    if (shouldKeepEmptyInvestigationRow && investigationData.length === 0) {
-      setInvestigationData([emptyInvestigationRow()]);
-    } else {
-      setInvestigationData((prev) => [...prev]);
-    }
+    setInvestigationData((prev) => [...prev]);
   };
 
   //PopOver1 function
@@ -576,10 +582,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         unique_id: uuidv4(),
         note: e.note ? e.note : "",
       }));
-      const nextInvestigationData = isPrescriptionNewContext
-        ? appendStripped(investigationData, updatedData, "investigations")
-        : [...investigationData, ...updatedData];
-      setInvestigationData(nextInvestigationData);
+      setInvestigationData([...investigationData, ...updatedData]);
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error);
@@ -616,7 +619,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   );
 
   const onAddTemplateClicked = async () => {
-    const templateInvestigation = canShowVoiceRxNewRows ? stripEmptyRows(investigationData, "investigations") : investigationData;
+    const templateInvestigation = investigationData;
     if (templateInvestigation.length === 0) {
       errorMessage('At least 1 investigation added')
     } else if (templateInvestigation.filter(e => String(e.investigation_name ?? "").trim() === "").length > 0) {
@@ -646,7 +649,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    const templateInvestigation = canShowVoiceRxNewRows ? stripEmptyRows(investigationData, "investigations") : investigationData;
+    const templateInvestigation = investigationData;
     if (templateInvestigation.length === 0) {
       errorMessage('At least 1 investigation added')
     } else if (templateInvestigation.filter(e => String(e.investigation_name ?? "").trim() === "").length > 0) {
@@ -795,10 +798,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                     if (raw && raw !== "Z") supplementaryIndicator = raw;
                   }
                   const isWideSupplementary = supplementaryIndicator.length > 1;
-                  const shouldShowVoiceInvestigationFallbackInfo =
-                    isVoiceRxModuleEnabled &&
-                    isVoiceRxModuleInvestigation(item) &&
-                    item?.voice_rx_auto_select_failed;
                   return (
                   <Draggable key={index} draggableId={`investigation-${index}`} index={index}>
                     {(provided) => (
@@ -829,7 +828,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                               handleVoiceInvestigationClick(index);
                             }
                           }}
-                          style={shouldShowVoiceInvestigationFallbackInfo ? { background: "#fff8ef" } : undefined}
+                          style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
                         >
                           <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
@@ -853,20 +852,20 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                   open={activeVoiceInvestigationIndex === index ? true : undefined}
                                   onSearch={(query) => onSearchChild(query, index)}
                                   onFocus={() => onFocusChid(index)}
-                                  onBlur={handleVoiceInvestigationBlur}
-                                  options={canShowVoiceRxNewRows && !String(item.investigation_name ?? "").trim() ? parentSearchOptions : childSearchOptions}
+                                  onBlur={() => handleVoiceInvestigationBlur(index)}
+                                  options={childSearchOptions}
                                   className="autocomplete-custom w-100 inputborder"
-                                  popupClassName={canShowVoiceRxNewRows && !String(item.investigation_name ?? "").trim() ? "boxpopup" : undefined}
+                                  {...getPrescriptionNewPopupProps()}
                                   defaultActiveFirstOption={true}
                                   onSelect={(data, e) => onSelectChild(data, e, index)}
                                 />
                               )}
                             </div>
-                            {shouldShowVoiceInvestigationFallbackInfo && (
+                            {isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isVoiceRxModuleInvestigation(item) && (
                               <Tooltip
                                 placement="top"
                                 overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                title={`We could not auto-select this ${INVESTIGATION_TITLE.toLowerCase()}. Click to search and select it from the dropdown.`}
+                                title={`Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()} from the ${inventorySourceName} list.`}
                               >
                                 <InfoCircleOutlined
                                   className="fs-18 flex-shrink-0"
@@ -874,18 +873,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                 />
                               </Tooltip>
                             )}
-                            {/* {isPrescriptionNewContext && (item?.hm_type === 1 && item?.um_id === 0) && (
-                              <span
-                                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white flex-shrink-0 m-1"
-                                style={{ width: 18, height: 18, background: "#c44ea2" }}
-                              >
-                                Z
-                              </span>
-                            )} */}
                             {supplementaryIndicator && (
                               <span
                                 className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${
-                                  isWideSupplementary ? "rounded-pill" : "rounded-circle"
+                                  isWideSupplementary ? "rounded-pill me-2" : "rounded-circle"
                                 }`}
                                 style={{
                                   minWidth: isWideSupplementary ? 26 : 18,
@@ -932,7 +923,15 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         </Droppable>
       </DragDropContext>
     );
-  }, [activeVoiceInvestigationIndex, investigationData, childSearchOptions, parentSearchOptions, canShowVoiceRxNewRows, isChikitsalayAccessable, isPrescriptionNewContext]);
+  }, [
+    activeVoiceInvestigationIndex,
+    childSearchOptions,
+    investigationData,
+    inventorySourceName,
+    isChikitsalayAccessable,
+    isVoiceRxModuleEnabled,
+    shouldShowInventorySourceWarning,
+  ]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -1057,6 +1056,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -1104,7 +1104,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setInvestigationData(shouldKeepEmptyInvestigationRow ? [emptyInvestigationRow()] : [])
+    setInvestigationData([])
     showHideClearData()
   };
 
@@ -1230,19 +1230,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_INVESTIGATION}
-        {canShowVoiceRxNewRows && (
-          <div className="p-2">
-            <Button
-              type="link"
-              icon={<PlusOutlined />}
-              className="add-custom-module-link"
-              onClick={handleAddRow}
-            >
-              Add New Line
-            </Button>
-          </div>
-        )}
-
         {filteredDdxInvestigationOptionsList?.length > 0 && (
           <div style={{ padding: "0 14px" }}>
             <DifferentialDiagnosis
@@ -1253,7 +1240,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
           </div>
         )}
 
-        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName={INVESTIGATION_TITLE}
@@ -1262,22 +1249,20 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            !isVoiceRxModuleEnabled && (
-              <AutoComplete
-                value={searchParentQuery}
-                onSearch={onSearchParent}
-                options={parentSearchOptions}
-                className="autocomplete-custom w-100"
-                onSelect={onSelectParent}
-                defaultActiveFirstOption={true}
-                popupClassName={!searchParentQuery && "boxpopup"}
-              >
-                <Input
-                  placeholder={`Search ${INVESTIGATION_TITLE}`}
-                  prefix={<i className="icon-search"></i>}
-                />
-              </AutoComplete>
-            )
+            <AutoComplete
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
+            >
+              <Input
+                placeholder={`Search ${INVESTIGATION_TITLE}`}
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
           )}
         </div>
       </div>

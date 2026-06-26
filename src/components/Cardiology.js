@@ -41,10 +41,12 @@ import {
   GB_TAB_RX_CVT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
+  GB_DENTAL_MODULE,
   GB_VOICE_RX_NEW_UI,
   GB_CVT_EXT_HOS,
   CLINIC_TARGET_STATUS,
 } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { EVENTS } from "../utils/events";
 
 import {
@@ -84,6 +86,10 @@ import PrimaryActionButton from "./PrimaryActionButton";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
+import {
+  ensureDrawingCanvasCaseOption,
+  loadDrawingCanvasesForPrint,
+} from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
 import { ASSETS } from "../assets";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import ApiMedication from "../api/services/ApiMedication";
@@ -605,7 +611,7 @@ function Cardiology(props) {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
-
+  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
   const rawSmartPrescriptionFilename = viewCaseManagerData?.smart_prescription_filename;
@@ -970,7 +976,9 @@ function Cardiology(props) {
     payloadOverride: null,
     skipFetch: !printUrlWithLang,
     isCvtExtHosAccessableFromGB,
-    patientId: patient_data?.patient_unique_id
+    patientId: patient_data?.patient_unique_id,
+    tcmId: viewCaseManagerData?.tcm_id,
+    canvasFilename: viewCaseManagerData?.canvas_filename,
   });
 
   const parseObjectValue = useCallback((value) => {
@@ -1035,8 +1043,26 @@ function Cardiology(props) {
     const response = await axios.get(urlObj.toString());
     const payload = response?.data?.data || null;
     if (!payload) return null;
+
+    const resolvedCanvasFilename =
+      viewCaseManagerData?.canvas_filename ?? payload?.caseManagerData?.canvas_filename;
+    const { drawingCanvases } = await loadDrawingCanvasesForPrint({
+      patientId: patient_data?.patient_unique_id,
+      tcmId: viewCaseManagerData?.tcm_id ?? payload?.caseManagerData?.tcm_id,
+      canvasFilename: resolvedCanvasFilename,
+    });
+    const printSettingsWithCanvas =
+      drawingCanvases.length > 0
+        ? ensureDrawingCanvasCaseOption(payload.printSettings)
+        : payload.printSettings;
+
     const blob = await renderPrintPayloadToBlob(
-      { ...payload, isCvtExtHosAccessableFromGB },
+      {
+        ...payload,
+        printSettings: printSettingsWithCanvas,
+        drawingCanvases,
+        isCvtExtHosAccessableFromGB,
+      },
       {
         selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
         isGynaecHistoryAccessable: false,
@@ -1046,7 +1072,13 @@ function Cardiology(props) {
     const header = await blob.slice(0, 5).text();
     if (header !== "%PDF-") return null;
     return blob;
-  }, [selectedLang, isCvtExtHosAccessableFromGB]);
+  }, [
+    selectedLang,
+    isCvtExtHosAccessableFromGB,
+    patient_data?.patient_unique_id,
+    viewCaseManagerData?.tcm_id,
+    viewCaseManagerData?.canvas_filename,
+  ]);
 
   useEffect(() => {
     if (!(isMobile && !isTablet) || !showDigitalGenRx || !printUrlWithLang) {
@@ -1952,16 +1984,20 @@ function Cardiology(props) {
       } else {
         window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
       }
-      navigate("/prescription", {
-        state: {
+      const prescriptionState = {
           patient_data: patient_data,
           send_path: "patient_details",
           caseManagerData: caseManagerDataForEdit,
           isEditRx: true,
           ...(shouldUseNewPrescriptionUi(caseManagerDataForEdit, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}),
           ...(videoConsultData ? { videoConsultData } : {}),
-        },
-      });
+      };
+      const isDental = profile?.dp_id === 26 || (profile?.dp_name && profile?.dp_name.toLowerCase() === 'dental');
+      if (isDentalEnabled) {
+        navigate(DENTAL_RX_PAD_ROUTE, { state: prescriptionState });
+      } else {
+        navigate("/prescription", { state: prescriptionState });
+      }
     }
   };
 
@@ -3865,6 +3901,12 @@ function Cardiology(props) {
     });
   };
 
+  const handleStartTypeRx = () => {
+    navigate(DENTAL_RX_PAD_ROUTE, {
+      state: { patient_data: patient_data },
+    });
+  };
+
   const DraftRxAlert = () => {
     return (
       <div className="draft-rx-alert">
@@ -4893,6 +4935,7 @@ function Cardiology(props) {
                       onSnapRxClick={() => handleStartSnapRx()}
                       onVoiceRxClick={() => handleStartVoiceRx()}
                       onTabRxClick={() => handleStartTabRx()}
+                      onTypeRxClick={() => handleStartTypeRx()}
                       onConsultClick={() => handleStartConsult()}
                       patient={patient_data}
                       buttonStyle="walkin"
