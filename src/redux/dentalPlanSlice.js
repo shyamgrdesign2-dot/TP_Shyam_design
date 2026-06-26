@@ -73,7 +73,7 @@ export const updateDentalPlan = createAsyncThunk(
   "dentalPlan/update",
   async ({ patientId, planId, data }, { rejectWithValue }) => {
     try {
-      const response = await updatePlan(patientId, planId, toDentalPlanPatchRequest(data));
+      const response = await updatePlan(patientId, planId, toDentalPlanRequest(data));
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to update dental plan"));
       }
