@@ -3,6 +3,7 @@
  * Each plan is an accordion — first open by default, one at a time.
  */
 import { useState } from "react";
+import dayjs from "dayjs";
 import {
   ArrowRotateLeft,
   Receipt1,
@@ -93,14 +94,13 @@ function formatSurfaceLabel(surface) {
 }
 
 function buildServiceDescription(service) {
-  const toothLabel =
-    service.toothFdi === "full-mouth" ? "the full mouth" : service.toothLabel;
+  const teeth = service.teeth?.length > 0 ? service.teeth : [service.toothFdi];
+  const isFullMouth = teeth.includes("full-mouth");
+  const toothLabel = isFullMouth ? "the full mouth" : teeth.map((t) => `T${t}`).join(", ");
   if (service.surfaces.length === 0) {
     return `Completed for ${toothLabel}.`;
   }
-  const surfaceText = service.surfaces
-    .map((surface) => formatSurfaceLabel(surface))
-    .join(", ");
+  const surfaceText = service.surfaces.map(formatSurfaceLabel).join(", ");
   return `Completed for ${toothLabel} on ${surfaceText} surface${service.surfaces.length > 1 ? "s" : ""}.`;
 }
 
@@ -109,34 +109,38 @@ function CompletedServiceRow({ service, plan, index }) {
   const { openDrawer } = usePlanContext();
   const serviceDescription = buildServiceDescription(service);
   const workflowStatus = getServiceWorkflowStatus(service);
-  
+
+  const teeth = service.teeth?.length > 0 ? service.teeth : [service.toothFdi];
+  const isFullMouth = teeth.includes("full-mouth");
+
   return (
     <tr className={styles.tbodyTr}>
-      <td className={`${styles.td} ${styles.idx}`}>
-        {index + 1}
-      </td>
+      <td className={`${styles.td} ${styles.idx}`}>{index + 1}</td>
       <td className={styles.td}>
         <div className={styles.serviceCell}>
-          <p className={styles.treatmentName}>
-            {service.treatment}
-          </p>
-          <p className={styles.serviceDesc}>
-            {serviceDescription}
-          </p>
+          <p className={styles.treatmentName}>{service.treatment}</p>
+          <p className={styles.serviceDesc}>{serviceDescription}</p>
         </div>
       </td>
       <td className={styles.td}>
-        <span className={styles.tdToothPill}>
-          {service.toothFdi === "full-mouth" ? "Full" : `T${service.toothFdi}`}
-        </span>
+        {isFullMouth ? (
+          <span className={styles.toothPill}>Full</span>
+        ) : (
+          <div className={styles.toothPillStack}>
+            {teeth.map((t) => (
+              <span key={t} className={styles.toothPill}>T{t}</span>
+            ))}
+          </div>
+        )}
       </td>
-      <td className={`${styles.td} ${styles.date}`}>
-        {service.completedAt ?? "—"}
+      <td className={`${styles.td} ${styles.dateCell}`}>
+        {service.procedureDate ? dayjs(service.procedureDate).format("D MMM YY") : "—"}
+      </td>
+      <td className={`${styles.td} ${styles.dateCell}`}>
+        {service.completedAt ? dayjs(service.completedAt).format("D MMM YY") : "—"}
       </td>
       <td className={styles.td}>{renderStatusChip(workflowStatus)}</td>
-      <td className={`${styles.td} ${styles.amount}`}>
-        {formatINR(service.amount)}
-      </td>
+      <td className={`${styles.td} ${styles.amount}`}>{formatINR(service.amount)}</td>
       <td className={`${styles.td} ${styles.actions}`}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild={true}>
@@ -303,7 +307,8 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                   <th className={`${styles.th} ${styles.idx}`}>#</th>
                   <th className={styles.th}>Service</th>
                   <th className={`${styles.th} ${styles.tooth}`}>Tooth</th>
-                  <th className={`${styles.th} ${styles.completed}`}>Completed</th>
+                  <th className={`${styles.th} ${styles.dateCol}`}>Date</th>
+                  <th className={`${styles.th} ${styles.dateCol}`}>Completed</th>
                   <th className={`${styles.th} ${styles.status}`}>Status</th>
                   <th className={`${styles.th} ${styles.amount}`}>Amount</th>
                   <th className={styles.th} />

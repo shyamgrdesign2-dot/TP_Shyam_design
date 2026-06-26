@@ -187,14 +187,14 @@ function PlanServiceTableInner({
         <table className={styles.servicesTable}>
           <colgroup>
             <col style={{ width: 36, minWidth: 32 }} />
-            <col style={{ minWidth: 160, maxWidth: 240 }} />
+            <col style={{ minWidth: 160, maxWidth: 260 }} />
             <col style={{ width: 130, minWidth: 130 }} />
             <col style={{ width: 160, minWidth: 160 }} />
-            <col style={{ width: 114, minWidth: 108 }} />
-            <col style={{ minWidth: 140, maxWidth: 240 }} />
-            <col style={{ width: 88, minWidth: 76 }} />
-            <col style={{ width: 68, minWidth: 60 }} />
-            <col style={{ width: 84, minWidth: 72 }} />
+            <col style={{ width: 120, minWidth: 114 }} />
+            <col style={{ minWidth: 160, maxWidth: 280 }} />
+            <col style={{ width: 110, minWidth: 100 }} />
+            <col style={{ width: 110, minWidth: 100 }} />
+            <col style={{ width: 90, minWidth: 80 }} />
             <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
           </colgroup>
           <thead>
@@ -203,10 +203,10 @@ function PlanServiceTableInner({
               <th className={styles.tableHeadCellLeft}>Service</th>
               <th className={styles.tableHeadCellLeft}>Teeth</th>
               <th className={styles.tableHeadCellLeft}>Surfaces</th>
-              <th className={styles.tableHeadCellLeftNarrow}>Surgery date</th>
+              <th className={styles.tableHeadCellLeftNarrow}>Surgery Date</th>
               <th className={styles.tableHeadCellLeftNarrow}>Notes</th>
-              <th className={styles.tableHeadCellRight}>Rate</th>
-              <th className={styles.tableHeadCellRight}>Disc.</th>
+              <th className={styles.tableHeadCellRight}>Rate/Tooth</th>
+              <th className={styles.tableHeadCellRight}>Discount</th>
               <th className={styles.tableHeadCellRight}>Amount</th>
               <th className={styles.tableHeadCellSticky} />
             </tr>
@@ -321,6 +321,32 @@ function PlanServiceTableInner({
                       <span className={styles.cellFocusRing} />
                     ) : null}
                     <div className={styles.discountInputWrap}>
+                      <button
+                        type="button"
+                        className={styles.discountTypeBtn}
+                        onClick={() =>
+                          updateRow(row.id, {
+                            discountType:
+                              row.discountType === "percent" ? "flat" : "percent",
+                            discount: 0,
+                          })
+                        }
+                        title="Toggle discount type"
+                      >
+                        <span className={styles.discountTypeBtnSymbol}>
+                          {row.discountType === "percent" ? "%" : "₹"}
+                        </span>
+                        <svg
+                          width="8"
+                          height="12"
+                          viewBox="0 0 8 12"
+                          fill="none"
+                          className={styles.discountTypeBtnArrows}
+                        >
+                          <path d="M1 4.5L4 1.5L7 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M1 7.5L4 10.5L7 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -329,11 +355,13 @@ function PlanServiceTableInner({
                         value={row.discount ? String(row.discount) : ""}
                         onChange={(e) => {
                           const v = e.target.value.replace(/\D/g, "");
+                          const max =
+                            row.discountType === "percent" ? 100 : 999999999;
                           updateRow(row.id, {
                             discount:
                               v === ""
                                 ? 0
-                                : Math.min(parseInt(v, 10) || 0, 999999999),
+                                : Math.min(parseInt(v, 10) || 0, max),
                           });
                         }}
                         onFocus={() => setCellActive(row.id, "disc")}

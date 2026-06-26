@@ -1018,7 +1018,6 @@
 .serviceMoreButton {
   display: inline-flex;
   height: 36px;
-  width: 20px;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
@@ -1123,6 +1122,14 @@
   &:focus, &[data-highlighted] {
     background-color: var(--tp-warning-50);
   }
+}
+
+.disabledMenuItem {
+  border-radius: 8px;
+  gap: 6px !important;
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .planCollapseButton {

@@ -24,6 +24,7 @@ import {
   toDentalPlanRequest,
   toDentalPlans,
   toDentalService,
+  toDentalServicePatchRequest,
   toDentalServiceRequest,
   toDentalTransitionRequest,
 } from "../utils/dentalApiMappers";
@@ -217,7 +218,7 @@ export const updatePlanService = createAsyncThunk(
         patientId,
         planId,
         serviceId,
-        toDentalServiceRequest(data)
+        toDentalServicePatchRequest(data)
       );
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to update service"));

@@ -10,6 +10,7 @@ import { useState, useCallback } from "react";
 import {
   TickCircle,
   ArrowRotateLeft,
+  Edit2,
   Receipt1,
   Timer1,
   Trash,
@@ -299,6 +300,9 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
   const total = computePlanTotal(plan.services);
   const additionalDiscount = plan.additionalDiscount ?? 0;
   const finalTotal = Math.max(0, total - additionalDiscount);
+  const canRevertToPlan = services.every(
+    (s) => getServiceWorkflowStatus(s) === "not-started"
+  );
 
   return (
     <div className={cx(styles.planClusterCard, dui.planClusterShell)}>
@@ -384,24 +388,31 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
               className={dropdownContentClass}
             >
               <DropdownMenuItem
+                onClick={() => openDrawer({ type: "edit-plan", planId: plan.id })}
+                className={dropdownItemClass}
+              >
+                <Edit2 size={16} variant="Linear" />
+                Edit Plan
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 onClick={() =>
                   openDrawer({ type: "bill-preview", planId: plan.id })
                 }
                 className={dropdownItemClass}
               >
                 <Receipt1 size={16} variant="Linear" className="" />
-                View Plan Bill
+                View Plan Estimate
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setRevertAllOpen(true)}
-                className={styles.warningMenuItem}
+                disabled={!canRevertToPlan}
+                className={canRevertToPlan ? styles.warningMenuItem : styles.disabledMenuItem}
               >
                 <ArrowRotateLeft
                   size={16}
                   variant="Linear"
-                  className={styles.warningText}
                 />
-                <span className={styles.warningText}>Revert All to Plan</span>
+                <span>Revert All to Plan</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

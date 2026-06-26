@@ -58,34 +58,6 @@ export function ServiceActions({ service, plan, isOpen, onToggle, onDeleteOpen }
         </TooltipContent>
       </Tooltip>
 
-      <Tooltip delayDuration={200}>
-        <TooltipTrigger asChild={true}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isOpen) onToggle?.();
-              openDrawer({
-                type: "book-appointment",
-                planId: plan.id,
-                serviceId: service.id,
-              });
-            }}
-            className={styles.serviceActionButton}
-            aria-label="Book appointment"
-          >
-            <Calendar2 size={17} variant="Linear" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          side="bottom"
-          sideOffset={6}
-          className={styles.serviceActionTooltip}
-        >
-          Book appointment
-        </TooltipContent>
-      </Tooltip>
-
       <DropdownMenu>
         <DropdownMenuTrigger asChild={true}>
           <button

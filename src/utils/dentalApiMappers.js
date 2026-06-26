@@ -222,6 +222,25 @@ export const toDentalTemplates = (response) => {
   return items.map(toDentalTemplate);
 };
 
+// Patch mapper for status/field updates — never defaults surfaces or teeth,
+// and never suppresses "planned" (valid for revert-to-not-started).
+export const toDentalServicePatchRequest = (data = {}) => {
+  const patch = {};
+  if (data.status !== undefined) patch.status = toApiStatus(data.status);
+  if (data.notes !== undefined) patch.notes = data.notes;
+  if (data.version !== undefined) patch.version = data.version;
+  if (data.completedAt != null) patch.completed_at = data.completedAt;
+  if (data.rate !== undefined) patch.rate = data.rate;
+  if (data.discount !== undefined) patch.discount = data.discount;
+  if (data.procedureDate || data.procedure_date) {
+    patch.procedure_date = data.procedureDate || data.procedure_date;
+  }
+  if (data.treatment) patch.treatment = data.treatment;
+  if (data.surfaces?.length) patch.surfaces = data.surfaces;
+  if (Array.isArray(data.teeth) && data.teeth.length) patch.teeth = data.teeth;
+  return patch;
+};
+
 export const toDentalServiceRequest = (service = {}) => {
   const toothFdi = service.tooth_fdi || service.toothFdi;
   const request = cleanUndefined({

@@ -303,29 +303,9 @@ export function ServiceTimeline({ service, plan, onOpenCancelDialog }) {
         <PlanEmptyIcon size={96} />
         <p className={styles.emptyTitle}>No visits recorded yet</p>
         <p className={styles.emptyDesc}>
-          Add a quick visit report or book the next appointment for this
-          service.
+          Add a quick visit report to start tracking this service.
         </p>
         <div className={styles.emptyActionsRow}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              openDrawer({
-                type: "book-appointment",
-                planId: plan.id,
-                serviceId: service.id,
-              });
-            }}
-            className={styles.emptyBookBtn}
-          >
-            <Calendar2
-              size={18}
-              variant="Linear"
-              className={styles.blueIcon}
-            />
-            Book appointment
-          </button>
           <button
             type="button"
             onClick={(e) => {

@@ -171,8 +171,8 @@
   &.tooth {
     width: 70px;
   }
-  &.completed {
-    width: 90px;
+  &.dateCol {
+    width: 80px;
   }
   &.status {
     width: 110px;
@@ -228,7 +228,7 @@
     font-weight: 700;
     color: var(--tp-slate-600);
   }
-  &.date {
+  &.dateCell {
     color: var(--tp-slate-500);
   }
   &.amount {
@@ -241,6 +241,24 @@
   &.actions {
     text-align: right;
   }
+}
+
+.toothPill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  background-color: var(--tp-slate-100);
+  padding: 1px 5px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tp-slate-600);
+}
+
+.toothPillStack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .statusChip {

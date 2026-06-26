@@ -49,14 +49,19 @@ export function createRow(
 }
 
 /**
- * Compute the effective discount amount for a row, capped at the row rate.
+ * Compute the effective discount amount for a row.
+ * For "percent" type: derives flat amount from rate × pct / 100.
+ * For "flat" type: uses value directly, capped at rate.
  *
- * @param {{ rate: number, discount: number }} row
+ * @param {{ rate: number, discount: number, discountType?: string }} row
  * @returns {number}
  */
 export function computeDiscount(row) {
   const raw = Number(row.discount);
   const d = Number.isFinite(raw) && raw > 0 ? raw : 0;
+  if (row.discountType === "percent") {
+    return Math.round((row.rate * Math.min(d, 100)) / 100);
+  }
   return Math.min(row.rate, d);
 }
 
