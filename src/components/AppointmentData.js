@@ -99,6 +99,7 @@ import {
   GB_MANYA_DENTAL,
 } from "../utils/constants";
 import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
+import { getCrossConsultFromRecord } from "../utils/crossConsultHelpers";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import config from "../config";
@@ -232,8 +233,12 @@ const getListAppointmentStatus = ({
 };
 
 const renderReferralNotesCell = (record) => {
+  const crossConsult = getCrossConsultFromRecord(record);
   const notes = String(
-    record?.reason_for_cross_consult || record?.referralNotes || ""
+    crossConsult?.reason_for_cross_consult ||
+      record?.reason_for_cross_consult ||
+      record?.referralNotes ||
+      ""
   ).trim();
   if (!notes) {
     return <span>—</span>;
@@ -2710,25 +2715,38 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             dataIndex: "referredBy",
             key: "referredBy",
             ellipsis: true,
-            render: (text, record) => (
-              <span>
-                {record.referred_by ||
-                  record.referredBy ||
-                  record.dr_reference_name ||
-                  "-"}
-              </span>
-            ),
+            render: (text, record) => {
+              const crossConsult = getCrossConsultFromRecord(record);
+              return (
+                <span>
+                  {crossConsult?.referred_by ||
+                    record.referred_by ||
+                    record.referredBy ||
+                    record.dr_reference_name ||
+                    "-"}
+                </span>
+              );
+            },
           },
           {
             title: "Referral Date",
             dataIndex: "date_of_referral",
             key: "date_of_referral",
             ellipsis: true,
-            render: (text, record) => (
-              <span>
-                {record.date_of_referral || record.referralDate || "-"}
-              </span>
-            ),
+            render: (text, record) => {
+              const crossConsult = getCrossConsultFromRecord(record);
+              const referralDate =
+                crossConsult?.date_of_referral ||
+                record.date_of_referral ||
+                record.referralDate;
+              return (
+                <span>
+                  {referralDate
+                    ? moment(referralDate).format("DD MMM YYYY")
+                    : "-"}
+                </span>
+              );
+            },
           },
           {
             title: "Referral Notes",

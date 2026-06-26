@@ -98,7 +98,7 @@ import useTabletViewport from "../../../../hooks/useTabletViewport";
 import { useChikitsalay } from "../../../../pages/chikitsalay/useChikitsalay";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { getTabRxFiles, upsertTabRxRx } from "../../services/tabRxService";
-import { syncCrossConsultReferral } from "../../../../utils/crossConsultHelpers";
+import { syncCrossConsultReferral, getCrossConsultFromRecord } from "../../../../utils/crossConsultHelpers";
 import {
     getMetadata,
     setMetadata,
@@ -1885,6 +1885,7 @@ function TabRxHeaderV2({
                         tcmId: parseInt(action?.payload?.tcm_id ?? tcmId),
                         patientUniqueId: patient_data?.patient_unique_id,
                         referredBy: profile?.um_name,
+                        pendingCrossConsult: getCrossConsultFromRecord(patient_data),
                     });
                 } catch (error) {
                     console.error('[cross-consult] Failed', error?.message || error);
