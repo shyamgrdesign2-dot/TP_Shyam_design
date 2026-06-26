@@ -8,7 +8,9 @@
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import { VISUAL_TYPE } from "../../../utils/dentalVisualTypes";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Html } from "@react-three/drei";
+import { TPMedicalIcon } from "../tp-ui";
+import ex from "./ExaminationTab.module.scss";
 import {
   DENTAL_MOENGAGE_EVENTS,
   fireDentalOnce,
@@ -206,6 +208,7 @@ export function DentalCanvas({
       treatmentHistoryDetailsByTooth,
       agentApplyPulseFdis,
       currentToothDiagnoses,
+      currentToothVisualTypes,
       currentToothNotes,
       zoneNotes,
       isImplant,
@@ -486,7 +489,7 @@ export function DentalCanvas({
           </>
         )}
 
-        {!isDentitionView && (
+        {!isDentitionView && viewMode !== "oral" && (
           <ToothSelector
             selectedTooth={selectedTooth}
             patientType={patientType}
@@ -514,7 +517,11 @@ export function DentalCanvas({
                 onToggleZone={handleToggleZoneFromQuickSelector}
                 arch={selectedTooth.arch}
                 toothPosition={selectedTooth.position}
-                zonesWithFindings={new Set(findings.map((f) => f.zoneId))}
+                zonesWithFindings={new Set([
+                  ...findings.map((f) => f.zoneId),
+                  ...Object.values(currentTreatmentHistoryDetails || {}).flatMap((detail) => detail.surfaces || []),
+                  ...currentToothEntries.filter(e => e.kind === "planned").flatMap(e => e.surfaces || [])
+                ])}
                 disabled={currentToothVisualTypes.has(VISUAL_TYPE.MISSING)}
               />
             }
@@ -558,7 +565,16 @@ export function DentalCanvas({
             />
           )}
 
-          <Suspense fallback={null}>
+          <Suspense fallback={
+            <Html center>
+              <div className={ex.loaderWrapper}>
+                <div className={ex.shimmerIcon}>
+                  <TPMedicalIcon name="tooth" variant="bulk" size={56} color="#94a3b8" />
+                </div>
+                <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap' }}>Loading 3D view…</span>
+              </div>
+            </Html>
+          }>
             {isDentitionView || viewMode === "oral" ? (
               <DentitionView
                 patientType={patientType}

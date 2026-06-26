@@ -339,6 +339,9 @@ export function useDentalCanvasEvents(s) {
     }));
     setSelectedZone(null);
     setHoveredZone(null);
+    setHighlightZones([]);
+    setMultiSelectZones(new Set());
+    setMultiSelectActive(false);
   }, [viewMode, selectedTooth]);
 
   const handleSelectScope = useCallback(
@@ -567,47 +570,47 @@ export function useDentalCanvasEvents(s) {
       const fdi = selectedTooth.fdi;
       const toothMeta = getToothAnalyticsMeta(fdi, selectedTooth);
       const id = `entry-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      setAllEntries((prev) => [...prev, { ...partial, id, toothFdi: fdi }]);
-      if (partial.kind === "finding") {
-        const surfaces = partial.surfaces?.length ? partial.surfaces : ["whole"];
+      const surfaces = partial.surfaces?.length ? partial.surfaces : ["whole"];
+      const updatedPartial = { ...partial, surfaces };
+      setAllEntries((prev) => [...prev, { ...updatedPartial, id, toothFdi: fdi }]);
+      if (updatedPartial.kind === "finding") {
         setFindingsByTooth((fp) => {
           const list = [...(fp[fdi] || [])];
           for (const surface of surfaces) {
-            list.push({ id, zoneId: surface, type: partial.name, notes: partial.notes || "" });
+            list.push({ id, zoneId: surface, type: updatedPartial.name, notes: updatedPartial.notes || "" });
           }
           return { ...fp, [fdi]: list };
         });
         trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_FINDING_ADDED, {
           ...toothMeta,
-          finding_name: partial.name,
+          finding_name: updatedPartial.name,
           surface_count: surfaces.length,
           surfaces,
-          incidence_unit: partial.since || "",
+          incidence_unit: updatedPartial.since || "",
           entry_source: "manual",
         });
         trackToothRecordAdded({
           recordType: "finding",
-          recordName: partial.name,
+          recordName: updatedPartial.name,
           tooth: selectedTooth,
           extra: { surface_count: surfaces.length },
         });
-      } else if (partial.kind === "planned") {
-        const surfaces = partial.surfaces || [];
+      } else if (updatedPartial.kind === "planned") {
         trackDentalEvent(DENTAL_MOENGAGE_EVENTS.TOOTH_PROCEDURE_ADDED, {
           ...toothMeta,
-          procedure_name: partial.name,
+          procedure_name: updatedPartial.name,
           surface_count: surfaces.length,
           surfaces,
-          procedure_status: partial.status || "PLANNED",
+          procedure_status: updatedPartial.status || "PLANNED",
           entry_source: "manual",
         });
         trackToothRecordAdded({
           recordType: "procedure",
-          recordName: partial.name,
+          recordName: updatedPartial.name,
           tooth: selectedTooth,
           extra: {
             surface_count: surfaces.length,
-            procedure_status: partial.status || "PLANNED",
+            procedure_status: updatedPartial.status || "PLANNED",
           },
         });
       }
@@ -652,7 +655,7 @@ export function useDentalCanvasEvents(s) {
       const entry = allEntries.find((e) => e.id === id);
       if (entry?.kind === "finding" && entry.toothFdi) {
         const fdi = entry.toothFdi;
-        const newSurfaces = patch.surfaces.length ? patch.surfaces : ["whole"];
+        const newSurfaces = patch.surfaces;
         setFindingsByTooth((fp) => {
           const list = (fp[fdi] || []).filter((f) => f.id !== id);
           for (const surface of newSurfaces) {
@@ -727,9 +730,8 @@ export function useDentalCanvasEvents(s) {
   const addOralEntry = useCallback((kind, name, extra) => {
     if (!name) return;
     setOralEntries((prev) => {
-      if (prev.some((e) => e.kind === kind && e.name === name)) return prev;
       const id = `oral-${Date.now().toString(36)}-${++oralIdRef.current}`;
-      const surfaces = extra?.surfaces ?? ["WHOLE"];
+      const surfaces = extra?.surfaces?.length ? extra.surfaces : ["WHOLE"];
       const oralBase = {
         procedure_name: name,
         finding_name: name,

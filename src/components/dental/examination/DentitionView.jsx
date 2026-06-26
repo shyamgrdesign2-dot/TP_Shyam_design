@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useCallback, useEffect } from "react";
+import { memo, useMemo, useState, useCallback, useEffect, Suspense } from "react";
 import {
   TEETH,
   PEDIATRIC_TEETH,
@@ -43,7 +43,7 @@ export default function DentitionView({
   onSelectTooth,
   onHoverTooth,
   externalHoveredFdi,
-  allEntries,
+  allEntries = [],
   toothNotes,
   agentPulseFdis,
   showTreatmentTags = true,
@@ -307,6 +307,7 @@ export default function DentitionView({
       {visibleTeeth.map((tooth) => {
         const isPrimaryTooth = ["5", "6", "7", "8"].includes(tooth.fdi[0]);
         const findings = findingsByTooth[tooth.fdi] || [];
+        const toothEntries = allEntries.filter((e) => e.toothFdi === tooth.fdi);
         const historyDetails = treatmentHistoryDetailsByTooth?.[tooth.fdi] || {};
         const treatmentHistoryTags = Array.from(
           new Set([
@@ -318,27 +319,30 @@ export default function DentitionView({
           ]),
         );
         return (
-          <ArchTooth
-            key={tooth.fdi}
-            tooth={tooth}
-            archPose={activePositions[tooth.fdi]}
-            toothScale={isMixed && isPrimaryTooth ? 0.85 : 1}
-            diagnoses={toothDiagnoses[tooth.fdi]}
-            findings={findings}
-            treatmentHistoryTags={treatmentHistoryTags}
-            showTreatmentTags={showTreatmentTags}
-            isImplant={implantTeeth.has(tooth.fdi)}
-            isHovered={effectiveHovered === tooth.fdi}
-            isPinned={pinnedTooth === tooth.fdi}
-            agentPulse={Boolean(agentPulseFdis?.has?.(tooth.fdi))}
-            highlightActive={Boolean((hoverOralFdis || highlightFdis) && (hoverOralFdis || highlightFdis).size > 0)}
-            inHighlight={Boolean((hoverOralFdis || highlightFdis) && (hoverOralFdis || highlightFdis).has(tooth.fdi))}
-            onHover={setHoveredTooth}
-            onClick={disableSelection ? () => {} : onSelectTooth}
-            onPin={setPinnedTooth}
-            treatmentHistoryDetails={historyDetails}
-            visualTypeMap={visualTypeMap}
-          />
+          <Suspense key={tooth.fdi} fallback={null}>
+            <ArchTooth
+              key={tooth.fdi}
+              tooth={tooth}
+              archPose={activePositions[tooth.fdi]}
+              toothScale={isMixed && isPrimaryTooth ? 0.85 : 1}
+              diagnoses={toothDiagnoses[tooth.fdi]}
+              findings={findings}
+              toothEntries={toothEntries}
+              treatmentHistoryTags={treatmentHistoryTags}
+              showTreatmentTags={showTreatmentTags}
+              isImplant={implantTeeth.has(tooth.fdi)}
+              isHovered={effectiveHovered === tooth.fdi}
+              isPinned={pinnedTooth === tooth.fdi}
+              agentPulse={Boolean(agentPulseFdis?.has?.(tooth.fdi))}
+              highlightActive={Boolean((hoverOralFdis || highlightFdis) && (hoverOralFdis || highlightFdis).size > 0)}
+              inHighlight={Boolean((hoverOralFdis || highlightFdis) && (hoverOralFdis || highlightFdis).has(tooth.fdi))}
+              onHover={setHoveredTooth}
+              onClick={disableSelection ? () => {} : onSelectTooth}
+              onPin={setPinnedTooth}
+              treatmentHistoryDetails={historyDetails}
+              visualTypeMap={visualTypeMap}
+            />
+          </Suspense>
         );
       })}
       {showScopeHotspots && onSelectScope && (
