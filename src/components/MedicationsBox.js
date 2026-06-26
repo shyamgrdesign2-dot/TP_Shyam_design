@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator, getMedicineStockLabel } from "../utils/utils";
+import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator, getMedicineStockLabel, hasMedicineFrequency, hasMedicineDuration } from "../utils/utils";
 
 import { MenuOutlined } from '@ant-design/icons';
 
@@ -68,6 +68,7 @@ const {
 } = ASSETS.images;
 
 const { TextArea } = Input;
+const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
 const hasMedicineMasterId = (tmmId) => (
   tmmId !== undefined &&
@@ -433,21 +434,26 @@ function MedicationsBox({ showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const isTablet = useTabletViewport();
   const prescriptionNewTabletOverlayZIndex = isVoiceRxModuleEnabled && isTablet ? 1305 : undefined;
-  const shouldRequireInventoryLinkedMedications = isZydusAccount || isChikitsalayAccessable;
-  const hasUngroundedMedications = shouldRequireInventoryLinkedMedications && medicationData.some(isVoiceRxUngroundedMedication);
+  const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
+  const inventorySourceName = isZydusAccount ? "Zydus inventory" : "Chikitsalay medicine";
+  const hasUngroundedMedications = isZydusAccount && medicationData.some(isVoiceRxUngroundedMedication);
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
-      if (!isVoiceRxModuleEnabled) {
+      if (!isPrescriptionNewContext) {
         return popupClassName ? { popupClassName } : {};
       }
       return {
         popupMatchSelectWidth: false,
-        popupClassName: [popupClassName, voiceModuleStyles.medicationWideDropdown]
+        popupClassName: [
+          PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS,
+          popupClassName,
+          isVoiceRxModuleEnabled ? voiceModuleStyles.medicationWideDropdown : "",
+        ]
           .filter(Boolean)
           .join(" "),
       };
     },
-    [isVoiceRxModuleEnabled]
+    [isPrescriptionNewContext, isVoiceRxModuleEnabled]
   );
 
   const handleViewDoseCalcDrawer = (tab, value) => {
@@ -576,7 +582,7 @@ function MedicationsBox({ showVoiceRxModule }) {
     parentOptionsList.map((e) => {
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-        value: e.tmm_medicine_name,
+        value: isChikitsalayAccessable ? String(e.reference_id) : e.tmm_medicine_name,
         label: (
           <div data-testid="medicine-search-option">
             <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>
@@ -603,19 +609,19 @@ function MedicationsBox({ showVoiceRxModule }) {
         });
       } else {
         searchMLQuery && !isChikitsalayAccessable &&
-          data.push({
-            key: JSON.stringify({
+        data.push({
+          key: JSON.stringify({
               unique_id: uuidv4(),
-              tmm_id: 0,
-              tmm_medicine_name: searchMLQuery
-            }),
+            tmm_id: 0,
+            tmm_medicine_name: searchMLQuery
+          }),
             value: `${searchMLQuery}${Math.random()}`,
-            label: (
-              <>
-                <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{searchMLQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
-              </>
-            ),
-          });
+          label: (
+            <>
+              <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{searchMLQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
+            </>
+          ),
+        });
       }
     } else {
       if (activeSearchQuery.length == 0) {
@@ -629,19 +635,19 @@ function MedicationsBox({ showVoiceRxModule }) {
         });
       } else {
         activeSearchQuery && !isChikitsalayAccessable &&
-          data.push({
-            key: JSON.stringify({
+        data.push({
+          key: JSON.stringify({
               unique_id: uuidv4(),
-              tmm_id: 0,
-              tmm_medicine_name: activeSearchQuery
-            }),
+            tmm_id: 0,
+            tmm_medicine_name: activeSearchQuery
+          }),
             value: `${activeSearchQuery}${Math.random()}`,
-            label: (
-              <>
-                <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{activeSearchQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
-              </>
-            ),
-          });
+          label: (
+            <>
+              <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{activeSearchQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
+            </>
+          ),
+        });
       }
     }
     setParentSearchOptions(data);
@@ -1625,7 +1631,10 @@ function MedicationsBox({ showVoiceRxModule }) {
                 </Col>
                 <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationFrequencyCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome d-flex align-items-center flex-wrap">
-                    <label>FREQUENCY </label>
+                    <label>
+                      FREQUENCY
+                      {isChikitsalayAccessable ? <span className="text-danger"> *</span> : null}
+                    </label>
                     <Popover
                       open={frequencyPopOver}
                       content={FREQUENCY_CONTENT}
@@ -1645,7 +1654,10 @@ function MedicationsBox({ showVoiceRxModule }) {
                 </Col>
                 <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDurationCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
-                    <label>DURATION</label>
+                    <label>
+                      DURATION
+                      {isChikitsalayAccessable ? <span className="text-danger"> *</span> : null}
+                    </label>
                   </div>
                 </Col>
                 <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
@@ -1702,7 +1714,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
-                            style={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
+                            style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
                           >
                             <div className={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
                               {isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? (
@@ -1738,11 +1750,11 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     )}
                                     {renderHmTypeBadge(item, { hideZ: !isPrescriptionNewContext })}
                                   </div>
-                                  {isZydusAccount && (
+                                  {shouldShowInventorySourceWarning && (
                                     <Tooltip
                                       placement="top"
                                       overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                      title="This medication is not from your Zydus inventory list. Click to search and add the medicine."
+                                      title={`Click to search and add the medicine from the ${inventorySourceName} list.`}
                                     >
                                       <InfoCircleOutlined
                                         className="fs-18"
@@ -1814,7 +1826,16 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     <Select
                                       showSearch
                                       className="autocomplete-custom w-100 h-100 inputborder"
-                                      placeholder="e.g 1-0-1"
+                                      placeholder={
+                                        isChikitsalayAccessable ? (
+                                          <span>
+                                            <span style={{ opacity: 0.6 }}>e.g 1-0-1</span>{" "}
+                                            <span className="text-danger">*</span>
+                                          </span>
+                                        ) : (
+                                          "e.g 1-0-1"
+                                        )
+                                      }
                                       defaultValue={item.tmm_freq_type_name != "" ? item.tmm_freq_type_name : null}
                                       value={item.tmm_freq_type_name != "" ? item.tmm_freq_type_name : null}
                                       onSearch={(query) => onSearchFrequencyChild(query, item?.index)}
@@ -1849,7 +1870,16 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     <AutoComplete
                                       defaultValue={item.tmm_days_duration_type}
                                       value={hasNumber(item.tmm_days_duration_type) ? item.tmm_days_duration_type : capitalize(item.tmm_days_duration_type, true)}
-                                      placeholder="e.g 1 Day"
+                                      placeholder={
+                                        isChikitsalayAccessable ? (
+                                          <span>
+                                            <span style={{ opacity: 0.6 }}>e.g 1 Day</span>{" "}
+                                            <span className="text-danger">*</span>
+                                          </span>
+                                        ) : (
+                                          "e.g 1 Day"
+                                        )
+                                      }
                                       bordered={false}
                                       defaultOpen={false}
                                       onSearch={(query) => onSearchSinceChid(query, item?.index)}
@@ -1906,7 +1936,18 @@ function MedicationsBox({ showVoiceRxModule }) {
         </DragDropContext>
       </div>
     );
-  }, [medicationData, frequencyPopOver, parentSearchOptions, renderHmTypeBadge, renderSelectedMedicineStock, voiceMedicineEdit, isVoiceRxModuleEnabled, isPrescriptionNewContext]);
+  }, [
+    frequencyPopOver,
+    inventorySourceName,
+    isPrescriptionNewContext,
+    isVoiceRxModuleEnabled,
+    medicationData,
+    parentSearchOptions,
+    renderHmTypeBadge,
+    renderSelectedMedicineStock,
+    shouldShowInventorySourceWarning,
+    voiceMedicineEdit,
+  ]);
 
   //Child Component
   // const TABLE_MEDICATION = useMemo(() => {

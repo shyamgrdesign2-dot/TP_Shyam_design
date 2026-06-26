@@ -848,6 +848,22 @@ export const getMedicineStockLabel = (med) => {
   return null;
 };
 
+export const hasMedicineFrequency = (medicine) => 
+  String(medicine?.tmm_freq_type_name ?? "").trim() !== "";
+
+export const hasMedicineDuration = (medicine) =>
+  String(medicine?.tmm_days_duration_type ?? "").trim() !== "";
+
+export const medicationsHaveFrequencyAndDuration = (medicationData = []) => {
+  if (!Array.isArray(medicationData) || medicationData.length === 0) {
+    return true;
+  }
+
+  return medicationData.every(
+    (medicine) => hasMedicineFrequency(medicine) && hasMedicineDuration(medicine)
+  );
+};
+
 export const getClinicName = (hospitalData) => {
   const decodedToken = getDecodedToken();
   const clinicId = decodedToken?.result?.clinic_id;

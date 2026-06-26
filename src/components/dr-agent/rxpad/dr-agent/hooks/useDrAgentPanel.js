@@ -862,6 +862,7 @@ export function useDrAgentPanel({
         transcript: voiceRxLogTranscript,
         digitizeData: voiceRxLogDigitizeData,
         previousContext: voiceRxLogPreviousContext,
+        speechAnalysis: meta?.speechAnalysis,
       }).then(({ source }) => {
         dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
           type: voiceRxResult?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
@@ -911,6 +912,7 @@ export function useDrAgentPanel({
         transcript: voiceRxLogTranscript,
         digitizeData: voiceRxLogDigitizeData,
         previousContext: voiceRxLogPreviousContext,
+        speechAnalysis: meta?.speechAnalysis,
       });
       message.error(error?.message || "Voice edit failed.");
       setMessagesByPatient((prev) => {
@@ -1215,6 +1217,7 @@ export function useDrAgentPanel({
           transcript: voiceRxLogTranscript,
           digitizeData: voiceRxLogDigitizeData,
           previousContext: voiceRxLogPreviousContext,
+          speechAnalysis: meta?.speechAnalysis,
         }).then(({ source }) => {
           dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
             type: prior?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
@@ -1267,6 +1270,7 @@ export function useDrAgentPanel({
           transcript: voiceRxLogTranscript,
           digitizeData: voiceRxLogDigitizeData,
           previousContext: voiceRxLogPreviousContext,
+          speechAnalysis: meta?.speechAnalysis,
         });
         message.error(error?.message || "Voice consultation failed.");
         // Remove the optimistic user echo so the chat doesn't dangle.

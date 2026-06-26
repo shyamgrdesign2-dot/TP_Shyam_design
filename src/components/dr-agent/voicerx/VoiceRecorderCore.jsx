@@ -38,7 +38,7 @@ import {
   isAudioChunkContextReady,
   uploadAudioChunk,
 } from "./api/audio-chunk-upload";
-import { trackVoiceRx2RecorderEvent } from "./voiceRx2Logging";
+import { trackVoiceRx2RecorderEvent, uploadAndTrackVoiceRx2LowSpeechBlock } from "./voiceRx2Logging";
 import fsStyles from "./VoiceRxActiveAgent.module.scss";
 import osStyles from "./VoiceRxModuleRecorder.module.scss";
 import canvasStyles from "./VoiceRxCanvas.module.scss";
@@ -102,6 +102,9 @@ const VAD_MIN_SPEECH_MS = 400;
 const VAD_WAVEFORM_SPEECH_THRESHOLD = 0.5;
 const VAD_WAVEFORM_ON_MS = 160;
 const VAD_WAVEFORM_OFF_MS = 450;
+const VAD_MIN_SPEECH_COVERAGE_RATIO = 0.25;
+const VAD_MIN_FINAL_ANALYSIS_MS = 1000;
+const VAD_MAX_FRAME_DELTA_MS = 500;
 const VAD_DEBUG_STORAGE_KEY = "voiceRxVadDebug";
 const CAPTION_AUDIO_ACTIVITY_THRESHOLD = 0.018;
 const CAPTION_AUDIO_ACTIVITY_ON_MS = 120;
@@ -132,6 +135,14 @@ function getSilenceDetectorThresholdMs(config) {
   return Number.isFinite(value) && value > 0 ? value : DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS;
 }
 
+function getVadMinSpeechCoverageRatio(config) {
+  const value = Number(config?.vadMinSpeechCoverageRatio);
+  if (!Number.isFinite(value) || value <= 0) return VAD_MIN_SPEECH_COVERAGE_RATIO;
+  if (value > 1 && value <= 100) return value / 100;
+  if (value <= 1) return value;
+  return VAD_MIN_SPEECH_COVERAGE_RATIO;
+}
+
 function isVadEnabled(config) {
   return config?.enableVAD === true;
 }
@@ -142,6 +153,51 @@ function playSilenceReminderSound() {
       playVoiceRxErrorSound();
     }, index * SILENCE_REMINDER_TONE_GAP_MS);
   }
+}
+
+function createEmptyVadSpeechAnalysis() {
+  return {
+    analyzedDurationMs: 0,
+    speechDurationMs: 0,
+    totalFrames: 0,
+    speechFrames: 0,
+    probabilitySum: 0,
+    maxSpeechProbability: 0,
+    firstFrameAtMs: 0,
+    lastFrameAtMs: 0,
+    firstSpeechAtMs: 0,
+    lastSpeechAtMs: 0,
+  };
+}
+
+function buildVadSpeechAnalysisSnapshot(stats, durationMs, minSpeechCoverageRatio = VAD_MIN_SPEECH_COVERAGE_RATIO) {
+  const analyzedDurationMs = Math.max(0, Math.round(stats?.analyzedDurationMs || 0));
+  const speechDurationMs = Math.max(0, Math.round(stats?.speechDurationMs || 0));
+  const totalFrames = Math.max(0, stats?.totalFrames || 0);
+  const speechFrames = Math.max(0, stats?.speechFrames || 0);
+  const speechCoverageRatio = analyzedDurationMs > 0 ? speechDurationMs / analyzedDurationMs : 0;
+  const speechFrameRatio = totalFrames > 0 ? speechFrames / totalFrames : 0;
+  const averageSpeechProbability = totalFrames > 0 ? (stats?.probabilitySum || 0) / totalFrames : 0;
+
+  return {
+    vadEnabled: true,
+    detector: "ricky0123_vad",
+    minSpeechCoverageRatio,
+    minSpeechCoveragePercent: Math.round(minSpeechCoverageRatio * 100),
+    speechCoverageRatio,
+    speechCoveragePercent: Math.round(speechCoverageRatio * 100),
+    speechFrameRatio,
+    speechFramePercent: Math.round(speechFrameRatio * 100),
+    analyzedDurationMs,
+    speechDurationMs,
+    nonSpeechDurationMs: Math.max(0, analyzedDurationMs - speechDurationMs),
+    audioDurationMs: Math.round(durationMs || 0),
+    totalVadFrames: totalFrames,
+    speechVadFrames: speechFrames,
+    averageSpeechProbability: Number(averageSpeechProbability.toFixed(4)),
+    maxSpeechProbability: Number(Math.max(0, stats?.maxSpeechProbability || 0).toFixed(4)),
+    canEvaluateSpeechCoverage: analyzedDurationMs >= VAD_MIN_FINAL_ANALYSIS_MS && totalFrames > 0,
+  };
 }
 
 // ── Shared hooks ─────────────────────────────────────────────────────────────
@@ -251,12 +307,14 @@ function useSelectedStreamAudioActivity(stream, active) {
 
 function useHumanVoiceSilenceDetector(stream, active, onNoHumanVoice, {
   timeoutMs = DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS,
+  onVadFrameProcessed,
 } = {}) {
   const [humanVoiceActive, setHumanVoiceActive] = useState(false);
   const humanVoiceActiveRef = useRef(false);
   const streamRef = useRef(stream);
   const activeRef = useRef(active);
   const onNoHumanVoiceRef = useRef(onNoHumanVoice);
+  const onVadFrameProcessedRef = useRef(onVadFrameProcessed);
   const lastHumanVoiceAtRef = useRef(0);
   const speechCandidateStartedAtRef = useRef(0);
   const lastSpeechFrameAtRef = useRef(0);
@@ -265,6 +323,7 @@ function useHumanVoiceSilenceDetector(stream, active, onNoHumanVoice, {
   useEffect(() => { streamRef.current = stream; }, [stream]);
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { onNoHumanVoiceRef.current = onNoHumanVoice; }, [onNoHumanVoice]);
+  useEffect(() => { onVadFrameProcessedRef.current = onVadFrameProcessed; }, [onVadFrameProcessed]);
 
   const markHumanVoice = useCallback(() => {
     lastHumanVoiceAtRef.current = performance.now();
@@ -296,6 +355,11 @@ function useHumanVoiceSilenceDetector(stream, active, onNoHumanVoice, {
     const now = performance.now();
     const speechProbability = Number(probs?.isSpeech || 0);
     const vadSpeechFrame = speechProbability >= VAD_WAVEFORM_SPEECH_THRESHOLD;
+    onVadFrameProcessedRef.current?.({
+      nowMs: now,
+      speechProbability,
+      vadSpeechFrame,
+    });
 
     if (vadSpeechFrame) {
       if (!speechCandidateStartedAtRef.current) speechCandidateStartedAtRef.current = now;
@@ -429,12 +493,13 @@ function HumanVoiceSilenceDetector({
   onNoHumanVoice,
   timeoutMs,
   onHumanVoiceActiveChange,
+  onVadFrameProcessed,
 }) {
   const { humanVoiceActive } = useHumanVoiceSilenceDetector(
     stream,
     active,
     onNoHumanVoice,
-    { timeoutMs }
+    { timeoutMs, onVadFrameProcessed }
   );
 
   useEffect(() => {
@@ -593,7 +658,7 @@ function useMicStream(deviceId, enabled) {
   return { stream, devices, error, permissionState, retry };
 }
 
-function useBlobRecorder(stream, paused, enabled) {
+function useBlobRecorder(stream, paused, enabled, resetKey = 0) {
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
   const recorderOrderRef = useRef(0);
@@ -642,7 +707,7 @@ function useBlobRecorder(stream, paused, enabled) {
       try { if (rec.state !== "inactive") rec.stop(); } catch { /* ignore */ }
       recorderRef.current = null;
     };
-  }, [enabled, stream]);
+  }, [enabled, resetKey, stream]);
 
   useEffect(() => {
     const rec = recorderRef.current;
@@ -695,7 +760,7 @@ function createAudioRecorder(stream) {
   }
 }
 
-function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
+function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext, resetKey = 0) {
   const recorderRef = useRef(null);
   const segmentChunksRef = useRef([]);
   const segmentStartedAtRef = useRef(0);
@@ -840,7 +905,7 @@ function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
     if (enabled && stream && isAudioChunkContextReady(audioChunkContext)) {
       startSegment();
     }
-  }, [audioChunkContext, enabled, paused, startSegment, stopSegment, stream]);
+  }, [audioChunkContext, enabled, paused, resetKey, startSegment, stopSegment, stream]);
 
   useEffect(() => {
     return () => {
@@ -1035,6 +1100,7 @@ export function VoiceRecorderCore({
   const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
   const enableVAD = isVadEnabled(tpConfigData);
   const silenceDetectorThresholdMs = getSilenceDetectorThresholdMs(tpConfigData);
+  const vadMinSpeechCoverageRatio = getVadMinSpeechCoverageRatio(tpConfigData);
   const publishesCollapsedVoiceSession = isFullscreen || enableCollapsedVoiceSession;
   const rootRef = useRef(null);
   const transcriptScrollRef = useRef(null);
@@ -1054,6 +1120,7 @@ export function VoiceRecorderCore({
   const [humanVoiceActive, setHumanVoiceActive] = useState(false);
   const [acceptedExternalTranscript, setAcceptedExternalTranscript] = useState("");
   const submitProcessingRef = useRef(false);
+  const vadSpeechAnalysisRef = useRef(createEmptyVadSpeechAnalysis());
 
   // Fullscreen: processing phase → bottom loader transition
   const [processingPhase, setProcessingPhase] = useState("idle");
@@ -1488,7 +1555,37 @@ export function VoiceRecorderCore({
     selectedDeviceId,
   ]);
 
+  const resetVadSpeechAnalysis = useCallback(() => {
+    vadSpeechAnalysisRef.current = createEmptyVadSpeechAnalysis();
+  }, []);
+
+  const handleVadFrameForSpeechAnalysis = useCallback(({ nowMs, speechProbability, vadSpeechFrame }) => {
+    const stats = vadSpeechAnalysisRef.current;
+    const previousFrameAtMs = stats.lastFrameAtMs || 0;
+    const rawDeltaMs = previousFrameAtMs ? nowMs - previousFrameAtMs : 0;
+    const frameDeltaMs = rawDeltaMs > 0 ? Math.min(rawDeltaMs, VAD_MAX_FRAME_DELTA_MS) : 0;
+
+    stats.totalFrames += 1;
+    stats.probabilitySum += speechProbability;
+    stats.maxSpeechProbability = Math.max(stats.maxSpeechProbability, speechProbability);
+    stats.firstFrameAtMs = stats.firstFrameAtMs || nowMs;
+    stats.lastFrameAtMs = nowMs;
+    stats.analyzedDurationMs += frameDeltaMs;
+
+    if (vadSpeechFrame) {
+      stats.speechFrames += 1;
+      stats.speechDurationMs += frameDeltaMs;
+      stats.firstSpeechAtMs = stats.firstSpeechAtMs || nowMs;
+      stats.lastSpeechAtMs = nowMs;
+    }
+  }, []);
+
   const vadActive = Boolean(enableVAD && stream && micEnabled && recordingActive && online);
+
+  useEffect(() => {
+    resetVadSpeechAnalysis();
+  }, [activeDevice?.deviceId, resetVadSpeechAnalysis, stream?.id]);
+
   const effectiveHumanVoiceActive = liveTranscriptAllowed;
   const vadSilenceDetector = vadActive ? (
     <HumanVoiceSilenceDetector
@@ -1497,7 +1594,8 @@ export function VoiceRecorderCore({
       active={vadActive}
       onNoHumanVoice={handleNoHumanVoiceDetected}
       timeoutMs={silenceDetectorThresholdMs}
-      onHumanVoiceActiveChange={setHumanVoiceActive} />
+      onHumanVoiceActiveChange={setHumanVoiceActive}
+      onVadFrameProcessed={handleVadFrameForSpeechAnalysis} />
   ) : null;
 
   const isListening = statusLabel === "Listening";
@@ -1539,6 +1637,53 @@ export function VoiceRecorderCore({
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
+  const handleLowSpeechCoverageBlock = useCallback(({
+    audioBlob,
+    speechAnalysis,
+    submitClickedAt,
+    submitClickedAtMs,
+  }) => {
+    const submitId = `voice-rx-2-vad-block-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    playVoiceRxErrorSound();
+    const toastEventPayload = {
+      action: "dismiss_low_speech_block_toast",
+      failedPhase: "vad-precheck",
+      voiceApiCalled: false,
+      submitClickedAt,
+      submitId,
+      requestId: submitId,
+      ...speechAnalysis,
+    };
+    toast.warning("We couldn't detect enough speech in this recording. Please re-record and try again.", {
+      key: submitId,
+      duration: 0,
+      closable: true,
+      onDismiss: () => {
+        trackVoiceRx2RecorderEvent("TP_Voice_V2_Low_Speech_Ratio_Toast_Dismissed", buildRecorderEventPayload(toastEventPayload));
+      },
+    });
+    void uploadAndTrackVoiceRx2LowSpeechBlock({
+      ...buildRecorderEventPayload(),
+      audioBlob,
+      submitId,
+      requestId: submitId,
+      submitClickedAt,
+      submitClickedAtMs,
+      durationMs: elapsedMs,
+      speechAnalysis: {
+        action: "blocked_before_transcribe_audio",
+        ...speechAnalysis,
+      },
+    }).catch((error) => {
+      console.error("[voice-rx] low speech upload/log failed", error);
+    });
+    setAcceptedExternalTranscript("");
+    resetLiveTranscript();
+    resetVadSpeechAnalysis();
+    setHumanVoiceActive(false);
+    onCancel?.();
+  }, [buildRecorderEventPayload, elapsedMs, onCancel, resetLiveTranscript, resetVadSpeechAnalysis]);
+
   const handleSubmitClick = useCallback(async () => {
     if (submitProcessingRef.current || submitProcessing || (isFullscreen && isAwaitingResponse) || !canSubmit) return;
     submitProcessingRef.current = true;
@@ -1550,15 +1695,34 @@ export function VoiceRecorderCore({
     try { audioBlob = await getBlob(); } catch (e) { console.error("Failed to capture audio blob", e); }
     try { await flushFinalChunks(); } catch (e) { console.error("Failed to flush audio chunks", e); }
     const transcript = isFullscreen ? syncedExternalTranscript : liveDisplayText;
+    const speechAnalysis = buildVadSpeechAnalysisSnapshot(vadSpeechAnalysisRef.current, elapsedMs, vadMinSpeechCoverageRatio);
+    const shouldBlockForLowSpeechCoverage = Boolean(
+      enableVAD &&
+      audioBlob?.size &&
+      speechAnalysis.canEvaluateSpeechCoverage &&
+      speechAnalysis.speechCoverageRatio < vadMinSpeechCoverageRatio
+    );
+    if (shouldBlockForLowSpeechCoverage) {
+      submitProcessingRef.current = false;
+      setSubmitProcessing(false);
+      handleLowSpeechCoverageBlock({
+        audioBlob,
+        speechAnalysis,
+        submitClickedAt,
+        submitClickedAtMs,
+      });
+      return;
+    }
+    resetVadSpeechAnalysis();
     try {
-      await onSubmit?.({ audioBlob, transcript, durationMs: elapsedMs, submitClickedAt, submitClickedAtMs, micBeingUsed: activeDevice?.label || "" });
+      await onSubmit?.({ audioBlob, transcript, durationMs: elapsedMs, submitClickedAt, submitClickedAtMs, micBeingUsed: activeDevice?.label || "", speechAnalysis });
     } catch (e) {
       console.error("Voice submit failed", e);
     } finally {
       submitProcessingRef.current = false;
       setSubmitProcessing(false);
     }
-  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, flushFinalChunks, onSubmit, syncedExternalTranscript, liveDisplayText, elapsedMs, activeDevice?.label]);
+  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, flushFinalChunks, onSubmit, syncedExternalTranscript, liveDisplayText, elapsedMs, enableVAD, vadMinSpeechCoverageRatio, handleLowSpeechCoverageBlock, resetVadSpeechAnalysis, activeDevice?.label]);
 
   const submitRequestSeenRef = useRef(voiceSubmitRequest);
   useEffect(() => {

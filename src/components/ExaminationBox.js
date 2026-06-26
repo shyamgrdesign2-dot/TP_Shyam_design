@@ -44,6 +44,7 @@ import {
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 const {
   alerticon: alertIcon,
   examination: Examinationicon,
@@ -51,6 +52,7 @@ const {
 
 function ExaminationBox({ showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedExaminationList,
     parentOptionsList,
@@ -509,6 +511,7 @@ function ExaminationBox({ showVoiceRxModule }) {
                               onFocus={() => onFocusChid(index)}
                               options={childSearchOptions}
                               className="autocomplete-custom w-100 inputborder"
+                              {...getPrescriptionNewPopupProps()}
                               defaultActiveFirstOption={true}
                               onSelect={(data, e) => onSelectChild(data, e, index)}
                             />
@@ -712,6 +715,7 @@ function ExaminationBox({ showVoiceRxModule }) {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -893,7 +897,7 @@ function ExaminationBox({ showVoiceRxModule }) {
               className="autocomplete-custom w-100"
               onSelect={onSelectParent}
               defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
+              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
             >
               <Input
                 placeholder="Search Examinations"

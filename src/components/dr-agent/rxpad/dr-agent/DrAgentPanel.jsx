@@ -177,9 +177,40 @@ export function DrAgentPanel({
   ]);
 
   useEffect(() => {
-    toast.setHandler(({ type, msg }) => {
+    toast.setHandler(({ type, msg, duration, closable, key, onDismiss }) => {
       const notify = message[type] || message.info;
-      notify({ content: msg, duration: 2.5 });
+      const messageKey = key || `dr-agent-toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const content = closable ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <span>{msg}</span>
+          <button
+            type="button"
+            aria-label="Dismiss notification"
+            onClick={(event) => {
+              event.stopPropagation();
+              message.destroy(messageKey);
+              onDismiss?.();
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 22,
+              height: 22,
+              border: 0,
+              borderRadius: 11,
+              background: "rgba(17, 24, 39, 0.10)",
+              color: "inherit",
+              cursor: "pointer",
+              fontSize: 16,
+              lineHeight: 1,
+              padding: 0,
+            }}>
+            {"\u00d7"}
+          </button>
+        </span>
+      ) : msg;
+      notify({ key: messageKey, content, duration: duration ?? 2.5 });
     });
     return () => toast.setHandler(null);
   }, []);

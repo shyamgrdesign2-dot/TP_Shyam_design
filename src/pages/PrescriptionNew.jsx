@@ -93,7 +93,7 @@ import {
 import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
-import { appendStripped } from "../utils/voiceRxRowStrip";
+import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
@@ -110,7 +110,6 @@ import { checkCredits } from "../redux/monetizationSlice";
 import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData, getGenRx } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
-import SCBanner from "../components/SCBanner";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
 import TatvaAiBanner from "../components/TatvaAiBanner";
@@ -227,13 +226,10 @@ function parseFollowUpDate(value, baseDate) {
   return base.clone().add(amount, unit).format("YYYY-MM-DD");
 }
 
-function appendFollowUpNote(setAdditionalNote, value) {
+function appendAdditionalNote(setAdditionalNote, value) {
   const text = String(value ?? "").trim();
   if (!text) return;
-  setAdditionalNote((prev) => {
-    const current = String(prev || "").trim();
-    return current ? `${current}\n${text}` : text;
-  });
+  setAdditionalNote((prev) => appendDedupedText(prev, text));
 }
 
 function hasCopiedCustomModuleValue(value) {
@@ -505,7 +501,7 @@ function PrescriptionNewRxPadCopyListener() {
     const digitization = payload.digitization || {};
     const appendRows = (setter, rows, moduleKey) => {
       if (!rows.length) return;
-      setter((prev) => appendStripped(prev, rows, moduleKey));
+      setter((prev) => mergeCopiedRows(prev, rows, moduleKey));
     };
 
     const symptoms = firstNonEmpty(digitization.symptoms, payload.symptoms);
@@ -538,7 +534,8 @@ function PrescriptionNewRxPadCopyListener() {
           frequencyList
         ),
         timingList
-      )
+      ),
+      "medications"
     );
 
     const investigations = firstNonEmpty(
@@ -556,7 +553,8 @@ function PrescriptionNewRxPadCopyListener() {
     const advice = firstNonEmpty(digitization.advice, payload.advice);
     appendRows(
       setAdviceData,
-      normalizeModuleRows({ advice: toArray(advice) }, "advice")
+      normalizeModuleRows({ advice: toArray(advice) }, "advice"),
+      "advice"
     );
 
     const copiedVitals = payload.skipVitalsSync
@@ -689,7 +687,8 @@ function PrescriptionNewRxPadCopyListener() {
       if (parsedDate) {
         setFollowUpDate(parsedDate);
       } else {
-        appendFollowUpNote(setAdditionalNote, item);
+        const followUpText = String(item ?? "").trim();
+        if (followUpText) setFollowUpDate(followUpText);
       }
     });
 
@@ -698,7 +697,7 @@ function PrescriptionNewRxPadCopyListener() {
       digitization.additionalNotes,
       payload.additionalNotes
     );
-    toArray(additionalNotes).forEach((item) => appendFollowUpNote(setAdditionalNote, item));
+    toArray(additionalNotes).forEach((item) => appendAdditionalNote(setAdditionalNote, item));
 
     const copiedModuleContents = firstNonEmpty(
       digitization.moduleContents,
@@ -1043,7 +1042,6 @@ function PrescriptionNew() {
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
   const [pillupSwitch, setPillupSwitch] = useState(true);
-  const [showSCBanner, setShowSCBanner] = useState(false);
   const [zydusTestReportDrawer, setZydusTestReportDrawer] = useState(false);
   const [labReportID, setLabReportID] = useState(null);
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
@@ -2075,7 +2073,6 @@ function PrescriptionNew() {
     const requestId = symptomCollectorRequestRef.current + 1;
     symptomCollectorRequestRef.current = requestId;
     setSymptomCollectorStatus("loading");
-    setShowSCBanner(false);
     dispatch(setSymptomCollector({}));
     const payload = {
       um_id: String(userId),
@@ -2097,18 +2094,15 @@ function PrescriptionNew() {
       };
       if (response && Object.keys(response)?.length > 0 && hasDisplayableSymptomCollectorPayload(nextSymptomCollector)) {
         dispatch(setSymptomCollector(nextSymptomCollector));
-        setShowSCBanner(true);
         setSymptomCollectorStatus("found");
         if (patient_data?.pam_status === "0" && caseManagerData === undefined) {
           dispatch(setShowSCPopup(true));
         }
       } else {
-        setShowSCBanner(false);
         setSymptomCollectorStatus("empty");
       }
     } catch (error) {
       if (symptomCollectorRequestRef.current !== requestId) return;
-      setShowSCBanner(false);
       setSymptomCollectorStatus("empty");
     }
   };
@@ -3024,9 +3018,6 @@ function PrescriptionNew() {
                   )}
                   </Carousel>
                 } */}
-                {showSCBanner && (
-                  <SCBanner handleBanner={() => setShowSCBanner(false)} />
-                )}
                 {customizedPadRightList?.map((e, i) => {
                   let customModule = allAvailableModules?.find(
                     (m) => m.module_id === e.tmdpm_id

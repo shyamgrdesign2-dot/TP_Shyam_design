@@ -53,12 +53,14 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
 } = ASSETS.images;
 
 function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoading, handleDDxKnowMore, isDDxGenerated, showVoiceRxModule}) {
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedDiagnosisList,
     parentOptionsList,
@@ -697,6 +699,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                               onFocus={() => onFocusChid(index)}
                               options={childSearchOptions}
                               className="autocomplete-custom w-100 inputborder"
+                              {...getPrescriptionNewPopupProps()}
                               defaultActiveFirstOption={true}
                               onSelect={(data, e) => onSelectChild(data, e, index)}
                             />
@@ -713,6 +716,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onBlur={() => onBlurSinceChid(index)}
                             options={sinceOptions}
                             className="autocomplete-custom w-100 inputborder"
+                            {...getPrescriptionNewPopupProps()}
                             defaultActiveFirstOption={true}
                             onSelect={(data) => onSelectSinceChild(data, index)}
                           />
@@ -725,6 +729,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             value={item.status != "" ? item.status : null}
                             onSelect={(data) => onSelectStatusChild(data, index)}
                             options={STATUS_LIST}
+                            {...getPrescriptionNewPopupProps()}
                             onClear={() => onSelectStatusChild("", index)}
                             allowClear
                           />
@@ -876,6 +881,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -1089,7 +1095,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               className="autocomplete-custom w-100"
               onSelect={onSelectParent}
               defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
+              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
             >
               <Input
                 placeholder="Search Diagnosis"
