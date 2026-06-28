@@ -3029,7 +3029,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   height={25}
                   loading="lazy"
                   onClick={() => setIsSymptomsCollectorTour(true)}
-                  style={{ cursor: "pointer", marginLeft: "10px" }}
+                  style={{ cursor: "pointer", marginLeft: "10px", marginTop: "7px" }}
                 />
                 {index === firstSymptomIndex && (
                   <Tour

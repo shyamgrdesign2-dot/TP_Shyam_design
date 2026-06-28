@@ -5,7 +5,8 @@ import { useSelector } from "react-redux";
 import { isMobile, isTablet } from "react-device-detect";
 import { isZydus } from "../utils/utils";
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { GB_TAB_RX, GB_DENTAL_MODULE, GB_CVT_EXT_HOS } from "../utils/constants";
+import { GB_TAB_RX, GB_CVT_EXT_HOS } from "../utils/constants";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { ASSETS } from "../assets";
 const smartPad = ASSETS.images.smartpad;
 
@@ -108,7 +109,7 @@ const PrimaryActionButton = ({
   const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
 
   const isDental = dpid === 26 || (department && department.toLowerCase() === 'dental');
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = useIsDentalEnabled();
   const isDentalAndEnabled = isDentalEnabled;
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 

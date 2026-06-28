@@ -47,8 +47,8 @@ import ApiAbha from "../api/services/ApiAbha";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
 import { transformToothStateToApi } from "../components/dental/lib/examination-helpers";
 import { toothHasDentalPrintData } from "../components/print_settings/dental/dentalPrintHelpers";
-import { GB_DENTAL_MODULE } from "../utils/constants";
 import { mergeDentalPrintCaseOptions } from "../utils/dentalDefaultPrintSettings";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { listPatientCanvasMapping } from "./drawingCanvas/service";
 import { ensureDrawingCanvasCaseOption } from "./drawingCanvas/utils/drawingCanvasPrintUtils";
 import { exportToBlob } from "@excalidraw/excalidraw";
@@ -61,7 +61,7 @@ function ConfigurePrintSetting() {
     const printSettingsRef = useRef(null);
 
     const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
-    const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+    const isDentalEnabled = useIsDentalEnabled();
 
     const { state } = useLocation();
     const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, dentalExaminationData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;

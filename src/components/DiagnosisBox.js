@@ -278,14 +278,16 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   useEffect(() => {
     const data = [];
-    childOptionsList.map((e) => {
-      return data.push({
-        key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-        value: e.tds_name,
-        label: <div>{`${e.tds_name} ${e?.icd_code ? `(${e?.icd_code})` : ''}`}</div>,
+    childOptionsList
+      .filter((e) => !isChikitsalayAccessable || e?.icd_code)
+      .forEach((e) => {
+        data.push({
+          key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+          value: e.tds_name,
+          label: <div>{`${e.tds_name} ${e?.icd_code ? `(${e?.icd_code})` : ''}`}</div>,
+        });
       });
-    });
-    if (searchChildQuery?.query && childOptionsList.findIndex(e => e.tds_name?.toLowerCase()?.trim() == searchChildQuery?.query?.toLowerCase()?.trim()) === -1) {
+    if (searchChildQuery?.query && childOptionsList.findIndex(e => e.tds_name?.toLowerCase()?.trim() == searchChildQuery?.query?.toLowerCase()?.trim()) === -1 && !isChikitsalayAccessable) {
       data.push({
         key: JSON.stringify({
           ...diagnosisData[searchChildQuery.index],
@@ -302,7 +304,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       });
     }
     setChildSearchOptions(data);
-  }, [childOptionsList]);
+  }, [childOptionsList, isChikitsalayAccessable]);
 
   const onFocusChid = (i) => {
     setSearchChildQuery({ query: diagnosisData[i].tds_name, index: i });

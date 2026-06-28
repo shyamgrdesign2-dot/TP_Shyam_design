@@ -2,12 +2,9 @@ import React, { useState, useCallback, useEffect } from "react";
 import Card from "react-bootstrap/Card";
 import { Spin } from "antd";
 import { useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
-
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { getExamination } from "../api/services/ApiDental";
 import { getOralExamination } from "../api/services/ApiOral";
-import { GB_DENTAL_MODULE } from "../utils/constants";
 import { ORAL_POSITION_LABEL } from "./dental/examination/types";
 import {
   extractDentalApiPayload,
@@ -160,12 +157,7 @@ function DentalOralExaminationHistory() {
   const { patient_data } = locationState;
   const patientId = patient_data?.patient_unique_id;
 
-  const { profile } = useSelector((state) => state.doctors);
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
-  const isDentalDoctor =
-    profile?.dp_id === 26 ||
-    String(profile?.dp_name || "").toLowerCase().includes("dental");
-  const showDentalOralHistory = isDentalEnabled;
+  const showDentalOralHistory = useIsDentalEnabled();
 
   useEffect(() => {
     if (!showDentalOralHistory || !patientId) {

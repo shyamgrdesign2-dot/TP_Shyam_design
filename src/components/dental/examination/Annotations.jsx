@@ -10,9 +10,11 @@ export function Annotations({
   toothPosition,
   quadrant,
   selectedZone,
+  multiSelectZones,
+  multiSelectActive,
   onSelectZone,
   onClearSelectedZone,
-  zoneDirs, 
+  zoneDirs,
   meshBounds,
 }) {
   const [expandedAnnotation, setExpandedAnnotation] = useState(null);
@@ -81,6 +83,9 @@ export function Annotations({
     const points = [];
     const set = new Set(Object.keys(zoneFindings));
     if (selectedZone) set.add(selectedZone);
+    if (multiSelectActive && multiSelectZones) {
+      for (const z of multiSelectZones) set.add(z);
+    }
     const zonesWithData = Array.from(set);
     for (const zoneId of zonesWithData) {
       const zoneFindingsList = zoneFindings[zoneId] || [];
@@ -181,13 +186,16 @@ export function Annotations({
     meshBounds,
     arch,
     selectedZone,
+    multiSelectZones,
+    multiSelectActive,
   ]);
   if (annotationPoints.length === 0) return null;
   return (
     <group>
       {annotationPoints.map((point) => {
         const isExpanded = expandedAnnotation === point.id;
-        const isSelected = selectedZone === point.zoneId;
+        const isSelected = selectedZone === point.zoneId ||
+          (multiSelectActive && (multiSelectZones?.has(point.zoneId) ?? false));
         const isOccluded = occludedAnnotations[point.id] || false;
         // Keep selected/expanded annotation UI visible even if occlusion says hidden.
         // Root/cervical points often sit close to geometry and can be falsely marked occluded.

@@ -13,8 +13,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import { Grid5, Ram, Eraser } from "iconsax-reactjs";
+import { Grid5, Ram, Eraser, Trash } from "iconsax-reactjs";
 import { TPMedicalIcon } from "../tp-ui";
+import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
 import ui from "./ExaminationTab.ui.module.scss";
 
 dayjs.extend(customParseFormat);
@@ -57,10 +58,13 @@ export function SectionHeader({
   templateActions,
   onClear,
   clearDisabled,
+  clearConfirmTitle,
+  clearConfirmDesc,
   onClick,
   chevron,
   onChevronClick
 }) {
+  const [showConfirm, setShowConfirm] = useState(false);
   const stop = (e) => e.stopPropagation();
   const titleWithCount =
     typeof count === "number" ? `${title} (${count})` : title;
@@ -105,7 +109,35 @@ export function SectionHeader({
         )}
 
 
-        {onClear &&
+        {onClear && clearConfirmTitle ? (
+          <>
+            <button
+              type="button"
+              title="Clear"
+              disabled={clearDisabled}
+              className={ui.secToolBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowConfirm(true);
+              }}
+            >
+              <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+            </button>
+            <TPConfirmDialog
+              open={showConfirm}
+              onOpenChange={setShowConfirm}
+              title={clearConfirmTitle}
+              warning={clearConfirmDesc}
+              secondaryLabel="Yes, Clear All"
+              secondaryTone="destructive"
+              onSecondary={() => {
+                setShowConfirm(false);
+                onClear();
+              }}
+              primaryLabel="No, Keep It"
+            />
+          </>
+        ) : onClear ? (
           <button
             type="button"
             title="Clear"
@@ -119,7 +151,8 @@ export function SectionHeader({
               strokeWidth={1.5}
               variant="Linear" />
 
-          </button>}
+          </button>
+        ) : null}
 
 
         {chevron &&

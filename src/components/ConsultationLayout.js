@@ -36,7 +36,6 @@ import {
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
   GB_VOICE_RX_NEW_UI,
-  GB_DENTAL_MODULE,
   MESSAGE_KEY,
 } from "../utils/constants";
 import { FETCH_SMART_RX } from "../utils/constants";
@@ -113,6 +112,7 @@ import DDxKnowMore from "../components/DDxKnowMore";
 import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import {
   errorMessage,
   getClinic,
@@ -270,7 +270,7 @@ function ConsultationLayout({ children, headerProps }) {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = useIsDentalEnabled();
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
@@ -3201,7 +3201,7 @@ function ConsultationLayout({ children, headerProps }) {
           </div>
         ) : null}
 
-        {canUseVoiceRxModuleUi && (
+        {/* {canUseVoiceRxModuleUi && (
           <DrAgentRuntime
             isOpen={drAgentOpen}
             overlayClassName={drAgentOverlayClassName}
@@ -3213,7 +3213,7 @@ function ConsultationLayout({ children, headerProps }) {
             onClose={() => setDrAgentOpen(false)}
             onOpen={() => setDrAgentOpen(true)}
           />
-        )}
+        )} */}
       </RxPadSyncProvider>
       {isFileSizeError || isFileLimitError || isFileTypeError ? (
         <CommonModal

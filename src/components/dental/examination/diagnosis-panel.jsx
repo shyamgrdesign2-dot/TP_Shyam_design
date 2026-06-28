@@ -68,6 +68,10 @@ export function PrimaryDiagnosisBody({ state }) {
       sort((a, b) => a.localeCompare(b));
     return [...activeRows, ...orphans];
   }, [activeRows, state.currentTreatmentHistoryDetails]);
+  const procedureEntries = useMemo(
+    () => (state.currentToothEntries ?? []).filter((e) => e.kind === "procedure"),
+    [state.currentToothEntries]
+  );
   const filteredCatalog = useMemo(() => {
     const q = query.toLowerCase().trim();
     const activeSet = new Set(activeRows.map((r) => r.toLowerCase()));
@@ -125,7 +129,7 @@ export function PrimaryDiagnosisBody({ state }) {
   };
   const confirmMarkAs = () => {
     state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d));
-    // ponytail: no onToggleImplant() here — toggleToothDiagnosis above already clears
+    // no onToggleImplant() here — toggleToothDiagnosis above already clears
     // implantTeeth when the last IMPLANT-visual-type diagnosis is removed. Calling
     // toggleImplant() after would re-add the hardcoded "Implant" string since it wasn't
     // in toothDiagnoses (the procedure label was, e.g. "Implant abutment placement").
@@ -145,9 +149,11 @@ export function PrimaryDiagnosisBody({ state }) {
     if (activeCell?.rowId === name) setActiveCell(null);
   };
   useEffect(() => {
-    if (activeCell?.rowId && !displayRows.includes(activeCell.rowId))
+    if (activeCell?.rowId
+      && !displayRows.includes(activeCell.rowId)
+      && !procedureEntries.some((e) => e.id === activeCell.rowId))
       setActiveCell(null);
-  }, [activeCell, displayRows]);
+  }, [activeCell, displayRows, procedureEntries]);
   const activeRowName =
     activeCell?.colKey === "surfaces" &&
       activeCell.rowId &&
@@ -157,6 +163,13 @@ export function PrimaryDiagnosisBody({ state }) {
   const activeRowSurfaces = activeRowName ?
     state.currentTreatmentHistoryDetails[activeRowName]?.surfaces ?? [] :
     [];
+  const activeProcEntryId =
+    activeCell?.colKey === "surfaces" &&
+    procedureEntries.some((e) => e.id === activeCell.rowId)
+      ? activeCell.rowId : null;
+  const activeProcEntrySurfaces = activeProcEntryId
+    ? (procedureEntries.find((e) => e.id === activeProcEntryId)?.surfaces ?? [])
+    : [];
   const clearCellActive = useCallback((rowId, colKey) => {
     window.setTimeout(() => {
       setActiveCell((current) =>
@@ -172,14 +185,17 @@ export function PrimaryDiagnosisBody({ state }) {
     [activeCell]
   );
   useEffect(() => {
-    if (!activeRowName) {
+    if (!activeRowName && !activeProcEntryId) {
       state.onClearMultiSelect();
+      state.onClearSelectedZone?.();
       state.onSetMultiSelectActive(false);
       return;
     }
-    state.onSetMultiSelectZones(activeRowSurfaces);
-    state.onSetMultiSelectActive(true);
-  }, [activeRowName]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (activeRowName) {
+      state.onSetMultiSelectZones(activeRowSurfaces);
+      state.onSetMultiSelectActive(true);
+    }
+  }, [activeRowName, activeProcEntryId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!activeRowName) return;
     const zonesFromCanvas = Array.from(state.multiSelectZones);
@@ -192,6 +208,14 @@ export function PrimaryDiagnosisBody({ state }) {
       });
     }
   }, [activeRowName, activeRowSurfaces, state.multiSelectZones]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!activeProcEntryId) return;
+    const zonesFromCanvas = Array.from(state.multiSelectZones);
+    const same =
+      zonesFromCanvas.length === activeProcEntrySurfaces.length &&
+      zonesFromCanvas.every((z) => activeProcEntrySurfaces.includes(z));
+    if (!same) state.onUpdateEntry(activeProcEntryId, { surfaces: zonesFromCanvas });
+  }, [activeProcEntryId, activeProcEntrySurfaces, state.multiSelectZones]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(
     () => () => {
       state.onSetMultiSelectActive(false);
@@ -206,7 +230,7 @@ export function PrimaryDiagnosisBody({ state }) {
     : "";
   return (
     <div data-rx-module-root={true} className={ui.entryRoot}>
-      {displayRows.length > 0 &&
+      {(displayRows.length > 0 || procedureEntries.length > 0) &&
         <div className={ui.tableWrap}>
           <table className={ui.table}>
             <colgroup>
@@ -317,44 +341,9 @@ export function PrimaryDiagnosisBody({ state }) {
                       </td>}
 
 
-                    {isOrphanHistoryRow ?
-                      <td className={ui.tdPlain}>
-                        <span className={ui.symptomName}>{name}</span>
-                      </td> :
-
-                      <td className={ui.tdPlain}>
-                        <DiagnosisNameCell
-                          name={name}
-                          color={color}
-                          activeRows={activeRows}
-                          onSwap={(next) => {
-                            if (next === name) return;
-                            const currentDetails =
-                              state.currentTreatmentHistoryDetails[name];
-                            const nextDetails =
-                              state.currentTreatmentHistoryDetails[next];
-                            // Remove current, add next
-                            if (name === "Implant") state.onToggleImplant(); else
-                              state.onToggleToothDiagnosis(name);
-                            if (next === "Implant") state.onToggleImplant(); else
-                              state.onToggleToothDiagnosis(next);
-                            state.onUpdateTreatmentHistoryDetail(next, {
-                              surfaces: nextDetails?.surfaces?.length ?
-                                nextDetails.surfaces :
-                                currentDetails?.surfaces ??
-                                getDefaultTreatmentSurfaces(next),
-                              since:
-                                nextDetails?.since ?? currentDetails?.since,
-                              note: nextDetails?.note ?? currentDetails?.note
-                            });
-                            if (activeCell?.rowId === name)
-                              setActiveCell({
-                                rowId: next,
-                                colKey: activeCell.colKey
-                              });
-                          }} />
-
-                      </td>}
+                    <td className={ui.tdPlain}>
+                      <span className={ui.symptomName}>{name}</span>
+                    </td>
 
 
                     <td
@@ -457,6 +446,76 @@ export function PrimaryDiagnosisBody({ state }) {
 
               })}
             </tbody>
+            {procedureEntries.length > 0 && <tbody>
+              {procedureEntries.map((entry) => {
+                const isSurfaceActive = isCellActive(entry.id, "surfaces");
+                const isSinceActive = isCellActive(entry.id, "since");
+                const isNoteActive = isCellActive(entry.id, "note");
+                return (
+                  <tr
+                    key={entry.id}
+                    onMouseEnter={() => { if (!isSurfaceActive) state.onSetHighlightZones(entry.surfaces ?? []); }}
+                    onMouseLeave={() => { if (!isSurfaceActive) state.onSetHighlightZones([]); }}
+                    className={ui.tbodyRow}>
+                    <td className={`${ui.td} ${ui.tdGrip}`} aria-hidden={true} />
+                    <td className={ui.tdPlain}>
+                      <span className={ui.symptomName}>{entry.name}</span>
+                    </td>
+                    <td
+                      className={`${ui.td} ${ui.tdRel} ${isSurfaceActive ? ui.tdActive : ""}`}
+                      onClick={(ev) => ev.stopPropagation()}>
+                      {isSurfaceActive ? <span className={ui.cellFocusRing} /> : null}
+                      <SurfaceCellDropdown
+                        entry={{ id: entry.id, toothFdi: state.selectedTooth.fdi, kind: "procedure", name: entry.name, surfaces: entry.surfaces ?? [] }}
+                        arch={state.selectedTooth.arch}
+                        toothPosition={state.selectedTooth.position}
+                        mode="treatment"
+                        isActive={isSurfaceActive}
+                        onActivate={() => {
+                          setActiveCell({ rowId: entry.id, colKey: "surfaces" });
+                          state.onSetMultiSelectZones(entry.surfaces ?? []);
+                          state.onSetMultiSelectActive(true);
+                        }}
+                        onDeactivate={() => {
+                          if (state.selectedZone === "whole") state.onClearSelectedZone?.();
+                          clearCellActive(entry.id, "surfaces");
+                        }}
+                        onToggleZone={state.onToggleZoneMultiSelect}
+                        onHover={state.onSetHighlightZones}
+                        multiSelectZones={state.multiSelectZones}
+                        onClearSurfaces={state.onClearMultiSelect} />
+                    </td>
+                    <td className={`${ui.td} ${ui.tdRel} ${isSinceActive ? ui.tdActive : ""}`}>
+                      {isSinceActive ? <span className={ui.cellFocusRing} /> : null}
+                      <SinceDropdown
+                        value={entry.since ?? ""}
+                        onChange={(v) => state.onUpdateEntry(entry.id, { since: v })}
+                        autoOpen={false}
+                        onFocusActivate={() => setActiveCell({ rowId: entry.id, colKey: "since" })}
+                        onBlurDeactivate={() => clearCellActive(entry.id, "since")} />
+                    </td>
+                    <td className={`${ui.td} ${ui.tdRel} ${isNoteActive ? ui.tdActive : ui.tdHover}`}>
+                      <input
+                        type="text"
+                        value={entry.notes ?? ""}
+                        onChange={(e) => state.onUpdateEntry(entry.id, { notes: e.target.value })}
+                        onFocus={() => setActiveCell({ rowId: entry.id, colKey: "note" })}
+                        onBlur={() => clearCellActive(entry.id, "note")}
+                        placeholder="e.g. Monitor at next visit"
+                        className={ui.primaryNoteInput} />
+                    </td>
+                    <td className={ui.tdStickyAct}>
+                      <button
+                        type="button"
+                        onClick={() => state.onRemoveEntry(entry.id)}
+                        title="Remove"
+                        className={ui.removeRowBtn}>
+                        <Trash size={14} color="currentColor" variant="Linear" />
+                      </button>
+                    </td>
+                  </tr>);
+              })}
+            </tbody>}
           </table>
         </div>}
 

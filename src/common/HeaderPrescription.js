@@ -179,6 +179,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const ophthalmologyExam = useSelector((state) => state.ophthalmologyExam);
 
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+    const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
     //PopOver1
     const [popOver1, setPopOver1] = useState(false);
@@ -671,12 +672,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
     }, [isAutofillSelected, selectedSymptomsCollector]);
 
-    const items = [
-        {
-            label: <div onClick={onResetClick}>Clear</div>,
-            key: 'clear',
-        },
-    ];
     async function onResetClick() {
         setSymptomsData([])
         setExaminationData([])
@@ -693,6 +688,26 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         setCustomModuleContents([]);
         dispatch(resetOpthalForm());
     }
+
+    const showClearConfirmation = useCallback(() => {
+        setIsClearModalOpen(true);
+    }, []);
+
+    const showHideClearModal = useCallback(() => {
+        setIsClearModalOpen(false);
+    }, []);
+
+    const handleConfirmClear = async () => {
+        await onResetClick();
+        setIsClearModalOpen(false);
+    };
+
+    const items = [
+        {
+            label: <div onClick={showClearConfirmation}>Clear</div>,
+            key: 'clear',
+        },
+    ];
     // const languageItems = [
     //     {
     //         label: '1st menu item',
@@ -1269,6 +1284,43 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             />
         );
     }, [isModalOpen]);
+
+    const CLEAR_MODAL = useMemo(() => {
+        return (
+            <CommonModal
+                isModalOpen={isClearModalOpen}
+                onCancel={showHideClearModal}
+                modalWidth={500}
+                zIndex={headerOverlayZIndex}
+                title={"You may lose your data"}
+                modalBody={
+                    <>
+                        <div className="alert-warning rounded-10px p-2 patient-details">
+                            <div className="d-flex align-items-center">
+                                <img className='me-3' src={alertIcon} alt="Warning" />
+                                <span>
+                                    Are you sure you want to clear all prescription data?
+                                </span>
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <div className="d-flex align-items-center mt-2 justify-content-end">
+                                <div
+                                    onClick={handleConfirmClear}
+                                    className="me-4 text-decoration-underline btn p-0 text-main"
+                                >
+                                    Clear
+                                </div>
+                                <Button onClick={showHideClearModal} className="lh-lg btn btn-primary3 btn-41 px-4">
+                                    <span>No</span>
+                                </Button>
+                            </div>
+                        </div>
+                    </>
+                }
+            />
+        );
+    }, [handleConfirmClear, isClearModalOpen, showHideClearModal]);
 
     //Template Componet Web
     const TEMPLATE_CONTENT_WEB = useCallback(() => {
@@ -2682,6 +2734,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             )}
 
                             {DELETE_MODAL}
+                            {CLEAR_MODAL}
 
                             {!showVoiceRxModule && (
                                 <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
