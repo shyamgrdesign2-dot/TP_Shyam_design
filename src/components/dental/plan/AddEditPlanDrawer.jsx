@@ -31,10 +31,11 @@ import { getDefaultPlanSurfaces } from "./plan-types";
 import { fdiToLabel, buildExamSuggestions } from "./exam-suggestions";
 import {
   getUniqueDentalBillItems,
+  mapApiBillItemToDentalCatalog,
   sortDentalBillItemsForSearch,
 } from "../lib/billing-catalog";
 import { useBillingCatalog } from "../lib/useBillingCatalog";
-import { AddDentalBillItemDrawer } from "../AddDentalBillItemDrawer";
+import ServiceItemPopup from "../../../pages/opdBilling/components/serviceItemPopup/ServiceItemPopup";
 import { useDirtyDrawerGuard } from "./use-dirty-drawer-guard";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
 import { PlanServiceTable } from "./PlanServiceTable";
@@ -57,7 +58,8 @@ const ABOVE_DRAWER_THEME = { token: { zIndexPopupBase: 10001 } };
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function AddEditPlanDrawer() {
-  const { items: billingItems } = useBillingCatalog();
+  const { items: billingItems, addItem: addBillingCatalogItem } =
+    useBillingCatalog();
   const dentalBillItems = useMemo(
     () => getUniqueDentalBillItems(billingItems),
     [billingItems]
@@ -254,7 +256,10 @@ export function AddEditPlanDrawer() {
   // Hide this drawer's dropdown whenever the nested "Add dental service" drawer
   // opens so it doesn't paint above the child sidebar via its portal.
   useEffect(() => {
-    if (catalogDentalDrawerOpen) setSearchOpen(false);
+    if (catalogDentalDrawerOpen) {
+      setSearchOpen(false);
+      searchRef.current?.blur();
+    }
   }, [catalogDentalDrawerOpen]);
 
   useEffect(() => {
@@ -454,7 +459,9 @@ export function AddEditPlanDrawer() {
 
   const isAntdOverlayTarget = (target) =>
     target instanceof Element &&
-    !!target.closest(".ant-popover, .ant-select-dropdown, .ant-tooltip");
+    !!target.closest(
+      ".ant-popover, .ant-select-dropdown, .ant-tooltip, .ant-drawer"
+    );
 
   const blockPlanSheetDismissFromPortals = (e) => {
     if (catalogDentalDrawerOpen) {
@@ -501,13 +508,11 @@ export function AddEditPlanDrawer() {
           onPointerDownOutside={blockPlanSheetDismissFromPortals}
           onInteractOutside={blockPlanSheetDismissFromPortals}
           onFocusOutside={(e) => {
-            // Allow focus to move to antd overlay content (template popover inputs, selects)
+            // Allow focus to move to antd overlay content (template popovers, selects, ServiceItemPopup)
             const focusedEl = e.detail?.originalEvent?.target;
             if (isAntdOverlayTarget(focusedEl)) {
               e.preventDefault();
-              return;
             }
-            if (catalogDentalDrawerOpen) e.preventDefault();
           }}
           style={{ background: "#F4F5F7" }}
         >
@@ -663,6 +668,7 @@ export function AddEditPlanDrawer() {
                       ref={searchRef}
                       type="text"
                       value={searchQuery}
+                      disabled={catalogDentalDrawerOpen}
                       onChange={(e) => {
                         setSearchQuery(e.target.value);
                         setSearchOpen(true);
@@ -777,16 +783,38 @@ export function AddEditPlanDrawer() {
           )}
       </TPDrawer>
 
-      {mounted && typeof document !== "undefined"
+      {mounted &&
+        catalogDentalDrawerOpen &&
+        typeof document !== "undefined"
         ? createPortal(
-            <AddDentalBillItemDrawer
-              open={catalogDentalDrawerOpen}
-              onOpenChange={setCatalogDentalDrawerOpen}
-              initialName={catalogDentalInitialName}
-              onSaved={(item) => {
-                addTreatmentRow(item.name, [], [], item);
-                showSnackbar?.(`"${item.name}" has been added successfully.`);
+            <ServiceItemPopup
+              dentalOnly
+              editIndex={-1}
+              item={{ name: catalogDentalInitialName }}
+              onCancel={() => {
+                setCatalogDentalDrawerOpen(false);
+                setSearchQuery("");
               }}
+              onSaved={(billItemRes, finalItem) => {
+                const catalogItem = mapApiBillItemToDentalCatalog({
+                  ...billItemRes,
+                  name: finalItem?.name ?? billItemRes?.name,
+                  price: finalItem?.price,
+                  amount: finalItem?.price,
+                  discount: finalItem?.discount,
+                  discountType: finalItem?.discountType,
+                  gst: finalItem?.gst,
+                });
+                if (catalogItem) {
+                  addBillingCatalogItem(catalogItem);
+                  addTreatmentRow(catalogItem.name, [], [], catalogItem);
+                  showSnackbar?.(
+                    `"${catalogItem.name}" has been added successfully.`
+                  );
+                }
+                setSearchQuery("");
+              }}
+              zIndex={10001}
             />,
             document.body
           )

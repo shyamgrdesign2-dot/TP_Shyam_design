@@ -421,10 +421,10 @@ export function PlanEstimatesTab() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className={styles.dropdownContent}>
-                <DropdownMenuItem onClick={() => window.print()} className={styles.dropdownItem}>
+                {/* <DropdownMenuItem onClick={() => window.print()} className={styles.dropdownItem}>
                   <Printer size={16} variant="Linear" />
                   Print All Estimates
-                </DropdownMenuItem>
+                </DropdownMenuItem> */}
                 <DropdownMenuItem
                   onClick={() =>
                     openDrawer({
