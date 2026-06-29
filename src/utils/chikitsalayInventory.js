@@ -31,7 +31,7 @@ export const hasDiagnosisIcdCode = (diagnosis = {}) =>
   String(diagnosis?.icd_code ?? "").trim() !== "";
 
 export const isChikitsalayInvestigationRow = (investigation = {}) =>
-  Number(investigation?.hm_type) === 15 && Number(investigation?.um_id) === 0;
+  Number(investigation?.hm_type) === 15;
 
 export const hasMedicineMasterId = (medicine = {}) => {
   const value = medicine?.tmm_id;
