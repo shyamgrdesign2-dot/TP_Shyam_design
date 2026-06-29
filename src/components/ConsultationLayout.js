@@ -2552,6 +2552,7 @@ function ConsultationLayout({ children, headerProps }) {
         activeDentalData,
         oralExamination,
         isDentalEnabled,
+        dentitionType: dentalExamination?.dentitionType || "adult",
       });
 
       if (!payload) {
@@ -2564,7 +2565,10 @@ function ConsultationLayout({ children, headerProps }) {
           tcmId: currentTcmId,
           consultationDate,
           printSettings: payload.printSettings,
-          inMemoryDental: { tooth_states: activeDentalData },
+          inMemoryDental: {
+            tooth_states: activeDentalData,
+            dentition_type: dentalExamination?.dentitionType || "adult",
+          },
           inMemoryOral: oralExamination,
           caseManagerData: payload.caseManagerData,
           allowFullApiFallback: false,

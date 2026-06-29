@@ -243,6 +243,7 @@ export function useDentalCanvasPersistence(s) {
         `${EXAM_CHART_STORAGE_PREFIX}${patientId}`,
         JSON.stringify({
           updatedAt: Date.now(),
+          patientType,
           entries,
           toothDiagnoses: diagSerialized,
           findingsByTooth: findingsSerialized,
@@ -256,7 +257,7 @@ export function useDentalCanvasPersistence(s) {
     } catch {
       // ignore quota / private mode
     }
-  }, [patientId, allEntries, toothDiagnoses, findingsByTooth, oralEntries, oralNotes]);
+  }, [patientId, allEntries, toothDiagnoses, findingsByTooth, oralEntries, oralNotes, patientType]);
 
   // ── Auto-dismiss hint when chart has data ──────────────────────────────────
   useEffect(() => {

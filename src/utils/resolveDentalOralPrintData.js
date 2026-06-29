@@ -40,11 +40,17 @@ function normalizeInMemoryDental(rawDental) {
     return { tooth_states: rawDental };
   }
   if (Array.isArray(rawDental.tooth_states)) {
-    return { tooth_states: rawDental.tooth_states };
+    return {
+      tooth_states: rawDental.tooth_states,
+      ...(rawDental.dentition_type ? { dentition_type: rawDental.dentition_type } : {}),
+    };
   }
   if (rawDental.toothState && typeof rawDental.toothState === "object") {
     try {
-      return { tooth_states: transformToothStateToApi(rawDental.toothState) };
+      return {
+        tooth_states: transformToothStateToApi(rawDental.toothState),
+        ...(rawDental.dentition_type ? { dentition_type: rawDental.dentition_type } : {}),
+      };
     } catch {
       return null;
     }
@@ -71,7 +77,9 @@ function mergeDentalToothStates(primary, secondary) {
     }
   });
 
-  const merged = { tooth_states: Array.from(byToothCode.values()) };
+  const merged = {
+    tooth_states: Array.from(byToothCode.values()),
+  };
   return hasDentalExamPayload(merged) ? merged : null;
 }
 

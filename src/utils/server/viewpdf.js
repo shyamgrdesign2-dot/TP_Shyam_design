@@ -704,6 +704,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       dentalExaminationData = {
         ...dentalExaminationData,
         tooth_states: transformToothStateToApi(dentalExaminationData.toothState),
+        dentition_type: dentalExaminationData.dentition_type || dentalExaminationData.dentitionType,
       };
     } catch (err) {
       console.error("Failed to transform toothState inside viewpdf.js:", err);
