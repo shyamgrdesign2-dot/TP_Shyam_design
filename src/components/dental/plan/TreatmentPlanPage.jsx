@@ -185,7 +185,7 @@ function TreatmentPlanEmbedInner({ patientId }) {
         <div className={styles.embedBannerInner}>
           <div className={styles.embedBannerRow}>
             <h1 className={styles.embedBannerTitle}>Dental treatment plan</h1>
-            <div className={styles.embedBannerActions}>
+            {/* <div className={styles.embedBannerActions}>
               <button type="button" className={styles.typeRxBtn} onClick={handleTypeRx}>
                 Type RX
                 <ArrowDown2
@@ -196,7 +196,7 @@ function TreatmentPlanEmbedInner({ patientId }) {
                   className={styles.typeRxChevron}
                 />
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
