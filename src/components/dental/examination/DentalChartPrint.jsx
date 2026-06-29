@@ -7,7 +7,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { message } from "antd";
 import { isMobile, isTablet } from "react-device-detect";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useIsDentalEnabled } from "../../../hooks/useIsDentalEnabled";
 import { TPTooltip, TPMedicalIcon } from "../tp-ui";
 import CashManagerContext from "../../../context/CashManagerContext";
 import { selectDentalExamination } from "../../../redux/dentalExaminationSlice";
@@ -16,7 +16,6 @@ import { buildConsultationPreviewPrintPayload } from "../../../utils/buildConsul
 import { renderPrintPayloadToBlob } from "../../../utils/printPayload";
 import { resolveDentalOralForPrint } from "../../../utils/resolveDentalOralPrintData";
 import { printBlobInNewTab } from "../../../pages/opdBilling/utils/helper";
-import { GB_DENTAL_MODULE } from "../../../utils/constants";
 import { isIPad, getClinic } from "../../../utils/utils";
 import {
   DENTAL_MOENGAGE_EVENTS,
@@ -127,7 +126,7 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
   );
   const dentalExamination = useSelector(selectDentalExamination);
   const oralExamination = useSelector((state) => state.oralExamination);
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = useIsDentalEnabled();
 
   const allAvailableModules = useMemo(() => {
     const modulesWithUserId = (customModules || []).map((module) => ({

@@ -1460,7 +1460,7 @@ function Prescription() {
         })
       );
       setShowSCBanner(true);
-      if (patient_data?.pam_status === "0" && caseManagerData === undefined) {
+      if ((patient_data?.pam_status === "0" || patient_data?.pam_status === "7") && caseManagerData === undefined) {
         dispatch(setShowSCPopup(true));
       }
     }

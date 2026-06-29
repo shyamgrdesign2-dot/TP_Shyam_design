@@ -7,6 +7,7 @@ import {
   saveProceduresTemplate,
   saveTreatmentHistoryTemplate,
   saveNotesTemplate,
+  updateTemplate,
   deleteTemplateById,
 } from "../api/services/ApiDental";
 import {
@@ -67,7 +68,9 @@ export const saveTemplate = createAsyncThunk(
     const saveFn = SAVE_FN_BY_TYPE[type];
     if (!saveFn) return rejectWithValue(`Unknown template type: ${type}`);
     try {
-      const response = await saveFn(data);
+      const response = data.id
+        ? await updateTemplate(type, data.id, data)
+        : await saveFn(data);
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to save template"));
       }

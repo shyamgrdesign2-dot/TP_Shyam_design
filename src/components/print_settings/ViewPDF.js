@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence, calculateFollowUpText } from '../../utils/utils'
 import { EXTRA_OPTIONS, EXTERNAL_HOSPITAL_BUSINESS_IDS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
+import { useIsDentalEnabled } from '../../hooks/useIsDentalEnabled';
 import moment from 'moment';
 import {
     getCvtExtHosPatientDataShowValue,
@@ -427,6 +428,7 @@ const getSmartSyncUploadedFileUri = (file) =>
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, isDentalEnabled: isDentalEnabledFromProps, drawingCanvases } = props
+    // const isDentalEnabledDoc = useIsDentalEnabled();
     const filteredDrawingCanvases = useMemo(() => {
         const canvasFilename = caseManagerData?.canvas_filename;
         const hasCanvasFilenameField =
@@ -459,7 +461,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         }
     }
     const isDentalEnabled =
-        isDentalEnabledFromProps ??
+    isDentalEnabledFromProps ??
         (onlyShowDental ||
         Boolean(
             dentalData ||
@@ -469,8 +471,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     ));
     const isRxDigitizeBool = !!(
         caseManagerData?.isRxDigitize ||
-        isDigitisedPrintConfig ||
-        isDentalEnabled
+        isDigitisedPrintConfig
     );
     const isCvtExtHosAccessableFromGB =
         isCvtExtHosFromProps ?? caseManagerData?.isCvtExtHosAccessableFromGB ?? false;

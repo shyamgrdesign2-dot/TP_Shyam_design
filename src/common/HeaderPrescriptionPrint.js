@@ -139,7 +139,7 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
                     data-testid="go-to-appointment"
                     loading={loadingEndVisit}
                     className={`btn align-items-center d-flex btn-41 me-3 px-4 btn-primary3`}>
-                    Go to Appointment
+                    {isChikitsalayAccessable ? "Call Next Patient" : "Go to Appointment"}
                 </Button>}
             </div>
         </Navbar>

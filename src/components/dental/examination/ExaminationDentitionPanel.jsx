@@ -13,7 +13,7 @@ import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
 import { QUADRANT_LABELS } from "./types";
 import { getTeethForPatientType } from "./hooks/canvas-interaction-helpers";
 import { ExpandIcon } from "./ui-icons";
-import { MiniToothCanvas } from "./MiniToothCanvas";
+
 import { TPMedicalIcon } from "../tp-ui";
 import { uniquePartList } from "./examination-chip-helpers";
 import { OralRecordsList } from "./ExaminationOralPanel";
@@ -175,14 +175,11 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
                         <div className={ui.toothRowHeader}>
                           <div className={ui.toothThumb}>
                             {tooth &&
-                              <MiniToothCanvas
-                                tooth={tooth}
-                                size={52}
-                                diagnoses={new Set(entry.diagnoses)}
-                                isImplant={entryVts.has(VISUAL_TYPE.IMPLANT)}
-                                findings={state?.findingsByTooth?.[entry.fdi] ?? []} />}
-
-
+                              <TPMedicalIcon
+                                name="tooth"
+                                variant="bulk"
+                                size={32}
+                                color={crownColor} />}
                           </div>
                           <div className={ui.toothHeaderText}>
                             <span className={ui.toothName}>{toothName}</span>
@@ -289,7 +286,7 @@ export function DentitionPanel({ state, hasApiExaminationData = false }) {
                     icon: "health-file-03"
                   }].
                   map((item, idx, arr) =>
-                    <div className={ui.stepRow}>
+                    <div key={item.step} className={ui.stepRow}>
                       <div className={ui.stepCol}>
                         <div className={ui.stepCircle}>
                           <TPMedicalIcon
@@ -402,7 +399,7 @@ function SummaryPillSegmented({ icon, parts, tone, title }) {
 
       <span className={ui.pillSegments}>
         {parts.map((p, i) =>
-          <React.Fragment>
+          <React.Fragment key={p}>
             {i > 0 &&
               <span className={ui.pillSegmentSep} aria-hidden={true}>
                 |

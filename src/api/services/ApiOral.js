@@ -18,6 +18,8 @@ export const saveOralTreatmentHistoryTemplate = (data) =>
   api.post(`/api/v1/dental/oral-templates/treatment-history`, data, oralBaseUrl);
 export const saveOralNotesTemplate = (data) =>
   api.post(`/api/v1/dental/oral-templates/notes`, data, oralBaseUrl);
+export const updateOralTemplate = (type, id, data) =>
+  api.put(`/api/v1/dental/oral-templates/${type}/${id}`, data, oralBaseUrl);
 export const deleteOralTemplateById = (type, id) =>
   api.delete(`/api/v1/dental/oral-templates/${type}/${id}`, oralBaseUrl);
 

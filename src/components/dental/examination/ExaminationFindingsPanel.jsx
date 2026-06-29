@@ -1,19 +1,8 @@
 import React, { useRef, useState } from "react";
 import { Trash, Eraser } from "iconsax-reactjs";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from "../ui/alert-dialog";
+import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
 import { QUADRANT_LABELS, getDefaultTreatmentSurfaces } from "./types";
-import { MiniToothCanvas } from "./MiniToothCanvas";
-import { MiniScopeCanvas } from "./MiniScopeCanvas";
+import { TPMedicalIcon } from "../tp-ui";
 import { AccordionWrap, SectionHeader } from "./examination-shared-ui";
 import ui from "./ExaminationTab.ui.module.scss";
 import { PanelShell } from "./PanelShell";
@@ -62,8 +51,9 @@ export function SingleToothPanel({ state, onSave }) {
   const clearAllToothData = () => {
     // Clear all diagnoses
     state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d));
-    // Clear implant
-    if (state.isImplant) state.onToggleImplant();
+    // no onToggleImplant() here — toggleToothDiagnosis above already clears
+    // implantTeeth when the last IMPLANT-visual-type diagnosis is removed. Calling
+    // onToggleImplant() after would re-add "Implant" because state.isImplant is stale.
     // Clear treatment-history table rows (incl. Dr Agent / voice merges)
     state.onClearTreatmentHistoryDetails?.();
     // Clear all entries (findings, procedures, planned)
@@ -90,8 +80,11 @@ export function SingleToothPanel({ state, onSave }) {
   const plannedCount = state.currentToothEntries.filter(
     (e) => e.kind === "planned"
   ).length;
+  // +1 only when the synthetic "Implant" row is actually rendered (isImplant via implantTeeth
+  // but no chip in currentToothDiagnoses already maps to VISUAL_TYPE.IMPLANT)
   const diagnosisCount =
-    state.currentToothDiagnoses.size + (state.isImplant ? 1 : 0);
+    state.currentToothDiagnoses.size +
+    (state.isImplant && !state.currentToothVisualTypes?.has("VISUAL_IMPLANT") ? 1 : 0);
 
   const pastTpl = useExaminationTemplates({ type: "treatment-history", domain: "dental" });
   const findingsTpl = useExaminationTemplates({ type: "findings", domain: "dental" });
@@ -102,11 +95,20 @@ export function SingleToothPanel({ state, onSave }) {
   const toDentalRow = (e) => {
     const row = { name: e.name, surface_codes: e.surfaces, notes: e.notes || "" };
     if (e.since) row.since_date = e.since;
+    if (e.status) row.status = e.status;
     return row;
   };
+  const toProcedureRow = (e) => ({ ...toDentalRow(e), status: e.status || "PLANNED" });
   const applyDentalEntries = (kind, items = []) => {
     items.forEach((f) =>
-      state.onAddEntry({ kind, name: f.name, surfaces: f.surface_codes || [], since: f.since_date || "", notes: f.notes || "" })
+      state.onAddEntry({
+        kind,
+        name: f.name,
+        surfaces: f.surface_codes || [],
+        since: f.since_date || "",
+        notes: f.notes || "",
+        ...(kind === "planned" ? { status: f.status || "PLANNED" } : {}),
+      })
     );
   };
   // Dental charting sections — standard clinical workflow order
@@ -167,26 +169,14 @@ export function SingleToothPanel({ state, onSave }) {
   };
   return (
     <PanelShell
-      thumbnail={isGroupedScope ?
-        <MiniScopeCanvas
-          patientType={state.patientType ?? "adult"}
-          scopeType={
-            state.selectionScopeType === "full-mouth" ?
-              "full-mouth" :
-              state.selectionScopeType === "arch" ?
-                "arch" :
-                "quadrant"}
-          fdis={state.selectionScopeFdis ?? []}
-          toothDiagnoses={state.toothDiagnoses}
-          findingsByTooth={state.findingsByTooth}
-          implantTeeth={state.implantTeeth}
-          size={40} /> :
-        <MiniToothCanvas
-          tooth={state.selectedTooth}
-          size={40}
-          diagnoses={state.currentToothDiagnoses}
-          isImplant={state.isImplant}
-          findings={state.findings} />}
+      thumbnail={
+        <TPMedicalIcon
+          name={isGroupedScope ? "health-file-03" : "tooth"}
+          variant="bulk"
+          size={24}
+          color="#9ca3af"
+        />
+      }
       title={entityLabel}
       badge={entityBadge}
       onSave={onSave}
@@ -204,16 +194,22 @@ export function SingleToothPanel({ state, onSave }) {
               const chipNames = ts.diagnoses?.length
                 ? ts.diagnoses
                 : history.filter((h) => h.notes === DX_MARKER).map((h) => h.name);
+              const chipSet = new Set(chipNames);
               chipNames.forEach((name) => {
+                // Find saved detail row in treatment_history for this chip
+                const histEntry = history.find((h) => h.name === name);
                 (state.onSetToothDiagnosis || state.onToggleToothDiagnosis)(name);
                 const existing = state.currentTreatmentHistoryDetails?.[name];
                 state.onUpdateTreatmentHistoryDetail?.(name, {
-                  surfaces: existing?.surfaces?.length ? existing.surfaces : getDefaultTreatmentSurfaces(name),
-                  since: existing?.since,
-                  note: existing?.note,
+                  surfaces: histEntry?.surface_codes?.length ? histEntry.surface_codes :
+                    existing?.surfaces?.length ? existing.surfaces : getDefaultTreatmentSurfaces(name),
+                  since: histEntry?.since_date || existing?.since,
+                  note: histEntry?.notes || existing?.note,
                 });
               });
-              applyDentalEntries("procedure", history.filter((h) => h.notes !== DX_MARKER));
+              
+              // Only add non-chip entries as plain procedure entries to avoid duplicates
+              applyDentalEntries("procedure", history.filter((h) => h.notes !== DX_MARKER && !chipSet.has(h.name)));
               applyDentalEntries("finding", ts.findings);
               applyDentalEntries("planned", ts.procedures);
               if (ts.overall_notes) state.onUpdateToothNotes(ts.overall_notes);
@@ -222,28 +218,36 @@ export function SingleToothPanel({ state, onSave }) {
           onDelete={examTpl.onDelete}
           onSaveNew={(name) => {
             const entries = state.currentToothEntries;
+            const diagRows = Array.from(state.currentToothDiagnoses || []).map((n) => {
+              const d = state.currentTreatmentHistoryDetails?.[n] ?? {};
+              return toDentalRow({ name: n, surfaces: d.surfaces ?? [], notes: d.note ?? "", since: d.since ?? "" });
+            });
             examTpl.onSaveNew(name, {
               dentition_type: state.patientType || "adult",
               tooth_states: [{
                 tooth_code: String(state.selectedTooth?.fdi || ""),
                 diagnoses: [...(state.currentToothDiagnoses || [])],
                 findings: entries.filter((e) => e.kind === "finding").map(toDentalRow),
-                procedures: entries.filter((e) => e.kind === "planned").map(toDentalRow),
-                treatment_history: entries.filter((e) => e.kind === "procedure").map(toDentalRow),
+                procedures: entries.filter((e) => e.kind === "planned").map(toProcedureRow),
+                treatment_history: [...diagRows, ...entries.filter((e) => e.kind === "procedure").map(toDentalRow)],
                 overall_notes: state.currentToothNotes,
               }],
             });
           }}
           onUpdate={(sel) => {
             const entries = state.currentToothEntries;
+            const diagRows = Array.from(state.currentToothDiagnoses || []).map((n) => {
+              const d = state.currentTreatmentHistoryDetails?.[n] ?? {};
+              return toDentalRow({ name: n, surfaces: d.surfaces ?? [], notes: d.note ?? "", since: d.since ?? "" });
+            });
             examTpl.onUpdate(sel, {
               dentition_type: state.patientType || "adult",
               tooth_states: [{
                 tooth_code: String(state.selectedTooth?.fdi || ""),
                 diagnoses: [...(state.currentToothDiagnoses || [])],
                 findings: entries.filter((e) => e.kind === "finding").map(toDentalRow),
-                procedures: entries.filter((e) => e.kind === "planned").map(toDentalRow),
-                treatment_history: entries.filter((e) => e.kind === "procedure").map(toDentalRow),
+                procedures: entries.filter((e) => e.kind === "planned").map(toProcedureRow),
+                treatment_history: [...diagRows, ...entries.filter((e) => e.kind === "procedure").map(toDentalRow)],
                 overall_notes: state.currentToothNotes,
               }],
             });
@@ -252,43 +256,33 @@ export function SingleToothPanel({ state, onSave }) {
         />
       }
       clearSection={
-        <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
-          <AlertDialogTrigger asChild={true}>
-            <button
-              type="button"
-              title="Clear all data for this tooth"
-              disabled={!hasAnyData}
-              className={ui.panelIconBtnDanger}>
-              <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent className={ui.clearDialogContent}>
-            <AlertDialogHeader>
-              <div className={ui.clearDialogTitleRow}>
-                <div className={ui.clearDialogIcon}>
-                  <Trash color="#ef4444" size={18} variant="Bulk" />
-                </div>
-                <AlertDialogTitle className={ui.clearDialogTitle}>
-                  Clear all data?
-                </AlertDialogTitle>
-              </div>
-              <AlertDialogDescription className={ui.clearDialogDesc}>
-                This will remove all past procedures, findings,
-                procedures, and notes for{" "}
-                <span className={ui.clearDialogStrong}>
-                  {entityLabel} ({entityBadge})
-                </span>
-                . This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className={ui.clearDialogFooter}>
-              <AlertDialogCancel className={ui.clearDialogCancel}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={clearAllToothData} className={ui.clearDialogAction}>
-                Clear all
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <>
+          <button
+            type="button"
+            title="Clear all data for this tooth"
+            disabled={!hasAnyData}
+            onClick={() => setShowClearConfirm(true)}
+            className={ui.panelIconBtnDanger}>
+            <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+          </button>
+          <TPConfirmDialog
+            open={showClearConfirm}
+            onOpenChange={setShowClearConfirm}
+            analytics={{
+              dialog_type: "tooth_clear_all",
+              source_page: DENTAL_RX_PAD_ROUTE,
+              source_action: "clear_all",
+              primary_label: "No, Keep It",
+              secondary_label: "Yes, Clear All",
+            }}
+            title={`Are you sure you want to clear all data for ${entityLabel}?`}
+            warning={`This will remove all treatment history, findings, procedures, and notes for ${entityLabel} (${entityBadge}). This action cannot be undone.`}
+            secondaryLabel="Yes, Clear All"
+            secondaryTone="destructive"
+            onSecondary={clearAllToothData}
+            primaryLabel="No, Keep It"
+          />
+        </>
       }>
         <div
           ref={(el) => {
@@ -310,10 +304,26 @@ export function SingleToothPanel({ state, onSave }) {
                         templates={pastTpl.templates}
                         saving={pastTpl.saving}
                         hasData={(diagnosisCount + procedureCount) > 0}
-                        onSelect={(t) => pastTpl.applyTemplate(t, (full) => applyDentalEntries("procedure", full.payload?.treatment_history))}
+                        onSelect={(t) => pastTpl.applyTemplate(t, (full) => {
+                          applyDentalEntries("procedure", full.payload?.treatment_history || []);
+                        })}
                         onDelete={pastTpl.onDelete}
-                        onSaveNew={(name) => pastTpl.onSaveNew(name, { treatment_history: state.currentToothEntries.filter((e) => e.kind === "procedure").map(toDentalRow) })}
-                        onUpdate={(sel) => pastTpl.onUpdate(sel, { treatment_history: state.currentToothEntries.filter((e) => e.kind === "procedure").map(toDentalRow) })}
+                        onSaveNew={(name) => {
+                          const diagRows = Array.from(state.currentToothDiagnoses || []).map((n) => {
+                            const d = state.currentTreatmentHistoryDetails?.[n] ?? {};
+                            return toDentalRow({ name: n, surfaces: d.surfaces ?? [], notes: d.note ?? "", since: d.since ?? "" });
+                          });
+                          const entryRows = state.currentToothEntries.filter((e) => e.kind === "procedure").map(toDentalRow);
+                          pastTpl.onSaveNew(name, { treatment_history: [...diagRows, ...entryRows] });
+                        }}
+                        onUpdate={(sel) => {
+                          const diagRows = Array.from(state.currentToothDiagnoses || []).map((n) => {
+                            const d = state.currentTreatmentHistoryDetails?.[n] ?? {};
+                            return toDentalRow({ name: n, surfaces: d.surfaces ?? [], notes: d.note ?? "", since: d.since ?? "" });
+                          });
+                          const entryRows = state.currentToothEntries.filter((e) => e.kind === "procedure").map(toDentalRow);
+                          pastTpl.onUpdate(sel, { treatment_history: [...diagRows, ...entryRows] });
+                        }}
                         btnClassName={ui.secToolBtn}
                       />
                     : undefined
@@ -321,14 +331,11 @@ export function SingleToothPanel({ state, onSave }) {
                 onClear={
                   activeSection === "procedures" ?
                     () => {
-                      state.currentToothDiagnoses.forEach((d) =>
-                        state.onToggleToothDiagnosis(d)
-                      );
-                      if (state.isImplant) state.onToggleImplant();
-                      state.currentToothEntries.
+                      Array.from(state.currentToothDiagnoses || []).forEach((d) => state.onToggleToothDiagnosis(d));
+                      state.onClearTreatmentHistoryDetails?.();
+                      state.currentToothEntries?.
                         filter((e) => e.kind === "procedure").
                         forEach((e) => state.onRemoveEntry(e.id));
-                      state.onClearTreatmentHistoryDetails?.();
                     } :
                     undefined}
 
@@ -336,6 +343,8 @@ export function SingleToothPanel({ state, onSave }) {
                   diagnosisCount === 0 &&
                   procedureCount === 0 &&
                   treatmentDetailCount === 0}
+                clearConfirmTitle="Are you sure you want to clear past procedures?"
+                clearConfirmDesc={`This will remove all past procedures from this ${isGroupedScope ? "group" : "tooth"}. This action cannot be undone.`}
 
                 chevron={activeSection === "procedures" ? "up" : "down"}
                 onClick={() => jumpTo("procedures")}
@@ -384,6 +393,8 @@ export function SingleToothPanel({ state, onSave }) {
                     undefined}
 
                 clearDisabled={findingCount === 0}
+                clearConfirmTitle="Are you sure you want to clear findings?"
+                clearConfirmDesc={`This will remove all findings from this ${isGroupedScope ? "group" : "tooth"}. This action cannot be undone.`}
                 chevron={activeSection === "findings" ? "up" : "down"}
                 onClick={() => jumpTo("findings")}
                 onChevronClick={() => jumpTo("findings")} />}>
@@ -415,8 +426,8 @@ export function SingleToothPanel({ state, onSave }) {
                         hasData={plannedCount > 0}
                         onSelect={(t) => procTpl.applyTemplate(t, (full) => applyDentalEntries("planned", full.payload?.procedures))}
                         onDelete={procTpl.onDelete}
-                        onSaveNew={(name) => procTpl.onSaveNew(name, { procedures: state.currentToothEntries.filter((e) => e.kind === "planned").map(toDentalRow) })}
-                        onUpdate={(sel) => procTpl.onUpdate(sel, { procedures: state.currentToothEntries.filter((e) => e.kind === "planned").map(toDentalRow) })}
+                        onSaveNew={(name) => procTpl.onSaveNew(name, { procedures: state.currentToothEntries.filter((e) => e.kind === "planned").map(toProcedureRow) })}
+                        onUpdate={(sel) => procTpl.onUpdate(sel, { procedures: state.currentToothEntries.filter((e) => e.kind === "planned").map(toProcedureRow) })}
                         btnClassName={ui.secToolBtn}
                       />
                     : undefined
@@ -431,6 +442,8 @@ export function SingleToothPanel({ state, onSave }) {
                     undefined}
 
                 clearDisabled={plannedCount === 0}
+                clearConfirmTitle="Are you sure you want to clear procedures?"
+                clearConfirmDesc={`This will remove all procedures from this ${isGroupedScope ? "group" : "tooth"}. This action cannot be undone.`}
                 chevron={activeSection === "planned" ? "up" : "down"}
                 onClick={() => jumpTo("planned")}
                 onChevronClick={() => jumpTo("planned")} />}>
@@ -473,6 +486,8 @@ export function SingleToothPanel({ state, onSave }) {
                   activeSection === "notes" ?
                     () => state.onUpdateToothNotes("") :
                     undefined}
+                clearConfirmTitle="Are you sure you want to clear notes?"
+                clearConfirmDesc={`This will remove all notes from this ${isGroupedScope ? "group" : "tooth"}. This action cannot be undone.`}
 
                 chevron={activeSection === "notes" ? "up" : "down"}
                 onClick={() => jumpTo("notes")}

@@ -41,7 +41,6 @@ import {
   GB_TAB_RX_CVT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
-  GB_DENTAL_MODULE,
   GB_VOICE_RX_NEW_UI,
   GB_CVT_EXT_HOS,
   CLINIC_TARGET_STATUS,
@@ -61,6 +60,7 @@ import {
 import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import CvtKnowMore from "../pages/smartSync/components/CvtKnowMore";
 import moment from "moment";
 import { getModules } from "../redux/customModuleSlice";
@@ -611,7 +611,7 @@ function Cardiology(props) {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = useIsDentalEnabled();
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
   const rawSmartPrescriptionFilename = viewCaseManagerData?.smart_prescription_filename;
@@ -3902,6 +3902,7 @@ function Cardiology(props) {
   };
 
   const handleStartTypeRx = () => {
+    console.log("this is getting called")
     navigate(DENTAL_RX_PAD_ROUTE, {
       state: { patient_data: patient_data },
     });

@@ -19,7 +19,6 @@ import {
 } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { ExpandIcon } from "./ui-icons";
-import { MiniScopeCanvas } from "./MiniScopeCanvas";
 import { TPMedicalIcon, TPTooltip } from "../tp-ui";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
 import {
@@ -704,7 +703,7 @@ export function OralExamPanel({ state, onSave, saving }) {
     name: e.name,
     area: e.surfaces,
     notes: e.note || "",
-    status: "PLANNED",
+    status: e.status || "PLANNED",
   });
 
   useEffect(() => () => {
@@ -730,14 +729,11 @@ export function OralExamPanel({ state, onSave, saving }) {
   return (
     <PanelShell
       thumbnail={
-        <MiniScopeCanvas
-          patientType={state.patientType ?? "adult"}
-          scopeType="full-mouth"
-          fdis={state.selectionScopeFdis ?? []}
-          toothDiagnoses={state.toothDiagnoses}
-          findingsByTooth={state.findingsByTooth}
-          implantTeeth={state.implantTeeth}
-          size={40}
+        <TPMedicalIcon
+          name="health-file-03"
+          variant="bulk"
+          size={32}
+          color="#cbd5e1"
         />
       }
       title="Oral Examination"
@@ -843,6 +839,8 @@ export function OralExamPanel({ state, onSave, saving }) {
                   : undefined
               }
               clearDisabled={pastProcedures.length === 0}
+              clearConfirmTitle="Are you sure you want to clear past procedures?"
+              clearConfirmDesc="This will remove all past procedures from this oral examination. This action cannot be undone."
               chevron={activeSection === "past" ? "up" : "down"}
               onClick={() => jumpTo("past")}
               onChevronClick={() => jumpTo("past")}
@@ -884,6 +882,8 @@ export function OralExamPanel({ state, onSave, saving }) {
                   : undefined
               }
               clearDisabled={findings.length === 0}
+              clearConfirmTitle="Are you sure you want to clear findings?"
+              clearConfirmDesc="This will remove all findings from this oral examination. This action cannot be undone."
               chevron={activeSection === "findings" ? "up" : "down"}
               onClick={() => jumpTo("findings")}
               onChevronClick={() => jumpTo("findings")}
@@ -925,6 +925,8 @@ export function OralExamPanel({ state, onSave, saving }) {
                   : undefined
               }
               clearDisabled={procedures.length === 0}
+              clearConfirmTitle="Are you sure you want to clear procedures?"
+              clearConfirmDesc="This will remove all procedures from this oral examination. This action cannot be undone."
               chevron={activeSection === "procedures" ? "up" : "down"}
               onClick={() => jumpTo("procedures")}
               onChevronClick={() => jumpTo("procedures")}
@@ -958,6 +960,8 @@ export function OralExamPanel({ state, onSave, saving }) {
                   : undefined
               }
               onClear={activeSection === "notes" ? () => state.onUpdateOralNotes?.("") : undefined}
+              clearConfirmTitle="Are you sure you want to clear notes?"
+              clearConfirmDesc="This will remove all notes from this oral examination. This action cannot be undone."
               chevron={activeSection === "notes" ? "up" : "down"}
               onClick={() => jumpTo("notes")}
               onChevronClick={() => jumpTo("notes")}
@@ -1124,13 +1128,11 @@ export function OralRecordsList({ state }) {
         className={`${ui.toothRow}`}>
         <div className={ui.toothRowHeader}>
           <div className={ui.toothThumb}>
-            <MiniScopeCanvas
-              patientType={state?.patientType || "adult"}
-              scopeType="full-mouth"
-              toothDiagnoses={{}}
-              findingsByTooth={{}}
-              implantTeeth={new Set()}
-              size={52}
+            <TPMedicalIcon
+              name="health-file-03"
+              variant="bulk"
+              size={32}
+              color="#cbd5e1"
             />
           </div>
           <div className={ui.toothHeaderText}>
