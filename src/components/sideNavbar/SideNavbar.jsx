@@ -618,6 +618,8 @@ function legacyDetail(item, keys) {
 function legacyVisitRows(items, labelKeys, detailKeys) {
   return legacyArray(items)
     .map((item) => ({
+      ...(typeof item === "object" && item ? item : {}),
+      payload: item,
       label: firstLegacyText(item, labelKeys),
       detail: legacyDetail(item, detailKeys),
     }))
@@ -1145,6 +1147,8 @@ function buildPastVisitEntry(consultation, detail) {
 function pastVisitRowText(item) {
   if (typeof item === "string") return { label: item, detail: "" };
   return {
+    ...item,
+    payload: item?.payload || item,
     label: String(item?.label || item?.name || item?.title || "").trim(),
     detail: String(item?.detail || item?.notes || item?.note || "").trim(),
   };
@@ -1338,8 +1342,9 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
     }
     case "diagnosis": {
       const rows = pastVisitRows(rx.diagnoses).map((item) => ({
-        tds_name: item.label,
-        note: item.detail,
+        ...(item.payload || {}),
+        tds_name: item.payload?.tds_name || item.label,
+        note: item.payload?.note || item.payload?.notes || item.detail,
       }));
       return rows.length ? { ...base, digitization: { diagnosis: rows } } : null;
     }
@@ -1370,8 +1375,9 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
     }
     case "investigations": {
       const rows = pastVisitRows(rx.labInvestigations).map((item) => ({
-        investigation_name: item.label,
-        note: item.detail,
+        ...(item.payload || {}),
+        investigation_name: item.payload?.investigation_name || item.payload?.test_name || item.label,
+        note: item.payload?.note || item.payload?.notes || item.detail,
       }));
       return rows.length ? { ...base, digitization: { lab_investigation: rows } } : null;
     }
@@ -1917,6 +1923,8 @@ function buildDigitalRx(payload) {
       fresh: true,
     })),
     diagnoses: toArray(p.diagnosis || p.diagnoses).map((item) => ({
+      ...(typeof item === "object" && item ? item : {}),
+      payload: item,
       label: item?.name || item?.tds_name || item?.diagnosis_name || item?.lineItem || item?.label || String(item || ""),
       detail: valueText([item?.since, item?.status, item?.notes, item?.note, item?.detail]),
       fresh: true,
@@ -1933,7 +1941,18 @@ function buildDigitalRx(payload) {
     }),
     medicationsPayload: medicationPayload,
     advice: adviceRows.map((item) => ({ ...item, fresh: true })),
-    labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations).map((item) => (typeof item === "string" ? item : item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label)).filter(Boolean),
+    labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations)
+      .map((item) => {
+        if (typeof item === "string") return item;
+        const label = item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label;
+        return label ? {
+          ...item,
+          payload: item,
+          label,
+          detail: valueText([item?.note, item?.notes, item?.detail]),
+        } : null;
+      })
+      .filter(Boolean),
     medicalHistory: buildPastVisitMedicalHistoryRows(p.medicalHistory || p.medical_history),
     medicalHistorySections: buildPastVisitMedicalHistorySections(p.medicalHistory || p.medical_history),
     surgeries: legacyVisitRows(

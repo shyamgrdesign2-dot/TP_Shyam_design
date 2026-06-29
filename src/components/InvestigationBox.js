@@ -51,6 +51,11 @@ import {
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  hasInvalidChikitsalayInvestigation,
+  INVESTIGATION_INVENTORY_WARNING,
+  isChikitsalayInvestigationRow,
+} from "../utils/chikitsalayInventory";
 const {
   alerticon: alertIcon,
   lab: Investigationicon,
@@ -126,7 +131,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const tokenData = decodedToken?.result;
   const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
   const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
-  const inventorySourceName = isZydusAccount ? "Zydus inventory" : "Chikitsalay investigation";
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
 
@@ -349,6 +353,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const buildInvestigationSearchOption = useCallback(
     (investigation) => {
       if (!investigation?.investigation_name) return null;
+      if (isChikitsalayAccessable && !isChikitsalayInvestigationRow(investigation)) return null;
 
       return {
         key: JSON.stringify({ ...investigation, unique_id: uuidv4() }),
@@ -364,11 +369,25 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                 Z
               </span>
             )}
+            {isChikitsalayAccessable && getHmTypeIndicator(investigation, true) && (
+              <span
+                className="align-items-center small fs-12-1 d-inline-flex justify-content-center text-white rounded-pill"
+                style={{
+                  minWidth: 26,
+                  height: 18,
+                  padding: "0 6px",
+                  background: "#c44ea2",
+                  lineHeight: "16px",
+                }}
+              >
+                {getHmTypeIndicator(investigation, true)}
+              </span>
+            )}
           </div>
         ),
       };
     },
-    [isZydusAccount]
+    [isChikitsalayAccessable, isZydusAccount]
   );
 
   const performVoiceInvestigationFuzzySearch = useCallback(
@@ -624,6 +643,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       errorMessage('At least 1 investigation added')
     } else if (templateInvestigation.filter(e => String(e.investigation_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup investigation name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateInvestigation.some(hasInvalidChikitsalayInvestigation)) {
+      errorMessage(INVESTIGATION_INVENTORY_WARNING)
     } else {
       var sendData = {
         tit_template_name: inputTemplateName,
@@ -654,6 +675,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       errorMessage('At least 1 investigation added')
     } else if (templateInvestigation.filter(e => String(e.investigation_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup investigation name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateInvestigation.some(hasInvalidChikitsalayInvestigation)) {
+      errorMessage(INVESTIGATION_INVENTORY_WARNING)
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
@@ -792,6 +815,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
             <div {...provided.droppableProps} ref={provided.innerRef}>
               {investigationData.length > 0 &&
                 investigationData.map((item, index) => {
+                  const hasInvalidInventorySelection =
+                    isChikitsalayAccessable && hasInvalidChikitsalayInvestigation(item);
                   let supplementaryIndicator = "";
                   if (isChikitsalayAccessable) {
                     const raw = getHmTypeIndicator(item, true);
@@ -824,11 +849,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                           xs={8}
                           className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : undefined}
                           onClick={() => {
-                            if (isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index) {
+                            if (isVoiceRxModuleEnabled && (isVoiceRxModuleInvestigation(item) || hasInvalidInventorySelection) && activeVoiceInvestigationIndex !== index) {
                               handleVoiceInvestigationClick(index);
                             }
                           }}
-                          style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
+                          style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && (isVoiceRxModuleInvestigation(item) || hasInvalidInventorySelection) ? { background: "#fff8ef" } : undefined}
                         >
                           <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
@@ -861,11 +886,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                 />
                               )}
                             </div>
-                            {isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isVoiceRxModuleInvestigation(item) && (
+                            {isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && hasInvalidInventorySelection && (
                               <Tooltip
                                 placement="top"
                                 overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                title={`Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()} from the ${inventorySourceName} list.`}
+                                title={INVESTIGATION_INVENTORY_WARNING}
                               >
                                 <InfoCircleOutlined
                                   className="fs-18 flex-shrink-0"
@@ -927,7 +952,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     activeVoiceInvestigationIndex,
     childSearchOptions,
     investigationData,
-    inventorySourceName,
     isChikitsalayAccessable,
     isVoiceRxModuleEnabled,
     shouldShowInventorySourceWarning,
