@@ -63,6 +63,7 @@ import {
 } from "../../utils/medicalHistoryUtils";
 import { convertAgentMedicalHistoryRowsToSections } from "../../utils/medicalHistoryConverters";
 import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers";
+import { mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, normalizeGynecHistoryFromApi } from "../../utils/gynecHistoryUtils";
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitizationSlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
@@ -142,6 +143,7 @@ const SECTION_TITLES = {
 const SIDE_NAV_MODULE_NAMES = {
   // vitals: "vitals_body",
   history: "medical_history",
+  gynec: "gynaec_history",
   // labResults: "lab_investigations",
 };
 
@@ -616,6 +618,8 @@ function legacyDetail(item, keys) {
 function legacyVisitRows(items, labelKeys, detailKeys) {
   return legacyArray(items)
     .map((item) => ({
+      ...(typeof item === "object" && item ? item : {}),
+      payload: item,
       label: firstLegacyText(item, labelKeys),
       detail: legacyDetail(item, detailKeys),
     }))
@@ -1143,6 +1147,8 @@ function buildPastVisitEntry(consultation, detail) {
 function pastVisitRowText(item) {
   if (typeof item === "string") return { label: item, detail: "" };
   return {
+    ...item,
+    payload: item?.payload || item,
     label: String(item?.label || item?.name || item?.title || "").trim(),
     detail: String(item?.detail || item?.notes || item?.note || "").trim(),
   };
@@ -1336,8 +1342,9 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
     }
     case "diagnosis": {
       const rows = pastVisitRows(rx.diagnoses).map((item) => ({
-        tds_name: item.label,
-        note: item.detail,
+        ...(item.payload || {}),
+        tds_name: item.payload?.tds_name || item.label,
+        note: item.payload?.note || item.payload?.notes || item.detail,
       }));
       return rows.length ? { ...base, digitization: { diagnosis: rows } } : null;
     }
@@ -1368,8 +1375,9 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
     }
     case "investigations": {
       const rows = pastVisitRows(rx.labInvestigations).map((item) => ({
-        investigation_name: item.label,
-        note: item.detail,
+        ...(item.payload || {}),
+        investigation_name: item.payload?.investigation_name || item.payload?.test_name || item.label,
+        note: item.payload?.note || item.payload?.notes || item.detail,
       }));
       return rows.length ? { ...base, digitization: { lab_investigation: rows } } : null;
     }
@@ -1392,9 +1400,7 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
         ? { ...base, digitization: { vitalsAndBodyComposition: rx.vitalsPayload } }
         : null;
     case "gynec":
-      return objectHasRenderableValue(rx.gynecPayload)
-        ? { ...base, digitization: { gyneacHistory: rx.gynecPayload } }
-        : null;
+      return null;
     case "obstetric":
       return objectHasRenderableValue(rx.obstetricPayload)
         ? { ...base, digitization: { obstetricHistory: rx.obstetricPayload } }
@@ -1509,7 +1515,6 @@ async function fetchPastVisitPrintPayload(printUrl, detail) {
   const fetchUrl = buildPastVisitPrintPayloadUrl(printUrl, detail);
   if (!fetchUrl) return null;
   try {
-    console.log("[SideNavbar][PastVisits] print payload URL:", fetchUrl);
     const response = await axios.get(fetchUrl);
     return response?.data?.data || response?.data || null;
   } catch (error) {
@@ -1706,13 +1711,22 @@ function copyPayloadHasVitals(payload = {}) {
   return hasVitalsSignalContext(digitization.vitals_and_body_composition);
 }
 
+function copyPayloadHasGynec(payload = {}) {
+  const digitization = payload?.digitization || {};
+  return sideNavObjectHasContent(digitization.gynaec_history);
+}
+
 function getSideNavSignalTargetsFromCopyRequest(copyRequest) {
   const payload = copyRequest?.payload || {};
   const explicitTarget = payload.sideNavSignalTarget;
   const hasVitals = copyPayloadHasVitals(payload);
   const hasMedicalHistory = copyPayloadHasMedicalHistory(payload);
+  const hasGynec = copyPayloadHasGynec(payload);
 
   if (explicitTarget === "vitals" && hasVitals) {
+    return [explicitTarget];
+  }
+  if (explicitTarget === "gynec" && hasGynec) {
     return [explicitTarget];
   }
   if (SIDE_NAV_SIGNAL_SECTIONS.has(explicitTarget) && hasMedicalHistory) {
@@ -1722,6 +1736,7 @@ function getSideNavSignalTargetsFromCopyRequest(copyRequest) {
   const targets = [];
   if (hasMedicalHistory) targets.push("history");
   if (hasVitals) targets.push("vitals");
+  if (hasGynec) targets.push("gynec");
   return targets;
 }
 
@@ -1908,6 +1923,8 @@ function buildDigitalRx(payload) {
       fresh: true,
     })),
     diagnoses: toArray(p.diagnosis || p.diagnoses).map((item) => ({
+      ...(typeof item === "object" && item ? item : {}),
+      payload: item,
       label: item?.name || item?.tds_name || item?.diagnosis_name || item?.lineItem || item?.label || String(item || ""),
       detail: valueText([item?.since, item?.status, item?.notes, item?.note, item?.detail]),
       fresh: true,
@@ -1924,7 +1941,18 @@ function buildDigitalRx(payload) {
     }),
     medicationsPayload: medicationPayload,
     advice: adviceRows.map((item) => ({ ...item, fresh: true })),
-    labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations).map((item) => (typeof item === "string" ? item : item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label)).filter(Boolean),
+    labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations)
+      .map((item) => {
+        if (typeof item === "string") return item;
+        const label = item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label;
+        return label ? {
+          ...item,
+          payload: item,
+          label,
+          detail: valueText([item?.note, item?.notes, item?.detail]),
+        } : null;
+      })
+      .filter(Boolean),
     medicalHistory: buildPastVisitMedicalHistoryRows(p.medicalHistory || p.medical_history),
     medicalHistorySections: buildPastVisitMedicalHistorySections(p.medicalHistory || p.medical_history),
     surgeries: legacyVisitRows(
@@ -2064,49 +2092,50 @@ function joinParts(parts) {
 
 function buildLegacyGynecSections(gynecHistory) {
   if (!gynecHistory || Object.keys(gynecHistory).length === 0) return [];
+  const normalizedGynecHistory = normalizeGynecHistoryFromApi(gynecHistory);
   const cards = [];
 
-  if (gynecHistory.lmp) {
-    cards.push({ id: "gynec-lmp", title: "LMP", lines: [`LMP: ${moment(gynecHistory.lmp).format("DD MMM'YY")}`] });
+  if (normalizedGynecHistory.lmp) {
+    cards.push({ id: "gynec-lmp", title: "LMP", lines: [`LMP: ${moment(normalizedGynecHistory.lmp).format("DD MMM'YY")}`] });
   }
 
   const menarcheLines = joinParts([
-    gynecHistory.ageAtMenarche && `Age at: ${gynecHistory.ageAtMenarche} years`,
-    gynecHistory.menarcheNotes && `Notes: ${gynecHistory.menarcheNotes}`,
+    normalizedGynecHistory.ageAtMenarche && `Age at: ${normalizedGynecHistory.ageAtMenarche} years`,
+    normalizedGynecHistory.menarcheNotes && `Notes: ${normalizedGynecHistory.menarcheNotes}`,
   ]);
   if (menarcheLines) cards.push({ id: "gynec-menarche", title: "Menarche", lines: [menarcheLines] });
 
   const cycleLine = joinParts([
-    gynecHistory.cycle && `Type: ${gynecHistory.cycle}`,
-    gynecHistory.intervalOfCycle && `Interval: ${gynecHistory.intervalOfCycle} days`,
-    gynecHistory.cycleNotes && `Note: ${gynecHistory.cycleNotes}`,
+    normalizedGynecHistory.cycle && `Type: ${normalizedGynecHistory.cycle}`,
+    normalizedGynecHistory.intervalOfCycle && `Interval: ${normalizedGynecHistory.intervalOfCycle} days`,
+    normalizedGynecHistory.cycleNotes && `Note: ${normalizedGynecHistory.cycleNotes}`,
   ]);
   if (cycleLine) cards.push({ id: "gynec-cycle", title: "Cycle", lines: [cycleLine] });
 
   const flowLine = joinParts([
-    gynecHistory.flow && `Volume: ${gynecHistory.flow}`,
-    gynecHistory.durationOfMenstrualFlow && `Duration: ${gynecHistory.durationOfMenstrualFlow} days`,
-    gynecHistory.clots !== undefined && gynecHistory.clots !== "" && `Clots: ${gynecHistory.clots ? "Yes" : "No"}`,
-    gynecHistory.numberOfPadsPerDay && `Pads/day: ${gynecHistory.numberOfPadsPerDay}`,
-    gynecHistory.flowNotes && `Notes: ${gynecHistory.flowNotes}`,
+    normalizedGynecHistory.flow && `Volume: ${normalizedGynecHistory.flow}`,
+    normalizedGynecHistory.durationOfMenstrualFlow && `Duration: ${normalizedGynecHistory.durationOfMenstrualFlow} days`,
+    normalizedGynecHistory.clots !== undefined && normalizedGynecHistory.clots !== "" && `Clots: ${normalizedGynecHistory.clots ? "Yes" : "No"}`,
+    normalizedGynecHistory.numberOfPadsPerDay && `Pads/day: ${normalizedGynecHistory.numberOfPadsPerDay}`,
+    normalizedGynecHistory.flowNotes && `Notes: ${normalizedGynecHistory.flowNotes}`,
   ]);
   if (flowLine) cards.push({ id: "gynec-flow", title: "Flow", lines: [flowLine] });
 
   const painLine = joinParts([
-    gynecHistory.pain && `Severity: ${gynecHistory.pain}`,
-    gynecHistory.occurrenceOfPain && `Occurrence: ${gynecHistory.occurrenceOfPain}`,
-    gynecHistory.painNotes && `Notes: ${gynecHistory.painNotes}`,
+    normalizedGynecHistory.pain && `Severity: ${normalizedGynecHistory.pain}`,
+    normalizedGynecHistory.occurrenceOfPain && `Occurrence: ${normalizedGynecHistory.occurrenceOfPain}`,
+    normalizedGynecHistory.painNotes && `Notes: ${normalizedGynecHistory.painNotes}`,
   ]);
   if (painLine) cards.push({ id: "gynec-pain", title: "Pain", lines: [painLine] });
 
   const hormLines = [];
-  if (gynecHistory.reproductiveLifeStages) hormLines.push(`Stage: ${gynecHistory.reproductiveLifeStages}`);
-  if (gynecHistory.ageAtMenopause) hormLines.push(`Age at: ${gynecHistory.ageAtMenopause} years`);
-  if (gynecHistory.typeOfMenopause) hormLines.push(`Type: ${gynecHistory.typeOfMenopause}`);
-  if (gynecHistory.reproductiveNotes) hormLines.push(`Notes: ${gynecHistory.reproductiveNotes}`);
+  if (normalizedGynecHistory.reproductiveLifeStages) hormLines.push(`Stage: ${normalizedGynecHistory.reproductiveLifeStages}`);
+  if (normalizedGynecHistory.ageAtMenopause) hormLines.push(`Age at: ${normalizedGynecHistory.ageAtMenopause} years`);
+  if (normalizedGynecHistory.typeOfMenopause) hormLines.push(`Type: ${normalizedGynecHistory.typeOfMenopause}`);
+  if (normalizedGynecHistory.reproductiveNotes) hormLines.push(`Notes: ${normalizedGynecHistory.reproductiveNotes}`);
   if (hormLines.length) cards.push({ id: "gynec-hormonal", title: "Lifecycle Hormonal Changes", lines: hormLines });
 
-  if (gynecHistory.notes) cards.push({ id: "gynec-notes", title: "Notes", lines: [gynecHistory.notes] });
+  if (normalizedGynecHistory.notes) cards.push({ id: "gynec-notes", title: "Notes", lines: [normalizedGynecHistory.notes] });
 
   return cards;
 }
@@ -2540,6 +2569,8 @@ function normalizeSideNavModuleResponse(responseJson, sectionId) {
       return { vitals: normalizeSideNavVitals(payload) };
     case "history":
       return { history: normalizeSideNavHistorySections(payload) };
+    case "gynec":
+      return { gynaec_history: normalizeGynaecHistoryFromDigitiseData(payload) };
     case "labResults":
       return { labResults: normalizeSideNavLabItems(payload) };
     default:
@@ -3517,7 +3548,7 @@ const EMPTY_SECTION_CONFIG = {
   gynec: {
     message: "No gynec history has been recorded for this patient yet.",
     addLabel: "Add Gynec History",
-    showVoice: false,
+    showVoice: true,
   },
   obstetric: {
     message: "No obstetric history has been recorded for this patient yet.",
@@ -5534,6 +5565,7 @@ export function SideNavbar({
     pamId,
     privateNotesData,
     setPrivateNotesData,
+    setUpdatedGynecHistory,
   } = useContext(CashManagerContext) || {};
   const getSideNavVoiceSessionId = useCallback(() => {
     if (tcmId && Number(tcmId) !== 0) return tcmId;
@@ -5823,9 +5855,6 @@ export function SideNavbar({
   const legacyGynecSections = useMemo(
     () => {
       const sections = buildLegacyGynecSections(gynecHistoryProp);
-      console.log("[SideNavbar][Gynec] active patient:", patientId);
-      console.log("[SideNavbar][Gynec] incoming gynecHistory prop:", gynecHistoryProp);
-      console.log("[SideNavbar][Gynec] mapped gynec sections:", sections);
       return sections;
     },
     [gynecHistoryProp, patientId]
@@ -5986,7 +6015,6 @@ export function SideNavbar({
       onSectionAction(sectionId);
       return;
     }
-    console.log("[sideNavbar] add/edit details clicked", { sectionId });
   }, [onSectionAction]);
 
   const setActiveSection = useCallback((id, dir = null) => {
@@ -6107,14 +6135,15 @@ export function SideNavbar({
         const defaultSource = medicalHistoryDefaultList?.length ? medicalHistoryDefaultList : prev;
         const mappedHistory = mapSideNavMedicalHistoryIdsFromDefaultList(result.history, defaultSource);
         const finalMedicalHistoryData = mergeSideNavMedicalHistorySections(prev, mappedHistory);
-        console.groupCollapsed("[SideNav MedicalHistory] agents/module mapped result");
-        console.log("raw normalized result.history", result.history);
-        console.log("default source used for id mapping", defaultSource);
-        console.log("mapped history after default-list conversion", mappedHistory);
-        console.log("final data passed to setMedicalHistoryData", finalMedicalHistoryData);
-        console.groupEnd();
         return finalMedicalHistoryData;
       });
+      return;
+    }
+
+    if (sectionId === "gynec" && result?.gynaec_history && sideNavObjectHasContent(result.gynaec_history)) {
+      setUpdatedGynecHistory?.((prev) => ({
+        ...mergeGynecHistory(prev, result.gynaec_history),
+      }));
       return;
     }
 
@@ -6131,7 +6160,7 @@ export function SideNavbar({
       setLabParamsData?.((prev = []) => [entry, ...prev]);
       setDigitizedOverrides((prev) => ({ ...prev, labResults: { lab_investigations: result.labResults } }));
     }
-  }, [medicalHistoryDefaultList, setLabParamsData, setMedicalHistoryData, setVitalsData]);
+  }, [medicalHistoryDefaultList, setLabParamsData, setMedicalHistoryData, setUpdatedGynecHistory, setVitalsData]);
 
   const transcribeSectionAudio = useCallback(async (sectionId, meta = {}) => {
     if (!isSideNavVoiceSupported(sectionId)) {

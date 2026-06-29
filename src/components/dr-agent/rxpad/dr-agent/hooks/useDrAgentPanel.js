@@ -80,6 +80,9 @@ const toStructuredVoiceItem = (item) => {
 const hasObjectData = (value) =>
   value && typeof value === "object" && Object.keys(value).length > 0;
 
+const firstMeaningfulObject = (...values) =>
+  values.find((value) => hasObjectData(value)) || null;
+
 const hasMeaningfulVoiceDigitization = (voiceDigitization) => {
   if (!voiceDigitization) return false;
   return (
@@ -195,10 +198,94 @@ const normalizeSymptomCollectorData = (raw) => {
     allergies,
     currentMedications,
     questionsToDoctor,
+    vitalsAndBodyComposition: raw.vitalsAndBodyComposition || null,
     _id: raw._id,
   };
 
   return hasPatientReportedData(data) ? data : null;
+};
+
+const formatVitalValue = (vital) => {
+  if (!vital || typeof vital !== "object") return cleanText(vital);
+  const value = cleanText(vital.value);
+  if (!value) return "";
+  const unit = cleanText(vital.unit);
+  return [value, unit].filter(Boolean).join(" ");
+};
+
+const compactObject = (object) => Object.fromEntries(
+  Object.entries(object).filter(([, value]) => {
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === "object") return Object.keys(value).length > 0;
+    return cleanText(value) !== "";
+  })
+);
+
+const mapSymptomCollectorVitals = (vitals) => compactObject({
+  temperature: formatVitalValue(vitals?.temperature),
+  pulse: formatVitalValue(vitals?.pulse),
+  respiratory_rate: formatVitalValue(vitals?.respiratoryRate),
+  blood_pressure: formatVitalValue(vitals?.bloodPressure),
+  systolic: formatVitalValue(vitals?.systolic),
+  diastolic: formatVitalValue(vitals?.diastolic),
+  spo2: formatVitalValue(vitals?.spo2),
+  random_blood_sugar: formatVitalValue(vitals?.randomBloodSugar),
+  height: formatVitalValue(vitals?.height),
+  weight: formatVitalValue(vitals?.weight),
+  head_circumference: formatVitalValue(vitals?.headCircumference),
+  waist_circumference: formatVitalValue(vitals?.waistCircumference),
+  bmi: formatVitalValue(vitals?.bmi),
+  bmr: formatVitalValue(vitals?.bmr),
+  bsa: formatVitalValue(vitals?.bsa),
+  fib4: formatVitalValue(vitals?.fib4),
+  general_rbs: formatVitalValue(vitals?.generalRBS),
+});
+
+const buildSymptomCollectorPreviousContext = (symptomCollectorData, patientData) => {
+  if (!hasPatientReportedData(symptomCollectorData)) return null;
+
+  const patientDetails = compactObject({
+    name: cleanText(
+      patientData?.pm_fullname ||
+      patientData?.patient_name ||
+      [patientData?.pm_first_name, patientData?.pm_last_name].map(cleanText).filter(Boolean).join(" ")
+    ),
+    age: cleanText(patientData?.ageYears ?? patientData?.age_years ?? patientData?.age),
+    gender: cleanText(patientData?.pm_gender || patientData?.gender),
+    blood_group: cleanText(patientData?.blood_group || patientData?.pm_blood_group),
+  });
+  const vitalsAndBodyComposition = mapSymptomCollectorVitals(symptomCollectorData.vitalsAndBodyComposition);
+  const symptoms = (symptomCollectorData.symptoms || []).map((item) => compactObject({
+    name: cleanText(item?.name || item?.symptom_name || item?.lineItem || item),
+    duration: cleanText(item?.duration || item?.since),
+    severity: cleanText(item?.severity),
+    notes: cleanText(item?.notes || item?.note),
+  })).filter((item) => cleanText(item.name));
+  const medications = (symptomCollectorData.currentMedications || []).map((item) => compactObject({
+    name: cleanText(item),
+  })).filter((item) => cleanText(item.name));
+  const medicalHistory = [
+    ...(symptomCollectorData.allergies || []).map((item) => compactObject({
+      name: cleanText(item),
+      status: "Allergy",
+    })),
+    ...(symptomCollectorData.medicalHistory || []).map((item) => compactObject({
+      name: cleanText(item?.name || item?.lineItem || item),
+      since: cleanText(item?.since || item?.duration),
+      status: cleanText(item?.status || item?.type),
+      notes: cleanText(item?.notes || item?.note || item?.detail),
+    })),
+  ].filter((item) => cleanText(item.name));
+
+  const previousContext = compactObject({
+    patient_details: patientDetails,
+    vitals_and_body_composition: vitalsAndBodyComposition,
+    symptoms,
+    medications,
+    medical_history: medicalHistory,
+  });
+
+  return hasObjectData(previousContext) ? previousContext : null;
 };
 
 const buildPatientFromData = (patientData, fallback) => {
@@ -255,6 +342,10 @@ export function useDrAgentPanel({
   const { profile } = useSelector((state) => state.doctors);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
   const symptomCollector = useSelector((state) => state.ddx?.symptomCollector);
+  const symptomCollectorData = useMemo(
+    () => normalizeSymptomCollectorData(symptomCollector),
+    [symptomCollector]
+  );
   // Voice Rx API session context — sessionId regenerates on each new dictation
   const voiceRxSessionRef = useRef(null);
   const voiceRxAbortRef = useRef(null);
@@ -957,6 +1048,15 @@ export function useDrAgentPanel({
     }
   }, [abortActiveVoiceRxRequest, onVoiceCaptureModeChange, selectedPatientId, setAiFillInProgress, resetLiveTranscript]);
 
+  const summary = useMemo(() => {
+    const baseSummary = SMART_SUMMARY_BY_CONTEXT[selectedPatientId] || SMART_SUMMARY_BY_CONTEXT[CONTEXT_PATIENT_ID];
+    return {
+      ...baseSummary,
+      symptomCollectorData: symptomCollectorData || baseSummary.symptomCollectorData,
+    };
+  }, [selectedPatientId, symptomCollectorData]);
+
+
   const submitVoiceRxRecording = useCallback((meta) => {
     if (voiceSubmitInFlightRef.current) return;
     const liveText = voiceRxLiveTranscript.trim();
@@ -1037,6 +1137,7 @@ export function useDrAgentPanel({
       let voiceRxLogDigitizeData = null;
       let voiceRxTranscriptRequestId = "";
       let voiceRxLogPreviousContext = null;
+      let digitisePreviousContextForHistory = null;
       const waitForButtonLoaderWindow = () => {
         const remaining = VOICE_RX_SUBMIT_BUTTON_MIN_MS - (Date.now() - submittedAt);
         if (remaining <= 0) return Promise.resolve();
@@ -1082,7 +1183,16 @@ export function useDrAgentPanel({
         });
         let digitizeResult;
         try {
-          const mainDigitisePrev = priorVoiceResultRef.current?.digitization || voiceDigitization?.clinicNotes || voiceDigitization?.digitizeData || null;
+          const existingVoiceDigitisePrev = firstMeaningfulObject(
+            priorVoiceResultRef.current?.digitization,
+            voiceDigitization?.clinicNotes,
+            voiceDigitization?.digitizeData
+          );
+          const symptomCollectorDigitisePrev = existingVoiceDigitisePrev
+            ? null
+            : buildSymptomCollectorPreviousContext(summary.symptomCollectorData, patientData);
+          const mainDigitisePrev = existingVoiceDigitisePrev || symptomCollectorDigitisePrev;
+          digitisePreviousContextForHistory = mainDigitisePrev;
           voiceRxLogPreviousContext = {
             digitiseData: mainDigitisePrev,
             soap: soapPreviousContext,
@@ -1220,7 +1330,7 @@ export function useDrAgentPanel({
           speechAnalysis: meta?.speechAnalysis,
         }).then(({ source }) => {
           dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
-            type: prior?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
+            type: digitisePreviousContextForHistory ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
             source,
             durationMs: meta?.durationMs ?? 0,
             timeRequiredInMs: clinicalCompletedAtMs - clinicalStartedAtMs,
@@ -1304,6 +1414,7 @@ export function useDrAgentPanel({
     dispatch,
     patientData,
     profile,
+    summary.symptomCollectorData,
     voiceDigitization?.sessionId,
     voiceDigitization?.voiceCallCount,
     voiceDigitization?.voiceLogCreated,
@@ -1347,18 +1458,6 @@ export function useDrAgentPanel({
     [contextPatient, patientData]
   );
 
-  const symptomCollectorData = useMemo(
-    () => normalizeSymptomCollectorData(symptomCollector),
-    [symptomCollector]
-  );
-
-  const summary = useMemo(() => {
-    const baseSummary = SMART_SUMMARY_BY_CONTEXT[selectedPatientId] || SMART_SUMMARY_BY_CONTEXT[CONTEXT_PATIENT_ID];
-    return {
-      ...baseSummary,
-      symptomCollectorData: symptomCollectorData || baseSummary.symptomCollectorData,
-    };
-  }, [selectedPatientId, symptomCollectorData]);
 
   const hasRestorableVoiceData = useMemo(() => {
     if (!voiceDigitization) return false;
