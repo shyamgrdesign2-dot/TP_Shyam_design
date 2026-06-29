@@ -53,16 +53,21 @@ function textKey(prefix, value) {
   return normalized ? `${prefix}:${normalized}` : "";
 }
 
+function hasNumericToken(value) {
+  return /\d/.test(String(value ?? ""));
+}
+
 function medicationIdentityParts(row = {}) {
   const medicineId = idKey("medicine-id", row.tmm_id);
-  const medicineName = textKey("medicine", firstValue(row, [
+  const medicineNameValue = firstValue(row, [
     "tmm_medicine_name",
     "tm_medicine_name",
     "medicine_name",
     "medicine",
     "name",
     "title",
-  ]));
+  ]);
+  const medicineName = textKey("medicine", medicineNameValue);
   const medicineOriginalName = textKey("medicine-original", row.voice_rx_original_name);
   const medicineIdentities = [medicineId, medicineName, medicineOriginalName].filter(Boolean);
   if (!medicineIdentities.length) return [];
@@ -70,9 +75,22 @@ function medicationIdentityParts(row = {}) {
   const dose = normalizeText(firstValue(row, ["tmm_dosage", "dosage", "dose"]));
   const unit = normalizeText(firstValue(row, ["tmm_dosage_unit_name", "unitPerDose", "tmm_unit_name"]));
   const form = normalizeText(firstValue(row, ["tmm_type_name", "type", "form"]));
-  return medicineIdentities.map((medicineIdentity) =>
+  const doseAwareKeys = medicineIdentities.map((medicineIdentity) =>
     [medicineIdentity, `dose:${dose}`, `unit:${unit}`, `form:${form}`].join("|")
   );
+
+  const directMedicineKeys = [
+    hasNumericToken(medicineNameValue) ? medicineName : "",
+    medicineOriginalName && (hasPositiveId(row.tmm_id) || hasNumericToken(row.voice_rx_original_name))
+      ? medicineOriginalName
+      : "",
+  ].filter(Boolean);
+
+  if (directMedicineKeys.length) {
+    return [...directMedicineKeys, ...doseAwareKeys];
+  }
+
+  return doseAwareKeys;
 }
 
 function rowMergeKeys(row = {}, moduleKey) {
