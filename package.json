@@ -125,7 +125,7 @@
     ],
     "rules": {
       "import/no-unresolved": ["error", {
-        "ignore": ["three", "@react-three/fiber", "@react-three/drei", "lucide-react", "@radix-ui/react-alert-dialog", "@radix-ui/react-dialog", "@radix-ui/react-select", "@radix-ui/react-popover", "@radix-ui/react-tabs"]
+        "ignore": ["three", "@react-three/fiber", "@react-three/drei", "lucide-react", "@radix-ui/react-alert-dialog", "@radix-ui/react-dialog", "@radix-ui/react-select", "@radix-ui/react-popover", "@radix-ui/react-tabs", "@ricky0123/vad-react"]
       }]
     },
     "settings": {
