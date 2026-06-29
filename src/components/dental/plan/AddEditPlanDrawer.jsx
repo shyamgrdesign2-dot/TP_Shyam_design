@@ -476,6 +476,10 @@ export function AddEditPlanDrawer() {
       e.preventDefault();
       return;
     }
+    if (target instanceof Element && target.closest('[data-tp-portal="true"]')) {
+      e.preventDefault();
+      return;
+    }
     if (
       searchOpen &&
       dropdownRef.current &&
@@ -511,6 +515,11 @@ export function AddEditPlanDrawer() {
             // Allow focus to move to antd overlay content (template popovers, selects, ServiceItemPopup)
             const focusedEl = e.detail?.originalEvent?.target;
             if (isAntdOverlayTarget(focusedEl)) {
+              e.preventDefault();
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (document.querySelector('[data-tp-portal="true"]') || searchOpen) {
               e.preventDefault();
             }
           }}

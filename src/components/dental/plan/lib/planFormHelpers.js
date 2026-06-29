@@ -50,19 +50,21 @@ export function createRow(
 
 /**
  * Compute the effective discount amount for a row.
- * For "percent" type: derives flat amount from rate × pct / 100.
- * For "flat" type: uses value directly, capped at rate.
+ * For "percent" type: derives flat amount from baseRate × pct / 100.
+ * For "flat" type: uses value directly, capped at baseRate.
  *
  * @param {{ rate: number, discount: number, discountType?: string }} row
+ * @param {number} [totalRate] - Optional pre-computed total rate for the row (rate * teeth)
  * @returns {number}
  */
-export function computeDiscount(row) {
+export function computeDiscount(row, totalRate) {
   const raw = Number(row.discount);
   const d = Number.isFinite(raw) && raw > 0 ? raw : 0;
+  const baseRate = totalRate !== undefined ? totalRate : row.rate;
   if (row.discountType === "percentage") {
-    return Math.round((row.rate * Math.min(d, 100)) / 100);
+    return Math.round((baseRate * Math.min(d, 100)) / 100);
   }
-  return Math.min(row.rate, d);
+  return Math.min(baseRate, d);
 }
 
 /**
@@ -77,7 +79,9 @@ export function fanOutServices(rows, editPlanId) {
   return rows
     .filter((row) => row.treatment)
     .map((row) => {
-      const discAmt = computeDiscount(row);
+      const teethCount = Math.max(1, row.teeth.length);
+      const totalRate = row.rate * teethCount;
+      const discAmt = computeDiscount(row, totalRate);
       return {
         id: genId("svc"),
         planId,
@@ -87,7 +91,7 @@ export function fanOutServices(rows, editPlanId) {
         rate: row.rate,
         discount: row.discount,
         discountType: row.discountType || "flat",
-        amount: Math.max(0, row.rate - discAmt),
+        amount: Math.max(0, totalRate - discAmt),
         status: "planned",
         sittings: [],
         procedures: [],
@@ -197,8 +201,9 @@ export function mergeTemplateRows(payload, existingRows) {
  */
 export function computeTotalAmount(rows) {
   return rows.reduce((sum, r) => {
-    const teeth = r.teeth.length || 1;
-    const discAmt = computeDiscount(r);
-    return sum + Math.max(0, r.rate - discAmt) * teeth;
+    const teethCount = Math.max(1, r.teeth.length);
+    const totalRate = r.rate * teethCount;
+    const discAmt = computeDiscount(r, totalRate);
+    return sum + Math.max(0, totalRate - discAmt);
   }, 0);
 }

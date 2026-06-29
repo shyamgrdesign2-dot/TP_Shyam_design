@@ -56,7 +56,7 @@ export function ToothPicker({
     { label: "Mandibular", teeth: [...quadrants.LR, ...quadrants.LL] },
     { label: "R Arch", teeth: [...quadrants.UR, ...quadrants.LR] },
     { label: "L Arch", teeth: [...quadrants.UL, ...quadrants.LL] },
-    { label: "Full", teeth: ["full-mouth"] },
+    { label: "Full", teeth: [...quadrants.UR, ...quadrants.UL, ...quadrants.LR, ...quadrants.LL] },
   ];
 
   useEffect(() => { setMounted(true); }, []);
@@ -106,11 +106,19 @@ export function ToothPicker({
       if (dropdownRef.current?.contains(e.target)) return;
       openDropdown();
     };
+    const handleKey = (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
     document.addEventListener("mousedown", handleDocClick);
+    document.addEventListener("keydown", handleKey, true);
     window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("mousedown", handleDocClick);
+      document.removeEventListener("keydown", handleKey, true);
       window.removeEventListener("scroll", reposition, true);
       window.removeEventListener("resize", reposition);
     };
@@ -121,8 +129,23 @@ export function ToothPicker({
       ? value.includes("full-mouth")
       : chip.teeth.length > 0 && chip.teeth.every((t) => value.includes(t));
 
+  const handleChipClick = (chip) => {
+    if (chip.teeth[0] === "full-mouth") {
+      onChange(value.includes("full-mouth") ? [] : ["full-mouth"]);
+      return;
+    }
+    const isActive = isChipActive(chip);
+    const currentSet = new Set(value.filter((v) => v !== "full-mouth"));
+    if (isActive) {
+      chip.teeth.forEach((t) => currentSet.delete(t));
+    } else {
+      chip.teeth.forEach((t) => currentSet.add(t));
+    }
+    onChange(Array.from(currentSet));
+  };
+
   const dropdown = open ? (
-    <div ref={dropdownRef} style={dropdownStyle} className={styles.dropdownWrapper}>
+    <div ref={dropdownRef} style={dropdownStyle} className={styles.dropdownWrapper} data-tp-portal="true">
       <div className={styles.dropdownHeader}>
         <p className={styles.dropdownTitle}>SELECT TEETH</p>
         <div className={styles.selectionCount}>
@@ -149,7 +172,7 @@ export function ToothPicker({
             <button
               key={chip.label}
               type="button"
-              onClick={() => onChange(chip.teeth[0] === "full-mouth" ? ["full-mouth"] : chip.teeth)}
+              onClick={() => handleChipClick(chip)}
               className={`${styles.quickSelectButton} ${isChipActive(chip) ? styles.quickSelectActive : styles.quickSelectInactive}`}
             >
               {chip.label}

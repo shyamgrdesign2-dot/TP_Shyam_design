@@ -134,6 +134,17 @@ export const toDentalService = (service = {}) => {
     service.quick_visit_records ||
     [];
   const normalizedQvrs = rawVisits.map(toDentalQvr);
+
+  const teethCount = teeth.includes("full-mouth") ? 1 : Math.max(1, teeth.length);
+  const totalRate = rate * teethCount;
+  
+  let computedDiscount = 0;
+  if (discountType === "percentage") {
+    computedDiscount = Math.round((totalRate * Math.min(discount, 100)) / 100);
+  } else {
+    computedDiscount = Math.min(totalRate, discount);
+  }
+
   return {
     ...service,
     id: service.id,
@@ -146,7 +157,8 @@ export const toDentalService = (service = {}) => {
     rate,
     discount,
     discountType,
-    amount: Number(service.amount) || Math.max(0, rate - discount),
+    computedDiscount,
+    amount: Math.max(0, totalRate - computedDiscount),
     status: fromApiServiceStatus(service.status) || "planned",
     procedureDate: service.procedureDate || service.procedure_date || "",
     quickVisitRecords: normalizedQvrs,

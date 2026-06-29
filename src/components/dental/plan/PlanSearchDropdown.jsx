@@ -56,6 +56,7 @@ export const PlanSearchDropdown = forwardRef(function PlanSearchDropdown(
         pointerEvents: "auto",
       }}
       className={styles.searchDropdown}
+      data-tp-portal="true"
     >
       {showChartDropdownSection && (
         <>

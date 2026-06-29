@@ -213,29 +213,41 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                 </tr>
               </thead>
               <tbody>
-                {plan.services.flatMap((svc, idx) => {
+                {plan.services.map((svc, idx) => {
                   const teeth = svc.teeth?.length > 0 ? svc.teeth : [svc.toothFdi];
                   const isFullMouth = teeth.includes("full-mouth");
+                  const teethCount = isFullMouth ? 1 : teeth.length;
                   const surgeryDate = svc.procedureDate
                     ? dayjs(svc.procedureDate).format("D MMM YY")
                     : null;
-                  return teeth.map((fdi, tIdx) => (
-                    <tr key={`${idx}-${tIdx}`} className={styles.tbodyTr}>
+                  
+                  return (
+                    <tr key={idx} className={styles.tbodyTr}>
                       <td className={`${styles.td} ${styles.idx}`}>
-                        {tIdx === 0 ? idx + 1 : ""}
+                        {idx + 1}
                       </td>
                       <td className={styles.td}>
                         <div className={styles.serviceCell}>
                           <p className={styles.treatmentName}>{svc.treatment}</p>
-                          {!isFullMouth && (
-                            <p className={styles.toothMeta}>{fdiToLabel(fdi)}</p>
-                          )}
+                          {teethCount > 1 ? (
+                            <p className={styles.toothMeta}>{teethCount} teeth</p>
+                          ) : teethCount === 1 && !isFullMouth ? (
+                            <p className={styles.toothMeta}>{fdiToLabel(teeth[0])}</p>
+                          ) : null}
                         </div>
                       </td>
                       <td className={styles.td}>
-                        <span className={styles.tdToothPill}>
-                          {isFullMouth ? "Full" : `T${fdi}`}
-                        </span>
+                        {isFullMouth ? (
+                          <span className={styles.tdToothPill}>Full</span>
+                        ) : teethCount > 0 ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            {teeth.map(fdi => (
+                              <span key={fdi} className={styles.tdToothPill}>T{fdi}</span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span style={{ color: "var(--tp-slate-300)" }}>—</span>
+                        )}
                       </td>
                       <td className={styles.td}>
                         {svc.surfaces && svc.surfaces.length > 0 ? (
@@ -253,15 +265,20 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                       </td>
                       <td className={`${styles.td} ${styles.rate}`}>
                         {formatINR(svc.rate)}
+                        {teethCount > 1 ? (
+                          <span style={{ color: "var(--tp-slate-400)", fontSize: "11px", marginLeft: "4px" }}>
+                            ×{teethCount}
+                          </span>
+                        ) : null}
                       </td>
                       <td className={`${styles.td} ${styles.disc}`}>
-                        {svc.discount > 0 ? `-${formatINR(svc.discount)}` : "—"}
+                        {svc.computedDiscount > 0 ? `-${formatINR(svc.computedDiscount)}` : "—"}
                       </td>
                       <td className={`${styles.td} ${styles.amount}`}>
                         {formatINR(svc.amount)}
                       </td>
                     </tr>
-                  ));
+                  );
                 })}
               </tbody>
               <tfoot>

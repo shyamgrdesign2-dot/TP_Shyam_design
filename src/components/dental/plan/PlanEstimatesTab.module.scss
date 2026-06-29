@@ -1,6 +1,7 @@
 @use "../styles/tp-tokens" as tp;
 
 .subCard {
+  flex-shrink: 0;
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid rgba(var(--tp-slate-200-rgb), 0.8);

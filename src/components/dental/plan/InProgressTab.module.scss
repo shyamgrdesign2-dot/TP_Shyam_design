@@ -809,6 +809,7 @@
 
 .planClusterCard {
   display: flex;
+  flex-shrink: 0;
   min-height: 0;
   flex-direction: column;
   overflow: hidden;

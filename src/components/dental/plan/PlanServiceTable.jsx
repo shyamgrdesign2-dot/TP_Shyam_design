@@ -56,8 +56,18 @@ function SurfacePicker({ value, onChange }) {
       if (dropdownRef.current?.contains(e.target)) return;
       setOpen(false);
     };
+    const handleKey = (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", handleKey, true);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", handleKey, true);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -88,6 +98,7 @@ function SurfacePicker({ value, onChange }) {
       ref={dropdownRef}
       style={dropdownStyle}
       className={styles.surfacePickerDropdown}
+      data-tp-portal="true"
     >
       <div className={styles.surfacePickerInfo}>
         <div className={styles.surfacePickerInfoBox}>
@@ -214,8 +225,9 @@ function PlanServiceTableInner({
           <tbody>
             {rows.map((row, idx) => {
               const teethCount = Math.max(1, row.teeth.length);
-              const discAmt = computeDiscount(row);
-              const rowAmount = Math.max(0, row.rate - discAmt) * teethCount;
+              const totalRate = row.rate * teethCount;
+              const discAmt = computeDiscount(row, totalRate);
+              const rowAmount = Math.max(0, totalRate - discAmt);
               const isDateActive = isCellActive(row.id, "date");
               const isNoteActive = isCellActive(row.id, "note");
               const isRateActive = isCellActive(row.id, "rate");
