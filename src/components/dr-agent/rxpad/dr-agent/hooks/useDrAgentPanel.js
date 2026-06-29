@@ -276,7 +276,6 @@ const buildSymptomCollectorPreviousContext = (symptomCollectorData, patientData)
       notes: cleanText(item?.notes || item?.note || item?.detail),
     })),
   ].filter((item) => cleanText(item.name));
-  const others = (symptomCollectorData.questionsToDoctor || []).map((item) => cleanText(item)).filter(Boolean);
 
   const previousContext = compactObject({
     patient_details: patientDetails,
@@ -284,7 +283,6 @@ const buildSymptomCollectorPreviousContext = (symptomCollectorData, patientData)
     symptoms,
     medications,
     medical_history: medicalHistory,
-    others,
   });
 
   return hasObjectData(previousContext) ? previousContext : null;
