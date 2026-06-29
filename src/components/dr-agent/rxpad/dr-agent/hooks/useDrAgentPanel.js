@@ -205,57 +205,23 @@ const normalizeSymptomCollectorData = (raw) => {
   return hasPatientReportedData(data) ? data : null;
 };
 
-const emptyVitalsAndBodyComposition = () => ({
-  temperature: "",
-  pulse: "",
-  respiratory_rate: "",
-  blood_pressure: "",
-  systolic: "",
-  diastolic: "",
-  spo2: "",
-  random_blood_sugar: "",
-  height: "",
-  weight: "",
-  head_circumference: "",
-  waist_circumference: "",
-  bmi: "",
-  bmr: "",
-  bsa: "",
-  fib4: "",
-  general_rbs: "",
-});
-
-const emptyGynaecHistory = () => ({
-  lmp: "",
-  age_at_menarche: null,
-  menarche_notes: "",
-  cycle: "",
-  interval_of_cycle: null,
-  cycle_notes: "",
-  flow: "",
-  duration_of_menstrual_flow: null,
-  clots: null,
-  number_of_pads_per_day: null,
-  flow_notes: "",
-  pain: "",
-  occurrence_of_pain: "",
-  pain_notes: "",
-  reproductive_life_stages: "",
-  age_at_menopause: null,
-  type_of_menopause: "",
-  reproductive_notes: "",
-  notes: "",
-});
-
 const formatVitalValue = (vital) => {
   if (!vital || typeof vital !== "object") return cleanText(vital);
   const value = cleanText(vital.value);
+  if (!value) return "";
   const unit = cleanText(vital.unit);
   return [value, unit].filter(Boolean).join(" ");
 };
 
-const mapSymptomCollectorVitals = (vitals) => ({
-  ...emptyVitalsAndBodyComposition(),
+const compactObject = (object) => Object.fromEntries(
+  Object.entries(object).filter(([, value]) => {
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === "object") return Object.keys(value).length > 0;
+    return cleanText(value) !== "";
+  })
+);
+
+const mapSymptomCollectorVitals = (vitals) => compactObject({
   temperature: formatVitalValue(vitals?.temperature),
   pulse: formatVitalValue(vitals?.pulse),
   respiratory_rate: formatVitalValue(vitals?.respiratoryRate),
@@ -278,55 +244,50 @@ const mapSymptomCollectorVitals = (vitals) => ({
 const buildSymptomCollectorPreviousContext = (symptomCollectorData, patientData) => {
   if (!hasPatientReportedData(symptomCollectorData)) return null;
 
-  return {
-    patient_details: {
-      name: cleanText(
-        patientData?.pm_fullname ||
-        patientData?.patient_name ||
-        [patientData?.pm_first_name, patientData?.pm_last_name].map(cleanText).filter(Boolean).join(" ")
-      ),
-      age: cleanText(patientData?.ageYears ?? patientData?.age_years ?? patientData?.age),
-      gender: cleanText(patientData?.pm_gender || patientData?.gender),
-      blood_group: cleanText(patientData?.blood_group || patientData?.pm_blood_group),
-      notes: "",
-    },
-    vitals_and_body_composition: mapSymptomCollectorVitals(symptomCollectorData.vitalsAndBodyComposition),
-    symptoms: (symptomCollectorData.symptoms || []).map((item) => ({
-      name: cleanText(item?.name || item?.symptom_name || item?.lineItem || item),
-      duration: cleanText(item?.duration || item?.since),
-      severity: cleanText(item?.severity),
-      notes: cleanText(item?.notes || item?.note),
-    })),
-    examinations: [],
-    diagnosis: [],
-    medications: (symptomCollectorData.currentMedications || []).map((item) => ({
+  const patientDetails = compactObject({
+    name: cleanText(
+      patientData?.pm_fullname ||
+      patientData?.patient_name ||
+      [patientData?.pm_first_name, patientData?.pm_last_name].map(cleanText).filter(Boolean).join(" ")
+    ),
+    age: cleanText(patientData?.ageYears ?? patientData?.age_years ?? patientData?.age),
+    gender: cleanText(patientData?.pm_gender || patientData?.gender),
+    blood_group: cleanText(patientData?.blood_group || patientData?.pm_blood_group),
+  });
+  const vitalsAndBodyComposition = mapSymptomCollectorVitals(symptomCollectorData.vitalsAndBodyComposition);
+  const symptoms = (symptomCollectorData.symptoms || []).map((item) => compactObject({
+    name: cleanText(item?.name || item?.symptom_name || item?.lineItem || item),
+    duration: cleanText(item?.duration || item?.since),
+    severity: cleanText(item?.severity),
+    notes: cleanText(item?.notes || item?.note),
+  })).filter((item) => cleanText(item.name));
+  const medications = (symptomCollectorData.currentMedications || []).map((item) => compactObject({
+    name: cleanText(item),
+  })).filter((item) => cleanText(item.name));
+  const medicalHistory = [
+    ...(symptomCollectorData.allergies || []).map((item) => compactObject({
       name: cleanText(item),
-      frequency: "",
-      dosage: "",
-      schedule: "",
-      duration: "",
-      notes: "",
+      status: "Allergy",
     })),
-    medical_history: [
-      ...(symptomCollectorData.allergies || []).map((item) => ({
-        name: cleanText(item),
-        since: "",
-        status: "Allergy",
-        notes: "",
-      })),
-      ...(symptomCollectorData.medicalHistory || []).map((item) => ({
-        name: cleanText(item?.name || item?.lineItem || item),
-        since: cleanText(item?.since || item?.duration),
-        status: cleanText(item?.status || item?.type),
-        notes: cleanText(item?.notes || item?.note || item?.detail),
-      })),
-    ],
-    gynaec_history: emptyGynaecHistory(),
-    advice: [],
-    lab_investigation: [],
-    follow_up: "",
-    others: (symptomCollectorData.questionsToDoctor || []).map((item) => cleanText(item)).filter(Boolean),
-  };
+    ...(symptomCollectorData.medicalHistory || []).map((item) => compactObject({
+      name: cleanText(item?.name || item?.lineItem || item),
+      since: cleanText(item?.since || item?.duration),
+      status: cleanText(item?.status || item?.type),
+      notes: cleanText(item?.notes || item?.note || item?.detail),
+    })),
+  ].filter((item) => cleanText(item.name));
+  const others = (symptomCollectorData.questionsToDoctor || []).map((item) => cleanText(item)).filter(Boolean);
+
+  const previousContext = compactObject({
+    patient_details: patientDetails,
+    vitals_and_body_composition: vitalsAndBodyComposition,
+    symptoms,
+    medications,
+    medical_history: medicalHistory,
+    others,
+  });
+
+  return hasObjectData(previousContext) ? previousContext : null;
 };
 
 const buildPatientFromData = (patientData, fallback) => {

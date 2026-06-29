@@ -2,13 +2,13 @@ export const INVENTORY_WARNING_TOOLTIP =
   "This is not part of our inventory. Please try to click and select from the dropdown.";
 
 export const DIAGNOSIS_INVENTORY_WARNING =
-  "This diagnosis does not have an ICD code. Please click and select a diagnosis from the dropdown.";
+  "The diagnosis does not have an ICD code. Please click and select a diagnosis from the dropdown.";
 
 export const INVESTIGATION_INVENTORY_WARNING =
-  "This investigation is not part of Chikitsalay inventory. Please click and select an investigation from the dropdown.";
+  "The investigation is not part of Chikitsalay inventory. Please click and select an investigation from the dropdown.";
 
 export const MEDICATION_INVENTORY_WARNING =
-  "This medicine is not selected from Chikitsalay inventory. Please click and select the medicine from the dropdown.";
+  "The medicine is not selected from Chikitsalay inventory. Please click and select the medicine from the dropdown.";
 
 export const getInvalidChikitsalayInventoryMessage = ({
   diagnosisData = [],

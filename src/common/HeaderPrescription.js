@@ -1682,6 +1682,16 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         [diagnosisData, investigationData, medicationData]
     );
 
+    const invalidChikitsalayInventoryMessage = useMemo(
+        () =>
+            getInvalidChikitsalayInventoryMessage({
+                diagnosisData,
+                investigationData,
+                medicationData,
+            }),
+        [diagnosisData, investigationData, medicationData]
+    );
+
     const endVisitTooltipMessage = useMemo(() => {
         if (isChikitsalayAccessable) {
             const missingMedicationFields =
@@ -1696,11 +1706,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             } else if (!hasDiagnosisNameAndIcdCode) {
                 return "Please fill Diagnosis names that has ICD codes for all diagnoses to end the consultation.";
             } else if (shouldUseChikitsalayInventoryValidation && !hasValidChikitsalayInventoryRows) {
-                return getInvalidChikitsalayInventoryMessage({
-                    diagnosisData,
-                    investigationData,
-                    medicationData,
-                });
+                return invalidChikitsalayInventoryMessage;
             } else if (hasOutOfStockMedication) {
                 return "Please select an in-stock medicine or alternative to end the consultation.";
             } else if (missingMedicationFields) {
@@ -1714,6 +1720,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         diagnosisData,
         hasDiagnosisNameAndIcdCode,
         hasValidChikitsalayInventoryRows,
+        invalidChikitsalayInventoryMessage,
         shouldUseChikitsalayInventoryValidation,
         hasOutOfStockMedication,
         medicationData.length,
@@ -2139,11 +2146,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         } else if (isChikitsalayAccessable && !hasDiagnosisNameAndIcdCode) {
             errorMessage('Please add Diagnosis names that has ICD codes for all diagnoses')
         } else if (shouldUseChikitsalayInventoryValidation && !hasValidChikitsalayInventoryRows) {
-            errorMessage(getInvalidChikitsalayInventoryMessage({
-                diagnosisData,
-                investigationData,
-                medicationData,
-            }))
+            errorMessage(invalidChikitsalayInventoryMessage)
         } else if (isChikitsalayAccessable && hasOutOfStockMedication) {
             errorMessage('Please select an in-stock medicine or alternative to end the consultation.')
         } else if (medicationData.length > 0 && medicationData.filter((e) => e.tmm_medicine_name == "").length > 0) {
