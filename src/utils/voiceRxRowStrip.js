@@ -63,7 +63,8 @@ function medicationIdentityParts(row = {}) {
     "name",
     "title",
   ]));
-  const medicineIdentities = [medicineId, medicineName].filter(Boolean);
+  const medicineOriginalName = textKey("medicine-original", row.voice_rx_original_name);
+  const medicineIdentities = [medicineId, medicineName, medicineOriginalName].filter(Boolean);
   if (!medicineIdentities.length) return [];
 
   const dose = normalizeText(firstValue(row, ["tmm_dosage", "dosage", "dose"]));
@@ -85,12 +86,14 @@ function rowMergeKeys(row = {}, moduleKey) {
         idKey("diagnosis-id", row.tds_id),
         textKey("diagnosis-icd", row.icd_code),
         textKey("diagnosis", firstValue(row, ["tds_name", "name", "lineItem", "title"])),
+        textKey("diagnosis-original", row.voice_rx_original_name),
       ].filter(Boolean);
     case "medications":
       return medicationIdentityParts(row);
     case "investigations":
       return [
         textKey("investigation", firstValue(row, ["investigation_name", "test_name", "name", "lineItem", "title"])),
+        textKey("investigation-original", row.voice_rx_original_name),
         idKey("investigation-service", row.service_code),
         idKey("investigation-um", row.um_id),
         idKey("investigation-id", row.id),
@@ -113,10 +116,79 @@ const PRESERVE_EXISTING_KEYS_ON_MATCH = new Set([
   "index",
 ]);
 
-function overlayPresentValues(existing = {}, incoming = {}) {
+function hasPositiveId(value) {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0;
+}
+
+function hasNonZeroValue(value) {
+  return hasValue(value) && String(value).trim() !== "0";
+}
+
+const SELECTED_MEDICATION_KEYS = new Set([
+  "tmm_id",
+  "tmm_medicine_name",
+  "tmm_generic",
+  "tmm_company",
+  "tmm_type",
+  "objectID",
+  "reference_id",
+  "quantity",
+  "stock_status",
+  "tmm_hm_type",
+  "hm_type",
+  "um_id",
+  "voice_rx_from_module",
+  "voice_rx_requires_inventory_selection",
+]);
+
+const SELECTED_DIAGNOSIS_KEYS = new Set([
+  "tds_id",
+  "tds_name",
+  "icd_code",
+  "pms_default",
+  "objectID",
+  "voice_rx_from_module",
+]);
+
+const SELECTED_INVESTIGATION_KEYS = new Set([
+  "id",
+  "objectID",
+  "investigation_name",
+  "hm_type",
+  "um_id",
+  "service_code",
+  "pms_default",
+  "voice_rx_from_module",
+]);
+
+function shouldPreserveSelectedRowValue(existing = {}, key, moduleKey) {
+  if (PRESERVE_EXISTING_KEYS_ON_MATCH.has(key) && hasValue(existing?.[key])) return true;
+
+  if (moduleKey === "medications") {
+    return hasPositiveId(existing?.tmm_id) && SELECTED_MEDICATION_KEYS.has(key) && hasValue(existing?.[key]);
+  }
+
+  if (moduleKey === "diagnosis") {
+    const hasSelectedDiagnosis = hasPositiveId(existing?.tds_id) || hasValue(existing?.icd_code);
+    return hasSelectedDiagnosis && SELECTED_DIAGNOSIS_KEYS.has(key) && hasValue(existing?.[key]);
+  }
+
+  if (moduleKey === "investigations") {
+    const hasSelectedInvestigation =
+      hasPositiveId(existing?.id) ||
+      hasNonZeroValue(existing?.service_code) ||
+      hasNonZeroValue(existing?.hm_type);
+    return hasSelectedInvestigation && SELECTED_INVESTIGATION_KEYS.has(key) && hasValue(existing?.[key]);
+  }
+
+  return false;
+}
+
+function overlayPresentValues(existing = {}, incoming = {}, moduleKey) {
   const merged = { ...existing };
   Object.entries(incoming || {}).forEach(([key, value]) => {
-    if (PRESERVE_EXISTING_KEYS_ON_MATCH.has(key) && hasValue(existing?.[key])) return;
+    if (shouldPreserveSelectedRowValue(existing, key, moduleKey)) return;
     if (hasValue(value)) {
       merged[key] = value;
     }
@@ -144,7 +216,7 @@ export function mergeCopiedRows(prev, next, moduleKey) {
     const existingIndex = keys.map((key) => keyToIndex.get(key)).find((index) => index !== undefined);
 
     if (existingIndex !== undefined) {
-      merged[existingIndex] = overlayPresentValues(merged[existingIndex], row);
+      merged[existingIndex] = overlayPresentValues(merged[existingIndex], row, moduleKey);
       return;
     }
 
