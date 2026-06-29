@@ -11,6 +11,8 @@ import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
 import { addUpdateVitals } from "../redux/vitalsSlice";
 import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
 import { errorMessage } from "../utils/utils";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
+import { isGynecDataEmpty, mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import {
   findLatestVitalsRowIndexForDate,
   getCopiedVitalsObject,
@@ -322,7 +324,7 @@ export default function ConsultationRxPadCopyListener() {
   const { lastCopyRequest, publishSignal } = useRxPadSync();
   const dispatch = useDispatch();
   const { selectedVitalsList, patientBirthWeight } = useSelector((state) => state.vitals);
-  const { frequencyList, timingList } = useSelector((state) => state.doctors);
+  const { frequencyList, timingList, userId } = useSelector((state) => state.doctors);
   const {
     patient_data,
     pamId,
@@ -336,6 +338,8 @@ export default function ConsultationRxPadCopyListener() {
     setInvestigationData,
     setAdviceData,
     setMedicalHistoryData,
+    updatedGynecHistory,
+    setUpdatedGynecHistory,
     setSurgeriesData,
     setFollowUpDate,
     setAdditionalNote,
@@ -499,6 +503,22 @@ export default function ConsultationRxPadCopyListener() {
       setMedicalHistoryData((prev = []) => convertMedicalHistoryToContextFormat(medicalHistoryRows, prev));
     }
 
+    const copiedGynecHistory = normalizeGynaecHistoryFromDigitiseData(digitization);
+    if (!isGynecDataEmpty(copiedGynecHistory)) {
+      const mergedGynecHistory = mergeGynecHistory(updatedGynecHistory, copiedGynecHistory);
+      setUpdatedGynecHistory?.((prev) => {
+        return mergeGynecHistory(prev, copiedGynecHistory);
+      });
+      if (patient_data?.patient_unique_id && userId !== undefined && userId !== null) {
+        syncGynecHistoryAfterEndVisit(
+          patient_data.patient_unique_id,
+          userId,
+          mergedGynecHistory,
+          { getGynecDetails, postGynecDetails, updateGynecDetails }
+        );
+      }
+    }
+
     const surgeries = firstNonEmpty(digitization.surgeries, payload.surgeries);
     appendRows(
       setSurgeriesData,
@@ -554,8 +574,11 @@ export default function ConsultationRxPadCopyListener() {
     setMedicationData,
     setSurgeriesData,
     setSymptomsData,
+    setUpdatedGynecHistory,
     setVitalsData,
     timingList,
+    updatedGynecHistory,
+    userId,
     vitalsData,
   ]);
 

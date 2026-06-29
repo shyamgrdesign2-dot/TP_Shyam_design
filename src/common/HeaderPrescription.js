@@ -68,6 +68,8 @@ import {
     createOpthalPrescription,
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
+import { syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
 import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
@@ -143,7 +145,7 @@ function normalizeVoiceHistoryForStore(history) {
 
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false, onEndVisit, isEndVisitLoading = false, hasDentalData = false, onPreviewClick, showPreviewButton = false, onSelectLetterHead, isDentalConsultation = false }) {
 
-    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
+    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded, userId } = useSelector((state) => state.doctors);
 
     const { frequencyList, timingList, videoList, medicineTypeList } = useSelector((state) => state.doctors);
     const vaccines = useSelector((state) => state.vaccines);
@@ -2233,6 +2235,16 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             }
             if (action.meta.requestStatus === "fulfilled") {
                 const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
+                try {
+                    await syncGynecHistoryAfterEndVisit(
+                        patient_data?.patient_unique_id,
+                        userId,
+                        gynecHistory,
+                        { getGynecDetails, postGynecDetails, updateGynecDetails }
+                    );
+                } catch (error) {
+                    console.error("[GynecHistory][EndVisit] sync failed", error);
+                }
                 if (voiceDigitization?.history?.length > 0) {
                     const voiceEditedData = {
                         patientDetails: {},
