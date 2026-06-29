@@ -293,6 +293,8 @@ const dentalPlanSlice = createSlice({
       // Fetch
       .addCase(fetchDentalPlans.pending, (state) => {
         state.loading = true;
+        state.plans = [];
+        state.error = null;
       })
       .addCase(fetchDentalPlans.fulfilled, (state, action) => {
         state.loading = false;
