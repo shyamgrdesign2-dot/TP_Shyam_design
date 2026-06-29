@@ -140,12 +140,23 @@ const DownloadBill = ({
       ),
     },
     {
+      title: "Applicable GST",
+      dataIndex: "applicableGst",
+      key: "applicableGst",
+      align: "center",
+      height: 20,
+      width: "8%",
+      render: (text, record) => (
+        <div style={{ fontSize: 12 }}>₹{record?.applicableGst ?? 0}</div>
+      ),
+    },
+    {
       title: "PAID AMOUNT",
       dataIndex: "paidAmount",
       key: "paidAmount",
       align: "center",
       height: 20,
-      width: "9%",
+      width: "8%",
       render: (text, record) => (
         <div style={{ fontSize: 12 }}>₹{record?.paidAmount}</div>
       ),

@@ -195,7 +195,7 @@ export function useDentalCanvasPersistence(s) {
   // ── Persist UI state ───────────────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === "undefined") return;
-    // ponytail: oralEntries/oralNotes excluded — oral data is API-only; caching causes cross-patient leakage
+    // oralEntries/oralNotes excluded — oral data is API-only; caching causes cross-patient leakage
     const payload = {
       patientType,
       viewMode,

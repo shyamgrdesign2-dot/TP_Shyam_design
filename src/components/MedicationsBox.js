@@ -53,6 +53,10 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import ApiMedication from "../api/services/ApiMedication";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import {
+  hasInvalidChikitsalayMedication,
+  MEDICATION_INVENTORY_WARNING,
+} from "../utils/chikitsalayInventory";
 const {
   alerticon: alertIcon,
   medication: Medicationicon,
@@ -435,8 +439,13 @@ function MedicationsBox({ showVoiceRxModule }) {
   const isTablet = useTabletViewport();
   const prescriptionNewTabletOverlayZIndex = isVoiceRxModuleEnabled && isTablet ? 1305 : undefined;
   const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
-  const inventorySourceName = isZydusAccount ? "Zydus inventory" : "Chikitsalay medicine";
-  const hasUngroundedMedications = isZydusAccount && medicationData.some(isVoiceRxUngroundedMedication);
+  const isMedicationInventorySelectionRequired = useCallback(
+    (item) =>
+      isVoiceRxUngroundedMedication(item) ||
+      (isChikitsalayAccessable && hasInvalidChikitsalayMedication(item)),
+    [isChikitsalayAccessable]
+  );
+  const hasUngroundedMedications = isVoiceRxModuleEnabled && medicationData.some(isMedicationInventorySelectionRequired);
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
       if (!isPrescriptionNewContext) {
@@ -489,7 +498,7 @@ function MedicationsBox({ showVoiceRxModule }) {
   const isVoiceMedicineFuzzySearchActive = (
     isVoiceRxModuleEnabled &&
     isZydusAccount &&
-    isVoiceRxUngroundedMedication(activeVoiceMedicineItem)
+    isMedicationInventorySelectionRequired(activeVoiceMedicineItem)
   );
 
   const buildMedicineSearchOption = useCallback(
@@ -682,7 +691,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const handleVoiceMedicineClick = (item) => {
     if (!isVoiceRxModuleEnabled) return;
-    if (!isVoiceRxUngroundedMedication(item)) return;
+    if (!isMedicationInventorySelectionRequired(item)) return;
     const query = item.tmm_medicine_name || "";
     setVoiceMedicineEdit({
       index: item.index,
@@ -782,6 +791,7 @@ function MedicationsBox({ showVoiceRxModule }) {
       tmm_remarks: current.tmm_remarks,
       unique_id: current.unique_id,
       voice_rx_from_module: false,
+      voice_rx_requires_inventory_selection: false,
     };
     setMedicationData((prev) => [...prev]);
     setVoiceMedicineEdit({ index: null, query: "" });
@@ -876,6 +886,7 @@ function MedicationsBox({ showVoiceRxModule }) {
             // tmm_dosage_unit_name: `${e.tmm_dosage ? `${e.tmm_dosage} ${unitObj && unitObj !== undefined ? unitObj.tmu_title : ""}` : ""}`,
             tmm_days_duration_type: EXTRA_OPTIONS.some((x) => x.value == e.tmm_duration_type) ? e.tmm_duration_type : e.tmm_days ? `${e.tmm_days} ${e.tmm_duration_type}` : "",
             unique_id: uuidv4(),
+            voice_rx_requires_inventory_selection: false,
             ...doseCalData
           };
         });
@@ -1360,6 +1371,8 @@ function MedicationsBox({ showVoiceRxModule }) {
       errorMessage('At least 1 medication added')
     } else if (medicationData.filter((e) => e.tmm_medicine_name == "").length > 0) {
       errorMessage('Please fillup medication name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && medicationData.some(hasInvalidChikitsalayMedication)) {
+      errorMessage(MEDICATION_INVENTORY_WARNING)
     } else {
       var sendData = {
         tmtd_template_name: inputTemplateName,
@@ -1389,6 +1402,8 @@ function MedicationsBox({ showVoiceRxModule }) {
       errorMessage('At least 1 medication added')
     } else if (medicationData.filter(e => e.tmm_medicine_name == "").length > 0) {
       errorMessage('Please fillup medication name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && medicationData.some(hasInvalidChikitsalayMedication)) {
+      errorMessage(MEDICATION_INVENTORY_WARNING)
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
@@ -1504,6 +1519,8 @@ function MedicationsBox({ showVoiceRxModule }) {
             tmm_hm_type: alternative.tmm_hm_type,
           }),
           ...(alternative.um_id != null && { um_id: alternative.um_id }),
+          voice_rx_requires_inventory_selection: false,
+          voice_rx_from_module: false,
         };
       });
       setMedicationData((prev) => [...prev]);
@@ -1706,18 +1723,18 @@ function MedicationsBox({ showVoiceRxModule }) {
                             xs={5}
                             className={[
                               isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
-                              isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "align-self-stretch" : ""
+                              isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? "align-self-stretch" : ""
                             ].filter(Boolean).join(" ") || undefined}
-                            data-testid={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
+                            data-testid={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
                             onClick={() => {
-                              if (isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) && voiceMedicineEdit.index !== item.index) {
+                              if (isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) && voiceMedicineEdit.index !== item.index) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
-                            style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
+                            style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isMedicationInventorySelectionRequired(item) ? { background: "#fff8ef" } : undefined}
                           >
-                            <div className={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
-                              {isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? (
+                            <div className={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
+                              {isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? (
                                 <div className="d-flex align-items-center gap-1 w-100">
                                   <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
                                     {voiceMedicineEdit.index === item.index ? (
@@ -1754,7 +1771,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     <Tooltip
                                       placement="top"
                                       overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                      title={`Click to search and add the medicine from the ${inventorySourceName} list.`}
+                                      title={MEDICATION_INVENTORY_WARNING}
                                     >
                                       <InfoCircleOutlined
                                         className="fs-18"
@@ -1776,7 +1793,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                             </div>
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined} style={{ height: isChikitsalayAccessable ? "stretch" : undefined }}>
-                            {!item.pms_default && !(isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item)) &&
+                            {!item.pms_default && !(isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item)) &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
                                   const medicineType = medicineTypeList.find(x => x?.tmy_id == item?.tmm_type)
@@ -1938,7 +1955,7 @@ function MedicationsBox({ showVoiceRxModule }) {
     );
   }, [
     frequencyPopOver,
-    inventorySourceName,
+    isMedicationInventorySelectionRequired,
     isPrescriptionNewContext,
     isVoiceRxModuleEnabled,
     medicationData,
@@ -2818,7 +2835,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                 </button>
               )}
             </Popover>
-            <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
+            <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
               <Popover
                 open={popOver2}
                 onOpenChange={() => (medicationData.length > 0) && !hasUngroundedMedications && showHideSaveTemplatePopOver()}

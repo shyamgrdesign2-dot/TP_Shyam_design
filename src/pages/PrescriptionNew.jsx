@@ -40,7 +40,7 @@ import Vaccination from "./vaccination/Vaccination";
 import GrowthChart from "./growthChart/GrowthChart";
 import { viewPatient } from "../redux/appointmentsSlice";
 import { useAccess } from "./vaccination/useAccess";
-import { getGynecDetails } from "../api/services/ApiGynec";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import Obstetric from "./obstetric/Obstetric";
 import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
@@ -110,7 +110,6 @@ import { checkCredits } from "../redux/monetizationSlice";
 import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData, getGenRx } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
-import SCBanner from "../components/SCBanner";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
 import TatvaAiBanner from "../components/TatvaAiBanner";
@@ -166,6 +165,7 @@ import { normalizeModuleRows } from "../components/dr-agent/voicerx/VoiceRxModul
 import { toast } from "../components/dr-agent/voicerx/toast";
 import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
+import { isGynecDataEmpty, mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
 import { TreatmentPlanDrawer } from "../components/dental/plan/TreatmentPlanDrawer";
@@ -472,7 +472,7 @@ function PrescriptionNewRxPadCopyListener() {
   const { lastCopyRequest, publishSignal } = useRxPadSync();
   const dispatch = useDispatch();
   const { selectedVitalsList, patientBirthWeight } = useSelector((state) => state.vitals);
-  const { frequencyList, timingList } = useSelector((state) => state.doctors);
+  const { frequencyList, timingList, userId } = useSelector((state) => state.doctors);
   const {
     patient_data,
     pamId,
@@ -486,6 +486,8 @@ function PrescriptionNewRxPadCopyListener() {
     setInvestigationData,
     setAdviceData,
     setMedicalHistoryData,
+    updatedGynecHistory,
+    setUpdatedGynecHistory,
     setSurgeriesData,
     setFollowUpDate,
     setAdditionalNote,
@@ -651,6 +653,22 @@ function PrescriptionNewRxPadCopyListener() {
       setMedicalHistoryData((prev = []) => convertMedicalHistoryToContextFormat(medicalHistoryRows, prev));
     }
 
+    const copiedGynecHistory = normalizeGynaecHistoryFromDigitiseData(digitization);
+    if (!isGynecDataEmpty(copiedGynecHistory)) {
+      const mergedGynecHistory = mergeGynecHistory(updatedGynecHistory, copiedGynecHistory);
+      setUpdatedGynecHistory((prev) => {
+        return mergeGynecHistory(prev, copiedGynecHistory);
+      });
+      if (patient_data?.patient_unique_id && userId !== undefined && userId !== null) {
+        syncGynecHistoryAfterEndVisit(
+          patient_data.patient_unique_id,
+          userId,
+          mergedGynecHistory,
+          { getGynecDetails, postGynecDetails, updateGynecDetails }
+        );
+      }
+    }
+
     const surgeries = firstNonEmpty(digitization.surgeries, payload.surgeries);
     appendRows(
       setSurgeriesData,
@@ -706,8 +724,11 @@ function PrescriptionNewRxPadCopyListener() {
     setMedicationData,
     setSurgeriesData,
     setSymptomsData,
+    setUpdatedGynecHistory,
     setVitalsData,
     timingList,
+    updatedGynecHistory,
+    userId,
     vitalsData,
   ]);
 
@@ -739,8 +760,6 @@ function PrescriptionNew() {
     blinkingdot_2: blinkingDotMp4,
     carePlanActive: carePlanIcon,
   } = ASSETS.images;
-
-  console.log("vitals", hey);
   
   // Local state to manage customizedPadRightList with deleted modules for edit case
   const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
@@ -1017,7 +1036,6 @@ function PrescriptionNew() {
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
   const [pillupSwitch, setPillupSwitch] = useState(true);
-  const [showSCBanner, setShowSCBanner] = useState(false);
   const [zydusTestReportDrawer, setZydusTestReportDrawer] = useState(false);
   const [labReportID, setLabReportID] = useState(null);
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
@@ -1115,6 +1133,8 @@ function PrescriptionNew() {
     });
   }, [allAvailableModules]);
 
+  const [updatedGynecHistory, setUpdatedGynecHistory] = useState(null);
+
   const contextApi = {
     patient_data,
     send_path,
@@ -1139,6 +1159,8 @@ function PrescriptionNew() {
     setVitalsData,
     medicalHistoryData,
     setMedicalHistoryData,
+    updatedGynecHistory,
+    setUpdatedGynecHistory,
     labParamsData,
     setLabParamsData,
     privateNotesData,
@@ -1190,7 +1212,6 @@ function PrescriptionNew() {
   const [opthalRefreshKey, setOpthalRefreshKey] = useState(0);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
   const [growthDrawer, setGrowthDrawer] = useState(false);
-  const [updatedGynecHistory, setUpdatedGynecHistory] = useState(null);
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
@@ -2051,7 +2072,6 @@ function PrescriptionNew() {
     const requestId = symptomCollectorRequestRef.current + 1;
     symptomCollectorRequestRef.current = requestId;
     setSymptomCollectorStatus("loading");
-    setShowSCBanner(false);
     dispatch(setSymptomCollector({}));
     const payload = {
       um_id: String(userId),
@@ -2073,18 +2093,15 @@ function PrescriptionNew() {
       };
       if (response && Object.keys(response)?.length > 0 && hasDisplayableSymptomCollectorPayload(nextSymptomCollector)) {
         dispatch(setSymptomCollector(nextSymptomCollector));
-        setShowSCBanner(true);
         setSymptomCollectorStatus("found");
         if (patient_data?.pam_status === "0" && caseManagerData === undefined) {
           dispatch(setShowSCPopup(true));
         }
       } else {
-        setShowSCBanner(false);
         setSymptomCollectorStatus("empty");
       }
     } catch (error) {
       if (symptomCollectorRequestRef.current !== requestId) return;
-      setShowSCBanner(false);
       setSymptomCollectorStatus("empty");
     }
   };
@@ -3005,9 +3022,6 @@ function PrescriptionNew() {
                   )}
                   </Carousel>
                 } */}
-                {showSCBanner && (
-                  <SCBanner handleBanner={() => setShowSCBanner(false)} />
-                )}
                 {customizedPadRightList?.map((e, i) => {
                   let customModule = allAvailableModules?.find(
                     (m) => m.module_id === e.tmdpm_id

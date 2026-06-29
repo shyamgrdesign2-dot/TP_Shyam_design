@@ -25,6 +25,8 @@ export const saveTreatmentHistoryTemplate = (data) =>
   api.post(`/api/v1/dental/templates/treatment-history`, data, dentalBaseUrl);
 export const saveNotesTemplate = (data) =>
   api.post(`/api/v1/dental/templates/notes`, data, dentalBaseUrl);
+export const updateTemplate = (type, id, data) =>
+  api.put(`/api/v1/dental/templates/${type}/${id}`, data, dentalBaseUrl);
 export const deleteTemplateById = (type, id) =>
   api.delete(`/api/v1/dental/templates/${type}/${id}`, dentalBaseUrl);
 

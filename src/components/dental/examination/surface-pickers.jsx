@@ -154,12 +154,6 @@ export function SymptomSurfacePicker({
             <span className={ui.symMuted}>Select surface</span> :
             surfaces.includes("whole") ?
               <span className={ui.surfaceInlineRow}>
-                <span
-                  className={ui.surfaceDot8}
-                  style={{
-                    background: "#94a3b8"
-                  }} />
-
                 Whole tooth
               </span> :
 

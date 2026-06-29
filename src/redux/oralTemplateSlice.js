@@ -7,6 +7,7 @@ import {
   saveOralProceduresTemplate,
   saveOralTreatmentHistoryTemplate,
   saveOralNotesTemplate,
+  updateOralTemplate,
   deleteOralTemplateById,
 } from "../api/services/ApiOral";
 import {
@@ -67,7 +68,9 @@ export const saveOralTemplate = createAsyncThunk(
     const saveFn = SAVE_FN_BY_TYPE[type];
     if (!saveFn) return rejectWithValue(`Unknown oral template type: ${type}`);
     try {
-      const response = await saveFn(data);
+      const response = data.id
+        ? await updateOralTemplate(type, data.id, data)
+        : await saveFn(data);
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to save oral template"));
       }

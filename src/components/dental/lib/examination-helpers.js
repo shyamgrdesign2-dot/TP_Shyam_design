@@ -31,7 +31,12 @@ export const transformToothStateToApi = (toothState) => {
     const findings = Array.isArray(data.findings) ? data.findings : [];
     // entryFindings: clinical findings added via SingleToothPanel EntryTab (kind="finding" in allEntries)
     const entryFindings = Array.isArray(data.entryFindings) ? data.entryFindings : [];
-    const procedures = Array.isArray(data.procedures) ? data.procedures : [];
+    const allProcedures = Array.isArray(data.procedures) ? data.procedures : [];
+    // kind="procedure" entries are past procedures (treatment history) added via template apply.
+    // They must go to treatment_history, not procedures — the API requires status on procedures
+    // and past procedure entries don't have (and shouldn't have) a procedure status.
+    const procedures = allProcedures.filter((p) => p.kind !== "procedure");
+    const pastProcedureEntries = allProcedures.filter((p) => p.kind === "procedure");
 
     // treatmentHistory may be an array (legacy) or an object map { name: { surfaces, since, note } }
     const rawHistory = data.treatmentHistory;
@@ -97,6 +102,15 @@ export const transformToothStateToApi = (toothState) => {
             surface_codes: h.surface_codes || ["whole"],
             ...(since ? { since_date: since } : {}),
             notes: h.notes || h.note || "",
+          };
+        }),
+        ...pastProcedureEntries.map((p) => {
+          const since = sinceToDate(p.since || "");
+          return {
+            name: p.name,
+            surface_codes: p.surfaces?.length ? p.surfaces : ["whole"],
+            ...(since ? { since_date: since } : {}),
+            notes: p.notes || "",
           };
         }),
       ],

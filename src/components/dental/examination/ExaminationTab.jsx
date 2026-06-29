@@ -15,6 +15,7 @@ import React, {
   useState
 } from "react";
 import { Spin } from "antd";
+import { TPMedicalIcon } from "../tp-ui";
 import { useSelector } from "react-redux";
 import { getClinic } from "../../../utils/utils";
 import {
@@ -24,6 +25,8 @@ import {
   setDentalAnalyticsContext,
   trackDentalEvent,
 } from "../../../utils/dentalMoengage";
+import { useGLTF } from "@react-three/drei";
+import { getModelPathsForPatientType } from "./tooth-geometry";
 import { DENTAL_RX_PAD_ROUTE } from "../../../utils/dentalRoutes";
 import { DentalCanvas } from "./DentalCanvas";
 import { saveDentalPreviewSnapshot } from "../tp-rxpad/rx-preview-store";
@@ -38,16 +41,12 @@ import { DentitionPanel } from "./ExaminationDentitionPanel";
 import { SingleToothPanel } from "./ExaminationFindingsPanel";
 import { useExaminationOrchestrator } from "./hooks/useExaminationOrchestrator";
 import { ASSETS } from "../../../assets";
-import { useGLTF } from "@react-three/drei";
-import { getModelPathsForPatientType } from "./tooth-geometry";
 
 export function ExaminationTab({ patientId, patientAge = 30 }) {
   const dispatch = useDispatch();
   const { profile, userId } = useSelector((state) => state.doctors);
   const patientType = patientAge < 12 ? "pediatric" : patientAge < 18 ? "mixed" : "adult";
-  useEffect(() => {
-    getModelPathsForPatientType(patientType).forEach((p) => useGLTF.preload(p, "/draco/"));
-  }, [patientType]);
+
   const { syncState, toothState, dentitionType, loading, saveChart, error } = useDentalExamination(patientId);
   const {
     findings: oralFindings,
@@ -60,6 +59,23 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
   } = useOralExamination(patientId);
   const [canvasState, setCanvasState] = useState(null);
   const moduleOpenedRef = useRef(false);
+
+  // Staggered preload for all dentition geometries
+  useEffect(() => {
+    // Collect all paths (adult, pedia, implant, etc)
+    const allPaths = getModelPathsForPatientType("all"); 
+    // We can just use the provided patientType or all. Let's just use "all" to be safe.
+    // Wait, getModelPathsForPatientType in tooth-geometry.js:
+    // export function getModelPathsForPatientType(patientType)
+    const paths = getModelPathsForPatientType(patientType ?? "adult");
+    
+    paths.forEach((p, index) => {
+      // Stagger by 100ms per file to avoid locking network and worker pool
+      setTimeout(() => {
+        useGLTF.preload(p, "/draco/");
+      }, index * 100);
+    });
+  }, [patientType]);
 
   useEffect(() => {
     setDentalAnalyticsContext({
@@ -232,9 +248,11 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
 
         <div className={ex.canvasInner}>
           <React.Suspense fallback={
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
-              <Spin size="large" />
-              <span style={{ color: '#94a3b8', fontSize: 13 }}>Loading 3D view…</span>
+            <div className={ex.loaderWrapper}>
+              <div className={ex.shimmerIcon}>
+                <TPMedicalIcon name="tooth" variant="bulk" size={56} color="#94a3b8" />
+              </div>
+              <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 500 }}>Loading 3D view…</span>
             </div>
           }>
             <DentalCanvas

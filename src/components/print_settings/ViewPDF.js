@@ -462,7 +462,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         }
     }
     const isDentalEnabled =
-        isDentalEnabledFromProps ??
+    isDentalEnabledFromProps ??
         (onlyShowDental ||
         Boolean(
             dentalData ||

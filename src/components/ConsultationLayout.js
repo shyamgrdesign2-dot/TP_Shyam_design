@@ -69,7 +69,7 @@ import Vaccination from "../pages/vaccination/Vaccination";
 import GrowthChart from "../pages/growthChart/GrowthChart";
 import { viewPatient } from "../redux/appointmentsSlice";
 import { useAccess } from "../pages/vaccination/useAccess";
-import { getGynecDetails } from "../api/services/ApiGynec";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import Obstetric from "../pages/obstetric/Obstetric";
 import TabObstetricList from "../pages/obstetric/components/obstetricList/TabObstetricList";
 import { fetchObstetricDetails } from "../pages/obstetric/service";
@@ -199,6 +199,7 @@ import { buildConsultationPreviewPrintPayload } from "../utils/buildConsultation
 import { resolveDentalOralForPrint } from "../utils/resolveDentalOralPrintData";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
+import { syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 
 const ExaminationTab = React.lazy(() =>
   import("./dental/examination/ExaminationTab").then((m) => ({ default: m.ExaminationTab }))
@@ -877,6 +878,8 @@ function ConsultationLayout({ children, headerProps }) {
     setVitalsData,
     medicalHistoryData,
     setMedicalHistoryData,
+    updatedGynecHistory,
+    setUpdatedGynecHistory,
     privateNotesData,
     setPrivateNotesData,
     followUpDate,
@@ -2371,6 +2374,17 @@ function ConsultationLayout({ children, headerProps }) {
           const generatedTcmId = action?.payload?.tcm_id ?? currentTcmId;
           setCurrentTcmId(generatedTcmId);
 
+          try {
+            await syncGynecHistoryAfterEndVisit(
+              patient_data?.patient_unique_id,
+              userId,
+              updatedGynecHistory,
+              { getGynecDetails, postGynecDetails, updateGynecDetails },
+            );
+          } catch (error) {
+            console.error("[GynecHistory][EndVisit] sync failed", error);
+          }
+
           const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
             patient_data?.patient_unique_id,
             generatedTcmId,
@@ -3233,7 +3247,7 @@ function ConsultationLayout({ children, headerProps }) {
           </div>
         ) : null}
 
-        {canUseVoiceRxModuleUi && (
+        {/* {canUseVoiceRxModuleUi && (
           <DrAgentRuntime
             isOpen={drAgentOpen}
             overlayClassName={drAgentOverlayClassName}
@@ -3245,7 +3259,7 @@ function ConsultationLayout({ children, headerProps }) {
             onClose={() => setDrAgentOpen(false)}
             onOpen={() => setDrAgentOpen(true)}
           />
-        )}
+        )} */}
       </RxPadSyncProvider>
       {isFileSizeError || isFileLimitError || isFileTypeError ? (
         <CommonModal

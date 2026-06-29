@@ -60,7 +60,7 @@ export const toDentalToothState = (payload = {}) => {
     const historyRows = [];
     for (const h of tooth.treatment_history || []) {
       if (h.notes === DX_MARKER) {
-        // ponytail: backward compat only — never written by new code
+        // backward compat only — never written by new code
         diagnosisNamesSet.add(h.name);
       } else {
         historyRows.push({

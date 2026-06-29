@@ -19,6 +19,9 @@ export function EntryTab({ state, kind }) {
   const [pos, setPos] = useState(null);
   const searchInputRef = useRef(null);
   const searchPopoverRef = useRef(null);
+  // Tracks the Set we last passed to onSetMultiSelectZones so we can tell whether
+  // we still "own" the shared multiSelectZones when our cell deactivates.
+  const lastSetZonesSnapshotRef = useRef(null);
   useEffect(() => {
     if (!searchOpen) {
       setPos(null);
@@ -120,15 +123,30 @@ export function EntryTab({ state, kind }) {
       state.onUpdateEntry(activeRow.id, {
         surfaces: zonesFromCanvas
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.multiSelectZones, activeSurfaceRowId]);
+  }, [state.multiSelectZones]);
   // Seed multiSelectZones when active row changes + toggle multi-select mode.
   useEffect(() => {
     if (!activeRow) {
-      state.onClearMultiSelect();
-      state.onSetMultiSelectActive(false);
+      const snap = lastSetZonesSnapshotRef.current;
+      lastSetZonesSnapshotRef.current = null;
+      // Only clear shared multiSelect state if we are still the owner.
+      // If another entry-tab has since called onSetMultiSelectZones (detected by
+      // the current zones differing from our snapshot and being non-empty), skip —
+      // clearing would corrupt the other tab's active surface picker.
+      if (snap !== null) {
+        const zs = state.multiSelectZones;
+        const weOwnIt =
+          zs.size === 0 ||
+          (zs.size === snap.size && [...zs].every((z) => snap.has(z)));
+        if (weOwnIt) {
+          state.onClearMultiSelect();
+          state.onClearSelectedZone?.();
+          state.onSetMultiSelectActive(false);
+        }
+      }
       return;
     }
+    lastSetZonesSnapshotRef.current = new Set(activeRow.surfaces);
     state.onSetMultiSelectZones(activeRow.surfaces);
     state.onSetMultiSelectActive(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,6 +155,8 @@ export function EntryTab({ state, kind }) {
   useEffect(
     () => () => {
       state.onSetMultiSelectActive(false);
+      state.onClearMultiSelect();
+      state.onClearSelectedZone?.();
     },
     []
   ); // eslint-disable-line react-hooks/exhaustive-deps
@@ -373,8 +393,7 @@ export function EntryTab({ state, kind }) {
                           isActive={isSurfaceActive}
                           onActivate={activateSurfaceCell}
                           onDeactivate={() => {
-                            if (state.selectedZone === "whole")
-                              state.onClearSelectedZone();
+                            state.onClearSelectedZone?.();
                             clearCellActive(e.id, "surfaces");
                           }}
                           onToggleZone={state.onToggleZoneMultiSelect}
@@ -462,6 +481,7 @@ export function EntryTab({ state, kind }) {
                           onClick={() => {
                             if (activeSurfaceRowId === e.id)
                               setActiveCell(null);
+                            state.onSetHighlightZones([]);
                             state.onRemoveEntry(e.id);
                           }}
                           title="Remove"

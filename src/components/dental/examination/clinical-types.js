@@ -44,12 +44,12 @@ export function getDefaultTreatmentSurfaces(name) {
   const rule = TREATMENT_SURFACE_RULES[name] ?? "ask";
   if (rule === "whole-tooth") return ["whole"];
   if (rule === "root") return ["root"];
-  return [];
+  return ["whole"];
 }
 
-// ponytail: all CSV FDIs resolve to the same 5 zones; extend here if per-FDI surfaces diverge
+// all CSV FDIs resolve to the same 5 zones; extend here if per-FDI surfaces diverge
 export function getSurfacesForFdi(_fdi) {
-  return ["mesial", "distal", "buccal", "lingual", "occlusal", "root"];
+  return ["mesial", "distal", "buccal", "lingual", "occlusal", "cervical", "palatal", "labial", "root"];
 }
 
 export const DIAGNOSES = [
