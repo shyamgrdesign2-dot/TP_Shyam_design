@@ -58,6 +58,7 @@ import { useLiveTranscript } from "../../../voicerx/use-live-transcript";
 import { uid, getQueryHint, detectSpecialties } from "../utils/panelUtils";
 import { buildVoiceConsultSidebarBatch } from "../utils/voiceHistoryUtils";
 import { buildIntroMessages } from "../engines/intro-engine";
+import { hasVitalsAndBodyCompositionData } from "../../../../../utils/symptomCollectorVitalsMerge";
 
 const VOICE_RX_SUBMIT_BUTTON_MIN_MS = 5000;
 
@@ -101,7 +102,8 @@ const hasPatientReportedData = (data) =>
       data.medicalHistory?.length ||
       data.allergies?.length ||
       data.currentMedications?.length ||
-      data.questionsToDoctor?.length
+      data.questionsToDoctor?.length ||
+      hasVitalsAndBodyCompositionData(data.vitalsAndBodyComposition)
     )
   );
 

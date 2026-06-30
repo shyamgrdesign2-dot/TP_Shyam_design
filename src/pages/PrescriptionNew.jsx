@@ -55,6 +55,7 @@ import {
   normalizeCopiedVitalsRow,
   normalizeVitalsInputRow,
 } from "../utils/vitalsHelpers";
+import { hasVitalsAndBodyCompositionData } from "../utils/symptomCollectorVitalsMerge";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
 import {
@@ -1290,6 +1291,7 @@ function PrescriptionNew() {
       payload.allergies?.length ||
       payload.currentMedications?.length ||
       payload.medications?.length ||
+      hasVitalsAndBodyCompositionData(payload.vitalsAndBodyComposition) ||
       payload.questionsToDoctor?.length ||
       payload.questions?.length ||
       payload.notes ||
