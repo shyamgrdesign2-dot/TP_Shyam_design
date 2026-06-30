@@ -12,8 +12,6 @@ import {
 } from "./dentalPlanPdfMappers";
 import { FALLBACK_BILL_PRINT_SETTINGS } from "./dentalPlanPdfConstants";
 import { getAppointmentPatient } from "../../lib/appointment-patients";
-import { toDentalPlans } from "../../../../utils/dentalApiMappers";
-import { SAMPLE_DENTAL_PLANS } from "./samplePlanData";
 import { fetchPrintSetting } from "../../../../pages/opdBilling/service";
 import { setBillPrintSettings } from "../../../../redux/billingSlice";
 
@@ -72,10 +70,7 @@ export function useDentalPlanPdf({ drawer, patientId, plans: plansProp }) {
   const isOpen =
     drawer?.type === "bill-preview" || drawer?.type === "rx-preview";
 
-  const plans = useMemo(() => {
-    if (plansProp?.length) return plansProp;
-    return toDentalPlans(SAMPLE_DENTAL_PLANS);
-  }, [plansProp]);
+  const plans = useMemo(() => plansProp ?? [], [plansProp]);
 
   const patientData = useMemo(() => {
     const ap = getAppointmentPatient(patientId);
