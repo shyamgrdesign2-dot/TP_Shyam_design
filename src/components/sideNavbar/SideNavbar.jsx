@@ -71,6 +71,8 @@ import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescript
 import { getDecodedToken } from "../../utils/localStorage";
 import { trackEvent } from "../../utils/utils";
 import { GB_ZYDUS_USER } from "../../utils/constants";
+import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
+import { ToothIcon } from "../dental/ToothIcon";
 import { env } from "../../EnvironmentConfig";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
 import { getSideNavMedicalIconUrl } from "./sideNavbarMedicalIcons";
@@ -93,6 +95,7 @@ const NAV_ITEMS = [
   { id: "optal", label: "Ophthal", icon: { kind: "iconsax", Icon: Eye } },
   { id: "personalNotes", label: "Private Notes", icon: { kind: "iconsax", Icon: DocumentText } },
   { id: "zydusLabReports", label: "Zydus Reports", icon: { kind: "medical", name: "lab" } },
+  { id: "dentalPlan", label: "Dental Plan", icon: { kind: "custom", Component: ToothIcon } },
 ];
 
 const NAV_ITEM_BY_ID = NAV_ITEMS.reduce((acc, item) => {
@@ -122,6 +125,8 @@ function getCustomizedPadNavId(item, access = {}) {
       return "medicalRecords";
     case 19:
       return "labResults";
+    case 26:
+      return access.isDentalAccessable ? "dentalPlan" : null;
     default:
       return null;
   }
@@ -140,6 +145,7 @@ const SECTION_TITLES = {
   optal: "Ophthal History",
   personalNotes: "Private Notes",
   zydusLabReports: "Zydus Reports",
+  dentalPlan: "Dental Plan",
 };
 
 const SIDE_NAV_MODULE_NAMES = {
@@ -152,6 +158,7 @@ const SIDE_NAV_MODULE_NAMES = {
 const SIDE_NAV_SUPPORTED_VOICE_SECTIONS = new Set(Object.keys(SIDE_NAV_MODULE_NAMES));
 const SIDE_NAV_SIGNAL_SECTIONS = new Set(["vitals", "history", "gynec", "obstetric"]);
 const SIDE_NAV_PRIVATE_NOTES_SECTION = "personalNotes";
+export const SIDE_NAV_FULL_PAGE_SECTIONS = new Set(["dentalPlan"]);
 const SIDE_NAV_MODULE_ENDPOINT = "/agents/module";
 const SIDE_NAV_SHINER_DELAY_MS = 5000;
 const SIDE_NAV_MODULE_TIMEOUT_MS = 120000;
@@ -2725,12 +2732,20 @@ function MedicalMaskIcon({ name, active }) {
 
 function IconPill({ item, active, signalUnread = false }) {
   const isMedical = item.icon.kind === "medical";
+  const isCustom = item.icon.kind === "custom";
   const Icon = item.icon.Icon;
+  const CustomIcon = item.icon.Component;
 
   return (
     <span className={`snv-icon-pill ${active ? "snv-icon-pill-active" : ""}`}>
       {isMedical ? (
         <MedicalMaskIcon name={item.icon.name} active={active} />
+      ) : isCustom ? (
+        <CustomIcon
+          size={20}
+          variant={active ? "bulk" : "linear"}
+          color={active ? "var(--tp-blue-500)" : "#ffffff"}
+        />
       ) : (
         <Icon
           size={20}
@@ -5350,7 +5365,7 @@ function sectionVoiceLabel(activeId) {
 }
 
 function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, actionCounts, hidePlusIcon, voiceEnabled, voiceLocked }) {
-  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal") return null;
+  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal" || activeId === "dentalPlan") return null;
   const status = voiceState?.status || "idle";
   const busy = status === "recording" || status === "transcribing" || status === "digitizing";
   const disabled = busy || voiceLocked;
@@ -5559,6 +5574,7 @@ export function SideNavbar({
   const { profile } = useSelector((state) => state.doctors);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
   const { isPediatricAccessable } = useAccess();
+  const isDentalAccessable = useIsDentalEnabled();
   const {
     vitalsData = [],
     setVitalsData,
@@ -5976,6 +5992,7 @@ export function SideNavbar({
       isVaccinationAccessable,
       isGrowthChartAccessable,
       isGynaecHistoryAccessable,
+      isDentalAccessable,
     };
 
     (customizedPadLeftList || []).forEach((item) => {
@@ -6007,6 +6024,7 @@ export function SideNavbar({
     isOpthalModuleAccessible,
     isVaccinationAccessable,
     isZydusUserAccessable,
+    isDentalAccessable,
   ]);
 
   const navSequence = useMemo(() => navItems.map((item) => item.id), [navItems]);
@@ -6140,6 +6158,12 @@ export function SideNavbar({
 
   const handleSelect = (id) => {
     clearSideNavSignal(id);
+    if (SIDE_NAV_FULL_PAGE_SECTIONS.has(id)) {
+      const next = activeId === id ? null : id;
+      setActiveSection(next, null);
+      onSectionAction?.(id);
+      return;
+    }
     const next = activeId === id ? null : id;
     requestSectionChange(next, null);
   };
@@ -6406,7 +6430,7 @@ export function SideNavbar({
   return (
     <aside className="snv-root" data-side-navbar="true">
       <NavPanel activeId={activeId} onSelect={handleSelect} items={navItems} signals={sideNavSignals} />
-      {activeId ? (
+      {activeId && !SIDE_NAV_FULL_PAGE_SECTIONS.has(activeId) ? (
         <SectionPanel
           activeId={activeId}
           onClose={handleClose}

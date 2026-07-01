@@ -63,7 +63,7 @@ export function TPConfirmDialog({
     <AlertDialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <AlertDialogPrimitive.Portal>
         <AlertDialogPrimitive.Overlay className={styles.overlay} />
-        <AlertDialogPrimitive.Content className={styles.content} aria-describedby={undefined}>
+        <AlertDialogPrimitive.Content className={`treatment-plan ${styles.content}`} aria-describedby={undefined}>
           <div className={styles.header}>
             <AlertDialogPrimitive.Title className={styles.title}>
               {title}

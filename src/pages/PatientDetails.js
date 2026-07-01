@@ -60,6 +60,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
 import VisitDrawingCanvases from "./drawingCanvas/components/VisitDrawingCanvases";
+import { TreatmentPlanEmbed } from "../components/dental/plan/TreatmentPlanPage";
 
 const variables = ASSETS.scss.variables;
 const alertIcon = ASSETS.images.alerticon;
@@ -505,8 +506,8 @@ function PatientDetails() {
                 </Sider>
 
                 <Content>
-                    <div className={`w-100 vh-100 overflow-y-auto`}>
-                        { sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT &&
+                    <div className={`w-100 vh-100 ${sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+                        { sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT && sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN &&
                             <Welcome1
                                 locationPath={locationPath}
                                 isMobile={isMobile}
@@ -610,6 +611,10 @@ function PatientDetails() {
                                     patient_id: patient_data?.patient_unique_id,
                                 }}
                             />
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? (
+                            <div className="treatment-plan" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
+                                <TreatmentPlanEmbed patientId={patient_data?.patient_unique_id} />
+                            </div>
                         ) : null}
                     </div>
                 </Content>

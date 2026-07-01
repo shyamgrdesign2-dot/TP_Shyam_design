@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { syncOralCanvasState } from "../../../../redux/oralExaminationSlice";
+import { normalizeOralSurfaceIds } from "../types";
 
 /**
  * Orchestrates derived state and side-effects for ExaminationTab:
@@ -55,7 +56,7 @@ export function useExaminationOrchestrator({
           id: h.id,
           kind: "past",
           name: h.name,
-          surfaces: h.area || [],
+          surfaces: normalizeOralSurfaceIds(h.area || []),
           since: h.since_date || "",
           note: h.notes || "",
         })),
@@ -63,7 +64,7 @@ export function useExaminationOrchestrator({
           id: f.id,
           kind: "finding",
           name: f.name,
-          surfaces: f.area || [],
+          surfaces: normalizeOralSurfaceIds(f.area || []),
           since: f.since_date || "",
           note: f.notes || "",
         })),
@@ -71,7 +72,7 @@ export function useExaminationOrchestrator({
           id: p.id,
           kind: "procedure",
           name: p.name,
-          surfaces: p.area || [],
+          surfaces: normalizeOralSurfaceIds(p.area || []),
           since: p.procedure_date || "",
           status: p.status,
           note: p.notes || "",

@@ -1,12 +1,49 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { renderPrintPayloadToBlob } from "../utils/printPayload";
-import { resolveDentalOralForPrint } from "../utils/resolveDentalOralPrintData";
-import {
-  ensureDrawingCanvasCaseOption,
-  loadDrawingCanvasesForPrint,
-} from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
+import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
 import { trackEvent } from "../utils/utils";
+
+function pickStableDentalInput(dentalExaminationData, dentalexaminationData) {
+  const raw = dentalExaminationData || dentalexaminationData;
+  if (!raw) return null;
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.tooth_states)) {
+    return { tooth_states: raw.tooth_states };
+  }
+  if (raw.toothState && typeof raw.toothState === "object") {
+    return { toothState: raw.toothState };
+  }
+  return raw;
+}
+
+function pickStableOralInput(oralExamination) {
+  if (!oralExamination || typeof oralExamination !== "object") return null;
+  if (hasOralExamChartShape(oralExamination)) {
+    return {
+      oralEntries: oralExamination.oralEntries,
+      oralNotes: oralExamination.oralNotes,
+    };
+  }
+  return {
+    canvasOralEntries: oralExamination.canvasOralEntries,
+    canvasOralNotes: oralExamination.canvasOralNotes,
+    findings: oralExamination.findings,
+    procedures: oralExamination.procedures,
+    treatment_history:
+      oralExamination.treatment_history || oralExamination.treatmentHistory,
+    treatmentHistory:
+      oralExamination.treatmentHistory || oralExamination.treatment_history,
+    overall_notes: oralExamination.overall_notes || oralExamination.overallNotes,
+    overallNotes: oralExamination.overallNotes || oralExamination.overall_notes,
+  };
+}
+
+function hasOralExamChartShape(value) {
+  return (
+    (Array.isArray(value?.oralEntries) && value.oralEntries.length > 0) ||
+    (typeof value?.oralNotes === "string" && value.oralNotes.trim().length > 0)
+  );
+}
 
 export const usePrintPayloadPdf = ({
   printUrl,
@@ -25,12 +62,46 @@ export const usePrintPayloadPdf = ({
   onlyShowDental = false,
   allowFullApiFallback = true,
   isCvtExtHosAccessableFromGB,
+  isDentalEnabled = false,
+  caseManagerDataOverride = null,
   canvasFilename = null,
 }) => {
   const [payload, setPayload] = useState(null);
   const [printBlob, setPrintBlob] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
+
+  const stableDentalInput = useMemo(
+    () => pickStableDentalInput(dentalExaminationData, dentalexaminationData),
+    [
+      JSON.stringify(
+        dentalExaminationData?.toothState ||
+          dentalExaminationData?.tooth_states ||
+          null,
+      ),
+      JSON.stringify(
+        dentalexaminationData?.toothState ||
+          dentalexaminationData?.tooth_states ||
+          null,
+      ),
+    ],
+  );
+  const stableOralInput = useMemo(
+    () => pickStableOralInput(oralExamination),
+    [
+      JSON.stringify(oralExamination?.canvasOralEntries || null),
+      oralExamination?.canvasOralNotes,
+      JSON.stringify(oralExamination?.findings || null),
+      JSON.stringify(oralExamination?.procedures || null),
+      JSON.stringify(
+        oralExamination?.treatment_history ||
+          oralExamination?.treatmentHistory ||
+          null,
+      ),
+      oralExamination?.overall_notes,
+      oralExamination?.overallNotes,
+    ],
+  );
 
   useEffect(() => {
     if (skipFetch) {
@@ -114,100 +185,30 @@ export const usePrintPayloadPdf = ({
       setError(null);
       const pdfStartTime = Date.now();
       try {
-        const caseManagerData = payload?.caseManagerData;
-        const resolvedPatientId =
-          patientUniqueId ||
-          patientId ||
-          caseManagerData?.patient_data?.patient_unique_id;
-        const resolvedTcmId = tcmId || caseManagerData?.tcm_id;
-        const consultationDate =
-          caseManagerData?.patient_data?.patient_consultaion_date ||
-          caseManagerData?.consultation_date;
+        const payloadWithZydus =
+          zydusSelectedLabParams != null
+            ? { ...payload, zydusLabData: zydusSelectedLabParams }
+            : payload;
 
-        const inMemoryDental = allowFullApiFallback
-          ? (payload?.dentalExaminationData ||
-              payload?.dentalexaminationData ||
-              dentalExaminationData ||
-              dentalexaminationData)
-          : (dentalExaminationData ||
-              dentalexaminationData ||
-              payload?.dentalExaminationData ||
-              payload?.dentalexaminationData);
-
-        const { dentalExaminationData: normalizedDentalData, examChart } =
-          await resolveDentalOralForPrint({
-            patientId: resolvedPatientId,
-            tcmId: resolvedTcmId,
-            consultationDate,
-            printSettings: payload?.printSettings,
-            inMemoryDental,
-            inMemoryOral: oralExamination,
-            caseManagerData,
-            examChartOverride: payload?.examChart,
+        const { blob, drawingCanvases, corruptedCanvasSkipped } =
+          await buildPrintPdfBlobFromPayload(payloadWithZydus, {
+            selectedLang,
+            isGynaecHistoryAccessable,
+            showSnapRxImages,
+            dentalexaminationData: stableDentalInput,
+            dentalExaminationData: stableDentalInput,
+            oralExamination: stableOralInput,
+            patientUniqueId,
+            patientId,
+            tcmId,
+            onlyShowDental,
             allowFullApiFallback,
+            isCvtExtHosAccessableFromGB,
+            isDentalEnabled,
+            caseManagerDataOverride,
+            canvasFilename,
           });
 
-        const resolvedCanvasFilename =
-          canvasFilename ?? payload?.caseManagerData?.canvas_filename;
-
-        const { drawingCanvases, corruptedCanvasSkipped } =
-          await loadDrawingCanvasesForPrint({
-            patientId: resolvedPatientId,
-            tcmId: resolvedTcmId,
-            canvasFilename: resolvedCanvasFilename,
-            onCorruptCanvas: ({ patientId, tcmId, record }) => {
-              trackEvent("drawing_canvas_corrupt_scene_detected", {
-                patient_id: patientId,
-                consultation_id: tcmId,
-                canvas_id: record?.mapping_id || record?.canvas_id || record?.id,
-                render_context: "pdf_generation",
-              });
-            },
-            onApiFailed: ({ patientId, tcmId, error }) => {
-              trackEvent("drawing_canvas_api_failed", {
-                patient_id: patientId,
-                consultation_id: tcmId,
-                api_name: "listPatientCanvasMapping",
-                error_code: error?.code || "EXCEPTION",
-                error_message: error?.message || "Failed to fetch canvases for PDF",
-              });
-            },
-          });
-
-        const printSettingsWithCanvas =
-          drawingCanvases.length > 0
-            ? ensureDrawingCanvasCaseOption(payload.printSettings)
-            : payload.printSettings;
-
-        const blob = await renderPrintPayloadToBlob({
-          ...payload,
-          printSettings: printSettingsWithCanvas,
-          zydusLabData: zydusSelectedLabParams,
-          dentalExaminationData: normalizedDentalData,
-          examChart,
-          oralExamination,
-          patientUniqueId: resolvedPatientId,
-          tcmId: resolvedTcmId,
-          drawingCanvases,
-          ...(typeof isCvtExtHosAccessableFromGB === "boolean"
-            ? { isCvtExtHosAccessableFromGB }
-            : {}),
-        }, {
-          selectedLang,
-          isGynaecHistoryAccessable,
-          showSnapRxImages,
-          onlyShowDental,
-        });
-
-        if (!blob) {
-          throw new Error("Failed to generate PDF blob.");
-        }
-        const header = await blob.slice(0, 5).text();
-        if (header !== "%PDF-") {
-          throw new Error(
-            `Generated blob is not a PDF (header: ${header || "empty"}).`
-          );
-        }
         if (!isCancelled) {
           setPrintBlob(blob);
           if (drawingCanvases.length > 0) {
@@ -248,9 +249,8 @@ export const usePrintPayloadPdf = ({
     selectedLang,
     isGynaecHistoryAccessable,
     skipFetch,
-    dentalexaminationData,
-    dentalExaminationData,
-    oralExamination,
+    stableDentalInput,
+    stableOralInput,
     patientUniqueId,
     patientId,
     tcmId,
@@ -259,6 +259,8 @@ export const usePrintPayloadPdf = ({
     zydusSelectedLabParams,
     allowFullApiFallback,
     isCvtExtHosAccessableFromGB,
+    isDentalEnabled,
+    caseManagerDataOverride,
     canvasFilename,
   ]);
 

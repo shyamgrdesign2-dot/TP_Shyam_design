@@ -30,14 +30,12 @@ export function renderDentalExamPdf({
   }
   if (showDentalChart && (chartOnly || !hasPayload)) {
     return (
-      <View wrap={false}>
-        <PdfDentalChart
-          PX_TO_PT={PX_TO_PT}
-          printSettings={printSettings}
-          dentalExaminationData={dentalExaminationData}
-          toothImageMap={toothImageMap}
-        />
-      </View>
+      <PdfDentalChart
+        PX_TO_PT={PX_TO_PT}
+        printSettings={printSettings}
+        dentalExaminationData={dentalExaminationData}
+        toothImageMap={toothImageMap}
+      />
     );
   }
   const format = dentalOption?.format || "listview";
@@ -74,17 +72,19 @@ export function renderDentalExamPdf({
     );
   }
   return (
-    <View wrap={false}>
+    <>
       {showDentalChart ? (
-        <PdfDentalChart
-          PX_TO_PT={PX_TO_PT}
-          printSettings={printSettings}
-          dentalExaminationData={dentalExaminationData}
-          toothImageMap={toothImageMap}
-        />
+        <View wrap={false}>
+          <PdfDentalChart
+            PX_TO_PT={PX_TO_PT}
+            printSettings={printSettings}
+            dentalExaminationData={dentalExaminationData}
+            toothImageMap={toothImageMap}
+          />
+        </View>
       ) : null}
       {viewNode}
-    </View>
+    </>
   );
 }
 

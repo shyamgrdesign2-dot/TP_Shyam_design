@@ -944,7 +944,8 @@ function ConfigurePrintSetting() {
             if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {
                 dentalExamData = {
                     ...dentalExamData,
-                    tooth_states: transformToothStateToApi(dentalExamData.toothState)
+                    tooth_states: transformToothStateToApi(dentalExamData.toothState),
+                    dentition_type: dentalExamData.dentition_type || dentalExamData.dentitionType,
                 };
             }
             if (Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.length > 0) {

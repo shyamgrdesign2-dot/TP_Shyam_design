@@ -817,6 +817,7 @@ export const ASSETS = {
     xImg: `${BASE_URL}/images/x-img.svg`,
     yearPlanCorner: `${BASE_URL}/images/year-plan-corner.svg`,
     youtubeImg: `${BASE_URL}/images/youtube-img.svg`,
+    scissors: `${BASE_URL}/images/surgical-scissors--bulk.svg`,
   },
   lotties: {
     genrxbeconcisetip: `${BASE_URL}/lotties/genRxBeConciseTip.json`,

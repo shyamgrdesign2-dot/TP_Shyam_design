@@ -169,6 +169,7 @@ import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryCon
 import { isGynecDataEmpty, mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
+import { TreatmentPlanDrawer } from "../components/dental/plan/TreatmentPlanDrawer";
 import { useTabletViewport } from "../hooks/useTabletViewport";
 
 const FOLLOW_UP_DATE_FORMATS = [
@@ -1205,6 +1206,7 @@ function PrescriptionNew() {
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
   const [selectPrivateNotes, setSelectPrivateNotes] = useState(null);
   const [vaccinationDrawer, setVaccinationDrawer] = useState(false);
+  const [dentalPlanDrawer, setDentalPlanDrawer] = useState(false);
   const [vaccineRefreshKey, setVaccineRefreshKey] = useState(0);
   const [growthRefreshKey, setGrowthRefreshKey] = useState(0);
   const [opthalDrawer, setOpthalDrawer] = useState(false);
@@ -1827,6 +1829,10 @@ function PrescriptionNew() {
   // Drawer Vaccination
   const refreshSideNavbarVaccines = useCallback(() => {
     setVaccineRefreshKey((prev) => prev + 1);
+  }, []);
+
+  const handleDentalPlanDrawer = useCallback(() => {
+    setDentalPlanDrawer((prev) => !prev);
   }, []);
 
   const handleDrawerVaccination = useCallback((chartType) => {
@@ -2889,6 +2895,10 @@ function PrescriptionNew() {
       case "zydusLabReports":
         handleZydusTestReportDrawer();
         break;
+      case "dentalPlan":
+        setDrAgentOpen(false);
+        handleDentalPlanDrawer();
+        break;
       default:
         break;
     }
@@ -2896,6 +2906,7 @@ function PrescriptionNew() {
     allUploadedDocs.length,
     handleAddClick,
     handleAddLabParamsDrawer,
+    handleDentalPlanDrawer,
     handleDrawerGrowth,
     handleDrawerMedicalHistory,
     handleDrawerMedicalReport,
@@ -3187,6 +3198,23 @@ function PrescriptionNew() {
             selectPrivateNotes={selectPrivateNotes}
           />
         </Drawer>
+        {dentalPlanDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            onClose={handleDentalPlanDrawer}
+            open={dentalPlanDrawer}
+            width="100%"
+            zIndex={1100}
+            styles={{ body: { padding: 0, height: "100vh", overflow: "hidden" } }}
+          >
+            <TreatmentPlanDrawer
+              patientId={patient_data?.patient_unique_id}
+              patientAge={patient_data?.ageYears}
+              onClose={handleDentalPlanDrawer}
+            />
+          </Drawer>
+        )}
         {vaccinationDrawer && (
           <Drawer
             closeIcon={false}

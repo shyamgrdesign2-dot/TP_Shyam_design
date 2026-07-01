@@ -77,7 +77,7 @@ export const ORAL_POSITION_LABEL = Object.fromEntries(
 
 // Maps masters/oral-areas API codes → this module's stable internal IDs,
 // keeping reconciliation + 3D-highlighting logic unchanged.
-const ORAL_AREA_API_CODE_TO_ID = {
+export const ORAL_AREA_API_CODE_TO_ID = {
   whole_mouth: 'WHOLE', generalized: 'GENERALIZED', localized: 'LOCALIZED',
   full_mouth: 'FULL', maxillary: 'UPPER_ARCH', mandibular: 'LOWER_ARCH',
   upper_right: 'UR', upper_left: 'UL', lower_right: 'LR', lower_left: 'LL',
@@ -89,6 +89,53 @@ const ORAL_AREA_API_CODE_TO_ID = {
   mesial: 'mesial', distal: 'distal', buccal_labial: 'buccal', lingual_palatal: 'lingual',
   occlusal_incisal: 'occlusal', cervical: 'cervical', root: 'root',
 };
+
+const ORAL_LABEL_TO_ID = Object.fromEntries(
+  Object.entries(ORAL_POSITION_LABEL).map(([id, label]) => [label.trim().toLowerCase(), id]),
+);
+
+/** Normalize one oral area/surface token to a stable internal id (API code, id, or label). */
+export function normalizeOralSurfaceToken(surface) {
+  const raw = String(surface ?? "").trim();
+  if (!raw) return "";
+
+  const underscored = raw.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+  if (ORAL_AREA_API_CODE_TO_ID[underscored]) {
+    return ORAL_AREA_API_CODE_TO_ID[underscored];
+  }
+
+  if (ORAL_POSITION_LABEL[raw]) return raw;
+
+  const upper = raw.toUpperCase();
+  if (ORAL_POSITION_LABEL[upper]) return upper;
+
+  const byLabel = ORAL_LABEL_TO_ID[raw.toLowerCase()];
+  if (byLabel) return byLabel;
+
+  const lower = raw.toLowerCase();
+  if (ORAL_POSITION_LABEL[lower]) return lower;
+
+  const idMatch = Object.keys(ORAL_POSITION_LABEL).find((id) => id.toLowerCase() === lower);
+  if (idMatch) return idMatch;
+
+  return raw;
+}
+
+/** Normalize and dedupe oral area/surface ids from API payloads or canvas state. */
+export function normalizeOralSurfaceIds(surfaces) {
+  if (!Array.isArray(surfaces)) return [];
+  const out = [];
+  const seen = new Set();
+  surfaces.forEach((surface) => {
+    const id = normalizeOralSurfaceToken(surface);
+    if (!id) return;
+    const key = id.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(id);
+  });
+  return out;
+}
 
 export function buildOralPositionGroupsFromApi(apiItems) {
   if (!Array.isArray(apiItems) || apiItems.length === 0) return ORAL_POSITION_GROUPS;

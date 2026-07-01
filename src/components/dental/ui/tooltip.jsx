@@ -39,7 +39,7 @@ function TooltipContent({
       <TooltipPrimitive.Content
         data-slot="tooltip-content"
         sideOffset={sideOffset}
-        className={cx(styles.content, className)}
+        className={cx("treatment-plan", styles.content, className)}
         {...props}>
 
         {children}

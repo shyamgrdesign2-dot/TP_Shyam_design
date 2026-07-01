@@ -4,6 +4,9 @@ import {
   buildSavePrintSettingsPayload,
 } from "./dentalDefaultPrintSettings";
 
+export const DENTAL_PLAN_MODULE_ICON_URL =
+  "/icons/medical/surgical-scissors-02--line.svg";
+
 /**
  * Utility thunk to verify conditions and add the Dental module 
  * to the user's custom modules if it's missing.
@@ -24,10 +27,10 @@ export const verifyAndAddDentalModule = (userId, isDentalEnabled) => async (disp
         {
           tmdpm_id: 26,
           tmdpm_type: "L",
-          tmdpm_name: "Dental",
-          tmdpm_short_name: "Dental",
+          tmdpm_name: "Dental Plan",
+          tmdpm_short_name: "Dental Plan",
           tmdpm_status: 0,
-          tmdpm_icon_url: "https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/tooth.svg"
+          tmdpm_icon_url: DENTAL_PLAN_MODULE_ICON_URL
         }
       ];
 

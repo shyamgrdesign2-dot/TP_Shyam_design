@@ -4,7 +4,10 @@ import {
   toothHasDentalPrintData,
 } from "../components/print_settings/dental/dentalPrintHelpers";
 import { hasOralExamChartData } from "./examChartStorage";
-import { ORAL_POSITION_LABEL } from "../components/dental/examination/types";
+import {
+  ORAL_POSITION_LABEL,
+  normalizeOralSurfaceIds,
+} from "../components/dental/examination/types";
 
 const TOOTH_NAMES = {
   1: "Central Incisor",
@@ -109,6 +112,48 @@ export function hasDentalExamPayload(data) {
   return data.tooth_states.some((toothState) => toothHasDentalPrintData(toothState));
 }
 
+function normalizeOralSurfacesForFingerprint(surfaces) {
+  return normalizeOralSurfaceIds(surfaces)
+    .map((surface) => String(surface).trim().toLowerCase())
+    .sort()
+    .join(",");
+}
+
+/** Stable key for deduping oral rows across API / Redux / case-manager sources. */
+export function oralEntryFingerprint(entry) {
+  return [
+    String(entry?.kind || "").trim().toLowerCase(),
+    String(entry?.name || "").trim().toLowerCase(),
+    normalizeOralSurfacesForFingerprint(entry?.surfaces),
+    String(entry?.since || "").trim().toLowerCase(),
+    String(entry?.note || "").trim().toLowerCase(),
+  ].join("|");
+}
+
+export function dedupeOralExamChart(chart) {
+  if (!chart || typeof chart !== "object") return null;
+  const entries = Array.isArray(chart.oralEntries) ? chart.oralEntries : [];
+  const seen = new Set();
+  const dedupedEntries = [];
+
+  entries.forEach((entry) => {
+    if (!entry) return;
+    const fingerprint = oralEntryFingerprint(entry);
+    if (seen.has(fingerprint)) return;
+    seen.add(fingerprint);
+    dedupedEntries.push(entry);
+  });
+
+  const result = {
+    oralEntries: dedupedEntries,
+    oralNotes: String(chart.oralNotes || "").trim(),
+  };
+
+  const hasEntries = dedupedEntries.length > 0;
+  const hasNotes = result.oralNotes.length > 0;
+  return hasEntries || hasNotes ? result : null;
+}
+
 export function mapOralApiToChart(api = {}) {
   const entries = [];
   const pushRows = (rows, kind) => {
@@ -118,7 +163,7 @@ export function mapOralApiToChart(api = {}) {
       entries.push({
         kind,
         name,
-        surfaces: row?.area || row?.surfaces || [],
+        surfaces: normalizeOralSurfaceIds(row?.area || row?.surfaces || []),
         since: row?.since_date || row?.since || "",
         note: row?.notes || row?.note || "",
       });
@@ -127,10 +172,15 @@ export function mapOralApiToChart(api = {}) {
   pushRows(api.findings, "finding");
   pushRows(api.procedures, "procedure");
   pushRows(api.treatment_history, "past");
-  return {
-    oralEntries: entries,
-    oralNotes: api.overall_notes || api.overallNotes || "",
-  };
+  return (
+    dedupeOralExamChart({
+      oralEntries: entries,
+      oralNotes: api.overall_notes || api.overallNotes || "",
+    }) || {
+      oralEntries: [],
+      oralNotes: "",
+    }
+  );
 }
 
 export function normalizeOralHistoryList(payload) {

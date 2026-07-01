@@ -189,6 +189,7 @@ import {
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { clinicTargetStatus, generateClinicToken } from "../pages/chikitsalay/service";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { ASSETS } from "../assets";
 const {
   endVisit: visitEnd,
@@ -504,8 +505,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   );
   const isAppointmentSequenceFromGB = useFeatureIsOn(GB_APPT_SEQUENCE);
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const isDentalEnabled = useIsDentalEnabled();
   const [pendingFinishedPrint, setPendingFinishedPrint] = useState(null);
-  const [hasFinishedPrintGenerationStarted, setHasFinishedPrintGenerationStarted] = useState(false);
 
   const baseUrl = env.casemanager_api_url;
   const snapRxDigitizationUrl = env.snap_rx_api_url;
@@ -532,27 +533,27 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     payloadOverride: null,
     skipFetch: !pendingFinishedPrint?.printUrl || pendingFinishedPrint?.printChannel === "in_app",
     isCvtExtHosAccessableFromGB,
-    patientId: pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    patientId:
+      pendingFinishedPrint?.record?.patient_unique_id ||
+      pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    patientUniqueId:
+      pendingFinishedPrint?.record?.patient_unique_id ||
+      pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
     tcmId: pendingFinishedPrint?.caseManagerData?.tcm_id,
+    canvasFilename: pendingFinishedPrint?.caseManagerData?.canvas_filename,
+    isDentalEnabled,
+    caseManagerDataOverride: pendingFinishedPrint?.caseManagerData ?? null,
   });
 
   useEffect(() => {
-    if (pendingFinishedPrint?.printChannel !== "browser") return;
-    if (isFinishedPrintGenerating) {
-      setHasFinishedPrintGenerationStarted(true);
-    }
-  }, [pendingFinishedPrint?.printChannel, isFinishedPrintGenerating]);
-
-  useEffect(() => {
     if (!pendingFinishedPrint || pendingFinishedPrint.printChannel !== "browser") return;
-    if (!hasFinishedPrintGenerationStarted || isFinishedPrintGenerating) return;
+    if (isFinishedPrintGenerating) return;
 
     if (finishedPrintBlob instanceof Blob) {
       message.destroy(FINISHED_PRINT_MESSAGE_KEY);
       const blobURL = URL.createObjectURL(finishedPrintBlob);
       window.open(blobURL, "_blank");
       setPendingFinishedPrint(null);
-      setHasFinishedPrintGenerationStarted(false);
       return;
     }
 
@@ -560,15 +561,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       message.open({
         key: FINISHED_PRINT_MESSAGE_KEY,
         type: "error",
-        content: "Failed to generate PDF.",
+        content: finishedPrintError?.message || "Failed to generate PDF.",
         duration: 2,
       });
       setPendingFinishedPrint(null);
-      setHasFinishedPrintGenerationStarted(false);
     }
   }, [
     pendingFinishedPrint,
-    hasFinishedPrintGenerationStarted,
     isFinishedPrintGenerating,
     finishedPrintBlob,
     finishedPrintError,
@@ -2265,10 +2264,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     shouldUseVoiceRxPrintPayload = false,
     isAmbientVoiceRx = false,
   }) => {
-    const basePrintUrl =
-      caseManagerData?.print_url ||
-      caseManagerData?.print_rx_url ||
-      record?.print_rx_url;
+    // Full prescription print uses print_url; print_rx_url is medicines-only.
+    const basePrintUrl = caseManagerData?.print_url;
 
     if (!basePrintUrl) return null;
 
@@ -2306,21 +2303,33 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       throw new Error("Patient unique ID is missing.");
     }
 
-    const consultationsResponse = await ApiCaseManager.listConsultations({
-      patient_unique_id: patientUniqueId,
-      limit: 10,
-      page: 1,
-    });
-    const consultations = getConsultationsFromResponse(consultationsResponse);
-    const latestConsultation = consultations?.[0];
-    const latestTcmId = latestConsultation?.tcm_id;
-    if (!latestTcmId) {
-      throw new Error("Latest consultation not found.");
+    let tcmId = record?.tcm_id;
+    let latestConsultation = null;
+
+    if (!tcmId) {
+      const consultationsResponse = await ApiCaseManager.listConsultations({
+        patient_unique_id: patientUniqueId,
+        limit: 10,
+        page: 1,
+      });
+      const consultations = getConsultationsFromResponse(consultationsResponse);
+      latestConsultation = consultations?.[0];
+      tcmId = latestConsultation?.tcm_id;
+    } else {
+      latestConsultation = {
+        tcm_id: tcmId,
+        pam_id: record?.pam_id,
+        appointmentId: record?.appointmentId,
+      };
+    }
+
+    if (!tcmId) {
+      throw new Error("Consultation not found.");
     }
 
     const caseManagerResponse = await ApiCaseManager.viewCaseManager({
       patient_unique_id: patientUniqueId,
-      tcm_id: latestTcmId,
+      tcm_id: tcmId,
     });
     if (caseManagerResponse?.status === false) {
       throw new Error(caseManagerResponse?.error || "Failed to fetch prescription.");
@@ -2384,7 +2393,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           content: "Preparing PDF...",
           duration: 0,
         });
-        setHasFinishedPrintGenerationStarted(false);
         setPendingFinishedPrint({
           printUrl,
           selectedLang: encodedData,

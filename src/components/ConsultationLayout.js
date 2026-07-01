@@ -140,6 +140,7 @@ import {
 } from "../utils/dentalRoutes";
 
 import { SideNavbar } from "./sideNavbar";
+import { TreatmentPlanDrawer } from "./dental/plan/TreatmentPlanDrawer";
 import ConsultationRxPadCopyListener from "./ConsultationRxPadCopyListener";
 import "../components/dr-agent/dr-agent-globals.css";
 import { DrAgentRuntime } from "./dr-agent/rxpad/dr-agent/shell/DrAgentRuntime";
@@ -923,6 +924,7 @@ function ConsultationLayout({ children, headerProps }) {
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
   const [selectPrivateNotes, setSelectPrivateNotes] = useState(null);
   const [vaccinationDrawer, setVaccinationDrawer] = useState(false);
+  const [dentalPlanDrawer, setDentalPlanDrawer] = useState(false);
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
@@ -1431,6 +1433,10 @@ function ConsultationLayout({ children, headerProps }) {
 
   const refreshSideNavbarOpthal = useCallback(() => {
     setOpthalRefreshKey((prev) => prev + 1);
+  }, []);
+
+  const handleDentalPlanDrawer = useCallback(() => {
+    setDentalPlanDrawer((prev) => !prev);
   }, []);
 
   // Drawer Vaccination
@@ -2026,12 +2032,17 @@ function ConsultationLayout({ children, headerProps }) {
       case "zydusLabReports":
         handleZydusTestReportDrawer();
         break;
+      case "dentalPlan":
+        setDrAgentOpen(false);
+        handleDentalPlanDrawer();
+        break;
       default:
         break;
     }
   }, [
     allUploadedDocs.length,
     handleAddLabParamsDrawer,
+    handleDentalPlanDrawer,
     handleDrawerGrowth,
     handleDrawerMedicalHistory,
     handleDrawerMedicalReport,
@@ -2555,6 +2566,7 @@ function ConsultationLayout({ children, headerProps }) {
         activeDentalData,
         oralExamination,
         isDentalEnabled,
+        dentitionType: dentalExamination?.dentitionType || "adult",
       });
 
       if (!payload) {
@@ -2567,7 +2579,10 @@ function ConsultationLayout({ children, headerProps }) {
           tcmId: currentTcmId,
           consultationDate,
           printSettings: payload.printSettings,
-          inMemoryDental: { tooth_states: activeDentalData },
+          inMemoryDental: {
+            tooth_states: activeDentalData,
+            dentition_type: dentalExamination?.dentitionType || "adult",
+          },
           inMemoryOral: oralExamination,
           caseManagerData: payload.caseManagerData,
           allowFullApiFallback: false,
@@ -2874,6 +2889,23 @@ function ConsultationLayout({ children, headerProps }) {
             selectPrivateNotes={selectPrivateNotes}
           />
         </Drawer>
+        {dentalPlanDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            onClose={handleDentalPlanDrawer}
+            open={dentalPlanDrawer}
+            width="100%"
+            zIndex={1100}
+            styles={{ body: { padding: 0, height: "100vh", overflow: "hidden" } }}
+          >
+            <TreatmentPlanDrawer
+              patientId={patient_data?.patient_unique_id}
+              patientAge={patient_data?.ageYears}
+              onClose={handleDentalPlanDrawer}
+            />
+          </Drawer>
+        )}
         {vaccinationDrawer && (
           <Drawer
             closeIcon={false}

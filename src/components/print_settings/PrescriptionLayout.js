@@ -224,7 +224,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
   if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {
     dentalExamData = {
       ...dentalExamData,
-      tooth_states: transformToothStateToApi(dentalExamData.toothState)
+      tooth_states: transformToothStateToApi(dentalExamData.toothState),
+      dentition_type: dentalExamData.dentition_type || dentalExamData.dentitionType,
     };
   }
   const hasDentalExaminationData = Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.some((toothState) =>
