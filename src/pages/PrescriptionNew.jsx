@@ -1251,6 +1251,42 @@ function PrescriptionNew() {
     drAgentStyles.prescriptionNewRouteShell,
     isTablet ? drAgentStyles.prescriptionNewRouteShellTablet : "",
   ].filter(Boolean).join(" ");
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    const html = document.documentElement;
+    const body = document.body;
+    const previous = {
+      htmlOverflow: html.style.overflow,
+      htmlOverscrollBehavior: html.style.overscrollBehavior,
+      htmlHeight: html.style.height,
+      bodyOverflow: body.style.overflow,
+      bodyOverscrollBehavior: body.style.overscrollBehavior,
+      bodyHeight: body.style.height,
+      bodyTouchAction: body.style.touchAction,
+    };
+
+    window.scrollTo({ top: 0, left: 0 });
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    html.style.height = "100%";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    body.style.height = "100%";
+    body.style.touchAction = "pan-y";
+
+    return () => {
+      html.style.overflow = previous.htmlOverflow;
+      html.style.overscrollBehavior = previous.htmlOverscrollBehavior;
+      html.style.height = previous.htmlHeight;
+      body.style.overflow = previous.bodyOverflow;
+      body.style.overscrollBehavior = previous.bodyOverscrollBehavior;
+      body.style.height = previous.bodyHeight;
+      body.style.touchAction = previous.bodyTouchAction;
+    };
+  }, []);
+
   const [generatedDDx, setGeneratedDDx] = useState({ results: [] });
   const [isDDxLoading, setIsDDxLoading] = useState(false);
   const [ddxDrawer, setDDxDrawer] = useState(false);

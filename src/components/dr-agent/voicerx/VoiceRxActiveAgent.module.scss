@@ -7,8 +7,12 @@
   display: flex;
   height: 100%;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   font-family: sans-serif;
 }
 
@@ -148,6 +152,8 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 // ── Processing zone (bottomLoaderActive) ──────────────────────────────────────
@@ -254,7 +260,10 @@
 // ── Transcript scroll area ─────────────────────────────────────────────────────
 .transcriptScrollBase {
   width: 100%;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   transition: filter 300ms, opacity 300ms;
 }
 
