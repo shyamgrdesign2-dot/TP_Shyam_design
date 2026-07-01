@@ -1550,6 +1550,30 @@ body {
     max-width: none !important;
   }
 }
+
+.prescription-new-wide-dropdown.medicine-parent-autocomplete-dropdown {
+  width: min(560px, calc(100vw - 32px)) !important;
+  overflow-x: hidden;
+
+  .rc-virtual-list,
+  .rc-virtual-list-holder,
+  .rc-virtual-list-holder-inner,
+  .ant-select-item {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .ant-select-item-option-content,
+  .ant-select-item-option-content [data-testid="medicine-search-option"],
+  .ant-select-item-option-content .text-primary {
+    max-width: 100% !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}
 .upload-headfoot {
   border: 1px solid $bordercolor;
   height: 100px;
