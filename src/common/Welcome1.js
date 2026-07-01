@@ -82,6 +82,7 @@ function Welcome1(props) {
         handleDrawerUploadDoc,
         abhaHeaderActions,
         patientAdmissionStatus,
+        isZydusUser,
         handleGenerateHealthCheckupReport
     } = props;
 
@@ -364,7 +365,7 @@ function Welcome1(props) {
                             <div>
                                 <div className='d-flex align-items-center gap-2'>
                                     <h1 className='mt-2 mb-0'>{'Patient Details'}</h1>
-                                    {patientAdmissionStatus?.alreadyAdmitted && (
+                                    {patientAdmissionStatus?.alreadyAdmitted && !isZydusUser && (
                                         <span className="ipd-badge mt-2">
                                             IPD
                                         </span>

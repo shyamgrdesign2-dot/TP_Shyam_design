@@ -36,6 +36,61 @@ function hasMeaningfulGynecValue(value) {
   return Boolean(text) && text !== "0";
 }
 
+function parseLmpDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    const parsedDate = moment(value);
+    return parsedDate.isValid() ? parsedDate : null;
+  }
+
+  const str = String(value).trim();
+  const fullDate = moment(
+    str,
+    [
+      "DD-MM-YYYY",
+      "YYYY-MM-DD",
+      "DD/MM/YYYY",
+      "DD MMM YYYY",
+      "D MMM YYYY",
+      "Do MMM YYYY",
+      "DD MMMM YYYY",
+      "D MMMM YYYY",
+      "Do MMMM YYYY",
+      moment.ISO_8601,
+    ],
+    true
+  );
+
+  if (fullDate.isValid()) return fullDate;
+
+  const currentYear = moment().year();
+  const partialDate = moment(
+    `${str} ${currentYear}`,
+    [
+      "DD-MM YYYY",
+      "D-M YYYY",
+      "DD/MM YYYY",
+      "D/M YYYY",
+      "DD MM YYYY",
+      "D M YYYY",
+      "DD MMM YYYY",
+      "D MMM YYYY",
+      "Do MMM YYYY",
+      "DD MMMM YYYY",
+      "D MMMM YYYY",
+      "Do MMMM YYYY",
+    ],
+    true
+  );
+
+  return partialDate.isValid() ? partialDate : null;
+}
+
+function normalizeLmpForApi(value) {
+  const parsed = parseLmpDate(value);
+  return parsed ? parsed.format("YYYY-MM-DD") : null;
+}
+
 /**
  * Normalizes raw gynec/gyneac history from API to UI shape.
  * @param {object} gynecRaw - Raw object from digitizeData.gynecHistory or digitizeData.gyneacHistory
@@ -90,9 +145,10 @@ function mapGynecHistoryToForm(data) {
     ? data.gynaec_history
     : data;
   if (!source || typeof source !== "object") return {};
+  const lmpRaw = source.lmp ?? source.lastMenstrualPeriod ?? "";
 
   return {
-    lmp: source.lmp ?? source.lastMenstrualPeriod ?? "",
+    lmp: normalizeLmpForApi(lmpRaw) ?? lmpRaw,
     ageAtMenarche: source.ageAtMenarche ?? source.age_at_menarche ?? 0,
     menarcheNotes: source.menarcheNotes ?? source.menarche_notes ?? "",
     cycle: source.cycle ?? "",
@@ -135,27 +191,7 @@ const META_KEYS = ["createdAt", "createdBy", "updatedAt", "updatedBy"];
 
 function toApiLmp(value) {
   if (!value) return value;
-  if (value instanceof Date) {
-    return moment(value).format("YYYY-MM-DD");
-  }
-
-  const str = String(value).trim();
-  const parsed = moment(
-    str,
-    [
-      "DD-MM-YYYY",
-      "YYYY-MM-DD",
-      "DD/MM/YYYY",
-      moment.ISO_8601
-    ],
-    true
-  );
-
-  if (parsed.isValid()) {
-    return parsed.format("YYYY-MM-DD");
-  }
-
-  return null; 
+  return normalizeLmpForApi(value);
 }
 
 
@@ -252,8 +288,8 @@ function formatGynecValue(value) {
 function formatGynecLmp(value) {
   const formatted = formatGynecValue(value);
   if (!formatted) return null;
-  const parsed = moment(formatted, ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", moment.ISO_8601], true);
-  return parsed.isValid() ? parsed.format("DD MMM YYYY") : formatted;
+  const parsed = parseLmpDate(formatted);
+  return parsed?.isValid() ? parsed.format("DD MMM YYYY") : formatted;
 }
 
 function gynecItem(name, parts, payload) {
@@ -388,6 +424,7 @@ export function buildGynecPayloadForApi(gynec, userId) {
     createdAt: now,
     createdBy: userId,
   };
+  if (lmpRaw && !lmp) delete payload.lmp;
   Object.keys(payload).forEach((k) => {
     const v = payload[k];
     if (v === undefined || v === "" || v === null) delete payload[k];

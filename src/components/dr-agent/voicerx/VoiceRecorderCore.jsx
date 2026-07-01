@@ -1076,6 +1076,7 @@ export function VoiceRecorderCore({
   radiusClassName = "rounded-b-[16px]",
   enableCollapsedVoiceSession = false,
   hideCaptions = false,
+  hideMicControlsWhenSubmitProcessing = false,
 
   // Fullscreen-only
   mode,
@@ -1656,7 +1657,6 @@ export function VoiceRecorderCore({
     };
     toast.warning("We couldn't detect enough speech in this recording. Please re-record and try again.", {
       key: submitId,
-      duration: 0,
       closable: true,
       onDismiss: () => {
         trackVoiceRx2RecorderEvent("TP_Voice_V2_Low_Speech_Ratio_Toast_Dismissed", buildRecorderEventPayload(toastEventPayload));
@@ -2228,15 +2228,22 @@ export function VoiceRecorderCore({
     </div>
   );
 
+  const shouldHideOverlayMicControls = !isFullscreen && hideMicControlsWhenSubmitProcessing && submitProcessing;
+
   const overlayCTARow = (
     <div className={[
       osStyles.ctaRow,
       isUltraCompact ? osStyles.ctaRowUltra : compactControls ? osStyles.ctaRowCompact : osStyles.ctaRowNormal,
+      shouldHideOverlayMicControls ? osStyles.ctaRowProcessing : "",
     ].join(" ")}>
       {cancelBtn}
-      <span className={["vrx-cta-divider", compactControls ? osStyles.ctaDividerCompact : "", isUltraCompact ? osStyles.ctaDividerUltra : ""].filter(Boolean).join(" ")} aria-hidden />
-      {micSegment}
-      <span className={["vrx-cta-divider", compactControls ? osStyles.ctaDividerCompact : "", isUltraCompact ? osStyles.ctaDividerUltra : ""].filter(Boolean).join(" ")} aria-hidden />
+      {!shouldHideOverlayMicControls ? (
+        <>
+          <span className={["vrx-cta-divider", compactControls ? osStyles.ctaDividerCompact : "", isUltraCompact ? osStyles.ctaDividerUltra : ""].filter(Boolean).join(" ")} aria-hidden />
+          {micSegment}
+          <span className={["vrx-cta-divider", compactControls ? osStyles.ctaDividerCompact : "", isUltraCompact ? osStyles.ctaDividerUltra : ""].filter(Boolean).join(" ")} aria-hidden />
+        </>
+      ) : null}
       {submitBtn}
     </div>
   );

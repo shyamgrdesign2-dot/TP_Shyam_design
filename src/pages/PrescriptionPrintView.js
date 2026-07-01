@@ -503,7 +503,10 @@ function PrescriptionPrintView() {
             if (isDental) {
                 navigate(DENTAL_RX_PAD_ROUTE, { replace: true, state: { patient_data: patient_data, caseManagerData } })
             } else {
-                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
+                const shouldReturnToNewPrescriptionUi =
+                    Boolean(isVoiceRxNewUiFlow) ||
+                    shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB);
+                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldReturnToNewPrescriptionUi ? { isVoiceRxNewUiFlow: true } : {}) } })
             }
         } else {
             errorMessage(action.error)
