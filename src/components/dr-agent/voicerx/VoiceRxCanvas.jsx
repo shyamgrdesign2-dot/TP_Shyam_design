@@ -358,12 +358,16 @@ export function VoiceRxCanvas({
           </div>
         ) : (
           <div className={styles.emrTabContent} data-testid="voicerx-clinical-notes">
-            <div className={["vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell].join(" ")}>
-              <div className={styles.emrShellInner}>{emrCard}</div>
-            </div>
-            <FeedbackRow
-              value={feedback.emr}
-              onChange={(v) => handleFeedback("emr", v)} />
+            {emrCard ? (
+              <>
+                <div className={["vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell].join(" ")}>
+                  <div className={styles.emrShellInner}>{emrCard}</div>
+                </div>
+                <FeedbackRow
+                  value={feedback.emr}
+                  onChange={(v) => handleFeedback("emr", v)} />
+              </>
+            ) : null}
           </div>
         )}
       </div>

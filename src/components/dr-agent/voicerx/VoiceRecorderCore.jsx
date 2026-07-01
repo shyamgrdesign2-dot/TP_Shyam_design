@@ -106,7 +106,7 @@ const VAD_MIN_SPEECH_COVERAGE_RATIO = 0.25;
 const VAD_MIN_FINAL_ANALYSIS_MS = 1000;
 const VAD_MAX_FRAME_DELTA_MS = 500;
 const VAD_DEBUG_STORAGE_KEY = "voiceRxVadDebug";
-const CAPTION_AUDIO_ACTIVITY_THRESHOLD = 0.018;
+const CAPTION_AUDIO_ACTIVITY_THRESHOLD = 0.012;
 const CAPTION_AUDIO_ACTIVITY_ON_MS = 120;
 const CAPTION_AUDIO_ACTIVITY_OFF_MS = 650;
 const SILENCE_REMINDER_TONE_COUNT = 1;
@@ -197,6 +197,15 @@ function buildVadSpeechAnalysisSnapshot(stats, durationMs, minSpeechCoverageRati
     averageSpeechProbability: Number(averageSpeechProbability.toFixed(4)),
     maxSpeechProbability: Number(Math.max(0, stats?.maxSpeechProbability || 0).toFixed(4)),
     canEvaluateSpeechCoverage: analyzedDurationMs >= VAD_MIN_FINAL_ANALYSIS_MS && totalFrames > 0,
+  };
+}
+
+function buildDisabledVadSpeechAnalysisSnapshot(durationMs) {
+  return {
+    vadEnabled: false,
+    detector: "disabled",
+    audioDurationMs: Math.round(durationMs || 0),
+    canEvaluateSpeechCoverage: false,
   };
 }
 
@@ -506,6 +515,61 @@ function HumanVoiceSilenceDetector({
     onHumanVoiceActiveChange(humanVoiceActive);
     return () => onHumanVoiceActiveChange(false);
   }, [humanVoiceActive, onHumanVoiceActiveChange]);
+
+  return null;
+}
+
+function RawAudioSilenceDetector({
+  active,
+  audioActive,
+  onSilence,
+  timeoutMs = DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS,
+}) {
+  const activeRef = useRef(active);
+  const audioActiveRef = useRef(audioActive);
+  const onSilenceRef = useRef(onSilence);
+  const lastAudioAtRef = useRef(0);
+
+  useEffect(() => { activeRef.current = active; }, [active]);
+  useEffect(() => { audioActiveRef.current = audioActive; }, [audioActive]);
+  useEffect(() => { onSilenceRef.current = onSilence; }, [onSilence]);
+
+  useEffect(() => {
+    if (!active || typeof window === "undefined") {
+      lastAudioAtRef.current = 0;
+      return undefined;
+    }
+
+    lastAudioAtRef.current = performance.now();
+    const checkIntervalMs = Math.min(1000, Math.max(250, timeoutMs / 4));
+    const intervalId = window.setInterval(() => {
+      if (!activeRef.current) return;
+      const now = performance.now();
+      if (audioActiveRef.current) {
+        lastAudioAtRef.current = now;
+        return;
+      }
+      const lastAudioAt = lastAudioAtRef.current || now;
+      if (now - lastAudioAt < timeoutMs) return;
+      lastAudioAtRef.current = now;
+      onSilenceRef.current?.({
+        detector: "audio_rms",
+        vadEnabled: false,
+        audioActive: false,
+      });
+    }, checkIntervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+      lastAudioAtRef.current = 0;
+    };
+  }, [active, timeoutMs]);
+
+  useEffect(() => {
+    if (active && audioActive && typeof performance !== "undefined") {
+      lastAudioAtRef.current = performance.now();
+    }
+  }, [active, audioActive]);
 
   return null;
 }
@@ -1510,16 +1574,18 @@ export function VoiceRecorderCore({
   ]);
 
   const handleNoHumanVoiceDetected = useCallback((vadState = {}) => {
+    const detector = vadState.detector || (enableVAD ? "ricky0123_vad" : "audio_rms");
     trackVoiceRx2RecorderEvent("TP_Voice_V2_Silent_Detection", buildRecorderEventPayload({
       action: "alert_after_no_human_voice",
       silenceDurationMs: silenceDetectorThresholdMs,
-      detector: "ricky0123_vad",
+      detector,
+      vadEnabled: enableVAD,
       humanVoiceDetected: false,
       ...vadState,
     }));
     playSilenceReminderSound();
     toast.warning("Still listening. It's been quiet for a bit, say a word when you're ready.");
-  }, [buildRecorderEventPayload, silenceDetectorThresholdMs]);
+  }, [buildRecorderEventPayload, enableVAD, silenceDetectorThresholdMs]);
 
   const trackedMicDeviceRef = useRef(null);
   useEffect(() => {
@@ -1582,12 +1648,13 @@ export function VoiceRecorderCore({
   }, []);
 
   const vadActive = Boolean(enableVAD && stream && micEnabled && recordingActive && online);
+  const rawAudioSilenceActive = Boolean(!enableVAD && stream && micEnabled && recordingActive && online);
 
   useEffect(() => {
     resetVadSpeechAnalysis();
   }, [activeDevice?.deviceId, resetVadSpeechAnalysis, stream?.id]);
 
-  const effectiveHumanVoiceActive = liveTranscriptAllowed;
+  const waveformActive = recordingActive;
   const vadSilenceDetector = vadActive ? (
     <HumanVoiceSilenceDetector
       key={stream.id || "voice-rx-vad-stream"}
@@ -1597,6 +1664,13 @@ export function VoiceRecorderCore({
       timeoutMs={silenceDetectorThresholdMs}
       onHumanVoiceActiveChange={setHumanVoiceActive}
       onVadFrameProcessed={handleVadFrameForSpeechAnalysis} />
+  ) : null;
+  const rawAudioSilenceDetector = rawAudioSilenceActive ? (
+    <RawAudioSilenceDetector
+      active={rawAudioSilenceActive}
+      audioActive={selectedStreamAudioActive}
+      onSilence={handleNoHumanVoiceDetected}
+      timeoutMs={silenceDetectorThresholdMs} />
   ) : null;
 
   const isListening = statusLabel === "Listening";
@@ -1609,7 +1683,7 @@ export function VoiceRecorderCore({
       paused: !recordingActive || paused,
       statusLabel,
       elapsedLabel: formatElapsed(elapsedMs),
-      audioLevel: recordingActive && effectiveHumanVoiceActive ? Math.max(0, Math.min(1, levelRef.current || 0)) : 0
+      audioLevel: recordingActive ? Math.max(0, Math.min(1, levelRef.current || 0)) : 0
     });
   }, [
     publishesCollapsedVoiceSession,
@@ -1617,7 +1691,6 @@ export function VoiceRecorderCore({
     isAwaitingResponse,
     submitProcessing,
     recordingActive,
-    effectiveHumanVoiceActive,
     paused,
     statusLabel,
     elapsedMs
@@ -1695,7 +1768,9 @@ export function VoiceRecorderCore({
     try { audioBlob = await getBlob(); } catch (e) { console.error("Failed to capture audio blob", e); }
     try { await flushFinalChunks(); } catch (e) { console.error("Failed to flush audio chunks", e); }
     const transcript = isFullscreen ? syncedExternalTranscript : liveDisplayText;
-    const speechAnalysis = buildVadSpeechAnalysisSnapshot(vadSpeechAnalysisRef.current, elapsedMs, vadMinSpeechCoverageRatio);
+    const speechAnalysis = enableVAD
+      ? buildVadSpeechAnalysisSnapshot(vadSpeechAnalysisRef.current, elapsedMs, vadMinSpeechCoverageRatio)
+      : buildDisabledVadSpeechAnalysisSnapshot(elapsedMs);
     const shouldBlockForLowSpeechCoverage = Boolean(
       enableVAD &&
       audioBlob?.size &&
@@ -1989,6 +2064,7 @@ export function VoiceRecorderCore({
     return (
       <>
         {vadSilenceDetector}
+        {rawAudioSilenceDetector}
         <div
           ref={rootRef}
           className={[fsStyles.root, !isPanelVisible && fsStyles.invisible].filter(Boolean).join(" ")}
@@ -2123,7 +2199,7 @@ export function VoiceRecorderCore({
                     }}>
                     <VoiceRxSiriWaveform
                       stream={stream}
-                      paused={paused || !effectiveHumanVoiceActive}
+                      paused={paused || !waveformActive}
                       levelRef={levelRef}
                       className={["relative px-0", fsStyles.waveformOpacity, isCompactLayout ? fsStyles.waveformCompact : fsStyles.waveformNormal].join(" ")} />
                   </div>
@@ -2163,7 +2239,7 @@ export function VoiceRecorderCore({
         : isUltraCompact ? osStyles.waveStripUltra
         : compactControls ? osStyles.waveStripCompact : osStyles.waveStripNormal,
     ].join(" ")}>
-      <VoiceRxSiriWaveform className="absolute inset-0 h-full w-full" stream={stream} paused={paused || !effectiveHumanVoiceActive} levelRef={levelRef} />
+      <VoiceRxSiriWaveform className="absolute inset-0 h-full w-full" stream={stream} paused={paused || !waveformActive} levelRef={levelRef} />
       {paused && <div className={osStyles.waveStripPausedOverlay} />}
     </div>
   );
@@ -2260,6 +2336,7 @@ export function VoiceRecorderCore({
       ].filter(Boolean).join(" ")}>
 
       {vadSilenceDetector}
+      {rawAudioSilenceDetector}
 
       {showProcessingView ? (
         <OverlayProcessingView
