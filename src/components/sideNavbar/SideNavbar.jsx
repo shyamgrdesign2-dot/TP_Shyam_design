@@ -5457,6 +5457,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
             fillHeight
             sectionLabel={sectionVoiceLabel(activeId)}
             showSectionInStatus
+            hideMicControlsWhenSubmitProcessing
             isAwaitingResponse={isAwaitingResponse}
             processingLabel={processingLabel}
             error={voiceStatus === "error" ? (voiceState?.error || "Voice processing failed.") : null}
