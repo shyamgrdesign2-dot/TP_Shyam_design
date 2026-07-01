@@ -100,6 +100,10 @@ function PatientDetails() {
       patient_data?.ageYears
     );
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+    const tokenData = getDecodedToken()?.result;
+    const isZydusUser =
+      tokenData?.hospital_business_id == env.zydus_business_id &&
+      isZydusUserAccessableFromGB;
 
     const [sidebarKey, setSidebarKey] = useState(initialSidebarKey || PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY);
 
@@ -515,6 +519,7 @@ function PatientDetails() {
                                 handleDrawerUploadDoc={handleDrawerUploadDoc}
                                 abhaHeaderActions={abhaHeaderActions}
                                 patientAdmissionStatus={patientAdmissionStatus}
+                                isZydusUser={isZydusUser}
                                 handleGenerateHealthCheckupReport={handleGenerateHealthCheckupReport}
                             />
                         }
