@@ -42,6 +42,12 @@ function getErrorMessage(error) {
   return error?.response?.data?.error || error?.response?.data?.message || error?.message || String(error);
 }
 
+function formatVoiceRx2TranscriptForLogging(transcript) {
+  if (typeof transcript === "string") return transcript;
+  if (Array.isArray(transcript)) return JSON.stringify(transcript);
+  return transcript ?? "";
+}
+
 export function buildVoiceRx2EventPayload({
   patientData,
   profile,
@@ -320,7 +326,7 @@ export async function uploadAndLogVoiceRx2({
       timeFromSubmitToUploadMs: uploadCompletedAtMs - startedAtMs,
       timeFromSubmitToClinicalCompleteMs: clinicalCompletedAtMs ? clinicalCompletedAtMs - startedAtMs : null,
       timeFromSubmitToLogMs: Date.now() - startedAtMs,
-      transcript: transcript ?? "",
+      transcript: formatVoiceRx2TranscriptForLogging(transcript),
       digitizeData: digitizeData != null ? JSON.stringify(digitizeData) : null,
       previousContext: previousContext != null ? JSON.stringify(previousContext) : null,
       ...speechAnalysis,
