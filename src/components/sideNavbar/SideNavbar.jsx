@@ -30,6 +30,7 @@ import {
 } from "iconsax-reactjs";
 import { VoiceRxIcon } from "../dr-agent/voicerx/voice-consult-icons";
 import { AgentActionButton } from "../dr-agent/atoms/AgentActionButton";
+import { ConfirmDialog as TPConfirmDialog } from "../dr-agent/molecules/ConfirmDialog";
 import ZydusLabParametersList from "../ZydusLabParametersList";
 import { VoiceRecorderCore } from "../dr-agent/voicerx/VoiceRecorderCore";
 import RecordCard from "../../pages/medicalRecords/components/recordCard/RecordCard";
@@ -68,6 +69,7 @@ import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhist
 import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitizationSlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
 import { getDecodedToken } from "../../utils/localStorage";
+import { trackEvent } from "../../utils/utils";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import { env } from "../../EnvironmentConfig";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
@@ -153,6 +155,7 @@ const SIDE_NAV_PRIVATE_NOTES_SECTION = "personalNotes";
 const SIDE_NAV_MODULE_ENDPOINT = "/agents/module";
 const SIDE_NAV_SHINER_DELAY_MS = 5000;
 const SIDE_NAV_MODULE_TIMEOUT_MS = 120000;
+const SIDE_NAV_RECORDING_WARNING_SECTIONS = new Set(["history", "gynec"]);
 
 function isSideNavVoiceSupported(sectionId) {
   return sectionId === SIDE_NAV_PRIVATE_NOTES_SECTION || SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(sectionId);
@@ -5516,6 +5519,7 @@ export function SideNavbar({
   const [activeId, setActiveId] = useState(() => initialActiveId);
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
+  const [pendingSectionChange, setPendingSectionChange] = useState(null);
   const { activeVoiceModule, headerDictation, claimActiveVoiceModule, releaseActiveVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const sideNavVoiceLockIdRef = useRef(`side-nav-voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -6098,14 +6102,50 @@ export function SideNavbar({
     setActiveSection,
   ]);
 
+  const updateVoiceState = useCallback((sectionId, patch) => {
+    setVoiceBySection((prev) => ({
+      ...prev,
+      [sectionId]: { ...(prev[sectionId] || {}), ...patch },
+    }));
+  }, []);
+
+  const activeRecordingVoiceSection = useMemo(() => {
+    if (!SIDE_NAV_RECORDING_WARNING_SECTIONS.has(activeId)) return null;
+    return voiceBySection[activeId]?.status === "recording" ? activeId : null;
+  }, [activeId, voiceBySection]);
+
+  const requestSectionChange = useCallback((next, dir = null) => {
+    if (activeRecordingVoiceSection && next !== activeId) {
+      setPendingSectionChange({ next, dir, recordingSection: activeRecordingVoiceSection });
+      return;
+    }
+    setActiveSection(next, dir);
+  }, [activeId, activeRecordingVoiceSection, setActiveSection]);
+
+  const trackSideNavVoiceDiscard = useCallback((discardSource, sectionId = activeId, extra = {}) => {
+    const effectivePatientId = patientId || patientData?.patient_unique_id || "";
+    const effectiveDoctorId = doctorId || profile?.doctor_unique_id || "";
+    trackEvent("TP_VoiceRx_SideNav_Discard", {
+      source_surface: "side-navbar",
+      action: "discard",
+      discard_source: discardSource,
+      section_id: sectionId || "",
+      section_label: sectionVoiceLabel(sectionId),
+      patient_id: effectivePatientId,
+      doctor_id: effectiveDoctorId,
+      doctor_name: profile?.um_name || "",
+      ...extra,
+    });
+  }, [activeId, doctorId, patientData?.patient_unique_id, patientId, profile?.doctor_unique_id, profile?.um_name]);
+
   const handleSelect = (id) => {
     clearSideNavSignal(id);
     const next = activeId === id ? null : id;
-    setActiveSection(next, null);
+    requestSectionChange(next, null);
   };
 
   const handleClose = () => {
-    setActiveSection(null, null);
+    requestSectionChange(null, null);
   };
 
   const handleNavigate = useCallback((dir) => {
@@ -6114,15 +6154,8 @@ export function SideNavbar({
     const nextIndex = dir === "next" ? currentIndex + 1 : currentIndex - 1;
     const next = navSequence[nextIndex];
     if (!next) return;
-    setActiveSection(next, dir);
-  }, [activeId, navSequence, setActiveSection]);
-
-  const updateVoiceState = useCallback((sectionId, patch) => {
-    setVoiceBySection((prev) => ({
-      ...prev,
-      [sectionId]: { ...(prev[sectionId] || {}), ...patch },
-    }));
-  }, []);
+    requestSectionChange(next, dir);
+  }, [activeId, navSequence, requestSectionChange]);
 
   const applySideNavVoiceResult = useCallback((sectionId, result) => {
     if (sectionId === "vitals" && result?.vitals && sideNavObjectHasContent(result.vitals, ["date"])) {
@@ -6327,12 +6360,13 @@ export function SideNavbar({
 
   const handleVoiceCancel = useCallback(() => {
     if (!activeId) return;
+    trackSideNavVoiceDiscard("cross_icon", activeId);
     if (voiceDelayTimerRef.current) {
       window.clearTimeout(voiceDelayTimerRef.current);
       voiceDelayTimerRef.current = null;
     }
     updateVoiceState(activeId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
-  }, [activeId, updateVoiceState]);
+  }, [activeId, trackSideNavVoiceDiscard, updateVoiceState]);
 
   const handleVoiceOverlayClose = useCallback(() => {
     if (!activeId) return;
@@ -6342,6 +6376,32 @@ export function SideNavbar({
     }
     updateVoiceState(activeId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
   }, [activeId, updateVoiceState]);
+
+  const handleKeepSideNavRecording = useCallback(() => {
+    setPendingSectionChange(null);
+  }, []);
+
+  const handleDiscardSideNavRecordingAndNavigate = useCallback(() => {
+    if (!pendingSectionChange) return;
+    trackSideNavVoiceDiscard("section_navigation_warning", pendingSectionChange.recordingSection, {
+      target_section_id: pendingSectionChange.next || "collapsed",
+      target_section_label: pendingSectionChange.next ? sectionVoiceLabel(pendingSectionChange.next) : "Collapsed",
+      navigation_direction: pendingSectionChange.dir || "",
+    });
+    if (voiceDelayTimerRef.current) {
+      window.clearTimeout(voiceDelayTimerRef.current);
+      voiceDelayTimerRef.current = null;
+    }
+    updateVoiceState(pendingSectionChange.recordingSection, {
+      status: "idle",
+      error: "",
+      transcript: "",
+      digitizedSummary: "",
+    });
+    const { next, dir } = pendingSectionChange;
+    setPendingSectionChange(null);
+    setActiveSection(next, dir);
+  }, [pendingSectionChange, setActiveSection, trackSideNavVoiceDiscard, updateVoiceState]);
 
   return (
     <aside className="snv-root" data-side-navbar="true">
@@ -6385,6 +6445,19 @@ export function SideNavbar({
           }}
         />
       ) : null}
+      <TPConfirmDialog
+        open={Boolean(pendingSectionChange)}
+        onOpenChange={(open) => {
+          if (!open) handleKeepSideNavRecording();
+        }}
+        title="Close this voice consultation?"
+        warning="Are you sure you want to close this voice Rx? If you close it, no data will be stored."
+        primaryLabel="Keep recording"
+        onPrimary={handleKeepSideNavRecording}
+        secondaryLabel="Discard & Go Back"
+        secondaryTone="destructive"
+        onSecondary={handleDiscardSideNavRecordingAndNavigate}
+      />
     </aside>
   );
 }
