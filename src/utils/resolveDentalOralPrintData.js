@@ -6,10 +6,12 @@ import {
   ORAL_EXAM_CASE_OPTION_ID,
 } from "./dentalDefaultPrintSettings";
 import {
+  dedupeOralExamChart,
   extractDentalApiPayload,
   hasDentalExamPayload,
   mapOralApiToChart,
   normalizeOralHistoryList,
+  oralEntryFingerprint,
   pickOralExamForVisit,
 } from "./cardiologyDentalOralExam";
 import {
@@ -86,35 +88,65 @@ function mergeDentalToothStates(primary, secondary) {
 function mergeOralExamCharts(primary, secondary) {
   const hasPrimary = hasOralExamChartData(primary);
   const hasSecondary = hasOralExamChartData(secondary);
-  if (!hasPrimary) return hasSecondary ? secondary : null;
-  if (!hasSecondary) return primary;
+  if (!hasPrimary) return dedupeOralExamChart(secondary);
+  if (!hasSecondary) return dedupeOralExamChart(primary);
 
   const primaryEntries = Array.isArray(primary.oralEntries) ? primary.oralEntries : [];
   const secondaryEntries = Array.isArray(secondary.oralEntries) ? secondary.oralEntries : [];
-  const seenIds = new Set(
-    primaryEntries.map((entry) => entry?.id).filter((id) => id != null).map(String),
-  );
-  const mergedEntries = [
-    ...primaryEntries,
-    ...secondaryEntries.filter((entry) => {
-      const id = entry?.id;
-      if (id == null) return true;
-      const key = String(id);
-      if (seenIds.has(key)) return false;
-      seenIds.add(key);
-      return true;
-    }),
-  ];
+  const seen = new Set();
+  const mergedEntries = [];
 
-  const noteParts = [primary.oralNotes, secondary.oralNotes]
-    .map((note) => String(note || "").trim())
-    .filter(Boolean);
-
-  const chart = {
-    oralEntries: mergedEntries,
-    oralNotes: noteParts.join("\n"),
+  const addEntry = (entry) => {
+    if (!entry) return;
+    const fingerprint = oralEntryFingerprint(entry);
+    if (seen.has(fingerprint)) return;
+    seen.add(fingerprint);
+    mergedEntries.push(entry);
   };
-  return hasOralExamChartData(chart) ? chart : null;
+
+  primaryEntries.forEach(addEntry);
+  secondaryEntries.forEach(addEntry);
+
+  const primaryNote = String(primary.oralNotes || "").trim();
+  const secondaryNote = String(secondary.oralNotes || "").trim();
+  let oralNotes = primaryNote;
+  if (secondaryNote && secondaryNote !== primaryNote) {
+    oralNotes = primaryNote ? `${primaryNote}\n${secondaryNote}` : secondaryNote;
+  }
+
+  return dedupeOralExamChart({
+    oralEntries: mergedEntries,
+    oralNotes,
+  });
+}
+
+function oralChartFingerprintSet(chart) {
+  const entries = Array.isArray(chart?.oralEntries) ? chart.oralEntries : [];
+  return new Set(entries.map((entry) => oralEntryFingerprint(entry)));
+}
+
+/** Overlay only session rows that are not already represented in history. */
+function overlaySessionOralOnHistory(historyOral, sessionOral) {
+  if (!hasOralExamChartData(historyOral)) {
+    return dedupeOralExamChart(sessionOral);
+  }
+  if (!hasOralExamChartData(sessionOral)) {
+    return dedupeOralExamChart(historyOral);
+  }
+
+  const historyFingerprints = oralChartFingerprintSet(historyOral);
+  const sessionOnlyEntries = (sessionOral.oralEntries || []).filter(
+    (entry) => !historyFingerprints.has(oralEntryFingerprint(entry)),
+  );
+
+  if (sessionOnlyEntries.length === 0) {
+    return dedupeOralExamChart(historyOral);
+  }
+
+  return mergeOralExamCharts(historyOral, {
+    oralEntries: sessionOnlyEntries,
+    oralNotes: sessionOral.oralNotes || "",
+  });
 }
 
 function mergeOralHistoryToChart(historyPayload) {
@@ -124,23 +156,14 @@ function mergeOralHistoryToChart(historyPayload) {
     return hasOralExamChartData(single) ? single : null;
   }
 
-  const oralEntries = [];
-  const noteParts = [];
-
+  let merged = null;
   list.forEach((visit) => {
     const mapped = mapOralApiToChart(visit);
-    if (Array.isArray(mapped?.oralEntries)) {
-      oralEntries.push(...mapped.oralEntries);
-    }
-    const notes = String(mapped?.oralNotes || "").trim();
-    if (notes) noteParts.push(notes);
+    if (!hasOralExamChartData(mapped)) return;
+    merged = mergeOralExamCharts(merged, mapped) || mapped;
   });
 
-  const chart = {
-    oralEntries,
-    oralNotes: noteParts.join("\n"),
-  };
-  return hasOralExamChartData(chart) ? chart : null;
+  return hasOralExamChartData(merged) ? merged : null;
 }
 
 async function fetchDentalTodayOnly(patientId) {
@@ -178,6 +201,17 @@ async function fetchOralFull(patientId, tcmId, consultationDate) {
   const fullPayload = extractDentalApiPayload(fullRes);
   const visitChart = pickOralExamForVisit(fullPayload, tcmId, consultationDate);
   if (hasOralExamChartData(visitChart)) return visitChart;
+  const mergedHistory = mergeOralHistoryToChart(fullPayload);
+  if (hasOralExamChartData(mergedHistory)) return mergedHistory;
+  const mapped = mapOralApiToChart(fullPayload);
+  return hasOralExamChartData(mapped) ? mapped : null;
+}
+
+/** All visits (current + past) for includeHistorical oral print. */
+async function fetchOralExamWithPastHistory(patientId) {
+  if (!patientId) return null;
+  const fullRes = await getOralExamination(patientId).catch(() => null);
+  const fullPayload = extractDentalApiPayload(fullRes);
   const mergedHistory = mergeOralHistoryToChart(fullPayload);
   if (hasOralExamChartData(mergedHistory)) return mergedHistory;
   const mapped = mapOralApiToChart(fullPayload);
@@ -254,27 +288,36 @@ async function resolveOralExamChartForPrint({
   if (!includeHistorical) {
     const todayOral = await fetchOralTodayOnly(patientId, tcmId, consultationDate);
     if (hasOralExamChartData(todayOral)) {
-      return todayOral;
+      return dedupeOralExamChart(todayOral);
     }
     const inMemoryOral = pickInMemoryOralChart(inMemoryOralChart, contextOralChart);
     if (inMemoryOral) {
-      return inMemoryOral;
+      return dedupeOralExamChart(inMemoryOral);
     }
     if (allowFullApiFallback) {
-      return await fetchOralFull(patientId, tcmId, consultationDate);
+      return dedupeOralExamChart(
+        await fetchOralFull(patientId, tcmId, consultationDate),
+      );
     }
     return null;
   }
 
-  const inMemoryOral = pickInMemoryOralChart(inMemoryOralChart, contextOralChart);
-  const fullOral = patientId
-    ? await fetchOralFull(patientId, tcmId, consultationDate)
+  // Past history mode: API history is the base. Overlay only unsaved session rows.
+  // Do NOT merge contextOralChart — it is the same visit as the API snapshot.
+  const sessionOral = hasOralExamChartData(inMemoryOralChart)
+    ? inMemoryOralChart
+    : null;
+  const historyOral = patientId
+    ? await fetchOralExamWithPastHistory(patientId)
     : null;
 
-  if (hasOralExamChartData(inMemoryOral) || hasOralExamChartData(fullOral)) {
-    return mergeOralExamCharts(inMemoryOral, fullOral) || inMemoryOral || fullOral;
+  if (hasOralExamChartData(historyOral) || hasOralExamChartData(sessionOral)) {
+    return overlaySessionOralOnHistory(historyOral, sessionOral);
   }
-  return pickInMemoryOralChart(inMemoryOralChart, contextOralChart);
+
+  return dedupeOralExamChart(
+    pickInMemoryOralChart(inMemoryOralChart, contextOralChart),
+  );
 }
 
 /**
