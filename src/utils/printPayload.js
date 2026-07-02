@@ -8,6 +8,7 @@ import { resolveExamChartForPrintWithContext } from "./examChartStorage";
 import { DENTAL_EXAM_CASE_OPTION_ID } from "./dentalDefaultPrintSettings";
 import { hasDentalExamPayload } from "./cardiologyDentalOralExam";
 import { normalizeSmartRxDataForPrint } from "./smartRxPrintUtils";
+import { resolveFooterImageDimensions } from "./utils";
 
 function shouldPrefetchDentalToothImages({
   dentalExaminationData,
@@ -140,6 +141,8 @@ export const renderPrintPayloadToBlob = async (
       ? ensureDrawingCanvasCaseOption(printSettings)
       : printSettings;
 
+  const resolvedFileFooter = await resolveFooterImageDimensions(fileFooter);
+
   const normalizedCustomModules = Array.isArray(customModules)
     ? customModules
     : Array.isArray(customModules?.modules)
@@ -158,7 +161,7 @@ export const renderPrintPayloadToBlob = async (
       timingList={timingList}
       printSettings={resolvedPrintSettings}
       fileHeader={fileHeader}
-      fileFooter={fileFooter}
+      fileFooter={resolvedFileFooter}
       fileLogo={fileLogo}
       fileWatermark={fileWatermark}
       fileSignature={fileSignature}

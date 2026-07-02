@@ -401,10 +401,10 @@ export function CompletedTab() {
                 <Printer size={16} variant="Linear" />
                 Print All Completed
               </DropdownMenuItem>
-              <DropdownMenuItem className={styles.dropdownItem}>
+              {/* <DropdownMenuItem className={styles.dropdownItem}>
                 <Receipt1 size={16} variant="Linear" />
                 Export Billing Summary
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
