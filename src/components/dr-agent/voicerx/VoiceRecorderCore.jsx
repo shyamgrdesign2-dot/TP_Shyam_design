@@ -101,10 +101,10 @@ const DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS = 60000;
 const VAD_ASSET_BASE_PATH = "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/";
 const VAD_ONNX_WASM_BASE_PATH = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/";
 const VAD_MODEL = "v5";
-const VAD_POSITIVE_SPEECH_THRESHOLD = 0.5;
-const VAD_NEGATIVE_SPEECH_THRESHOLD = 0.35;
+const VAD_POSITIVE_SPEECH_THRESHOLD = 0.25;
+const VAD_NEGATIVE_SPEECH_THRESHOLD = 0.15;
 const VAD_MIN_SPEECH_MS = 400;
-const VAD_WAVEFORM_SPEECH_THRESHOLD = 0.5;
+const VAD_WAVEFORM_SPEECH_THRESHOLD = 0.25;
 const VAD_WAVEFORM_ON_MS = 160;
 const VAD_WAVEFORM_OFF_MS = 450;
 const VAD_MIN_SPEECH_COVERAGE_RATIO = 0.25;
@@ -1593,7 +1593,7 @@ export function VoiceRecorderCore({
       ...vadState,
     }));
     playSilenceReminderSound();
-    toast.warning("Still listening. It's been quiet for a bit, say a word when you're ready.");
+    toast.warning("Audio seems quiet. Please try speaking a little closer to the mic.");
   }, [buildRecorderEventPayload, enableVAD, silenceDetectorThresholdMs]);
 
   const trackedMicDeviceRef = useRef(null);
