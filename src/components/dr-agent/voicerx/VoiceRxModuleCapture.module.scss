@@ -374,14 +374,14 @@
 }
 
 .moduleNotesCell {
-  flex: 0 0 320px !important;
-  max-width: 320px !important;
+  flex: 1 0 320px !important;
+  max-width: none !important;
   min-width: 320px;
 }
 
 .moduleWideNotesCell {
-  flex: 0 0 520px !important;
-  max-width: 520px !important;
+  flex: 1 0 520px !important;
+  max-width: none !important;
   min-width: 520px;
 }
 
@@ -438,8 +438,8 @@
 }
 
 .symptomsNotesCell {
-  flex: 0 0 300px !important;
-  max-width: 300px !important;
+  flex: 1 0 300px !important;
+  max-width: none !important;
   min-width: 300px;
 }
 
