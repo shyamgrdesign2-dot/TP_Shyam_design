@@ -1,6 +1,7 @@
 import api from "./axiosService";
 import config from '../../config';
 import { MEDICINE_STOCK_STATUS } from "../../utils/constants";
+import { buildNoCustomDataPayload } from "../../utils/chikitsalaySearchParams";
 
 const baseUrl = { customBaseUrl: config.medication_api_url }
 const doseBaseUrl = { customBaseUrl: config.lab_params_api_url };
@@ -55,8 +56,9 @@ ApiMedication.getMedicineDetails = function (query) {
   }, baseUrl);
 };
 
-ApiMedication.getFrequentlySearchedMedication = function () {
-  return api.get(`/api/v1/medicine/frequentlyMedicine`, baseUrl);
+ApiMedication.getFrequentlySearchedMedication = function ({ isChikitsalayAccessable } = {}) {
+  const params = new URLSearchParams(buildNoCustomDataPayload(isChikitsalayAccessable));
+  return api.get(`/api/v1/medicine/frequentlyMedicine?${params.toString()}`, baseUrl);
 };
 
 // ApiMedication.getFrequentlySearchedMedication = function () {
@@ -65,15 +67,21 @@ ApiMedication.getFrequentlySearchedMedication = function () {
 //   }, baseUrl);
 // };
 
-ApiMedication.searchMedication = function (query) {
+ApiMedication.searchMedication = function (query, { isChikitsalayAccessable } = {}) {
   return api.post(`/api/v1/medicine/searchMedicine`, {
-    search: query
+    search: query,
+    ...buildNoCustomDataPayload(isChikitsalayAccessable),
   }, baseUrl);
 };
 
-ApiMedication.getFuzzySearch = function (query, max_results = 1) {
+ApiMedication.getFuzzySearch = function (query, max_results = 1, { isChikitsalayAccessable } = {}) {
+  const params = new URLSearchParams({
+    search: query,
+    max_results,
+    ...buildNoCustomDataPayload(isChikitsalayAccessable),
+  });
   return api.get(
-    `/api/v1/medicines/fuzzySearch?search=${query}&max_results=${max_results}`,
+    `/api/v1/medicines/fuzzySearch?${params.toString()}`,
     fuzzySearchBaseUrl
   );
 };

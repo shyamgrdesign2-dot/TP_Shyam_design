@@ -1,4 +1,9 @@
-import { buildClinicalApiHeaders, joinClinicalApiUrl } from './clinical-api';
+import {
+	appendVoiceApiMetadata,
+	buildClinicalApiHeaders,
+	buildVoiceApiMetadata,
+	joinClinicalApiUrl
+} from './clinical-api';
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from './stacks-api-tracking';
 
 const TRANSCRIPT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -23,6 +28,10 @@ function createTimeoutSignal(timeoutMs) {
 		controller.abort(error);
 	}, timeoutMs);
 	return { signal: controller.signal, clear: () => clearTimeout(timeoutId) };
+}
+
+function getResponseRequestId(response) {
+	return response?.headers?.get?.('x-request-id') || '';
 }
 
 function abortSignal(controller, reason) {
@@ -154,7 +163,7 @@ export async function postJson(path, payload, name, { timeoutMs = MODULE_TIMEOUT
 	return responseJson;
 }
 
-async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIMEOUT_MS, signal, tracking } = {}) {
+async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIMEOUT_MS, signal, tracking, includeResponseMeta = false } = {}) {
 	const url = joinClinicalApiUrl(path);
 	const startedAtMs = Date.now();
 	console.log(`[voice-rx] ${name} multipart request`, {
@@ -188,7 +197,9 @@ async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIME
 	if (!response.ok) {
 		const detail = await response.text().catch(() => '');
 		const error = new Error(`${name} API failed (${response.status}). ${detail}`.trim());
+		const requestId = getResponseRequestId(response);
 		decorateVoiceV2ApiError(error, { statusCode: response.status, responseBody: detail });
+		error.requestId = requestId;
 		if (tracking?.apiName) {
 			trackVoiceV2ApiResponse({
 				...tracking,
@@ -203,6 +214,7 @@ async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIME
 	}
 
 	const responseJson = await response.json();
+	const requestId = getResponseRequestId(response);
 	if (tracking?.apiName) {
 		trackVoiceV2ApiResponse({
 			...tracking,
@@ -212,7 +224,7 @@ async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIME
 			startedAtMs,
 		});
 	}
-	return responseJson;
+	return includeResponseMeta ? { data: responseJson, requestId } : responseJson;
 }
 
 async function getJson(path, name, { timeoutMs = MODULE_TIMEOUT_MS, signal } = {}) {
@@ -251,6 +263,13 @@ export function buildIdentityPayload(context) {
 	};
 }
 
+export function buildVoiceRequestPayload(context) {
+	return {
+		...buildIdentityPayload(context),
+		...buildVoiceApiMetadata(context)
+	};
+}
+
 function hasPreviousContext(value) {
 	if (value === undefined || value === null) return false;
 	if (Array.isArray(value)) return value.length > 0;
@@ -279,7 +298,7 @@ function normalizeDigitizationPreviousContext(previousContext) {
 }
 
 function buildDigitizationPayload(context, previousContext) {
-	const payload = buildIdentityPayload(context);
+	const payload = buildVoiceRequestPayload(context);
 	const normalizedPreviousContext = normalizeDigitizationPreviousContext(previousContext);
 	if (normalizedPreviousContext) {
 		payload.previous_context = normalizedPreviousContext;
@@ -374,7 +393,7 @@ async function fetchExistingTranscript({ context, signal }) {
 	return text;
 }
 
-export async function transcribeAudio({ audioBlob, context, signal }) {
+export async function transcribeAudio({ audioBlob, context, signal, includeMetadata = false }) {
 	if (!context?.patientId || !context?.doctorId || !context?.sessionId) {
 		throw new Error('Missing patient, doctor, or session id for audio transcription.');
 	}
@@ -402,31 +421,39 @@ export async function transcribeAudio({ audioBlob, context, signal }) {
 	formData.append('patient_id', payload.patient_id);
 	formData.append('doctor_id', payload.doctor_id);
 	formData.append('session_id', payload.session_id);
+	appendVoiceApiMetadata(formData, context);
 	formData.append('audio', payload.audio, payload.audio.name);
 	console.log('transcribe-audio FormData before request:', describeFormData(formData));
 
 	return withRetry(async () => {
 		let responseJson;
+		let requestId = '';
 		try {
-			responseJson = await postMultipart('/agents/transcribe-audio', formData, 'Transcribe audio', {
+			const transcriptResponse = await postMultipart('/agents/transcribe-audio', formData, 'Transcribe audio', {
 				timeoutMs: TRANSCRIPT_TIMEOUT_MS,
 				signal,
+				includeResponseMeta: includeMetadata,
 				tracking: {
 					apiName: 'transcribeAudio',
 					extra: buildIdentityPayload(context)
 				}
 			});
+			responseJson = includeMetadata ? transcriptResponse?.data : transcriptResponse;
+			requestId = includeMetadata ? transcriptResponse?.requestId || '' : '';
 		} catch (error) {
 			if (error?.status === 409) {
-				return fetchExistingTranscript({ context, signal });
+				const existingTranscript = await fetchExistingTranscript({ context, signal });
+				return includeMetadata ? { transcript: existingTranscript, requestId: error?.requestId || '' } : existingTranscript;
 			}
 			throw error;
 		}
 		const text = extractTranscript(responseJson);
 		if (!hasTranscriptContent(text)) {
-			throw new Error('Transcription API returned an empty transcript.');
+			const error = new Error('Transcription API returned an empty transcript.');
+			error.requestId = requestId;
+			throw error;
 		}
-		return text;
+		return includeMetadata ? { transcript: text, requestId } : text;
 	});
 }
 

@@ -1521,6 +1521,59 @@ body {
     }
   }
 }
+
+.prescription-new-wide-dropdown {
+  width: max-content !important;
+  min-width: 140px;
+  max-width: calc(100vw - 32px);
+  overflow-x: auto;
+
+  .rc-virtual-list,
+  .rc-virtual-list-holder,
+  .rc-virtual-list-holder-inner {
+    width: max-content !important;
+    min-width: 100%;
+    max-width: calc(100vw - 32px);
+  }
+
+  .ant-select-item {
+    width: max-content;
+    min-width: 100%;
+    max-width: calc(100vw - 48px);
+  }
+
+  .ant-select-item-option-content,
+  .ant-select-item-option-content .text-truncate {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    max-width: none !important;
+  }
+}
+
+.prescription-new-wide-dropdown.medicine-parent-autocomplete-dropdown {
+  width: min(560px, calc(100vw - 32px)) !important;
+  overflow-x: hidden;
+
+  .rc-virtual-list,
+  .rc-virtual-list-holder,
+  .rc-virtual-list-holder-inner,
+  .ant-select-item {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .ant-select-item-option-content,
+  .ant-select-item-option-content [data-testid="medicine-search-option"],
+  .ant-select-item-option-content .text-primary {
+    max-width: 100% !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}
 .upload-headfoot {
   border: 1px solid $bordercolor;
   height: 100px;
@@ -2410,6 +2463,81 @@ body {
   opacity: 0.9;
   color: var(--P-CTA-100, #4b4ad5);
   padding: 0.3rem 0.3rem;
+}
+
+.visit-exam-summary {
+  .visit-exam-inline-list {
+    padding: 0 0 4px 28px;
+  }
+
+  .visit-exam-line {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #171725;
+  }
+
+  .visit-exam-item-name {
+    font-weight: 500;
+  }
+
+  .visit-exam-item-meta {
+    color: #6b7280;
+    font-weight: 400;
+  }
+}
+
+.dental-oral-record-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 4px;
+}
+
+.dental-oral-record-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dental-oral-record-header {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: #f1f1f5;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  width: 100%;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.dental-oral-record-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 12px;
+}
+
+.dental-oral-record-line {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #171725;
+}
+
+.dental-oral-record-item-name {
+  font-weight: 500;
+  color: #171725;
+}
+
+.dental-oral-record-item-meta {
+  color: #6b7280;
+  font-weight: 400;
 }
 
 .digitise-info-cardiology-mobile {
@@ -3743,6 +3871,66 @@ body {
   font-size: 14px;
   font-weight: 400;
   line-height: 22px;
+}
+
+.dental-tab-bar {
+  z-index: 10;
+  background: $white;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: rgba(0, 0, 0, 0.08) 0px 2px 8px -2px;
+}
+
+.dental-tab-inner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  height: 46px;
+  padding: 0 20px;
+}
+
+.dental-tab-btn {
+  cursor: pointer;
+  background: none;
+  border: none;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 10px 6px;
+  font-size: 14px;
+  transition: color 0.15s;
+  display: flex;
+  position: relative;
+  outline: none;
+
+  span {
+    font-family: "Inter", sans-serif;
+  }
+
+  &.inactive {
+    color: #92929D;
+    font-weight: 500;
+
+    &:hover {
+      color: $main2 !important;
+    }
+  }
+
+  &.active {
+    color: $theme !important;
+    font-weight: 600;
+  }
+}
+
+.dental-tab-underline {
+  background: $theme;
+  border-radius: 9999px;
+  height: 2.5px;
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
 }
 
 .update-banner {

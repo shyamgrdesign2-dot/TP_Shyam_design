@@ -1,0 +1,179 @@
+@use "../styles/tp-tokens" as tp;
+
+.root {
+  position: relative;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: tp.$slate-100;
+  padding: 18px;
+}
+
+.rootGap {
+  gap: 18px;
+}
+
+.canvasShell {
+  position: relative;
+  min-width: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.gridOverlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+
+.dotOverlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+
+.radialOverlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+
+.canvasInner {
+  position: relative;
+  z-index: 10;
+  height: 100%;
+  width: 100%;
+}
+
+.resizeHandle {
+  position: relative;
+  width: 0;
+  flex-shrink: 0;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 40;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.resizeHit {
+  position: absolute;
+  inset-block: 0;
+  left: -20px;
+  right: -20px;
+  touch-action: none;
+}
+
+.resizeIcon {
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  z-index: 30;
+  transform: translateY(-50%);
+  opacity: 0.6;
+  transition: opacity 0.15s;
+  display: block;
+  width: 22px;
+  height: 32px;
+  max-width: none;
+  left: -11px;
+
+  .resizeHandle:hover & {
+    opacity: 1;
+  }
+}
+
+.aside {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.asideStarted {
+  background: transparent;
+  width: auto;
+  height: 100%;
+}
+
+.asideSplit {
+  background: tp.$slate-100;
+}
+
+.asideInner {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: column;
+}
+
+.singleCol {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: column;
+  padding-left: 18px;
+}
+
+.singleCard {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  border: 2px solid #fff;
+}
+
+.scrollStarted {
+  flex: 1;
+  overflow-y: auto;
+  width: 100%;
+  min-width: 300px;
+  max-width: 350px;
+  margin-inline: auto;
+}
+
+.scrollSplit {
+  flex: 1;
+  overflow-y: auto;
+  padding-left: 18px;
+}
+
+.loaderWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+}
+
+.shimmerIcon {
+  animation: tpShimmerFade 1.5s infinite ease-in-out;
+  opacity: 0.5;
+}
+
+@keyframes tpShimmerFade {
+  0% {
+    opacity: 0.15;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0.15;
+    transform: scale(0.98);
+  }
+}

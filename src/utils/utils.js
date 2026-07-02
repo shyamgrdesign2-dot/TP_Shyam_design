@@ -834,7 +834,7 @@ export const getHmTypeIndicator = (item, isChikitsalayAccessable = false) => {
   const umId = item.um_id ?? item.metadata?.um_id;
   if (hmType == 1 && Number(umId) === 0) return 'Z';
   if (hmType == 2 ) return 'A';
-  if (hmType == 15 && Number(umId) === 0 && isChikitsalayAccessable) return 'VC';
+  if (hmType == 15 && isChikitsalayAccessable) return 'VC';
   return '';
 };
 
@@ -846,6 +846,22 @@ export const getMedicineStockLabel = (med) => {
     return `Qty: ${med?.quantity ?? 0}`;
   }
   return null;
+};
+
+export const hasMedicineFrequency = (medicine) => 
+  String(medicine?.tmm_freq_type_name ?? "").trim() !== "";
+
+export const hasMedicineDuration = (medicine) =>
+  String(medicine?.tmm_days_duration_type ?? "").trim() !== "";
+
+export const medicationsHaveFrequencyAndDuration = (medicationData = []) => {
+  if (!Array.isArray(medicationData) || medicationData.length === 0) {
+    return true;
+  }
+
+  return medicationData.every(
+    (medicine) => hasMedicineFrequency(medicine) && hasMedicineDuration(medicine)
+  );
 };
 
 export const getClinicName = (hospitalData) => {

@@ -179,8 +179,12 @@
      Must set color here explicitly so background-color: currentColor resolves to white. */
   color: #ffffff !important;
   background-color: currentColor;
-  -webkit-mask: var(--snv-icon-url) center / contain no-repeat;
-  mask: var(--snv-icon-url) center / contain no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 
 .snv-icon-pill-active .snv-medical-icon {

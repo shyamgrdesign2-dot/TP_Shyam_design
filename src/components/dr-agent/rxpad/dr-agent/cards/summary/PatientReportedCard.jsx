@@ -6,6 +6,11 @@ import { CardShell } from "../CardShell";
 import { SectionSummaryBar } from "../SectionSummaryBar";
 import { CopyIcon } from "../CopyIcon";
 import { ActionableTooltip } from "../ActionableTooltip";
+import {
+  formatVitalDisplayForUi,
+  normalizeVitalsAndBodyCompositionToRxRowFields,
+  vitalScalarString,
+} from "../../../../../../utils/symptomCollectorVitalsMerge";
 import styles from "./PatientReportedCard.module.scss";
 
 function cleanText(value) {
@@ -42,31 +47,60 @@ function parseMedication(value) {
 function parseHistory(value) {
   if (value && typeof value === "object") {
     const name = cleanText(value.name || value.history_name || value.lineItem || value.notes);
+    if (!name) return null;
     const detail = detailFrom([
       value.duration || value.since,
       value.status,
       value.relation,
       value.notes || value.note,
     ]);
-    return { name, detail };
+    return {
+      ...value,
+      name,
+      detail,
+      type: value.type || "medical_history",
+      duration: value.duration || value.since || "",
+      since: value.since || value.duration || "",
+      status: value.status || "",
+      relation: value.relation || value.relationship || "",
+      notes: value.notes || value.note || "",
+      lineItem: value.lineItem || name,
+    };
   }
 
   const text = cleanText(value);
   if (!text) return null;
   const parenMatch = text.match(/^([^(]+?)\s*\(([^)]+)\)\s*$/);
-  if (parenMatch) return { name: parenMatch[1].trim(), detail: parenMatch[2].trim() };
-  return { name: text };
+  if (parenMatch) {
+    return {
+      name: parenMatch[1].trim(),
+      detail: parenMatch[2].trim(),
+      type: "medical_history",
+      lineItem: parenMatch[1].trim(),
+    };
+  }
+  return { name: text, type: "medical_history", lineItem: text };
 }
 
 function parseSymptom(value) {
   if (value && typeof value === "object") {
     const name = cleanText(value.name || value.symptom_name || value.lineItem);
+    if (!name) return null;
     const detail = detailFrom([
       value.duration || value.since,
       value.severity,
       value.notes || value.note,
     ]);
-    return { name, detail };
+    return {
+      ...value,
+      name,
+      detail,
+      duration: value.duration || value.since || "",
+      since: value.since || value.duration || "",
+      severity: value.severity || "",
+      notes: value.notes || value.note || "",
+      lineItem: value.lineItem || name,
+    };
   }
 
   const text = cleanText(value);
@@ -82,8 +116,115 @@ function parseQuestion(value) {
   return text ? { name: text } : null;
 }
 
+const VITAL_LABELS = {
+  temp: "Temperature",
+  temperature: "Temperature",
+  pres: "Pulse",
+  pulse: "Pulse",
+  resp_rate: "Respiratory rate",
+  respiratoryRate: "Respiratory rate",
+  blood_press: "Blood pressure",
+  bloodPressure: "Blood pressure",
+  systolic: "Systolic",
+  diastolic: "Diastolic",
+  spo2: "SpO2",
+  general_rbs: "General RBS",
+  randomBloodSugar: "Random blood sugar",
+  generalRBS: "General RBS",
+  height: "Height",
+  weight: "Weight",
+  ofc: "Head circumference",
+  headCircumference: "Head circumference",
+  waist_circumference: "Waist circumference",
+  waistCircumference: "Waist circumference",
+  bmi: "BMI",
+  bmr: "BMR",
+  bsa: "BSA",
+  fib4: "FIB-4",
+};
+
+const VITAL_DISPLAY_ORDER = [
+  "bloodPressure",
+  "systolic",
+  "diastolic",
+  "pulse",
+  "temperature",
+  "respiratoryRate",
+  "spo2",
+  "height",
+  "weight",
+  "headCircumference",
+  "waistCircumference",
+  "bmi",
+  "bmr",
+  "bsa",
+  "fib4",
+  "randomBloodSugar",
+  "generalRBS",
+];
+
+function parseVitals(data) {
+  const source = data?.vitalsAndBodyComposition || data?.vitals_and_body_composition || data?.vitals;
+  if (!source || typeof source !== "object") return [];
+
+  const orderedKeys = [
+    ...VITAL_DISPLAY_ORDER.filter((key) => Object.prototype.hasOwnProperty.call(source, key)),
+    ...Object.keys(source).filter((key) => !VITAL_DISPLAY_ORDER.includes(key)),
+  ];
+  const seen = new Set();
+  const hasCombinedBloodPressure = vitalScalarString(source.bloodPressure || source.blood_press) !== "";
+
+  return orderedKeys.map((key) => {
+    if (seen.has(key)) return null;
+    seen.add(key);
+    if (hasCombinedBloodPressure && (key === "systolic" || key === "diastolic")) return null;
+    if (vitalScalarString(source[key]) === "") return null;
+    const detail = formatVitalDisplayForUi(source[key]);
+    if (!detail) return null;
+    return {
+      name: VITAL_LABELS[key] || key,
+      detail,
+      type: "vitals",
+      sourceKey: key,
+      sourceValue: source[key],
+    };
+  }).filter(Boolean);
+}
+
 function formatItem(item) {
-  return item.detail ? `${item.name} (${item.detail})` : item.name;
+  const label = item.displayName || item.name;
+  if (item.type === "vitals") return item.detail ? `${label}: ${item.detail}` : label;
+  return item.detail ? `${label} (${item.detail})` : label;
+}
+
+function buildSymptomRows(items) {
+  return items.map((item) => ({
+    name: item.name,
+    symptom_name: item.symptom_name || item.name,
+    duration: item.duration || item.since || "",
+    since: item.since || item.duration || "",
+    severity: item.severity || "",
+    notes: item.notes || item.note || "",
+    lineItem: item.lineItem || item.name,
+  }));
+}
+
+function buildMedicalHistoryRows(items) {
+  return items.map((item) => ({
+    type: item.type || "medical_history",
+    name: item.name,
+    lineItem: item.lineItem || item.name,
+    duration: item.duration || item.since || "",
+    since: item.since || item.duration || "",
+    status: item.status || "Active",
+    relation: item.relation || item.relationship || "",
+    relationship: item.relationship || item.relation || "",
+    notes: item.notes || item.note || "",
+    enable: item.enable,
+    medication: item.medication,
+    date: item.date,
+    dateType: item.dateType,
+  }));
 }
 
 function buildPatientReportedPayload(sectionId, items) {
@@ -95,9 +236,14 @@ function buildPatientReportedPayload(sectionId, items) {
 
   switch (sectionId) {
     case "symptoms":
-      return { ...base, symptoms: labels };
+      return { ...base, symptoms: buildSymptomRows(items) };
     case "medicalHistory":
-      return { ...base, targetSection: "history", historyChangeSummaries: labels };
+      return {
+        ...base,
+        sideNavSignalTarget: "history",
+        sideNavSignalMode: "focused",
+        medicalHistory: buildMedicalHistoryRows(items),
+      };
     case "currentMedications":
       return {
         ...base,
@@ -110,8 +256,20 @@ function buildPatientReportedPayload(sectionId, items) {
           note: "",
         })),
       };
+    case "vitalsAndBodyComposition": {
+      const rawVitals = items.reduce((acc, item) => {
+        acc[item.sourceKey] = item.sourceValue;
+        return acc;
+      }, {});
+      return {
+        ...base,
+        sideNavSignalTarget: "vitals",
+        sideNavSignalMode: "focused",
+        vitalsAndBodyComposition: normalizeVitalsAndBodyCompositionToRxRowFields(rawVitals),
+      };
+    }
     case "questionsToDoctor":
-      return { ...base, additionalNotes: labels.join("\n") };
+      return base;
     default:
       return { ...base, additionalNotes: labels.join("\n") };
   }
@@ -121,24 +279,28 @@ function buildPatientReportedAllPayload(groups) {
   const payload = {
     sourceDateLabel: "Patient intake",
     targetSection: "rxpad",
+    skipVitalsSync: false,
   };
 
   groups.forEach((group) => {
+    if (group.id === "questionsToDoctor") return;
     const next = buildPatientReportedPayload(group.id, group.items);
     payload.symptoms = [...(payload.symptoms || []), ...(next.symptoms || [])];
-    payload.historyChangeSummaries = [
-      ...(payload.historyChangeSummaries || []),
-      ...(next.historyChangeSummaries || []),
-    ];
+    payload.medicalHistory = [...(payload.medicalHistory || []), ...(next.medicalHistory || [])];
     payload.medications = [...(payload.medications || []), ...(next.medications || [])];
+    payload.vitalsAndBodyComposition = {
+      ...(payload.vitalsAndBodyComposition || {}),
+      ...(next.vitalsAndBodyComposition || {}),
+    };
     payload.additionalNotes = [payload.additionalNotes, next.additionalNotes]
       .filter(Boolean)
       .join("\n") || undefined;
   });
 
   if (!payload.symptoms?.length) delete payload.symptoms;
-  if (!payload.historyChangeSummaries?.length) delete payload.historyChangeSummaries;
+  if (!payload.medicalHistory?.length) delete payload.medicalHistory;
   if (!payload.medications?.length) delete payload.medications;
+  if (!Object.keys(payload.vitalsAndBodyComposition || {}).length) delete payload.vitalsAndBodyComposition;
   if (!payload.additionalNotes) delete payload.additionalNotes;
   return payload;
 }
@@ -158,8 +320,21 @@ const SECTION_DEFS = [
     copyTooltip: "Copy medical history to RxPad",
     getItems: (data) => [
       ...(data.medicalHistory || []).map(parseHistory),
-      ...(data.allergies || []).map(cleanText).filter(Boolean).map((item) => ({ name: `Allergy: ${item}` })),
+      ...(data.allergies || []).map(cleanText).filter(Boolean).map((item) => ({
+        name: item,
+        displayName: `Allergy: ${item}`,
+        type: "allergies",
+        status: "Active",
+        lineItem: item,
+      })),
     ],
+  },
+  {
+    id: "vitalsAndBodyComposition",
+    icon: "vitals",
+    title: "Vitals & Body Composition",
+    copyTooltip: "Copy vitals to RxPad",
+    getItems: (data) => parseVitals(data),
   },
   {
     id: "currentMedications",
@@ -170,8 +345,8 @@ const SECTION_DEFS = [
   },
   {
     id: "questionsToDoctor",
-    title: "Questions to Doctor",
-    copyTooltip: "Copy questions to notes",
+    title: "Questions to Doctor (read only)",
+    copyTooltip: "",
     getItems: (data) => (data.questionsToDoctor || []).map(parseQuestion),
   },
 ];
@@ -270,7 +445,7 @@ export function PatientReportedCard({ data, onCopy, defaultCollapsed = false }) 
                 const canCopyItem = section.id !== "questionsToDoctor";
                 const content = (
                   <span className={styles.itemText}>
-                    <span className={styles.itemName}>{item.name}</span>
+                    <span className={styles.itemName}>{item.displayName || item.name}</span>
                     {item.detail ? <span className={styles.itemDetail}>({item.detail})</span> : null}
                   </span>
                 );

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import ApiCustomModule from "../api/services/ApiCustomModule";
+import { growthbook } from "../App";
 
 // Async thunk for adding a module
 export const addModule = createAsyncThunk(
@@ -20,10 +21,9 @@ export const addModule = createAsyncThunk(
 
 export const getModules = createAsyncThunk(
   "customModules/getModules",
-  async (userId, { rejectWithValue }) => {
+  async (userId, { rejectWithValue, dispatch, getState }) => {
     try {
       const response = await ApiCustomModule.getModules(userId);
-
       return response; // Assuming the API returns the added module data
     } catch (error) {
       return rejectWithValue(error.response.data); // Handle API errors

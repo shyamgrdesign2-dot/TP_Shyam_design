@@ -17,7 +17,7 @@ import {
   Spin,
   Tooltip,
 } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 
@@ -26,7 +26,7 @@ import CommonModal from '../common/CommonModal';
 import CashManagerContext from "../context/CashManagerContext";
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence, shouldMonetizationDisabled } from "../utils/utils";
 
-import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
+import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
   updateTemplate,
@@ -53,14 +53,18 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
-import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
-import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  DIAGNOSIS_INVENTORY_WARNING,
+  hasInvalidChikitsalayDiagnosis,
+} from "../utils/chikitsalayInventory";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
 } = ASSETS.images;
 
 function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoading, handleDDxKnowMore, isDDxGenerated, showVoiceRxModule}) {
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedDiagnosisList,
     parentOptionsList,
@@ -77,8 +81,6 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
-  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
 
   const ddxOptionsList = generatedDDx?.map((item) => {
     return {
@@ -130,35 +132,12 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
-  const emptyDiagnosisRow = () => ({ tds_name: "", tds_id: 0, unique_id: uuidv4(), change: 1, pms_default: 0, icd_code: "", since: "", status: "", note: "" });
-
   const applyVoiceDiagnosis = useCallback((nextDiagnosis) => {
     if (nextDiagnosis.length > 0) {
-      if (canShowVoiceRxNewRows) {
-        const last = nextDiagnosis[nextDiagnosis.length - 1];
-        const withTrailing = (!last || last.tds_name !== "") ? [...nextDiagnosis, emptyDiagnosisRow()] : nextDiagnosis;
-        setDiagnosisData(withTrailing);
-      } else {
-        setDiagnosisData(nextDiagnosis);
-      }
+      setDiagnosisData(nextDiagnosis);
     }
-  }, [canShowVoiceRxNewRows, setDiagnosisData]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // add one trailing empty row on mount (only when flag is on)
-  useEffect(() => {
-    if (!canShowVoiceRxNewRows) return;
-    setDiagnosisData(prev => {
-      const last = prev[prev.length - 1];
-      if (!last || last.tds_name !== "") {
-        return [...prev, emptyDiagnosisRow()];
-      }
-      return prev;
-    });
-  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleAddRow = useCallback(() => {
-    setDiagnosisData(prev => [...prev, emptyDiagnosisRow()]);
   }, [setDiagnosisData]);
+
   const diagnosisVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(diagnosisData, "diagnosis"),
     [diagnosisData]
@@ -303,14 +282,16 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   useEffect(() => {
     const data = [];
-    childOptionsList.map((e) => {
-      return data.push({
-        key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-        value: e.tds_name,
-        label: <div>{`${e.tds_name} ${e?.icd_code ? `(${e?.icd_code})` : ''}`}</div>,
+    childOptionsList
+      .filter((e) => !isChikitsalayAccessable || e?.icd_code)
+      .forEach((e) => {
+        data.push({
+          key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+          value: e.tds_name,
+          label: <div>{`${e.tds_name} ${e?.icd_code ? `(${e?.icd_code})` : ''}`}</div>,
+        });
       });
-    });
-    if (searchChildQuery?.query && childOptionsList.findIndex(e => e.tds_name?.toLowerCase()?.trim() == searchChildQuery?.query?.toLowerCase()?.trim()) === -1) {
+    if (searchChildQuery?.query && childOptionsList.findIndex(e => e.tds_name?.toLowerCase()?.trim() == searchChildQuery?.query?.toLowerCase()?.trim()) === -1 && !isChikitsalayAccessable) {
       data.push({
         key: JSON.stringify({
           ...diagnosisData[searchChildQuery.index],
@@ -327,7 +308,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       });
     }
     setChildSearchOptions(data);
-  }, [childOptionsList]);
+  }, [childOptionsList, isChikitsalayAccessable]);
 
   const onFocusChid = (i) => {
     setSearchChildQuery({ query: diagnosisData[i].tds_name, index: i });
@@ -352,14 +333,11 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const onSelectChild = useCallback(
     (data, e, i) => {
-      diagnosisData[i] = { ...diagnosisData[i], ...JSON.parse(e.key) };
+      diagnosisData[i] = { ...diagnosisData[i], ...JSON.parse(e.key), voice_rx_from_module: false };
       setDiagnosisData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).tds_name, index: i });
-      if (canShowVoiceRxNewRows && i === diagnosisData.length - 1) {
-        setDiagnosisData((prev) => [...prev, emptyDiagnosisRow()]);
-      }
     },
-    [searchChildQuery, diagnosisData, canShowVoiceRxNewRows]
+    [searchChildQuery, diagnosisData]
   );
 
   const onSearchSinceChid = useCallback(
@@ -420,11 +398,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const onRemoveRow = (index) => {
     diagnosisData.splice(index, 1);
-    if (canShowVoiceRxNewRows && diagnosisData.length === 0) {
-      setDiagnosisData([emptyDiagnosisRow()]);
-    } else {
-      setDiagnosisData((prev) => [...prev]);
-    }
+    setDiagnosisData((prev) => [...prev]);
   };
 
   //PopOver1 function
@@ -467,7 +441,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     const action = await dispatch(singleTemplateDetails(template.tdt_id));
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action?.payload;
-      setDiagnosisData(appendStripped(diagnosisData, updatedData, "diagnosis"));
+      setDiagnosisData([...diagnosisData, ...updatedData]);
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)
@@ -504,11 +478,13 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   );
 
   const onAddTemplateClicked = async () => {
-    const templateDiagnosis = canShowVoiceRxNewRows ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
+    const templateDiagnosis = diagnosisData;
     if (templateDiagnosis.length === 0) {
       errorMessage('At least 1 diagnosis added')
     } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup diagnosis name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateDiagnosis.some(hasInvalidChikitsalayDiagnosis)) {
+      errorMessage(DIAGNOSIS_INVENTORY_WARNING)
     } else {
       var sendData = {
         tdt_template_name: inputTemplateName,
@@ -534,11 +510,13 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   );
 
   const onUpdateTemplateClicked = async () => {
-    const templateDiagnosis = canShowVoiceRxNewRows ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
+    const templateDiagnosis = diagnosisData;
     if (templateDiagnosis.length === 0) {
       errorMessage('At least 1 diagnosis added')
     } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup diagnosis name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateDiagnosis.some(hasInvalidChikitsalayDiagnosis)) {
+      errorMessage(DIAGNOSIS_INVENTORY_WARNING)
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
@@ -718,22 +696,56 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                           >
                           </MenuOutlined>
                         </Col>
-                        <Col lg={6} md={6} sm={6} xs={6} className="border-end">
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.tds_name}
-                              value={`${item.tds_name}${item?.icd_code ? ` (${item?.icd_code})` : ''}`}
-                              placeholder="Diagnosis Name"
-                              bordered={false}
-                              defaultOpen={false}
-                              disabled={item?.pms_default ? true : false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) => onSelectChild(data, e, index)}
-                            />
+                        <Col
+                          lg={6}
+                          md={6}
+                          sm={6}
+                          xs={6}
+                          className={`border-end ${isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? "align-self-stretch" : ""}`}
+                          style={isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? { background: "#fff8ef" } : undefined}
+                        >
+                          <div className={isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1"}>
+                            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                              <AutoComplete
+                                defaultValue={item.tds_name}
+                                value={`${item.tds_name}${item?.icd_code ? ` (${item?.icd_code})` : ''}`}
+                                placeholder="Diagnosis Name"
+                                bordered={false}
+                                defaultOpen={false}
+                                disabled={item?.pms_default && !(isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item)) ? true : false}
+                                onSearch={(query) => onSearchChild(query, index)}
+                                onFocus={() => onFocusChid(index)}
+                                options={childSearchOptions}
+                                className="autocomplete-custom w-100 inputborder"
+                                {...getPrescriptionNewPopupProps()}
+                                defaultActiveFirstOption={true}
+                                onSelect={(data, e) => onSelectChild(data, e, index)}
+                              />
+                            </div>
+                            {isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) && (
+                              <Tooltip
+                                placement="top"
+                                trigger={["hover", "click"]}
+                                overlayInnerStyle={{
+                                  background: "#2f2e39",
+                                  borderRadius: 8,
+                                  color: "#fff",
+                                  fontSize: 14,
+                                  lineHeight: 1.35,
+                                  maxWidth: 360,
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                }}
+                                title={DIAGNOSIS_INVENTORY_WARNING}
+                              >
+                                <span className="d-inline-flex flex-shrink-0 me-2" style={{ cursor: "pointer", lineHeight: 1 }}>
+                                  <InfoCircleOutlined
+                                    className="fs-18"
+                                    style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
+                                  />
+                                </span>
+                              </Tooltip>
+                            )}
                           </div>
                         </Col>
                         <Col lg={4} md={4} sm={4} xs={4} className="border-end">
@@ -747,6 +759,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onBlur={() => onBlurSinceChid(index)}
                             options={sinceOptions}
                             className="autocomplete-custom w-100 inputborder"
+                            {...getPrescriptionNewPopupProps()}
                             defaultActiveFirstOption={true}
                             onSelect={(data) => onSelectSinceChild(data, index)}
                           />
@@ -759,6 +772,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             value={item.status != "" ? item.status : null}
                             onSelect={(data) => onSelectStatusChild(data, index)}
                             options={STATUS_LIST}
+                            {...getPrescriptionNewPopupProps()}
                             onClear={() => onSelectStatusChild("", index)}
                             allowClear
                           />
@@ -790,7 +804,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         </Droppable>
       </DragDropContext>
     );
-  }, [diagnosisData, childSearchOptions]);
+  }, [diagnosisData, childSearchOptions, isVoiceRxModuleEnabled, isChikitsalayAccessable]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -910,6 +924,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -952,7 +967,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setDiagnosisData(canShowVoiceRxNewRows ? [emptyDiagnosisRow()] : [])
+    setDiagnosisData([])
     showHideClearData()
   };
 
@@ -1088,19 +1103,6 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_DIAGNOSIS}
-        {canShowVoiceRxNewRows && (
-          <div className="p-2">
-            <Button
-              type="link"
-              icon={<PlusOutlined />}
-              className="add-custom-module-link"
-              onClick={handleAddRow}
-            >
-              Add New Line
-            </Button>
-          </div>
-        )}
-
         {(isApexAIAccessable || tp_monetization_enable) && (
           <div style={{ padding: "0 14px" }}>
             <DifferentialDiagnosis
@@ -1120,7 +1122,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
             />
           </div>
         )}
-        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Diagnosis"
@@ -1128,7 +1130,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.diagnosis}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : !isVoiceRxModuleEnabled ? (
+          ) : (
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1136,14 +1138,14 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               className="autocomplete-custom w-100"
               onSelect={onSelectParent}
               defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
+              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
             >
               <Input
                 placeholder="Search Diagnosis"
                 prefix={<i className="icon-search" />}
               />
             </AutoComplete>
-          ) : null}
+          )}
         </div>
       </div>
     </>

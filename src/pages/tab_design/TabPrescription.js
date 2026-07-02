@@ -605,6 +605,7 @@ function TabPrescription() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
+    isDraft: caseManagerData?.is_draft,
     rxDrawingCanvasIds,
   };
 

@@ -116,7 +116,7 @@ function MedicalHistoryBoxMobile(props) {
     const [inputCyclesDays, setInputCyclesDays] = useState(null);
     const [inputPadsNum, setInputPadsNum] = useState(null);
     const { state } = useLocation();
-    const { patient_data, caseManagerData } = state ;
+    const { patient_data, caseManagerData } = state || {};
     const [gynecLoading, setGynecLoading] = useState(false);
     const [gynecHistory, setGynecHistory] = useState({});
     const [expandRemarks,setExpandRemarks] = useState(true);

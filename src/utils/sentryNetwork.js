@@ -29,28 +29,26 @@ export const reportNetworkIssueToSentry = (error, requestConfig = {}) => {
   const networkIssueType = getNetworkIssueType(error);
   const method = (requestConfig?.method || error?.config?.method || "unknown").toUpperCase();
   const sanitizedUrl = getSanitizedUrl(requestConfig || error?.config);
+  const message = `Network issue: ${networkIssueType}`;
+  const networkAttributes = {
+    network_issue: true,
+    network_issue_type: networkIssueType,
+    http_method: method,
+    online: window.navigator.onLine,
+    ...(sanitizedUrl ? { http_url: sanitizedUrl } : {}),
+    ...(status ? { http_status: status } : {}),
+    ...(error?.code ? { error_code: error.code } : {}),
+    ...(error?.message ? { error_message: error.message } : {}),
+  };
 
-  Sentry.withScope((scope) => {
-    scope.setTag("network_issue", "true");
-    scope.setTag("network_issue_type", networkIssueType);
-    if (status) scope.setTag("http_status", String(status));
-    if (method) scope.setTag("http_method", method);
-    if (sanitizedUrl) scope.setTag("http_url", sanitizedUrl);
-
-    scope.setContext("network", {
-      issue_type: networkIssueType,
-      method,
-      url: sanitizedUrl,
-      status,
-      code: error?.code,
-      message: error?.message,
-      online: window.navigator.onLine,
-    });
-
-    Sentry.captureMessage(`Network issue: ${networkIssueType}`, {
-      level: status >= 500 || networkIssueType === "timeout" ? "error" : "warning",
-    });
+  Sentry.addBreadcrumb({
+    category: "network",
+    message,
+    level: "info",
+    data: networkAttributes,
   });
+
+  Sentry.logger.info(message, networkAttributes);
 };
 
 export const reportBrowserOfflineToSentry = () => {
