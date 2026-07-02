@@ -26,6 +26,7 @@ import {
 } from "../../../redux/voiceDigitizationSlice";
 import {
   buildVoiceHistoryEntry,
+  trackVoiceRx2DiscardEvent,
   trackVoiceRx2StartEvent,
   uploadAndLogVoiceRx2,
 } from "./voiceRx2Logging";
@@ -1518,6 +1519,25 @@ export function VoiceRxModuleCapture({
             secondaryLabel="Close and discard"
             secondaryTone="destructive"
             onSecondary={() => {
+              trackVoiceRx2DiscardEvent({
+                patientData: patient_data,
+                profile,
+                sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+                mode: "module",
+                fromVoiceRecording: true,
+                voicecall: voiceDigitization?.voiceCallCount || 0,
+                moduleName,
+                sourceSurface: "module",
+                voiceInputLocation: moduleName,
+                isDoctorAgent: false,
+                discardSource: "module_discard_modal",
+                discardAction: "discard_confirm",
+                extra: {
+                  doctorId: profile?.doctor_unique_id || "",
+                  patientId: patient_data?.patient_unique_id || "",
+                  trigger_location: "module_voice_discard_modal",
+                },
+              });
               setConfirmOpen(false);
               onCancel?.();
             }} />

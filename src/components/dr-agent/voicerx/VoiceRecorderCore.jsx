@@ -38,7 +38,7 @@ import {
   isAudioChunkContextReady,
   uploadAudioChunk,
 } from "./api/audio-chunk-upload";
-import { trackVoiceRx2RecorderEvent, uploadAndTrackVoiceRx2LowSpeechBlock } from "./voiceRx2Logging";
+import { trackVoiceRx2DiscardEvent, trackVoiceRx2RecorderEvent, uploadAndTrackVoiceRx2LowSpeechBlock } from "./voiceRx2Logging";
 import fsStyles from "./VoiceRxActiveAgent.module.scss";
 import osStyles from "./VoiceRxModuleRecorder.module.scss";
 import canvasStyles from "./VoiceRxCanvas.module.scss";
@@ -1822,7 +1822,15 @@ export function VoiceRecorderCore({
     setSelectedDeviceId(id);
     setDevicePopoverOpen(false);
   }, []);
-  const handleCancelConfirm = useCallback(() => { setConfirmOpen(false); onCancel?.(); }, [onCancel]);
+  const handleCancelConfirm = useCallback(() => {
+    trackVoiceRx2DiscardEvent({
+      ...buildRecorderEventPayload(),
+      discardSource: "discard_modal",
+      discardAction: "discard_confirm",
+    });
+    setConfirmOpen(false);
+    onCancel?.();
+  }, [buildRecorderEventPayload, onCancel]);
   const handleRequestCancel = useCallback(() => {
     if (onCancelRequest) {
       onCancelRequest();

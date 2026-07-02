@@ -52,7 +52,7 @@ import { ASSETS } from "../../assets";
 import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
-import { uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
+import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
 import { toast } from "../dr-agent/voicerx/toast";
@@ -5397,7 +5397,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, medicalRecordActions }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, voiceAnalyticsContext, medicalRecordActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -5486,6 +5486,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
               doctorName,
               patientName,
             }}
+            analyticsContext={voiceAnalyticsContext}
             onClose={onVoiceOverlayClose}
             onCancel={onVoiceCancel}
             onSubmit={onVoiceRecorderSubmit}
@@ -6373,9 +6374,28 @@ export function SideNavbar({
     if (activeVoiceModule || headerDictationBusy) return;
     const existing = voiceBySection[activeId]?.status;
     if (existing === "recording" || existing === "transcribing" || existing === "digitizing") return;
-    getSideNavVoiceSessionId();
+    const sessionId = getSideNavVoiceSessionId();
+    const moduleName = activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "Private Notes" : SIDE_NAV_MODULE_NAMES[activeId];
+    trackVoiceRx2StartEvent({
+      patientData,
+      profile,
+      sessionId,
+      mode: activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "transcribe" : "module",
+      fromVoiceRecording: true,
+      voicecall: voiceDigitization?.voiceCallCount || 0,
+      moduleName,
+      sourceSurface: "side-navbar",
+      voiceInputLocation: sectionVoiceLabel(activeId),
+      isDoctorAgent: false,
+      extra: {
+        doctorId: doctorId || profile?.doctor_unique_id || "",
+        patientId: patientId || patientData?.patient_unique_id || "",
+        section_id: activeId,
+        trigger_location: "side_nav_voice_cta",
+      },
+    });
     updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
-  }, [activeId, activeVoiceModule, getSideNavVoiceSessionId, headerDictationBusy, voiceBySection, updateVoiceState]);
+  }, [activeId, activeVoiceModule, doctorId, getSideNavVoiceSessionId, headerDictationBusy, patientData, patientId, profile, voiceBySection, updateVoiceState, voiceDigitization?.voiceCallCount]);
 
   const handleVoiceRecorderSubmit = useCallback((meta = {}) => {
     if (activeId) return transcribeSectionAudio(activeId, meta);
@@ -6412,6 +6432,28 @@ export function SideNavbar({
       target_section_label: pendingSectionChange.next ? sectionVoiceLabel(pendingSectionChange.next) : "Collapsed",
       navigation_direction: pendingSectionChange.dir || "",
     });
+    trackVoiceRx2DiscardEvent({
+      patientData,
+      profile,
+      sessionId: voiceDigitization?.sessionId || "",
+      mode: "module",
+      fromVoiceRecording: true,
+      voicecall: voiceDigitization?.voiceCallCount || 0,
+      moduleName: sectionVoiceLabel(pendingSectionChange.recordingSection),
+      sourceSurface: "side-navbar",
+      voiceInputLocation: sectionVoiceLabel(pendingSectionChange.recordingSection),
+      isDoctorAgent: false,
+      discardSource: "side_nav_section_navigation_warning",
+      discardAction: "discard_confirm",
+      extra: {
+        doctorId: doctorId || profile?.doctor_unique_id || "",
+        patientId: patientId || patientData?.patient_unique_id || "",
+        section_id: pendingSectionChange.recordingSection || "",
+        target_section_id: pendingSectionChange.next || "collapsed",
+        target_section_label: pendingSectionChange.next ? sectionVoiceLabel(pendingSectionChange.next) : "Collapsed",
+        navigation_direction: pendingSectionChange.dir || "",
+      },
+    });
     if (voiceDelayTimerRef.current) {
       window.clearTimeout(voiceDelayTimerRef.current);
       voiceDelayTimerRef.current = null;
@@ -6425,7 +6467,7 @@ export function SideNavbar({
     const { next, dir } = pendingSectionChange;
     setPendingSectionChange(null);
     setActiveSection(next, dir);
-  }, [pendingSectionChange, setActiveSection, trackSideNavVoiceDiscard, updateVoiceState]);
+  }, [doctorId, patientData, patientId, pendingSectionChange, profile, setActiveSection, trackSideNavVoiceDiscard, updateVoiceState, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
 
   return (
     <aside className="snv-root" data-side-navbar="true">
@@ -6461,6 +6503,19 @@ export function SideNavbar({
           patientName={getSideNavPatientName(patientData)}
           patientGender={patientGender}
           voiceSessionId={getSideNavVoiceSessionId()}
+          voiceAnalyticsContext={{
+            patientData,
+            profile,
+            sessionId: getSideNavVoiceSessionId(),
+            mode: activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "transcribe" : "module",
+            voicecall: voiceDigitization?.voiceCallCount || 0,
+            moduleName: activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "Private Notes" : SIDE_NAV_MODULE_NAMES[activeId],
+            sourceSurface: "side-navbar",
+            voiceInputLocation: sectionVoiceLabel(activeId),
+            isDoctorAgent: false,
+            doctorId: doctorId || profile?.doctor_unique_id || "",
+            patientId: patientId || patientData?.patient_unique_id || "",
+          }}
           medicalRecordActions={{
             handleDrawerUploadDoc,
             setFilesData,

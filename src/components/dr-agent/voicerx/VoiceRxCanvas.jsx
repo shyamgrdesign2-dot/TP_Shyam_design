@@ -14,7 +14,7 @@ import { ShineBorder } from "./ShineBorder";
 import { FeedbackRow } from "./VoiceRxResultTabs";
 import { VoiceRxIcon } from "./voice-consult-icons";
 import { VoiceRecorderCore } from "./VoiceRecorderCore";
-import { trackVoiceRx2StartEvent } from "./voiceRx2Logging";
+import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent } from "./voiceRx2Logging";
 import { toast } from "./toast";
 import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import styles from "./VoiceRxCanvas.module.scss";
@@ -191,6 +191,21 @@ export function VoiceRxCanvas({
   };
 
   const handleDiscardVoiceEditAndBack = () => {
+    trackVoiceRx2DiscardEvent({
+      ...analyticsContext,
+      mode: analyticsContext?.mode || "module",
+      moduleName: analyticsContext?.moduleName || "Clinical Notes",
+      sourceSurface: analyticsContext?.sourceSurface || "dr_agent",
+      voiceInputLocation: "Clinical Notes",
+      discardSource: "clinical_notes_discard_modal",
+      discardAction: "discard_confirm",
+      extra: {
+        doctorId: analyticsContext?.doctorId || "",
+        patientId: analyticsContext?.patientId || "",
+        selectedPatientId: analyticsContext?.selectedPatientId || "",
+        trigger_location: "clinical_notes_voice_discard_modal",
+      },
+    });
     handleVoiceEditCancel();
     onBack?.();
   };
