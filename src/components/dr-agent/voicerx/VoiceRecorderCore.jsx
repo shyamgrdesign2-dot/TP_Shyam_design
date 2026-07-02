@@ -46,6 +46,7 @@ import canvasStyles from "./VoiceRxCanvas.module.scss";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const VOICE_RX_MIC_STORAGE_KEY = "voiceRxPreferredMicrophoneDeviceId";
+const DEFAULT_MIC_DEVICE_ID = "default";
 
 let sessionPreferredMicDeviceId = undefined;
 let sessionPreferredMicLoaded = false;
@@ -60,6 +61,10 @@ function getSessionPreferredMicDeviceId() {
     sessionPreferredMicDeviceId = undefined;
   }
   return sessionPreferredMicDeviceId;
+}
+
+function getInitialMicDeviceId() {
+  return getSessionPreferredMicDeviceId() || DEFAULT_MIC_DEVICE_ID;
 }
 
 function setSessionPreferredMicDeviceId(deviceId) {
@@ -998,12 +1003,16 @@ function useActiveMic(stream, devices, selectedDeviceId) {
   }, [stream, selectedDeviceId]);
 
   const activeDevice = useMemo(() => {
+    if (selectedDeviceId === DEFAULT_MIC_DEVICE_ID) {
+      const defaultDevice = devices.find((d) => d.deviceId === DEFAULT_MIC_DEVICE_ID);
+      if (defaultDevice) return defaultDevice;
+    }
     if (activeDeviceId) {
       const m = devices.find((d) => d.deviceId === activeDeviceId);
       if (m) return m;
     }
     return devices[0];
-  }, [devices, activeDeviceId]);
+  }, [devices, activeDeviceId, selectedDeviceId]);
 
   useEffect(() => {
     const id = activeDevice?.deviceId;
@@ -1176,7 +1185,7 @@ export function VoiceRecorderCore({
   audioChunkContextRef.current = audioChunkContext;
 
   const [manualMute, setManualMute] = useState(false);
-  const [selectedDeviceId, setSelectedDeviceId] = useState(() => getSessionPreferredMicDeviceId());
+  const [selectedDeviceId, setSelectedDeviceId] = useState(() => getInitialMicDeviceId());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [devicePopoverOpen, setDevicePopoverOpen] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(!isFullscreen && variant === "stack");
@@ -1943,7 +1952,9 @@ export function VoiceRecorderCore({
             <div className={s.devicePopoverEmpty}>{micError || "No input devices detected"}</div>
           ) : (
             devices.map((d, i) => {
-              const isSelected = activeDevice?.deviceId === d.deviceId || (selectedDeviceId ? selectedDeviceId === d.deviceId : i === 0);
+              const isSelected = selectedDeviceId
+                ? selectedDeviceId === d.deviceId
+                : activeDevice?.deviceId === d.deviceId || i === 0;
               return (
                 <button key={d.deviceId || i} type="button" onClick={() => handleDeviceSelect(d.deviceId)}
                   className={[s.deviceItem, isSelected ? s.deviceItemSelected : s.deviceItemNormal].join(" ")}>
