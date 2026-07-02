@@ -1553,17 +1553,30 @@ function PrescriptionNew() {
 
   useEffect(() => {
     const clinic_name = getClinicName(profile?.hospital_data);
-    tcmId == 0
-      ? window.Moengage.track_event("TP_Consultation_Started", {
-          clinic_name,
-          patient_number: patient_data?.pm_contact_no,
-          patient_id: patient_data?.patient_unique_id,
-          tcm_id: tcmId,
-        })
+    const isNewConsultation = Number(tcmId) === 0;
+    const consultationEventPayload = {
+      clinic_name,
+      is_voice_rx_new_ui: Boolean(isVoiceRxNewUiFlow),
+      voice_rx_module_ui_enabled: Boolean(canUseVoiceRxModuleUi),
+      voice_rx_new_ui_gb_enabled: Boolean(isVoiceRxNewFromGB),
+      from_voice_recording: Boolean(fromVoiceRecording),
+      patient_number: patient_data?.pm_contact_no,
+      patient_id: patient_data?.patient_unique_id,
+      patient_name: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
+      patient_gender: patient_data?.pm_gender || patient_data?.patient_gender || "",
+      patient_age: patient_data?.age || patient_data?.ageYears || "",
+      doctor_id: profile?.doctor_unique_id,
+      doctor_unique_id: profile?.doctor_unique_id,
+      doctor_name: profile?.um_name,
+      doctor_number: profile?.um_contact,
+      doctor_specialty: profile?.dp_name,
+      doctor_um_id: tokenData?.user_id,
+    };
+    isNewConsultation
+      ? window.Moengage.track_event("TP_Consultation_Started", consultationEventPayload)
       : window.Moengage.track_event("TP_Consultation_edit_started", {
-          clinic_name,
-          patient_number: patient_data?.pm_contact_no,
-          patient_id: patient_data?.patient_unique_id,
+          ...consultationEventPayload,
+          tcm_id: tcmId,
         });
     const sendData = {
       patient_unique_id: patient_data?.patient_unique_id,

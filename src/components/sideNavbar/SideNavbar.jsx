@@ -3168,7 +3168,7 @@ function PastVisitNativeSections({ rx }) {
   );
 }
 
-function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onCopyPayload }) {
+function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onCopyPayload, copyTrackingContext }) {
   const pendingLoadMoreRef = useRef(false);
   const firstVisitId = visits[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstVisitId));
@@ -3216,13 +3216,16 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
   const handleCopyPayload = useCallback((payload, successMessage, opts, copyTracking) => {
     if (!payload) return;
     if (copyTracking) {
-      trackDrAgentCopyUsed(copyTracking);
+      trackDrAgentCopyUsed({
+        ...(copyTrackingContext || {}),
+        ...copyTracking,
+      });
     }
     onCopyPayload?.(payload, {
       ...opts,
       onAfterCopy: () => toast.success(successMessage),
     });
-  }, [onCopyPayload]);
+  }, [copyTrackingContext, onCopyPayload]);
 
   const handleCopyVisit = useCallback((visitItem) => {
     handleCopyPayload(
@@ -5268,6 +5271,12 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           onLoadMore={pastVisitsState.onLoadMore}
           onExpand={pastVisitsState.onExpand}
           onCopyPayload={onCopyPayload}
+          copyTrackingContext={{
+            doctorId,
+            patientId,
+            voiceRxVersion: "2.0",
+            sourceSurface: "side-navbar",
+          }}
         />
       );
     case "vitals":

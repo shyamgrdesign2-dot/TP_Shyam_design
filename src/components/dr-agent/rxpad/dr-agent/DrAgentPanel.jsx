@@ -48,6 +48,26 @@ export function DrAgentPanel({
 }) {
   const { profile } = useSelector((state) => state.doctors || {});
   const voiceDigitization = useSelector((state) => state.voiceDigitization || {});
+  const voiceCopyTrackingContext = useMemo(() => ({
+    doctorId: doctorId || profile?.doctor_unique_id || "",
+    doctorName: profile?.um_name || "",
+    patientId: patientData?.patient_unique_id || patientId || initialPatientId || "",
+    patientName: patientData?.pm_fullname || patientData?.pm_first_name || "",
+    sessionId: voiceDigitization?.sessionId || "",
+    voiceRxVersion: "2.0",
+    sourceSurface: "doctor-agent",
+    voiceInputLocation: "Clinical Notes",
+  }), [
+    doctorId,
+    initialPatientId,
+    patientData?.patient_unique_id,
+    patientData?.pm_first_name,
+    patientData?.pm_fullname,
+    patientId,
+    profile?.doctor_unique_id,
+    profile?.um_name,
+    voiceDigitization?.sessionId,
+  ]);
   const {
     // State
     selectedPatientId,
@@ -379,7 +399,10 @@ export function DrAgentPanel({
           voiceLocked={voiceLocked}
           onCopyResult={(payload, opts) => {
             if (opts?.copyTracking) {
-              trackDrAgentCopyUsed(opts.copyTracking);
+              trackDrAgentCopyUsed({
+                ...voiceCopyTrackingContext,
+                ...opts.copyTracking,
+              });
             }
             runCopyWithAura(payload, {
               ...opts,
@@ -397,6 +420,7 @@ export function DrAgentPanel({
               : voiceRxResult.structured?.copyAllPayload;
             if (!copyAllPayload) return;
             trackDrAgentCopyUsed(buildClinicalNotesCopyMeta({
+              ...voiceCopyTrackingContext,
               component: "Structured Clinical Notes",
               componentKey: "all",
               copyScope: "copy_all",
@@ -413,6 +437,7 @@ export function DrAgentPanel({
             }
           }}
           onCopySoap={() => trackDrAgentCopyUsed(buildClinicalNotesCopyMeta({
+            ...voiceCopyTrackingContext,
             component: "SOAP Note",
             componentKey: "soap",
             destination: "clipboard",

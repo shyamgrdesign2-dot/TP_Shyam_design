@@ -57,7 +57,7 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
 import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
-import { uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { VOICE_RX_2_VERSION, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
 
@@ -2272,6 +2272,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 clinic_name,
                 patient_number: patient_data?.pm_contact_no,
                 patient_id: patient_data?.patient_unique_id,
+                patient_name: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
+                doctor_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                appEnv: process.env.REACT_APP_ENV || "prod",
                 tcm_id: tcmId,
             };
             const shouldAttachVoiceCallCount =
@@ -2279,6 +2283,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 showVoiceRxModule;
             if (shouldAttachVoiceCallCount) {
                 consultationEventPayload.voicecall = voiceDigitization?.voiceCallCount || 0;
+                consultationEventPayload.voice_rx_session_id = voiceDigitization?.sessionId || "";
+                consultationEventPayload.voice_rx_version = VOICE_RX_2_VERSION;
+                consultationEventPayload.voice_rx_history_count = Array.isArray(voiceDigitization?.history) ? voiceDigitization.history.length : 0;
+                consultationEventPayload.voice_rx_has_history = Boolean(voiceDigitization?.history?.length);
             }
             tcmId == 0 ?
                 window.Moengage.track_event("TP_Consultation_ended", consultationEventPayload)

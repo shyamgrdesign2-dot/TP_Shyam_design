@@ -585,6 +585,26 @@ export function useDrAgentPanel({
      setAiFillInProgress, pushHistoricalUpdates, activeVoiceModule, headerDictation, runCopyWithAura } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const lastSignalIdRef = useRef(0);
+  const voiceCopyTrackingContext = useMemo(() => ({
+    doctorId: doctorId || profile?.doctor_unique_id || "",
+    doctorName: profile?.um_name || "",
+    patientId: patientData?.patient_unique_id || selectedPatientId || patientId || "",
+    patientName: patientData?.pm_fullname || patientData?.pm_first_name || "",
+    sessionId: voiceDigitization?.sessionId || "",
+    voiceRxVersion: "2.0",
+    sourceSurface: "doctor-agent",
+    voiceInputLocation: "Clinical Notes",
+  }), [
+    doctorId,
+    patientData?.patient_unique_id,
+    patientData?.pm_first_name,
+    patientData?.pm_fullname,
+    patientId,
+    profile?.doctor_unique_id,
+    profile?.um_name,
+    selectedPatientId,
+    voiceDigitization?.sessionId,
+  ]);
 
   // Scripted fallback — only when the browser can't do real live transcription.
   useEffect(() => {
@@ -1870,7 +1890,10 @@ export function useDrAgentPanel({
   const handleCopy = useCallback((payload, opts) => {
     if (payload && typeof payload === "object" && "sourceDateLabel" in payload) {
       if (opts?.copyTracking) {
-        trackDrAgentCopyUsed(opts.copyTracking);
+        trackDrAgentCopyUsed({
+          ...voiceCopyTrackingContext,
+          ...opts.copyTracking,
+        });
       }
       runCopyWithAura(payload, {
         ...opts,
@@ -1883,7 +1906,7 @@ export function useDrAgentPanel({
         sessionStorage.setItem("pendingRxPadCopy", JSON.stringify(arr));
       } catch {/* ignore storage errors */}
     }
-  }, [runCopyWithAura]);
+  }, [runCopyWithAura, voiceCopyTrackingContext]);
 
   // ── Sidebar Navigation ──
   const handleSidebarNav = useCallback((tab) => {
