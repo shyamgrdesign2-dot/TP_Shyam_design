@@ -114,6 +114,76 @@ export function trackVoiceRx2RecorderEvent(eventName, payload = {}) {
   }
 }
 
+export function trackVoiceRx2StartEvent({
+  triggerType = "manual_click",
+  triggeredByDoubleShift = false,
+  patientData,
+  profile,
+  sessionId = "",
+  mode = "dictation",
+  fromVoiceRecording = false,
+  voicecall = 0,
+  moduleName = "",
+  sourceSurface = "",
+  voiceInputLocation = "",
+  isDoctorAgent = false,
+  micBeingUsed = "",
+  extra = {},
+} = {}) {
+  try {
+    const clinic = getClinic(profile?.hospital_data);
+    const startExtra = { ...(extra || {}) };
+    [
+      "audioMimeType",
+      "audioSizeBytes",
+      "durationOfAudioInSeconds",
+      "error_message",
+      "failedPhase",
+      "prescriptionUrl",
+      "prescriptionUrls",
+      "requestId",
+      "retry_attempts",
+      "submitId",
+      "upload_error_message",
+      "upload_failed",
+      "upload_latency_ms",
+      "voiceApiCalled",
+      "voice_failed",
+    ].forEach((key) => {
+      delete startExtra[key];
+    });
+    trackEvent("TP_VoiceRx_V2_Start", {
+      doctorId: profile?.doctor_unique_id || extra.doctorId || "",
+      doctorName: profile?.um_name || "",
+      patientId: patientData?.patient_unique_id || extra.patientId || "",
+      patientName: patientData?.pm_fullname || patientData?.pm_first_name || "",
+      hospitalId: clinic?.hm_id || "",
+      hospitalName: clinic?.hm_name || "",
+      network: extra.network || "stable",
+      micBeingUsed,
+      browser: getBrowserNameForVoiceRx2(),
+      url: typeof window !== "undefined" ? window.location.href : "",
+      sessionId,
+      mode,
+      fromVoiceRecording,
+      voicecall,
+      status: extra.status || "started",
+      moduleName,
+      sourceSurface,
+      voiceInputLocation,
+      isDoctorAgent,
+      voiceRxVersion: VOICE_RX_2_VERSION,
+      timestamp: new Date().toISOString(),
+      trigger_type: triggerType,
+      triggered_by_double_shift: Boolean(triggeredByDoubleShift),
+      startedAt: new Date().toISOString(),
+      ...startExtra,
+    });
+  } catch (error) {
+    console.error("[voice-rx-2/start-event] Failed", error?.message || error);
+  }
+}
+
 export async function uploadAndTrackVoiceRx2LowSpeechBlock({
   audioBlob,
   patientData,

@@ -47,6 +47,7 @@ import {
 } from "../../../../../redux/voiceDigitizationSlice";
 import {
   buildVoiceHistoryEntry,
+  trackVoiceRx2StartEvent,
   uploadAndLogVoiceRx2,
 } from "../../../voicerx/voiceRx2Logging";
 import {
@@ -658,6 +659,36 @@ export function useDrAgentPanel({
   // first instead of silently ignoring the click.
   const [blockedVoiceToast, setBlockedVoiceToast] = useState(null);
 
+  const trackDrAgentVoiceStart = useCallback((extra = {}) => {
+    trackVoiceRx2StartEvent({
+      patientData,
+      profile,
+      sessionId: voiceDigitization?.sessionId || "",
+      mode: voiceRxDialogChoice,
+      fromVoiceRecording: true,
+      voicecall: voiceDigitization?.voiceCallCount || 0,
+      moduleName: extra.moduleName || "Dr Agent",
+      sourceSurface: "dr_agent",
+      voiceInputLocation: extra.voiceInputLocation || "Dr Agent",
+      isDoctorAgent: true,
+      extra: {
+        doctorId,
+        patientId: patientData?.patient_unique_id || patientId || selectedPatientId || "",
+        selectedPatientId,
+        trigger_location: extra.triggerLocation || "dr_agent_voice_cta",
+      },
+    });
+  }, [
+    doctorId,
+    patientData,
+    patientId,
+    profile,
+    selectedPatientId,
+    voiceDigitization?.sessionId,
+    voiceDigitization?.voiceCallCount,
+    voiceRxDialogChoice,
+  ]);
+
   const confirmVoiceRxConsult = useCallback(() => {
     // Guard against starting a full-panel consultation while an inline
     // per-module / per-sidebar recorder is already running. Shared state
@@ -676,6 +707,7 @@ export function useDrAgentPanel({
       setVoiceRxDialogOpen(false);
       return;
     }
+    trackDrAgentVoiceStart();
     onVoiceCaptureModeChange?.(voiceRxDialogChoice);
     setVoiceRxDialogOpen(false);
     // Starting a fresh consultation clears any previously generated
@@ -704,7 +736,7 @@ export function useDrAgentPanel({
         return true;
       })
     }));
-  }, [voiceRxDialogChoice, onVoiceCaptureModeChange, selectedPatientId, setMessagesByPatient, activeVoiceModule, headerDictationBusy, resetLiveTranscript]);
+  }, [voiceRxDialogChoice, onVoiceCaptureModeChange, selectedPatientId, setMessagesByPatient, activeVoiceModule, headerDictationBusy, resetLiveTranscript, trackDrAgentVoiceStart]);
 
   // Listen for the "VoiceRx" CTA on a chat clinical-notes card —
   // fires "voicerx:begin-addon". Routes through the same beginVoiceAddOn
@@ -730,6 +762,11 @@ export function useDrAgentPanel({
       );
       return;
     }
+    trackDrAgentVoiceStart({
+      moduleName: "Clinical Notes",
+      voiceInputLocation: "Clinical Notes",
+      triggerLocation: "dr_agent_add_details_voice_cta",
+    });
     priorVoiceResultRef.current = voiceRxResult;
     setVoiceRxResult(null);
     setVoiceRxResultMinimized(false);
@@ -740,7 +777,7 @@ export function useDrAgentPanel({
     setVoiceRxAwaitingResponse(false);
     setVoiceRxRecording(true);
     onVoiceCaptureModeChange?.(voiceRxDialogChoice);
-  }, [activeVoiceModule, headerDictationBusy, voiceRxResult, voiceRxDialogChoice, onVoiceCaptureModeChange, resetLiveTranscript]);
+  }, [activeVoiceModule, headerDictationBusy, voiceRxResult, voiceRxDialogChoice, onVoiceCaptureModeChange, resetLiveTranscript, trackDrAgentVoiceStart]);
   beginVoiceAddOnRef.current = beginVoiceAddOn;
 
   // Inline quick-edit submit (called by the canvas's bottom-overlay
@@ -806,7 +843,6 @@ export function useDrAgentPanel({
 
     try {
       progress?.onPhase?.("creating_transcript", { transcript: "" });
-      console.log("[voice-rx] quick-edit phase:", "transcribing");
       const transcriptResponse = await transcribeAudio({
         audioBlob,
         context,
@@ -1151,7 +1187,6 @@ export function useDrAgentPanel({
           throw new Error("No audio recording was captured.");
         }
         let failedPhase = "";
-        console.log("[voice-rx] phase:", "transcribing");
         let apiTranscript;
         try {
           const transcriptResponse = await transcribeAudio({
@@ -1176,7 +1211,6 @@ export function useDrAgentPanel({
 
         await waitForButtonLoaderWindow();
 
-        console.log("[voice-rx] phase:", "digitising+soap (parallel)");
         const soapPreviousContext = htmlToSoapSections(voiceDigitization?.soapHtml || priorVoiceResultRef.current?.soapHtml) || priorVoiceResultRef.current?.soap || voiceDigitization?.soap || null;
         const soapPromise = generateSoapNote({
           context,
@@ -1199,7 +1233,6 @@ export function useDrAgentPanel({
             digitiseData: mainDigitisePrev,
             soap: soapPreviousContext,
           };
-          console.log("[voice-rx] main pipeline digitise previousContext:", mainDigitisePrev);
           digitizeResult = await digitiseClinicalData({
             context,
             previousContext: mainDigitisePrev,
