@@ -390,7 +390,7 @@ export function CompletedTab() {
               </div>
             </div>
           </div>
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild={true}>
               <button type="button" className={styles.headerMoreBtn}>
                 <MoreVertical size={20} color="var(--tp-slate-500)" strokeWidth={2} />
@@ -401,12 +401,12 @@ export function CompletedTab() {
                 <Printer size={16} variant="Linear" />
                 Print All Completed
               </DropdownMenuItem>
-              {/* <DropdownMenuItem className={styles.dropdownItem}>
+              <DropdownMenuItem className={styles.dropdownItem}>
                 <Receipt1 size={16} variant="Linear" />
                 Export Billing Summary
-              </DropdownMenuItem> */}
+              </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
         </div>
         <div className={`${dui.planClusterInnerSurface} ${styles.scrollArea}`}>
           {completedPlans.map((plan, idx) => (
