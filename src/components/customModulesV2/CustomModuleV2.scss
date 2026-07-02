@@ -39,6 +39,66 @@
   }
 }
 
+.custom-module-v2--voice-rx-scroll {
+  .custom-module-v2__table-scroll-wrap {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+  }
+
+  .custom-module-v2__table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .custom-module-v2__table-header-cell,
+  .custom-module-v2__table-cell {
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    border-right: 1px solid #e2e2ea;
+  }
+
+  .custom-module-v2__table-header-cell {
+    border-bottom: 1px solid #e2e2ea;
+  }
+
+  tbody {
+    .custom-module-v2__table-cell {
+      border-bottom: 1px solid #e2e2ea;
+    }
+  }
+
+  .custom-module-v2__table-header-cell--action,
+  .custom-module-v2__table-cell--action {
+    width: 56px !important;
+    min-width: 56px !important;
+    max-width: 56px !important;
+    position: sticky;
+    right: 0;
+    z-index: 5;
+    background: #fff;
+    border-left: 1px solid #e2e2ea;
+    border-right: none;
+    box-shadow: none;
+  }
+
+  .custom-module-v2__table-header-cell--action {
+    z-index: 6;
+  }
+}
+
 @keyframes customModuleV2VoiceTargetShimmer {
   0% {
     transform: translateX(-120%) skewX(-18deg);
