@@ -672,7 +672,6 @@ function ConsultationLayout({ children, headerProps }) {
   const [symptomCollectorStatus, setSymptomCollectorStatus] = useState("idle");
   const symptomCollectorRequestRef = useRef(0);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
-  const handleCollapsed = useCallback(() => {}, []);
 
   const prescriptionWrapperStyle = {
     flex: "1 1 auto",
@@ -1490,6 +1489,26 @@ function ConsultationLayout({ children, headerProps }) {
       typeof obstetricKey === "string" ? obstetricKey : !obstetricDrawer,
     );
   };
+
+  const handleCollapsed = useCallback(
+    (flag) => {
+      if (flag === 1) {
+        handleDrawerVital();
+      } else if (flag === 2) {
+        handleDrawerMedicalHistory();
+      } else if (flag === 3) {
+        handleDrawerVaccination();
+      } else if (flag === 4) {
+        handleDrawerPrivateNotes();
+      }
+    },
+    [
+      handleDrawerVital,
+      handleDrawerMedicalHistory,
+      handleDrawerPrivateNotes,
+      handleDrawerVaccination,
+    ],
+  );
 
   const getLabParams = async () => {
     try {
