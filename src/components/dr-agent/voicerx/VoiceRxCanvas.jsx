@@ -169,7 +169,10 @@ export function VoiceRxCanvas({
       setVoiceEditPhase("idle");
       setVoiceEditTranscript("");
     } catch {
+      setVoiceEditOpen(false);
       setVoiceEditProcessing(false);
+      setVoiceEditPhase("idle");
+      setVoiceEditTranscript("");
     }
   };
 
