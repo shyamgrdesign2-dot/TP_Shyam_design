@@ -661,12 +661,15 @@ function useMicStream(deviceId, enabled) {
     (async () => {
       try {
         let s;
+        // "default" is a Chromium-only pseudo device id; Firefox/Safari reject it as an
+        // exact constraint, and pinning it stops Chrome from following the system default.
+        const useSystemDefault = !deviceId || deviceId === DEFAULT_MIC_DEVICE_ID;
         try {
           s = await navigator.mediaDevices.getUserMedia({
-            audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+            audio: useSystemDefault ? true : { deviceId: { exact: deviceId } },
           });
         } catch (error) {
-          if (!deviceId) throw error;
+          if (useSystemDefault) throw error;
           s = await navigator.mediaDevices.getUserMedia({ audio: true });
         }
         if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
@@ -718,7 +721,7 @@ function useMicStream(deviceId, enabled) {
         const all = await navigator.mediaDevices.enumerateDevices();
         setDevices(all.filter((d) => d.kind === "audioinput"));
       } catch { /* ignore */ }
-      if (!deviceId && enabled) setRetryKey((k) => k + 1);
+      if ((!deviceId || deviceId === DEFAULT_MIC_DEVICE_ID) && enabled) setRetryKey((k) => k + 1);
     };
     navigator.mediaDevices.addEventListener?.("devicechange", onChange);
     return () => navigator.mediaDevices.removeEventListener?.("devicechange", onChange);
@@ -1252,7 +1255,11 @@ export function VoiceRecorderCore({
 
   useEffect(() => {
     if (!selectedDeviceId || devices.length === 0) return;
-    const selectedDeviceAvailable = devices.some((device) => device.deviceId === selectedDeviceId);
+    // "default" means "follow the system default"; Firefox/Safari never enumerate a
+    // device with that id, so it must not be treated as an unplugged microphone.
+    const selectedDeviceAvailable =
+      selectedDeviceId === DEFAULT_MIC_DEVICE_ID ||
+      devices.some((device) => device.deviceId === selectedDeviceId);
     if (selectedDeviceAvailable) {
       fallbackNoticeShownRef.current = false;
       return;
@@ -1960,7 +1967,9 @@ export function VoiceRecorderCore({
             <div className={s.devicePopoverEmpty}>{micError || "No input devices detected"}</div>
           ) : (
             devices.map((d, i) => {
-              const isSelected = selectedDeviceId
+              const selectedInList =
+                selectedDeviceId && devices.some((dev) => dev.deviceId === selectedDeviceId);
+              const isSelected = selectedInList
                 ? selectedDeviceId === d.deviceId
                 : activeDevice?.deviceId === d.deviceId || i === 0;
               return (
