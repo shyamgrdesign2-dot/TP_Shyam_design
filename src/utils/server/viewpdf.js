@@ -15519,6 +15519,43 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               isV2 && customModule?.content?.length > 0
                                 ? getFieldKeys(customModule.content[0])
                                 : [];
+                            const isV2SingleColumn =
+                              isV2 &&
+                              fieldKeys.length > 0 &&
+                              customModule?.content?.length > 0 &&
+                              (fieldKeys.length === 1 ||
+                                namedFields.length === 1 ||
+                                customModule.content[0].order === 0 ||
+                                customModule.content[0].order === "0");
+                            const normalizeCustomModuleTitle = (value) =>
+                              String(value || "")
+                                .trim()
+                                .toLowerCase()
+                                .replace(/[^a-z0-9]/g, "");
+                            const resolveCustomModuleDisplayName = () =>
+                              getCustomModuleName(option?.id) ||
+                              customModule?.name ||
+                              customModule?.module_name ||
+                              option?.title ||
+                              "";
+                            const isV2NameMatchesColumnTitle =
+                              isV2SingleColumn &&
+                              fieldKeys.length > 0 &&
+                              (() => {
+                                const normalizedModuleName =
+                                  normalizeCustomModuleTitle(
+                                    resolveCustomModuleDisplayName(),
+                                  );
+                                if (!normalizedModuleName) return false;
+                                const fieldKey = fieldKeys[0];
+                                const fieldLabel = getFieldLabel(fieldKey);
+                                return (
+                                  normalizedModuleName ===
+                                    normalizeCustomModuleTitle(fieldLabel) ||
+                                  normalizedModuleName ===
+                                    normalizeCustomModuleTitle(fieldKey)
+                                );
+                              })();
 
                             // Helper to check if V2 content has any data
                             const hasV2Content = (item) => {
@@ -15562,6 +15599,53 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   </Text>
                                   {customModule?.content?.map((item, i) => {
                                     if (isV2) {
+                                      if (isV2NameMatchesColumnTitle) {
+                                        const value = item[fieldKeys[0]];
+                                        if (!value?.trim?.().length > 0)
+                                          return null;
+                                        return (
+                                          <Text key={i}>
+                                            <Text
+                                              style={{
+                                                color: "#171725",
+                                                fontFamily:
+                                                  getIndianLanguageFont(
+                                                    value,
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  ),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                              }}
+                                            >
+                                              {normalizePdfText(value)}
+                                            </Text>
+                                            {i <
+                                              customModule?.content.length -
+                                                1 && (
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {" "}
+                                                |{" "}
+                                              </Text>
+                                            )}
+                                          </Text>
+                                        );
+                                      }
                                       // V2: Render all fields with their keys as labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
                                       const fieldEntries = fieldKeys
                                         .map((fieldKey) => ({
@@ -15782,6 +15866,55 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   </Text>
                                   {customModule?.content.map((item, i) => {
                                     if (isV2) {
+                                      if (isV2NameMatchesColumnTitle) {
+                                        const value = item[fieldKeys[0]];
+                                        if (!value?.trim?.().length > 0)
+                                          return null;
+                                        return (
+                                          <Text
+                                            key={i}
+                                            style={{
+                                              marginTop:
+                                                PX_TO_PT * (i == 0 ? 4 : 2),
+                                              lineHeight: 1.4,
+                                            }}
+                                          >
+                                            <Text
+                                              style={{
+                                                color: "#171725",
+                                                fontFamily:
+                                                  printSettings?.page_format
+                                                    ?.font_family,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                              }}
+                                            >
+                                              &nbsp;&nbsp;&nbsp;{i + 1}.
+                                            </Text>
+                                            <Text
+                                              style={{
+                                                color: "#171725",
+                                                fontFamily:
+                                                  getIndianLanguageFont(
+                                                    value,
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  ),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                              }}
+                                            >
+                                              {normalizePdfText(value)}
+                                            </Text>
+                                          </Text>
+                                        );
+                                      }
                                       // V2: Render all fields with their keys as labels in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
                                       const fieldEntries = fieldKeys
                                         .map((fieldKey) => ({
@@ -15979,7 +16112,44 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   </Text>
                                   <View style={styles.table}>
                                     <View style={styles.headerRowFixed} fixed />
-                                    {customModule.module_version === "v2" && (
+                                    {customModule.module_version === "v2" &&
+                                      (isV2SingleColumn
+                                        ? !isV2NameMatchesColumnTitle && (
+                                            <View
+                                              style={[
+                                                styles.row,
+                                                { backgroundColor: "#f5f5f5" },
+                                              ]}
+                                              wrap={false}
+                                            >
+                                              <Text
+                                                style={[
+                                                  styles.dynamicModuleCell,
+                                                  {
+                                                    flex: 1,
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      getIndianLanguageFont(
+                                                        getFieldLabel(
+                                                          fieldKeys[0],
+                                                        ),
+                                                        printSettings?.page_format
+                                                          ?.font_family,
+                                                      ),
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 700,
+                                                  },
+                                                ]}
+                                              >
+                                                {getFieldLabel(fieldKeys[0])}
+                                                &nbsp;
+                                              </Text>
+                                            </View>
+                                          )
+                                        : (
                                       // V2: Render column headers with field keys
                                       <View
                                         style={[
@@ -16018,11 +16188,47 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           );
                                         })}
                                       </View>
-                                    )}
+                                    ))}
                                     {customModule?.content.map((item, i) => {
                                       if (
                                         customModule.module_version === "v2"
                                       ) {
+                                        if (isV2SingleColumn) {
+                                          const value =
+                                            item[fieldKeys[0]] != null
+                                              ? String(item[fieldKeys[0]]).trim()
+                                              : "-";
+                                          return (
+                                            <View
+                                              style={styles.row}
+                                              key={i}
+                                              wrap={false}
+                                            >
+                                              <Text
+                                                style={[
+                                                  styles.dynamicModuleCell,
+                                                  {
+                                                    flex: 1,
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      getIndianLanguageFont(
+                                                        value,
+                                                        printSettings?.page_format
+                                                          ?.font_family,
+                                                      ),
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 500,
+                                                  },
+                                                ]}
+                                              >
+                                                {value || "-"}&nbsp;
+                                              </Text>
+                                            </View>
+                                          );
+                                        }
                                         // V2: Render all fields in columns using fieldKeys from content
                                         const fieldValues = fieldKeys.map(
                                           (fieldKey) => item[fieldKey] || "-",

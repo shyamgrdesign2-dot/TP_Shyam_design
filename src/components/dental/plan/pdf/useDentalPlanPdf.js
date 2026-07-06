@@ -10,10 +10,11 @@ import {
   mapAppointmentPatientToBillPatient,
   resolveDentalPlanPdfVariant,
 } from "./dentalPlanPdfMappers";
-import { FALLBACK_BILL_PRINT_SETTINGS } from "./dentalPlanPdfConstants";
+import { getDentalPlanPrintSettings } from "./dentalPlanPdfConstants";
 import { getAppointmentPatient } from "../../lib/appointment-patients";
 import { fetchPrintSetting } from "../../../../pages/opdBilling/service";
 import { setBillPrintSettings } from "../../../../redux/billingSlice";
+import { getDefaultPrintsettings } from "../../../../redux/doctorsSlice";
 
 function buildBillDataShim() {
   const now = new Date().toISOString();
@@ -58,7 +59,9 @@ export function useDentalPlanPdf({ drawer, patientId, plans: plansProp }) {
   const { billPrintSettings, advancedSettings } = useSelector(
     (state) => state.billing
   );
-  const { profile, userId } = useSelector((state) => state.doctors);
+  const { profile, userId, defaultPrintSettings } = useSelector(
+    (state) => state.doctors
+  );
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -171,19 +174,31 @@ export function useDentalPlanPdf({ drawer, patientId, plans: plansProp }) {
       setError(null);
 
       try {
-        let settings = billPrintSettings;
-        if (!settings || Object.keys(settings).length === 0) {
+        let billSettings = billPrintSettings;
+        if (!billSettings || Object.keys(billSettings).length === 0) {
           if (userId) {
             const response = await fetchPrintSetting(userId);
             if (response) {
               dispatch(setBillPrintSettings(response));
-              settings = response;
+              billSettings = response;
             }
           }
-          if (!settings || Object.keys(settings).length === 0) {
-            settings = FALLBACK_BILL_PRINT_SETTINGS;
+        }
+
+        let rxPrintSettings = defaultPrintSettings;
+        if (!rxPrintSettings && userId) {
+          const result = await dispatch(
+            getDefaultPrintsettings({ default: true })
+          );
+          if (getDefaultPrintsettings.fulfilled.match(result)) {
+            rxPrintSettings = result.payload;
           }
         }
+
+        const settings = getDentalPlanPrintSettings(
+          billSettings,
+          rxPrintSettings
+        );
 
         const blob = await pdf(
           <DentalPlanPdf
@@ -225,6 +240,7 @@ export function useDentalPlanPdf({ drawer, patientId, plans: plansProp }) {
     advancedSettings?.GSTIN,
     advancedSettings?.enableCreatedByInRx,
     billPrintSettings,
+    defaultPrintSettings,
     dispatch,
     generationKey,
     isOpen,

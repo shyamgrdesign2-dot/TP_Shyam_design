@@ -390,7 +390,7 @@ export function CompletedTab() {
               </div>
             </div>
           </div>
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild={true}>
               <button type="button" className={styles.headerMoreBtn}>
                 <MoreVertical size={20} color="var(--tp-slate-500)" strokeWidth={2} />
@@ -406,7 +406,7 @@ export function CompletedTab() {
                 Export Billing Summary
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
         </div>
         <div className={`${dui.planClusterInnerSurface} ${styles.scrollArea}`}>
           {completedPlans.map((plan, idx) => (

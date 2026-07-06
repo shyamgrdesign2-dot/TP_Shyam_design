@@ -954,10 +954,13 @@
 }
 
 .serviceStatusTrigger {
+  display: inline-flex;
   height: 24px !important;
   min-height: 24px;
   width: fit-content !important;
   max-width: 100%;
+  align-items: center;
+  gap: 4px;
   border: 0;
   border-radius: 6px !important;
   padding: 0 8px !important;
@@ -965,6 +968,7 @@
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
+  cursor: pointer;
 
   &:focus {
     outline: none;
@@ -980,6 +984,7 @@
 .serviceStatusContent {
   width: 180px;
   border-radius: 8px !important;
+  z-index: 11000;
 }
 
 .serviceCardActions {
