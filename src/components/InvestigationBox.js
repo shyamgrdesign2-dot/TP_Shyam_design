@@ -231,11 +231,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   useEffect(() => {
     const data = [];
-    const optionsList = isChikitsalayAccessable
-      ? parentOptionsList.filter((e) => e.hm_type === 15 && Number(e.um_id) === 0)
-      : parentOptionsList;
-
-    optionsList.forEach((e) => {
+    parentOptionsList.forEach((e) => {
       let supplementaryIndicator = "";
       if (isChikitsalayAccessable) {
         const raw = getHmTypeIndicator(e, true);

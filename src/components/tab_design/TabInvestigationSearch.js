@@ -20,6 +20,7 @@ import { useLocation } from "react-router-dom";
 import { getDecodedToken } from "../../utils/localStorage";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../../utils/constants";
 import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
+import { shouldShowInvestigationVCBadge } from "../../utils/chikitsalayInventory";
 import { env } from "../../EnvironmentConfig";
 import { ASSETS } from "../../assets";
 const {
@@ -194,7 +195,7 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
 
     // Drag & Drop
     const SortableItem = SortableElement(({ item }) => {
-        const showVC = item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable;
+        const showVC = shouldShowInvestigationVCBadge(item, isChikitsalayAccessable);
         return (
             <div
                 style={{
@@ -399,7 +400,7 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                                             </Button>
                                                         )}
                                                         {(JSON.parse(item.key)?.hm_type === 1 && JSON.parse(item.key)?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
-                                                        {(JSON.parse(item.key)?.hm_type == 15 && Number(JSON.parse(item.key)?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
+                                                        {shouldShowInvestigationVCBadge(JSON.parse(item.key), isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                                                     </div>
                                                 )
                                             })
@@ -410,7 +411,7 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                                     <div className="position-relative">
                                                         <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{item.investigation_name}</Button>
                                                         {(item?.hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
-                                                        {(item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
+                                                        {shouldShowInvestigationVCBadge(item, isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                                                     </div>
                                                 )
                                             })
