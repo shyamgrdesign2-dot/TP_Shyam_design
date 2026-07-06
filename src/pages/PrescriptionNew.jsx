@@ -25,6 +25,7 @@ import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
 import InvestigationBox from "../components/InvestigationBox";
 import TabFollowUpBox from "../components/tab_design/TabFollowUpBox";
+import ReferralBox from "../components/ReferralBox";
 import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
 import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 import { useCrossConsult } from "../hooks/useCrossConsult";
@@ -1783,6 +1784,9 @@ function PrescriptionNew() {
     const isReferralModuleEnabled =
       customizedPadLeftList.findIndex(
         (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
+      ) !== -1 ||
+      customizedPadRightList.findIndex(
+        (e) => e.tmdpm_id === 26 && e.tmdpm_status === 0
       ) !== -1;
     if (!isReferralModuleEnabled) return;
 
@@ -1803,7 +1807,7 @@ function PrescriptionNew() {
     return () => {
       cancelled = true;
     };
-  }, [caseManagerData, customizedPadLeftList, patient_data, isCrossConsultAccessable]);
+  }, [caseManagerData, customizedPadLeftList, customizedPadRightList, patient_data, isCrossConsultAccessable]);
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
@@ -3032,7 +3036,24 @@ function PrescriptionNew() {
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
-                {customizedPadRightList?.map((e, i) => {
+                {(
+                  isCrossConsultAccessable &&
+                  customizedPadLeftList?.findIndex(
+                    (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
+                  ) !== -1 &&
+                  !customizedPadRightList?.some((e) => e.tmdpm_id === 26)
+                    ? [
+                        ...(customizedPadRightList || []),
+                        {
+                          tmdpm_id: 26,
+                          tmdpm_type: "R",
+                          tmdpm_name: "Referral",
+                          tmdpm_short_name: "Referral",
+                          tmdpm_status: 0,
+                        },
+                      ]
+                    : customizedPadRightList
+                )?.map((e, i) => {
                   let customModule = allAvailableModules?.find(
                     (m) => m.module_id === e.tmdpm_id
                   );
@@ -3125,6 +3146,10 @@ function PrescriptionNew() {
                   ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <TabFollowUpBox />
+                    </div>
+                  ) : e.tmdpm_id === 26 && e.tmdpm_status === 0 && isCrossConsultAccessable ? (
+                    <div key={i} className="prescription-box-sm">
+                      <ReferralBox />
                     </div>
                   ) : (
                     e.is_custom_module &&

@@ -1170,6 +1170,15 @@ function Prescription() {
   useEffect(() => {
     if (caseManagerData === undefined || !isCrossConsultAccessable) return;
 
+    const isReferralModuleEnabled =
+      customizedPadLeftListForUI.findIndex(
+        (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
+      ) !== -1 ||
+      customizedPadRightList.findIndex(
+        (e) => e.tmdpm_id === 26 && e.tmdpm_status === 0
+      ) !== -1;
+    if (!isReferralModuleEnabled) return;
+
     let cancelled = false;
 
     const loadReferralData = async () => {
@@ -1187,7 +1196,7 @@ function Prescription() {
     return () => {
       cancelled = true;
     };
-  }, [caseManagerData, isCrossConsultAccessable, patient_data]);
+  }, [caseManagerData, customizedPadLeftListForUI, customizedPadRightList, isCrossConsultAccessable, patient_data]);
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
@@ -2403,7 +2412,24 @@ function Prescription() {
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
-                {customizedPadRightList?.map((e, i) => {
+                {(
+                  isCrossConsultAccessable &&
+                  customizedPadLeftListForUI?.findIndex(
+                    (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
+                  ) !== -1 &&
+                  !customizedPadRightList?.some((e) => e.tmdpm_id === 26)
+                    ? [
+                        ...(customizedPadRightList || []),
+                        {
+                          tmdpm_id: 26,
+                          tmdpm_type: "R",
+                          tmdpm_name: "Referral",
+                          tmdpm_short_name: "Referral",
+                          tmdpm_status: 0,
+                        },
+                      ]
+                    : customizedPadRightList
+                )?.map((e, i) => {
                   let customModule = allAvailableModules?.find(
                     (m) => m.module_id === e.tmdpm_id
                   );
