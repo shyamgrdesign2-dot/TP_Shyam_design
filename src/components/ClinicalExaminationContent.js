@@ -11,6 +11,7 @@ import DiagnosisBox from "./DiagnosisBox";
 import MedicationsBox from "./MedicationsBox";
 import AdviceBox from "./AdviceBox";
 import InvestigationBox from "./InvestigationBox";
+import ReferralBox from "./ReferralBox";
 import TabFollowUpBox from "./tab_design/TabFollowUpBox";
 import OphthalmologyExamPanel from "./ophthalmology/OphthalmologyExamPanel";
 import CustomModule from "./CustomModule";
@@ -25,6 +26,7 @@ import CarePlanDropdown from "./CarePlanDropdown";
 import CarePlanList from "./CarePlanList";
 
 import { OPTHAL_PAD_MODULE_ID } from "../utils/constants";
+import { useCrossConsult } from "../hooks/useCrossConsult";
 import { ASSETS } from "../assets";
 
 const { genRxBgWebm, genRxBgMp4, carePlan: carePlanIcon } = ASSETS.images;
@@ -57,6 +59,7 @@ const ClinicalExaminationContent = ({
   } = useContext(CashManagerContext);
 
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
+  const isCrossConsultAccessable = useCrossConsult();
 
   return (
     <Content className="clinical-examination-content">
@@ -169,6 +172,10 @@ const ClinicalExaminationContent = ({
         ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
           <div key={i} className="prescription-box-sm">
             <TabFollowUpBox />
+          </div>
+        ) : e.tmdpm_id === 26 && e.tmdpm_status === 0 && isCrossConsultAccessable ? (
+          <div key={i} className="prescription-box-sm">
+            <ReferralBox />
           </div>
         ) : e.tmdpm_id === 22 && e.tmdpm_status === 0 && isCarePlanEnabled ? (
           <div key={i} className="prescription-box-sm p-14">

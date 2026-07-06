@@ -1171,9 +1171,6 @@ function Prescription() {
     if (caseManagerData === undefined || !isCrossConsultAccessable) return;
 
     const isReferralModuleEnabled =
-      customizedPadLeftListForUI.findIndex(
-        (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
-      ) !== -1 ||
       customizedPadRightList.findIndex(
         (e) => e.tmdpm_id === 26 && e.tmdpm_status === 0
       ) !== -1;
@@ -1196,7 +1193,7 @@ function Prescription() {
     return () => {
       cancelled = true;
     };
-  }, [caseManagerData, customizedPadLeftListForUI, customizedPadRightList, isCrossConsultAccessable, patient_data]);
+  }, [caseManagerData, customizedPadRightList, isCrossConsultAccessable, patient_data]);
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
@@ -2412,24 +2409,7 @@ function Prescription() {
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
-                {(
-                  isCrossConsultAccessable &&
-                  customizedPadLeftListForUI?.findIndex(
-                    (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
-                  ) !== -1 &&
-                  !customizedPadRightList?.some((e) => e.tmdpm_id === 26)
-                    ? [
-                        ...(customizedPadRightList || []),
-                        {
-                          tmdpm_id: 26,
-                          tmdpm_type: "R",
-                          tmdpm_name: "Referral",
-                          tmdpm_short_name: "Referral",
-                          tmdpm_status: 0,
-                        },
-                      ]
-                    : customizedPadRightList
-                )?.map((e, i) => {
+                {customizedPadRightList?.map((e, i) => {
                   let customModule = allAvailableModules?.find(
                     (m) => m.module_id === e.tmdpm_id
                   );

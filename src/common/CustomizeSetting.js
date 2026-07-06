@@ -176,6 +176,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
   const { loading, customizedPadLeftList, customizedPadRightList, videoList, profile, userId, defaultPrintSettings } = useSelector((state) => state.doctors);
   const dispatch = useDispatch();
   const isCrossConsultEnabled = useCrossConsult();
+  const showReferralOnLeftPad = Boolean(isTabRx);
   const [dataSourceLeft, setDataSourceLeft] = useState([]);
   const [dataSourceRight, setDataSourceRight] = useState([]);
 
@@ -197,11 +198,12 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       }
 
       let updatedData = leftList
+        .filter((e) => showReferralOnLeftPad || e.tmdpm_id !== 25)
         .filter((e) =>
           e.tmdpm_id === 22
             ? isCarePlanEnabled
             : isReferralLeftModule(e)
-              ? isCrossConsultEnabled
+              ? isCrossConsultEnabled && showReferralOnLeftPad
               : true
         )
         .filter((e) =>
@@ -237,11 +239,26 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
         });
       }
 
+      if (
+        showReferralOnLeftPad &&
+        isCrossConsultEnabled &&
+        !updatedData.some((item) => item?.tmdpm_id === 25)
+      ) {
+        updatedData.push({
+          tmdpm_id: 25,
+          tmdpm_type: "L",
+          tmdpm_name: "Referral",
+          tmdpm_short_name: "Referral",
+          tmdpm_status: 1,
+        });
+      }
+
       return updatedData;
     },
     [
       isCarePlanEnabled,
       isCrossConsultEnabled,
+      showReferralOnLeftPad,
       isVaccinationEnabled,
       isGrowthChartEnabled,
       isGynaecHistoryAccessable,
@@ -255,17 +272,35 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
         return [];
       }
 
-      return rightList
+      let updatedData = rightList
+        .filter((e) => !showReferralOnLeftPad || e.tmdpm_id !== 26)
+        .filter((e) => showReferralOnLeftPad || e.tmdpm_id !== 25)
         .filter((e) =>
           e.tmdpm_id === 22
             ? isCarePlanEnabled
             : isReferralRightModule(e)
-              ? isCrossConsultEnabled
+              ? isCrossConsultEnabled && !showReferralOnLeftPad
               : true
         )
         .map((e) => ({ ...e }));
+
+      if (
+        !showReferralOnLeftPad &&
+        isCrossConsultEnabled &&
+        !updatedData.some((item) => item?.tmdpm_id === 26)
+      ) {
+        updatedData.push({
+          tmdpm_id: 26,
+          tmdpm_type: "R",
+          tmdpm_name: "Referral",
+          tmdpm_short_name: "Referral",
+          tmdpm_status: 1,
+        });
+      }
+
+      return updatedData;
     },
-    [isCarePlanEnabled, isCrossConsultEnabled]
+    [isCarePlanEnabled, isCrossConsultEnabled, showReferralOnLeftPad]
   );
 
   useEffect(() => {
@@ -722,12 +757,25 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     } else if (dataSourceRight.length > 0 && dataSourceRight.filter((e) => !e.tmdpm_status).length <= 0) {
       errorMessage('Please enable at least one right side of elemetns')
     } else {
+      const leftToSave = [...dataSourceLeft];
+      const rightToSave = [...dataSourceRight];
+      if (showReferralOnLeftPad) {
+        const hiddenRightReferral = (customizedPadRightList || []).find((item) => item?.tmdpm_id === 26);
+        if (hiddenRightReferral && !rightToSave.some((item) => item?.tmdpm_id === 26)) {
+          rightToSave.push(hiddenRightReferral);
+        }
+      } else {
+        const hiddenLeftReferral = (customizedPadLeftList || []).find((item) => item?.tmdpm_id === 25);
+        if (hiddenLeftReferral && !leftToSave.some((item) => item?.tmdpm_id === 25)) {
+          leftToSave.push(hiddenLeftReferral);
+        }
+      }
       var sendData = {
         data: {
           default: false,
           reset: false,
-          left: dataSourceLeft,
-          right: dataSourceRight,
+          left: leftToSave,
+          right: rightToSave,
         }
       }
       const action = await dispatch(customizedPad(sendData))

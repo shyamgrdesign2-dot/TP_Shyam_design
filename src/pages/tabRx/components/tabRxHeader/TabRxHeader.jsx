@@ -1368,6 +1368,7 @@ function TabRxHeader({
         isVaccinationEnabled={isVaccinationEnabled}
         isGrowthChartEnabled={isGrowthChartEnabled}
         page="normal-rx-page"
+        isTabRx
       />
     );
   }, [customizeDrawer]);

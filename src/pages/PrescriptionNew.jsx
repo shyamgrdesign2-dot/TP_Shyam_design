@@ -1782,9 +1782,6 @@ function PrescriptionNew() {
     if (caseManagerData === undefined || !isCrossConsultAccessable) return;
 
     const isReferralModuleEnabled =
-      customizedPadLeftList.findIndex(
-        (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
-      ) !== -1 ||
       customizedPadRightList.findIndex(
         (e) => e.tmdpm_id === 26 && e.tmdpm_status === 0
       ) !== -1;
@@ -1807,7 +1804,7 @@ function PrescriptionNew() {
     return () => {
       cancelled = true;
     };
-  }, [caseManagerData, customizedPadLeftList, customizedPadRightList, patient_data, isCrossConsultAccessable]);
+  }, [caseManagerData, customizedPadRightList, patient_data, isCrossConsultAccessable]);
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
@@ -2983,6 +2980,7 @@ function PrescriptionNew() {
                 growthRefreshKey={growthRefreshKey}
                 opthalRefreshKey={opthalRefreshKey}
                 customizedPadLeftList={customizedPadLeftList}
+                referralOnRightPad
                 isOpthalModuleAccessible={isOpthalModuleAccessible}
                 isVaccinationAccessable={isVaccinationAccessable}
                 isGrowthChartAccessable={isGrowthChartAccessable}
@@ -3036,24 +3034,7 @@ function PrescriptionNew() {
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
-                {(
-                  isCrossConsultAccessable &&
-                  customizedPadLeftList?.findIndex(
-                    (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
-                  ) !== -1 &&
-                  !customizedPadRightList?.some((e) => e.tmdpm_id === 26)
-                    ? [
-                        ...(customizedPadRightList || []),
-                        {
-                          tmdpm_id: 26,
-                          tmdpm_type: "R",
-                          tmdpm_name: "Referral",
-                          tmdpm_short_name: "Referral",
-                          tmdpm_status: 0,
-                        },
-                      ]
-                    : customizedPadRightList
-                )?.map((e, i) => {
+                {customizedPadRightList?.map((e, i) => {
                   let customModule = allAvailableModules?.find(
                     (m) => m.module_id === e.tmdpm_id
                   );

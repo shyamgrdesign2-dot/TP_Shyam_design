@@ -198,6 +198,13 @@ import { buildConsultationPreviewPrintPayload } from "../utils/buildConsultation
 import { resolveDentalOralForPrint } from "../utils/resolveDentalOralPrintData";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
+import { syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
+import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
+import {
+  fetchReferralDataForCaseManager,
+  syncCrossConsultReferral,
+} from "../utils/crossConsultHelpers";
+import { useCrossConsult } from "../hooks/useCrossConsult";
 
 const ExaminationTab = React.lazy(() =>
   import("./dental/examination/ExaminationTab").then((m) => ({ default: m.ExaminationTab }))
@@ -609,6 +616,8 @@ function ConsultationLayout({ children, headerProps }) {
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [isGrowthChart, setIsGrowthChart] = useState(false);
@@ -882,6 +891,8 @@ function ConsultationLayout({ children, headerProps }) {
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     startTime,
     customModuleContents,
     setCustomModuleContents,
@@ -1329,6 +1340,34 @@ function ConsultationLayout({ children, headerProps }) {
       setCustomModuleContents(normalizedContents);
     }
   }, [caseManagerData?.moduleContents, allAvailableModules]);
+
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    const isReferralModuleEnabled =
+      customizedPadRightList.findIndex(
+        (e) => e.tmdpm_id === 26 && e.tmdpm_status === 0,
+      ) !== -1;
+    if (!isReferralModuleEnabled) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data,
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, customizedPadRightList, patient_data, isCrossConsultAccessable]);
 
   const hasDisplayableSymptomCollectorPayload = (payload) => {
     if (!payload || typeof payload !== "object") return false;
@@ -2385,6 +2424,17 @@ function ConsultationLayout({ children, headerProps }) {
               });
             }
           }
+
+          try {
+            await syncCrossConsultReferral(referralData, {
+              tcmId: generatedTcmId,
+              patientUniqueId: patient_data?.patient_unique_id,
+              referredBy: profile?.um_name,
+              pendingCrossConsult: patient_data,
+            });
+          } catch (error) {
+            console.error('Cross consult sync failed:', error);
+          }
         } catch (error) {
           console.error('Care plan sync after submit failed:', error);
         }
@@ -2692,6 +2742,7 @@ function ConsultationLayout({ children, headerProps }) {
               growthRefreshKey={growthRefreshKey}
               opthalRefreshKey={opthalRefreshKey}
               customizedPadLeftList={customizedPadLeftList}
+              referralOnRightPad
               isOpthalModuleAccessible={isOpthalModuleAccessible}
               isVaccinationAccessable={isVaccinationAccessable}
               isGrowthChartAccessable={isGrowthChartAccessable}

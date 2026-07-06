@@ -124,6 +124,7 @@ function getCustomizedPadNavId(item, access = {}) {
     case 19:
       return "labResults";
     case 25:
+      if (access.referralOnRightPad) return null;
       return access.isCrossConsultAccessable ? "referral" : null;
     default:
       return null;
@@ -5506,6 +5507,7 @@ export function SideNavbar({
   zydusSelectedLabParams = [],
   patientGender,
   showVoiceRx = true,
+  referralOnRightPad = false,
   initialActiveId = "pastVisits",
   handleDrawerUploadDoc = NOOP,
   setFilesData = NOOP,
@@ -5981,6 +5983,7 @@ export function SideNavbar({
       isGrowthChartAccessable,
       isGynaecHistoryAccessable,
       isCrossConsultAccessable,
+      referralOnRightPad,
     };
 
     (customizedPadLeftList || []).forEach((item) => {
@@ -6013,6 +6016,7 @@ export function SideNavbar({
     isVaccinationAccessable,
     isZydusUserAccessable,
     isCrossConsultAccessable,
+    referralOnRightPad,
   ]);
 
   const navSequence = useMemo(() => navItems.map((item) => item.id), [navItems]);
