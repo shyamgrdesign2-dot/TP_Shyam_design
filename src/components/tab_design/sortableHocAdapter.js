@@ -4,6 +4,7 @@ import {
   DndContext,
   KeyboardSensor,
   MouseSensor,
+  PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -19,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 const SortableHocContext = createContext(null);
 const itemIds = new WeakMap();
 let fallbackId = 0;
+const DEFAULT_DRAG_DISTANCE = 5;
 
 function getSortableId(item, index) {
   if (item && typeof item === "object") {
@@ -60,13 +62,13 @@ export function SortableElement(WrappedComponent) {
       isDragging,
     } = useSortable({ id });
 
-    const child = <WrappedComponent {...props} />;
+    const child = WrappedComponent(props);
     const style = {
       ...child.props?.style,
-      transform: CSS.Transform.toString(transform),
+      transform: CSS.Translate.toString(transform),
       transition,
       zIndex: isDragging ? 10000 : child.props?.style?.zIndex,
-      touchAction: "manipulation",
+      touchAction: "none",
     };
 
     return React.cloneElement(child, {
@@ -82,19 +84,27 @@ export function SortableContainer(WrappedComponent) {
   return function DndSortableContainer({
     items = [],
     onSortEnd,
-    pressDelay = 0,
     ...props
   }) {
+    const containerProps = { ...props };
+    delete containerProps.pressDelay;
     const ids = useMemo(
       () => items.map((item, index) => getSortableId(item, index)),
       [items]
     );
+    const activationConstraint = useMemo(
+      () => ({ distance: DEFAULT_DRAG_DISTANCE }),
+      []
+    );
     const sensors = useSensors(
+      useSensor(PointerSensor, {
+        activationConstraint,
+      }),
       useSensor(MouseSensor, {
-        activationConstraint: { delay: pressDelay, tolerance: 5 },
+        activationConstraint,
       }),
       useSensor(TouchSensor, {
-        activationConstraint: { delay: pressDelay, tolerance: 5 },
+        activationConstraint,
       }),
       useSensor(KeyboardSensor, {
         coordinateGetter: sortableKeyboardCoordinates,
@@ -120,7 +130,7 @@ export function SortableContainer(WrappedComponent) {
           sensors={sensors}
         >
           <SortableContext items={ids} strategy={rectSortingStrategy}>
-            <WrappedComponent items={items} {...props} />
+            <WrappedComponent items={items} {...containerProps} />
           </SortableContext>
         </DndContext>
       </SortableHocContext.Provider>
