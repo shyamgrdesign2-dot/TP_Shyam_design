@@ -8,7 +8,6 @@ import { TP_ASSETS_BASE } from "../../../../utils/constants";
 import { Font } from "@react-pdf/renderer";
 import EstimateDetails from "./EstimateDetails";
 import PlanRxBody from "./PlanRxBody";
-import { getDentalPlanPrintSettings } from "./dentalPlanPdfConstants";
 
 // Register fonts once (same families as ViewBillPdf)
 Font.register({
@@ -47,7 +46,7 @@ const DentalPlanPdf = ({
   rxPayload,
 }) => {
   const [fileWatermark, setFileWatermark] = useState(null);
-  const dentalPrintSettings = getDentalPlanPrintSettings(printSettings);
+  const dentalPrintSettings = printSettings;
   const paddingStyles = calculatePadding(dentalPrintSettings?.headerFooter);
   const isEstimate = ESTIMATE_VARIANTS.has(variant);
 

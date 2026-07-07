@@ -1880,6 +1880,50 @@ export const getImageDimensions = (url) => {
   });
 };
 
+const FOOTER_A4_WIDTH_IN_PTS = 595;
+const FOOTER_PAGE_X_PADDING = 0.75 * 60;
+
+export const computeFooterImageDimensions = (width, height) => ({
+  footerHeight: height || 0,
+  footerWidth: width || 0,
+  renderedFooterImageHeight:
+    width > 0
+      ? (height / width) * (FOOTER_A4_WIDTH_IN_PTS - FOOTER_PAGE_X_PADDING)
+      : 0,
+});
+
+export const resolveFooterImageDimensions = async (fileFooter) => {
+  if (!fileFooter?.imageShow || !fileFooter?.showFile) {
+    return fileFooter;
+  }
+
+  const footerWidth = Number(fileFooter.footerWidth);
+  const footerHeight = Number(fileFooter.footerHeight);
+  if (
+    footerWidth > 0 &&
+    footerHeight > 0 &&
+    Number.isFinite(fileFooter.renderedFooterImageHeight)
+  ) {
+    return fileFooter;
+  }
+
+  try {
+    const { width, height } = await getImageDimensions(fileFooter.showFile);
+    return {
+      ...fileFooter,
+      ...computeFooterImageDimensions(width, height),
+    };
+  } catch (err) {
+    console.error("Failed to resolve footer image dimensions:", err);
+    return {
+      ...fileFooter,
+      footerHeight: 0,
+      footerWidth: 0,
+      renderedFooterImageHeight: 0,
+    };
+  }
+};
+
 export const updateFooterImageHeight = (
   footerFile,
   setFileFooter,
@@ -1887,15 +1931,7 @@ export const updateFooterImageHeight = (
 ) => {
   getImageDimensions(footerFile?.showFile)
     .then(({ height, width }) => {
-      const widthOfA4PageInPts = 595;
-      const PX_TO_PT = 0.75;
-      const pageXPadding = PX_TO_PT * 60;
-      const footerImgDimensions = {
-        footerHeight: height || 0,
-        footerWidth: width || 0,
-        renderedFooterImageHeight:
-          (height / width) * (widthOfA4PageInPts - pageXPadding) || 0,
-      };
+      const footerImgDimensions = computeFooterImageDimensions(width, height);
       if (initialUpdate) {
         setFileFooter({
           imageShow: true,
