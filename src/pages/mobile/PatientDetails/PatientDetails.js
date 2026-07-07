@@ -20,7 +20,6 @@ import {
   sendMessageToParent,
   trackEvent,
   getVoiceRxMoengageBasePayload,
-  isValidMongoId,
 } from '../../../utils/utils';
 import { PATIENT_DETAILS_SIDEBAR_KEYS, GB_SNAP_RX, GB_ISCRIBE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../../../utils/constants';
 import { EVENTS } from '../../../utils/events';
@@ -428,23 +427,15 @@ function PatientDetails() {
       
       window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
 
-      if (isValidMongoId(viewCaseManagerData?.smart_prescription_filename)) {
-        navigateVoiceRx({
+      navigate('/prescription', {
+        state: {
           patient_data: patient_data,
           send_path: 'patient_details',
           caseManagerData: viewCaseManagerData,
-        });
-      } else {
-        navigate('/prescription', {
-          state: {
-            patient_data: patient_data,
-            send_path: 'patient_details',
-            caseManagerData: viewCaseManagerData,
-          },
-        });
-      }
+        },
+      });
     }
-  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, isSnapRx, isSnapRxAccessableFromGB, isSmartRxFile, navigate, navigateVoiceRx]);
+  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, isSnapRx, isSnapRxAccessableFromGB, isSmartRxFile, navigate]);
 
   // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
   const handleDownloadRx = useCallback(() => {
@@ -542,22 +533,14 @@ function PatientDetails() {
       consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'),
     };
 
-    if (isValidMongoId(viewCaseManagerData?.smart_prescription_filename)) {
-      navigateVoiceRx({
+    navigate('/prescription', {
+      state: {
         patient_data: patient_data,
         send_path: 'patient_details',
         caseManagerData: repeatedCaseManagerData,
-      });
-    } else {
-      navigate('/prescription', {
-        state: {
-          patient_data: patient_data,
-          send_path: 'patient_details',
-          caseManagerData: repeatedCaseManagerData,
-        },
-      });
-    }
-  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, navigate, navigateVoiceRx]);
+      },
+    });
+  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, navigate]);
 
   // Memoize tabs array to prevent PatientTabs re-renders
   // MUST be called before any conditional returns to follow React hooks rules
