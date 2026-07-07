@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { AutoComplete, Spin } from "antd";
+import { createPortal } from "react-dom";
+import { Spin } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
@@ -54,7 +55,9 @@ const CustomModuleFieldTextAreaAutoComplete = ({
   const textAreaRef = useRef(null);
   const blurTimeoutRef = useRef(null);
   const containerRef = useRef(null);
+  const dropdownRef = useRef(null);
   const focusedFieldIdRef = useRef(focusedFieldId);
+  const [dropdownPosition, setDropdownPosition] = useState(null);
   
   // Update ref when focusedFieldId changes
   useEffect(() => {
@@ -63,6 +66,16 @@ const CustomModuleFieldTextAreaAutoComplete = ({
   
   // Only show dropdown if this field is the focused one
   const isFocused = focusedFieldId === fieldId;
+
+  const updateDropdownPosition = useCallback(() => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    setDropdownPosition({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
 
   const reportCursorSelection = useCallback((event) => {
     const textarea = event?.target || textAreaRef.current?.resizableTextArea?.textArea;
@@ -378,6 +391,79 @@ const CustomModuleFieldTextAreaAutoComplete = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!(isFocused && dropdownVisible && options.length > 0)) {
+      setDropdownPosition(null);
+      return undefined;
+    }
+
+    updateDropdownPosition();
+    window.addEventListener("resize", updateDropdownPosition);
+    window.addEventListener("scroll", updateDropdownPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateDropdownPosition);
+      window.removeEventListener("scroll", updateDropdownPosition, true);
+    };
+  }, [dropdownVisible, isFocused, options.length, updateDropdownPosition]);
+
+  const dropdownNode = isFocused && dropdownVisible && options.length > 0 && dropdownPosition ? (
+    <div
+      ref={dropdownRef}
+      className="custom-module-dropdown"
+      style={{
+        position: "fixed",
+        top: dropdownPosition.top,
+        left: dropdownPosition.left,
+        width: dropdownPosition.width,
+        boxSizing: "border-box",
+        zIndex: 3000,
+        backgroundColor: "#ffffff",
+      }}
+      onMouseDown={(e) => {
+        // Prevent blur when clicking dropdown
+        e.preventDefault();
+      }}
+    >
+      {options.map((option, idx) => {
+        // Parse the option key to check if it's a custom value and get the actual value
+        let optionValue = option.value;
+        if (option.key && option.key !== "-1") {
+          try {
+            const parsed = JSON.parse(option.key);
+            // For custom options or regular options, use parsed.value
+            optionValue = parsed.value || option.value;
+          } catch (e) {
+            // If parsing fails, use option.value as is
+            optionValue = option.value;
+          }
+        }
+
+        return (
+          <div
+            key={option.key || idx}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (option.key !== "-1") {
+                // Pass the parsed value and the option to onSelect
+                onSelect(optionValue, option);
+              }
+            }}
+            className={option.key === "-1" ? "custom-module-dropdown-header" : "custom-module-dropdown-item"}
+          >
+            {option.label}
+          </div>
+        );
+      })}
+      {loading && (
+        <div className="custom-module-dropdown-loading" style={{ padding: '8px 12px', textAlign: 'center' }}>
+          <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div 
       ref={containerRef}
@@ -411,6 +497,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
           // Update search query based on current line when focused
           const currentLine = getCurrentLine();
           setSearchQuery(currentLine);
+          updateDropdownPosition();
           // Dropdown visibility will be handled by the useEffect that watches isFocused
         }}
         onClick={reportCursorSelection}
@@ -431,7 +518,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
             const activeElement = document.activeElement;
             
             // Check if focus moved to dropdown
-            const dropdownElement = containerRef.current?.querySelector('.custom-module-dropdown');
+            const dropdownElement = dropdownRef.current || containerRef.current?.querySelector('.custom-module-dropdown');
             if (dropdownElement && dropdownElement.contains(activeElement)) {
               blurTimeoutRef.current = null;
               return; // Don't close if clicking in dropdown
@@ -477,62 +564,7 @@ const CustomModuleFieldTextAreaAutoComplete = ({
           }, 200);
         }}
       />
-      {isFocused && dropdownVisible && options.length > 0 && (
-        <div
-          className="custom-module-dropdown"
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            width: '100%',
-            boxSizing: 'border-box',
-            zIndex: 1000,
-            backgroundColor: '#ffffff',
-          }}
-          onMouseDown={(e) => {
-            // Prevent blur when clicking dropdown
-            e.preventDefault();
-          }}
-        >
-          {options.map((option, idx) => {
-            // Parse the option key to check if it's a custom value and get the actual value
-            let optionValue = option.value;
-            if (option.key && option.key !== "-1") {
-              try {
-                const parsed = JSON.parse(option.key);
-                // For custom options or regular options, use parsed.value
-                optionValue = parsed.value || option.value;
-              } catch (e) {
-                // If parsing fails, use option.value as is
-                optionValue = option.value;
-              }
-            }
-            
-            return (
-              <div
-                key={option.key || idx}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (option.key !== "-1") {
-                    // Pass the parsed value and the option to onSelect
-                    onSelect(optionValue, option);
-                  }
-                }}
-                className={option.key === "-1" ? "custom-module-dropdown-header" : "custom-module-dropdown-item"}
-              >
-                {option.label}
-              </div>
-            );
-          })}
-          {loading && (
-            <div className="custom-module-dropdown-loading" style={{ padding: '8px 12px', textAlign: 'center' }}>
-              <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
-            </div>
-          )}
-        </div>
-      )}
+      {dropdownNode ? createPortal(dropdownNode, document.body) : null}
     </div>
   );
 };

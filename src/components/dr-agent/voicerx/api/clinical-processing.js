@@ -166,11 +166,6 @@ export async function postJson(path, payload, name, { timeoutMs = MODULE_TIMEOUT
 async function postMultipart(path, formData, name, { timeoutMs = TRANSCRIPT_TIMEOUT_MS, signal, tracking, includeResponseMeta = false } = {}) {
 	const url = joinClinicalApiUrl(path);
 	const startedAtMs = Date.now();
-	console.log(`[voice-rx] ${name} multipart request`, {
-		url,
-		method: 'POST',
-		fields: describeFormData(formData)
-	});
 
 	let response;
 	try {
@@ -406,16 +401,6 @@ export async function transcribeAudio({ audioBlob, context, signal, includeMetad
 		...buildIdentityPayload(context),
 		audio: audioFile
 	};
-	console.log('transcribe-audio payload before FormData:', {
-		...payload,
-		audio: {
-			name: audioFile.name,
-			type: audioFile.type,
-			size: audioFile.size,
-			lastModified: audioFile.lastModified,
-			file: audioFile
-		}
-	});
 
 	const formData = new FormData();
 	formData.append('patient_id', payload.patient_id);
@@ -423,7 +408,6 @@ export async function transcribeAudio({ audioBlob, context, signal, includeMetad
 	formData.append('session_id', payload.session_id);
 	appendVoiceApiMetadata(formData, context);
 	formData.append('audio', payload.audio, payload.audio.name);
-	console.log('transcribe-audio FormData before request:', describeFormData(formData));
 
 	return withRetry(async () => {
 		let responseJson;

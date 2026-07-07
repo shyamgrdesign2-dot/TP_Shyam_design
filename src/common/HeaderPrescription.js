@@ -57,7 +57,7 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
 import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
-import { uploadAndLogVoiceRx2, buildVoiceHistoryEntry } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { VOICE_RX_2_VERSION, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
 
@@ -440,7 +440,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
     }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const headerVoiceStartRecording = useCallback(async () => {
+    const headerVoiceStartRecording = useCallback(async (triggerType = "manual_click") => {
         if (headerVoiceStateRef.current !== "idle") return;
         if (activeVoiceModule) return;
         const cursor = headerVoiceCursorRef.current;
@@ -458,6 +458,25 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             headerVoiceMediaRecorderRef.current = recorder;
             recorder.start();
             headerVoiceRecordStartMsRef.current = Date.now();
+            trackVoiceRx2StartEvent({
+                patientData: patient_data,
+                profile,
+                sessionId: voiceDigitization?.sessionId || "",
+                mode: "dictation",
+                fromVoiceRecording: true,
+                voicecall: voiceDigitization?.voiceCallCount || 0,
+                moduleName: "header-dictation",
+                sourceSurface: "header",
+                voiceInputLocation: headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION,
+                isDoctorAgent: false,
+                triggerType,
+                triggeredByDoubleShift: triggerType === "double_shift",
+                extra: {
+                    doctorId: profile?.doctor_unique_id || "",
+                    patientId: patient_data?.patient_unique_id || "",
+                    trigger_location: "header_dictation_shortcut",
+                },
+            });
             setHeaderVoiceState("recording");
             publishHeaderDictation("recording", targetId);
         } catch (err) {
@@ -466,7 +485,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         }
-    }, [activeVoiceModule, publishHeaderDictation, setHeaderVoiceState]);
+    }, [activeVoiceModule, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
 
     const headerVoiceCancelRecording = useCallback(() => {
         const recorder = headerVoiceMediaRecorderRef.current;
@@ -506,7 +525,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             // idle: detect double-shift to start
             if (now - headerVoiceLastShiftTimeRef.current < 500) {
                 headerVoiceLastShiftTimeRef.current = 0;
-                headerVoiceStartRecording();
+                headerVoiceStartRecording("double_shift");
             } else {
                 headerVoiceLastShiftTimeRef.current = now;
             }
@@ -2253,6 +2272,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 clinic_name,
                 patient_number: patient_data?.pm_contact_no,
                 patient_id: patient_data?.patient_unique_id,
+                patient_name: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
+                doctor_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                appEnv: process.env.REACT_APP_ENV || "prod",
                 tcm_id: tcmId,
             };
             const shouldAttachVoiceCallCount =
@@ -2260,6 +2283,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 showVoiceRxModule;
             if (shouldAttachVoiceCallCount) {
                 consultationEventPayload.voicecall = voiceDigitization?.voiceCallCount || 0;
+                consultationEventPayload.voice_rx_session_id = voiceDigitization?.sessionId || "";
+                consultationEventPayload.voice_rx_version = VOICE_RX_2_VERSION;
+                consultationEventPayload.voice_rx_history_count = Array.isArray(voiceDigitization?.history) ? voiceDigitization.history.length : 0;
+                consultationEventPayload.voice_rx_has_history = Boolean(voiceDigitization?.history?.length);
             }
             tcmId == 0 ?
                 window.Moengage.track_event("TP_Consultation_ended", consultationEventPayload)
