@@ -29,6 +29,7 @@ import { handleAdmitToIpd } from '../utils/utils';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
 import { ASSETS } from "../assets";
+import { useIsDentalEnabled } from '../hooks/useIsDentalEnabled';
 const {
   blood: BloodIcon,
   abhaSvg: AbhaIcon,
@@ -68,7 +69,7 @@ function SidebarPatient({
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
-    const isDentalDoctor = useFeatureIsOn(GB_DENTAL_MODULE);
+    const isDentalDoctor = useIsDentalEnabled();
     const menu = [
         {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY,

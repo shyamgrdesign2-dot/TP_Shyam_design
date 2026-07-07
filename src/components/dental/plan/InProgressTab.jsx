@@ -35,13 +35,6 @@ import {
   getServiceWorkflowStatus,
 } from "./plan-shared";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import {
-  Select as TPSelect,
-  SelectContent as TPSelectContent,
-  SelectItem as TPSelectItem,
-  SelectTrigger as TPSelectTrigger,
-  SelectValue as TPSelectValue,
-} from "../ui/select";
 import { ServiceActions } from "./ServiceActions";
 import { ServiceAppointmentSection } from "./ServiceAppointmentSection";
 import dui from "../dental-ui.module.scss";
@@ -93,6 +86,23 @@ function formatSurfaceLabel(surface) {
   return surface.charAt(0).toUpperCase() + surface.slice(1);
 }
 
+function normalizeStatusForDropdown(service) {
+  const workflowStatus = getServiceWorkflowStatus(service);
+  const raw = service.status === "planned" ? workflowStatus : service.status;
+  return STATUS_OPTIONS.some((opt) => opt.value === raw) ? raw : "not-started";
+}
+
+/** Skip accordion toggle when the click lands on an interactive child. */
+function shouldIgnoreServiceHeaderToggle(event) {
+  const target = event.target;
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      'button, a, input, select, textarea, [role="combobox"], [data-slot="select-trigger"], [data-radix-dropdown-menu-trigger]'
+    )
+  );
+}
+
 // ─── Service Sub-Card ──────────────────────────────────────
 
 /**
@@ -135,12 +145,10 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
     },
   ];
 
-  const workflowStatus = getServiceWorkflowStatus(service);
-  // Persisted-store status that we use as the dropdown value. If the
-  // service has never been explicitly set, fall back to the derived
-  // workflow status so the dropdown reflects reality.
-  const dropdownValue =
-    service.status === "planned" ? workflowStatus : service.status;
+  const dropdownValue = normalizeStatusForDropdown(service);
+  const statusLabel =
+    STATUS_OPTIONS.find((opt) => opt.value === dropdownValue)?.label ??
+    "Select status";
   const statusSelectClasses = getStatusSelectClasses(dropdownValue);
 
   const handleServiceStatusChange = (next) => {
@@ -162,7 +170,10 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
           styles.serviceCardHeader,
           isOpen ? styles.serviceCardHeaderOpen : ""
         )}
-        onClick={() => onToggle?.()}
+        onClick={(e) => {
+          if (shouldIgnoreServiceHeaderToggle(e)) return;
+          onToggle?.();
+        }}
       >
         <div className={styles.serviceCardIndexPill}>
           <span className={styles.serviceCardIndexText}>{index + 1}</span>
@@ -204,31 +215,39 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
               </Tooltip>
             </div>
             <div className={styles.serviceCardStatusRow}>
-              <TPSelect
-                value={dropdownValue}
-                onValueChange={(v) => handleServiceStatusChange(v)}
-              >
-                <TPSelectTrigger
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild={true}>
+                  <button
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    className={cx(
+                      styles.serviceStatusTrigger,
+                      statusSelectClasses
+                    )}
+                    aria-label="Change service status"
+                  >
+                    <span>{statusLabel}</span>
+                    <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
                   className={cx(
-                    styles.serviceStatusTrigger,
-                    statusSelectClasses
+                    dropdownContentClass,
+                    styles.serviceStatusContent
                   )}
-                  onPointerDown={(e) => e.stopPropagation()}
                 >
-                  <TPSelectValue placeholder="Select status" />
-                </TPSelectTrigger>
-                <TPSelectContent className={styles.serviceStatusContent}>
                   {STATUS_OPTIONS.map((opt) => (
-                    <TPSelectItem
+                    <DropdownMenuItem
                       key={opt.value}
-                      value={opt.value}
+                      onClick={() => handleServiceStatusChange(opt.value)}
                       className={`${statusSelectItemBaseClass} ${getStatusSelectItemToneClasses(opt.value)}`}
                     >
                       {opt.label}
-                    </TPSelectItem>
+                    </DropdownMenuItem>
                   ))}
-                </TPSelectContent>
-              </TPSelect>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
           <ServiceActions

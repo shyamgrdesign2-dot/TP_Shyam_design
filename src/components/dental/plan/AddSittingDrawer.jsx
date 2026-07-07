@@ -1,16 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { TPDrawer, TPDrawerContent } from "../tp-ui/tp-drawer";
 import { Calendar2, Clock, Notepad2 } from "iconsax-reactjs";
 import { ChevronDown } from "lucide-react";
 import { createQvr, updateQvr } from "../../../redux/dentalQvrSlice";
+import { listDoctor } from "../../../redux/bulkMessagesSlice";
 import { toApiVisitType } from "../../../utils/dentalApiMappers";
 import { usePlanContext } from "./plan-context";
 import { DrawerHeader, PLAN_DRAWER_PANEL_CLASS } from "./plan-shared";
 import { useDirtyDrawerGuard } from "./use-dirty-drawer-guard";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
 import styles from "./AddSittingDrawer.module.scss";
-const DOCTORS = ["Dr. Sheela B R", "Dr. Shyam GR", "Dr. Riya Kapoor"];
 const DEFAULT_VISIT_TYPE = "FOLLOW_UP";
 function toDateInputValue(d) {
   const y = d.getFullYear();
@@ -107,7 +107,17 @@ function formatTimeDisplay(time24) {
 export function AddSittingDrawer() {
   const dispatch = useDispatch();
   const { userId, profile } = useSelector((state) => state.doctors);
-  const doctorId = userId || profile?.doctor_unique_id;
+  const { doctorList } = useSelector((state) => state.bulkMessages);
+  const loggedInDoctorId = String(userId || profile?.doctor_unique_id || "");
+  const doctorOptions = useMemo(
+    () =>
+      doctorList?.map((doctor) => ({
+        value: String(doctor.um_id),
+        label: doctor.um_name,
+      })) ?? [],
+    [doctorList],
+  );
+  const defaultDoctorId = loggedInDoctorId || doctorOptions[0]?.value || "";
   const { patientId, state, findService, findPlanForService, closeDrawer, showSnackbar, refetchPlans } =
     usePlanContext();
   const drawer = state.drawer;
@@ -123,9 +133,20 @@ export function AddSittingDrawer() {
   const now = new Date();
   const [visitDate, setVisitDate] = useState(toDateInputValue(now));
   const [visitTime, setVisitTime] = useState(toTimeInputValue(now));
-  const [doctor, setDoctor] = useState(DOCTORS[0]);
+  const [selectedDoctor, setSelectedDoctor] = useState(defaultDoctorId);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const selectedDoctorName =
+    doctorOptions.find((doctor) => doctor.value === String(selectedDoctor))
+      ?.label ?? "";
+  const resolveDoctorId = (sitting) => {
+    if (sitting?.doctorId) return String(sitting.doctorId);
+    if (sitting?.doctor) {
+      const match = doctorOptions.find((doctor) => doctor.label === sitting.doctor);
+      if (match) return match.value;
+    }
+    return defaultDoctorId;
+  };
   const surfaceSummary = service?.surfaces?.length
     ? service.surfaces.map(formatSurfaceLabel).join(", ")
     : "All surfaces";
@@ -140,9 +161,14 @@ export function AddSittingDrawer() {
     const current = new Date();
     setVisitDate(toDateInputValue(current));
     setVisitTime(toTimeInputValue(current));
-    setDoctor(DOCTORS[0]);
+    setSelectedDoctor(defaultDoctorId);
     setNotes("");
   };
+  useEffect(() => {
+    if (isOpen) {
+      dispatch(listDoctor());
+    }
+  }, [dispatch, isOpen]);
   useEffect(() => {
     if (!isOpen) return;
     if (isEdit && editingSitting) {
@@ -151,12 +177,24 @@ export function AddSittingDrawer() {
         setVisitDate(parsed.date);
         setVisitTime(parsed.time);
       }
-      setDoctor(editingSitting.doctor || DOCTORS[0]);
+      setSelectedDoctor(resolveDoctorId(editingSitting));
       setNotes(editingSitting.notes ?? "");
       return;
     }
     resetForm();
-  }, [isOpen, isEdit, editingSitting]);
+  }, [isOpen, isEdit, sittingId]);
+  useEffect(() => {
+    if (!isOpen || doctorOptions.length === 0) return;
+    setSelectedDoctor((current) => {
+      if (doctorOptions.some((doctor) => doctor.value === String(current))) {
+        return current;
+      }
+      if (isEdit && editingSitting) {
+        return resolveDoctorId(editingSitting);
+      }
+      return defaultDoctorId;
+    });
+  }, [isOpen, doctorOptions, defaultDoctorId, isEdit, editingSitting]);
   const isDirty = (() => {
     if (!isOpen) return false;
     if (isEdit && editingSitting) {
@@ -166,13 +204,13 @@ export function AddSittingDrawer() {
       return (
         visitDate !== origDate ||
         visitTime !== origTime ||
-        doctor !== (editingSitting.doctor || DOCTORS[0]) ||
+        String(selectedDoctor) !== String(resolveDoctorId(editingSitting)) ||
         String(notes ?? "").trim() !== String(editingSitting.notes ?? "").trim()
       );
     }
     return (
       Boolean(String(notes ?? "").trim()) ||
-      doctor !== DOCTORS[0]
+      String(selectedDoctor) !== String(defaultDoctorId)
     );
   })();
   const guard = useDirtyDrawerGuard({
@@ -181,8 +219,8 @@ export function AddSittingDrawer() {
   });
   const handleAdd = async () => {
     if (!serviceId || !patientId || saving) return;
-    if (!doctorId) {
-      showSnackbar?.("Unable to save visit: doctor profile is missing.");
+    if (!selectedDoctor) {
+      showSnackbar?.("Please select a doctor.");
       return;
     }
     const plan = findPlanForService(serviceId);
@@ -195,7 +233,7 @@ export function AddSittingDrawer() {
     const payload = {
       visitDate,
       visitTime,
-      doctorId,
+      doctorId: selectedDoctor,
       visitType,
       notes: notes.trim() || undefined,
       version: isEdit ? editingSitting?.version : undefined,
@@ -211,7 +249,7 @@ export function AddSittingDrawer() {
             serviceId,
             qvrId: sittingId,
             data: payload,
-            doctorName: doctor,
+            doctorName: selectedDoctorName,
           }),
         ).unwrap();
       } else {
@@ -221,7 +259,7 @@ export function AddSittingDrawer() {
             planId: plan.id,
             serviceId,
             data: payload,
-            doctorName: doctor,
+            doctorName: selectedDoctorName,
           }),
         ).unwrap();
       }
@@ -355,15 +393,20 @@ export function AddSittingDrawer() {
                   <label className={styles.label}>Doctor</label>
                   <div className={styles.inputWrapper}>
                     <select
-                      value={doctor}
-                      onChange={(e) => setDoctor(e.target.value)}
+                      value={selectedDoctor}
+                      onChange={(e) => setSelectedDoctor(e.target.value)}
+                      disabled={!doctorOptions.length}
                       className={styles.select}
                     >
-                      {DOCTORS.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
+                      {doctorOptions.length === 0 ? (
+                        <option value="">No doctors available</option>
+                      ) : (
+                        doctorOptions.map((doctor) => (
+                          <option key={doctor.value} value={doctor.value}>
+                            {doctor.label}
+                          </option>
+                        ))
+                      )}
                     </select>
                     <span className={styles.inputIcon}>
                       <ChevronDown size={16} strokeWidth={2} />

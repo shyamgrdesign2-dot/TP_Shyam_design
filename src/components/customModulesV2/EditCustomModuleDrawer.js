@@ -75,10 +75,19 @@ const EditCustomModuleDrawer = ({ open, onClose, module }) => {
             .replace(/^[A-Z]/, (chr) => chr.toLowerCase());
         };
 
+        const moduleName = moduleData.moduleName.trim();
+        const resolvedColumnLabels = moduleData.columnLabels.map((label) => {
+          const trimmedLabel = label.trim();
+          if (moduleData.columnCount === 1 && !trimmedLabel) {
+            return moduleName;
+          }
+          return trimmedLabel;
+        });
+
         // Transform form data to V2 module format
-        const namedFields = moduleData.columnLabels.map((label, index) => ({
+        const namedFields = resolvedColumnLabels.map((label, index) => ({
           fieldName: toCamelCase(label),
-          fieldLabel: label.trim(),
+          fieldLabel: label,
           fieldType: "string",
           isRequired: false,
           order: index,
@@ -87,7 +96,7 @@ const EditCustomModuleDrawer = ({ open, onClose, module }) => {
         // Update existing module (keep same module_id)
         const updatedModule = {
           module_id: module.module_id,
-          name: moduleData.moduleName.trim(),
+          name: moduleName,
           version: "v2",
           namedFields: namedFields,
           // Preserve other properties

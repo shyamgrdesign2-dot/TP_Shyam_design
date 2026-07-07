@@ -121,14 +121,177 @@ export const DENTAL_PLAN_BILL_INFO = [
   { id: 6, title: "Created on", enabled: true },
 ];
 
-export function getDentalPlanPrintSettings(printSettings) {
-  if (!printSettings) return FALLBACK_BILL_PRINT_SETTINGS;
+const parseMarginValue = (value, fallback) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+/** Maps prescription print settings into the bill PDF header/footer shape. */
+export function mapPrescriptionPrintSettingsToBillFormat(defaultPrintSettings) {
+  if (!defaultPrintSettings) return null;
+
+  const {
+    page_format,
+    header_footer,
+    letterhead_format,
+    qrcode_enable,
+    signature_enable,
+    signature_image,
+    water_mark_enable,
+    water_mark_image,
+    logo_enable,
+    logo_image,
+    header_image,
+    footer_image,
+  } = defaultPrintSettings;
+
+  const {
+    custom_margin = {},
+    header,
+    footer,
+    margin = {},
+    letterhead_margin = {},
+    other_settings,
+    patient_info,
+  } = header_footer || {};
+
+  const { clinic_info, doctor_info } = header || {};
+
   return {
-    ...printSettings,
-    headerFooter: {
-      ...printSettings.headerFooter,
-      billInfo: DENTAL_PLAN_BILL_INFO,
+    pageFormat: {
+      fontFamily: page_format?.font_family || "Roboto",
+      fontSize: page_format?.font_size || 12,
+      pageType: page_format?.page_size || "A5",
+      patientInfoFontSize: page_format?.font_size || 12,
     },
+    headerFooter: {
+      customLetterHeadMargin: {
+        top: parseMarginValue(custom_margin?.top, 3),
+        left: parseMarginValue(custom_margin?.left, 2),
+        right: parseMarginValue(custom_margin?.right, 2),
+        bottom: parseMarginValue(custom_margin?.bottom, 2.5),
+      },
+      uploadedLetterHeadMargin: {
+        top: parseMarginValue(letterhead_margin?.top, 3),
+        left: parseMarginValue(letterhead_margin?.left, 2),
+        right: parseMarginValue(letterhead_margin?.right, 2),
+        bottom: parseMarginValue(letterhead_margin?.bottom, 2.5),
+      },
+      margin: {
+        top: parseMarginValue(margin?.top, 0.5),
+        left: parseMarginValue(margin?.left, 0.5),
+        right: parseMarginValue(margin?.right, 0.5),
+        bottom: parseMarginValue(margin?.bottom, 0.5),
+      },
+      letterHeadFormat: letterhead_format ?? 0,
+      footer: {
+        fontSize: footer?.font_size || 10,
+        title: footer?.title || "",
+        file: footer_image || null,
+      },
+      header: {
+        clinicInfo: {
+          enabled: clinic_info?.enable === "Y",
+          header: clinic_info?.header || "",
+          position: clinic_info?.place === "R" ? "right" : "left",
+          subheader: clinic_info?.subheader || "",
+        },
+        doctorInfo: {
+          enabled: doctor_info?.enable === "Y",
+          header: doctor_info?.header || "",
+          position: doctor_info?.place === "R" ? "right" : "left",
+          subheader: doctor_info?.subheader || "",
+        },
+        file: header_image || null,
+        logo: {
+          enabled: logo_enable === "Y",
+          file: logo_image || null,
+        },
+      },
+      patientInfo: Array.isArray(patient_info)
+        ? patient_info.map((item) => ({
+            id: item.id,
+            title: item.title,
+            enabled: item.enable === "Y",
+          }))
+        : undefined,
+      otherSettings: {
+        qrCode: { enabled: qrcode_enable === "Y" },
+        signature: {
+          enabled: signature_enable === "Y",
+          doctorNameEnabled: other_settings?.name_of_doctor_enable === "Y",
+          file: signature_image,
+          position:
+            other_settings?.signature_place === "R" ? "right" : "left",
+          qualification: other_settings?.qualification,
+          qualificationEnabled: other_settings?.qualification_enable === "Y",
+          registrationEnabled: other_settings?.registration_no_enable === "Y",
+        },
+        waterMark: {
+          enabled: water_mark_enable === "Y",
+          file: water_mark_image,
+        },
+      },
+    },
+  };
+}
+
+export function getDentalPlanPrintSettings(
+  billPrintSettings,
+  defaultPrintSettings
+) {
+  const fromPrescription =
+    mapPrescriptionPrintSettingsToBillFormat(defaultPrintSettings);
+  const hasBillSettings =
+    billPrintSettings && Object.keys(billPrintSettings).length > 0;
+  const base = hasBillSettings
+    ? billPrintSettings
+    : fromPrescription || FALLBACK_BILL_PRINT_SETTINGS;
+
+  const baseHeaderFooter =
+    base.headerFooter || FALLBACK_BILL_PRINT_SETTINGS.headerFooter;
+  const rxHeaderFooter = fromPrescription?.headerFooter;
+
+  const mergedHeaderFooter = rxHeaderFooter
+    ? {
+        ...baseHeaderFooter,
+        letterHeadFormat: rxHeaderFooter.letterHeadFormat,
+        customLetterHeadMargin: rxHeaderFooter.customLetterHeadMargin,
+        uploadedLetterHeadMargin: rxHeaderFooter.uploadedLetterHeadMargin,
+        margin: rxHeaderFooter.margin,
+        header: {
+          ...baseHeaderFooter.header,
+          ...rxHeaderFooter.header,
+          clinicInfo: rxHeaderFooter.header?.clinicInfo,
+          doctorInfo: rxHeaderFooter.header?.doctorInfo,
+          file: rxHeaderFooter.header?.file ?? baseHeaderFooter.header?.file,
+          logo: rxHeaderFooter.header?.logo || baseHeaderFooter.header?.logo,
+        },
+        footer: {
+          ...baseHeaderFooter.footer,
+          ...rxHeaderFooter.footer,
+          file: rxHeaderFooter.footer?.file ?? baseHeaderFooter.footer?.file,
+        },
+        otherSettings: {
+          ...baseHeaderFooter.otherSettings,
+          ...rxHeaderFooter.otherSettings,
+        },
+        patientInfo: baseHeaderFooter.patientInfo ?? rxHeaderFooter.patientInfo,
+        billInfo: DENTAL_PLAN_BILL_INFO,
+      }
+    : {
+        ...baseHeaderFooter,
+        billInfo: DENTAL_PLAN_BILL_INFO,
+      };
+
+  return {
+    ...base,
+    pageFormat: {
+      ...(fromPrescription?.pageFormat ||
+        FALLBACK_BILL_PRINT_SETTINGS.pageFormat),
+      ...(base.pageFormat || {}),
+    },
+    headerFooter: mergedHeaderFooter,
   };
 }
 
