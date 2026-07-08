@@ -133,13 +133,7 @@ export function Tooth({
               ),
             );
           }
-          prewarmDentalShaderProgram({
-            gl, camera, source: clonedScene,
-            variantKey: getDentalShaderVariantKey({
-              isImplant: hasImplant, isMissing: isMissingOrExtraction,
-              isCrown: hasCrown, isRCT: hasRCT, isBridge: hasBridge, isDenture: hasDenture,
-            }),
-          });
+
         });
       });
     };
@@ -205,6 +199,7 @@ export function Tooth({
   }, [
     clonedScene, arch, quadrant, toothPosition, toothFdi, mirrorX, modelPath,
     hasImplant, isMissingOrExtraction, hasCrown, hasRCT, hasBridge, hasDenture,
+    boundsReady, // re-run after rAF sets toothMeshRef.current so annotationData is never null
   ]);
 
   // Effect 3: Update material transparency in real-time when diagnoses change.
@@ -240,10 +235,12 @@ export function Tooth({
   useEffect(() => {
     zoneFindingsRef.current = ALL_ZONES.map((z) =>
       findings.some((f) => f.zoneId === z) ||
+      (toothEntries || []).some((e) => (e.kind === "planned" || e.kind === "procedure") && e.surfaces?.includes(z)) ||
+      Object.values(treatmentHistoryDetails || {}).some((detail) => detail.surfaces?.includes(z)) ||
       (multiSelectActive && (multiSelectZones?.has(z) ?? false))
         ? 1 : 0,
     );
-  }, [findings, multiSelectZones, multiSelectActive]);
+  }, [findings, toothEntries, treatmentHistoryDetails, multiSelectZones, multiSelectActive]);
 
   useEffect(() => {
     wholeToothStateRef.current.selected =
@@ -392,13 +389,15 @@ export function Tooth({
                 synth.push({ id: `ent-${id++}`, zoneId: z, type: label, notes: "" });
               }
             }
-            return [...findings, ...synth];
+            return synth;
           })()}
           zoneNotes={zoneNotes}
           arch={arch}
           toothPosition={toothPosition}
           quadrant={quadrant}
           selectedZone={selectedZone}
+          multiSelectZones={multiSelectZones}
+          multiSelectActive={multiSelectActive}
           onSelectZone={onSelectZone}
           onClearSelectedZone={onClearSelectedZone}
           zoneDirs={annotationData.zoneDirs}

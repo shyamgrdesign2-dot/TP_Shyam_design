@@ -9,9 +9,11 @@ const PLAN_STATUS_FROM_API = {
 
 const SERVICE_STATUS_FROM_API = {
   PLANNED: "planned",
+  YET_TO_START: "planned",
   IN_PROGRESS: "in-progress",
   COMPLETED: "completed",
   NO_SHOW: "no-show",
+  PATIENT_NO_SHOW: "no-show",
   NOT_INTERESTED: "not-interested",
   CANCELLED: "cancelled",
 };
@@ -19,10 +21,10 @@ const SERVICE_STATUS_FROM_API = {
 const STATUS_TO_API = {
   draft: "DRAFT",
   active: "ACTIVE",
-  planned: "PLANNED",
+  planned: "YET_TO_START",
   "in-progress": "IN_PROGRESS",
   completed: "COMPLETED",
-  "no-show": "NO_SHOW",
+  "no-show": "PATIENT_NO_SHOW",
   "not-interested": "NOT_INTERESTED",
   cancelled: "CANCELLED",
 };
@@ -58,7 +60,7 @@ export const toDentalToothState = (payload = {}) => {
     const historyRows = [];
     for (const h of tooth.treatment_history || []) {
       if (h.notes === DX_MARKER) {
-        // ponytail: backward compat only — never written by new code
+        // backward compat only — never written by new code
         diagnosisNamesSet.add(h.name);
       } else {
         historyRows.push({
@@ -113,22 +115,54 @@ const getServiceTooth = (service = {}) => {
 };
 
 export const toDentalService = (service = {}) => {
-  const toothFdi = String(getServiceTooth(service));
+  // tooth_fdi may be an array (new) or a string (legacy)
+  const rawTooth = service.tooth_fdi ?? service.toothFdi;
+  const teeth = Array.isArray(rawTooth)
+    ? rawTooth
+    : rawTooth
+    ? [String(rawTooth)]
+    : Array.isArray(service.teeth) && service.teeth.length > 0
+    ? service.teeth
+    : ["full-mouth"];
+  const toothFdi = teeth[0] || "full-mouth";
   const rate = Number(service.rate) || 0;
   const discount = Number(service.discount) || 0;
+  const discountType = service.discountType || "flat";
+  const rawVisits =
+    service.sittings ||
+    service.quickVisitRecords ||
+    service.quick_visit_records ||
+    [];
+  const normalizedQvrs = rawVisits.map(toDentalQvr);
+
+  const teethCount = teeth.includes("full-mouth") ? 1 : Math.max(1, teeth.length);
+  const totalRate = rate * teethCount;
+  
+  let computedDiscount = 0;
+  if (discountType === "percentage") {
+    computedDiscount = Math.round((totalRate * Math.min(discount, 100)) / 100);
+  } else {
+    computedDiscount = Math.min(totalRate, discount);
+  }
+
   return {
     ...service,
     id: service.id,
     planId: service.planId,
     treatment: service.treatment || service.name || "",
+    teeth,
     toothFdi,
     toothLabel: toothFdi === "full-mouth" ? "Full Mouth" : `Tooth ${toothFdi}`,
     surfaces: service.surfaces || service.surface_codes || ["whole"],
     rate,
     discount,
-    amount: Number(service.amount) || Math.max(0, rate - discount),
+    discountType,
+    computedDiscount,
+    amount: Math.max(0, totalRate - computedDiscount),
     status: fromApiServiceStatus(service.status) || "planned",
-    quickVisitRecords: service.quickVisitRecords || service.quick_visit_records || [],
+    procedureDate: service.procedureDate || service.procedure_date || "",
+    quickVisitRecords: normalizedQvrs,
+    sittings: normalizedQvrs.map((qvr) => qvrToSitting(qvr)),
     appointmentIds: service.appointmentIds || service.appointment_ids || [],
   };
 };
@@ -175,24 +209,165 @@ export const toDentalTransitionRequest = (data = {}) =>
     version: data.version,
   });
 
+const QVR_STATUS_FROM_API = {
+  SCHEDULED: "scheduled",
+  CANCELLED: "cancelled",
+  COMPLETED: "completed",
+};
+
+const QVR_STATUS_TO_API = {
+  scheduled: "SCHEDULED",
+  cancelled: "CANCELLED",
+  completed: "COMPLETED",
+  SCHEDULED: "SCHEDULED",
+  CANCELLED: "CANCELLED",
+  COMPLETED: "COMPLETED",
+};
+
+const VISIT_TYPE_TO_API = {
+  "follow-up": "FOLLOW_UP",
+  "follow up": "FOLLOW_UP",
+  follow_up: "FOLLOW_UP",
+  procedure: "PROCEDURE",
+  emergency: "EMERGENCY",
+  review: "REVIEW",
+  FOLLOW_UP: "FOLLOW_UP",
+  PROCEDURE: "PROCEDURE",
+  EMERGENCY: "EMERGENCY",
+  REVIEW: "REVIEW",
+};
+
+const VISIT_TYPE_UI_LABEL = {
+  FOLLOW_UP: "Follow-up",
+  PROCEDURE: "Procedure",
+  EMERGENCY: "Emergency",
+  REVIEW: "Review",
+};
+
+const toApiVisitTime = (time) => {
+  if (!time) return undefined;
+  const parts = String(time).trim().split(":");
+  const hh = (parts[0] ?? "00").padStart(2, "0");
+  const mm = (parts[1] ?? "00").padStart(2, "0");
+  const ss = (parts[2] ?? "00").padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+};
+
+export const toApiVisitType = (visitType) => {
+  const key = String(visitType ?? "").trim();
+  if (!key) return "FOLLOW_UP";
+  return (
+    VISIT_TYPE_TO_API[key] ||
+    VISIT_TYPE_TO_API[key.toLowerCase()] ||
+    VISIT_TYPE_TO_API[key.replace(/-/g, " ").toLowerCase()] ||
+    "FOLLOW_UP"
+  );
+};
+
+export const formatQvrVisitTypeLabel = (visitType) => {
+  const api = toApiVisitType(visitType);
+  return VISIT_TYPE_UI_LABEL[api] || api;
+};
+
+const toApiQvrStatus = (status) => {
+  const key = String(status ?? "").trim();
+  if (!key) return undefined;
+  return QVR_STATUS_TO_API[key] || QVR_STATUS_TO_API[key.toLowerCase()];
+};
+
+const formatQvrTimeLabel = (time24) => {
+  if (!time24) return "";
+  const parts = String(time24).split(":");
+  const hh = Number(parts[0]);
+  const mm = Number(parts[1]);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return String(time24);
+  const d = new Date();
+  d.setHours(hh, mm, 0, 0);
+  return d.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+const composeQvrDateTimeLabel = (visitDate, visitTime) => {
+  if (!visitDate) return "";
+  if (!visitTime) return String(visitDate);
+  const [y, m, d] = String(visitDate).split("-").map((n) => Number(n));
+  const timeParts = String(visitTime).split(":");
+  const hh = Number(timeParts[0]);
+  const mm = Number(timeParts[1]);
+  const dt = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0);
+  if (!Number.isFinite(dt.getTime())) return String(visitDate);
+  const datePart = dt.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const timePart = dt.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${datePart}, ${timePart}`;
+};
+
+const composeQvrIsoDateTime = (visitDate, visitTime) => {
+  if (!visitDate || !visitTime) return undefined;
+  const [y, m, d] = String(visitDate).split("-").map((n) => Number(n));
+  const timeParts = String(visitTime).split(":");
+  const hh = Number(timeParts[0]);
+  const mm = Number(timeParts[1]);
+  const dt = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0);
+  return Number.isFinite(dt.getTime()) ? dt.toISOString() : undefined;
+};
+
 export const toDentalQvr = (qvr = {}) => ({
   id: qvr.id,
-  serviceId: qvr.serviceId,
-  visitDate: qvr.visitDate,
-  visitTime: qvr.visitTime,
-  visitType: qvr.visitType,
-  doctorId: qvr.doctorId,
+  serviceId: qvr.serviceId || qvr.service_id,
+  visitDate: qvr.visitDate || qvr.visit_date,
+  visitTime: qvr.visitTime || qvr.visit_time,
+  visitType: qvr.visitType || qvr.visit_type,
+  doctorId: qvr.doctorId || qvr.doctor_id,
+  doctorName: qvr.doctorName || qvr.doctor_name || "",
   status: qvr.status,
   notes: qvr.notes || "",
   version: qvr.version,
+  createdAt: qvr.createdAt || qvr.created_at,
 });
+
+export const qvrToSitting = (qvr = {}, { doctorName } = {}) => {
+  const visitDate = qvr.visitDate;
+  const visitTime = qvr.visitTime;
+  const rawStatus = String(qvr.status ?? "").trim();
+  const status =
+    QVR_STATUS_FROM_API[rawStatus.toUpperCase()] ||
+    rawStatus.toLowerCase() ||
+    "completed";
+
+  return {
+    id: qvr.id,
+    date: composeQvrDateTimeLabel(visitDate, visitTime) || visitDate || "",
+    time: visitTime ? formatQvrTimeLabel(visitTime) : undefined,
+    doctor: doctorName || qvr.doctorName || "",
+    visitType: toApiVisitType(qvr.visitType),
+    notes: qvr.notes || "",
+    status,
+    createdAt: composeQvrIsoDateTime(visitDate, visitTime) || qvr.createdAt,
+    version: qvr.version,
+    doctorId: qvr.doctorId,
+    visitDate,
+    visitTime,
+  };
+};
 
 export const toDentalQvrRequest = (data = {}) =>
   cleanUndefined({
     visitDate: data.visitDate,
-    visitTime: data.visitTime,
+    visitTime: data.visitTime ? toApiVisitTime(data.visitTime) : undefined,
     doctorId: data.doctorId,
-    visitType: data.visitType,
+    visitType: data.visitType ? toApiVisitType(data.visitType) : undefined,
+    status: data.status ? toApiQvrStatus(data.status) : undefined,
     notes: data.notes,
     version: data.version,
   });
@@ -211,6 +386,28 @@ export const toDentalTemplates = (response) => {
   return items.map(toDentalTemplate);
 };
 
+// Patch mapper for status/field updates — never defaults surfaces or teeth,
+// and never suppresses "planned" (valid for revert-to-not-started).
+export const toDentalServicePatchRequest = (data = {}) => {
+  const patch = {};
+  if (data.status !== undefined) patch.status = toApiStatus(data.status);
+  if (data.notes !== undefined) patch.notes = data.notes;
+  if (data.version !== undefined) patch.version = data.version;
+  if (data.completedAt != null) patch.completed_at = data.completedAt;
+  if (data.rate !== undefined) patch.rate = data.rate;
+  if (data.discount !== undefined) patch.discount = data.discount;
+  if (data.discountType !== undefined) {
+    patch.discountType = data.discountType;
+  }
+  if (data.procedureDate || data.procedure_date) {
+    patch.procedure_date = data.procedureDate || data.procedure_date;
+  }
+  if (data.treatment) patch.treatment = data.treatment;
+  if (data.surfaces?.length) patch.surfaces = data.surfaces;
+  if (Array.isArray(data.teeth) && data.teeth.length) patch.teeth = data.teeth;
+  return patch;
+};
+
 export const toDentalServiceRequest = (service = {}) => {
   const toothFdi = service.tooth_fdi || service.toothFdi;
   const request = cleanUndefined({
@@ -218,12 +415,20 @@ export const toDentalServiceRequest = (service = {}) => {
     surfaces: service.surfaces || ["whole"],
     rate: service.rate,
     discount: service.discount,
+    discountType: service.discountType || undefined,
     notes: service.notes,
+    procedure_date: service.procedureDate || service.procedure_date || undefined,
     status: service.status === "planned" ? undefined : toApiStatus(service.status),
     version: service.version,
   });
-  if (toothFdi && toothFdi !== "full-mouth") request.tooth_fdi = String(toothFdi);
-  else if (Array.isArray(service.teeth) && service.teeth.length > 0) request.teeth = service.teeth;
-  else request.teeth = ["full-mouth"];
+  const teethArr = Array.isArray(service.teeth) ? service.teeth : [];
+  const normalTeeth = teethArr.filter((t) => t !== "full-mouth");
+  if (normalTeeth.length > 0) {
+    request.teeth = normalTeeth;
+  } else if (toothFdi && toothFdi !== "full-mouth") {
+    request.teeth = [String(toothFdi)];
+  } else {
+    request.teeth = ["full-mouth"];
+  }
   return request;
 };

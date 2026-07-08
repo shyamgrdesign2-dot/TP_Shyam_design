@@ -3,7 +3,19 @@ import { Text, View } from "@react-pdf/renderer";
 import moment from "moment";
 import { getIndianLanguageFont } from "../../../utils/utils";
 
+const hasPrintableGynecValue = (value) =>
+  value !== undefined &&
+  value !== null &&
+  !(typeof value === "string" && value.trim() === "");
+
 function GynecHistoryInlineView({ PX_TO_PT, printSettings, gynecHistoryData }) {
+  const hasDurationOfMenstrualFlow = hasPrintableGynecValue(
+    gynecHistoryData?.durationOfMenstrualFlow
+  );
+  const hasNumberOfPadsPerDay = hasPrintableGynecValue(
+    gynecHistoryData?.numberOfPadsPerDay
+  );
+
   return (
     <View style={{ marginTop: PX_TO_PT * 15 }}>
       <Text
@@ -194,9 +206,9 @@ function GynecHistoryInlineView({ PX_TO_PT, printSettings, gynecHistoryData }) {
         )}
 
         {(gynecHistoryData?.flow ||
-          gynecHistoryData?.durationOfMenstrualFlow ||
+          hasDurationOfMenstrualFlow ||
           "clots" in gynecHistoryData ||
-          gynecHistoryData?.numberOfPadsPerDay ||
+          hasNumberOfPadsPerDay ||
           gynecHistoryData?.flowNotes) && (
           <>
             {(gynecHistoryData?.cycle ||
@@ -249,8 +261,9 @@ function GynecHistoryInlineView({ PX_TO_PT, printSettings, gynecHistoryData }) {
                   {gynecHistoryData?.flow}
                 </Text>
                 {(gynecHistoryData?.durationOfMenstrualFlow ||
+                  hasDurationOfMenstrualFlow ||
                   "clots" in gynecHistoryData ||
-                  gynecHistoryData?.numberOfPadsPerDay ||
+                  hasNumberOfPadsPerDay ||
                   gynecHistoryData?.flowNotes) && (
                   <Text
                     style={{
@@ -267,7 +280,7 @@ function GynecHistoryInlineView({ PX_TO_PT, printSettings, gynecHistoryData }) {
               </>
             )}
 
-            {gynecHistoryData?.durationOfMenstrualFlow && (
+            {hasDurationOfMenstrualFlow && (
               <>
                 <Text
                   style={{
@@ -293,7 +306,7 @@ function GynecHistoryInlineView({ PX_TO_PT, printSettings, gynecHistoryData }) {
                     : "day"}
                 </Text>
                 {("clots" in gynecHistoryData ||
-                  gynecHistoryData?.numberOfPadsPerDay ||
+                  hasNumberOfPadsPerDay ||
                   gynecHistoryData?.flowNotes) && (
                   <Text
                     style={{
@@ -332,7 +345,7 @@ function GynecHistoryInlineView({ PX_TO_PT, printSettings, gynecHistoryData }) {
                 >
                   {Boolean(gynecHistoryData?.clots) ? "Yes" : "No"}
                 </Text>
-                {(gynecHistoryData?.numberOfPadsPerDay ||
+                {(hasNumberOfPadsPerDay ||
                   gynecHistoryData?.flowNotes) && (
                   <Text
                     style={{
@@ -349,7 +362,7 @@ function GynecHistoryInlineView({ PX_TO_PT, printSettings, gynecHistoryData }) {
               </>
             )}
 
-            {gynecHistoryData?.numberOfPadsPerDay && (
+            {hasNumberOfPadsPerDay && (
               <>
                 <Text
                   style={{

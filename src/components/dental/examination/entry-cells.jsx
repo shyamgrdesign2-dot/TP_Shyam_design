@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Add, InfoCircle } from "iconsax-reactjs";
-import { TOOTH_DIAGNOSES, ZONE_INFO, getZoneLabel, getSurfacesForFdi } from "./types";
+import { ZONE_INFO, getZoneLabel, getSurfacesForFdi } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { SurfaceDots } from "./surface-pickers";
 import ui from "./ExaminationTab.ui.module.scss";
 
 export function DiagnosisNameCell({ name, color, activeRows, onSwap }) {
+  const { activeProcedures } = useDentalMasters();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
   const [pos, setPos] = useState(null);
@@ -45,8 +46,8 @@ export function DiagnosisNameCell({ name, color, activeRows, onSwap }) {
       window.removeEventListener("resize", reposition);
     };
   }, [open]);
-  // Available diagnoses to swap to (exclude currently-active ones except self).
-  const options = TOOTH_DIAGNOSES.filter(
+  // Available procedures to swap to (exclude currently-active ones except self).
+  const options = activeProcedures.filter(
     (d) => d === name || !activeRows.includes(d)
   );
   const [editing, setEditing] = useState(false);
@@ -480,12 +481,6 @@ export function SurfaceCellDropdown({
             <span className={ui.surfacePlaceholder}>Select surface</span> :
             isWholeTooth ?
               <span className={ui.surfaceInlineRow}>
-                <span
-                  className={ui.surfaceDot8}
-                  style={{
-                    background: ZONE_INFO.whole.color
-                  }} />
-
                 Whole tooth
               </span> :
 

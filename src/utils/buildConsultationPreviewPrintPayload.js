@@ -271,6 +271,7 @@ export function buildConsultationPreviewPrintPayload({
   isDentalEnabled,
   dentalChartPrintMode,
   includePatientInfo = true,
+  dentitionType = "adult",
 }) {
   if (!defaultPrintSettings) {
     return null;
@@ -360,7 +361,10 @@ export function buildConsultationPreviewPrintPayload({
     fileWatermark,
     fileSignature,
     customModules,
-    dentalExaminationData: { tooth_states: resolvedDentalData },
+    dentalExaminationData: {
+      tooth_states: resolvedDentalData,
+      dentition_type: dentitionType || "adult",
+    },
     oralExamination: dentalChartPrintMode === "plain" ? null : oralExamination,
     patientUniqueId: patient_data?.patient_unique_id,
     tcmId: currentTcmId,

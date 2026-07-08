@@ -48,6 +48,26 @@ export function DrAgentPanel({
 }) {
   const { profile } = useSelector((state) => state.doctors || {});
   const voiceDigitization = useSelector((state) => state.voiceDigitization || {});
+  const voiceCopyTrackingContext = useMemo(() => ({
+    doctorId: doctorId || profile?.doctor_unique_id || "",
+    doctorName: profile?.um_name || "",
+    patientId: patientData?.patient_unique_id || patientId || initialPatientId || "",
+    patientName: patientData?.pm_fullname || patientData?.pm_first_name || "",
+    sessionId: voiceDigitization?.sessionId || "",
+    voiceRxVersion: "2.0",
+    sourceSurface: "doctor-agent",
+    voiceInputLocation: "Clinical Notes",
+  }), [
+    doctorId,
+    initialPatientId,
+    patientData?.patient_unique_id,
+    patientData?.pm_first_name,
+    patientData?.pm_fullname,
+    patientId,
+    profile?.doctor_unique_id,
+    profile?.um_name,
+    voiceDigitization?.sessionId,
+  ]);
   const {
     // State
     selectedPatientId,
@@ -177,9 +197,40 @@ export function DrAgentPanel({
   ]);
 
   useEffect(() => {
-    toast.setHandler(({ type, msg }) => {
+    toast.setHandler(({ type, msg, duration, closable, key, onDismiss }) => {
       const notify = message[type] || message.info;
-      notify({ content: msg, duration: 2.5 });
+      const messageKey = key || `dr-agent-toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const content = closable ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <span>{msg}</span>
+          <button
+            type="button"
+            aria-label="Dismiss notification"
+            onClick={(event) => {
+              event.stopPropagation();
+              message.destroy(messageKey);
+              onDismiss?.();
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 22,
+              height: 22,
+              border: 0,
+              borderRadius: 11,
+              background: "rgba(17, 24, 39, 0.10)",
+              color: "inherit",
+              cursor: "pointer",
+              fontSize: 16,
+              lineHeight: 1,
+              padding: 0,
+            }}>
+            {"\u00d7"}
+          </button>
+        </span>
+      ) : msg;
+      notify({ key: messageKey, content, duration: duration ?? 2.5 });
     });
     return () => toast.setHandler(null);
   }, []);
@@ -348,7 +399,10 @@ export function DrAgentPanel({
           voiceLocked={voiceLocked}
           onCopyResult={(payload, opts) => {
             if (opts?.copyTracking) {
-              trackDrAgentCopyUsed(opts.copyTracking);
+              trackDrAgentCopyUsed({
+                ...voiceCopyTrackingContext,
+                ...opts.copyTracking,
+              });
             }
             runCopyWithAura(payload, {
               ...opts,
@@ -366,6 +420,7 @@ export function DrAgentPanel({
               : voiceRxResult.structured?.copyAllPayload;
             if (!copyAllPayload) return;
             trackDrAgentCopyUsed(buildClinicalNotesCopyMeta({
+              ...voiceCopyTrackingContext,
               component: "Structured Clinical Notes",
               componentKey: "all",
               copyScope: "copy_all",
@@ -382,6 +437,7 @@ export function DrAgentPanel({
             }
           }}
           onCopySoap={() => trackDrAgentCopyUsed(buildClinicalNotesCopyMeta({
+            ...voiceCopyTrackingContext,
             component: "SOAP Note",
             componentKey: "soap",
             destination: "clipboard",

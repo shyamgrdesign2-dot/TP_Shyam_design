@@ -3,9 +3,12 @@ import { pdf } from "@react-pdf/renderer";
 import { ensureDrawingCanvasCaseOption } from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
 import ViewPDF from "./server/viewpdf";
 import { prefetchDentalToothImageMap } from "../components/dental/examination/dentalChartPdf";
+import { resolveDentitionType } from "../components/dental/examination/dentalChartConstants";
 import { resolveExamChartForPrintWithContext } from "./examChartStorage";
 import { DENTAL_EXAM_CASE_OPTION_ID } from "./dentalDefaultPrintSettings";
 import { hasDentalExamPayload } from "./cardiologyDentalOralExam";
+import { normalizeSmartRxDataForPrint } from "./smartRxPrintUtils";
+import { resolveFooterImageDimensions } from "./utils";
 
 function shouldPrefetchDentalToothImages({
   dentalExaminationData,
@@ -125,18 +128,21 @@ export const renderPrintPayloadToBlob = async (
   };
 
   const resolvedLang = resolveSelectedLang(payload, selectedLang);
+  const dentitionType = resolveDentitionType(dentalExaminationData);
   const toothImageMap = shouldPrefetchDentalToothImages({
     dentalExaminationData,
     printSettings,
     onlyShowDental,
   })
-    ? await prefetchDentalToothImageMap()
+    ? await prefetchDentalToothImageMap({ dentitionType })
     : {};
 
   const resolvedPrintSettings =
     Array.isArray(drawingCanvases) && drawingCanvases.length > 0
       ? ensureDrawingCanvasCaseOption(printSettings)
       : printSettings;
+
+  const resolvedFileFooter = await resolveFooterImageDimensions(fileFooter);
 
   const normalizedCustomModules = Array.isArray(customModules)
     ? customModules
@@ -156,7 +162,7 @@ export const renderPrintPayloadToBlob = async (
       timingList={timingList}
       printSettings={resolvedPrintSettings}
       fileHeader={fileHeader}
-      fileFooter={fileFooter}
+      fileFooter={resolvedFileFooter}
       fileLogo={fileLogo}
       fileWatermark={fileWatermark}
       fileSignature={fileSignature}
@@ -164,7 +170,7 @@ export const renderPrintPayloadToBlob = async (
       givenVaccines={givenVaccines}
       dueVaccines={dueVaccines}
       carePlanAssignments={carePlanAssignments}
-      smartRxData={smartDigitizeRxData}
+      smartRxData={normalizeSmartRxDataForPrint(smartDigitizeRxData)}
       growthChartDetails={growthChartDetails}
       isGynaecHistoryAccessable={isGynaecHistoryAccessable}
       gynecHistoryData={gynecHistoryData}

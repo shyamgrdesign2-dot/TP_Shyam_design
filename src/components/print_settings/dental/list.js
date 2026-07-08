@@ -35,7 +35,7 @@ const BulletItem = ({ text, details, PX_TO_PT, printSettings, level = 1 }) => {
   const color = level === 1 ? "#171725" : level === 2 ? "#4b5563" : "#171725";
 
   return (
-    <View style={{ flexDirection: "row", marginLeft: indent, marginBottom: PX_TO_PT * 3 }} wrap={false}>
+    <View style={{ flexDirection: "row", marginLeft: indent, marginBottom: PX_TO_PT * 5 }} wrap>
       <Text
         style={{
           fontFamily: printSettings?.page_format?.font_family || "Roboto",
@@ -53,7 +53,7 @@ const BulletItem = ({ text, details, PX_TO_PT, printSettings, level = 1 }) => {
           fontFamily: printSettings?.page_format?.font_family || "Roboto",
           fontSize,
           color,
-          lineHeight: 1.35,
+          lineHeight: 1.5,
           fontWeight,
         }}
       >
@@ -68,7 +68,7 @@ const BulletItem = ({ text, details, PX_TO_PT, printSettings, level = 1 }) => {
 
 function ListByTooth({ teethWithData, PX_TO_PT, printSettings }) {
   return teethWithData.map((tooth) => (
-    <View key={tooth.toothCode} style={{ marginBottom: PX_TO_PT * 6 }}>
+    <View key={tooth.toothCode} style={{ marginBottom: PX_TO_PT * 8 }}>
       <BulletItem text={tooth.fullName} PX_TO_PT={PX_TO_PT} printSettings={printSettings} level={1} />
       {tooth.categories.map((cat) => (
         <React.Fragment key={cat.label}>
@@ -91,7 +91,7 @@ function ListByTooth({ teethWithData, PX_TO_PT, printSettings }) {
 
 function ListByType({ typeGroups, PX_TO_PT, printSettings }) {
   return typeGroups.map((group) => (
-    <View key={group.label} style={{ marginBottom: PX_TO_PT * 6 }}>
+    <View key={group.label} style={{ marginBottom: PX_TO_PT * 8 }}>
       <BulletItem text={group.label} PX_TO_PT={PX_TO_PT} printSettings={printSettings} level={1} />
       {group.entries.map((entry) => (
         <React.Fragment key={`${group.label}-${entry.toothCode}`}>
@@ -150,7 +150,7 @@ export function DentalListView({
   const baseFontSize = printSettings?.page_format?.font_size || 12;
 
   return (
-    <View style={{ marginTop: PX_TO_PT * 12, marginBottom: PX_TO_PT * 10 }}>
+    <View style={{ marginTop: PX_TO_PT * 12, marginBottom: PX_TO_PT * 10 }} wrap>
       <View
         style={{
           flexDirection: "row",

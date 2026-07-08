@@ -44,7 +44,7 @@ import Vaccination from "./vaccination/Vaccination";
 import GrowthChart from "./growthChart/GrowthChart";
 import { viewPatient } from "../redux/appointmentsSlice";
 import { useAccess } from "./vaccination/useAccess";
-import { getGynecDetails } from "../api/services/ApiGynec";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import Obstetric from "./obstetric/Obstetric";
 import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
@@ -59,6 +59,7 @@ import {
   normalizeCopiedVitalsRow,
   normalizeVitalsInputRow,
 } from "../utils/vitalsHelpers";
+import { hasVitalsAndBodyCompositionData } from "../utils/symptomCollectorVitalsMerge";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
 import {
@@ -114,7 +115,6 @@ import { checkCredits } from "../redux/monetizationSlice";
 import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData, getGenRx } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
-import SCBanner from "../components/SCBanner";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
 import TatvaAiBanner from "../components/TatvaAiBanner";
@@ -170,8 +170,10 @@ import { normalizeModuleRows } from "../components/dr-agent/voicerx/VoiceRxModul
 import { toast } from "../components/dr-agent/voicerx/toast";
 import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
+import { isGynecDataEmpty, mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
+import { TreatmentPlanDrawer } from "../components/dental/plan/TreatmentPlanDrawer";
 import { useTabletViewport } from "../hooks/useTabletViewport";
 
 const FOLLOW_UP_DATE_FORMATS = [
@@ -475,7 +477,7 @@ function PrescriptionNewRxPadCopyListener() {
   const { lastCopyRequest, publishSignal } = useRxPadSync();
   const dispatch = useDispatch();
   const { selectedVitalsList, patientBirthWeight } = useSelector((state) => state.vitals);
-  const { frequencyList, timingList } = useSelector((state) => state.doctors);
+  const { frequencyList, timingList, userId } = useSelector((state) => state.doctors);
   const {
     patient_data,
     pamId,
@@ -489,6 +491,8 @@ function PrescriptionNewRxPadCopyListener() {
     setInvestigationData,
     setAdviceData,
     setMedicalHistoryData,
+    updatedGynecHistory,
+    setUpdatedGynecHistory,
     setSurgeriesData,
     setFollowUpDate,
     setAdditionalNote,
@@ -654,6 +658,22 @@ function PrescriptionNewRxPadCopyListener() {
       setMedicalHistoryData((prev = []) => convertMedicalHistoryToContextFormat(medicalHistoryRows, prev));
     }
 
+    const copiedGynecHistory = normalizeGynaecHistoryFromDigitiseData(digitization);
+    if (!isGynecDataEmpty(copiedGynecHistory)) {
+      const mergedGynecHistory = mergeGynecHistory(updatedGynecHistory, copiedGynecHistory);
+      setUpdatedGynecHistory((prev) => {
+        return mergeGynecHistory(prev, copiedGynecHistory);
+      });
+      if (patient_data?.patient_unique_id && userId !== undefined && userId !== null) {
+        syncGynecHistoryAfterEndVisit(
+          patient_data.patient_unique_id,
+          userId,
+          mergedGynecHistory,
+          { getGynecDetails, postGynecDetails, updateGynecDetails }
+        );
+      }
+    }
+
     const surgeries = firstNonEmpty(digitization.surgeries, payload.surgeries);
     appendRows(
       setSurgeriesData,
@@ -709,8 +729,11 @@ function PrescriptionNewRxPadCopyListener() {
     setMedicationData,
     setSurgeriesData,
     setSymptomsData,
+    setUpdatedGynecHistory,
     setVitalsData,
     timingList,
+    updatedGynecHistory,
+    userId,
     vitalsData,
   ]);
 
@@ -742,8 +765,6 @@ function PrescriptionNew() {
     blinkingdot_2: blinkingDotMp4,
     carePlanActive: carePlanIcon,
   } = ASSETS.images;
-
-  console.log("vitals", hey);
   
   // Local state to manage customizedPadRightList with deleted modules for edit case
   const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
@@ -1022,7 +1043,6 @@ function PrescriptionNew() {
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
   const [pillupSwitch, setPillupSwitch] = useState(true);
-  const [showSCBanner, setShowSCBanner] = useState(false);
   const [zydusTestReportDrawer, setZydusTestReportDrawer] = useState(false);
   const [labReportID, setLabReportID] = useState(null);
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
@@ -1120,6 +1140,8 @@ function PrescriptionNew() {
     });
   }, [allAvailableModules]);
 
+  const [updatedGynecHistory, setUpdatedGynecHistory] = useState(null);
+
   const contextApi = {
     patient_data,
     send_path,
@@ -1144,6 +1166,8 @@ function PrescriptionNew() {
     setVitalsData,
     medicalHistoryData,
     setMedicalHistoryData,
+    updatedGynecHistory,
+    setUpdatedGynecHistory,
     labParamsData,
     setLabParamsData,
     privateNotesData,
@@ -1190,13 +1214,13 @@ function PrescriptionNew() {
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
   const [selectPrivateNotes, setSelectPrivateNotes] = useState(null);
   const [vaccinationDrawer, setVaccinationDrawer] = useState(false);
+  const [dentalPlanDrawer, setDentalPlanDrawer] = useState(false);
   const [vaccineRefreshKey, setVaccineRefreshKey] = useState(0);
   const [growthRefreshKey, setGrowthRefreshKey] = useState(0);
   const [opthalDrawer, setOpthalDrawer] = useState(false);
   const [opthalRefreshKey, setOpthalRefreshKey] = useState(0);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
   const [growthDrawer, setGrowthDrawer] = useState(false);
-  const [updatedGynecHistory, setUpdatedGynecHistory] = useState(null);
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
@@ -1235,6 +1259,42 @@ function PrescriptionNew() {
     drAgentStyles.prescriptionNewRouteShell,
     isTablet ? drAgentStyles.prescriptionNewRouteShellTablet : "",
   ].filter(Boolean).join(" ");
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    const html = document.documentElement;
+    const body = document.body;
+    const previous = {
+      htmlOverflow: html.style.overflow,
+      htmlOverscrollBehavior: html.style.overscrollBehavior,
+      htmlHeight: html.style.height,
+      bodyOverflow: body.style.overflow,
+      bodyOverscrollBehavior: body.style.overscrollBehavior,
+      bodyHeight: body.style.height,
+      bodyTouchAction: body.style.touchAction,
+    };
+
+    window.scrollTo({ top: 0, left: 0 });
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    html.style.height = "100%";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    body.style.height = "100%";
+    body.style.touchAction = "pan-y";
+
+    return () => {
+      html.style.overflow = previous.htmlOverflow;
+      html.style.overscrollBehavior = previous.htmlOverscrollBehavior;
+      html.style.height = previous.htmlHeight;
+      body.style.overflow = previous.bodyOverflow;
+      body.style.overscrollBehavior = previous.bodyOverscrollBehavior;
+      body.style.height = previous.bodyHeight;
+      body.style.touchAction = previous.bodyTouchAction;
+    };
+  }, []);
+
   const [generatedDDx, setGeneratedDDx] = useState({ results: [] });
   const [isDDxLoading, setIsDDxLoading] = useState(false);
   const [ddxDrawer, setDDxDrawer] = useState(false);
@@ -1277,6 +1337,7 @@ function PrescriptionNew() {
       payload.allergies?.length ||
       payload.currentMedications?.length ||
       payload.medications?.length ||
+      hasVitalsAndBodyCompositionData(payload.vitalsAndBodyComposition) ||
       payload.questionsToDoctor?.length ||
       payload.questions?.length ||
       payload.notes ||
@@ -1500,17 +1561,30 @@ function PrescriptionNew() {
 
   useEffect(() => {
     const clinic_name = getClinicName(profile?.hospital_data);
-    tcmId == 0
-      ? window.Moengage.track_event("TP_Consultation_Started", {
-          clinic_name,
-          patient_number: patient_data?.pm_contact_no,
-          patient_id: patient_data?.patient_unique_id,
-          tcm_id: tcmId,
-        })
+    const isNewConsultation = Number(tcmId) === 0;
+    const consultationEventPayload = {
+      clinic_name,
+      is_voice_rx_new_ui: Boolean(isVoiceRxNewUiFlow),
+      voice_rx_module_ui_enabled: Boolean(canUseVoiceRxModuleUi),
+      voice_rx_new_ui_gb_enabled: Boolean(isVoiceRxNewFromGB),
+      from_voice_recording: Boolean(fromVoiceRecording),
+      patient_number: patient_data?.pm_contact_no,
+      patient_id: patient_data?.patient_unique_id,
+      patient_name: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
+      patient_gender: patient_data?.pm_gender || patient_data?.patient_gender || "",
+      patient_age: patient_data?.age || patient_data?.ageYears || "",
+      doctor_id: profile?.doctor_unique_id,
+      doctor_unique_id: profile?.doctor_unique_id,
+      doctor_name: profile?.um_name,
+      doctor_number: profile?.um_contact,
+      doctor_specialty: profile?.dp_name,
+      doctor_um_id: tokenData?.user_id,
+    };
+    isNewConsultation
+      ? window.Moengage.track_event("TP_Consultation_Started", consultationEventPayload)
       : window.Moengage.track_event("TP_Consultation_edit_started", {
-          clinic_name,
-          patient_number: patient_data?.pm_contact_no,
-          patient_id: patient_data?.patient_unique_id,
+          ...consultationEventPayload,
+          tcm_id: tcmId,
         });
     const sendData = {
       patient_unique_id: patient_data?.patient_unique_id,
@@ -1842,6 +1916,10 @@ function PrescriptionNew() {
     setVaccineRefreshKey((prev) => prev + 1);
   }, []);
 
+  const handleDentalPlanDrawer = useCallback(() => {
+    setDentalPlanDrawer((prev) => !prev);
+  }, []);
+
   const handleDrawerVaccination = useCallback((chartType) => {
     setVaccinationDrawer((prev) => {
       if (prev) {
@@ -2081,7 +2159,6 @@ function PrescriptionNew() {
     const requestId = symptomCollectorRequestRef.current + 1;
     symptomCollectorRequestRef.current = requestId;
     setSymptomCollectorStatus("loading");
-    setShowSCBanner(false);
     dispatch(setSymptomCollector({}));
     const payload = {
       um_id: String(userId),
@@ -2103,18 +2180,15 @@ function PrescriptionNew() {
       };
       if (response && Object.keys(response)?.length > 0 && hasDisplayableSymptomCollectorPayload(nextSymptomCollector)) {
         dispatch(setSymptomCollector(nextSymptomCollector));
-        setShowSCBanner(true);
         setSymptomCollectorStatus("found");
         if (patient_data?.pam_status === "0" && caseManagerData === undefined) {
           dispatch(setShowSCPopup(true));
         }
       } else {
-        setShowSCBanner(false);
         setSymptomCollectorStatus("empty");
       }
     } catch (error) {
       if (symptomCollectorRequestRef.current !== requestId) return;
-      setShowSCBanner(false);
       setSymptomCollectorStatus("empty");
     }
   };
@@ -2906,6 +2980,10 @@ function PrescriptionNew() {
       case "zydusLabReports":
         handleZydusTestReportDrawer();
         break;
+      case "dentalPlan":
+        setDrAgentOpen(false);
+        handleDentalPlanDrawer();
+        break;
       default:
         break;
     }
@@ -2913,6 +2991,7 @@ function PrescriptionNew() {
     allUploadedDocs.length,
     handleAddClick,
     handleAddLabParamsDrawer,
+    handleDentalPlanDrawer,
     handleDrawerGrowth,
     handleDrawerMedicalHistory,
     handleDrawerMedicalReport,
@@ -3031,9 +3110,6 @@ function PrescriptionNew() {
                   )}
                   </Carousel>
                 } */}
-                {showSCBanner && (
-                  <SCBanner handleBanner={() => setShowSCBanner(false)} />
-                )}
                 {customizedPadRightList?.map((e, i) => {
                   let customModule = allAvailableModules?.find(
                     (m) => m.module_id === e.tmdpm_id
@@ -3212,6 +3288,23 @@ function PrescriptionNew() {
             selectPrivateNotes={selectPrivateNotes}
           />
         </Drawer>
+        {dentalPlanDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            onClose={handleDentalPlanDrawer}
+            open={dentalPlanDrawer}
+            width="100%"
+            zIndex={1100}
+            styles={{ body: { padding: 0, height: "100vh", overflow: "hidden" } }}
+          >
+            <TreatmentPlanDrawer
+              patientId={patient_data?.patient_unique_id}
+              patientAge={patient_data?.ageYears}
+              onClose={handleDentalPlanDrawer}
+            />
+          </Drawer>
+        )}
         {vaccinationDrawer && (
           <Drawer
             closeIcon={false}

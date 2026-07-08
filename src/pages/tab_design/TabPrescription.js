@@ -614,6 +614,7 @@ function TabPrescription() {
     setSelectedCarePlan,
     referralData,
     setReferralData,
+    isDraft: caseManagerData?.is_draft,
     rxDrawingCanvasIds,
   };
 

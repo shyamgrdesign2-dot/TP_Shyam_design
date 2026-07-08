@@ -2,7 +2,6 @@
  * Builds treatment-plan quick picks from (1) seeded INITIAL_TOOTH_STATE,
  * (2) live examination chart rows persisted from DentalCanvas.
  */
-import { INITIAL_TOOTH_STATE } from "../mock-data";
 import { TREATMENT_NAMES } from "./treatments";
 
 export const EXAM_CHART_STORAGE_PREFIX = "dental.exam.chart.";
@@ -111,18 +110,18 @@ function loadChartSnapshot(patientId) {
   }
 }
 
-function diagnosesForPatient(patientId, toothState) {
+function diagnosesForPatient(patientId) {
   const snap = loadChartSnapshot(patientId);
   if (snap?.toothDiagnoses && Object.keys(snap.toothDiagnoses).length > 0)
     return snap.toothDiagnoses;
-  return toothState?.toothDiagnoses ?? {};
+  return {};
 }
 
-function findingsForPatient(patientId, toothState) {
+function findingsForPatient(patientId) {
   const snap = loadChartSnapshot(patientId);
   if (snap?.findingsByTooth && Object.keys(snap.findingsByTooth).length > 0)
     return snap.findingsByTooth;
-  return toothState?.findingsByTooth ?? {};
+  return {};
 }
 
 function suggestionKey(s) {
@@ -140,8 +139,7 @@ export function buildExamSuggestions(patientId) {
     if (!byKey.has(k)) byKey.set(k, s);
   };
 
-  const toothState = INITIAL_TOOTH_STATE[patientId];
-  const diagMap = diagnosesForPatient(patientId, toothState);
+  const diagMap = diagnosesForPatient(patientId);
   for (const [fdi, diagnoses] of Object.entries(diagMap)) {
     for (const diag of diagnoses) {
       const treatmentName = mapDiagnosisToTreatment(diag);
@@ -157,7 +155,7 @@ export function buildExamSuggestions(patientId) {
       }
     }
   }
-  const findMap = findingsForPatient(patientId, toothState);
+  const findMap = findingsForPatient(patientId);
   for (const [fdi, findings] of Object.entries(findMap)) {
     for (const finding of findings) {
       const treatmentName = mapFindingToTreatment(finding.type);

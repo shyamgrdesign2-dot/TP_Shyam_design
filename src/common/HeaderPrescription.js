@@ -30,7 +30,7 @@ import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncCon
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType, trackEvent, medicationsHaveFrequencyAndDuration } from "../utils/utils";
 import { transcribeAnyAudio } from '../components/dr-agent/voicerx/api/agent-audio-service';
 
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, MEDICINE_STOCK_STATUS } from "../utils/constants";
 import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -59,7 +59,7 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
 import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
-import { uploadAndLogVoiceRx2, buildVoiceHistoryEntry } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { VOICE_RX_2_VERSION, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
 
@@ -70,9 +70,17 @@ import {
     createOpthalPrescription,
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
+import { syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
 import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
+import {
+    hasInvalidChikitsalayDiagnosis,
+    hasInvalidChikitsalayInvestigation,
+    hasInvalidChikitsalayMedication,
+    getInvalidChikitsalayInventoryMessage,
+} from "../utils/chikitsalayInventory";
 const {
   alerticon: alertIcon,
   tutorial2,
@@ -145,7 +153,7 @@ function normalizeVoiceHistoryForStore(history) {
 
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false, onEndVisit, isEndVisitLoading = false, hasDentalData = false, onPreviewClick, showPreviewButton = false, onSelectLetterHead, isDentalConsultation = false }) {
 
-    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
+    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded, userId } = useSelector((state) => state.doctors);
 
     const { frequencyList, timingList, videoList, medicineTypeList } = useSelector((state) => state.doctors);
     const vaccines = useSelector((state) => state.vaccines);
@@ -179,6 +187,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const ophthalmologyExam = useSelector((state) => state.ophthalmologyExam);
 
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+    const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
     //PopOver1
     const [popOver1, setPopOver1] = useState(false);
@@ -227,9 +236,17 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tokenData = getDecodedToken()?.result;
     const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
-    const hasUngroundedMedications = isZydusAccount && medicationData.some(
-      (item) => !!item?.voice_rx_from_module && !(Number(item?.tmm_id) > 0)
-    );
+    const shouldUseChikitsalayInventoryValidation =
+        isNewPrescriptionUi && Boolean(showVoiceRxModule) && isChikitsalayAccessable;
+    const hasUngroundedMedications = shouldUseChikitsalayInventoryValidation
+        ? (
+            diagnosisData.some(hasInvalidChikitsalayDiagnosis) ||
+            investigationData.some(hasInvalidChikitsalayInvestigation) ||
+            medicationData.some(hasInvalidChikitsalayMedication)
+        )
+        : isZydusAccount && medicationData.some(
+            (item) => !!item?.voice_rx_from_module && !(Number(item?.tmm_id) > 0)
+        );
     const [saveDraftLoading, setSaveDraftLoading] = useState(false);
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false, isVoiceRxNewUiFlow = false} = location.state || {};
@@ -425,7 +442,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
     }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const headerVoiceStartRecording = useCallback(async () => {
+    const headerVoiceStartRecording = useCallback(async (triggerType = "manual_click") => {
         if (headerVoiceStateRef.current !== "idle") return;
         if (activeVoiceModule) return;
         const cursor = headerVoiceCursorRef.current;
@@ -443,6 +460,25 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             headerVoiceMediaRecorderRef.current = recorder;
             recorder.start();
             headerVoiceRecordStartMsRef.current = Date.now();
+            trackVoiceRx2StartEvent({
+                patientData: patient_data,
+                profile,
+                sessionId: voiceDigitization?.sessionId || "",
+                mode: "dictation",
+                fromVoiceRecording: true,
+                voicecall: voiceDigitization?.voiceCallCount || 0,
+                moduleName: "header-dictation",
+                sourceSurface: "header",
+                voiceInputLocation: headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION,
+                isDoctorAgent: false,
+                triggerType,
+                triggeredByDoubleShift: triggerType === "double_shift",
+                extra: {
+                    doctorId: profile?.doctor_unique_id || "",
+                    patientId: patient_data?.patient_unique_id || "",
+                    trigger_location: "header_dictation_shortcut",
+                },
+            });
             setHeaderVoiceState("recording");
             publishHeaderDictation("recording", targetId);
         } catch (err) {
@@ -451,7 +487,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         }
-    }, [activeVoiceModule, publishHeaderDictation, setHeaderVoiceState]);
+    }, [activeVoiceModule, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
 
     const headerVoiceCancelRecording = useCallback(() => {
         const recorder = headerVoiceMediaRecorderRef.current;
@@ -491,7 +527,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             // idle: detect double-shift to start
             if (now - headerVoiceLastShiftTimeRef.current < 500) {
                 headerVoiceLastShiftTimeRef.current = 0;
-                headerVoiceStartRecording();
+                headerVoiceStartRecording("double_shift");
             } else {
                 headerVoiceLastShiftTimeRef.current = now;
             }
@@ -659,12 +695,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
     }, [isAutofillSelected, selectedSymptomsCollector]);
 
-    const items = [
-        {
-            label: <div onClick={onResetClick}>Clear</div>,
-            key: 'clear',
-        },
-    ];
     async function onResetClick() {
         setSymptomsData([])
         setExaminationData([])
@@ -681,6 +711,26 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         setCustomModuleContents([]);
         dispatch(resetOpthalForm());
     }
+
+    const showClearConfirmation = useCallback(() => {
+        setIsClearModalOpen(true);
+    }, []);
+
+    const showHideClearModal = useCallback(() => {
+        setIsClearModalOpen(false);
+    }, []);
+
+    const handleConfirmClear = async () => {
+        await onResetClick();
+        setIsClearModalOpen(false);
+    };
+
+    const items = [
+        {
+            label: <div onClick={showClearConfirmation}>Clear</div>,
+            key: 'clear',
+        },
+    ];
     // const languageItems = [
     //     {
     //         label: '1st menu item',
@@ -979,6 +1029,19 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const templateSurgeries = surgeriesData;
         const templateDiagnosis = diagnosisData;
         const templateInvestigations = investigationData;
+
+        if (shouldUseChikitsalayInventoryValidation && (
+            templateDiagnosis.some(hasInvalidChikitsalayDiagnosis) ||
+            templateInvestigations.some(hasInvalidChikitsalayInvestigation) ||
+            updatedMedication.some(hasInvalidChikitsalayMedication)
+        )) {
+            errorMessage(getInvalidChikitsalayInventoryMessage({
+                diagnosisData: templateDiagnosis,
+                investigationData: templateInvestigations,
+                medicationData: updatedMedication,
+            }));
+            return;
+        }
         
         var sendData = {
             tmoc_template_name: inputTemplateName,
@@ -1113,6 +1176,19 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const templateSurgeries = surgeriesData;
         const templateDiagnosis = diagnosisData;
         const templateInvestigations = investigationData;
+
+        if (shouldUseChikitsalayInventoryValidation && (
+            templateDiagnosis.some(hasInvalidChikitsalayDiagnosis) ||
+            templateInvestigations.some(hasInvalidChikitsalayInvestigation) ||
+            updatedMedication.some(hasInvalidChikitsalayMedication)
+        )) {
+            errorMessage(getInvalidChikitsalayInventoryMessage({
+                diagnosisData: templateDiagnosis,
+                investigationData: templateInvestigations,
+                medicationData: updatedMedication,
+            }));
+            return;
+        }
 
         var data = JSON.parse(inputTemplateName);
         var sendData = {
@@ -1257,6 +1333,43 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             />
         );
     }, [isModalOpen]);
+
+    const CLEAR_MODAL = useMemo(() => {
+        return (
+            <CommonModal
+                isModalOpen={isClearModalOpen}
+                onCancel={showHideClearModal}
+                modalWidth={500}
+                zIndex={headerOverlayZIndex}
+                title={"You may lose your data"}
+                modalBody={
+                    <>
+                        <div className="alert-warning rounded-10px p-2 patient-details">
+                            <div className="d-flex align-items-center">
+                                <img className='me-3' src={alertIcon} alt="Warning" />
+                                <span>
+                                    Are you sure you want to clear all prescription data?
+                                </span>
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <div className="d-flex align-items-center mt-2 justify-content-end">
+                                <div
+                                    onClick={handleConfirmClear}
+                                    className="me-4 text-decoration-underline btn p-0 text-main"
+                                >
+                                    Clear
+                                </div>
+                                <Button onClick={showHideClearModal} className="lh-lg btn btn-primary3 btn-41 px-4">
+                                    <span>No</span>
+                                </Button>
+                            </div>
+                        </div>
+                    </>
+                }
+            />
+        );
+    }, [handleConfirmClear, isClearModalOpen, showHideClearModal]);
 
     //Template Componet Web
     const TEMPLATE_CONTENT_WEB = useCallback(() => {
@@ -1560,6 +1673,46 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         [medicationData]
     );
 
+    const hasOutOfStockMedication = useMemo(
+        () =>
+            medicationData.some(
+                (medication) =>
+                    medication?.stock_status === MEDICINE_STOCK_STATUS.NO_STOCK
+            ),
+        [medicationData]
+    );
+
+    const hasDiagnosisNameAndIcdCode = useMemo(
+        () =>
+            diagnosisData.length > 0 &&
+            diagnosisData.every(
+                (diagnosis) =>
+                    String(diagnosis?.tds_name ?? "").trim() !== "" &&
+                    String(diagnosis?.icd_code ?? "").trim() !== ""
+            ),
+        [diagnosisData]
+    );
+
+    const hasValidChikitsalayInventoryRows = useMemo(
+        () =>
+            !(
+                diagnosisData.some(hasInvalidChikitsalayDiagnosis) ||
+                investigationData.some(hasInvalidChikitsalayInvestigation) ||
+                medicationData.some(hasInvalidChikitsalayMedication)
+            ),
+        [diagnosisData, investigationData, medicationData]
+    );
+
+    const invalidChikitsalayInventoryMessage = useMemo(
+        () =>
+            getInvalidChikitsalayInventoryMessage({
+                diagnosisData,
+                investigationData,
+                medicationData,
+            }),
+        [diagnosisData, investigationData, medicationData]
+    );
+
     const endVisitTooltipMessage = useMemo(() => {
         if (isChikitsalayAccessable) {
             const missingMedicationFields =
@@ -1571,6 +1724,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 return "Please fill Symptoms and Since to end the consultation.";
             } else if (diagnosisData.length === 0) {
                 return "Please fill Diagnosis to end the consultation.";
+            } else if (!hasDiagnosisNameAndIcdCode) {
+                return "Please fill Diagnosis names that has ICD codes for all diagnoses to end the consultation.";
+            } else if (shouldUseChikitsalayInventoryValidation && !hasValidChikitsalayInventoryRows) {
+                return invalidChikitsalayInventoryMessage;
+            } else if (hasOutOfStockMedication) {
+                return "Please select an in-stock medicine or alternative to end the consultation.";
             } else if (missingMedicationFields) {
                 return "Please fill Frequency and Duration for all medicines to end the consultation.";
             }
@@ -1580,6 +1739,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         isChikitsalayAccessable,
         hasSymptomsWithSince,
         diagnosisData,
+        hasDiagnosisNameAndIcdCode,
+        hasValidChikitsalayInventoryRows,
+        invalidChikitsalayInventoryMessage,
+        shouldUseChikitsalayInventoryValidation,
+        hasOutOfStockMedication,
         medicationData.length,
         hasMedicationsFrequencyAndDuration,
     ]);
@@ -2000,6 +2164,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             errorMessage('Please fillup surgery name')
         } else if (diagnosisData.length > 0 && diagnosisData.filter((e) => e.tds_name == "").length > 0) {
             errorMessage('Please fillup diagnosis name')
+        } else if (isChikitsalayAccessable && !hasDiagnosisNameAndIcdCode) {
+            errorMessage('Please add Diagnosis names that has ICD codes for all diagnoses')
+        } else if (shouldUseChikitsalayInventoryValidation && !hasValidChikitsalayInventoryRows) {
+            errorMessage(invalidChikitsalayInventoryMessage)
+        } else if (isChikitsalayAccessable && hasOutOfStockMedication) {
+            errorMessage('Please select an in-stock medicine or alternative to end the consultation.')
         } else if (medicationData.length > 0 && medicationData.filter((e) => e.tmm_medicine_name == "").length > 0) {
             errorMessage('Please fillup medication name')
         } else if (adviceData.length > 0 && adviceData.filter(e => e.advice_name == "").length > 0) {
@@ -2104,6 +2274,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 clinic_name,
                 patient_number: patient_data?.pm_contact_no,
                 patient_id: patient_data?.patient_unique_id,
+                patient_name: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
+                doctor_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                appEnv: process.env.REACT_APP_ENV || "prod",
                 tcm_id: tcmId,
             };
             const shouldAttachVoiceCallCount =
@@ -2111,6 +2285,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 showVoiceRxModule;
             if (shouldAttachVoiceCallCount) {
                 consultationEventPayload.voicecall = voiceDigitization?.voiceCallCount || 0;
+                consultationEventPayload.voice_rx_session_id = voiceDigitization?.sessionId || "";
+                consultationEventPayload.voice_rx_version = VOICE_RX_2_VERSION;
+                consultationEventPayload.voice_rx_history_count = Array.isArray(voiceDigitization?.history) ? voiceDigitization.history.length : 0;
+                consultationEventPayload.voice_rx_has_history = Boolean(voiceDigitization?.history?.length);
             }
             tcmId == 0 ?
                 window.Moengage.track_event("TP_Consultation_ended", consultationEventPayload)
@@ -2167,6 +2345,16 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             }
             if (action.meta.requestStatus === "fulfilled") {
                 const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
+                try {
+                    await syncGynecHistoryAfterEndVisit(
+                        patient_data?.patient_unique_id,
+                        userId,
+                        gynecHistory,
+                        { getGynecDetails, postGynecDetails, updateGynecDetails }
+                    );
+                } catch (error) {
+                    console.error("[GynecHistory][EndVisit] sync failed", error);
+                }
                 if (voiceDigitization?.history?.length > 0) {
                     const voiceEditedData = {
                         patientDetails: {},
@@ -2568,7 +2756,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             </span>
                                         </Popover>
                                     )}
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         {isMobile ? (
                                             <VoiceRxModuleActionButton
                                                 type="save"
@@ -2617,7 +2805,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                         </button>
                                     </Popover>
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <Popover
                                             open={popOver2}
                                             onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
@@ -2641,7 +2829,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
                                         <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                     </button>
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <span>
                                             <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> <i className="icon-save me-2"></i> <span>Save</span></button>
                                         </span>
@@ -2650,6 +2838,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             )}
 
                             {DELETE_MODAL}
+                            {CLEAR_MODAL}
 
                             {!showVoiceRxModule && (
                                 <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
@@ -2760,7 +2949,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0
                               );
                               // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
-                              const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0 && hasMedicationsFrequencyAndDuration : (hasPrescriptionModuleData || hasSidebarOnlyData);
+                              const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && hasDiagnosisNameAndIcdCode && (!shouldUseChikitsalayInventoryValidation || hasValidChikitsalayInventoryRows) && !hasOutOfStockMedication && hasMedicationsFrequencyAndDuration : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
                                 <>
                                 {onSelectLetterHead && !isDentalConsultation && (

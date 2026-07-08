@@ -4,6 +4,8 @@
 .recorderRoot {
   position: relative;
   overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .recorderFillHeight {
@@ -323,7 +325,10 @@
 
 .transcriptScroll {
   width: 100%;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 0 4px;
   scrollbar-width: none;
 
@@ -363,6 +368,7 @@
 .ctaRowNormal { gap: 14px; }
 .ctaRowCompact { gap: 10px; }
 .ctaRowUltra { gap: 8px; }
+.ctaRowProcessing { gap: 12px; }
 
 .ctaBtnNormal { height: 42px; width: 42px; }
 .ctaBtnCompact { height: 38px; width: 38px; }

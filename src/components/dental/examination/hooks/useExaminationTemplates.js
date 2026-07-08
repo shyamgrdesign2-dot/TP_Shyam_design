@@ -97,7 +97,12 @@ export function useExaminationTemplates({ type, domain }) {
           ? fetchOralTemplate({ type, id: t.id })
           : fetchTemplate({ type, id: t.id })
       );
-      if (action.payload) apply(action.payload);
+
+      if (action.meta.requestStatus === "fulfilled" && action.payload) {
+        apply(action.payload);
+      } else if (action.meta.requestStatus === "rejected") {
+        message.error("Failed to load template");
+      }
     },
     [type, isOral, dispatch]
   );

@@ -9,7 +9,8 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, GB_DENTAL_MODULE, GB_CVT_EXT_HOS, CLINIC_TARGET_STATUS } from '../utils/constants';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, GB_CVT_EXT_HOS, CLINIC_TARGET_STATUS } from '../utils/constants';
+import { useIsDentalEnabled } from '../hooks/useIsDentalEnabled';
 import { shouldUseNewPrescriptionUi } from '../utils/prescriptionRouting';
 import { DENTAL_RX_PAD_ROUTE } from '../utils/dentalRoutes';
 import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId, getDraftMoengageDoctorAttributes } from '../utils/utils';
@@ -53,7 +54,7 @@ function Welcome1(props) {
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tp_monetization_enable = !shouldMonetizationDisabled();
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
-    const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+    const isDentalEnabled = useIsDentalEnabled();
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
     const isChikitsalayAccessable = useChikitsalay();
 
@@ -81,6 +82,7 @@ function Welcome1(props) {
         handleDrawerUploadDoc,
         abhaHeaderActions,
         patientAdmissionStatus,
+        isZydusUser,
         handleGenerateHealthCheckupReport
     } = props;
 
@@ -363,7 +365,7 @@ function Welcome1(props) {
                             <div>
                                 <div className='d-flex align-items-center gap-2'>
                                     <h1 className='mt-2 mb-0'>{'Patient Details'}</h1>
-                                    {patientAdmissionStatus?.alreadyAdmitted && (
+                                    {patientAdmissionStatus?.alreadyAdmitted && !isZydusUser && (
                                         <span className="ipd-badge mt-2">
                                             IPD
                                         </span>

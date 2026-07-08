@@ -41,7 +41,6 @@ import {
   GB_TAB_RX_CVT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
-  GB_DENTAL_MODULE,
   GB_VOICE_RX_NEW_UI,
   GB_CVT_EXT_HOS,
   CLINIC_TARGET_STATUS,
@@ -61,6 +60,7 @@ import {
 import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import CvtKnowMore from "../pages/smartSync/components/CvtKnowMore";
 import moment from "moment";
 import { getModules } from "../redux/customModuleSlice";
@@ -85,11 +85,7 @@ import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } 
 import PrimaryActionButton from "./PrimaryActionButton";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
-import { renderPrintPayloadToBlob } from "../utils/printPayload";
-import {
-  ensureDrawingCanvasCaseOption,
-  loadDrawingCanvasesForPrint,
-} from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
+import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
 import { ASSETS } from "../assets";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import ApiMedication from "../api/services/ApiMedication";
@@ -611,7 +607,7 @@ function Cardiology(props) {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = useIsDentalEnabled();
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
   const rawSmartPrescriptionFilename = viewCaseManagerData?.smart_prescription_filename;
@@ -969,6 +965,7 @@ function Cardiology(props) {
     payload: printPayloadData,
     printBlob: printPayloadBlob,
     isGenerating: isPrintPayloadGenerating,
+    error: printPayloadError,
   } = usePrintPayloadPdf({
     printUrl: printUrlWithLang,
     selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
@@ -1035,6 +1032,11 @@ function Cardiology(props) {
     );
   }, [parseObjectValue, printPayloadData, unwrapDigitizePayload]);
 
+  useEffect(() => {
+    if (!printPayloadError) return;
+    message.error("Failed to generate prescription PDF.");
+  }, [printPayloadError]);
+
   const legacyVoiceRxDisplayData = voiceRxPrintPayloadData || genRxData;
 
   const buildPayloadBlobFromPrintUrl = useCallback(async (sourceUrl) => {
@@ -1045,34 +1047,22 @@ function Cardiology(props) {
     const payload = response?.data?.data || null;
     if (!payload) return null;
 
-    const resolvedCanvasFilename =
-      viewCaseManagerData?.canvas_filename ?? payload?.caseManagerData?.canvas_filename;
-    const { drawingCanvases } = await loadDrawingCanvasesForPrint({
-      patientId: patient_data?.patient_unique_id,
-      tcmId: viewCaseManagerData?.tcm_id ?? payload?.caseManagerData?.tcm_id,
-      canvasFilename: resolvedCanvasFilename,
-    });
-    const printSettingsWithCanvas =
-      drawingCanvases.length > 0
-        ? ensureDrawingCanvasCaseOption(payload.printSettings)
-        : payload.printSettings;
-
-    const blob = await renderPrintPayloadToBlob(
-      {
-        ...payload,
-        printSettings: printSettingsWithCanvas,
-        drawingCanvases,
-        isCvtExtHosAccessableFromGB,
-      },
-      {
+    try {
+      const { blob } = await buildPrintPdfBlobFromPayload(payload, {
         selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
         isGynaecHistoryAccessable: false,
-      },
-    );
-    if (!(blob instanceof Blob)) return null;
-    const header = await blob.slice(0, 5).text();
-    if (header !== "%PDF-") return null;
-    return blob;
+        patientId: patient_data?.patient_unique_id,
+        tcmId: viewCaseManagerData?.tcm_id ?? payload?.caseManagerData?.tcm_id,
+        canvasFilename:
+          viewCaseManagerData?.canvas_filename ?? payload?.caseManagerData?.canvas_filename,
+        isCvtExtHosAccessableFromGB,
+        allowFullApiFallback: true,
+      });
+      return blob instanceof Blob ? blob : null;
+    } catch (err) {
+      console.error("Failed to build print PDF blob", err);
+      return null;
+    }
   }, [
     selectedLang,
     isCvtExtHosAccessableFromGB,
@@ -3903,6 +3893,7 @@ function Cardiology(props) {
   };
 
   const handleStartTypeRx = () => {
+    console.log("this is getting called")
     navigate(DENTAL_RX_PAD_ROUTE, {
       state: { patient_data: patient_data },
     });

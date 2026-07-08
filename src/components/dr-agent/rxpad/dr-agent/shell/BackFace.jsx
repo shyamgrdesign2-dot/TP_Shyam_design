@@ -65,6 +65,9 @@ export function BackFace({
   const effectiveSoapHtml = liveSoapHtml || voiceRxResult?.soapHtml || "";
   const effectiveSoap = voiceRxResult?.soap || liveSoapRaw;
   const effectiveSoapStatus = voiceRxResult?.soapStatus || (effectiveSoap || effectiveSoapHtml ? "fulfilled" : undefined);
+  const hasClinicalNotes = voiceRxResult?.structured?.sections?.some(
+    (section) => Array.isArray(section?.items) && section.items.length > 0
+  );
   return (
     <div
       className={cn(
@@ -89,13 +92,13 @@ export function BackFace({
             modeLabel={voiceRxResult.modeLabel}
             transcript={voiceRxResult.transcript}
             transcriptSegments={voiceRxResult.transcriptSegments}
-            emrCard={
+            emrCard={hasClinicalNotes ? (
               <VoiceStructuredRxCard
                 data={voiceRxResult.structured}
                 onCopy={onCopyResult}
                 hideHeader={true}
               />
-            }
+            ) : null}
             soapCard={
               <SoapNoteCard
                 status={effectiveSoapStatus}

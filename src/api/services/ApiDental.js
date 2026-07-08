@@ -2,6 +2,13 @@ import api from "./axiosService";
 import config from "../../config";
 
 const dentalBaseUrl = { customBaseUrl: config.snap_rx_api_url };
+const billingBaseUrl = { customBaseUrl: config.lab_params_api_url };
+
+export const fetchDentalBillItems = (page = 1, limit = 200) =>
+  api.get(
+    `/api/v1/billing/billItem/list?type=Dental_Service&page=${page}&limit=${limit}`,
+    billingBaseUrl
+  );
 
 // 1. Templates
 export const listTemplates = (type) =>
@@ -18,6 +25,8 @@ export const saveTreatmentHistoryTemplate = (data) =>
   api.post(`/api/v1/dental/templates/treatment-history`, data, dentalBaseUrl);
 export const saveNotesTemplate = (data) =>
   api.post(`/api/v1/dental/templates/notes`, data, dentalBaseUrl);
+export const updateTemplate = (type, id, data) =>
+  api.put(`/api/v1/dental/templates/${type}/${id}`, data, dentalBaseUrl);
 export const deleteTemplateById = (type, id) =>
   api.delete(`/api/v1/dental/templates/${type}/${id}`, dentalBaseUrl);
 
@@ -216,7 +225,30 @@ export const createInvoice = (patientId, planId, data) =>
 export const getInvoice = (patientId, invoiceId) =>
   api.get(`/api/v1/dental/patients/${patientId}/invoices/${invoiceId}`, dentalBaseUrl);
 
-// 9. Rx Previews
+// 9. Plan & Service Templates
+export const listPlanTemplates = () =>
+  api.get(`/api/v1/dental/plan-templates/plan`, dentalBaseUrl);
+export const getPlanTemplateById = (id) =>
+  api.get(`/api/v1/dental/plan-templates/plan/${id}`, dentalBaseUrl);
+export const createPlanTemplate = (data) =>
+  api.post(`/api/v1/dental/plan-templates/plan`, data, dentalBaseUrl);
+export const updatePlanTemplateById = (id, data) =>
+  api.put(`/api/v1/dental/plan-templates/plan/${id}`, data, dentalBaseUrl);
+export const deletePlanTemplateById = (id) =>
+  api.delete(`/api/v1/dental/plan-templates/plan/${id}`, dentalBaseUrl);
+
+export const listServiceTemplates = () =>
+  api.get(`/api/v1/dental/service-templates/service`, dentalBaseUrl);
+export const getServiceTemplateById = (id) =>
+  api.get(`/api/v1/dental/service-templates/service/${id}`, dentalBaseUrl);
+export const createServiceTemplate = (data) =>
+  api.post(`/api/v1/dental/service-templates/service`, data, dentalBaseUrl);
+export const updateServiceTemplateById = (id, data) =>
+  api.put(`/api/v1/dental/service-templates/service/${id}`, data, dentalBaseUrl);
+export const deleteServiceTemplateById = (id) =>
+  api.delete(`/api/v1/dental/service-templates/service/${id}`, dentalBaseUrl);
+
+// 10. Rx Previews
 export const getPlanRxPreview = (patientId, planId) =>
   api.get(
     `/api/v1/dental/patients/${patientId}/plans/${planId}/rx-preview`,

@@ -12,16 +12,23 @@
 
 import { useEffect, useRef, useState } from "react";
 import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
-import { getToothImageCandidates } from "../../../assets";
 import { ORAL_POSITION_LABEL } from "./types";
 import { QuickSurfaceSelector } from "./QuickSurfaceSelector";
+import {
+  ADULT_UPPER_ROW,
+  ADULT_LOWER_ROW,
+  PEDIATRIC_UPPER_ROW,
+  PEDIATRIC_LOWER_ROW,
+  CHART_TITLES,
+  getFdiRowsForDentitionType,
+  getMaxHalfAspectSum,
+  getToothImageCandidatesForFdi,
+  PEDIATRIC_MIXED_BAND_WIDTH_RATIO,
+  resolveChartsToRenderFromChart,
+} from "./dentalChartConstants";
 import fdc from "./FlatDentitionChart.module.scss";
 
 const EXAM_CHART_PREFIX = "dental.exam.chart.";
-
-// Permanent dentition, laid left→right as seen facing the patient.
-const UPPER_ROW = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
-const LOWER_ROW = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
 
 const isMissingDiag = (d) => getVisualType(d) === VISUAL_TYPE.MISSING;
 
@@ -201,13 +208,7 @@ function Tooth({ fdi, slotX, top, upper, st }) {
 // no longer look small). The row uses width:100%, so it always fits the page.
 // Exact width/height of each trimmed tooth PNG → flex weight, so every tooth
 // renders at the SAME height (cells size proportionally) and the row fits width.
-const TOOTH_ASPECT = { "11": 0.371, "12": 0.371, "13": 0.341, "14": 0.354, "15": 0.373, "16": 0.505, "17": 0.513, "18": 0.515, "21": 0.371, "22": 0.371, "23": 0.341, "24": 0.354, "25": 0.373, "26": 0.505, "27": 0.513, "28": 0.515, "31": 0.3, "32": 0.287, "33": 0.307, "34": 0.334, "35": 0.342, "36": 0.668, "37": 0.55, "38": 0.658, "41": 0.3, "42": 0.287, "43": 0.307, "44": 0.334, "45": 0.342, "46": 0.668, "47": 0.55, "48": 0.658 };
-function toothCellAspect(fdi) { return TOOTH_ASPECT[fdi] || 0.45; }
-const toothCandidates = (fdi) => getToothImageCandidates(fdi);
-
-// Widest half-arch aspect-sum (lower arch) — used to size a uniform tooth
-// height that still lets the widest row fit the available width.
-const MAX_HALF_ASPECT_SUM = 3.45;
+const toothCandidates = (fdi) => getToothImageCandidatesForFdi(fdi);
 
 // Per-tooth surface zones recorded in the chart (for the read-only selector).
 function zonesByToothFromChart(chart) {
@@ -223,7 +224,7 @@ function zonesByToothFromChart(chart) {
   return zonesByTooth;
 }
 
-function ChartToothCell({ fdi, st, h, arch, zones }) {
+function ChartToothCell({ fdi, st, h, arch, zones, variant = "full" }) {
   const hasData = st.hasAny || st.isMissing;
   const pos = Number(fdi[1]) || 6;
   const [assetIdx, setAssetIdx] = useState(0);
@@ -238,7 +239,11 @@ function ChartToothCell({ fdi, st, h, arch, zones }) {
     setAssetIdx((prev) => (prev + 1 < candidates.length ? prev + 1 : prev));
   };
 
-  const toothImg = (
+  const showImage = variant === "full" || variant === "images";
+  const showLabel = variant === "full" || variant === "images";
+  const showSurfaces = variant === "full" || variant === "surfaces";
+
+  const toothImg = showImage ? (
     <img
       src={toothSrc}
       alt={fdi}
@@ -250,73 +255,85 @@ function ChartToothCell({ fdi, st, h, arch, zones }) {
         opacity: st.isMissing ? 0.4 : 1,
       }}
     />
-  );
+  ) : null;
 
-  const img = (
+  const img = showImage ? (
     <div className={`${fdc.toothImgShell} ${hasData ? fdc.toothImgShellHasData : ""}`}>
       {toothImg}
     </div>
-  );
-  const num = (
+  ) : null;
+  const num = showLabel ? (
     <span className={`${fdc.toothNum} ${hasData ? fdc.toothNumHasData : fdc.toothNumPlain}`}>
       {fdi}
     </span>
-  );
-  const selector = (
+  ) : null;
+  const selector = showSurfaces ? (
     <div className={fdc.selectorWrap}>
       <div className={fdc.selectorScale}>
         <QuickSurfaceSelector selectedZones={zones || new Set()} onToggleZone={() => {}} arch={arch} toothPosition={pos} zonesWithFindings={new Set()} />
       </div>
     </div>
-  );
-  const stack = arch === "maxillary" ? [img, num, selector] : [selector, num, img];
+  ) : null;
+
+  const parts = [];
+  if (showImage) parts.push(img);
+  if (showLabel) parts.push(num);
+  if (showSurfaces) parts.push(selector);
+  const stack =
+    arch === "maxillary"
+      ? parts
+      : [...parts].sort((a, b) => {
+          const rank = (node) => (node === selector ? 0 : node === num ? 1 : 2);
+          return rank(a) - rank(b);
+        });
+
   return (
     <div className={fdc.toothCell}>
-      {stack.map((el, i) => <div key={i}>{el}</div>)}
+      {stack.map((el, i) => (
+        <div key={i}>{el}</div>
+      ))}
     </div>
   );
 }
 
-export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender = false }) {
-  const [chart, setChart] = useState(chartProp ?? null);
+function FlatDentitionChartSection({
+  chart,
+  alwaysRender,
+  dentitionType,
+  title,
+  upperRow,
+  lowerRow,
+  teethPerQuadrant,
+}) {
   const wrapRef = useRef(null);
   const [toothH, setToothH] = useState(84);
-  useEffect(() => {
-    if (chartProp) return;
-    setChart(loadChart(patientId));
-  }, [patientId, chartProp]);
-  // Uniform tooth height = widest-half-width / aspect-sum, so every tooth is the
-  // SAME height while the widest row still fits (responsive to the container).
-  // CENTRE_RESERVE = the same gap we use between maxillary and mandibular rows
-  // (8 px column gap) so the right↔left quadrant separation reads as the SAME
-  // visual rhythm as the upper↔lower jaw separation. No inner padding either —
-  // `space-evenly` alone distributes any leftover space cleanly.
+
   useEffect(() => {
     const measure = () => {
       const w = wrapRef.current?.clientWidth || 660;
-      // 1px divider + 8px total margin (4px each side) — matches column gap.
       const CENTRE_RESERVE = 9;
       const half = (w - CENTRE_RESERVE) / 2;
-      // 0.65 keeps the chart compact so the trailing molars (28, 38) don't
-      // overflow the container edge.
-      const H = Math.max(40, Math.min(80, (half / MAX_HALF_ASPECT_SUM) * 0.65));
+      const maxHalfAspectSum = getMaxHalfAspectSum(dentitionType);
+      const H = Math.max(40, Math.min(80, (half / maxHalfAspectSum) * 0.65));
       setToothH(H);
     };
     measure();
     let ro;
-    if (typeof ResizeObserver !== "undefined" && wrapRef.current) { ro = new ResizeObserver(measure); ro.observe(wrapRef.current); }
+    if (typeof ResizeObserver !== "undefined" && wrapRef.current) {
+      ro = new ResizeObserver(measure);
+      ro.observe(wrapRef.current);
+    }
     window.addEventListener("resize", measure);
-    return () => { ro?.disconnect(); window.removeEventListener("resize", measure); };
-  }, [chart]);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [chart, dentitionType]);
 
   const toothDiagnoses = chart?.toothDiagnoses ?? {};
   const findingsByTooth = chart?.findingsByTooth ?? {};
   const chartEntries = Array.isArray(chart?.entries) ? chart.entries : [];
 
-  // Nothing recorded → don't render in regular contexts (saves space in the
-  // Rx Preview drawer when the doctor hasn't added any tooth data). The print
-  // path passes `alwaysRender` so the chart ALWAYS renders for print previews
-  // — that's the whole point of "Print Dental Chart".
   const anyData =
     chartEntries.length > 0 ||
     Object.values(toothDiagnoses).some((a) => (a || []).length > 0) ||
@@ -324,29 +341,141 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   if (!anyData && !alwaysRender) return null;
 
   const zonesByTooth = zonesByToothFromChart(chart);
-  const cell = (fdi, arch) => (
-    <ChartToothCell key={fdi} fdi={fdi} h={toothH} arch={arch} zones={zonesByTooth[fdi]} st={toothState(fdi, toothDiagnoses, findingsByTooth, chartEntries)} />
+  const cell = (fdi, arch, variant = "full") => (
+    <ChartToothCell
+      key={`${fdi}-${variant}`}
+      fdi={fdi}
+      h={toothH}
+      arch={arch}
+      variant={variant}
+      zones={zonesByTooth[fdi]}
+      st={toothState(fdi, toothDiagnoses, findingsByTooth, chartEntries)}
+    />
   );
-  // Right/left quadrant gap matches the upper/lower jaw gap (8px row gap)
-  // so the chart reads with one consistent rhythm. `space-evenly` keeps
-  // the inner-most tooth (11 / 41) from sitting flush against the divider.
-  const row = (fdis, arch) => (
+  const row = (fdis, arch, variant = "full") => (
     <div className={fdc.chartRow}>
-      <div className={fdc.chartHalf}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
+      <div className={fdc.chartHalf}>{fdis.slice(0, teethPerQuadrant).map((fdi) => cell(fdi, arch, variant))}</div>
       <div className={fdc.chartDivider} />
-      <div className={fdc.chartHalf}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
+      <div className={fdc.chartHalf}>{fdis.slice(teethPerQuadrant).map((fdi) => cell(fdi, arch, variant))}</div>
     </div>
   );
 
   return (
-    <section className={fdc.chartSection} data-dental-flat-chart="true">
-      <h3 className={fdc.chartTitle}>Dental Chart</h3>
+    <section className={fdc.chartSection} data-dental-flat-chart="true" data-dentition-type={dentitionType}>
+      <h3 className={fdc.chartTitle}>{title}</h3>
       <div ref={wrapRef} className={fdc.chartWrap}>
-        {row(UPPER_ROW, "maxillary")}
+        {row(upperRow, "maxillary", "full")}
         <div className={fdc.chartJawDivider} />
-        {row(LOWER_ROW, "mandibular")}
+        {row(lowerRow, "mandibular", "full")}
       </div>
     </section>
+  );
+}
+
+function FlatMixedDentitionChartSection({ chart, alwaysRender }) {
+  const wrapRef = useRef(null);
+  const [toothH, setToothH] = useState(64);
+
+  useEffect(() => {
+    const measure = () => {
+      const w = wrapRef.current?.clientWidth || 660;
+      const CENTRE_RESERVE = 9;
+      const half = (w - CENTRE_RESERVE) / 2;
+      const maxHalfAspectSum = getMaxHalfAspectSum("mixed");
+      const H = Math.max(36, Math.min(48, (half / maxHalfAspectSum) * 0.64));
+      setToothH(H);
+    };
+    measure();
+    let ro;
+    if (typeof ResizeObserver !== "undefined" && wrapRef.current) {
+      ro = new ResizeObserver(measure);
+      ro.observe(wrapRef.current);
+    }
+    window.addEventListener("resize", measure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [chart]);
+
+  const toothDiagnoses = chart?.toothDiagnoses ?? {};
+  const findingsByTooth = chart?.findingsByTooth ?? {};
+  const chartEntries = Array.isArray(chart?.entries) ? chart.entries : [];
+
+  const anyData =
+    chartEntries.length > 0 ||
+    Object.values(toothDiagnoses).some((a) => (a || []).length > 0) ||
+    Object.values(findingsByTooth).some((a) => (a || []).length > 0);
+  if (!anyData && !alwaysRender) return null;
+
+  const zonesByTooth = zonesByToothFromChart(chart);
+  const cell = (fdi, arch, variant) => (
+    <ChartToothCell
+      key={`${fdi}-${variant}`}
+      fdi={fdi}
+      h={toothH}
+      arch={arch}
+      variant={variant}
+      zones={zonesByTooth[fdi]}
+      st={toothState(fdi, toothDiagnoses, findingsByTooth, chartEntries)}
+    />
+  );
+  const bandRow = (fdis, arch, variant, perQuadrant, { pediatric = false } = {}) => (
+    <div
+      className={`${fdc.chartRow} ${pediatric ? fdc.chartRowPediatric : ""}`}
+      style={pediatric ? { width: `${PEDIATRIC_MIXED_BAND_WIDTH_RATIO * 100}%` } : undefined}
+    >
+      <div className={fdc.chartHalf}>{fdis.slice(0, perQuadrant).map((fdi) => cell(fdi, arch, variant))}</div>
+      <div className={fdc.chartDivider} />
+      <div className={fdc.chartHalf}>{fdis.slice(perQuadrant).map((fdi) => cell(fdi, arch, variant))}</div>
+    </div>
+  );
+
+  return (
+    <section className={fdc.chartSection} data-dental-flat-chart="true" data-dentition-type="mixed">
+      <h3 className={fdc.chartTitle}>{CHART_TITLES.mixed}</h3>
+      <div ref={wrapRef} className={fdc.chartWrap} style={{ gap: 12 }}>
+        {bandRow(ADULT_UPPER_ROW, "maxillary", "images", 8)}
+        {bandRow(ADULT_UPPER_ROW, "maxillary", "surfaces", 8)}
+        {bandRow(PEDIATRIC_UPPER_ROW, "maxillary", "images", 5, { pediatric: true })}
+        {bandRow(PEDIATRIC_UPPER_ROW, "maxillary", "surfaces", 5, { pediatric: true })}
+        <div className={fdc.chartJawDivider} />
+        {bandRow(PEDIATRIC_LOWER_ROW, "mandibular", "surfaces", 5, { pediatric: true })}
+        {bandRow(PEDIATRIC_LOWER_ROW, "mandibular", "images", 5, { pediatric: true })}
+        {bandRow(ADULT_LOWER_ROW, "mandibular", "surfaces", 8)}
+        {bandRow(ADULT_LOWER_ROW, "mandibular", "images", 8)}
+      </div>
+    </section>
+  );
+}
+
+export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender = false }) {
+  const [chart, setChart] = useState(chartProp ?? null);
+  useEffect(() => {
+    if (chartProp) return;
+    setChart(loadChart(patientId));
+  }, [patientId, chartProp]);
+
+  const resolvedChart = chartProp ?? chart;
+  const { isMixed, showPediatric } = resolveChartsToRenderFromChart(resolvedChart);
+
+  if (isMixed) {
+    return (
+      <FlatMixedDentitionChartSection chart={resolvedChart} alwaysRender={alwaysRender} />
+    );
+  }
+
+  const rows = getFdiRowsForDentitionType(showPediatric ? "pediatric" : "adult");
+  return (
+    <FlatDentitionChartSection
+      chart={resolvedChart}
+      alwaysRender={alwaysRender}
+      dentitionType={showPediatric ? "pediatric" : "adult"}
+      title={rows.title}
+      upperRow={rows.upperRow}
+      lowerRow={rows.lowerRow}
+      teethPerQuadrant={rows.teethPerQuadrant}
+    />
   );
 }
 

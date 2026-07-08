@@ -19,14 +19,17 @@ import {
 import {
   getDentalApiError,
   getDentalApiPayload,
+  qvrToSitting,
   toDentalPlan,
   toDentalPlanPatchRequest,
   toDentalPlanRequest,
   toDentalPlans,
   toDentalService,
+  toDentalServicePatchRequest,
   toDentalServiceRequest,
   toDentalTransitionRequest,
 } from "../utils/dentalApiMappers";
+import { createQvr, updateQvr, deleteQvr } from "./dentalQvrSlice";
 
 const initialState = {
   plans: [],
@@ -73,7 +76,7 @@ export const updateDentalPlan = createAsyncThunk(
   "dentalPlan/update",
   async ({ patientId, planId, data }, { rejectWithValue }) => {
     try {
-      const response = await updatePlan(patientId, planId, toDentalPlanPatchRequest(data));
+      const response = await updatePlan(patientId, planId, toDentalPlanRequest(data));
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to update dental plan"));
       }
@@ -217,12 +220,12 @@ export const updatePlanService = createAsyncThunk(
         patientId,
         planId,
         serviceId,
-        toDentalServiceRequest(data)
+        toDentalServicePatchRequest(data)
       );
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to update service"));
       }
-      return { planId, serviceId, service: toDentalService(getDentalApiPayload(response)) };
+      return { planId, serviceId, patch: getDentalApiPayload(response) };
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -237,7 +240,7 @@ export const markDentalServiceCompleted = createAsyncThunk(
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to mark service as completed"));
       }
-      return { planId, serviceId, service: toDentalService(getDentalApiPayload(response)) };
+      return { planId, serviceId, patch: getDentalApiPayload(response) };
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -252,7 +255,7 @@ export const revertDentalServiceToProgress = createAsyncThunk(
       if (response?.status === false) {
         return rejectWithValue(getDentalApiError(response, "Failed to revert service to in-progress"));
       }
-      return { planId, serviceId, service: toDentalService(getDentalApiPayload(response)) };
+      return { planId, serviceId, patch: getDentalApiPayload(response) };
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -290,6 +293,8 @@ const dentalPlanSlice = createSlice({
       // Fetch
       .addCase(fetchDentalPlans.pending, (state) => {
         state.loading = true;
+        state.plans = [];
+        state.error = null;
       })
       .addCase(fetchDentalPlans.fulfilled, (state, action) => {
         state.loading = false;
@@ -359,7 +364,7 @@ const dentalPlanSlice = createSlice({
         const plan = state.plans.find(p => p.id === action.payload.planId);
         if (plan?.services) {
           const idx = plan.services.findIndex(s => s.id === action.payload.serviceId);
-          if (idx !== -1) plan.services[idx] = action.payload.service;
+          if (idx !== -1) plan.services[idx] = toDentalService({ ...plan.services[idx], ...action.payload.patch });
         }
       })
       // Revert Service To Progress
@@ -367,7 +372,7 @@ const dentalPlanSlice = createSlice({
         const plan = state.plans.find(p => p.id === action.payload.planId);
         if (plan?.services) {
           const idx = plan.services.findIndex(s => s.id === action.payload.serviceId);
-          if (idx !== -1) plan.services[idx] = action.payload.service;
+          if (idx !== -1) plan.services[idx] = toDentalService({ ...plan.services[idx], ...action.payload.patch });
         }
       })
       // Add Service
@@ -381,10 +386,23 @@ const dentalPlanSlice = createSlice({
       // Update Service
       .addCase(updatePlanService.fulfilled, (state, action) => {
         const plan = state.plans.find(p => p.id === action.payload.planId);
-        if (plan && plan.services) {
+        if (plan?.services) {
           const sIndex = plan.services.findIndex(s => s.id === action.payload.serviceId);
           if (sIndex !== -1) {
-            plan.services[sIndex] = action.payload.service;
+            const previous = plan.services[sIndex];
+            const updated = toDentalService({
+              ...previous,
+              ...action.payload.patch,
+            });
+            plan.services[sIndex] = {
+              ...updated,
+              sittings: updated.sittings?.length
+                ? updated.sittings
+                : previous.sittings,
+              quickVisitRecords: updated.quickVisitRecords?.length
+                ? updated.quickVisitRecords
+                : previous.quickVisitRecords,
+            };
           }
         }
       })
@@ -393,6 +411,53 @@ const dentalPlanSlice = createSlice({
         const plan = state.plans.find(p => p.id === action.payload.planId);
         if (plan && plan.services) {
           plan.services = plan.services.filter(s => s.id !== action.payload.serviceId);
+        }
+      })
+      // Quick visit records — keep plan service sittings in sync with QVR API
+      .addCase(createQvr.fulfilled, (state, action) => {
+        const { serviceId, qvr } = action.payload;
+        const doctorName = action.meta?.arg?.doctorName;
+        const sitting = qvrToSitting(qvr, { doctorName });
+        for (const plan of state.plans) {
+          const svc = plan.services?.find((s) => s.id === serviceId);
+          if (!svc) continue;
+          if (!svc.sittings) svc.sittings = [];
+          svc.sittings.push(sitting);
+          if (!svc.quickVisitRecords) svc.quickVisitRecords = [];
+          svc.quickVisitRecords.push(qvr);
+          break;
+        }
+      })
+      .addCase(updateQvr.fulfilled, (state, action) => {
+        const { serviceId, qvrId, qvr } = action.payload;
+        const doctorName = action.meta?.arg?.doctorName;
+        const sitting = qvrToSitting(qvr, { doctorName });
+        for (const plan of state.plans) {
+          const svc = plan.services?.find((s) => s.id === serviceId);
+          if (!svc) continue;
+          if (!svc.sittings) svc.sittings = [];
+          const idx = svc.sittings.findIndex((s) => s.id === qvrId);
+          if (idx === -1) svc.sittings.push(sitting);
+          else svc.sittings[idx] = { ...svc.sittings[idx], ...sitting };
+          if (!svc.quickVisitRecords) svc.quickVisitRecords = [];
+          const qIdx = svc.quickVisitRecords.findIndex((q) => q.id === qvrId);
+          if (qIdx === -1) svc.quickVisitRecords.push(qvr);
+          else svc.quickVisitRecords[qIdx] = qvr;
+          break;
+        }
+      })
+      .addCase(deleteQvr.fulfilled, (state, action) => {
+        const { serviceId, qvrId } = action.payload;
+        for (const plan of state.plans) {
+          const svc = plan.services?.find((s) => s.id === serviceId);
+          if (!svc) continue;
+          if (svc.sittings) {
+            svc.sittings = svc.sittings.filter((s) => s.id !== qvrId);
+          }
+          if (svc.quickVisitRecords) {
+            svc.quickVisitRecords = svc.quickVisitRecords.filter((q) => q.id !== qvrId);
+          }
+          break;
         }
       });
   },

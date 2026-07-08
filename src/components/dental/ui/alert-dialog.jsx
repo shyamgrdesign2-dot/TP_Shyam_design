@@ -32,7 +32,7 @@ function AlertDialogContent({ className, children, ...props }) {
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
-        className={cx(styles.content, className)}
+        className={cx("treatment-plan", styles.content, className)}
         {...props}>
         
         {/* Visually hidden title for Radix UI accessibility requirements */}

@@ -55,6 +55,7 @@ export function PlanProvider({
     markServiceDone,
     revertServiceToProgress,
     clearError,
+    refetchPlans,
   } = useDentalPlan(patientId);
 
   // 2. Local UI state (Drawer, Snackbar)
@@ -76,11 +77,11 @@ export function PlanProvider({
 
   // 3. Derived selectors
   const estimatePlans = useMemo(
-    () => plans.filter((p) => p.status === "draft" || p.status === "active"),
+    () => plans.filter((p) => p.status === "draft"),
     [plans]
   );
   const inProgressPlans = useMemo(
-    () => plans.filter((p) => p.status === "in-progress"),
+    () => plans.filter((p) => p.status === "active" || p.status === "in-progress"),
     [plans]
   );
   const completedPlans = useMemo(
@@ -130,6 +131,7 @@ export function PlanProvider({
       removeService,
       markServiceDone,
       revertServiceToProgress,
+      refetchPlans,
       // UI state
       estimatePlans,
       inProgressPlans,
@@ -166,6 +168,7 @@ export function PlanProvider({
       removeService,
       markServiceDone,
       revertServiceToProgress,
+      refetchPlans,
       estimatePlans,
       inProgressPlans,
       completedPlans,

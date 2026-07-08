@@ -330,6 +330,130 @@
   box-shadow: -18px 0 22px -18px rgba(35, 35, 45, 0.48);
 }
 
+.moduleTableScrollWrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
+.moduleTableBody {
+  width: max-content;
+  min-width: 100%;
+}
+
+.moduleTableRow {
+  width: max-content;
+  min-width: 100%;
+  flex-wrap: nowrap !important;
+}
+
+.moduleDragCell {
+  flex: 0 0 48px !important;
+  max-width: 48px !important;
+  min-width: 48px;
+}
+
+.modulePrimaryCell {
+  flex: 0 0 280px !important;
+  max-width: 280px !important;
+  min-width: 280px;
+}
+
+.moduleShortCell {
+  flex: 0 0 140px !important;
+  max-width: 140px !important;
+  min-width: 140px;
+}
+
+.moduleNotesCell {
+  flex: 1 0 320px !important;
+  max-width: none !important;
+  min-width: 320px;
+}
+
+.moduleWideNotesCell {
+  flex: 1 0 520px !important;
+  max-width: none !important;
+  min-width: 520px;
+}
+
+.moduleActionCell {
+  flex: 0 0 56px !important;
+  max-width: 56px !important;
+  min-width: 56px;
+  position: sticky !important;
+  right: 0;
+  z-index: 5;
+  background: #fff;
+  box-shadow: -18px 0 22px -18px rgba(35, 35, 45, 0.48);
+}
+
+.symptomsTableScrollWrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
+.symptomsTableBody {
+  min-width: 968px;
+}
+
+.symptomsTableRow {
+  min-width: 968px;
+  flex-wrap: nowrap !important;
+}
+
+.symptomsDragCell {
+  flex: 0 0 48px !important;
+  max-width: 48px !important;
+  min-width: 48px;
+}
+
+.symptomsNameCell {
+  flex: 0 0 240px !important;
+  max-width: 240px !important;
+  min-width: 240px;
+}
+
+.symptomsShortCell {
+  flex: 0 0 135px !important;
+  max-width: 135px !important;
+  min-width: 135px;
+}
+
+.symptomsNotesCell {
+  flex: 1 0 300px !important;
+  max-width: none !important;
+  min-width: 300px;
+}
+
+.symptomsActionCell {
+  flex: 0 0 48px !important;
+  max-width: 48px !important;
+  min-width: 48px;
+  position: sticky !important;
+  right: 0;
+  z-index: 4;
+  background: #fff;
+  box-shadow: -14px 0 18px -18px rgba(35, 35, 45, 0.48);
+}
+
 @keyframes moduleVoiceProgress {
   0% { transform: translateX(-110%); }
   55% { transform: translateX(110%); }

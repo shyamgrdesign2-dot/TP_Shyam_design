@@ -791,6 +791,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-bottom: 0px;
 }
 
 .panelBadge {
@@ -1624,6 +1625,7 @@
   box-shadow: 0 8px 20px -4px rgb(15 23 42 / 0.12);
   max-height: min(52vh, 260px);
   overflow-y: auto;
+  overscroll-behavior: contain;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -1967,14 +1969,18 @@
 }
 
 .surfaceInlineRow {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
   color: #047857 !important;
+  white-space: nowrap;
   background: #34d3992e;
   border-radius: 4px;
+  align-items: center;
+  height: 18px;
   padding: 0 6px;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
 }
 
 .surfaceDot8 {
@@ -2037,6 +2043,7 @@
   padding: 2px 0;
   max-height: 200px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 
   li {
     list-style: none;
@@ -2482,6 +2489,7 @@
   box-shadow: 0 8px 20px -4px rgb(15 23 42 / 0.12);
   max-height: 260px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .primaryNoteInput {
@@ -2573,4 +2581,33 @@
   line-height: 1.4;
   white-space: nowrap;
   cursor: default;
+}
+
+.loaderWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+}
+
+.shimmerIcon {
+  animation: tpShimmerFade 1.5s infinite ease-in-out;
+  opacity: 0.5;
+}
+
+@keyframes tpShimmerFade {
+  0% {
+    opacity: 0.15;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0.15;
+    transform: scale(0.98);
+  }
 }

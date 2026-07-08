@@ -32,6 +32,14 @@ const ConfirmModuleModal = ({
     columnLabels = [],
   } = moduleData || {};
 
+  const getPreviewColumnLabel = (label, index) => {
+    const trimmedLabel = String(label || "").trim();
+    if (columnCount === 1 && !trimmedLabel && moduleName.trim()) {
+      return moduleName.trim();
+    }
+    return trimmedLabel || `Column ${index + 1}`;
+  };
+
   const handleConfirm = () => {
     if (onConfirm) {
       onConfirm(moduleData);
@@ -74,23 +82,26 @@ const ConfirmModuleModal = ({
                   key={index}
                   className="confirm-module-modal__preview-cell confirm-module-modal__preview-cell--header"
                 >
-                  {label.toUpperCase() || `COLUMN ${index + 1}`}
+                  {getPreviewColumnLabel(label, index).toUpperCase()}
                 </div>
               ))}
             </div>
 
             {/* Placeholder Input Row */}
             <div className="confirm-module-modal__preview-row">
-              {columnLabels.map((label, index) => (
+              {columnLabels.map((label, index) => {
+                const previewLabel = getPreviewColumnLabel(label, index);
+                return (
                 <div
                   key={index}
                   className="confirm-module-modal__preview-cell confirm-module-modal__preview-cell--input"
                 >
                   <span className="confirm-module-modal__placeholder">
-                    Enter {label || `Column ${index + 1}`}
+                    Enter {previewLabel}
                   </span>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
         </div>

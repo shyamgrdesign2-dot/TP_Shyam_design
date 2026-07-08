@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence, calculateFollowUpText } from '../../utils/utils'
 import { EXTRA_OPTIONS, EXTERNAL_HOSPITAL_BUSINESS_IDS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
+import { useIsDentalEnabled } from '../../hooks/useIsDentalEnabled';
 import moment from 'moment';
 import {
     getCvtExtHosPatientDataShowValue,
@@ -453,14 +454,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         try {
             dentalExaminationData = {
                 ...dentalExaminationData,
-                tooth_states: transformToothStateToApi(dentalExaminationData.toothState)
+                tooth_states: transformToothStateToApi(dentalExaminationData.toothState),
+                dentition_type: dentalExaminationData.dentition_type || dentalExaminationData.dentitionType,
             };
         } catch (err) {
             console.error("Failed to transform toothState inside ViewPDF:", err);
         }
     }
     const isDentalEnabled =
-        isDentalEnabledFromProps ??
+    isDentalEnabledFromProps ??
         (onlyShowDental ||
         Boolean(
             dentalData ||
@@ -470,8 +472,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     ));
     const isRxDigitizeBool = !!(
         caseManagerData?.isRxDigitize ||
-        isDigitisedPrintConfig ||
-        isDentalEnabled
+        isDigitisedPrintConfig
     );
     const isCvtExtHosAccessableFromGB =
         isCvtExtHosFromProps ?? caseManagerData?.isCvtExtHosAccessableFromGB ?? false;
@@ -2235,9 +2236,30 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             ) {
                                 return null;
                             }
-                            const customModule = caseManagerData?.moduleContents?.find(e => {
+                            if (onlyShowDental) {
+                                return null;
+                            }
+                            let customModule = caseManagerData?.moduleContents?.find(e => {
                                 return e.module_id === option?.id
                             });
+
+                            if (!customModule && option?.is_custom_module && option?.title) {
+                                customModule = caseManagerData?.moduleContents?.find(
+                                    (e) => e?.module_name === option?.title || e?.name === option?.title
+                                );
+                            }
+
+                            if (customModule) {
+                                const resolvedModuleName =
+                                    getCustomModuleName(option?.id) ||
+                                    customModule.module_name ||
+                                    customModule.name;
+                                customModule = {
+                                    ...customModule,
+                                    name: resolvedModuleName,
+                                    module_name: resolvedModuleName,
+                                };
+                            }
 
                             if (option?.type === "page_break") {
                                 const isLastPageBreak = index === printSettings?.prescription?.case_option?.length - 1;
@@ -6611,7 +6633,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             : [];
                                         // When order === 0, render v2 as single-column table (header = field key, one column of values)
                                         const isV2SingleColumn = isV2 && fieldKeys.length > 0 && customModule?.content?.length > 0 &&
-                                            (customModule.content[0].order === 0 || customModule.content[0].order === '0');
+                                            (fieldKeys.length === 1 || namedFields.length === 1 ||
+                                            customModule.content[0].order === 0 || customModule.content[0].order === '0');
+                                        const normalizeCustomModuleTitle = (value) =>
+                                            String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+                                        const resolveCustomModuleDisplayName = () =>
+                                            getCustomModuleName(option?.id) ||
+                                            customModule?.name ||
+                                            customModule?.module_name ||
+                                            option?.title ||
+                                            '';
+                                        const isV2NameMatchesColumnTitle = isV2SingleColumn && fieldKeys.length > 0 && (() => {
+                                            const normalizedModuleName = normalizeCustomModuleTitle(resolveCustomModuleDisplayName());
+                                            if (!normalizedModuleName) return false;
+                                            const fieldKey = fieldKeys[0];
+                                            const fieldLabel = getFieldLabel(fieldKey);
+                                            return (
+                                                normalizedModuleName === normalizeCustomModuleTitle(fieldLabel) ||
+                                                normalizedModuleName === normalizeCustomModuleTitle(fieldKey)
+                                            );
+                                        })();
 
                                         // Helper to check if V2 content has any data
                                         const hasV2Content = (item) => {
@@ -6632,6 +6673,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
                                                     {customModule?.content?.map((item, i) => {
                                                         if (isV2) {
+                                                            if (isV2NameMatchesColumnTitle) {
+                                                                const value = item[fieldKeys[0]];
+                                                                if (!value?.trim?.().length > 0) return null;
+                                                                return (
+                                                                    <Text key={i}>
+                                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                            {normalizePdfText(value)}
+                                                                        </Text>
+                                                                        {i < customModule?.content.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}> | </Text>}
+                                                                    </Text>
+                                                                );
+                                                            }
                                                             // V2: Render all fields with their keys as labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
                                                             const fieldEntries = fieldKeys
                                                                 .map(fieldKey => ({
@@ -6686,6 +6739,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
                                                     {customModule?.content.map((item, i) => {
                                                         if (isV2) {
+                                                            if (isV2NameMatchesColumnTitle) {
+                                                                const value = item[fieldKeys[0]];
+                                                                if (!value?.trim?.().length > 0) return null;
+                                                                return (
+                                                                    <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
+                                                                        <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;&nbsp;&nbsp;{i + 1}.</Text>
+                                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                            {normalizePdfText(value)}
+                                                                        </Text>
+                                                                    </Text>
+                                                                );
+                                                            }
                                                             // V2: Render all fields with their keys as labels in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
                                                             const fieldEntries = fieldKeys
                                                                 .map(fieldKey => ({
@@ -6742,11 +6807,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         {customModule.module_version === "v2" ? (
                                                             // V2: When order === 0, single column (header = field key; rows = values). Else multi-column.
                                                             isV2SingleColumn ? (
+                                                                !isV2NameMatchesColumnTitle ? (
                                                                 <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
                                                                     <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(getFieldLabel(fieldKeys[0]), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }]}>
                                                                         {getFieldLabel(fieldKeys[0])}&nbsp;
                                                                     </Text>
                                                                 </View>
+                                                                ) : null
                                                             ) : (
                                                                 <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
                                                                     {fieldKeys.map((fieldKey, idx) => {

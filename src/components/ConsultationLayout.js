@@ -36,7 +36,6 @@ import {
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
   GB_VOICE_RX_NEW_UI,
-  GB_DENTAL_MODULE,
   MESSAGE_KEY,
 } from "../utils/constants";
 import { FETCH_SMART_RX } from "../utils/constants";
@@ -70,7 +69,7 @@ import Vaccination from "../pages/vaccination/Vaccination";
 import GrowthChart from "../pages/growthChart/GrowthChart";
 import { viewPatient } from "../redux/appointmentsSlice";
 import { useAccess } from "../pages/vaccination/useAccess";
-import { getGynecDetails } from "../api/services/ApiGynec";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import Obstetric from "../pages/obstetric/Obstetric";
 import TabObstetricList from "../pages/obstetric/components/obstetricList/TabObstetricList";
 import { fetchObstetricDetails } from "../pages/obstetric/service";
@@ -113,6 +112,7 @@ import DDxKnowMore from "../components/DDxKnowMore";
 import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import {
   errorMessage,
   getClinic,
@@ -140,6 +140,7 @@ import {
 } from "../utils/dentalRoutes";
 
 import { SideNavbar } from "./sideNavbar";
+import { TreatmentPlanDrawer } from "./dental/plan/TreatmentPlanDrawer";
 import ConsultationRxPadCopyListener from "./ConsultationRxPadCopyListener";
 import "../components/dr-agent/dr-agent-globals.css";
 import { DrAgentRuntime } from "./dr-agent/rxpad/dr-agent/shell/DrAgentRuntime";
@@ -193,13 +194,12 @@ import {
 import { saveDentalExamination, selectDentalExamination, fetchDentalExamination } from "../redux/dentalExaminationSlice";
 import { saveOralExaminationThunk, patchOralExaminationThunk, fetchOralExamination } from "../redux/oralExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
-import { renderPrintPayloadToBlob } from "../utils/printPayload";
+import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
 import { buildConsultationPreviewPrintPayload } from "../utils/buildConsultationPreviewPrintPayload";
-import { resolveDentalOralForPrint } from "../utils/resolveDentalOralPrintData";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
 import { syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
-import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
+import { EMPTY_REFERRAL_DATA } from "./referral/ReferralPanelForm";
 import {
   fetchReferralDataForCaseManager,
   syncCrossConsultReferral,
@@ -277,7 +277,7 @@ function ConsultationLayout({ children, headerProps }) {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
-  const isDentalEnabled = useFeatureIsOn(GB_DENTAL_MODULE);
+  const isDentalEnabled = useIsDentalEnabled();
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
@@ -679,7 +679,6 @@ function ConsultationLayout({ children, headerProps }) {
   const [symptomCollectorStatus, setSymptomCollectorStatus] = useState("idle");
   const symptomCollectorRequestRef = useRef(0);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
-  const handleCollapsed = useCallback(() => {}, []);
 
   const prescriptionWrapperStyle = {
     flex: "1 1 auto",
@@ -885,6 +884,8 @@ function ConsultationLayout({ children, headerProps }) {
     setVitalsData,
     medicalHistoryData,
     setMedicalHistoryData,
+    updatedGynecHistory,
+    setUpdatedGynecHistory,
     privateNotesData,
     setPrivateNotesData,
     followUpDate,
@@ -931,6 +932,7 @@ function ConsultationLayout({ children, headerProps }) {
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
   const [selectPrivateNotes, setSelectPrivateNotes] = useState(null);
   const [vaccinationDrawer, setVaccinationDrawer] = useState(false);
+  const [dentalPlanDrawer, setDentalPlanDrawer] = useState(false);
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
@@ -1469,6 +1471,10 @@ function ConsultationLayout({ children, headerProps }) {
     setOpthalRefreshKey((prev) => prev + 1);
   }, []);
 
+  const handleDentalPlanDrawer = useCallback(() => {
+    setDentalPlanDrawer((prev) => !prev);
+  }, []);
+
   // Drawer Vaccination
   const handleDrawerVaccination = useCallback((chartType) => {
     setVaccinationDrawer((prev) => {
@@ -1520,6 +1526,26 @@ function ConsultationLayout({ children, headerProps }) {
       typeof obstetricKey === "string" ? obstetricKey : !obstetricDrawer,
     );
   };
+
+  const handleCollapsed = useCallback(
+    (flag) => {
+      if (flag === 1) {
+        handleDrawerVital();
+      } else if (flag === 2) {
+        handleDrawerMedicalHistory();
+      } else if (flag === 3) {
+        handleDrawerVaccination();
+      } else if (flag === 4) {
+        handleDrawerPrivateNotes();
+      }
+    },
+    [
+      handleDrawerVital,
+      handleDrawerMedicalHistory,
+      handleDrawerPrivateNotes,
+      handleDrawerVaccination,
+    ],
+  );
 
   const getLabParams = async () => {
     try {
@@ -2062,12 +2088,17 @@ function ConsultationLayout({ children, headerProps }) {
       case "zydusLabReports":
         handleZydusTestReportDrawer();
         break;
+      case "dentalPlan":
+        setDrAgentOpen(false);
+        handleDentalPlanDrawer();
+        break;
       default:
         break;
     }
   }, [
     allUploadedDocs.length,
     handleAddLabParamsDrawer,
+    handleDentalPlanDrawer,
     handleDrawerGrowth,
     handleDrawerMedicalHistory,
     handleDrawerMedicalReport,
@@ -2399,6 +2430,17 @@ function ConsultationLayout({ children, headerProps }) {
           const generatedTcmId = action?.payload?.tcm_id ?? currentTcmId;
           setCurrentTcmId(generatedTcmId);
 
+          try {
+            await syncGynecHistoryAfterEndVisit(
+              patient_data?.patient_unique_id,
+              userId,
+              updatedGynecHistory,
+              { getGynecDetails, postGynecDetails, updateGynecDetails },
+            );
+          } catch (error) {
+            console.error("[GynecHistory][EndVisit] sync failed", error);
+          }
+
           const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
             patient_data?.patient_unique_id,
             generatedTcmId,
@@ -2591,38 +2633,37 @@ function ConsultationLayout({ children, headerProps }) {
         activeDentalData,
         oralExamination,
         isDentalEnabled,
+        dentitionType: dentalExamination?.dentitionType || "adult",
       });
 
       if (!payload) {
         throw new Error("Print settings are not loaded yet. Please try again.");
       }
 
-      const { dentalExaminationData: resolvedDental, examChart: resolvedOralChart } =
-        await resolveDentalOralForPrint({
-          patientId: patient_data?.patient_unique_id,
-          tcmId: currentTcmId,
-          consultationDate,
-          printSettings: payload.printSettings,
-          inMemoryDental: { tooth_states: activeDentalData },
-          inMemoryOral: oralExamination,
-          caseManagerData: payload.caseManagerData,
-          allowFullApiFallback: false,
-        });
+      const inMemoryDental = {
+        tooth_states: activeDentalData,
+        dentition_type: dentalExamination?.dentitionType || "adult",
+      };
 
-      const pdfBlob = await renderPrintPayloadToBlob(
+      const { blob: pdfBlob } = await buildPrintPdfBlobFromPayload(
         {
           ...payload,
-          dentalExaminationData: resolvedDental,
-          examChart: resolvedOralChart,
-          oralExamination,
-          patientUniqueId: patient_data?.patient_unique_id,
-          tcmId: currentTcmId,
+          crossConsultData: referralData,
         },
         {
-        selectedLang: "English",
-        isGynaecHistoryAccessable,
-        onlyShowDental: false,
-      });
+          selectedLang: "English",
+          isGynaecHistoryAccessable,
+          onlyShowDental: false,
+          dentalExaminationData: inMemoryDental,
+          dentalexaminationData: inMemoryDental,
+          oralExamination,
+          patientUniqueId: patient_data?.patient_unique_id,
+          patientId: patient_data?.patient_unique_id,
+          tcmId: currentTcmId,
+          isDentalEnabled,
+          allowFullApiFallback: false,
+        },
+      );
 
       if (pdfBlob) {
         setPreviewPdfFile(pdfBlob);
@@ -2911,6 +2952,23 @@ function ConsultationLayout({ children, headerProps }) {
             selectPrivateNotes={selectPrivateNotes}
           />
         </Drawer>
+        {dentalPlanDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            onClose={handleDentalPlanDrawer}
+            open={dentalPlanDrawer}
+            width="100%"
+            zIndex={1100}
+            styles={{ body: { padding: 0, height: "100vh", overflow: "hidden" } }}
+          >
+            <TreatmentPlanDrawer
+              patientId={patient_data?.patient_unique_id}
+              patientAge={patient_data?.ageYears}
+              onClose={handleDentalPlanDrawer}
+            />
+          </Drawer>
+        )}
         {vaccinationDrawer && (
           <Drawer
             closeIcon={false}
@@ -3252,7 +3310,7 @@ function ConsultationLayout({ children, headerProps }) {
           </div>
         ) : null}
 
-        {canUseVoiceRxModuleUi && (
+        {/* {canUseVoiceRxModuleUi && (
           <DrAgentRuntime
             isOpen={drAgentOpen}
             overlayClassName={drAgentOverlayClassName}
@@ -3264,7 +3322,7 @@ function ConsultationLayout({ children, headerProps }) {
             onClose={() => setDrAgentOpen(false)}
             onOpen={() => setDrAgentOpen(true)}
           />
-        )}
+        )} */}
       </RxPadSyncProvider>
       {isFileSizeError || isFileLimitError || isFileTypeError ? (
         <CommonModal

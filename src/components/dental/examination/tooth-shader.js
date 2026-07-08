@@ -137,7 +137,8 @@ export function injectShader(
   // Critical: ensure Three.js does not reuse a stale non-dental shader program
   // across tab/type switches. Without a dedicated key, onBeforeCompile can be
   // bypassed by program cache hits, causing missing dentition colors until remount.
-  mat.customProgramCacheKey = () => `tp-dental-zone-shader-v1-${toothFdi}`;
+  const variantKey = getDentalShaderVariantKey({ isImplant, isMissing, isCrown, isRCT, isBridge, isDenture });
+  mat.customProgramCacheKey = () => `tp-dental-zone-shader-v1-${variantKey}`;
   mat.onBeforeCompile = (shader) => {
     ref.shader = shader;
     shader.uniforms.selectedZone = { value: -1 };

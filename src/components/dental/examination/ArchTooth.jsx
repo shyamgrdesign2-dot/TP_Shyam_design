@@ -40,6 +40,7 @@ const ArchTooth = memo(function ArchTooth({
   onHover,
   onClick,
   onPin,
+  toothEntries = [],
   treatmentHistoryDetails = {},
   visualTypeMap,
 }) {
@@ -91,9 +92,12 @@ const ArchTooth = memo(function ArchTooth({
     ];
 
     zoneFindingsRef.current = order.map((z) =>
-      findings.some((f) => f.zoneId === z) ? 1 : 0,
+      findings.some((f) => f.zoneId === z) ||
+      (toothEntries || []).some((e) => (e.kind === "planned" || e.kind === "procedure") && e.surfaces?.includes(z)) ||
+      Object.values(treatmentHistoryDetails || {}).some((detail) => detail.surfaces?.includes(z))
+        ? 1 : 0,
     );
-  }, [findings]);
+  }, [findings, toothEntries, treatmentHistoryDetails]);
   const frameCount = useRef(0);
   // Push finding-tint uniform every frame
   useFrame(() => {
@@ -230,19 +234,6 @@ const ArchTooth = memo(function ArchTooth({
         );
         mat.needsUpdate = true;
       }
-      prewarmDentalShaderProgram({
-        gl,
-        camera,
-        source: clonedScene,
-        variantKey: getDentalShaderVariantKey({
-          isImplant: hasImplant,
-          isMissing: isMissingOrExtraction,
-          isCrown: hasCrown,
-          isRCT: hasRCT,
-          isBridge: hasBridge,
-          isDenture: hasDenture,
-        }),
-      });
       shaderInjectedRef.current = true;
       return true;
     };

@@ -12,6 +12,8 @@ import { useReactToPrint } from 'react-to-print';
 import { errorMessage, getClinic, isIPad, isValidMongoId, sendMessageToParent, trackEvent } from "../utils/utils";
 import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
+import { GB_HEALTH_CHECKUP_REPORT, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
@@ -23,7 +25,6 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { pdfjs, Document, Page } from "react-pdf";
 import { getGynecDetails } from "../api/services/ApiGynec";
-import { GB_DENTAL_MODULE, GB_HEALTH_CHECKUP_REPORT, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import CreateBill from "./opdBilling/components/createBill/CreateBill";
 import RecentBills from "./opdBilling/components/recentBills/RecentBills";
@@ -83,8 +84,8 @@ function PrescriptionPrintView() {
 
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID, isVoiceRxNewUiFlow } = state;
-    const isDentalGB = useFeatureIsOn(GB_DENTAL_MODULE);
-    const isDental = state?.from === DENTAL_RX_PAD_ROUTE || isDentalGB;
+    const isDentalEnabled = useIsDentalEnabled(); // this isDentalEnabled is not required here(will remove it)
+    const isDental = state?.from === DENTAL_RX_PAD_ROUTE ;
 
     // Detect a hard refresh on the first mount after document load.
     const isFirstMountAfterLoad = ppvMountCount === 0;
@@ -503,7 +504,10 @@ function PrescriptionPrintView() {
             if (isDental) {
                 navigate(DENTAL_RX_PAD_ROUTE, { replace: true, state: { patient_data: patient_data, caseManagerData } })
             } else {
-                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
+                const shouldReturnToNewPrescriptionUi =
+                    Boolean(isVoiceRxNewUiFlow) ||
+                    shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB);
+                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldReturnToNewPrescriptionUi ? { isVoiceRxNewUiFlow: true } : {}) } })
             }
         } else {
             errorMessage(action.error)

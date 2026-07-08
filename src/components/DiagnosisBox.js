@@ -17,7 +17,7 @@ import {
   Spin,
   Tooltip,
 } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 
@@ -54,6 +54,10 @@ import {
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  DIAGNOSIS_INVENTORY_WARNING,
+  hasInvalidChikitsalayDiagnosis,
+} from "../utils/chikitsalayInventory";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
@@ -278,14 +282,16 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   useEffect(() => {
     const data = [];
-    childOptionsList.map((e) => {
-      return data.push({
-        key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-        value: e.tds_name,
-        label: <div>{`${e.tds_name} ${e?.icd_code ? `(${e?.icd_code})` : ''}`}</div>,
+    childOptionsList
+      .filter((e) => !isChikitsalayAccessable || e?.icd_code)
+      .forEach((e) => {
+        data.push({
+          key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+          value: e.tds_name,
+          label: <div>{`${e.tds_name} ${e?.icd_code ? `(${e?.icd_code})` : ''}`}</div>,
+        });
       });
-    });
-    if (searchChildQuery?.query && childOptionsList.findIndex(e => e.tds_name?.toLowerCase()?.trim() == searchChildQuery?.query?.toLowerCase()?.trim()) === -1) {
+    if (searchChildQuery?.query && childOptionsList.findIndex(e => e.tds_name?.toLowerCase()?.trim() == searchChildQuery?.query?.toLowerCase()?.trim()) === -1 && !isChikitsalayAccessable) {
       data.push({
         key: JSON.stringify({
           ...diagnosisData[searchChildQuery.index],
@@ -302,7 +308,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       });
     }
     setChildSearchOptions(data);
-  }, [childOptionsList]);
+  }, [childOptionsList, isChikitsalayAccessable]);
 
   const onFocusChid = (i) => {
     setSearchChildQuery({ query: diagnosisData[i].tds_name, index: i });
@@ -327,7 +333,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const onSelectChild = useCallback(
     (data, e, i) => {
-      diagnosisData[i] = { ...diagnosisData[i], ...JSON.parse(e.key) };
+      diagnosisData[i] = { ...diagnosisData[i], ...JSON.parse(e.key), voice_rx_from_module: false };
       setDiagnosisData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).tds_name, index: i });
     },
@@ -477,6 +483,8 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       errorMessage('At least 1 diagnosis added')
     } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup diagnosis name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateDiagnosis.some(hasInvalidChikitsalayDiagnosis)) {
+      errorMessage(DIAGNOSIS_INVENTORY_WARNING)
     } else {
       var sendData = {
         tdt_template_name: inputTemplateName,
@@ -507,6 +515,8 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       errorMessage('At least 1 diagnosis added')
     } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup diagnosis name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateDiagnosis.some(hasInvalidChikitsalayDiagnosis)) {
+      errorMessage(DIAGNOSIS_INVENTORY_WARNING)
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
@@ -662,10 +672,15 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const TABLE_DIAGNOSIS = useMemo(() => {
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="diagnosis" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
+      <div className={isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableScrollWrap : undefined}>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="diagnosis" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableBody : undefined}
+              >
               {diagnosisData.length > 0 &&
                 diagnosisData.map((item, index) => (
                   <Draggable key={index} draggableId={`diagnosis-${index}`} index={index}>
@@ -675,10 +690,13 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                         {...provided.draggableProps}
                         key={index}
                         gutter={[0]}
-                        className={`${index === 0 && 'mt-14 border-top'
-                          } align-items-center border-bottom`}
+                        className={[
+                          index === 0 && "mt-14 border-top",
+                          "align-items-center border-bottom",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableRow : "",
+                        ].filter(Boolean).join(" ")}
                       >
-                        <Col lg={1} md={1} sm={1} xs={1} className="text-center">
+                        <Col lg={1} md={1} sm={1} xs={1} className={["text-center", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleDragCell : ""].filter(Boolean).join(" ")}>
                           <MenuOutlined
                             {...provided.dragHandleProps}
                             className="drag-handle"
@@ -686,26 +704,63 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                           >
                           </MenuOutlined>
                         </Col>
-                        <Col lg={6} md={6} sm={6} xs={6} className="border-end">
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.tds_name}
-                              value={`${item.tds_name}${item?.icd_code ? ` (${item?.icd_code})` : ''}`}
-                              placeholder="Diagnosis Name"
-                              bordered={false}
-                              defaultOpen={false}
-                              disabled={item?.pms_default ? true : false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              {...getPrescriptionNewPopupProps()}
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) => onSelectChild(data, e, index)}
-                            />
+                        <Col
+                          lg={6}
+                          md={6}
+                          sm={6}
+                          xs={6}
+                          className={[
+                            "border-end",
+                            isVoiceRxModuleEnabled ? voiceModuleStyles.modulePrimaryCell : "",
+                            isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? "align-self-stretch" : "",
+                          ].filter(Boolean).join(" ")}
+                          style={isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? { background: "#fff8ef" } : undefined}
+                        >
+                          <div className={isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1"}>
+                            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                              <AutoComplete
+                                defaultValue={item.tds_name}
+                                value={`${item.tds_name}${item?.icd_code ? ` (${item?.icd_code})` : ''}`}
+                                placeholder="Diagnosis Name"
+                                bordered={false}
+                                defaultOpen={false}
+                                disabled={item?.pms_default && !(isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item)) ? true : false}
+                                onSearch={(query) => onSearchChild(query, index)}
+                                onFocus={() => onFocusChid(index)}
+                                options={childSearchOptions}
+                                className="autocomplete-custom w-100 inputborder"
+                                {...getPrescriptionNewPopupProps()}
+                                defaultActiveFirstOption={true}
+                                onSelect={(data, e) => onSelectChild(data, e, index)}
+                              />
+                            </div>
+                            {isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) && (
+                              <Tooltip
+                                placement="top"
+                                trigger={["hover", "click"]}
+                                overlayInnerStyle={{
+                                  background: "#2f2e39",
+                                  borderRadius: 8,
+                                  color: "#fff",
+                                  fontSize: 14,
+                                  lineHeight: 1.35,
+                                  maxWidth: 360,
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                }}
+                                title={DIAGNOSIS_INVENTORY_WARNING}
+                              >
+                                <span className="d-inline-flex flex-shrink-0 me-2" style={{ cursor: "pointer", lineHeight: 1 }}>
+                                  <InfoCircleOutlined
+                                    className="fs-18"
+                                    style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
+                                  />
+                                </span>
+                              </Tooltip>
+                            )}
                           </div>
                         </Col>
-                        <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                        <Col lg={4} md={4} sm={4} xs={4} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleShortCell : ""].filter(Boolean).join(" ")}>
                           <AutoComplete
                             defaultValue={item.since}
                             value={item.since}
@@ -721,7 +776,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onSelect={(data) => onSelectSinceChild(data, index)}
                           />
                         </Col>
-                        <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                        <Col lg={4} md={4} sm={4} xs={4} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleShortCell : ""].filter(Boolean).join(" ")}>
                           <Select
                             className="autocomplete-custom w-100 inputborder"
                             placeholder="Status"
@@ -734,7 +789,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             allowClear
                           />
                         </Col>
-                        <Col lg={8} md={8} sm={7} xs={7} className="border-end">
+                        <Col lg={8} md={8} sm={7} xs={7} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleNotesCell : ""].filter(Boolean).join(" ")}>
                           <Input
                             className="notesinput border-0"
                             placeholder="Notes"
@@ -743,7 +798,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onChange={(e) => onChangeNoteChild(e, index)}
                           />
                         </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="text-center">
+                        <Col lg={1} md={1} sm={2} xs={2} className={["text-center", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleActionCell : ""].filter(Boolean).join(" ")}>
                           <Button
                             className="btn py-0 btn-delete-prescription px-0"
                             onClick={() => onRemoveRow(index)}
@@ -756,12 +811,13 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                   </Draggable>
                 ))}
               {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [diagnosisData, childSearchOptions]);
+  }, [diagnosisData, childSearchOptions, isVoiceRxModuleEnabled, isChikitsalayAccessable]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {

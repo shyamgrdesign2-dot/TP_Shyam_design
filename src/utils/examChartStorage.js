@@ -1,4 +1,9 @@
-import { pickOralExamForVisit, mapOralApiToChart } from "./cardiologyDentalOralExam";
+import {
+  dedupeOralExamChart,
+  pickOralExamForVisit,
+  mapOralApiToChart,
+} from "./cardiologyDentalOralExam";
+import { normalizeOralSurfaceIds } from "../components/dental/examination/types";
 
 const EXAM_CHART_PREFIX = "dental.exam.chart.";
 
@@ -117,22 +122,27 @@ export function buildExamChartFromOralExaminationState(oralExamination) {
     Array.isArray(oralExamination.canvasOralEntries) &&
     oralExamination.canvasOralEntries.length > 0
   ) {
-    const chart = {
-      oralEntries: oralExamination.canvasOralEntries,
+    const chart = dedupeOralExamChart({
+      oralEntries: oralExamination.canvasOralEntries.map((entry) => ({
+        ...entry,
+        surfaces: normalizeOralSurfaceIds(entry.surfaces || []),
+      })),
       oralNotes: oralExamination.canvasOralNotes || "",
-    };
+    });
     return hasOralExamChartData(chart) ? chart : null;
   }
 
-  const mapped = mapOralApiToChart({
-    findings: oralExamination.findings,
-    procedures: oralExamination.procedures,
-    treatment_history:
-      oralExamination.treatment_history || oralExamination.treatmentHistory,
-    overall_notes:
-      oralExamination.overall_notes || oralExamination.overallNotes,
-  });
-  return hasOralExamChartData(mapped) ? mapped : null;
+  const chart = dedupeOralExamChart(
+    mapOralApiToChart({
+      findings: oralExamination.findings,
+      procedures: oralExamination.procedures,
+      treatment_history:
+        oralExamination.treatment_history || oralExamination.treatmentHistory,
+      overall_notes:
+        oralExamination.overall_notes || oralExamination.overallNotes,
+    }),
+  );
+  return hasOralExamChartData(chart) ? chart : null;
 }
 
 export function hasOralExamChartData(chart) {

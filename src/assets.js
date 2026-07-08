@@ -483,6 +483,7 @@ export const ASSETS = {
     offerings: {
       askTatva: `${BASE_URL}/images/offerings/Ask_Tatva.webp`,
       ddx: `${BASE_URL}/images/offerings/DDx.webp`,
+      doctorsDay: `${BASE_URL}/images/offerings/Doctors_day.png`,
       qr: `${BASE_URL}/images/offerings/qr.webp`,
       remoteCare: `${BASE_URL}/images/offerings/Remote_Care.webp`,
       shethoscope: `${BASE_URL}/images/offerings/Shethoscope.webp`,
@@ -816,6 +817,7 @@ export const ASSETS = {
     xImg: `${BASE_URL}/images/x-img.svg`,
     yearPlanCorner: `${BASE_URL}/images/year-plan-corner.svg`,
     youtubeImg: `${BASE_URL}/images/youtube-img.svg`,
+    scissors: `${BASE_URL}/images/surgical-scissors--bulk.svg`,
   },
   lotties: {
     genrxbeconcisetip: `${BASE_URL}/lotties/genRxBeConciseTip.json`,
