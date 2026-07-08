@@ -57,7 +57,7 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
 import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
-import { VOICE_RX_2_VERSION, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { VOICE_RX_2_VERSION, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
 
@@ -393,9 +393,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 sourceSurface: "header",
                 voiceInputLocation,
                 isDoctorAgent: false,
+                processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO,
                 voiceLogCreated: voiceDigitization?.voiceLogCreated,
                 markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
                 clinicalCompletedAtMs,
+                transcriptCompletedAtMs: clinicalCompletedAtMs,
+                transcript,
             }).then(({ source }) => {
                 dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
                     type: "AUDIO_NO_CONTEXT",
@@ -429,6 +432,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 sourceSurface: "header",
                 voiceInputLocation,
                 isDoctorAgent: false,
+                processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO,
                 voiceLogCreated: voiceDigitization?.voiceLogCreated,
                 markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
                 clinicalCompletedAtMs: Date.now(),
