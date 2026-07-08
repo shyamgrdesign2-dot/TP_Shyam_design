@@ -52,14 +52,6 @@ const isCanvasLeftModule = (record) =>
   record?.tmdpm_id === CANVAS_LEFT_MODULE.tmdpm_id ||
   String(record?.tmdpm_name || "").toLowerCase() === "canvas";
 
-const isReferralLeftModule = (record) =>
-  record?.tmdpm_id === 25 ||
-  String(record?.tmdpm_name || "").toLowerCase() === "referral";
-
-const isReferralRightModule = (record) =>
-  record?.tmdpm_id === 26 ||
-  String(record?.tmdpm_name || "").toLowerCase() === "referral";
-
 const PadLeftModuleIcon = ({ record }) => {
   const isCanvas = isCanvasLeftModule(record);
   const fallbackUrl = record?.tmdpm_icon_url;
@@ -71,7 +63,7 @@ const PadLeftModuleIcon = ({ record }) => {
     setIconSrc(isCanvas ? CANVAS_ICON_PRIMARY_URL : fallbackUrl);
   }, [isCanvas, fallbackUrl]);
 
-  if (isReferralLeftModule(record)) {
+  if (record?.tmdpm_id === 25) {
     return (
       <span
         className="me-3 d-inline-flex align-items-center justify-content-center"
@@ -98,7 +90,7 @@ const PadLeftModuleIcon = ({ record }) => {
 };
 
 const PadRightModuleIcon = ({ record }) => {
-  if (isReferralRightModule(record)) {
+  if (record?.tmdpm_id === 26) {
     return (
       <span
         className="me-3 d-inline-flex align-items-center justify-content-center"
@@ -198,13 +190,11 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       }
 
       let updatedData = leftList
-        .filter((e) => showReferralOnLeftPad || e.tmdpm_id !== 25)
+        .filter((e) => (e.tmdpm_id === 22 ? isCarePlanEnabled : true))
         .filter((e) =>
-          e.tmdpm_id === 22
-            ? isCarePlanEnabled
-            : isReferralLeftModule(e)
-              ? isCrossConsultEnabled && showReferralOnLeftPad
-              : true
+          e.tmdpm_id === 25
+            ? isCrossConsultEnabled && showReferralOnLeftPad
+            : true
         )
         .filter((e) =>
           e.tmdpm_id === 7 && e.tmdpm_status === 0
@@ -273,14 +263,11 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       }
 
       let updatedData = rightList
-        .filter((e) => !showReferralOnLeftPad || e.tmdpm_id !== 26)
-        .filter((e) => showReferralOnLeftPad || e.tmdpm_id !== 25)
+        .filter((e) => e.tmdpm_id !== 25)
         .filter((e) =>
-          e.tmdpm_id === 22
-            ? isCarePlanEnabled
-            : isReferralRightModule(e)
-              ? isCrossConsultEnabled && !showReferralOnLeftPad
-              : true
+          e.tmdpm_id === 26
+            ? isCrossConsultEnabled && !showReferralOnLeftPad
+            : true
         )
         .map((e) => ({ ...e }));
 
@@ -300,7 +287,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
 
       return updatedData;
     },
-    [isCarePlanEnabled, isCrossConsultEnabled, showReferralOnLeftPad]
+    [isCrossConsultEnabled, showReferralOnLeftPad]
   );
 
   useEffect(() => {

@@ -1643,9 +1643,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const CUSTOMIZE_CONTENT_TAB = useMemo(() => {
         return (
-            <CustomizeSetting handleDrawerCustomize={handleDrawerCustomize} isVaccinationEnabled={isVaccinationEnabled} isGrowthChartEnabled={isGrowthChartEnabled} page="normal-rx-page"/>
+            <CustomizeSetting
+                handleDrawerCustomize={handleDrawerCustomize}
+                isVaccinationEnabled={isVaccinationEnabled}
+                isGrowthChartEnabled={isGrowthChartEnabled}
+                page="normal-rx-page"
+                isTabRx={Boolean(isTabPrescription)}
+            />
         );
-    }, [customizeDrawer]);
+    }, [customizeDrawer, isTabPrescription, isVaccinationEnabled, isGrowthChartEnabled, handleDrawerCustomize]);
     
     const hasOpthalValues = useCallback(() => {
         return (
