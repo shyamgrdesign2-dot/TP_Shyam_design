@@ -7,7 +7,8 @@ import { isMobile, isDesktop } from 'react-device-detect';
 import { useCompactPrescriptionHeader } from '../hooks/useCompactPrescriptionHeader';
 import { useTabletViewport } from '../hooks/useTabletViewport';
 import { v4 as uuidv4 } from 'uuid';
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useFeatureIsOn, useFeatureValue } from "@growthbook/growthbook-react";
+import { useMicVAD } from "@ricky0123/vad-react";
 
 import CustomizeSetting from './CustomizeSetting';
 
@@ -57,7 +58,7 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
 import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
-import { VOICE_RX_2_VERSION, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { VOICE_RX_2_VERSION, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent, trackVoiceRx2RecorderEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
 
@@ -94,6 +95,25 @@ const {
 var oneClickCosultationTemplateId = 0
 const HEADER_DICTATION_TARGET = "header";
 const HEADER_DICTATION_NO_INPUT_LOCATION = "no input field selected and no cursor is active";
+const HEADER_DICTATION_MIN_DURATION_MS = 1000;
+const TP_CONFIG_DATA_FEATURE_KEY = "tp-config-data";
+const DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS = 60000;
+const HEADER_DICTATION_VAD_ASSET_BASE_PATH = "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/";
+const HEADER_DICTATION_VAD_ONNX_WASM_BASE_PATH = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/";
+const HEADER_DICTATION_VAD_MODEL = "v5";
+const HEADER_DICTATION_VAD_POSITIVE_SPEECH_THRESHOLD = 0.3;
+const HEADER_DICTATION_VAD_NEGATIVE_SPEECH_THRESHOLD = 0.2;
+const HEADER_DICTATION_VAD_MIN_SPEECH_MS = 400;
+const HEADER_DICTATION_VAD_WAVEFORM_SPEECH_THRESHOLD = 0.3;
+const HEADER_DICTATION_VAD_WAVEFORM_ON_MS = 160;
+const HEADER_DICTATION_VAD_WAVEFORM_OFF_MS = 450;
+const HEADER_DICTATION_AUDIO_ACTIVITY_THRESHOLD = 0.012;
+const HEADER_DICTATION_AUDIO_ACTIVITY_ON_MS = 120;
+const HEADER_DICTATION_AUDIO_ACTIVITY_OFF_MS = 650;
+const HEADER_DICTATION_AUDIO_ACTIVITY_WARMUP_MS = 500;
+const HEADER_DICTATION_MIN_ACTIVE_AUDIO_MS = 400;
+const HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO = 0.05;
+const HEADER_DICTATION_MAX_FRAME_DELTA_MS = 500;
 
 function getVoiceDictationTargetId(element) {
     const targetNode = element?.closest?.("[data-voice-rx-dictation-target]");
@@ -116,6 +136,66 @@ function getEditableSelection(element) {
         selectionStart,
         selectionEnd,
         targetId: getVoiceDictationTargetId(element),
+    };
+}
+
+function getAudioContextCtor() {
+    if (typeof window === "undefined") return null;
+    return window.AudioContext || window.webkitAudioContext || null;
+}
+
+function getSilenceDetectorThresholdMs(config) {
+    const value = Number(config?.silenceDetectorThresholdInMs);
+    return Number.isFinite(value) && value > 0 ? value : DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS;
+}
+
+function isVadEnabled(config) {
+    return config?.enableVAD === true;
+}
+
+function createHeaderSpeechAnalysisStats() {
+    return {
+        analyzedDurationMs: 0,
+        speechDurationMs: 0,
+        totalFrames: 0,
+        speechFrames: 0,
+        rmsSum: 0,
+        maxRms: 0,
+        firstFrameAtMs: 0,
+        lastFrameAtMs: 0,
+        firstSpeechAtMs: 0,
+        lastSpeechAtMs: 0,
+    };
+}
+
+function buildHeaderSpeechAnalysisSnapshot(stats, durationMs, { vadEnabled = false } = {}) {
+    const analyzedDurationMs = Math.max(0, Math.round(stats?.analyzedDurationMs || 0));
+    const speechDurationMs = Math.max(0, Math.round(stats?.speechDurationMs || 0));
+    const totalFrames = Math.max(0, stats?.totalFrames || 0);
+    const speechFrames = Math.max(0, stats?.speechFrames || 0);
+    const speechCoverageRatio = analyzedDurationMs > 0 ? speechDurationMs / analyzedDurationMs : 0;
+    const speechFrameRatio = totalFrames > 0 ? speechFrames / totalFrames : 0;
+    const averageRms = totalFrames > 0 ? (stats?.rmsSum || 0) / totalFrames : 0;
+
+    return {
+        vadEnabled,
+        detector: vadEnabled ? "ricky0123_vad" : "audio_rms",
+        minSpeechDurationMs: HEADER_DICTATION_MIN_ACTIVE_AUDIO_MS,
+        minSpeechCoverageRatio: HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO,
+        minSpeechCoveragePercent: Math.round(HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO * 100),
+        speechCoverageRatio,
+        speechCoveragePercent: Math.round(speechCoverageRatio * 100),
+        speechFrameRatio,
+        speechFramePercent: Math.round(speechFrameRatio * 100),
+        analyzedDurationMs,
+        speechDurationMs,
+        nonSpeechDurationMs: Math.max(0, analyzedDurationMs - speechDurationMs),
+        audioDurationMs: Math.round(durationMs || 0),
+        totalVadFrames: totalFrames,
+        speechVadFrames: speechFrames,
+        averageSpeechProbability: Number(averageRms.toFixed(4)),
+        maxSpeechProbability: Number(Math.max(0, stats?.maxRms || 0).toFixed(4)),
+        canEvaluateSpeechCoverage: analyzedDurationMs >= HEADER_DICTATION_MIN_DURATION_MS && totalFrames > 0,
     };
 }
 
@@ -219,6 +299,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
     const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
+    const headerVoiceVadEnabled = isVadEnabled(tpConfigData);
+    const headerVoiceSilenceThresholdMs = getSilenceDetectorThresholdMs(tpConfigData);
     // header transcribe voice state
     const [, setHeaderVoiceStateRaw] = useState("idle"); // "idle" | "recording" | "transcribing"
     const headerVoiceStateRef = useRef("idle");
@@ -231,6 +314,22 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceTargetIdRef = useRef(HEADER_DICTATION_TARGET);
     const headerVoiceInputLocationRef = useRef(HEADER_DICTATION_NO_INPUT_LOCATION);
     const headerVoiceRecordStartMsRef = useRef(0);
+    const headerVoiceActivityCleanupRef = useRef(null);
+    const headerVoiceHumanVoiceDetectedRef = useRef(false);
+    const headerVoiceActivityStartedAtRef = useRef(0);
+    const headerVoiceActivityInactiveStartedAtRef = useRef(0);
+    const headerVoiceAudioActiveRef = useRef(false);
+    const headerVoiceLastAudioAtRef = useRef(0);
+    const headerVoiceActivityReadyAtRef = useRef(0);
+    const headerVoiceSpeechAnalysisStatsRef = useRef(createHeaderSpeechAnalysisStats());
+    const headerVoiceVadEnabledRef = useRef(headerVoiceVadEnabled);
+    const headerVoiceVadActiveRef = useRef(false);
+    const headerVoiceVadSpeechCandidateStartedAtRef = useRef(0);
+    const headerVoiceVadLastSpeechFrameAtRef = useRef(0);
+
+    useEffect(() => {
+        headerVoiceVadEnabledRef.current = headerVoiceVadEnabled;
+    }, [headerVoiceVadEnabled]);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tokenData = getDecodedToken()?.result;
     const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
@@ -262,6 +361,216 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             : targetId || headerVoiceTargetIdRef.current || HEADER_DICTATION_TARGET;
         setHeaderDictation({ status, targetId: resolvedTargetId });
     }, [setHeaderDictation]);
+
+    const handleHeaderVadFrameProcessed = useCallback((probs) => {
+        if (!headerVoiceVadActiveRef.current || !headerVoiceVadEnabledRef.current || typeof performance === "undefined") return;
+        const now = performance.now();
+        const speechProbability = Number(probs?.isSpeech || 0);
+        const vadSpeechFrame = speechProbability >= HEADER_DICTATION_VAD_WAVEFORM_SPEECH_THRESHOLD;
+        const stats = headerVoiceSpeechAnalysisStatsRef.current;
+        const previousFrameAtMs = stats.lastFrameAtMs || 0;
+        const rawDeltaMs = previousFrameAtMs ? now - previousFrameAtMs : 0;
+        const frameDeltaMs = rawDeltaMs > 0 ? Math.min(rawDeltaMs, HEADER_DICTATION_MAX_FRAME_DELTA_MS) : 0;
+
+        stats.totalFrames += 1;
+        stats.rmsSum += speechProbability;
+        stats.maxRms = Math.max(stats.maxRms, speechProbability);
+        stats.firstFrameAtMs = stats.firstFrameAtMs || now;
+        stats.lastFrameAtMs = now;
+        stats.analyzedDurationMs += frameDeltaMs;
+
+        if (vadSpeechFrame) {
+            stats.speechFrames += 1;
+            stats.speechDurationMs += frameDeltaMs;
+            stats.firstSpeechAtMs = stats.firstSpeechAtMs || now;
+            stats.lastSpeechAtMs = now;
+            if (!headerVoiceVadSpeechCandidateStartedAtRef.current) headerVoiceVadSpeechCandidateStartedAtRef.current = now;
+            headerVoiceVadLastSpeechFrameAtRef.current = now;
+            if (!headerVoiceHumanVoiceDetectedRef.current && now - headerVoiceVadSpeechCandidateStartedAtRef.current >= HEADER_DICTATION_VAD_WAVEFORM_ON_MS) {
+                headerVoiceHumanVoiceDetectedRef.current = true;
+            }
+        } else {
+            headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+            if (headerVoiceHumanVoiceDetectedRef.current && now - headerVoiceVadLastSpeechFrameAtRef.current >= HEADER_DICTATION_VAD_WAVEFORM_OFF_MS) {
+                headerVoiceHumanVoiceDetectedRef.current = false;
+            }
+        }
+    }, []);
+
+    const getHeaderVadStream = useCallback(async () => {
+        if (!headerVoiceStreamRef.current) throw new Error("No active header dictation stream for VAD.");
+        return headerVoiceStreamRef.current;
+    }, []);
+
+    const keepHeaderVadStreamAlive = useCallback(async () => {}, []);
+
+    const {
+        pause: pauseHeaderVad,
+        start: startHeaderVad,
+    } = useMicVAD({
+        model: HEADER_DICTATION_VAD_MODEL,
+        startOnLoad: false,
+        getStream: getHeaderVadStream,
+        pauseStream: keepHeaderVadStreamAlive,
+        resumeStream: getHeaderVadStream,
+        positiveSpeechThreshold: HEADER_DICTATION_VAD_POSITIVE_SPEECH_THRESHOLD,
+        negativeSpeechThreshold: HEADER_DICTATION_VAD_NEGATIVE_SPEECH_THRESHOLD,
+        minSpeechMs: HEADER_DICTATION_VAD_MIN_SPEECH_MS,
+        userSpeakingThreshold: HEADER_DICTATION_VAD_POSITIVE_SPEECH_THRESHOLD,
+        onFrameProcessed: handleHeaderVadFrameProcessed,
+        onSpeechRealStart: () => {
+            if (!headerVoiceVadActiveRef.current || !headerVoiceVadEnabledRef.current) return;
+            headerVoiceHumanVoiceDetectedRef.current = true;
+        },
+        onSpeechEnd: () => {
+            headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+            if (headerVoiceVadEnabledRef.current) headerVoiceHumanVoiceDetectedRef.current = false;
+        },
+        onVADMisfire: () => {
+            headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+            if (headerVoiceVadEnabledRef.current) headerVoiceHumanVoiceDetectedRef.current = false;
+        },
+        baseAssetPath: HEADER_DICTATION_VAD_ASSET_BASE_PATH,
+        onnxWASMBasePath: HEADER_DICTATION_VAD_ONNX_WASM_BASE_PATH,
+    });
+
+    const stopHeaderVoiceActivityDetection = useCallback(() => {
+        headerVoiceActivityCleanupRef.current?.();
+        headerVoiceActivityCleanupRef.current = null;
+        headerVoiceVadActiveRef.current = false;
+        void pauseHeaderVad().catch(() => {});
+        headerVoiceActivityStartedAtRef.current = 0;
+        headerVoiceActivityInactiveStartedAtRef.current = 0;
+        headerVoiceAudioActiveRef.current = false;
+        headerVoiceLastAudioAtRef.current = 0;
+        headerVoiceActivityReadyAtRef.current = 0;
+        headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+        headerVoiceVadLastSpeechFrameAtRef.current = 0;
+        headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
+    }, [pauseHeaderVad]);
+
+    const startHeaderVoiceActivityDetection = useCallback((stream) => {
+        stopHeaderVoiceActivityDetection();
+        headerVoiceHumanVoiceDetectedRef.current = false;
+        headerVoiceActivityStartedAtRef.current = 0;
+        headerVoiceActivityInactiveStartedAtRef.current = 0;
+        headerVoiceAudioActiveRef.current = false;
+        headerVoiceLastAudioAtRef.current = typeof performance !== "undefined" ? performance.now() : 0;
+        headerVoiceActivityReadyAtRef.current = typeof performance !== "undefined"
+            ? performance.now() + HEADER_DICTATION_AUDIO_ACTIVITY_WARMUP_MS
+            : 0;
+        headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
+        headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+        headerVoiceVadLastSpeechFrameAtRef.current = 0;
+
+        if (headerVoiceVadEnabledRef.current) {
+            headerVoiceVadActiveRef.current = true;
+            void startHeaderVad().catch(() => {
+                headerVoiceVadActiveRef.current = false;
+            });
+            return;
+        }
+
+        headerVoiceVadActiveRef.current = false;
+
+        const AudioContextCtor = getAudioContextCtor();
+        if (!stream || !AudioContextCtor) {
+            headerVoiceHumanVoiceDetectedRef.current = false;
+            return;
+        }
+
+        let rafId = 0;
+        let source = null;
+        let audioContext = null;
+        let analyser = null;
+        let samples = null;
+
+        try {
+            audioContext = new AudioContextCtor();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 512;
+            analyser.smoothingTimeConstant = 0.55;
+            source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+            samples = new Uint8Array(analyser.fftSize);
+            if (audioContext.state === "suspended") {
+                void audioContext.resume().catch(() => {});
+            }
+        } catch (_) {
+            headerVoiceHumanVoiceDetectedRef.current = false;
+            void audioContext?.close?.().catch(() => {});
+            return;
+        }
+
+        const setAudioActiveState = (nextActive) => {
+            if (headerVoiceAudioActiveRef.current === nextActive) return;
+            headerVoiceAudioActiveRef.current = nextActive;
+            if (nextActive) {
+                headerVoiceHumanVoiceDetectedRef.current = true;
+                headerVoiceLastAudioAtRef.current = performance.now();
+            }
+        };
+
+        const tick = () => {
+            if (!analyser || !samples) return;
+            analyser.getByteTimeDomainData(samples);
+            let sumSquares = 0;
+            for (let index = 0; index < samples.length; index += 1) {
+                const centered = (samples[index] - 128) / 128;
+                sumSquares += centered * centered;
+            }
+            const rms = Math.sqrt(sumSquares / samples.length);
+            const now = performance.now();
+            if (headerVoiceActivityReadyAtRef.current && now < headerVoiceActivityReadyAtRef.current) {
+                headerVoiceActivityStartedAtRef.current = 0;
+                headerVoiceActivityInactiveStartedAtRef.current = 0;
+                rafId = requestAnimationFrame(tick);
+                return;
+            }
+            const stats = headerVoiceSpeechAnalysisStatsRef.current;
+            const previousFrameAtMs = stats.lastFrameAtMs || 0;
+            const rawDeltaMs = previousFrameAtMs ? now - previousFrameAtMs : 0;
+            const frameDeltaMs = rawDeltaMs > 0 ? Math.min(rawDeltaMs, HEADER_DICTATION_MAX_FRAME_DELTA_MS) : 0;
+            const speechFrame = rms >= HEADER_DICTATION_AUDIO_ACTIVITY_THRESHOLD;
+            stats.totalFrames += 1;
+            stats.rmsSum += rms;
+            stats.maxRms = Math.max(stats.maxRms, rms);
+            stats.firstFrameAtMs = stats.firstFrameAtMs || now;
+            stats.lastFrameAtMs = now;
+            stats.analyzedDurationMs += frameDeltaMs;
+            if (speechFrame) {
+                stats.speechFrames += 1;
+                stats.speechDurationMs += frameDeltaMs;
+                stats.firstSpeechAtMs = stats.firstSpeechAtMs || now;
+                stats.lastSpeechAtMs = now;
+            }
+            if (rms >= HEADER_DICTATION_AUDIO_ACTIVITY_THRESHOLD) {
+                headerVoiceActivityInactiveStartedAtRef.current = 0;
+                if (!headerVoiceActivityStartedAtRef.current) headerVoiceActivityStartedAtRef.current = now;
+                if (!headerVoiceAudioActiveRef.current && now - headerVoiceActivityStartedAtRef.current >= HEADER_DICTATION_AUDIO_ACTIVITY_ON_MS) {
+                    setAudioActiveState(true);
+                }
+            } else {
+                headerVoiceActivityStartedAtRef.current = 0;
+                if (!headerVoiceActivityInactiveStartedAtRef.current) headerVoiceActivityInactiveStartedAtRef.current = now;
+                if (headerVoiceAudioActiveRef.current && now - headerVoiceActivityInactiveStartedAtRef.current >= HEADER_DICTATION_AUDIO_ACTIVITY_OFF_MS) {
+                    setAudioActiveState(false);
+                }
+            }
+            const lastAudioAt = headerVoiceLastAudioAtRef.current || now;
+            if (!headerVoiceAudioActiveRef.current && now - lastAudioAt >= headerVoiceSilenceThresholdMs) {
+                headerVoiceLastAudioAtRef.current = now;
+            }
+            rafId = requestAnimationFrame(tick);
+        };
+
+        rafId = requestAnimationFrame(tick);
+        headerVoiceActivityCleanupRef.current = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            source?.disconnect();
+            void audioContext?.close?.().catch(() => {});
+        };
+    }, [headerVoiceSilenceThresholdMs, startHeaderVad, stopHeaderVoiceActivityDetection]);
 
     const insertTranscriptAtCursor = useCallback((transcript, cursor) => {
         const text = String(transcript || "");
@@ -310,6 +619,20 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
     }, []);
 
+    useEffect(() => {
+        return () => {
+            const recorder = headerVoiceMediaRecorderRef.current;
+            if (recorder && recorder.state !== 'inactive') {
+                recorder.ondataavailable = null;
+                recorder.onstop = null;
+                try { recorder.stop(); } catch (_) {}
+            }
+            stopHeaderVoiceActivityDetection();
+            const stream = headerVoiceStreamRef.current;
+            if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
+        };
+    }, [stopHeaderVoiceActivityDetection]);
+
     // ── Header transcribe: cursor tracking ─────────────────────────────────
     useEffect(() => {
         if (!isVoiceRxNewFromGB) return;
@@ -354,10 +677,63 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             recorder.onstop = resolve;
             recorder.stop();
         });
+        const headerSubmitVadEnabled = headerVoiceVadEnabledRef.current;
+        const speechAnalysis = buildHeaderSpeechAnalysisSnapshot(headerVoiceSpeechAnalysisStatsRef.current, durationMs, {
+            vadEnabled: headerSubmitVadEnabled,
+        });
+        const humanVoiceDetected = Boolean(
+            headerVoiceHumanVoiceDetectedRef.current &&
+            speechAnalysis.speechDurationMs >= HEADER_DICTATION_MIN_ACTIVE_AUDIO_MS &&
+            speechAnalysis.speechCoverageRatio >= HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO
+        );
+        stopHeaderVoiceActivityDetection();
         const stream = headerVoiceStreamRef.current;
         if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
         const mimeType = recorder.mimeType || "audio/webm";
         const audioBlob = new Blob(headerVoiceAudioChunksRef.current, { type: mimeType });
+        if (durationMs <= 0 || durationMs < HEADER_DICTATION_MIN_DURATION_MS || !audioBlob.size || !humanVoiceDetected) {
+            trackVoiceRx2RecorderEvent("TP_Voice_V2_Submit_Click", {
+                patientData: patient_data,
+                profile,
+                sessionId: voiceDigitization?.sessionId || submitId,
+                submitId,
+                requestId: submitId,
+                submitClickedAt,
+                submitClickedAtMs,
+                durationMs,
+                mode: "dictation",
+                fromVoiceRecording: true,
+                voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
+                moduleName: "header-dictation",
+                sourceSurface: "header",
+                voiceInputLocation,
+                isDoctorAgent: false,
+                processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO,
+                extra: {
+                    doctorId: profile?.doctor_unique_id || "",
+                    patientId: patient_data?.patient_unique_id || "",
+                    voiceApiCalled: false,
+                    audioSizeBytes: audioBlob?.size || 0,
+                    audioMimeType: audioBlob?.type || "audio/webm",
+                    status: "blocked",
+                    voice_failed: true,
+                    failedPhase: "audio-precheck",
+                    error_message: !audioBlob.size
+                        ? "No audio recording found for transcription."
+                        : !humanVoiceDetected
+                        ? "Human voice not detected in header dictation."
+                        : "Audio duration is too short for transcription.",
+                    retry_attempts: 0,
+                    ...speechAnalysis,
+                },
+            });
+            headerVoiceAudioChunksRef.current = [];
+            setHeaderVoiceState("idle");
+            headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+            headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
+            publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+            return;
+        }
         const cursor = headerVoiceCursorRef.current;
         try {
             const transcribeAnyAudioContext = {
@@ -388,6 +764,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 durationMs,
                 clinicalStatus: "completed",
                 mode: "dictation",
+                fromVoiceRecording: true,
                 voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
                 moduleName: "header-dictation",
                 sourceSurface: "header",
@@ -399,6 +776,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 clinicalCompletedAtMs,
                 transcriptCompletedAtMs: clinicalCompletedAtMs,
                 transcript,
+                speechAnalysis,
             }).then(({ source }) => {
                 dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
                     type: "AUDIO_NO_CONTEXT",
@@ -427,6 +805,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 failedPhase: "agents-transcribe-any-audio",
                 errorMessage: err?.message || "Header voice transcription failed",
                 mode: "dictation",
+                fromVoiceRecording: true,
                 voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
                 moduleName: "header-dictation",
                 sourceSurface: "header",
@@ -436,13 +815,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 voiceLogCreated: voiceDigitization?.voiceLogCreated,
                 markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
                 clinicalCompletedAtMs: Date.now(),
+                speechAnalysis,
             });
         }
         setHeaderVoiceState("idle");
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
         headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
-    }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, stopHeaderVoiceActivityDetection, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const headerVoiceStartRecording = useCallback(async (triggerType = "manual_click") => {
         if (headerVoiceStateRef.current !== "idle") return;
@@ -455,6 +835,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             headerVoiceStreamRef.current = stream;
+            startHeaderVoiceActivityDetection(stream);
             const mimeType = getSupportedMimeType();
             const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
             headerVoiceAudioChunksRef.current = [];
@@ -485,11 +866,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             publishHeaderDictation("recording", targetId);
         } catch (err) {
             console.error('[HeaderTranscribe] mic access failed', err);
+            stopHeaderVoiceActivityDetection();
+            const stream = headerVoiceStreamRef.current;
+            if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
             headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
             headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         }
-    }, [activeVoiceModule, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
+    }, [activeVoiceModule, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, startHeaderVoiceActivityDetection, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
 
     const headerVoiceCancelRecording = useCallback(() => {
         const recorder = headerVoiceMediaRecorderRef.current;
@@ -498,6 +882,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             recorder.onstop = null;
             try { recorder.stop(); } catch (_) {}
         }
+        stopHeaderVoiceActivityDetection();
         const stream = headerVoiceStreamRef.current;
         if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
         headerVoiceAudioChunksRef.current = [];
@@ -505,7 +890,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
         headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
-    }, [publishHeaderDictation, setHeaderVoiceState]);
+    }, [publishHeaderDictation, setHeaderVoiceState, stopHeaderVoiceActivityDetection]);
 
     // ── Header transcribe: keyboard triggers ───────────────────────────────
     // double-shift → start | single shift (while recording) → submit | Esc → cancel
