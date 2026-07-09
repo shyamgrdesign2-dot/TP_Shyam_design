@@ -21,7 +21,7 @@ import {
 
 import TabSearchHeader from "./TabSearchHeader";
 
-import { SortableContainer, SortableElement } from "react-sortable-hoc";
+import { SortableContainer, SortableElement } from "./sortableHocAdapter";
 import config from "../../config";
 import { getDecodedToken } from "../../utils/localStorage";
 

@@ -21,7 +21,7 @@ import {
 
 import TabSymptomsSearch from "../../components/tab_design/TabSymptomsSearch";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import DifferentialDiagnosis from "../DifferentialDiagnosis";
 import { setIsDDxReadyToGenerate, setIsSymptomsBox } from "../../redux/ddxSlice";
 import { ASSETS } from "../../assets";

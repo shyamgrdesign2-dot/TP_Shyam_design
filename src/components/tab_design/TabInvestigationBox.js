@@ -21,7 +21,7 @@ import {
 
 import TabInvestigationSearch from "../../components/tab_design/TabInvestigationSearch";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import DifferentialDiagnosis from "../DifferentialDiagnosis";
 import { setIsLabTestBox } from "../../redux/ddxSlice";
 import { INVESTIGATION_TITLE } from "../../utils/constants";
