@@ -703,10 +703,15 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
 
   const TABLE_SYMPTOMS = useMemo(() => {
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="symptoms" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef} className="mt-2">
+      <div className={isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsTableScrollWrap : undefined}>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="symptoms" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={["mt-2", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsTableBody : ""].filter(Boolean).join(" ")}
+              >
               {symptomsData.length > 0 &&
                 symptomsData.map((item, index) => (
                   <Draggable key={index} draggableId={`symptom-${index}`} index={index}>
@@ -716,16 +721,16 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                         {...provided.draggableProps}
                         key={index}
                         gutter={0}
-                        className="symptoms-table-row"
+                        className={["symptoms-table-row", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsTableRow : ""].filter(Boolean).join(" ")}
                       >
-                        <Col lg={1} md={1} sm={1} xs={1} className="symptoms-table-cell center">
+                        <Col lg={1} md={1} sm={1} xs={1} className={["symptoms-table-cell center", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsDragCell : ""].filter(Boolean).join(" ")}>
                           <MenuOutlined
                             {...provided.dragHandleProps}
                             className="drag-handle"
                             style={{ cursor: "grab" }}
                           />
                         </Col>
-                        <Col lg={6} md={6} sm={6} xs={6} className="symptoms-table-cell">
+                        <Col lg={6} md={6} sm={6} xs={6} className={["symptoms-table-cell", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsNameCell : ""].filter(Boolean).join(" ")}>
                           <AutoComplete
                             defaultValue={item.symptom_name}
                             value={item.symptom_name}
@@ -742,7 +747,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                             onSelect={(data, e) => onSelectChild(data, e, index)}
                           />
                         </Col>
-                        <Col lg={3} md={3} sm={3} xs={3} className="border-end">
+                        <Col lg={3} md={3} sm={3} xs={3} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
                           <AutoComplete
                             defaultValue={item.since}
                             value={item.since}
@@ -758,7 +763,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                             onSelect={(data) => onSelectSinceChild(data, index)}
                           />
                         </Col>
-                        <Col lg={3} md={3} sm={3} xs={3} className="border-end">
+                        <Col lg={3} md={3} sm={3} xs={3} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
                           <Select
                             className="autocomplete-custom w-100 symptoms-select-box"
                             placeholder="Severity"
@@ -771,7 +776,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                             allowClear
                           />
                         </Col>
-                        <Col lg={10} md={10} sm={9} xs={9} className="border-end">
+                        <Col lg={10} md={10} sm={9} xs={9} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsNotesCell : ""].filter(Boolean).join(" ")}>
                           <Input
                             className="notesinput border-0"
                             placeholder="Notes"
@@ -789,7 +794,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                             }}
                           />
                         </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="symptoms-table-cell center">
+                        <Col lg={1} md={1} sm={2} xs={2} className={["symptoms-table-cell center", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsActionCell : ""].filter(Boolean).join(" ")}>
                           <Button
                             className="btn py-0 btn-delete-prescription px-0"
                             onClick={() => onRemoveRow(index)}
@@ -802,12 +807,13 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                   </Draggable>
                 ))}
               {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [symptomsData, childSearchOptions]);
+  }, [symptomsData, childSearchOptions, isVoiceRxModuleEnabled]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {

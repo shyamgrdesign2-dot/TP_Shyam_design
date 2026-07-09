@@ -1522,6 +1522,40 @@ body {
   }
 }
 
+.prescription-new-box-dropdown {
+  overflow-x: hidden;
+
+  .rc-virtual-list-holder {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(69, 69, 81, 0.45) transparent;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(69, 69, 81, 0.45);
+      border-radius: 999px;
+    }
+  }
+
+  .rc-virtual-list-scrollbar {
+    width: 4px !important;
+    right: 4px !important;
+  }
+
+  .rc-virtual-list-scrollbar-thumb {
+    width: 4px !important;
+    border-radius: 999px !important;
+    background: rgba(69, 69, 81, 0.45) !important;
+  }
+}
+
 .prescription-new-wide-dropdown {
   width: max-content !important;
   min-width: 140px;

@@ -38,7 +38,7 @@ import {
   isAudioChunkContextReady,
   uploadAudioChunk,
 } from "./api/audio-chunk-upload";
-import { trackVoiceRx2RecorderEvent, uploadAndTrackVoiceRx2LowSpeechBlock } from "./voiceRx2Logging";
+import { trackVoiceRx2DiscardEvent, trackVoiceRx2RecorderEvent, uploadAndTrackVoiceRx2LowSpeechBlock } from "./voiceRx2Logging";
 import fsStyles from "./VoiceRxActiveAgent.module.scss";
 import osStyles from "./VoiceRxModuleRecorder.module.scss";
 import canvasStyles from "./VoiceRxCanvas.module.scss";
@@ -46,6 +46,7 @@ import canvasStyles from "./VoiceRxCanvas.module.scss";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const VOICE_RX_MIC_STORAGE_KEY = "voiceRxPreferredMicrophoneDeviceId";
+const DEFAULT_MIC_DEVICE_ID = "default";
 
 let sessionPreferredMicDeviceId = undefined;
 let sessionPreferredMicLoaded = false;
@@ -60,6 +61,10 @@ function getSessionPreferredMicDeviceId() {
     sessionPreferredMicDeviceId = undefined;
   }
   return sessionPreferredMicDeviceId;
+}
+
+function getInitialMicDeviceId() {
+  return getSessionPreferredMicDeviceId() || DEFAULT_MIC_DEVICE_ID;
 }
 
 function setSessionPreferredMicDeviceId(deviceId) {
@@ -96,17 +101,17 @@ const DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS = 60000;
 const VAD_ASSET_BASE_PATH = "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/";
 const VAD_ONNX_WASM_BASE_PATH = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/";
 const VAD_MODEL = "v5";
-const VAD_POSITIVE_SPEECH_THRESHOLD = 0.5;
-const VAD_NEGATIVE_SPEECH_THRESHOLD = 0.35;
+const VAD_POSITIVE_SPEECH_THRESHOLD = 0.3;
+const VAD_NEGATIVE_SPEECH_THRESHOLD = 0.2;
 const VAD_MIN_SPEECH_MS = 400;
-const VAD_WAVEFORM_SPEECH_THRESHOLD = 0.5;
+const VAD_WAVEFORM_SPEECH_THRESHOLD = 0.3;
 const VAD_WAVEFORM_ON_MS = 160;
 const VAD_WAVEFORM_OFF_MS = 450;
 const VAD_MIN_SPEECH_COVERAGE_RATIO = 0.25;
 const VAD_MIN_FINAL_ANALYSIS_MS = 1000;
 const VAD_MAX_FRAME_DELTA_MS = 500;
 const VAD_DEBUG_STORAGE_KEY = "voiceRxVadDebug";
-const CAPTION_AUDIO_ACTIVITY_THRESHOLD = 0.018;
+const CAPTION_AUDIO_ACTIVITY_THRESHOLD = 0.012;
 const CAPTION_AUDIO_ACTIVITY_ON_MS = 120;
 const CAPTION_AUDIO_ACTIVITY_OFF_MS = 650;
 const SILENCE_REMINDER_TONE_COUNT = 1;
@@ -197,6 +202,15 @@ function buildVadSpeechAnalysisSnapshot(stats, durationMs, minSpeechCoverageRati
     averageSpeechProbability: Number(averageSpeechProbability.toFixed(4)),
     maxSpeechProbability: Number(Math.max(0, stats?.maxSpeechProbability || 0).toFixed(4)),
     canEvaluateSpeechCoverage: analyzedDurationMs >= VAD_MIN_FINAL_ANALYSIS_MS && totalFrames > 0,
+  };
+}
+
+function buildDisabledVadSpeechAnalysisSnapshot(durationMs) {
+  return {
+    vadEnabled: false,
+    detector: "disabled",
+    audioDurationMs: Math.round(durationMs || 0),
+    canEvaluateSpeechCoverage: false,
   };
 }
 
@@ -510,6 +524,61 @@ function HumanVoiceSilenceDetector({
   return null;
 }
 
+function RawAudioSilenceDetector({
+  active,
+  audioActive,
+  onSilence,
+  timeoutMs = DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS,
+}) {
+  const activeRef = useRef(active);
+  const audioActiveRef = useRef(audioActive);
+  const onSilenceRef = useRef(onSilence);
+  const lastAudioAtRef = useRef(0);
+
+  useEffect(() => { activeRef.current = active; }, [active]);
+  useEffect(() => { audioActiveRef.current = audioActive; }, [audioActive]);
+  useEffect(() => { onSilenceRef.current = onSilence; }, [onSilence]);
+
+  useEffect(() => {
+    if (!active || typeof window === "undefined") {
+      lastAudioAtRef.current = 0;
+      return undefined;
+    }
+
+    lastAudioAtRef.current = performance.now();
+    const checkIntervalMs = Math.min(1000, Math.max(250, timeoutMs / 4));
+    const intervalId = window.setInterval(() => {
+      if (!activeRef.current) return;
+      const now = performance.now();
+      if (audioActiveRef.current) {
+        lastAudioAtRef.current = now;
+        return;
+      }
+      const lastAudioAt = lastAudioAtRef.current || now;
+      if (now - lastAudioAt < timeoutMs) return;
+      lastAudioAtRef.current = now;
+      onSilenceRef.current?.({
+        detector: "audio_rms",
+        vadEnabled: false,
+        audioActive: false,
+      });
+    }, checkIntervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+      lastAudioAtRef.current = 0;
+    };
+  }, [active, timeoutMs]);
+
+  useEffect(() => {
+    if (active && audioActive && typeof performance !== "undefined") {
+      lastAudioAtRef.current = performance.now();
+    }
+  }, [active, audioActive]);
+
+  return null;
+}
+
 function useMicStream(deviceId, enabled) {
   const [stream, setStream] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -592,12 +661,15 @@ function useMicStream(deviceId, enabled) {
     (async () => {
       try {
         let s;
+        // "default" is a Chromium-only pseudo device id; Firefox/Safari reject it as an
+        // exact constraint, and pinning it stops Chrome from following the system default.
+        const useSystemDefault = !deviceId || deviceId === DEFAULT_MIC_DEVICE_ID;
         try {
           s = await navigator.mediaDevices.getUserMedia({
-            audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+            audio: useSystemDefault ? true : { deviceId: { exact: deviceId } },
           });
         } catch (error) {
-          if (!deviceId) throw error;
+          if (useSystemDefault) throw error;
           s = await navigator.mediaDevices.getUserMedia({ audio: true });
         }
         if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
@@ -649,7 +721,7 @@ function useMicStream(deviceId, enabled) {
         const all = await navigator.mediaDevices.enumerateDevices();
         setDevices(all.filter((d) => d.kind === "audioinput"));
       } catch { /* ignore */ }
-      if (!deviceId && enabled) setRetryKey((k) => k + 1);
+      if ((!deviceId || deviceId === DEFAULT_MIC_DEVICE_ID) && enabled) setRetryKey((k) => k + 1);
     };
     navigator.mediaDevices.addEventListener?.("devicechange", onChange);
     return () => navigator.mediaDevices.removeEventListener?.("devicechange", onChange);
@@ -934,12 +1006,16 @@ function useActiveMic(stream, devices, selectedDeviceId) {
   }, [stream, selectedDeviceId]);
 
   const activeDevice = useMemo(() => {
+    if (selectedDeviceId === DEFAULT_MIC_DEVICE_ID) {
+      const defaultDevice = devices.find((d) => d.deviceId === DEFAULT_MIC_DEVICE_ID);
+      if (defaultDevice) return defaultDevice;
+    }
     if (activeDeviceId) {
       const m = devices.find((d) => d.deviceId === activeDeviceId);
       if (m) return m;
     }
     return devices[0];
-  }, [devices, activeDeviceId]);
+  }, [devices, activeDeviceId, selectedDeviceId]);
 
   useEffect(() => {
     const id = activeDevice?.deviceId;
@@ -1112,7 +1188,7 @@ export function VoiceRecorderCore({
   audioChunkContextRef.current = audioChunkContext;
 
   const [manualMute, setManualMute] = useState(false);
-  const [selectedDeviceId, setSelectedDeviceId] = useState(() => getSessionPreferredMicDeviceId());
+  const [selectedDeviceId, setSelectedDeviceId] = useState(() => getInitialMicDeviceId());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [devicePopoverOpen, setDevicePopoverOpen] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(!isFullscreen && variant === "stack");
@@ -1179,7 +1255,11 @@ export function VoiceRecorderCore({
 
   useEffect(() => {
     if (!selectedDeviceId || devices.length === 0) return;
-    const selectedDeviceAvailable = devices.some((device) => device.deviceId === selectedDeviceId);
+    // "default" means "follow the system default"; Firefox/Safari never enumerate a
+    // device with that id, so it must not be treated as an unplugged microphone.
+    const selectedDeviceAvailable =
+      selectedDeviceId === DEFAULT_MIC_DEVICE_ID ||
+      devices.some((device) => device.deviceId === selectedDeviceId);
     if (selectedDeviceAvailable) {
       fallbackNoticeShownRef.current = false;
       return;
@@ -1510,16 +1590,18 @@ export function VoiceRecorderCore({
   ]);
 
   const handleNoHumanVoiceDetected = useCallback((vadState = {}) => {
+    const detector = vadState.detector || (enableVAD ? "ricky0123_vad" : "audio_rms");
     trackVoiceRx2RecorderEvent("TP_Voice_V2_Silent_Detection", buildRecorderEventPayload({
       action: "alert_after_no_human_voice",
       silenceDurationMs: silenceDetectorThresholdMs,
-      detector: "ricky0123_vad",
+      detector,
+      vadEnabled: enableVAD,
       humanVoiceDetected: false,
       ...vadState,
     }));
     playSilenceReminderSound();
-    toast.warning("Still listening. It's been quiet for a bit, say a word when you're ready.");
-  }, [buildRecorderEventPayload, silenceDetectorThresholdMs]);
+    toast.warning("Audio seems quiet. Please try speaking a little closer to the mic.");
+  }, [buildRecorderEventPayload, enableVAD, silenceDetectorThresholdMs]);
 
   const trackedMicDeviceRef = useRef(null);
   useEffect(() => {
@@ -1582,12 +1664,13 @@ export function VoiceRecorderCore({
   }, []);
 
   const vadActive = Boolean(enableVAD && stream && micEnabled && recordingActive && online);
+  const rawAudioSilenceActive = Boolean(!enableVAD && stream && micEnabled && recordingActive && online);
 
   useEffect(() => {
     resetVadSpeechAnalysis();
   }, [activeDevice?.deviceId, resetVadSpeechAnalysis, stream?.id]);
 
-  const effectiveHumanVoiceActive = liveTranscriptAllowed;
+  const waveformActive = recordingActive;
   const vadSilenceDetector = vadActive ? (
     <HumanVoiceSilenceDetector
       key={stream.id || "voice-rx-vad-stream"}
@@ -1597,6 +1680,13 @@ export function VoiceRecorderCore({
       timeoutMs={silenceDetectorThresholdMs}
       onHumanVoiceActiveChange={setHumanVoiceActive}
       onVadFrameProcessed={handleVadFrameForSpeechAnalysis} />
+  ) : null;
+  const rawAudioSilenceDetector = rawAudioSilenceActive ? (
+    <RawAudioSilenceDetector
+      active={rawAudioSilenceActive}
+      audioActive={selectedStreamAudioActive}
+      onSilence={handleNoHumanVoiceDetected}
+      timeoutMs={silenceDetectorThresholdMs} />
   ) : null;
 
   const isListening = statusLabel === "Listening";
@@ -1609,7 +1699,7 @@ export function VoiceRecorderCore({
       paused: !recordingActive || paused,
       statusLabel,
       elapsedLabel: formatElapsed(elapsedMs),
-      audioLevel: recordingActive && effectiveHumanVoiceActive ? Math.max(0, Math.min(1, levelRef.current || 0)) : 0
+      audioLevel: recordingActive ? Math.max(0, Math.min(1, levelRef.current || 0)) : 0
     });
   }, [
     publishesCollapsedVoiceSession,
@@ -1617,7 +1707,6 @@ export function VoiceRecorderCore({
     isAwaitingResponse,
     submitProcessing,
     recordingActive,
-    effectiveHumanVoiceActive,
     paused,
     statusLabel,
     elapsedMs
@@ -1695,7 +1784,9 @@ export function VoiceRecorderCore({
     try { audioBlob = await getBlob(); } catch (e) { console.error("Failed to capture audio blob", e); }
     try { await flushFinalChunks(); } catch (e) { console.error("Failed to flush audio chunks", e); }
     const transcript = isFullscreen ? syncedExternalTranscript : liveDisplayText;
-    const speechAnalysis = buildVadSpeechAnalysisSnapshot(vadSpeechAnalysisRef.current, elapsedMs, vadMinSpeechCoverageRatio);
+    const speechAnalysis = enableVAD
+      ? buildVadSpeechAnalysisSnapshot(vadSpeechAnalysisRef.current, elapsedMs, vadMinSpeechCoverageRatio)
+      : buildDisabledVadSpeechAnalysisSnapshot(elapsedMs);
     const shouldBlockForLowSpeechCoverage = Boolean(
       enableVAD &&
       audioBlob?.size &&
@@ -1738,7 +1829,15 @@ export function VoiceRecorderCore({
     setSelectedDeviceId(id);
     setDevicePopoverOpen(false);
   }, []);
-  const handleCancelConfirm = useCallback(() => { setConfirmOpen(false); onCancel?.(); }, [onCancel]);
+  const handleCancelConfirm = useCallback(() => {
+    trackVoiceRx2DiscardEvent({
+      ...buildRecorderEventPayload(),
+      discardSource: "discard_modal",
+      discardAction: "discard_confirm",
+    });
+    setConfirmOpen(false);
+    onCancel?.();
+  }, [buildRecorderEventPayload, onCancel]);
   const handleRequestCancel = useCallback(() => {
     if (onCancelRequest) {
       onCancelRequest();
@@ -1868,7 +1967,11 @@ export function VoiceRecorderCore({
             <div className={s.devicePopoverEmpty}>{micError || "No input devices detected"}</div>
           ) : (
             devices.map((d, i) => {
-              const isSelected = activeDevice?.deviceId === d.deviceId || (selectedDeviceId ? selectedDeviceId === d.deviceId : i === 0);
+              const selectedInList =
+                selectedDeviceId && devices.some((dev) => dev.deviceId === selectedDeviceId);
+              const isSelected = selectedInList
+                ? selectedDeviceId === d.deviceId
+                : activeDevice?.deviceId === d.deviceId || i === 0;
               return (
                 <button key={d.deviceId || i} type="button" onClick={() => handleDeviceSelect(d.deviceId)}
                   className={[s.deviceItem, isSelected ? s.deviceItemSelected : s.deviceItemNormal].join(" ")}>
@@ -1989,6 +2092,7 @@ export function VoiceRecorderCore({
     return (
       <>
         {vadSilenceDetector}
+        {rawAudioSilenceDetector}
         <div
           ref={rootRef}
           className={[fsStyles.root, !isPanelVisible && fsStyles.invisible].filter(Boolean).join(" ")}
@@ -2123,7 +2227,7 @@ export function VoiceRecorderCore({
                     }}>
                     <VoiceRxSiriWaveform
                       stream={stream}
-                      paused={paused || !effectiveHumanVoiceActive}
+                      paused={paused || !waveformActive}
                       levelRef={levelRef}
                       className={["relative px-0", fsStyles.waveformOpacity, isCompactLayout ? fsStyles.waveformCompact : fsStyles.waveformNormal].join(" ")} />
                   </div>
@@ -2163,7 +2267,7 @@ export function VoiceRecorderCore({
         : isUltraCompact ? osStyles.waveStripUltra
         : compactControls ? osStyles.waveStripCompact : osStyles.waveStripNormal,
     ].join(" ")}>
-      <VoiceRxSiriWaveform className="absolute inset-0 h-full w-full" stream={stream} paused={paused || !effectiveHumanVoiceActive} levelRef={levelRef} />
+      <VoiceRxSiriWaveform className="absolute inset-0 h-full w-full" stream={stream} paused={paused || !waveformActive} levelRef={levelRef} />
       {paused && <div className={osStyles.waveStripPausedOverlay} />}
     </div>
   );
@@ -2260,6 +2364,7 @@ export function VoiceRecorderCore({
       ].filter(Boolean).join(" ")}>
 
       {vadSilenceDetector}
+      {rawAudioSilenceDetector}
 
       {showProcessingView ? (
         <OverlayProcessingView

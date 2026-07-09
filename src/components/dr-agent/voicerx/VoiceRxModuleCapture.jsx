@@ -26,6 +26,8 @@ import {
 } from "../../../redux/voiceDigitizationSlice";
 import {
   buildVoiceHistoryEntry,
+  trackVoiceRx2DiscardEvent,
+  trackVoiceRx2StartEvent,
   uploadAndLogVoiceRx2,
 } from "./voiceRx2Logging";
 import { transcribeAnyAudio } from "./api/agent-audio-service";
@@ -1124,7 +1126,10 @@ export function VoiceRxModuleButton({ active = false, disabled = false, onClick,
 }
 
 export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionApply, successMessage, transcriptionSuccessMessage, copyPayloadKeys, copyPayloadMatcher }) {
-  const [voiceCaptureOpen, setVoiceCaptureOpen] = useState(false);
+  const { patient_data } = useContext(CashManagerContext) || {};
+  const { profile } = useSelector((state) => state.doctors);
+  const voiceDigitization = useSelector((state) => state.voiceDigitization);
+  const [voiceCaptureOpen, setVoiceCaptureOpenState] = useState(false);
   const [voiceUpdated, setVoiceUpdated] = useState(false);
   const voiceUpdatedTimerRef = useRef(null);
   const sectionRef = useRef(null);
@@ -1179,6 +1184,29 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
     if (hasData) triggerHighlight();
   }, [lastCopyRequest, triggerHighlight]);
 
+  const setVoiceCaptureOpen = useCallback((nextOpen) => {
+    if (nextOpen === true) {
+      trackVoiceRx2StartEvent({
+        patientData: patient_data,
+        profile,
+        sessionId: voiceDigitization?.sessionId || "",
+        mode: "module",
+        fromVoiceRecording: true,
+        voicecall: voiceDigitization?.voiceCallCount || 0,
+        moduleName,
+        sourceSurface: "module",
+        voiceInputLocation: moduleName,
+        isDoctorAgent: false,
+        extra: {
+          doctorId: profile?.doctor_unique_id || "",
+          patientId: patient_data?.patient_unique_id || "",
+          trigger_location: "module_voice_cta",
+        },
+      });
+    }
+    setVoiceCaptureOpenState(nextOpen);
+  }, [moduleName, patient_data, profile, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
+
   const handleVoiceCaptureComplete = useCallback(async (digitisedData) => {
     if (digitisedData?.transcript !== undefined) {
       const transcript = String(digitisedData.transcript || "").trim();
@@ -1200,7 +1228,7 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
     setVoiceCaptureOpen(false);
     triggerHighlight(false);
     toast.success(successMessage || `${moduleName} filled from voice dictation`);
-  }, [moduleName, onApply, onTranscriptionApply, successMessage, transcriptionSuccessMessage, triggerHighlight]);
+  }, [moduleName, onApply, onTranscriptionApply, setVoiceCaptureOpen, successMessage, transcriptionSuccessMessage, triggerHighlight]);
 
   return {
     voiceCaptureOpen,
@@ -1491,6 +1519,25 @@ export function VoiceRxModuleCapture({
             secondaryLabel="Close and discard"
             secondaryTone="destructive"
             onSecondary={() => {
+              trackVoiceRx2DiscardEvent({
+                patientData: patient_data,
+                profile,
+                sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+                mode: "module",
+                fromVoiceRecording: true,
+                voicecall: voiceDigitization?.voiceCallCount || 0,
+                moduleName,
+                sourceSurface: "module",
+                voiceInputLocation: moduleName,
+                isDoctorAgent: false,
+                discardSource: "module_discard_modal",
+                discardAction: "discard_confirm",
+                extra: {
+                  doctorId: profile?.doctor_unique_id || "",
+                  patientId: patient_data?.patient_unique_id || "",
+                  trigger_location: "module_voice_discard_modal",
+                },
+              });
               setConfirmOpen(false);
               onCancel?.();
             }} />

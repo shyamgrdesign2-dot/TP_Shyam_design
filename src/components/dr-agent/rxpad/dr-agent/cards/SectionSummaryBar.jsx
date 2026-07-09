@@ -29,6 +29,9 @@ const SECTION_ICON_SRC = {
   surgeries: ASSETS.images.surgery,
   "medical-history": ASSETS.images.medicalHistory,
   medicalhistory: ASSETS.images.medicalHistory,
+  gynec: "/new-assets/icons/medical/gynec--line.svg",
+  "gynec-history": "/new-assets/icons/medical/gynec--line.svg",
+  "gynaec-history": "/new-assets/icons/medical/gynec--line.svg",
 };
 
 function normalizeIconKey(value) {

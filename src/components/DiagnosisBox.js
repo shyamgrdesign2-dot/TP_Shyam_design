@@ -672,10 +672,15 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const TABLE_DIAGNOSIS = useMemo(() => {
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="diagnosis" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
+      <div className={isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableScrollWrap : undefined}>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="diagnosis" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableBody : undefined}
+              >
               {diagnosisData.length > 0 &&
                 diagnosisData.map((item, index) => (
                   <Draggable key={index} draggableId={`diagnosis-${index}`} index={index}>
@@ -685,10 +690,13 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                         {...provided.draggableProps}
                         key={index}
                         gutter={[0]}
-                        className={`${index === 0 && 'mt-14 border-top'
-                          } align-items-center border-bottom`}
+                        className={[
+                          index === 0 && "mt-14 border-top",
+                          "align-items-center border-bottom",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableRow : "",
+                        ].filter(Boolean).join(" ")}
                       >
-                        <Col lg={1} md={1} sm={1} xs={1} className="text-center">
+                        <Col lg={1} md={1} sm={1} xs={1} className={["text-center", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleDragCell : ""].filter(Boolean).join(" ")}>
                           <MenuOutlined
                             {...provided.dragHandleProps}
                             className="drag-handle"
@@ -701,7 +709,11 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                           md={6}
                           sm={6}
                           xs={6}
-                          className={`border-end ${isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? "align-self-stretch" : ""}`}
+                          className={[
+                            "border-end",
+                            isVoiceRxModuleEnabled ? voiceModuleStyles.modulePrimaryCell : "",
+                            isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? "align-self-stretch" : "",
+                          ].filter(Boolean).join(" ")}
                           style={isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? { background: "#fff8ef" } : undefined}
                         >
                           <div className={isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1"}>
@@ -748,7 +760,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             )}
                           </div>
                         </Col>
-                        <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                        <Col lg={4} md={4} sm={4} xs={4} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleShortCell : ""].filter(Boolean).join(" ")}>
                           <AutoComplete
                             defaultValue={item.since}
                             value={item.since}
@@ -764,7 +776,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onSelect={(data) => onSelectSinceChild(data, index)}
                           />
                         </Col>
-                        <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                        <Col lg={4} md={4} sm={4} xs={4} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleShortCell : ""].filter(Boolean).join(" ")}>
                           <Select
                             className="autocomplete-custom w-100 inputborder"
                             placeholder="Status"
@@ -777,7 +789,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             allowClear
                           />
                         </Col>
-                        <Col lg={8} md={8} sm={7} xs={7} className="border-end">
+                        <Col lg={8} md={8} sm={7} xs={7} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleNotesCell : ""].filter(Boolean).join(" ")}>
                           <Input
                             className="notesinput border-0"
                             placeholder="Notes"
@@ -786,7 +798,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onChange={(e) => onChangeNoteChild(e, index)}
                           />
                         </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="text-center">
+                        <Col lg={1} md={1} sm={2} xs={2} className={["text-center", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleActionCell : ""].filter(Boolean).join(" ")}>
                           <Button
                             className="btn py-0 btn-delete-prescription px-0"
                             onClick={() => onRemoveRow(index)}
@@ -799,10 +811,11 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                   </Draggable>
                 ))}
               {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
   }, [diagnosisData, childSearchOptions, isVoiceRxModuleEnabled, isChikitsalayAccessable]);
 

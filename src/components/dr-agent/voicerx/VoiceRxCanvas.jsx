@@ -14,6 +14,7 @@ import { ShineBorder } from "./ShineBorder";
 import { FeedbackRow } from "./VoiceRxResultTabs";
 import { VoiceRxIcon } from "./voice-consult-icons";
 import { VoiceRecorderCore } from "./VoiceRecorderCore";
+import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent } from "./voiceRx2Logging";
 import { toast } from "./toast";
 import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import styles from "./VoiceRxCanvas.module.scss";
@@ -128,6 +129,19 @@ export function VoiceRxCanvas({
     if (voiceLocked) return;
     if (coachmarkVisible) dismissCoachmark();
     if (onQuickEditSubmit) {
+      trackVoiceRx2StartEvent({
+        ...analyticsContext,
+        mode: analyticsContext?.mode || "module",
+        moduleName: analyticsContext?.moduleName || "Clinical Notes",
+        sourceSurface: analyticsContext?.sourceSurface || "dr_agent",
+        voiceInputLocation: "Clinical Notes",
+        extra: {
+          doctorId: analyticsContext?.doctorId || "",
+          patientId: analyticsContext?.patientId || "",
+          selectedPatientId: analyticsContext?.selectedPatientId || "",
+          trigger_location: "clinical_notes_voice_edit_cta",
+        },
+      });
       setVoiceEditOpen(true);
       setVoiceEditProcessing(false);
       setVoiceEditPhase("idle");
@@ -155,7 +169,10 @@ export function VoiceRxCanvas({
       setVoiceEditPhase("idle");
       setVoiceEditTranscript("");
     } catch {
+      setVoiceEditOpen(false);
       setVoiceEditProcessing(false);
+      setVoiceEditPhase("idle");
+      setVoiceEditTranscript("");
     }
   };
 
@@ -177,6 +194,21 @@ export function VoiceRxCanvas({
   };
 
   const handleDiscardVoiceEditAndBack = () => {
+    trackVoiceRx2DiscardEvent({
+      ...analyticsContext,
+      mode: analyticsContext?.mode || "module",
+      moduleName: analyticsContext?.moduleName || "Clinical Notes",
+      sourceSurface: analyticsContext?.sourceSurface || "dr_agent",
+      voiceInputLocation: "Clinical Notes",
+      discardSource: "clinical_notes_discard_modal",
+      discardAction: "discard_confirm",
+      extra: {
+        doctorId: analyticsContext?.doctorId || "",
+        patientId: analyticsContext?.patientId || "",
+        selectedPatientId: analyticsContext?.selectedPatientId || "",
+        trigger_location: "clinical_notes_voice_discard_modal",
+      },
+    });
     handleVoiceEditCancel();
     onBack?.();
   };
@@ -358,12 +390,16 @@ export function VoiceRxCanvas({
           </div>
         ) : (
           <div className={styles.emrTabContent} data-testid="voicerx-clinical-notes">
-            <div className={["vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell].join(" ")}>
-              <div className={styles.emrShellInner}>{emrCard}</div>
-            </div>
-            <FeedbackRow
-              value={feedback.emr}
-              onChange={(v) => handleFeedback("emr", v)} />
+            {emrCard ? (
+              <>
+                <div className={["vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell].join(" ")}>
+                  <div className={styles.emrShellInner}>{emrCard}</div>
+                </div>
+                <FeedbackRow
+                  value={feedback.emr}
+                  onChange={(v) => handleFeedback("emr", v)} />
+              </>
+            ) : null}
           </div>
         )}
       </div>
