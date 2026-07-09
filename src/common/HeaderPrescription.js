@@ -8,7 +8,7 @@ import { useCompactPrescriptionHeader } from '../hooks/useCompactPrescriptionHea
 import { useTabletViewport } from '../hooks/useTabletViewport';
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn, useFeatureValue } from "@growthbook/growthbook-react";
-import { useMicVAD } from "@ricky0123/vad-react";
+import { MicVAD } from "@ricky0123/vad-web";
 
 import CustomizeSetting from './CustomizeSetting';
 
@@ -299,6 +299,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
     const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isHeaderVoiceDictationEnabled = Boolean(isNewPrescriptionUi && showVoiceRxModule && isVoiceRxNewFromGB);
     const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
     const headerVoiceVadEnabled = isVadEnabled(tpConfigData);
     const headerVoiceSilenceThresholdMs = getSilenceDetectorThresholdMs(tpConfigData);
@@ -326,6 +327,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceVadActiveRef = useRef(false);
     const headerVoiceVadSpeechCandidateStartedAtRef = useRef(0);
     const headerVoiceVadLastSpeechFrameAtRef = useRef(0);
+    const headerVoiceVadInstanceRef = useRef(null);
+    const headerVoiceVadStartTokenRef = useRef(0);
 
     useEffect(() => {
         headerVoiceVadEnabledRef.current = headerVoiceVadEnabled;
@@ -397,48 +400,65 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
     }, []);
 
-    const getHeaderVadStream = useCallback(async () => {
-        if (!headerVoiceStreamRef.current) throw new Error("No active header dictation stream for VAD.");
-        return headerVoiceStreamRef.current;
+    const destroyHeaderVadInstance = useCallback(async () => {
+        const vad = headerVoiceVadInstanceRef.current;
+        headerVoiceVadInstanceRef.current = null;
+        if (!vad) return;
+        try {
+            await vad.destroy();
+        } catch (error) {
+            console.warn("[HeaderTranscribe] VAD cleanup skipped", error?.message || error);
+        }
     }, []);
 
-    const keepHeaderVadStreamAlive = useCallback(async () => {}, []);
-
-    const {
-        pause: pauseHeaderVad,
-        start: startHeaderVad,
-    } = useMicVAD({
-        model: HEADER_DICTATION_VAD_MODEL,
-        startOnLoad: false,
-        getStream: getHeaderVadStream,
-        pauseStream: keepHeaderVadStreamAlive,
-        resumeStream: getHeaderVadStream,
-        positiveSpeechThreshold: HEADER_DICTATION_VAD_POSITIVE_SPEECH_THRESHOLD,
-        negativeSpeechThreshold: HEADER_DICTATION_VAD_NEGATIVE_SPEECH_THRESHOLD,
-        minSpeechMs: HEADER_DICTATION_VAD_MIN_SPEECH_MS,
-        userSpeakingThreshold: HEADER_DICTATION_VAD_POSITIVE_SPEECH_THRESHOLD,
-        onFrameProcessed: handleHeaderVadFrameProcessed,
-        onSpeechRealStart: () => {
-            if (!headerVoiceVadActiveRef.current || !headerVoiceVadEnabledRef.current) return;
-            headerVoiceHumanVoiceDetectedRef.current = true;
-        },
-        onSpeechEnd: () => {
-            headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
-            if (headerVoiceVadEnabledRef.current) headerVoiceHumanVoiceDetectedRef.current = false;
-        },
-        onVADMisfire: () => {
-            headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
-            if (headerVoiceVadEnabledRef.current) headerVoiceHumanVoiceDetectedRef.current = false;
-        },
-        baseAssetPath: HEADER_DICTATION_VAD_ASSET_BASE_PATH,
-        onnxWASMBasePath: HEADER_DICTATION_VAD_ONNX_WASM_BASE_PATH,
-    });
+    const startHeaderVad = useCallback(async (stream) => {
+        if (!stream) throw new Error("No active header dictation stream for VAD.");
+        const startToken = headerVoiceVadStartTokenRef.current + 1;
+        headerVoiceVadStartTokenRef.current = startToken;
+        await destroyHeaderVadInstance();
+        if (headerVoiceVadStartTokenRef.current !== startToken || !headerVoiceVadActiveRef.current) return;
+        const vad = await MicVAD.new({
+            model: HEADER_DICTATION_VAD_MODEL,
+            startOnLoad: true,
+            getStream: async () => stream,
+            pauseStream: async () => {},
+            resumeStream: async () => stream,
+            positiveSpeechThreshold: HEADER_DICTATION_VAD_POSITIVE_SPEECH_THRESHOLD,
+            negativeSpeechThreshold: HEADER_DICTATION_VAD_NEGATIVE_SPEECH_THRESHOLD,
+            minSpeechMs: HEADER_DICTATION_VAD_MIN_SPEECH_MS,
+            onFrameProcessed: handleHeaderVadFrameProcessed,
+            onSpeechRealStart: () => {
+                if (!headerVoiceVadActiveRef.current || !headerVoiceVadEnabledRef.current) return;
+                headerVoiceHumanVoiceDetectedRef.current = true;
+            },
+            onSpeechEnd: () => {
+                headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+                if (headerVoiceVadEnabledRef.current) headerVoiceHumanVoiceDetectedRef.current = false;
+            },
+            onVADMisfire: () => {
+                headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+                if (headerVoiceVadEnabledRef.current) headerVoiceHumanVoiceDetectedRef.current = false;
+            },
+            baseAssetPath: HEADER_DICTATION_VAD_ASSET_BASE_PATH,
+            onnxWASMBasePath: HEADER_DICTATION_VAD_ONNX_WASM_BASE_PATH,
+        });
+        if (headerVoiceVadStartTokenRef.current !== startToken || !headerVoiceVadActiveRef.current) {
+            try {
+                await vad.destroy();
+            } catch (error) {
+                console.warn("[HeaderTranscribe] stale VAD cleanup skipped", error?.message || error);
+            }
+            return;
+        }
+        headerVoiceVadInstanceRef.current = vad;
+    }, [destroyHeaderVadInstance, handleHeaderVadFrameProcessed]);
 
     const stopHeaderVoiceActivityDetection = useCallback(() => {
         headerVoiceActivityCleanupRef.current?.();
         headerVoiceActivityCleanupRef.current = null;
         headerVoiceVadActiveRef.current = false;
-        void pauseHeaderVad().catch(() => {});
+        headerVoiceVadStartTokenRef.current += 1;
+        void destroyHeaderVadInstance();
         headerVoiceActivityStartedAtRef.current = 0;
         headerVoiceActivityInactiveStartedAtRef.current = 0;
         headerVoiceAudioActiveRef.current = false;
@@ -447,7 +467,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
         headerVoiceVadLastSpeechFrameAtRef.current = 0;
         headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
-    }, [pauseHeaderVad]);
+    }, [destroyHeaderVadInstance]);
 
     const startHeaderVoiceActivityDetection = useCallback((stream) => {
         stopHeaderVoiceActivityDetection();
@@ -465,7 +485,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
         if (headerVoiceVadEnabledRef.current) {
             headerVoiceVadActiveRef.current = true;
-            void startHeaderVad().catch(() => {
+            void startHeaderVad(stream).catch(() => {
                 headerVoiceVadActiveRef.current = false;
             });
             return;
@@ -635,7 +655,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     // ── Header transcribe: cursor tracking ─────────────────────────────────
     useEffect(() => {
-        if (!isVoiceRxNewFromGB) return;
+        if (!isHeaderVoiceDictationEnabled) return;
         const onFocusIn = (e) => {
             const selection = getEditableSelection(e.target);
             if (selection) headerVoiceCursorRef.current = selection;
@@ -658,7 +678,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             document.removeEventListener('click', onUpdateCursor);
             document.removeEventListener('keyup', onUpdateCursor);
         };
-    }, [isVoiceRxNewFromGB]);
+    }, [isHeaderVoiceDictationEnabled]);
 
     // ── Header transcribe: start / stop recording ──────────────────────────
     const headerVoiceStopAndTranscribe = useCallback(async () => {
@@ -825,6 +845,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, stopHeaderVoiceActivityDetection, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const headerVoiceStartRecording = useCallback(async (triggerType = "manual_click") => {
+        if (!isHeaderVoiceDictationEnabled) return;
         if (headerVoiceStateRef.current !== "idle") return;
         if (activeVoiceModule) return;
         const cursor = headerVoiceCursorRef.current;
@@ -873,7 +894,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         }
-    }, [activeVoiceModule, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, startHeaderVoiceActivityDetection, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
+    }, [activeVoiceModule, isHeaderVoiceDictationEnabled, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, startHeaderVoiceActivityDetection, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
 
     const headerVoiceCancelRecording = useCallback(() => {
         const recorder = headerVoiceMediaRecorderRef.current;
@@ -895,7 +916,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     // ── Header transcribe: keyboard triggers ───────────────────────────────
     // double-shift → start | single shift (while recording) → submit | Esc → cancel
     useEffect(() => {
-        if (!isVoiceRxNewFromGB) return;
+        if (!isHeaderVoiceDictationEnabled) return;
         const onKeyDown = (e) => {
             if (e.key === 'Escape') {
                 if (headerVoiceStateRef.current === "recording") {
@@ -921,7 +942,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
-    }, [isVoiceRxNewFromGB, headerVoiceStartRecording, headerVoiceStopAndTranscribe, headerVoiceCancelRecording]);
+    }, [isHeaderVoiceDictationEnabled, headerVoiceStartRecording, headerVoiceStopAndTranscribe, headerVoiceCancelRecording]);
 
     const syncOrderMedicineAndInvestigation = useCallback((resolvedTcmId) => {
         const patientUniqueId = patient_data?.patient_unique_id;
