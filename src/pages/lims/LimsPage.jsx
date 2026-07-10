@@ -137,37 +137,142 @@ function ActionMenu({ onAction, isFilled }) {
   );
 }
 
-function TestsBadge({ investigations }) {
+let activeInfoPopoverClose = null;
+
+function useInfoPopover() {
   const [showInfo, setShowInfo] = useState(false);
   const triggerRef = useRef(null);
   const popoverRef = useRef(null);
+  const hideTimerRef = useRef(null);
+
+  const hide = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setShowInfo(false);
+    if (activeInfoPopoverClose === hide) {
+      activeInfoPopoverClose = null;
+    }
+  }, []);
+
+  const show = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    if (activeInfoPopoverClose && activeInfoPopoverClose !== hide) {
+      activeInfoPopoverClose();
+    }
+    activeInfoPopoverClose = hide;
+    setShowInfo(true);
+  }, [hide]);
+
+  const scheduleHide = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      hide();
+      hideTimerRef.current = null;
+    }, 100);
+  }, [hide]);
+
+  const cancelHide = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  const toggle = useCallback((e) => {
+    e.stopPropagation();
+    if (showInfo) hide();
+    else show();
+  }, [showInfo, show, hide]);
 
   useEffect(() => {
     if (!showInfo) return;
-    function close(e) {
+    function closeOnOutsideClick(e) {
       if (
         (!triggerRef.current || !triggerRef.current.contains(e.target)) &&
         (!popoverRef.current || !popoverRef.current.contains(e.target))
       ) {
-        setShowInfo(false);
+        hide();
       }
     }
-    function onScroll() { setShowInfo(false); }
-    document.addEventListener("mousedown", close);
-    window.addEventListener("scroll", onScroll, true);
+    function closeOnScroll() { hide(); }
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    window.addEventListener("scroll", closeOnScroll, true);
     return () => {
-      document.removeEventListener("mousedown", close);
-      window.removeEventListener("scroll", onScroll, true);
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      window.removeEventListener("scroll", closeOnScroll, true);
     };
-  }, [showInfo]);
+  }, [showInfo, hide]);
+
+  useEffect(() => () => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    if (activeInfoPopoverClose === hide) activeInfoPopoverClose = null;
+  }, [hide]);
+
+  const popoverPos = showInfo && triggerRef.current
+    ? (() => {
+      const rect = triggerRef.current.getBoundingClientRect();
+      return { top: rect.bottom + 6, left: rect.left };
+    })()
+    : null;
+
+  return {
+    showInfo,
+    triggerRef,
+    popoverRef,
+    popoverPos,
+    show,
+    hide,
+    scheduleHide,
+    cancelHide,
+    toggle,
+  };
+}
+
+function InfoPopoverPanel({ popoverRef, popoverPos, title, items, onMouseEnter, onMouseLeave }) {
+  if (!popoverPos) return null;
+  return createPortal(
+    <div
+      ref={popoverRef}
+      className={styles.testsInfoPopover}
+      style={{
+        position: "fixed",
+        top: popoverPos.top,
+        left: popoverPos.left,
+        zIndex: 9999,
+        fontFamily: '"Inter", sans-serif',
+      }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className={styles.testsInfoTitle}>{title}</div>
+      <ul className={styles.testsInfoList}>
+        {items.map((item) => (
+          <li key={item.key}>{item.label}</li>
+        ))}
+      </ul>
+    </div>,
+    document.body
+  );
+}
+
+function TestsBadge({ investigations }) {
+  const {
+    showInfo,
+    triggerRef,
+    popoverRef,
+    popoverPos,
+    show,
+    scheduleHide,
+    cancelHide,
+    toggle,
+  } = useInfoPopover();
 
   if (!investigations || investigations.length === 0) return <span className={styles.muted}>-</span>;
-
-  let popoverPos = null;
-  if (showInfo && triggerRef.current) {
-    const rect = triggerRef.current.getBoundingClientRect();
-    popoverPos = { top: rect.bottom + 6, left: rect.left };
-  }
 
   const count = investigations.length;
 
@@ -177,32 +282,67 @@ function TestsBadge({ investigations }) {
         {count} {count === 1 ? "Test" : "Tests"}
         <span
           className={styles.infoIconWrap}
-          onClick={(e) => { e.stopPropagation(); setShowInfo((v) => !v); }}
-          onMouseEnter={() => setShowInfo(true)}
+          onClick={toggle}
+          onMouseEnter={() => { cancelHide(); show(); }}
+          onMouseLeave={scheduleHide}
         >
           <InfoCircleOutlined />
         </span>
       </Tag>
-      {showInfo && popoverPos && createPortal(
-        <div
-          ref={popoverRef}
-          className={styles.testsInfoPopover}
-          style={{
-            position: "fixed",
-            top: popoverPos.top,
-            left: popoverPos.left,
-            zIndex: 9999,
-            fontFamily: '"Inter", sans-serif',
-          }}
-        >
-          <div className={styles.testsInfoTitle}>Investigations suggested</div>
-          <ul className={styles.testsInfoList}>
-            {investigations.map((inv) => (
-              <li key={inv.name}>{inv.name}</li>
-            ))}
-          </ul>
-        </div>,
-        document.body
+      {showInfo && (
+        <InfoPopoverPanel
+          popoverRef={popoverRef}
+          popoverPos={popoverPos}
+          title="Investigations suggested"
+          items={investigations.map((inv) => ({ key: inv.name, label: inv.name }))}
+          onMouseEnter={cancelHide}
+          onMouseLeave={scheduleHide}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatusBadge({ summary }) {
+  const {
+    showInfo,
+    triggerRef,
+    popoverRef,
+    popoverPos,
+    show,
+    scheduleHide,
+    cancelHide,
+    toggle,
+  } = useInfoPopover();
+
+  const reports = summary?.reports || [];
+  const isFilled = summary?.status === "filled";
+  const hasReports = reports.length > 0;
+
+  return (
+    <div ref={triggerRef} className={styles.testsBadgeWrap}>
+      <Tag color={isFilled ? "green" : "orange"} className={styles.testsTag}>
+        {isFilled ? "Filled" : "Not filled"}
+        {hasReports && (
+          <span
+            className={styles.infoIconWrap}
+            onClick={toggle}
+            onMouseEnter={() => { cancelHide(); show(); }}
+            onMouseLeave={scheduleHide}
+          >
+            <InfoCircleOutlined />
+          </span>
+        )}
+      </Tag>
+      {showInfo && hasReports && (
+        <InfoPopoverPanel
+          popoverRef={popoverRef}
+          popoverPos={popoverPos}
+          title="Reports with data"
+          items={reports.map((reportName) => ({ key: reportName, label: reportName }))}
+          onMouseEnter={cancelHide}
+          onMouseLeave={scheduleHide}
+        />
       )}
     </div>
   );
@@ -551,11 +691,11 @@ export default function LimsPage() {
       },
       {
         title: "Status",
-        width: 120,
+        width: 150,
         render: (r) => {
           const s = r._summary;
           if (!s) return <span className={styles.muted}>...</span>;
-          return s.status === "filled" ? <Tag color="green">Filled</Tag> : <Tag color="orange">Not filled</Tag>;
+          return <StatusBadge summary={s} />;
         },
       },
       {
