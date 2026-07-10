@@ -692,7 +692,7 @@ function SidebarDoctor() {
               </div>
             </NavLink>
           )}
-          {isLimsAccessableFromGB && (
+          {/* {isLimsAccessableFromGB && ( */}
             <NavLink
               to="/lims"
               replace={true}
@@ -708,7 +708,7 @@ function SidebarDoctor() {
               </svg>
               <div className="mt-1 px-2">LIMS</div>
             </NavLink>
-          )}
+          {/* )} */}
           </>
           )}
         {/* </div> */}

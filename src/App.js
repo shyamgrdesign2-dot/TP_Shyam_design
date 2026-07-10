@@ -40,6 +40,7 @@ import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateBanner from "./common/UpdateBanner";
 import { clearSentryContext } from "./utils/sentryContext";
 import { growthbook } from "./utils/growthbook";
+import LimsAccessGate from "./pages/lims/LimsAccessGate";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -810,9 +811,9 @@ function App() {
           />
           <Route path="dental-rx-pad" element={<ConsultationLayout />} />
 
-          <Route path="lims" element={<LimsPage />} />
-          <Route path="lims/print/:patientId" element={<LimsPrintPage />} />
-          <Route path="lims/print-settings" element={<LimsPrintConfig />} />
+          <Route path="lims" element={<LimsAccessGate><LimsPage /></LimsAccessGate>} />
+          <Route path="lims/print/:patientId" element={<LimsAccessGate><LimsPrintPage /></LimsAccessGate>} />
+          <Route path="lims/print-settings" element={<LimsAccessGate><LimsPrintConfig /></LimsAccessGate>} />
           {/* <Route path="dental-rx-pad" element={<DentalModuleShell />} /> */}
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />
