@@ -1,0 +1,762 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+import { Button, Checkbox, DatePicker, Dropdown, Input, Spin, Table, Tag } from "antd";
+import { InfoCircleOutlined, DownOutlined, FilterOutlined, PlusOutlined, PrinterOutlined, SearchOutlined, UpOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
+import { fetchLimsPatients, fetchPatientLabResults } from "./limsApi";
+import { summariseResults, latestDateResults } from "./limsHelpers";
+import LabResultsDrawer from "./LabResultsDrawer";
+import AddPatientDrawer from "./AddPatientDrawer";
+import styles from "./LimsPage.module.css";
+
+const ICON_DOTS = "https://pmdoctorportal.tatvacare.in/tp-icons/straight/bold/settings/3-dots-more.svg";
+const { RangePicker } = DatePicker;
+const DATE_FORMAT = "YYYY-MM-DD";
+const SHOW_DATE_FORMAT = "DD MMM YYYY";
+
+function CdnIcon({ url, size = 16, style, className }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={className}
+      style={{
+        display: "inline-block",
+        width: size,
+        height: size,
+        flexShrink: 0,
+        backgroundColor: "currentcolor",
+        WebkitMask: `url("${url}") center / contain no-repeat`,
+        mask: `url("${url}") center / contain no-repeat`,
+        ...style,
+      }}
+    />
+  );
+}
+
+function formatAge(p) {
+  if (p?.ageYears) return `${p.ageYears}y`;
+  if (p?.ageMonths) return `${p.ageMonths}m`;
+  if (p?.ageDays) return `${p.ageDays}d`;
+  if (p?.pm_age) return `${p.pm_age}y`;
+  return "";
+}
+
+function patientSubtext(p) {
+  const parts = [];
+  if (p?.pm_gender) parts.push(p.pm_gender);
+  const age = formatAge(p);
+  if (age) parts.push(age);
+  return parts.join(", ");
+}
+
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function formatVisitDate(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mmm = MONTH_ABBR[d.getMonth()];
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}-${mmm}-${yy}`;
+}
+
+function ActionMenu({ onAction, isFilled }) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function close(e) {
+      if (
+        (!triggerRef.current || !triggerRef.current.contains(e.target)) &&
+        (!dropdownRef.current || !dropdownRef.current.contains(e.target))
+      ) {
+        setOpen(false);
+      }
+    }
+    function onScroll() { setOpen(false); }
+    document.addEventListener("mousedown", close);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [open]);
+
+  let dropdownPos = null;
+  if (open && triggerRef.current) {
+    const rect = triggerRef.current.getBoundingClientRect();
+    dropdownPos = { top: rect.bottom + 4, right: window.innerWidth - rect.right };
+  }
+
+  return (
+    <div className={styles.actionMenuWrap}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={styles.dotsBtn}
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Actions"
+      >
+        <CdnIcon url={ICON_DOTS} size={20} />
+      </button>
+      {open && dropdownPos && createPortal(
+        <div
+          ref={dropdownRef}
+          className={styles.actionDropdown}
+          style={{
+            position: "fixed",
+            top: dropdownPos.top,
+            right: dropdownPos.right,
+            zIndex: 9999,
+            fontFamily: '"Inter", sans-serif',
+          }}
+        >
+          <button
+            type="button"
+            className={styles.actionItem}
+            onClick={() => { onAction("view"); setOpen(false); }}
+          >
+            <PlusOutlined />
+            <span>{isFilled ? "View / Edit Lab Results" : "Add Lab Results"}</span>
+          </button>
+          <button
+            type="button"
+            className={styles.actionItem}
+            onClick={() => { onAction("print"); setOpen(false); }}
+          >
+            <PrinterOutlined />
+            <span>Print</span>
+          </button>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+function TestsBadge({ investigations }) {
+  const [showInfo, setShowInfo] = useState(false);
+  const triggerRef = useRef(null);
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    if (!showInfo) return;
+    function close(e) {
+      if (
+        (!triggerRef.current || !triggerRef.current.contains(e.target)) &&
+        (!popoverRef.current || !popoverRef.current.contains(e.target))
+      ) {
+        setShowInfo(false);
+      }
+    }
+    function onScroll() { setShowInfo(false); }
+    document.addEventListener("mousedown", close);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [showInfo]);
+
+  if (!investigations || investigations.length === 0) return <span className={styles.muted}>-</span>;
+
+  let popoverPos = null;
+  if (showInfo && triggerRef.current) {
+    const rect = triggerRef.current.getBoundingClientRect();
+    popoverPos = { top: rect.bottom + 6, left: rect.left };
+  }
+
+  const count = investigations.length;
+
+  return (
+    <div ref={triggerRef} className={styles.testsBadgeWrap}>
+      <Tag color="purple" className={styles.testsTag}>
+        {count} {count === 1 ? "Test" : "Tests"}
+        <span
+          className={styles.infoIconWrap}
+          onClick={(e) => { e.stopPropagation(); setShowInfo((v) => !v); }}
+          onMouseEnter={() => setShowInfo(true)}
+        >
+          <InfoCircleOutlined />
+        </span>
+      </Tag>
+      {showInfo && popoverPos && createPortal(
+        <div
+          ref={popoverRef}
+          className={styles.testsInfoPopover}
+          style={{
+            position: "fixed",
+            top: popoverPos.top,
+            left: popoverPos.left,
+            zIndex: 9999,
+            fontFamily: '"Inter", sans-serif',
+          }}
+        >
+          <div className={styles.testsInfoTitle}>Investigations suggested</div>
+          <ul className={styles.testsInfoList}>
+            {investigations.map((inv) => (
+              <li key={inv.name}>{inv.name}</li>
+            ))}
+          </ul>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+const STATUS_FILTER_OPTIONS = [
+  { label: "Filled", value: "filled" },
+  { label: "Not filled", value: "empty" },
+];
+
+const TEST_FILTER_OPTIONS = [
+  { label: "With tests", value: "with_tests" },
+  { label: "Without tests", value: "without_tests" },
+];
+
+function FilterOptionRow({ label, checked, onToggle }) {
+  return (
+    <button
+      type="button"
+      className={`${styles.filterOption} ${checked ? styles.filterOptionActive : ""}`}
+      onClick={onToggle}
+    >
+      <Checkbox checked={checked} />
+      <span className={styles.filterOptionLabel}>{label}</span>
+    </button>
+  );
+}
+
+function FilterContent({ value, onChange, onClear, onDone }) {
+  const statusValues = value?.status || [];
+  const testValues = value?.tests || [];
+
+  const toggleValue = (key, optionValue) => {
+    onChange((prev) => {
+      const current = prev?.[key] || [];
+      const next = current.includes(optionValue)
+        ? current.filter((v) => v !== optionValue)
+        : [...current, optionValue];
+      return { ...prev, [key]: next };
+    });
+  };
+
+  return (
+    <div className={styles.filterPanel}>
+      <div className={styles.filterSection}>
+        <div className={styles.filterTitle}>Status</div>
+        <div className={styles.filterOptions}>
+          {STATUS_FILTER_OPTIONS.map((option) => (
+            <FilterOptionRow
+              key={option.value}
+              label={option.label}
+              checked={statusValues.includes(option.value)}
+              onToggle={() => toggleValue("status", option.value)}
+            />
+          ))}
+        </div>
+      </div>
+      <div className={styles.filterSection}>
+        <div className={styles.filterTitle}>Last Visit Tests</div>
+        <div className={styles.filterOptions}>
+          {TEST_FILTER_OPTIONS.map((option) => (
+            <FilterOptionRow
+              key={option.value}
+              label={option.label}
+              checked={testValues.includes(option.value)}
+              onToggle={() => toggleValue("tests", option.value)}
+            />
+          ))}
+        </div>
+      </div>
+      <div className={styles.filterFooter}>
+        <button type="button" className={styles.clearAllBtn} onClick={onClear}>
+          Clear all
+        </button>
+        <Button type="primary" className={`btn btn-primary3 ${styles.filterDoneBtn}`} onClick={onDone}>
+          Done
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export default function LimsPage() {
+  const navigate = useNavigate();
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [summaries, setSummaries] = useState({});
+  const [lastVisitTests, setLastVisitTests] = useState({});
+  const [drawerPatient, setDrawerPatient] = useState(null);
+  const [page, setPage] = useState(1);
+  const [listMeta, setListMeta] = useState({ total: 0, totalPages: 0, page: 1 });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [dateRange, setDateRange] = useState(null);
+  const [pickerModal, setPickerModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState({});
+  const [draftStatusFilter, setDraftStatusFilter] = useState({});
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [addPatientOpen, setAddPatientOpen] = useState(false);
+  const tableWrapRef = useRef(null);
+  const observer = useRef();
+  const listMetaRef = useRef(listMeta);
+  const [tableMaxH, setTableMaxH] = useState(600);
+
+  const PAGE_SIZE = 25;
+
+  useEffect(() => {
+    listMetaRef.current = listMeta;
+  }, [listMeta]);
+
+  const loadPatients = useCallback(async (searchTerm, pageNum, append, range = dateRange) => {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
+    const params = { search: searchTerm, page: pageNum, limit: PAGE_SIZE };
+    if (range?.startDate && range?.endDate) {
+      params.startDate = range.startDate;
+      params.endDate = range.endDate;
+    }
+    const res = await fetchLimsPatients(params);
+    const incoming = res?.patients || [];
+    if (append) {
+      setPatients((prev) => [...prev, ...incoming]);
+    } else {
+      setPatients(incoming);
+    }
+    setListMeta({
+      total: res?.total ?? incoming.length,
+      totalPages: res?.totalPages ?? 1,
+      page: res?.page ?? pageNum,
+    });
+    if (pageNum === 1) setLoading(false);
+    else setLoadingMore(false);
+
+    // The `/lims` list already returns each patient's lab results and last-visit
+    // investigations inline, so we derive the row summary and tests directly
+    // instead of firing a follow-up request per patient.
+    const summaryMap = {};
+    const testMap = {};
+    incoming.forEach((p) => {
+      const id = p?.patient_unique_id;
+      if (!id) return;
+      summaryMap[id] = summariseResults(latestDateResults(p.labResults || []));
+      testMap[id] = (p.investigations || [])
+        .map((i) => ({ name: (i.investigation_name || "").trim(), note: i.note || "" }))
+        .filter((i) => i.name);
+    });
+    setSummaries((prev) => ({ ...prev, ...summaryMap }));
+    setLastVisitTests((prev) => ({ ...prev, ...testMap }));
+  }, [dateRange]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, dateRange]);
+
+  useEffect(() => {
+    const delay = page === 1 && search ? 400 : 0;
+    const t = setTimeout(() => {
+      loadPatients(search.trim(), page, page > 1);
+    }, delay);
+    return () => clearTimeout(t);
+  }, [search, dateRange, page, loadPatients]);
+
+  useEffect(() => {
+    function measure() {
+      if (tableWrapRef.current) {
+        const top = tableWrapRef.current.getBoundingClientRect().top;
+        setTableMaxH(Math.max(300, window.innerHeight - top - 16));
+      }
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [loading]);
+
+  const loadMoreData = useCallback(() => {
+    setPage((prev) => {
+      if (listMetaRef.current.totalPages > prev) return prev + 1;
+      return prev;
+    });
+  }, []);
+
+  const lastPostElementRef = useCallback(
+    (node) => {
+      if (loading || loadingMore) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          loadMoreData();
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loading, loadingMore, loadMoreData]
+  );
+
+  const handlePickerModal = useCallback(() => {
+    setPickerModal((open) => !open);
+  }, []);
+
+  const disabledDate = useCallback((current) => current && current > dayjs().endOf("day"), []);
+
+  const rangePresets = useMemo(
+    () => [
+      { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
+      {
+        label: "Yesterday",
+        value: [
+          dayjs().subtract(1, "day").startOf("day"),
+          dayjs().subtract(1, "day").endOf("day"),
+        ],
+      },
+      {
+        label: "Past 7 days",
+        value: [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")],
+      },
+      {
+        label: "Past 30 days",
+        value: [dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")],
+      },
+      { label: "This month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
+      {
+        label: "Last month",
+        value: [
+          dayjs().subtract(1, "month").startOf("month"),
+          dayjs().subtract(1, "month").endOf("month"),
+        ],
+      },
+      { label: "This year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
+      {
+        label: "Last year",
+        value: [
+          dayjs().subtract(1, "year").startOf("year"),
+          dayjs().subtract(1, "year").endOf("year"),
+        ],
+      },
+    ],
+    []
+  );
+
+  const onRangeChange = useCallback((dates) => {
+    setPage(1);
+    if (!dates || !dates[0] || !dates[1]) {
+      setDateRange(null);
+      return;
+    }
+    setDateRange({
+      startDate: dates[0].format(DATE_FORMAT),
+      endDate: dates[1].format(DATE_FORMAT),
+    });
+  }, []);
+
+  const handleDateFilterCancel = useCallback(() => {
+    setDateRange(null);
+    setPage(1);
+    handlePickerModal();
+  }, [handlePickerModal]);
+
+  const dateFilterLabel = useMemo(() => {
+    if (!dateRange?.startDate || !dateRange?.endDate) return "Filter by date";
+    return `${dayjs(dateRange.startDate, DATE_FORMAT).format(SHOW_DATE_FORMAT)} - ${dayjs(dateRange.endDate, DATE_FORMAT).format(SHOW_DATE_FORMAT)}`;
+  }, [dateRange]);
+
+  const rows = useMemo(() => {
+    let list = patients.map((p) => ({
+      ...p,
+      _summary: summaries[p.patient_unique_id],
+      _lastVisitTests: lastVisitTests[p.patient_unique_id] || null,
+    }));
+
+    const activeStatuses = statusFilter?.status;
+    if (activeStatuses && activeStatuses.length > 0) {
+      list = list.filter((r) => {
+        const s = r._summary;
+        if (!s) return false;
+        return activeStatuses.includes(s.status);
+      });
+    }
+
+    const activeTests = statusFilter?.tests;
+    if (activeTests && activeTests.length > 0) {
+      list = list.filter((r) => {
+        const hasTests = r._lastVisitTests && r._lastVisitTests.length > 0;
+        if (activeTests.includes("with_tests") && hasTests) return true;
+        if (activeTests.includes("without_tests") && !hasTests) return true;
+        return false;
+      });
+    }
+
+    return list;
+  }, [patients, summaries, lastVisitTests, statusFilter]);
+
+  const refreshSummary = useCallback(async (patientId) => {
+    const results = await fetchPatientLabResults(patientId);
+    setSummaries((prev) => ({ ...prev, [patientId]: summariseResults(latestDateResults(results)) }));
+  }, []);
+
+  const handleAction = useCallback((action, patient) => {
+    if (action === "view") {
+      setDrawerPatient(patient);
+    } else if (action === "print") {
+      navigate(`/lims/print/${patient.patient_unique_id}`, { state: { patient } });
+    }
+  }, [navigate]);
+
+  const columns = useMemo(
+    () => [
+      {
+        title: "#",
+        width: 50,
+        render: (_r, _x, i) => <span className={styles.cellText}>{i + 1}</span>,
+      },
+      {
+        title: "Patient Details",
+        width: 220,
+        render: (r) => (
+          <div>
+            <div className={styles.patientName}>{r.pm_fullname || "Unknown"}</div>
+            <div className={styles.patientSubtext}>{patientSubtext(r) || "-"}</div>
+          </div>
+        ),
+      },
+      {
+        title: "Contact",
+        width: 130,
+        render: (r) => <span className={styles.cellText}>{r.pm_contact_no || "-"}</span>,
+      },
+      {
+        title: "Patient ID",
+        width: 130,
+        render: (r) => <span className={styles.cellText}>{r.tpml_refrence_id || r.pm_pid || "-"}</span>,
+      },
+      {
+        title: "Last Visit",
+        width: 130,
+        render: (r) => <span className={styles.cellText}>{formatVisitDate(r.lastVisitDate)}</span>,
+      },
+      {
+        title: "Tests",
+        width: 170,
+        render: (r) => {
+          const inv = r._lastVisitTests;
+          if (inv === null) return <span className={styles.muted}>...</span>;
+          if (!inv || inv.length === 0) return <span className={styles.muted}>-</span>;
+          return <TestsBadge investigations={inv} />;
+        },
+      },
+      {
+        title: "Status",
+        width: 120,
+        render: (r) => {
+          const s = r._summary;
+          if (!s) return <span className={styles.muted}>...</span>;
+          return s.status === "filled" ? <Tag color="green">Filled</Tag> : <Tag color="orange">Not filled</Tag>;
+        },
+      },
+      {
+        title: "Action",
+        width: 90,
+        align: "right",
+        render: (r) => (
+          <ActionMenu
+            onAction={(action) => handleAction(action, r)}
+            isFilled={r._summary?.status === "filled"}
+          />
+        ),
+      },
+    ],
+    [handleAction]
+  );
+
+  const hasActiveFilter = Boolean(dateRange || statusFilter?.status?.length || statusFilter?.tests?.length);
+  const activeStatusFilterCount = (statusFilter?.status?.length || 0) + (statusFilter?.tests?.length || 0);
+
+  const handleFilterOpenChange = useCallback((open) => {
+    if (open) setDraftStatusFilter(statusFilter);
+    setFilterOpen(open);
+  }, [statusFilter]);
+
+  const handleFilterDone = useCallback(() => {
+    setStatusFilter(draftStatusFilter);
+    setFilterOpen(false);
+  }, [draftStatusFilter]);
+
+  const handleFilterClear = useCallback(() => {
+    setDraftStatusFilter({});
+  }, []);
+
+  return (
+    <div className={styles.shell}>
+      <div className={styles.limsHeader}>
+        <div className={styles.limsHeaderLeft}>
+          <button type="button" className={styles.backButton} onClick={() => navigate("/")}>
+            <i className="icon-right" />
+          </button>
+          <div className={styles.limsHeaderDivider} />
+          <span className={styles.limsHeaderTitle}>LIMS</span>
+        </div>
+        <Button type="primary" className="btn btn-primary3 btn-41 px-4" onClick={() => setAddPatientOpen(true)}>
+          Add New Patient
+        </Button>
+      </div>
+
+      <main className={styles.main}>
+        <div className={styles.toolbar}>
+          <div className={styles.searchWrap}>
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="Search by patient name, ID, or mobile"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className={styles.filterWrap}>
+            <div className={styles.limsDateWrapper}>
+              <button
+                type="button"
+                className={`${styles.limsDateTrigger} ${dateRange ? styles.limsDateTriggerActive : ""}`}
+                onClick={handlePickerModal}
+              >
+                <span className={styles.limsDateTriggerLabel}>{dateFilterLabel}</span>
+                <i className="icon-calendar" />
+              </button>
+              <div className={styles.limsDatePickerHost}>
+                <RangePicker
+                  open={pickerModal}
+                  disabledDate={disabledDate}
+                  presets={rangePresets}
+                  format={SHOW_DATE_FORMAT}
+                  autoAdjustOverflow
+                  onChange={onRangeChange}
+                  popupClassName="lims-date-popup"
+                  className={styles.limsDateInput}
+                  inputReadOnly
+                  onOpenChange={() => {}}
+                  renderExtraFooter={() => (
+                    <div className={styles.limsDateFooter}>
+                      <div className={styles.limsDateFooterRange}>
+                        {dateRange?.startDate && dateRange?.endDate
+                          ? `${dayjs(dateRange.startDate, DATE_FORMAT).format(SHOW_DATE_FORMAT)} - ${dayjs(dateRange.endDate, DATE_FORMAT).format(SHOW_DATE_FORMAT)}`
+                          : "Select a date range"}
+                      </div>
+                      <div className={styles.limsDateFooterActions}>
+                        <button
+                          type="button"
+                          className={styles.limsDateCancelBtn}
+                          onClick={handleDateFilterCancel}
+                        >
+                          Cancel
+                        </button>
+                        <Button className="px-4" type="primary" onClick={handlePickerModal}>
+                          Done
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  value={
+                    dateRange?.startDate && dateRange?.endDate
+                      ? [
+                          dayjs(dateRange.startDate, DATE_FORMAT),
+                          dayjs(dateRange.endDate, DATE_FORMAT),
+                        ]
+                      : null
+                  }
+                />
+              </div>
+            </div>
+            <Dropdown
+              trigger={["click"]}
+              placement="bottomRight"
+              open={filterOpen}
+              onOpenChange={handleFilterOpenChange}
+              overlayClassName={styles.filterDropdownOverlay}
+              dropdownRender={() => (
+                <FilterContent
+                  value={draftStatusFilter}
+                  onChange={(updater) => {
+                    if (typeof updater === "function") {
+                      setDraftStatusFilter((prev) => updater(prev));
+                    } else {
+                      setDraftStatusFilter(updater);
+                    }
+                  }}
+                  onClear={handleFilterClear}
+                  onDone={handleFilterDone}
+                />
+              )}
+            >
+              <button
+                type="button"
+                className={`${styles.filterTrigger} ${(activeStatusFilterCount > 0 || filterOpen) ? styles.filterTriggerActive : ""}`}
+              >
+                <FilterOutlined className={styles.filterTriggerIcon} />
+                <span>
+                  Filter
+                  {activeStatusFilterCount > 0 ? ` (${activeStatusFilterCount})` : ""}
+                </span>
+                {filterOpen ? <UpOutlined className={styles.filterTriggerChevron} /> : <DownOutlined className={styles.filterTriggerChevron} />}
+              </button>
+            </Dropdown>
+          </div>
+        </div>
+
+        <div
+          ref={tableWrapRef}
+          className={`appointment-data ${styles.tableWrap}`}
+          style={{ maxHeight: tableMaxH }}
+        >
+          <Table
+            columns={columns}
+            dataSource={rows}
+            rowKey={(r) => r.patient_unique_id}
+            pagination={false}
+            loading={loading && page === 1}
+            scroll={{ x: "max-content" }}
+            locale={{
+              emptyText: (
+                <div className={styles.emptyState}>
+                  <SearchOutlined style={{ fontSize: 36 }} />
+                  <div className={styles.emptyTitle}>No patients found</div>
+                  <div className={styles.emptyDesc}>
+                    {search.trim()
+                      ? `No results for "${search.trim()}". Try a different name, ID, or mobile number.`
+                      : hasActiveFilter
+                        ? "No patients match the selected filters. Try adjusting your criteria."
+                        : "No patients in the system yet."}
+                  </div>
+                </div>
+              ),
+            }}
+          />
+          {listMeta.totalPages > page && (
+            <div ref={lastPostElementRef} className={styles.loadMoreSentinel}>
+              <Spin />
+            </div>
+          )}
+        </div>
+      </main>
+
+      <LabResultsDrawer
+        open={Boolean(drawerPatient)}
+        patient={drawerPatient}
+        onClose={() => setDrawerPatient(null)}
+        onSaved={() => drawerPatient && refreshSummary(drawerPatient.patient_unique_id)}
+      />
+
+      <AddPatientDrawer
+        open={addPatientOpen}
+        onClose={() => setAddPatientOpen(false)}
+        onSaved={() => {
+          setPage(1);
+          loadPatients(search.trim(), 1, false);
+        }}
+      />
+    </div>
+  );
+}

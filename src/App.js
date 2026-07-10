@@ -206,9 +206,17 @@ const PatientDetails = React.lazy(() =>
 const MobilePatientDetails = React.lazy(() =>
   lazyRetry(() => import("./pages/mobile/PatientDetails/PatientDetails"))
 );
-
 const ConsultationLayout = React.lazy(() =>
   lazyRetry(() => import("./components/ConsultationLayout"))
+);
+const LimsPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/LimsPage"))
+);
+const LimsPrintPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/LimsPrintPage"))
+);
+const LimsPrintConfig = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/LimsPrintConfig"))
 );
 
 function PrescriptionRouteElement() {
@@ -801,6 +809,10 @@ function App() {
             element={<TabRxDigitization />}
           />
           <Route path="dental-rx-pad" element={<ConsultationLayout />} />
+
+          <Route path="lims" element={<LimsPage />} />
+          <Route path="lims/print/:patientId" element={<LimsPrintPage />} />
+          <Route path="lims/print-settings" element={<LimsPrintConfig />} />
           {/* <Route path="dental-rx-pad" element={<DentalModuleShell />} /> */}
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />
