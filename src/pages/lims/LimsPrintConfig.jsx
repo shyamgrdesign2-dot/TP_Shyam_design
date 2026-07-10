@@ -28,6 +28,7 @@ import { ASSETS } from "../../assets";
 
 import "cropperjs/dist/cropper.css";
 import styles from "./LimsPrintConfig.module.css";
+import LimsAccessBoundary from "./LimsAccessBoundary";
 
 const TAB_LAB_RESULTS = "lab_results";
 
@@ -650,7 +651,7 @@ export function LabResultsPreview({ results, patient, emptyText }) {
 
 /* ── Main ─────────────────────────────────────────────────────────── */
 
-export default function LimsPrintConfig() {
+function LimsPrintConfigMain() {
   const dispatch = useDispatch();
   const { state } = useLocation();
   const patient = state?.patient || null;
@@ -772,5 +773,13 @@ export default function LimsPrintConfig() {
         </div>
       </>
     </PrintSettingsContext.Provider>
+  );
+}
+
+export default function LimsPrintConfig() {
+  return (
+    <LimsAccessBoundary>
+      <LimsPrintConfigMain />
+    </LimsAccessBoundary>
   );
 }

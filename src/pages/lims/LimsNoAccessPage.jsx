@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Button } from "antd";
 import {
@@ -12,6 +12,8 @@ import styles from "./LimsNoAccessPage.module.css";
 
 export default function LimsNoAccessPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isReceptionist = searchParams.has("receptionist");
   const { profile } = useSelector((state) => state.doctors);
   const [submitted, setSubmitted] = useState(false);
 
@@ -39,10 +41,14 @@ export default function LimsNoAccessPage() {
   return (
     <div className={styles.shell}>
       <div className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => navigate("/")}>
-          <i className="icon-right" />
-        </button>
-        <div className={styles.headerDivider} />
+        {!isReceptionist && (
+          <>
+            <button type="button" className={styles.backButton} onClick={() => navigate("/")}>
+              <i className="icon-right" />
+            </button>
+            <div className={styles.headerDivider} />
+          </>
+        )}
         <span className={styles.headerTitle}>LIMS</span>
       </div>
 
@@ -79,9 +85,11 @@ export default function LimsNoAccessPage() {
             >
               {submitted ? "Interest submitted" : "I'm interested"}
             </Button>
-            <Button type="link" onClick={() => navigate("/")}>
-              Go back
-            </Button>
+            {!isReceptionist && (
+              <Button type="link" onClick={() => navigate("/")}>
+                Go back
+              </Button>
+            )}
           </div>
         </div>
       </main>

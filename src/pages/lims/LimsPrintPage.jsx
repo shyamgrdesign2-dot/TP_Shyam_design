@@ -11,10 +11,11 @@ import { fetchLimsPatients, fetchPatientLabResults } from "./limsApi";
 import { loadLimsSettings, ensureLabOption, initFileStates } from "./limsPrintUtils";
 import { LabResultsPreview } from "./LimsPrintConfig";
 import styles from "./LimsPrintPage.module.css";
+import LimsAccessBoundary from "./LimsAccessBoundary";
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export default function LimsPrintPage() {
+function LimsPrintPageMain() {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -222,5 +223,13 @@ export default function LimsPrintPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function LimsPrintPage() {
+  return (
+    <LimsAccessBoundary>
+      <LimsPrintPageMain />
+    </LimsAccessBoundary>
   );
 }

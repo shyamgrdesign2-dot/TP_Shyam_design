@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Checkbox, DatePicker, Dropdown, Input, Spin, Table, Tag } from "antd";
 import { InfoCircleOutlined, DownOutlined, FilterOutlined, PlusOutlined, PrinterOutlined, SearchOutlined, UpOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -8,6 +8,7 @@ import { fetchLimsPatients, fetchPatientLabResults } from "./limsApi";
 import { summariseResults, latestDateResults } from "./limsHelpers";
 import LabResultsDrawer from "./LabResultsDrawer";
 import AddPatientDrawer from "./AddPatientDrawer";
+import LimsAccessBoundary from "./LimsAccessBoundary";
 import styles from "./LimsPage.module.css";
 
 const ICON_DOTS = "https://pmdoctorportal.tatvacare.in/tp-icons/straight/bold/settings/3-dots-more.svg";
@@ -425,8 +426,10 @@ function FilterContent({ value, onChange, onClear, onDone }) {
   );
 }
 
-export default function LimsPage() {
+function LimsPageMain() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isReceptionist = searchParams.has("receptionist");
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -734,10 +737,14 @@ export default function LimsPage() {
     <div className={styles.shell}>
       <div className={styles.limsHeader}>
         <div className={styles.limsHeaderLeft}>
-          <button type="button" className={styles.backButton} onClick={() => navigate("/")}>
-            <i className="icon-right" />
-          </button>
-          <div className={styles.limsHeaderDivider} />
+          {!isReceptionist && (
+            <>
+              <button type="button" className={styles.backButton} onClick={() => navigate("/")}>
+                <i className="icon-right" />
+              </button>
+              <div className={styles.limsHeaderDivider} />
+            </>
+          )}
           <span className={styles.limsHeaderTitle}>LIMS</span>
         </div>
         <Button type="primary" className="btn btn-primary3 btn-41 px-4" onClick={() => setAddPatientOpen(true)}>
@@ -898,5 +905,13 @@ export default function LimsPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function LimsPage() {
+  return (
+    <LimsAccessBoundary>
+      <LimsPageMain />
+    </LimsAccessBoundary>
   );
 }
