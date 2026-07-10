@@ -108,7 +108,7 @@ import GenRxBox from "../components/GenRxBox";
 // import ConsultationDrawer from "../components/ConsultationDrawer";
 import ExpiredSubModal from "./monetization/components/ExpiredSubModal";
 import { checkCredits } from "../redux/monetizationSlice";
-import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
+import { getDefaultPrintsettings, services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData, getGenRx } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import ZydusLabParams from "../components/ZydusLabParams";
@@ -171,6 +171,8 @@ import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew
 import { SideNavbar } from "../components/sideNavbar";
 import { TreatmentPlanDrawer } from "../components/dental/plan/TreatmentPlanDrawer";
 import { useTabletViewport } from "../hooks/useTabletViewport";
+import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
+import { buildSoapIndividualPrintPayload } from "../utils/soapPrintPayload";
 
 const FOLLOW_UP_DATE_FORMATS = [
   "YYYY-MM-DD",
@@ -232,6 +234,31 @@ function appendAdditionalNote(setAdditionalNote, value) {
   const text = String(value ?? "").trim();
   if (!text) return;
   setAdditionalNote((prev) => appendDedupedText(prev, text));
+}
+
+function printPdfBlob(pdfBlob) {
+  if (!(pdfBlob instanceof Blob)) {
+    throw new Error("PDF blob is missing.");
+  }
+
+  const blobURL = URL.createObjectURL(pdfBlob);
+  const iframe = document.createElement("iframe");
+  iframe.style.display = "none";
+  iframe.src = blobURL;
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    iframe.remove();
+    URL.revokeObjectURL(blobURL);
+  };
+
+  iframe.onload = () => {
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(cleanup, 1500);
+    }, 1);
+  };
 }
 
 function hasCopiedCustomModuleValue(value) {
@@ -1003,7 +1030,7 @@ function PrescriptionNew() {
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
 
-  const { profile } = useSelector((state) => state.doctors);
+  const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
 
   const [symptomsData, setSymptomsData] = useState([]);
@@ -1313,11 +1340,15 @@ function PrescriptionNew() {
     const hasHistory = Array.isArray(payload.history) && payload.history.length > 0;
     const hasObjectData = (value) =>
       value && typeof value === "object" && Object.keys(value).length > 0;
+    const hasTextData = (value) =>
+      typeof value === "string" && value.trim().length > 0;
     return (
       hasHistory ||
       hasObjectData(payload.digitizeData) ||
       hasObjectData(payload.editedData) ||
-      hasObjectData(payload.clinicNotes)
+      hasObjectData(payload.clinicNotes) ||
+      hasObjectData(payload.soap) ||
+      hasTextData(payload.soapHtml)
     );
   };
 
@@ -2969,6 +3000,67 @@ function PrescriptionNew() {
     labParamsData?.length,
   ]);
 
+  const handlePrintSoapPdf = useCallback(async (soapHtml) => {
+    if (!soapHtml) return;
+
+    try {
+      let activePrintSettings = defaultPrintSettings;
+      if (!activePrintSettings) {
+        const action = await dispatch(getDefaultPrintsettings({ default: false }));
+        if (action.meta.requestStatus !== "fulfilled" || !action.payload) {
+          throw new Error("Print settings are unavailable.");
+        }
+        activePrintSettings = action.payload;
+      }
+
+      const payload = buildSoapIndividualPrintPayload({
+        soapHtml,
+        patient_data,
+        profile,
+        userId,
+        caseManagerData,
+        currentTcmId: tcmId,
+        pamId,
+        consultationDate,
+        defaultPrintSettings: activePrintSettings,
+        frequencyList,
+        timingList,
+      });
+
+      if (!payload) {
+        throw new Error("SOAP print payload could not be built.");
+      }
+
+      const { blob } = await buildPrintPdfBlobFromPayload(payload, {
+        isGynaecHistoryAccessable,
+        allowFullApiFallback: false,
+        isDentalEnabled: false,
+        patientUniqueId: patient_data?.patient_unique_id,
+        patientId: patient_data?.patient_unique_id,
+        tcmId,
+      });
+
+      printPdfBlob(blob);
+    } catch (error) {
+      console.error("Failed to print SOAP note PDF", error);
+      toast.error("SOAP printout could not be generated.");
+      throw error;
+    }
+  }, [
+    caseManagerData,
+    consultationDate,
+    defaultPrintSettings,
+    dispatch,
+    frequencyList,
+    isGynaecHistoryAccessable,
+    pamId,
+    patient_data,
+    profile,
+    tcmId,
+    timingList,
+    userId,
+  ]);
+
   return (
     <CashManagerContext.Provider value={contextApi}>
       <RxPadSyncProvider>
@@ -3530,6 +3622,7 @@ function PrescriptionNew() {
               patientData={patient_data}
               voiceHydrationStatus={voiceHydrationStatus}
               symptomCollectorStatus={symptomCollectorStatus}
+              onPrintSoap={handlePrintSoapPdf}
               onClose={() => setDrAgentOpen(false)}
               onOpen={() => setDrAgentOpen(true)}
             />

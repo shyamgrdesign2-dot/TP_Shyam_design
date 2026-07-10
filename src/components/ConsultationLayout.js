@@ -2091,11 +2091,15 @@ function ConsultationLayout({ children, headerProps }) {
     const hasHistory = Array.isArray(payload.history) && payload.history.length > 0;
     const hasObjectData = (value) =>
       value && typeof value === "object" && Object.keys(value).length > 0;
+    const hasTextData = (value) =>
+      typeof value === "string" && value.trim().length > 0;
     return (
       hasHistory ||
       hasObjectData(payload.digitizeData) ||
       hasObjectData(payload.editedData) ||
-      hasObjectData(payload.clinicNotes)
+      hasObjectData(payload.clinicNotes) ||
+      hasObjectData(payload.soap) ||
+      hasTextData(payload.soapHtml)
     );
   };
 

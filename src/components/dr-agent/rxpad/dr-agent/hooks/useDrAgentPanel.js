@@ -82,6 +82,9 @@ const toStructuredVoiceItem = (item) => {
 const hasObjectData = (value) =>
   value && typeof value === "object" && Object.keys(value).length > 0;
 
+const hasTextData = (value) =>
+  typeof value === "string" && value.trim().length > 0;
+
 const firstMeaningfulObject = (...values) =>
   values.find((value) => hasObjectData(value)) || null;
 
@@ -91,7 +94,9 @@ const hasMeaningfulVoiceDigitization = (voiceDigitization) => {
     (Array.isArray(voiceDigitization.history) && voiceDigitization.history.length > 0) ||
     hasObjectData(voiceDigitization.clinicNotes) ||
     hasObjectData(voiceDigitization.digitizeData) ||
-    hasObjectData(voiceDigitization.editedData)
+    hasObjectData(voiceDigitization.editedData) ||
+    hasObjectData(voiceDigitization.soap) ||
+    hasTextData(voiceDigitization.soapHtml)
   );
 };
 

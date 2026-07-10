@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { cn } from "../../../utils";
 import { VoiceRxCanvas } from "../../../voicerx/VoiceRxCanvas";
 import { VoiceRxActiveAgent } from "../../../voicerx/VoiceRxActiveAgent";
 import { VoiceStructuredRxCard } from "../cards/action/VoiceStructuredRxCard";
 import { SoapNoteCard } from "../../../voicerx/SoapNoteCard";
+import { soapToHtml } from "../../../voicerx/utils/soap-formatter";
 import { useDispatch, useSelector } from "react-redux";
 import { updateVoiceSoapHtml } from "../../../../../redux/voiceDigitizationSlice";
 
@@ -55,6 +56,7 @@ export function BackFace({
   onCopyResult,
   onCopyAll,
   onCopySoap,
+  onPrintSoap,
   voiceLocked = false,
 }) {
   const dispatch = useDispatch();
@@ -62,8 +64,12 @@ export function BackFace({
   const liveSoapRaw = useSelector((s) => s.voiceDigitization?.soap || null);
   const voiceSessionId = useSelector((s) => s.voiceDigitization?.sessionId);
   // liveSoapHtml updates on every RichEditor edit; prefer over the static voiceRxResult snapshot
-  const effectiveSoapHtml = liveSoapHtml || voiceRxResult?.soapHtml || "";
   const effectiveSoap = voiceRxResult?.soap || liveSoapRaw;
+  const effectiveSoapHtml = useMemo(() => {
+    const hydratedHtml = liveSoapHtml || voiceRxResult?.soapHtml || "";
+    if (hydratedHtml) return hydratedHtml;
+    return effectiveSoap ? soapToHtml(effectiveSoap) : "";
+  }, [effectiveSoap, liveSoapHtml, voiceRxResult?.soapHtml]);
   const effectiveSoapStatus = voiceRxResult?.soapStatus || (effectiveSoap || effectiveSoapHtml ? "fulfilled" : undefined);
   const hasClinicalNotes = voiceRxResult?.structured?.sections?.some(
     (section) => Array.isArray(section?.items) && section.items.length > 0
@@ -111,6 +117,7 @@ export function BackFace({
             soapHtml={effectiveSoapHtml}
             onCopyToRx={onCopyAll}
             onCopySoap={onCopySoap}
+            onPrintSoap={onPrintSoap}
             onBack={onBack}
             onMinimize={onMinimize}
             onAddDetailsByVoice={onAddDetailsByVoice}

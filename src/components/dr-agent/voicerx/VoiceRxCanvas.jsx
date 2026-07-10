@@ -70,6 +70,7 @@ export function VoiceRxCanvas({
   inlineRecorderSlot,
   onCopyToRx,
   onCopySoap,
+  onPrintSoap,
   onBack,
   onMinimize,
   onAddDetailsByVoice,
@@ -236,8 +237,16 @@ export function VoiceRxCanvas({
     }
   };
 
-  const handlePrintSoap = () => {
+  const handlePrintSoap = async () => {
     if (!soapHtml) return;
+    if (onPrintSoap) {
+      try {
+        await onPrintSoap(soapHtml);
+      } catch {
+        // Parent handles user-facing error toast.
+      }
+      return;
+    }
     // Inject print-only CSS once.
     if (!document.getElementById("vrx-soap-print-css")) {
       const style = document.createElement("style");
