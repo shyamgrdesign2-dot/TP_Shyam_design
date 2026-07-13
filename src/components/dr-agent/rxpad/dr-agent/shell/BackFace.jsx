@@ -1,12 +1,13 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { cn } from "../../../utils";
 import { VoiceRxCanvas } from "../../../voicerx/VoiceRxCanvas";
 import { VoiceRxActiveAgent } from "../../../voicerx/VoiceRxActiveAgent";
 import { VoiceStructuredRxCard } from "../cards/action/VoiceStructuredRxCard";
 import { SoapNoteCard } from "../../../voicerx/SoapNoteCard";
-import { soapToHtml } from "../../../voicerx/utils/soap-formatter";
+import { htmlToSoapSections, soapToHtml } from "../../../voicerx/utils/soap-formatter";
+import { setLatestSoapDraft } from "../../../voicerx/utils/soap-session-draft";
 import { useDispatch, useSelector } from "react-redux";
-import { updateVoiceSoapHtml } from "../../../../../redux/voiceDigitizationSlice";
+import { updateVoiceSoap, updateVoiceSoapHtml } from "../../../../../redux/voiceDigitizationSlice";
 
 class VoiceErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -64,13 +65,21 @@ export function BackFace({
   const liveSoapRaw = useSelector((s) => s.voiceDigitization?.soap || null);
   const voiceSessionId = useSelector((s) => s.voiceDigitization?.sessionId);
   // liveSoapHtml updates on every RichEditor edit; prefer over the static voiceRxResult snapshot
-  const effectiveSoap = voiceRxResult?.soap || liveSoapRaw;
+  const effectiveSoap = liveSoapRaw || voiceRxResult?.soap;
   const effectiveSoapHtml = useMemo(() => {
     const hydratedHtml = liveSoapHtml || voiceRxResult?.soapHtml || "";
     if (hydratedHtml) return hydratedHtml;
     return effectiveSoap ? soapToHtml(effectiveSoap) : "";
   }, [effectiveSoap, liveSoapHtml, voiceRxResult?.soapHtml]);
   const effectiveSoapStatus = voiceRxResult?.soapStatus || (effectiveSoap || effectiveSoapHtml ? "fulfilled" : undefined);
+  useEffect(() => {
+    if (!effectiveSoapHtml && !effectiveSoap) return;
+    setLatestSoapDraft({
+      sessionId: voiceSessionId,
+      html: effectiveSoapHtml,
+      soap: effectiveSoap,
+    });
+  }, [effectiveSoap, effectiveSoapHtml, voiceSessionId]);
   const hasClinicalNotes = voiceRxResult?.structured?.sections?.some(
     (section) => Array.isArray(section?.items) && section.items.length > 0
   );
@@ -110,7 +119,16 @@ export function BackFace({
                 status={effectiveSoapStatus}
                 html={effectiveSoapHtml}
                 onRetry={onRetrySoap}
-                onChange={(html) => dispatch(updateVoiceSoapHtml(html))}
+                onChange={(html) => {
+                  const editedSoap = htmlToSoapSections(html);
+                  setLatestSoapDraft({
+                    sessionId: voiceSessionId,
+                    html,
+                    soap: editedSoap,
+                  });
+                  dispatch(updateVoiceSoapHtml(html));
+                  dispatch(updateVoiceSoap(editedSoap));
+                }}
               />
             }
             soapStatus={effectiveSoapStatus}

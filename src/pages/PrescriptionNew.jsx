@@ -171,8 +171,9 @@ import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew
 import { SideNavbar } from "../components/sideNavbar";
 import { TreatmentPlanDrawer } from "../components/dental/plan/TreatmentPlanDrawer";
 import { useTabletViewport } from "../hooks/useTabletViewport";
-import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
-import { buildSoapIndividualPrintPayload } from "../utils/soapPrintPayload";
+import { getLatestSoapDraft } from "../components/dr-agent/voicerx/utils/soap-session-draft";
+import { printSoapHtmlDocument } from "../utils/soapHtmlPrint";
+import { hasMeaningfulVoicePayloadData } from "../utils/voiceSoapPayload";
 
 const FOLLOW_UP_DATE_FORMATS = [
   "YYYY-MM-DD",
@@ -234,31 +235,6 @@ function appendAdditionalNote(setAdditionalNote, value) {
   const text = String(value ?? "").trim();
   if (!text) return;
   setAdditionalNote((prev) => appendDedupedText(prev, text));
-}
-
-function printPdfBlob(pdfBlob) {
-  if (!(pdfBlob instanceof Blob)) {
-    throw new Error("PDF blob is missing.");
-  }
-
-  const blobURL = URL.createObjectURL(pdfBlob);
-  const iframe = document.createElement("iframe");
-  iframe.style.display = "none";
-  iframe.src = blobURL;
-  document.body.appendChild(iframe);
-
-  const cleanup = () => {
-    iframe.remove();
-    URL.revokeObjectURL(blobURL);
-  };
-
-  iframe.onload = () => {
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(cleanup, 1500);
-    }, 1);
-  };
 }
 
 function hasCopiedCustomModuleValue(value) {
@@ -1335,23 +1311,6 @@ function PrescriptionNew() {
   const [symptomCollectorStatus, setSymptomCollectorStatus] = useState("idle");
   const symptomCollectorRequestRef = useRef(0);
 
-  const hasMeaningfulVoicePayload = (payload) => {
-    if (!payload || typeof payload !== "object") return false;
-    const hasHistory = Array.isArray(payload.history) && payload.history.length > 0;
-    const hasObjectData = (value) =>
-      value && typeof value === "object" && Object.keys(value).length > 0;
-    const hasTextData = (value) =>
-      typeof value === "string" && value.trim().length > 0;
-    return (
-      hasHistory ||
-      hasObjectData(payload.digitizeData) ||
-      hasObjectData(payload.editedData) ||
-      hasObjectData(payload.clinicNotes) ||
-      hasObjectData(payload.soap) ||
-      hasTextData(payload.soapHtml)
-    );
-  };
-
   const hasDisplayableSymptomCollectorPayload = (payload) => {
     if (!payload || typeof payload !== "object") return false;
     return Boolean(
@@ -1407,7 +1366,7 @@ function PrescriptionNew() {
         const response = await getGenRx(recordId);
         if (cancelled) return;
         const payload = response?.data?.data || response?.data || response;
-        if (hasMeaningfulVoicePayload(payload)) {
+        if (hasMeaningfulVoicePayloadData(payload)) {
           dispatch(hydrateVoiceDigitization(payload));
           setVoiceHydrationStatus("hydrated");
         } else {
@@ -3001,7 +2960,8 @@ function PrescriptionNew() {
   ]);
 
   const handlePrintSoapPdf = useCallback(async (soapHtml) => {
-    if (!soapHtml) return;
+    const latestSoapHtml = getLatestSoapDraft(voiceDigitization?.sessionId)?.html || soapHtml;
+    if (!latestSoapHtml) return;
 
     try {
       let activePrintSettings = defaultPrintSettings;
@@ -3013,34 +2973,14 @@ function PrescriptionNew() {
         activePrintSettings = action.payload;
       }
 
-      const payload = buildSoapIndividualPrintPayload({
-        soapHtml,
+      await printSoapHtmlDocument({
+        soapHtml: latestSoapHtml,
+        printSettings: activePrintSettings,
         patient_data,
         profile,
-        userId,
         caseManagerData,
-        currentTcmId: tcmId,
-        pamId,
         consultationDate,
-        defaultPrintSettings: activePrintSettings,
-        frequencyList,
-        timingList,
       });
-
-      if (!payload) {
-        throw new Error("SOAP print payload could not be built.");
-      }
-
-      const { blob } = await buildPrintPdfBlobFromPayload(payload, {
-        isGynaecHistoryAccessable,
-        allowFullApiFallback: false,
-        isDentalEnabled: false,
-        patientUniqueId: patient_data?.patient_unique_id,
-        patientId: patient_data?.patient_unique_id,
-        tcmId,
-      });
-
-      printPdfBlob(blob);
     } catch (error) {
       console.error("Failed to print SOAP note PDF", error);
       toast.error("SOAP printout could not be generated.");
@@ -3051,14 +2991,9 @@ function PrescriptionNew() {
     consultationDate,
     defaultPrintSettings,
     dispatch,
-    frequencyList,
-    isGynaecHistoryAccessable,
-    pamId,
     patient_data,
     profile,
-    tcmId,
-    timingList,
-    userId,
+    voiceDigitization?.sessionId,
   ]);
 
   return (

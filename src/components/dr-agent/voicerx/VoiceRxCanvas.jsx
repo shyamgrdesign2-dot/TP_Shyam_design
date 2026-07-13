@@ -18,6 +18,7 @@ import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent } from "./voiceRx2Lo
 import { toast } from "./toast";
 import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import styles from "./VoiceRxCanvas.module.scss";
+import { getLatestSoapDraft } from "./utils/soap-session-draft";
 
 const VRX_CANVAS_COACHMARK_KEY = "tp-vrx-canvas-coachmark-v1";
 
@@ -215,15 +216,16 @@ export function VoiceRxCanvas({
   };
 
   const handleCopySoap = async () => {
-    if (!soapHtml) return;
+    const latestSoapHtml = getLatestSoapDraft(audioChunkContext?.sessionId)?.html || soapHtml;
+    if (!latestSoapHtml) return;
     const div = document.createElement("div");
-    div.innerHTML = soapHtml;
+    div.innerHTML = latestSoapHtml;
     const text = (div.innerText || div.textContent || "").trim();
     try {
       if (window.ClipboardItem && navigator.clipboard?.write) {
         await navigator.clipboard.write([
           new window.ClipboardItem({
-            "text/html": new Blob([soapHtml], { type: "text/html" }),
+            "text/html": new Blob([latestSoapHtml], { type: "text/html" }),
             "text/plain": new Blob([text], { type: "text/plain" }),
           }),
         ]);
@@ -238,10 +240,11 @@ export function VoiceRxCanvas({
   };
 
   const handlePrintSoap = async () => {
-    if (!soapHtml) return;
+    const latestSoapHtml = getLatestSoapDraft(audioChunkContext?.sessionId)?.html || soapHtml;
+    if (!latestSoapHtml) return;
     if (onPrintSoap) {
       try {
-        await onPrintSoap(soapHtml);
+        await onPrintSoap(latestSoapHtml);
       } catch {
         // Parent handles user-facing error toast.
       }
@@ -256,7 +259,7 @@ export function VoiceRxCanvas({
     }
     const container = document.createElement("div");
     container.className = "vrx-soap-print";
-    container.innerHTML = soapHtml;
+    container.innerHTML = latestSoapHtml;
     document.body.appendChild(container);
     const cleanup = () => {
       container.remove();

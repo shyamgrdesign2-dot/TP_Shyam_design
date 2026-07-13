@@ -57,7 +57,11 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
 import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
+import { store } from '../redux/store';
 import { VOICE_RX_2_VERSION, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { htmlToSoapSections } from '../components/dr-agent/voicerx/utils/soap-formatter';
+import { getLatestSoapDraft } from '../components/dr-agent/voicerx/utils/soap-session-draft';
+import { buildVoiceSoapStoreFields } from '../utils/voiceSoapPayload';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
 
@@ -147,6 +151,25 @@ function normalizeVoiceHistoryForStore(history) {
             digitize,
         };
     });
+}
+
+function getVoiceSoapDraftForStore(voiceDigitization) {
+    const liveVoiceDigitization = store.getState()?.voiceDigitization || voiceDigitization || {};
+    const sessionId = liveVoiceDigitization?.sessionId || voiceDigitization?.sessionId || "";
+    const latestDraft = getLatestSoapDraft(sessionId);
+    const latestHtml = latestDraft?.html || liveVoiceDigitization?.soapHtml || voiceDigitization?.soapHtml || "";
+    const latestSoap =
+        htmlToSoapSections(latestHtml) ||
+        latestDraft?.soap ||
+        liveVoiceDigitization?.soap ||
+        voiceDigitization?.soap ||
+        null;
+    return {
+        soap: latestSoap,
+        soapHtml: latestHtml,
+        sessionId: sessionId || voiceDigitization?.sessionId,
+        liveVoiceDigitization,
+    };
 }
 
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false, onEndVisit, isEndVisitLoading = false, hasDentalData = false, onPreviewClick, showPreviewButton = false, onSelectLetterHead, isDentalConsultation = false }) {
@@ -2353,7 +2376,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 } catch (error) {
                     console.error("[GynecHistory][EndVisit] sync failed", error);
                 }
-                if (voiceDigitization?.history?.length > 0) {
+                const liveVoiceDigitizationForStore = store.getState()?.voiceDigitization || voiceDigitization;
+                if (liveVoiceDigitizationForStore?.history?.length > 0) {
                     const voiceEditedData = {
                         patientDetails: {},
                         vitalsAndBodyComposition: vitalsData,
@@ -2373,18 +2397,22 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     dispatch(updateVoiceEditedData(voiceEditedData));
                     try {
                         const consentPayload = await getConsentForVoicePrescriptionPayload();
+                        const voiceStoreDraft = getVoiceSoapDraftForStore(liveVoiceDigitizationForStore);
                         await storeVoicePrescription({
                             patientId: patient_data?.patient_unique_id,
                             doctorId: profile?.doctor_unique_id,
                             tcmId: generatedTcmId,
                             appointmentId: patient_data?.pam_id ?? pamId,
-                            sessionId: voiceDigitization.sessionId,
+                            sessionId: voiceStoreDraft.sessionId,
                             payload: {
-                                history: normalizeVoiceHistoryForStore(voiceDigitization.history),
-                                digitizeData: voiceDigitization.digitizeData || {},
+                                history: normalizeVoiceHistoryForStore(voiceStoreDraft.liveVoiceDigitization?.history),
+                                digitizeData: voiceStoreDraft.liveVoiceDigitization?.digitizeData || {},
                                 editedData: voiceEditedData,
-                                clinicNotes: voiceDigitization.clinicNotes || {},
-                                soap: voiceDigitization.soap || null,
+                                clinicNotes: voiceStoreDraft.liveVoiceDigitization?.clinicNotes || {},
+                                ...buildVoiceSoapStoreFields({
+                                    soap: voiceStoreDraft.soap,
+                                    soapHtml: voiceStoreDraft.soapHtml,
+                                }),
                                 version: "v3",
                                 consent: consentPayload,
                             },
