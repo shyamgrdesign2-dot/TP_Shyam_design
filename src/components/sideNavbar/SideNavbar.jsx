@@ -1233,24 +1233,35 @@ function frequencySlotText(value) {
   return String(value).trim();
 }
 
+function hasNonZeroFrequencySlot(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "" && String(value).trim() !== "0";
+}
+
+function buildPastVisitFrequencySlotText(item) {
+  const morning = frequencySlotText(item?.tcm_tmm_freq_morning);
+  const afternoon = frequencySlotText(item?.tcm_tmm_freq_afternoon);
+  const evening = frequencySlotText(item?.tcm_tmm_freq_evening);
+  const night = frequencySlotText(item?.tcm_tmm_freq_night);
+
+  return hasNonZeroFrequencySlot(item?.tcm_tmm_freq_evening)
+    ? [morning, afternoon, evening, night].join(" - ")
+    : [morning, afternoon, night].join(" - ");
+}
+
 function buildPastVisitFrequencyText(item, frequencyList = []) {
   if (firstTextValue(item?.frequency, item?.freq, item?.frequencyText, item?.frequency_text)) {
     return firstTextValue(item?.frequency, item?.freq, item?.frequencyText, item?.frequency_text);
   }
+  if (firstTextValue(item?.tmm_freq_type_name)) {
+    return firstTextValue(item?.tmm_freq_type_name);
+  }
 
   if (String(item?.tmf_block ?? "").trim() === "0") {
-    return hasFrequencySlotValue(item)
-      ? [
-          frequencySlotText(item?.tcm_tmm_freq_morning),
-          frequencySlotText(item?.tcm_tmm_freq_afternoon),
-          frequencySlotText(item?.tcm_tmm_freq_evening),
-          frequencySlotText(item?.tcm_tmm_freq_night),
-        ].join(" - ")
-      : "";
+    return hasFrequencySlotValue(item) ? buildPastVisitFrequencySlotText(item) : "";
   }
 
   const frequency = frequencyList.find((entry) => String(entry?.tmf_id) === String(item?.tmm_freq_type));
-  return firstTextValue(item?.tmm_freq_type_name, frequency?.tmf_title);
+  return firstTextValue(frequency?.tmf_title);
 }
 
 function buildPastVisitScheduleText(item, timingList = []) {
