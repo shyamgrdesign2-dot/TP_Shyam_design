@@ -493,30 +493,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
     }, [destroyHeaderVadInstance]);
 
-    const startHeaderVoiceActivityDetection = useCallback((stream) => {
-        stopHeaderVoiceActivityDetection();
-        headerVoiceHumanVoiceDetectedRef.current = false;
-        headerVoiceActivityStartedAtRef.current = 0;
-        headerVoiceActivityInactiveStartedAtRef.current = 0;
-        headerVoiceAudioActiveRef.current = false;
-        headerVoiceLastAudioAtRef.current = typeof performance !== "undefined" ? performance.now() : 0;
-        headerVoiceActivityReadyAtRef.current = typeof performance !== "undefined"
-            ? performance.now() + HEADER_DICTATION_AUDIO_ACTIVITY_WARMUP_MS
-            : 0;
-        headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
-        headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
-        headerVoiceVadLastSpeechFrameAtRef.current = 0;
-
-        if (headerVoiceVadEnabledRef.current) {
-            headerVoiceVadActiveRef.current = true;
-            void startHeaderVad(stream).catch(() => {
-                headerVoiceVadActiveRef.current = false;
-            });
-            return;
-        }
-
-        headerVoiceVadActiveRef.current = false;
-
+    const startHeaderRmsActivityDetection = useCallback((stream) => {
         const AudioContextCtor = getAudioContextCtor();
         if (!stream || !AudioContextCtor) {
             headerVoiceHumanVoiceDetectedRef.current = false;
@@ -614,7 +591,36 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             source?.disconnect();
             void audioContext?.close?.().catch(() => {});
         };
-    }, [headerVoiceSilenceThresholdMs, startHeaderVad, stopHeaderVoiceActivityDetection]);
+    }, [headerVoiceSilenceThresholdMs]);
+
+    const startHeaderVoiceActivityDetection = useCallback((stream) => {
+        stopHeaderVoiceActivityDetection();
+        headerVoiceHumanVoiceDetectedRef.current = false;
+        headerVoiceActivityStartedAtRef.current = 0;
+        headerVoiceActivityInactiveStartedAtRef.current = 0;
+        headerVoiceAudioActiveRef.current = false;
+        headerVoiceLastAudioAtRef.current = typeof performance !== "undefined" ? performance.now() : 0;
+        headerVoiceActivityReadyAtRef.current = typeof performance !== "undefined"
+            ? performance.now() + HEADER_DICTATION_AUDIO_ACTIVITY_WARMUP_MS
+            : 0;
+        headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
+        headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+        headerVoiceVadLastSpeechFrameAtRef.current = 0;
+
+        if (headerVoiceVadEnabledRef.current) {
+            headerVoiceVadActiveRef.current = true;
+            void startHeaderVad(stream).catch((error) => {
+                console.warn("[HeaderTranscribe] VAD unavailable, falling back to audio-level detection", error?.message || error);
+                if (!headerVoiceVadActiveRef.current || !stream?.active) return;
+                headerVoiceVadActiveRef.current = false;
+                startHeaderRmsActivityDetection(stream);
+            });
+            return;
+        }
+
+        headerVoiceVadActiveRef.current = false;
+        startHeaderRmsActivityDetection(stream);
+    }, [startHeaderRmsActivityDetection, startHeaderVad, stopHeaderVoiceActivityDetection]);
 
     const insertTranscriptAtCursor = useCallback((transcript, cursor) => {
         const text = String(transcript || "");
@@ -726,17 +732,31 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const speechAnalysis = buildHeaderSpeechAnalysisSnapshot(headerVoiceSpeechAnalysisStatsRef.current, durationMs, {
             vadEnabled: headerSubmitVadEnabled,
         });
-        const humanVoiceDetected = Boolean(
-            headerVoiceHumanVoiceDetectedRef.current &&
-            speechAnalysis.speechDurationMs >= HEADER_DICTATION_MIN_ACTIVE_AUDIO_MS &&
-            speechAnalysis.speechCoverageRatio >= HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO
-        );
+        // Fail open when the detector produced no usable frames (VAD assets unavailable,
+        // still loading, or AudioContext unsupported) — the backend judges the audio instead.
+        const humanVoiceDetected = speechAnalysis.canEvaluateSpeechCoverage
+            ? Boolean(
+                headerVoiceHumanVoiceDetectedRef.current &&
+                speechAnalysis.speechDurationMs >= HEADER_DICTATION_MIN_ACTIVE_AUDIO_MS &&
+                speechAnalysis.speechCoverageRatio >= HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO
+            )
+            : true;
         stopHeaderVoiceActivityDetection();
         const stream = headerVoiceStreamRef.current;
         if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
         const mimeType = recorder.mimeType || "audio/webm";
         const audioBlob = new Blob(headerVoiceAudioChunksRef.current, { type: mimeType });
         if (durationMs <= 0 || durationMs < HEADER_DICTATION_MIN_DURATION_MS || !audioBlob.size || !humanVoiceDetected) {
+            const blockedErrorMessage = !audioBlob.size
+                ? "No audio recording found for transcription."
+                : !humanVoiceDetected
+                ? "Human voice not detected in header dictation."
+                : "Audio duration is too short for transcription.";
+            message.warning(!audioBlob.size
+                ? "No audio was captured. Please try recording again."
+                : !humanVoiceDetected
+                ? "We couldn't detect any speech in the recording. Please try again."
+                : "The recording was too short. Please speak for at least a second.");
             trackVoiceRx2RecorderEvent("TP_Voice_V2_Submit_Click", {
                 patientData: patient_data,
                 profile,
@@ -763,11 +783,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     status: "blocked",
                     voice_failed: true,
                     failedPhase: "audio-precheck",
-                    error_message: !audioBlob.size
-                        ? "No audio recording found for transcription."
-                        : !humanVoiceDetected
-                        ? "Human voice not detected in header dictation."
-                        : "Audio duration is too short for transcription.",
+                    error_message: blockedErrorMessage,
                     retry_attempts: 0,
                     ...speechAnalysis,
                 },
