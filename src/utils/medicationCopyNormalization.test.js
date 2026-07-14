@@ -1,4 +1,5 @@
 import {
+  buildMedicineDoseDisplayText,
   normalizeCopiedMedicationRows,
   parseMedicationFrequencySlots,
   resolveCopiedDoseFields,
@@ -133,6 +134,49 @@ describe("normalizeCopiedMedicationRows", () => {
     expect(row.tmm_time_name).toBeUndefined();
     expect(row.tmm_remarks).toBeUndefined();
   });
+
+  it("repairs copied past-visit dose display from persisted unit ids", () => {
+    const [row] = normalizeCopiedMedicationRows([
+      {
+        tmm_medicine_name: "Azithromycin",
+        dosage: "1 Tablet(s)",
+        tmm_dosage: "1",
+        tmm_unit: "2",
+        medicineUnit: [
+          { tmu_id: 3, tmu_title: "mg" },
+          { tmu_id: 5, tmu_title: "unit(s)" },
+          { tmu_id: 6, tmu_title: "Capsule(s)" },
+        ],
+      },
+    ], frequencyList, timingList);
+
+    expect(row).toMatchObject({
+      tmm_dosage: "1",
+      tmm_unit: "2",
+      tmu_id: "2",
+      tmm_unit_name: "Tablet(s)",
+      tmm_dosage_unit_name: "1 Tablet(s)",
+    });
+  });
+
+  it("prefers copied dosage text with units over a numeric-only dose display", () => {
+    const [row] = normalizeCopiedMedicationRows([
+      {
+        tmm_medicine_name: "Pantop",
+        dosage: "1 Tablet(s)",
+        tmm_dosage: "1",
+        tmm_dosage_unit_name: "1",
+      },
+    ], frequencyList, timingList);
+
+    expect(row).toMatchObject({
+      tmm_dosage: "1",
+      tmm_unit: 2,
+      tmu_id: 2,
+      tmm_unit_name: "Tablet(s)",
+      tmm_dosage_unit_name: "1 Tablet(s)",
+    });
+  });
 });
 
 describe("resolveCopiedDoseFields", () => {
@@ -214,5 +258,19 @@ describe("resolveCopiedDoseFields", () => {
       tmm_unit_name: "ml",
       tmm_dosage_unit_name: "7 ml",
     });
+  });
+});
+
+describe("buildMedicineDoseDisplayText", () => {
+  it("resolves persisted unit ids even when medicineUnit omits the selected unit", () => {
+    expect(buildMedicineDoseDisplayText({
+      tmm_dosage: "1",
+      tmm_unit: "2",
+      medicineUnit: [
+        { tmu_id: 3, tmu_title: "mg" },
+        { tmu_id: 5, tmu_title: "unit(s)" },
+        { tmu_id: 6, tmu_title: "Capsule(s)" },
+      ],
+    })).toBe("1 Tablet(s)");
   });
 });

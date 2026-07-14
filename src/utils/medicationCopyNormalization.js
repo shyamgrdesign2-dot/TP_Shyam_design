@@ -81,6 +81,13 @@ export const CUSTOM_MEDICINE_UNITS = [
   { tmu_id: 27, tmu_title: "tbsp(s)" },
 ];
 
+export const MEDICINE_UNIT_FALLBACK_MAP = CUSTOM_MEDICINE_UNITS.reduce((acc, unit) => {
+  acc[unit.tmu_id] = unit.tmu_title;
+  return acc;
+}, {
+  3: "mg",
+});
+
 const DOSAGE_WORDS = {
   one: "1",
   two: "2",
@@ -124,20 +131,24 @@ function normalizeDoseValue(value) {
 }
 
 export function parseMedicationDoseText(...values) {
-  const text = firstTextValue(...values);
-  if (!text) return null;
+  let parsedWithoutUnit = null;
+  for (const value of values.flat()) {
+    const trimmed = String(value ?? "").trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^(\d+(?:\.\d+)?|\.\d+|\d+\s*\/\s*\d+|[¼½¾]|one|two|three|four|five|six|seven|eight|nine|ten)\s*([a-zA-Z][a-zA-Z()/. -]*)?$/i);
+    if (!match) continue;
 
-  const trimmed = text.trim();
-  const match = trimmed.match(/^(\d+(?:\.\d+)?|\.\d+|\d+\s*\/\s*\d+|[¼½¾]|one|two|three|four|five|six|seven|eight|nine|ten)\s*([a-zA-Z][a-zA-Z()/. -]*)?$/i);
-  if (!match) return null;
-
-  const value = normalizeDoseValue(match[1]);
-  if (!value) return null;
-  return {
-    value,
-    unitText: String(match[2] || "").trim(),
-    raw: trimmed,
-  };
+    const doseValue = normalizeDoseValue(match[1]);
+    if (!doseValue) continue;
+    const parsed = {
+      value: doseValue,
+      unitText: String(match[2] || "").trim(),
+      raw: trimmed,
+    };
+    if (parsed.unitText) return parsed;
+    if (!parsedWithoutUnit) parsedWithoutUnit = parsed;
+  }
+  return parsedWithoutUnit;
 }
 
 export function findMedicineUnitByTitle(unitText, medicineUnits = []) {
@@ -157,6 +168,23 @@ function firstPositiveId(...values) {
 function getUnitTitleById(unitId, medicineUnits = []) {
   const unit = medicineUnits.find((item) => item?.tmu_id == unitId);
   return unit?.tmu_title || "";
+}
+
+export function resolveMedicineUnitTitle(item = {}, unitId = item?.tmm_unit || item?.tmu_id || item?.default_tmm_unit) {
+  if (unitId === undefined || unitId === null || String(unitId).trim() === "") return "";
+  if (item?.tmm_unit == unitId && item?.tmm_unit_name) return item.tmm_unit_name;
+  const matchedUnit = Array.isArray(item?.medicineUnit)
+    ? item.medicineUnit.find((unit) => unit?.tmu_id == unitId)
+    : null;
+  return matchedUnit?.tmu_title || MEDICINE_UNIT_FALLBACK_MAP[unitId] || "";
+}
+
+export function buildMedicineDoseDisplayText(item = {}) {
+  const dosage = String(item?.tmm_dosage ?? item?.dosage ?? item?.unitPerDose ?? item?.unit_per_dose ?? "").trim();
+  if (!dosage) return String(item?.tmm_dosage_unit_name || "").trim();
+  if (/\d/.test(dosage) && /[a-zA-Z]/i.test(dosage)) return dosage;
+  const unitTitle = resolveMedicineUnitTitle(item, item?.tmm_unit || item?.tmu_id || item?.default_tmm_unit);
+  return [dosage, unitTitle].filter(Boolean).join(" ");
 }
 
 export function mergeMedicineUnitOptions(...unitLists) {
@@ -415,9 +443,18 @@ function normalizeCopiedMedicineSchedule(row, timingList = []) {
   };
 }
 
+function normalizeCopiedMedicineDose(row) {
+  const doseFields = resolveCopiedDoseFields(row, row?.medicineUnit, {
+    includeCustomUnits: true,
+  });
+  return Object.keys(doseFields).length ? { ...row, ...doseFields } : row;
+}
+
 export function normalizeCopiedMedicationRows(rows = [], frequencyList = [], timingList = []) {
-  return rows.map((row) => normalizeCopiedMedicineSchedule(
-    normalizeCopiedMedicineFrequency(row, frequencyList),
-    timingList
+  return rows.map((row) => normalizeCopiedMedicineDose(
+    normalizeCopiedMedicineSchedule(
+      normalizeCopiedMedicineFrequency(row, frequencyList),
+      timingList
+    )
   ));
 }

@@ -98,6 +98,7 @@ import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
 import {
   getMedicineFrequencyDisplay,
   normalizeCopiedMedicationRows,
+  resolveMedicineUnitTitle,
 } from "../utils/medicationCopyNormalization";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
@@ -1609,25 +1610,18 @@ function PrescriptionNew() {
         ) !== -1
       ) {
         const updatedData = caseManagerData.medicine.map((e) => {
-          const unitObj = e?.medicineUnit
-            ? e?.medicineUnit.find((x) => x.tmu_id == e.tmm_unit)
-            : null;
+          const unitTitle = resolveMedicineUnitTitle(e, e.tmm_unit || e.default_tmm_unit);
           const frequencyDisplay = getMedicineFrequencyDisplay(e, frequencyList);
           const timingObj = timingList.find((x) => x.tmt_id == e.tmm_time);
 
           return {
             ...e,
-            tmm_unit_name:
-              unitObj && unitObj !== undefined ? unitObj.tmu_title : "",
+            tmm_unit_name: unitTitle,
             tmm_freq_type_name: frequencyDisplay.label,
             tmf_block_val: frequencyDisplay.blockValue,
             tmm_time_name: timingObj !== undefined ? timingObj.tmt_title : "",
             tmm_dosage_unit_name: `${
-              e.tmm_dosage
-                ? `${e.tmm_dosage} ${
-                    unitObj && unitObj !== undefined ? unitObj.tmu_title : ""
-                  }`
-                : ""
+              e.tmm_dosage ? `${e.tmm_dosage} ${unitTitle}`.trim() : ""
             }`,
             tmm_days_duration_type: EXTRA_OPTIONS.some(
               (x) => x.value == e.tmm_duration_type

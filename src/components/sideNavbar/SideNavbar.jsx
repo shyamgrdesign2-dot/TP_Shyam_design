@@ -71,6 +71,7 @@ import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescript
 import { getDecodedToken } from "../../utils/localStorage";
 import { trackEvent } from "../../utils/utils";
 import { GB_ZYDUS_USER } from "../../utils/constants";
+import { buildMedicineDoseDisplayText } from "../../utils/medicationCopyNormalization";
 import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import { ToothIcon } from "../dental/ToothIcon";
 import { env } from "../../EnvironmentConfig";
@@ -1206,17 +1207,8 @@ function pastVisitMedicationName(item) {
   );
 }
 
-function findMedicineUnitTitle(item) {
-  const unitId = firstTextValue(item?.tmm_unit, item?.tmu_id);
-  const units = legacyArray(item?.medicineUnit);
-  const matchedUnit = units.find((unit) => String(unit?.tmu_id) === String(unitId));
-  return firstTextValue(item?.tmm_unit_name, matchedUnit?.tmu_title);
-}
-
 function buildPastVisitDoseText(item) {
-  const dosage = firstTextValue(item?.dosage, item?.tmm_dosage);
-  if (!dosage) return firstTextValue(item?.tmm_dosage_unit_name);
-  return [dosage, findMedicineUnitTitle(item)].filter(Boolean).join(" ");
+  return buildMedicineDoseDisplayText(item) || firstTextValue(item?.tmm_dosage_unit_name);
 }
 
 function hasFrequencySlotValue(item) {
