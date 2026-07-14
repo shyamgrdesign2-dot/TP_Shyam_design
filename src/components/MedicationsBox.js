@@ -57,6 +57,7 @@ import {
   hasInvalidChikitsalayMedication,
   MEDICATION_INVENTORY_WARNING,
 } from "../utils/chikitsalayInventory";
+import { normalizeCopiedMedicationRows } from "../utils/medicationCopyNormalization";
 const {
   alerticon: alertIcon,
   medication: Medicationicon,
@@ -85,105 +86,6 @@ const getMedicationGroupKey = (item) => {
   if (hasMedicineMasterId(item?.tmm_id)) return `tmm:${item.tmm_id}`;
   return `voice:${item?.voice_rx_group_id || item?.unique_id || ""}`;
 };
-
-const getRawMedicineFrequencyText = (medicine) => (
-  [
-    medicine?.frequency,
-    medicine?.freq,
-    medicine?.frequencyText,
-    medicine?.frequency_text,
-    medicine?.tmm_freq_type_name,
-  ].find((value) => value !== undefined && value !== null && String(value).trim() !== "") || ""
-);
-
-const getRawMedicineScheduleText = (medicine) => (
-  [
-    medicine?.schedule,
-    medicine?.when,
-    medicine?.timing,
-    medicine?.tmm_time_name,
-  ].find((value) => value !== undefined && value !== null && String(value).trim() !== "") || ""
-);
-
-const isNumericMedicineFrequencyText = (value) => /^(?!-)[\d.\s-]+$/.test(String(value || "").trim());
-
-const isExactMedicineFrequencyTitle = (value, frequencyList = []) => {
-  const text = String(value || "").trim();
-  if (!text) return false;
-  return frequencyList.some(
-    (item) => item?.tmf_block !== 0 && String(item?.tmf_title || "").trim() === text
-  );
-};
-
-const findExactMedicineTiming = (value, timingList = []) => {
-  const text = String(value || "").trim();
-  if (!text || text === "None") return null;
-  return timingList.find(
-    (item) => String(item?.tmt_title || "").trim().toLowerCase() === text.toLowerCase()
-  ) || null;
-};
-
-const appendMedicineTextToNotes = (notes, value) => {
-  const current = String(notes || "").trim();
-  const text = String(value || "").trim();
-  if (!text || current.includes(text)) return current;
-  return current ? `${current} | ${text}` : text;
-};
-
-const appendMedicineFrequencyToNotes = (notes, frequency) => {
-  return appendMedicineTextToNotes(notes, frequency);
-};
-
-const appendMedicineScheduleToNotes = (notes, schedule) => {
-  return appendMedicineTextToNotes(notes, schedule);
-};
-
-const moveUnmatchedMedicineFrequenciesToNotes = (rows = [], frequencyList = []) => rows.map((row) => {
-  const rawFrequency = getRawMedicineFrequencyText(row);
-  if (!rawFrequency) return row;
-
-  const normalizedFrequency = String(row?.tmm_freq_type_name || "").trim();
-  const canUseFrequencyField =
-    isNumericMedicineFrequencyText(normalizedFrequency) ||
-    isExactMedicineFrequencyTitle(rawFrequency, frequencyList) ||
-    isExactMedicineFrequencyTitle(normalizedFrequency, frequencyList);
-
-  if (canUseFrequencyField) return row;
-
-  return {
-    ...row,
-    tmm_freq_type_name: "",
-    tmm_freq_type: 0,
-    tmf_block: 0,
-    tmf_block_val: "",
-    tcm_tmm_freq_morning: 0,
-    tcm_tmm_freq_afternoon: 0,
-    tcm_tmm_freq_evening: 0,
-    tcm_tmm_freq_night: 0,
-    tmm_remarks: appendMedicineFrequencyToNotes(row?.tmm_remarks || row?.notes || row?.note, rawFrequency),
-  };
-});
-
-const moveUnmatchedMedicineSchedulesToNotes = (rows = [], timingList = []) => rows.map((row) => {
-  const rawSchedule = getRawMedicineScheduleText(row);
-  if (!rawSchedule || String(rawSchedule).trim() === "None") return row;
-
-  const timingObj = findExactMedicineTiming(rawSchedule, timingList);
-  if (timingObj) {
-    return {
-      ...row,
-      tmm_time: timingObj.tmt_id,
-      tmm_time_name: timingObj.tmt_title,
-    };
-  }
-
-  return {
-    ...row,
-    tmm_time: 0,
-    tmm_time_name: "",
-    tmm_remarks: appendMedicineScheduleToNotes(row?.tmm_remarks || row?.notes || row?.note, rawSchedule),
-  };
-});
 
 const isVoiceRxUngroundedMedication = (item) => (
   !!item?.voice_rx_from_module && !hasMedicineMasterId(item?.tmm_id)
@@ -357,10 +259,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const { patient_data, medicationData, setMedicationData, pillupSwitch, setPillupSwitch, tcmId } = useContext(CashManagerContext);
   const applyVoiceMedication = useCallback((nextMedicines) => {
-    const normalizedMedicines = moveUnmatchedMedicineSchedulesToNotes(
-      moveUnmatchedMedicineFrequenciesToNotes(nextMedicines, frequencyList),
-      timingList
-    );
+    const normalizedMedicines = normalizeCopiedMedicationRows(nextMedicines, frequencyList, timingList);
     if (normalizedMedicines.length > 0) {
       setMedicationData(normalizedMedicines);
     }

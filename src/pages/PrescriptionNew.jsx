@@ -95,6 +95,10 @@ import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
 import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
+import {
+  getMedicineFrequencyDisplay,
+  normalizeCopiedMedicationRows,
+} from "../utils/medicationCopyNormalization";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
@@ -310,165 +314,6 @@ function mergeCopiedCustomModules(prevContents = [], copiedModules = []) {
   return nextContents;
 }
 
-function getRawMedicineFrequencyText(medicine) {
-  return firstNonEmpty(
-    medicine?.frequency,
-    medicine?.freq,
-    medicine?.frequencyText,
-    medicine?.frequency_text,
-    medicine?.tmm_freq_type_name
-  ) || "";
-}
-
-function hasMedicineFrequencyBlockValues(medicine) {
-  return [
-    medicine?.tcm_tmm_freq_morning,
-    medicine?.tcm_tmm_freq_afternoon,
-    medicine?.tcm_tmm_freq_evening,
-    medicine?.tcm_tmm_freq_night,
-  ].some((value) => value !== undefined && value !== null && String(value).trim() !== "" && String(value) !== "0");
-}
-
-function formatMedicineFrequencyBlock(medicine) {
-  const morning = medicine?.tcm_tmm_freq_morning && medicine.tcm_tmm_freq_morning != 0
-    ? medicine.tcm_tmm_freq_morning
-    : "0";
-  const afternoon = medicine?.tcm_tmm_freq_afternoon && medicine.tcm_tmm_freq_afternoon != 0
-    ? medicine.tcm_tmm_freq_afternoon
-    : "0";
-  const evening = medicine?.tcm_tmm_freq_evening && medicine.tcm_tmm_freq_evening != 0
-    ? medicine.tcm_tmm_freq_evening
-    : "";
-  const night = medicine?.tcm_tmm_freq_night && medicine.tcm_tmm_freq_night != 0
-    ? medicine.tcm_tmm_freq_night
-    : "0";
-
-  return evening ? `${morning} - ${afternoon} - ${evening} - ${night}` : `${morning} - ${afternoon} - ${night}`;
-}
-
-function getMedicineFrequencyDisplay(medicine, frequencyList = []) {
-  const rawFrequency = getRawMedicineFrequencyText(medicine);
-  const frequencyObjById = frequencyList.find((x) => x.tmf_id == medicine?.tmm_freq_type);
-  const frequencyObjByExactTitle = rawFrequency
-    ? frequencyList.find((x) => String(x?.tmf_title || "").trim() === String(rawFrequency).trim())
-    : undefined;
-  const frequencyObj = frequencyObjById || frequencyObjByExactTitle;
-
-  if (medicine?.tmf_block == 0 && hasMedicineFrequencyBlockValues(medicine)) {
-    return {
-      label: formatMedicineFrequencyBlock(medicine),
-      blockValue: frequencyObj?.tmf_block_val || "",
-    };
-  }
-
-  if (frequencyObj) {
-    return {
-      label: frequencyObj.tmf_title,
-      blockValue: frequencyObj.tmf_block_val || "",
-    };
-  }
-
-  return {
-    label: rawFrequency,
-    blockValue: "",
-  };
-}
-
-function isNumericMedicineFrequencyText(value) {
-  return /^(?!-)[\d.\s-]+$/.test(String(value || "").trim());
-}
-
-function isExactMedicineFrequencyTitle(value, frequencyList = []) {
-  const text = String(value || "").trim();
-  if (!text) return false;
-  return frequencyList.some(
-    (item) => item?.tmf_block !== 0 && String(item?.tmf_title || "").trim() === text
-  );
-}
-
-function appendMedicineFrequencyToNotes(notes, frequency) {
-  return appendMedicineTextToNotes(notes, frequency);
-}
-
-function appendMedicineScheduleToNotes(notes, schedule) {
-  return appendMedicineTextToNotes(notes, schedule);
-}
-
-function appendMedicineTextToNotes(notes, value) {
-  const current = String(notes || "").trim();
-  const text = String(value || "").trim();
-  if (!text || current.includes(text)) return current;
-  return current ? `${current} | ${text}` : text;
-}
-
-function moveUnmatchedMedicineFrequenciesToNotes(rows = [], frequencyList = []) {
-  return rows.map((row) => {
-    const rawFrequency = getRawMedicineFrequencyText(row);
-    if (!rawFrequency) return row;
-
-    const normalizedFrequency = String(row?.tmm_freq_type_name || "").trim();
-    const canUseFrequencyField =
-      isNumericMedicineFrequencyText(normalizedFrequency) ||
-      isExactMedicineFrequencyTitle(rawFrequency, frequencyList) ||
-      isExactMedicineFrequencyTitle(normalizedFrequency, frequencyList);
-
-    if (canUseFrequencyField) return row;
-
-    return {
-      ...row,
-      tmm_freq_type_name: "",
-      tmm_freq_type: 0,
-      tmf_block: 0,
-      tmf_block_val: "",
-      tcm_tmm_freq_morning: 0,
-      tcm_tmm_freq_afternoon: 0,
-      tcm_tmm_freq_evening: 0,
-      tcm_tmm_freq_night: 0,
-      tmm_remarks: appendMedicineFrequencyToNotes(row?.tmm_remarks || row?.notes || row?.note, rawFrequency),
-    };
-  });
-}
-
-function getRawMedicineScheduleText(medicine) {
-  return [
-    medicine?.schedule,
-    medicine?.when,
-    medicine?.timing,
-    medicine?.tmm_time_name,
-  ].find((value) => value !== undefined && value !== null && String(value).trim() !== "") || "";
-}
-
-function findExactMedicineTiming(value, timingList = []) {
-  const text = String(value || "").trim();
-  if (!text || text === "None") return null;
-  return timingList.find(
-    (item) => String(item?.tmt_title || "").trim().toLowerCase() === text.toLowerCase()
-  ) || null;
-}
-
-function moveUnmatchedMedicineSchedulesToNotes(rows = [], timingList = []) {
-  return rows.map((row) => {
-    const rawSchedule = getRawMedicineScheduleText(row);
-    if (!rawSchedule || String(rawSchedule).trim() === "None") return row;
-
-    const timingObj = findExactMedicineTiming(rawSchedule, timingList);
-    if (timingObj) {
-      return {
-        ...row,
-        tmm_time: timingObj.tmt_id,
-        tmm_time_name: timingObj.tmt_title,
-      };
-    }
-
-    return {
-      ...row,
-      tmm_time: 0,
-      tmm_time_name: "",
-      tmm_remarks: appendMedicineScheduleToNotes(row?.tmm_remarks || row?.notes || row?.note, rawSchedule),
-    };
-  });
-}
-
 function PrescriptionNewRxPadCopyListener() {
   const { lastCopyRequest, publishSignal } = useRxPadSync();
   const dispatch = useDispatch();
@@ -531,11 +376,9 @@ function PrescriptionNewRxPadCopyListener() {
     const medications = firstNonEmpty(digitization.medications, payload.medications);
     appendRows(
       setMedicationData,
-      moveUnmatchedMedicineSchedulesToNotes(
-        moveUnmatchedMedicineFrequenciesToNotes(
-          normalizeModuleRows({ medications: toArray(medications) }, "medications"),
-          frequencyList
-        ),
+      normalizeCopiedMedicationRows(
+        normalizeModuleRows({ medications: toArray(medications) }, "medications"),
+        frequencyList,
         timingList
       ),
       "medications"
