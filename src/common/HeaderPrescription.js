@@ -328,6 +328,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceSilenceThresholdMs = getSilenceDetectorThresholdMs(tpConfigData);
     // header transcribe voice state
     const [, setHeaderVoiceStateRaw] = useState("idle"); // "idle" | "recording" | "transcribing"
+    const [headerTranscriptFallback, setHeaderTranscriptFallback] = useState("");
     const headerVoiceStateRef = useRef("idle");
     const setHeaderVoiceState = useCallback((s) => { headerVoiceStateRef.current = s; setHeaderVoiceStateRaw(s); }, []);
     const headerVoiceMediaRecorderRef = useRef(null);
@@ -658,7 +659,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             message.success("Transcript copied to clipboard.");
         } catch (error) {
             console.error("[HeaderTranscribe] clipboard copy failed", error);
-            message.warning("Transcript is ready, but it could not be copied to clipboard.");
+            setHeaderTranscriptFallback(text);
+            message.warning("Transcript is ready. Please copy it from the popup.");
         }
     }, []);
 
@@ -782,6 +784,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             const transcribeAnyAudioContext = {
                 patientId: patient_data?.patient_unique_id,
                 doctorId: profile?.doctor_unique_id,
+                doctorName: profile?.um_name || "",
+                patientName: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
                 sessionId: voiceDigitization?.sessionId || submitId,
             };
             const { transcript } = await transcribeAnyAudio({
@@ -3159,6 +3163,40 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                                         {shouldEnableDraft ? <span>Save as Draft</span> : <span>No, Stay</span>}
                                                     </Button>
                                                 </div>
+                                            </div>
+                                        </>
+                                    }
+                                />
+                                <CommonModal
+                                    isModalOpen={Boolean(headerTranscriptFallback)}
+                                    onCancel={() => setHeaderTranscriptFallback("")}
+                                    modalWidth={560}
+                                    zIndex={headerOverlayZIndex}
+                                    title="Transcript is ready"
+                                    modalBody={
+                                        <>
+                                            <Input.TextArea
+                                                value={headerTranscriptFallback}
+                                                autoSize={{ minRows: 5, maxRows: 10 }}
+                                                readOnly
+                                                onFocus={(event) => event.target.select()}
+                                            />
+                                            <div className="d-flex justify-content-end mt-3">
+                                                <Button
+                                                    className="btn btn-primary3 btn-41 px-4"
+                                                    onClick={async () => {
+                                                        try {
+                                                            await navigator.clipboard.writeText(headerTranscriptFallback);
+                                                            message.success("Transcript copied to clipboard.");
+                                                            setHeaderTranscriptFallback("");
+                                                        } catch (error) {
+                                                            console.error("[HeaderTranscribe] manual clipboard copy failed", error);
+                                                            message.warning("Select the transcript text and copy it manually.");
+                                                        }
+                                                    }}
+                                                >
+                                                    Copy Transcript
+                                                </Button>
                                             </div>
                                         </>
                                     }
