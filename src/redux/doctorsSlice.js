@@ -170,6 +170,15 @@ export const getDefaultPrintsettings = createAsyncThunk(
     if (result.status) {
       const patientInfo = result?.data?.header_footer?.patient_info;
       if (Array.isArray(patientInfo)) {
+        const consultationTypeIndex = patientInfo.findIndex(
+          (item) =>
+            item?.id === 8 ||
+            (item?.title && String(item.title).trim() === "Consultation Type")
+        );
+        if (consultationTypeIndex !== -1) {
+          patientInfo.splice(consultationTypeIndex, 1);
+        }
+
         const ensureItem = (id, title) => {
           const exists = patientInfo.some(
             (item) =>
