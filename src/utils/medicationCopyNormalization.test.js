@@ -1,6 +1,7 @@
 import {
   normalizeCopiedMedicationRows,
   parseMedicationFrequencySlots,
+  resolveCopiedDoseFields,
 } from "./medicationCopyNormalization";
 
 const frequencyList = [
@@ -11,6 +12,13 @@ const frequencyList = [
 const timingList = [
   { tmt_id: 5, tmt_title: "After Food" },
   { tmt_id: 6, tmt_title: "Before Breakfast" },
+];
+
+const medicineUnits = [
+  { tmu_id: 2, tmu_title: "Tablet(s)" },
+  { tmu_id: 3, tmu_title: "mg" },
+  { tmu_id: 4, tmu_title: "ml" },
+  { tmu_id: 5, tmu_title: "unit(s)" },
 ];
 
 describe("parseMedicationFrequencySlots", () => {
@@ -124,5 +132,87 @@ describe("normalizeCopiedMedicationRows", () => {
     });
     expect(row.tmm_time_name).toBeUndefined();
     expect(row.tmm_remarks).toBeUndefined();
+  });
+});
+
+describe("resolveCopiedDoseFields", () => {
+  it("maps copied dosage text to matching medicine units case-insensitively", () => {
+    expect(resolveCopiedDoseFields({ tmm_dosage_unit_name: "1 tablet(s)" }, medicineUnits)).toMatchObject({
+      tmm_dosage: "1",
+      tmm_unit: 2,
+      tmu_id: 2,
+      tmm_unit_name: "Tablet(s)",
+      tmm_dosage_unit_name: "1 Tablet(s)",
+    });
+    expect(resolveCopiedDoseFields({ tmm_dosage_unit_name: "5ML" }, medicineUnits)).toMatchObject({
+      tmm_dosage: "5",
+      tmm_unit: 4,
+      tmu_id: 4,
+      tmm_unit_name: "ml",
+      tmm_dosage_unit_name: "5 ml",
+    });
+    expect(resolveCopiedDoseFields({ tmm_dosage_unit_name: "1 Mg" }, medicineUnits)).toMatchObject({
+      tmm_dosage: "1",
+      tmm_unit: 3,
+      tmm_unit_name: "mg",
+    });
+  });
+
+  it("uses default dose/unit when copied dosage is empty", () => {
+    expect(resolveCopiedDoseFields({}, medicineUnits, {
+      defaultIfMissing: true,
+      defaultDose: "1",
+      defaultUnitId: 2,
+    })).toMatchObject({
+      tmm_dosage: "1",
+      tmm_unit: 2,
+      tmm_dosage_unit_name: "1 Tablet(s)",
+    });
+  });
+
+  it("uses custom fallback unit on unmatched copied dosage unit", () => {
+    expect(resolveCopiedDoseFields({ tmm_dosage_unit_name: "5 sachet" }, medicineUnits, {
+      fallbackUnitIdOnUnitMismatch: 5,
+      fallbackUnitTitle: "unit(s)",
+    })).toMatchObject({
+      tmm_dosage: "5",
+      tmm_unit: 5,
+      tmm_unit_name: "unit(s)",
+      tmm_dosage_unit_name: "5 unit(s)",
+    });
+  });
+
+  it("can resolve copied units from the standard custom unit list when medicine details omit that unit", () => {
+    const medicineSpecificUnits = [
+      { tmu_id: 3, tmu_title: "mg" },
+      { tmu_id: 5, tmu_title: "unit(s)" },
+      { tmu_id: 6, tmu_title: "Capsule(s)" },
+    ];
+
+    expect(resolveCopiedDoseFields({ tmm_dosage_unit_name: "1 Tablet(s)" }, medicineSpecificUnits, {
+      includeCustomUnits: true,
+    })).toMatchObject({
+      tmm_dosage: "1",
+      tmm_unit: 2,
+      tmu_id: 2,
+      tmm_unit_name: "Tablet(s)",
+      tmm_dosage_unit_name: "1 Tablet(s)",
+    });
+  });
+
+  it("keeps explicitly selected unit per dose", () => {
+    expect(resolveCopiedDoseFields({
+      tmm_dosage: "7",
+      tmm_unit: 4,
+      tmm_unit_name: "ml",
+      tmm_dosage_unit_name: "7 ml",
+    }, medicineUnits, {
+      fallbackUnitIdOnUnitMismatch: 5,
+    })).toMatchObject({
+      tmm_dosage: "7",
+      tmm_unit: 4,
+      tmm_unit_name: "ml",
+      tmm_dosage_unit_name: "7 ml",
+    });
   });
 });

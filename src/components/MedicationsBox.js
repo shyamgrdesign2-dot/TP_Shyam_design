@@ -57,7 +57,10 @@ import {
   hasInvalidChikitsalayMedication,
   MEDICATION_INVENTORY_WARNING,
 } from "../utils/chikitsalayInventory";
-import { normalizeCopiedMedicationRows } from "../utils/medicationCopyNormalization";
+import {
+  normalizeCopiedMedicationRows,
+  resolveCopiedDoseFields,
+} from "../utils/medicationCopyNormalization";
 const {
   alerticon: alertIcon,
   medication: Medicationicon,
@@ -91,36 +94,57 @@ const isVoiceRxUngroundedMedication = (item) => (
   !!item?.voice_rx_from_module && !hasMedicineMasterId(item?.tmm_id)
 );
 
-const VOICE_RX_DOSAGE_WORDS = {
-  one: "1",
-  two: "2",
-  three: "3",
-  four: "4",
-  five: "5",
-  six: "6",
-  seven: "7",
-  eight: "8",
-  nine: "9",
-  ten: "10",
-};
-
-const getVoiceRxDosageValue = (medicine = {}) => {
-  const dosageText = String(medicine?.tmm_dosage || medicine?.tmm_dosage_unit_name || "").trim();
-  if (!dosageText) return "";
-
-  const numericMatch = dosageText.match(/^(\d+(?:\.\d+)?)/);
-  if (numericMatch) return numericMatch[1];
-
-  const wordMatch = dosageText.match(/^([a-z]+)/i);
-  return VOICE_RX_DOSAGE_WORDS[wordMatch?.[1]?.toLowerCase()] || dosageText;
-};
-
 const getPositiveId = (...values) => {
   for (const value of values) {
     const id = Number(value);
     if (Number.isFinite(id) && id > 0) return value;
   }
   return 0;
+};
+
+const getDefaultMedicineUnitId = (medicine = {}) => getPositiveId(
+  medicine.default_tmm_unit,
+  medicine.tmm_unit,
+  medicine.tmu_id,
+  medicine.medicineUnit?.[0]?.tmu_id
+);
+
+const mergeSelectedMedicineForVoiceRow = (current = {}, selected = {}, keyParsed = {}) => {
+  const medicineUnits = Array.isArray(selected.medicineUnit) ? selected.medicineUnit : [];
+  const defaultUnitId = getDefaultMedicineUnitId(selected);
+  const doseFields = resolveCopiedDoseFields(current, medicineUnits, {
+    defaultIfMissing: true,
+    defaultUnitId,
+    defaultDose: "1",
+    includeCustomUnits: true,
+  });
+
+  return {
+    ...current,
+    ...selected,
+    objectID: keyParsed.objectID ?? selected.objectID ?? current.objectID,
+    reference_id: keyParsed.reference_id ?? selected.reference_id ?? current.reference_id,
+    quantity: keyParsed.quantity ?? selected.quantity ?? current.quantity,
+    stock_status: keyParsed.stock_status ?? selected.stock_status ?? current.stock_status,
+    tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type ?? current.tmm_hm_type,
+    um_id: selected.um_id ?? keyParsed.um_id ?? current.um_id,
+    ...doseFields,
+    default_tmm_unit: getPositiveId(selected.default_tmm_unit, doseFields.tmm_unit, current.default_tmm_unit),
+    tmm_freq_type_name: current.tmm_freq_type_name,
+    tmf_block_val: current.tmf_block_val,
+    tcm_tmm_freq_morning: current.tcm_tmm_freq_morning,
+    tcm_tmm_freq_afternoon: current.tcm_tmm_freq_afternoon,
+    tcm_tmm_freq_evening: current.tcm_tmm_freq_evening,
+    tcm_tmm_freq_night: current.tcm_tmm_freq_night,
+    tmm_time: current.tmm_time,
+    tmm_time_name: current.tmm_time_name,
+    tmm_days: current.tmm_days,
+    tmm_duration_type: current.tmm_duration_type,
+    tmm_days_duration_type: current.tmm_days_duration_type,
+    tmm_remarks: current.tmm_remarks,
+    voice_rx_requires_inventory_selection: false,
+    voice_rx_from_module: false,
+  };
 };
 
 const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
@@ -293,6 +317,7 @@ function MedicationsBox({ showVoiceRxModule }) {
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
   const [voiceMedicineEdit, setVoiceMedicineEdit] = useState({ index: null, query: "" });
   const voiceMedicineSearchRequestRef = useRef(0);
+  const autoVoiceMedicineGroundingRef = useRef(new Set());
 
   const [unitPerDoseOptions, setUnitPerDoseOptions] = useState([]);
   const [frequencyOptions, setFrequencyOptions] = useState([]);
@@ -399,6 +424,61 @@ function MedicationsBox({ showVoiceRxModule }) {
     isZydusAccount &&
     isMedicationInventorySelectionRequired(activeVoiceMedicineItem)
   );
+
+  useEffect(() => {
+    if (!isVoiceRxModuleEnabled || isZydusAccount || isChikitsalayAccessable) return;
+
+    const candidates = medicationData
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => isVoiceRxUngroundedMedication(item));
+
+    candidates.forEach(({ item, index }) => {
+      const medicineName = String(item?.tmm_medicine_name || item?.voice_rx_original_name || "").trim();
+      if (!medicineName) return;
+      const key = String(item?.voice_rx_group_id || item?.unique_id || medicineName).trim().toLowerCase();
+      if (!key || autoVoiceMedicineGroundingRef.current.has(key)) return;
+
+      autoVoiceMedicineGroundingRef.current.add(key);
+      (async () => {
+        try {
+          const result = await ApiMedication.getFuzzySearch(medicineName, 10, {
+            isChikitsalayAccessable: false,
+          });
+          const rows = Array.isArray(result) ? result : result ? [result] : [];
+          const topResult = rows[0];
+          if (!topResult?.tmm_id) return;
+
+          let selected = medicineDetailsById?.[String(topResult.tmm_id)] || null;
+          if (!selected) {
+            const action = await dispatch(getMedicineDetails(topResult.tmm_id));
+            if (action.meta.requestStatus !== "fulfilled") return;
+            selected = action.payload?.[0] || topResult;
+          }
+
+          setMedicationData((prev) => {
+            const rowIndex = prev.findIndex((row) => {
+              const rowKey = String(row?.voice_rx_group_id || row?.unique_id || row?.tmm_medicine_name || "").trim().toLowerCase();
+              return rowKey === key;
+            });
+            if (rowIndex === -1 || !isVoiceRxUngroundedMedication(prev[rowIndex])) return prev;
+            const next = [...prev];
+            next[rowIndex] = mergeSelectedMedicineForVoiceRow(prev[rowIndex], selected, topResult);
+            return next;
+          });
+        } catch (error) {
+          // Keep the copied medicine as free text; the end-visit path will add it as custom.
+        }
+      })();
+    });
+  }, [
+    dispatch,
+    isChikitsalayAccessable,
+    isVoiceRxModuleEnabled,
+    isZydusAccount,
+    medicationData,
+    medicineDetailsById,
+    setMedicationData,
+  ]);
 
   const buildMedicineSearchOption = useCallback(
     (medicine) => {
@@ -645,53 +725,18 @@ function MedicationsBox({ showVoiceRxModule }) {
     const shouldUseSelectedVoiceUnit =
       isVoiceRxModuleEnabled &&
       (current?.voice_rx_group_id || current?.voice_rx_from_module || current?.voice_rx_original_name);
-    const selectedUnitId = getPositiveId(
-      selected.tmm_unit,
-      selected.tmu_id,
-      selected.default_tmm_unit,
-      selected.medicineUnit?.[0]?.tmu_id
-    );
-    const selectedUnit = shouldUseSelectedVoiceUnit && Array.isArray(selected.medicineUnit)
-      ? selected.medicineUnit.find((unit) => unit.tmu_id == selectedUnitId)
-      : null;
-    const selectedUnitTitle = selectedUnit?.tmu_title || "";
-    const voiceDosageValue = shouldUseSelectedVoiceUnit ? getVoiceRxDosageValue(current) : "";
-    const voiceDoseLabel = voiceDosageValue && selectedUnitTitle
-      ? `${voiceDosageValue} ${selectedUnitTitle}`
-      : current.tmm_dosage_unit_name;
-    medicationData[index] = {
-      ...current,
-      ...selected,
-      objectID: keyParsed.objectID,
-      reference_id: keyParsed.reference_id,
-      quantity: keyParsed.quantity,
-      stock_status: keyParsed.stock_status,
-      tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type,
-      um_id: selected.um_id ?? keyParsed.um_id,
-      tmm_dosage: shouldUseSelectedVoiceUnit ? voiceDosageValue : current.tmm_dosage,
-      tmm_dosage_unit_name: shouldUseSelectedVoiceUnit ? voiceDoseLabel : current.tmm_dosage_unit_name,
-      tmm_unit: shouldUseSelectedVoiceUnit ? selectedUnitId : current.tmm_unit,
-      tmm_unit_name: shouldUseSelectedVoiceUnit ? selectedUnitTitle : current.tmm_unit_name,
-      tmu_id: shouldUseSelectedVoiceUnit ? selectedUnitId : current.tmu_id,
-      default_tmm_unit: shouldUseSelectedVoiceUnit
-        ? getPositiveId(selected.default_tmm_unit, selectedUnitId)
-        : current.default_tmm_unit,
-      tmm_freq_type_name: current.tmm_freq_type_name,
-      tmf_block_val: current.tmf_block_val,
-      tcm_tmm_freq_morning: current.tcm_tmm_freq_morning,
-      tcm_tmm_freq_afternoon: current.tcm_tmm_freq_afternoon,
-      tcm_tmm_freq_evening: current.tcm_tmm_freq_evening,
-      tcm_tmm_freq_night: current.tcm_tmm_freq_night,
-      tmm_time: current.tmm_time,
-      tmm_time_name: current.tmm_time_name,
-      tmm_days: current.tmm_days,
-      tmm_duration_type: current.tmm_duration_type,
-      tmm_days_duration_type: current.tmm_days_duration_type,
-      tmm_remarks: current.tmm_remarks,
-      unique_id: current.unique_id,
-      voice_rx_from_module: false,
-      voice_rx_requires_inventory_selection: false,
-    };
+    medicationData[index] = shouldUseSelectedVoiceUnit
+      ? mergeSelectedMedicineForVoiceRow(current, selected, keyParsed)
+      : {
+        ...current,
+        ...selected,
+        objectID: keyParsed.objectID,
+        reference_id: keyParsed.reference_id,
+        quantity: keyParsed.quantity,
+        stock_status: keyParsed.stock_status,
+        tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type,
+        um_id: selected.um_id ?? keyParsed.um_id,
+      };
     setMedicationData((prev) => [...prev]);
     setVoiceMedicineEdit({ index: null, query: "" });
   };

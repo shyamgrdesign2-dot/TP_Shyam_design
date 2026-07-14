@@ -79,6 +79,13 @@ import {
     hasInvalidChikitsalayMedication,
     getInvalidChikitsalayInventoryMessage,
 } from "../utils/chikitsalayInventory";
+import {
+    CUSTOM_MEDICINE_DEFAULT_UNIT_ID,
+    CUSTOM_MEDICINE_TYPE_ID,
+    CUSTOM_MEDICINE_UNITS,
+    mergeMedicineUnitOptions,
+    resolveCopiedDoseFields,
+} from "../utils/medicationCopyNormalization";
 const {
   alerticon: alertIcon,
   tutorial2,
@@ -1887,8 +1894,34 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const defaultMedicineType = Array.isArray(medicineTypeList) ? medicineTypeList[0]?.tmy_id : 0;
 
         for (const { medicineUnit, ...rest } of medicationData) {
+            const shouldKeepUnitMetadata = showVoiceRxModule && (
+                rest?.voice_rx_group_id ||
+                rest?.voice_rx_original_name ||
+                rest?.tmm_dosage_unit_name ||
+                rest?.tmm_unit_name
+            );
+            const voiceMedicineUnits = shouldKeepUnitMetadata
+                ? mergeMedicineUnitOptions(medicineUnit, CUSTOM_MEDICINE_UNITS)
+                : medicineUnit;
             if (!rest?.voice_rx_from_module || hasMedicineId(rest)) {
-                payload.push(rest);
+                if (shouldKeepUnitMetadata) {
+                    const doseFields = resolveCopiedDoseFields(rest, voiceMedicineUnits, {
+                        defaultIfMissing: true,
+                        defaultDose: "1",
+                        includeCustomUnits: true,
+                    });
+                    const resolvedUnit = doseFields.tmm_unit || rest.tmm_unit || rest.tmu_id || rest.default_tmm_unit || 0;
+                    payload.push({
+                        ...rest,
+                        ...doseFields,
+                        tmm_unit: resolvedUnit,
+                        tmu_id: resolvedUnit,
+                        default_tmm_unit: rest.default_tmm_unit || resolvedUnit,
+                        medicineUnit: voiceMedicineUnits,
+                    });
+                } else {
+                    payload.push(rest);
+                }
                 continue;
             }
 
@@ -1901,9 +1934,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             let createdMedicine = createdVoiceMedicineByGroup.get(medicineGroupKey);
 
             if (!createdMedicine) {
+                const customVoiceMedicineType = showVoiceRxModule ? CUSTOM_MEDICINE_TYPE_ID : rest.tmm_type || defaultMedicineType || 0;
                 const action = await dispatch(addMedicine({
                     tmm_medicine_name: medicineName,
-                    tmm_type: rest.tmm_type || defaultMedicineType || 0,
+                    tmm_type: customVoiceMedicineType,
                     tmm_generic: rest.tmm_generic || "",
                     tmm_company: rest.tmm_company || "",
                 }));
@@ -1917,7 +1951,23 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
             }
 
-            const resolvedUnit = rest.tmm_unit || createdMedicine?.default_tmm_unit || createdMedicine?.tmm_unit || 0;
+            const createdMedicineUnits = mergeMedicineUnitOptions(
+                Array.isArray(createdMedicine?.medicineUnit) && createdMedicine.medicineUnit.length
+                    ? createdMedicine.medicineUnit
+                    : Array.isArray(medicineUnit) && medicineUnit.length
+                        ? medicineUnit
+                        : [],
+                CUSTOM_MEDICINE_UNITS
+            );
+            const doseFields = resolveCopiedDoseFields(rest, createdMedicineUnits, {
+                defaultIfMissing: true,
+                defaultDose: "1",
+                fallbackUnitIdOnMissing: CUSTOM_MEDICINE_DEFAULT_UNIT_ID,
+                fallbackUnitIdOnUnitMismatch: CUSTOM_MEDICINE_DEFAULT_UNIT_ID,
+                fallbackUnitTitle: "unit(s)",
+                includeCustomUnits: true,
+            });
+            const resolvedUnit = doseFields.tmm_unit || rest.tmm_unit || createdMedicine?.default_tmm_unit || createdMedicine?.tmm_unit || 0;
 
             payload.push({
                 ...rest,
@@ -1926,18 +1976,21 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 tmm_type: createdMedicine?.tmm_type ?? rest.tmm_type ?? 0,
                 tmm_generic: createdMedicine?.tmm_generic ?? rest.tmm_generic ?? "",
                 tmm_company: createdMedicine?.tmm_company ?? rest.tmm_company ?? "",
+                ...doseFields,
                 tmm_unit: resolvedUnit,
+                tmu_id: resolvedUnit,
+                medicineUnit: createdMedicineUnits,
                 voice_rx_original_tmm_id: rest.tmm_id ?? 0,
                 voice_rx_from_module: false,
                 voice_rx_original_name: rest.voice_rx_original_name || medicineName,
                 pms_default: createdMedicine?.pms_default ?? rest.pms_default ?? 1,
                 objectID: createdMedicine?.objectID || rest.objectID,
-                default_tmm_unit: rest.default_tmm_unit ?? createdMedicine?.default_tmm_unit ?? 0,
+                default_tmm_unit: rest.default_tmm_unit ?? createdMedicine?.default_tmm_unit ?? resolvedUnit ?? 0,
             });
         }
 
         return payload;
-    }, [dispatch, medicationData, medicineTypeList]);
+    }, [dispatch, medicationData, medicineTypeList, showVoiceRxModule]);
 
     const onSaveAsDraft = async () => {
         if (saveDraftLoading) return;

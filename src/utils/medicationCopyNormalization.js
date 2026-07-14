@@ -63,6 +63,186 @@ function normalizeFrequencyToken(value) {
   return "";
 }
 
+export const CUSTOM_MEDICINE_TYPE_ID = 40;
+export const CUSTOM_MEDICINE_DEFAULT_UNIT_ID = 5;
+
+export const CUSTOM_MEDICINE_UNITS = [
+  { tmu_id: 1, tmu_title: "Ampule(s)" },
+  { tmu_id: 2, tmu_title: "Tablet(s)" },
+  { tmu_id: 4, tmu_title: "ml" },
+  { tmu_id: 5, tmu_title: "unit(s)" },
+  { tmu_id: 6, tmu_title: "Capsule(s)" },
+  { tmu_id: 7, tmu_title: "Fingertip(s)" },
+  { tmu_id: 8, tmu_title: "Pea sized" },
+  { tmu_id: 9, tmu_title: "gm" },
+  { tmu_id: 11, tmu_title: "tsp" },
+  { tmu_id: 14, tmu_title: "Drop(s)" },
+  { tmu_id: 24, tmu_title: "Puff(s)" },
+  { tmu_id: 27, tmu_title: "tbsp(s)" },
+];
+
+const DOSAGE_WORDS = {
+  one: "1",
+  two: "2",
+  three: "3",
+  four: "4",
+  five: "5",
+  six: "6",
+  seven: "7",
+  eight: "8",
+  nine: "9",
+  ten: "10",
+};
+
+function normalizeUnitTitle(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\(s\)/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .replace(/s$/, "");
+}
+
+function normalizeDoseValue(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text === "½") return "0.5";
+  if (text === "¼") return "0.25";
+  if (text === "¾") return "0.75";
+  const lower = text.toLowerCase();
+  if (DOSAGE_WORDS[lower]) return DOSAGE_WORDS[lower];
+  const fractionMatch = text.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (fractionMatch) {
+    const numerator = Number(fractionMatch[1]);
+    const denominator = Number(fractionMatch[2]);
+    if (denominator === 0) return "";
+    return String(numerator / denominator).replace(/\.0$/, "");
+  }
+  if (/^\.\d+$/.test(text)) return `0${text}`;
+  if (/^\d+(?:\.\d+)?$/.test(text)) return text;
+  return "";
+}
+
+export function parseMedicationDoseText(...values) {
+  const text = firstTextValue(...values);
+  if (!text) return null;
+
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(\d+(?:\.\d+)?|\.\d+|\d+\s*\/\s*\d+|[¼½¾]|one|two|three|four|five|six|seven|eight|nine|ten)\s*([a-zA-Z][a-zA-Z()/. -]*)?$/i);
+  if (!match) return null;
+
+  const value = normalizeDoseValue(match[1]);
+  if (!value) return null;
+  return {
+    value,
+    unitText: String(match[2] || "").trim(),
+    raw: trimmed,
+  };
+}
+
+export function findMedicineUnitByTitle(unitText, medicineUnits = []) {
+  const key = normalizeUnitTitle(unitText);
+  if (!key) return null;
+  return medicineUnits.find((unit) => normalizeUnitTitle(unit?.tmu_title) === key) || null;
+}
+
+function firstPositiveId(...values) {
+  for (const value of values) {
+    const id = Number(value);
+    if (Number.isFinite(id) && id > 0) return value;
+  }
+  return 0;
+}
+
+function getUnitTitleById(unitId, medicineUnits = []) {
+  const unit = medicineUnits.find((item) => item?.tmu_id == unitId);
+  return unit?.tmu_title || "";
+}
+
+export function mergeMedicineUnitOptions(...unitLists) {
+  const merged = [];
+  const seen = new Set();
+  unitLists.flat().forEach((unit) => {
+    if (!unit?.tmu_id) return;
+    const key = String(unit.tmu_id);
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(unit);
+  });
+  return merged;
+}
+
+export function resolveCopiedDoseFields(row = {}, medicineUnits = [], options = {}) {
+  const normalizedUnits = mergeMedicineUnitOptions(
+    Array.isArray(medicineUnits) ? medicineUnits : [],
+    options.includeCustomUnits ? CUSTOM_MEDICINE_UNITS : []
+  );
+  const existingUnitId = firstPositiveId(row.tmm_unit, row.tmu_id);
+  const existingDose = String(row.tmm_dosage ?? "").trim();
+  if (existingUnitId && existingDose) {
+    const existingUnitTitle = row.tmm_unit_name || getUnitTitleById(existingUnitId, normalizedUnits);
+    return {
+      tmm_dosage: existingDose,
+      tmm_unit: existingUnitId,
+      tmu_id: existingUnitId,
+      tmm_unit_name: existingUnitTitle,
+      tmm_dosage_unit_name: existingUnitTitle ? `${existingDose} ${existingUnitTitle}` : row.tmm_dosage_unit_name || existingDose,
+    };
+  }
+
+  const parsedDose = parseMedicationDoseText(row.tmm_dosage_unit_name, row.unitPerDose, row.dosage, row.dose, row.tmm_dosage);
+  if (parsedDose) {
+    const matchedUnit = findMedicineUnitByTitle(parsedDose.unitText, normalizedUnits);
+    if (matchedUnit) {
+      return {
+        tmm_dosage: parsedDose.value,
+        tmm_unit: matchedUnit.tmu_id,
+        tmu_id: matchedUnit.tmu_id,
+        tmm_unit_name: matchedUnit.tmu_title,
+        tmm_dosage_unit_name: `${parsedDose.value} ${matchedUnit.tmu_title}`,
+      };
+    }
+
+    if (options.fallbackUnitIdOnUnitMismatch) {
+      const fallbackUnitId = options.fallbackUnitIdOnUnitMismatch;
+      const fallbackUnitTitle = getUnitTitleById(fallbackUnitId, normalizedUnits) || options.fallbackUnitTitle || "";
+      return {
+        tmm_dosage: parsedDose.value,
+        tmm_unit: fallbackUnitId,
+        tmu_id: fallbackUnitId,
+        tmm_unit_name: fallbackUnitTitle,
+        tmm_dosage_unit_name: fallbackUnitTitle ? `${parsedDose.value} ${fallbackUnitTitle}` : parsedDose.raw,
+      };
+    }
+
+    return {
+      tmm_dosage: parsedDose.value,
+      tmm_dosage_unit_name: row.tmm_dosage_unit_name || parsedDose.raw,
+      tmm_unit: 0,
+      tmu_id: 0,
+      tmm_unit_name: "",
+    };
+  }
+
+  if (!options.defaultIfMissing) return {};
+
+  const fallbackUnitId = firstPositiveId(
+    options.defaultUnitId,
+    options.fallbackUnitIdOnMissing,
+    normalizedUnits[0]?.tmu_id
+  );
+  const fallbackUnitTitle = getUnitTitleById(fallbackUnitId, normalizedUnits) || options.fallbackUnitTitle || "";
+  return {
+    tmm_dosage: String(options.defaultDose ?? "1"),
+    tmm_unit: fallbackUnitId,
+    tmu_id: fallbackUnitId,
+    tmm_unit_name: fallbackUnitTitle,
+    tmm_dosage_unit_name: fallbackUnitTitle
+      ? `${options.defaultDose ?? "1"} ${fallbackUnitTitle}`
+      : String(options.defaultDose ?? "1"),
+  };
+}
+
 export function parseMedicationFrequencySlots(value) {
   const text = String(value || "").trim();
   if (!text) return null;
