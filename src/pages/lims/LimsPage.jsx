@@ -852,7 +852,7 @@ function LimsPageMain() {
 
   return (
     <div className={styles.shell}>
-      <div className={styles.limsHeader}>
+      {/* <div className={styles.limsHeader}>
         <div className={styles.limsHeaderLeft}>
           {!isReceptionist && (
             <>
@@ -867,7 +867,7 @@ function LimsPageMain() {
         <Button type="primary" className="btn btn-primary3 btn-41 px-4" onClick={() => setAddPatientOpen(true)}>
           Add New Patient
         </Button>
-      </div>
+      </div> */}
 
       <main className={styles.main}>
         <div className={styles.toolbar}>
