@@ -586,6 +586,131 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const renderSoapPrintSections = (sections = []) => {
         const headingFontSize = Math.max(baseFontSize + PX_TO_PT * 12, PX_TO_PT * 22);
         const fallbackFontSize = Math.max(baseFontSize + PX_TO_PT * 4, PX_TO_PT * 14);
+        const getDocumentHeadingFontSize = (level) =>
+            Number(level) === 1
+                ? Math.max(baseFontSize + PX_TO_PT * 8, PX_TO_PT * 18)
+                : Math.max(baseFontSize + PX_TO_PT * 5, PX_TO_PT * 14);
+        const documentTextFontSize = Math.max(baseFontSize + PX_TO_PT * 2, PX_TO_PT * 12);
+        const getRunText = (run) => normalizePdfText(run?.text || "");
+        const getItalicFontFamily = (run) => run?.bold ? "Helvetica-BoldOblique" : "Helvetica-Oblique";
+        const renderRichRuns = (runs, fallbackText, baseStyle, keyPrefix) => {
+            const normalizedRuns = Array.isArray(runs)
+                ? runs
+                    .map((run) => ({ ...run, text: getRunText(run) }))
+                    .filter((run) => run.text)
+                : [];
+            if (!normalizedRuns.length) return normalizePdfText(fallbackText || "");
+            return normalizedRuns.map((run, index) => (
+                <Text
+                    key={`${keyPrefix}-run-${index}`}
+                    style={{
+                        ...baseStyle,
+                        fontFamily: run.italic
+                            ? getItalicFontFamily(run)
+                            : baseStyle.fontFamily,
+                        fontWeight: run.italic ? 400 : run.bold ? 700 : baseStyle.fontWeight,
+                    }}
+                >
+                    {run.text}
+                </Text>
+            ));
+        };
+
+        const renderSoapDocumentBlock = (block, key) => {
+            if (block?.type === "heading") {
+                const text = normalizePdfText(block?.text).trim();
+                if (!text) return null;
+                const level = Number(block?.level) || 2;
+                const headingStyle = {
+                    color: '#000000',
+                    fontFamily: getIndianLanguageFont(text, baseFontFamily),
+                    fontSize: getDocumentHeadingFontSize(level),
+                    fontWeight: 700,
+                    lineHeight: level === 1 ? 1.25 : 1.35,
+                    marginTop: level === 1 ? PX_TO_PT * 18 : PX_TO_PT * 13,
+                    marginBottom: level === 1 ? PX_TO_PT * 12 : PX_TO_PT * 8,
+                };
+                return (
+                    <Text
+                        key={key}
+                        style={headingStyle}
+                    >
+                        {renderRichRuns(block?.runs, text, headingStyle, key)}
+                    </Text>
+                );
+            }
+
+            if (block?.type === "list" || block?.type === "ordered-list") {
+                const items = Array.isArray(block.items) ? block.items : [];
+                return items.map((item, itemIndex) => {
+                    const itemText = typeof item === "string"
+                        ? item
+                        : item?.text || (Array.isArray(item?.runs) ? item.runs.map((run) => run?.text || "").join("") : "");
+                    const text = block?.type === "ordered-list"
+                        ? `${itemIndex + 1}. ${itemText}`
+                        : itemText;
+                    if (typeof item !== "string" && Array.isArray(item?.runs)) {
+                        const marker = block?.type === "ordered-list" ? `${itemIndex + 1}.` : "\u2022";
+                        const itemStyle = {
+                            color: '#000000',
+                            fontFamily: getIndianLanguageFont(itemText, baseFontFamily),
+                            fontSize: PX_TO_PT * 14,
+                            fontWeight: 400,
+                            lineHeight: 1.45,
+                            flex: 1,
+                        };
+                        return (
+                            <View
+                                key={`${key}-${itemIndex}`}
+                                style={{
+                                    flexDirection: "row",
+                                    marginTop: PX_TO_PT * 5,
+                                    paddingLeft: PX_TO_PT * 24,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        color: '#000000',
+                                        fontFamily: baseFontFamily,
+                                        fontSize: PX_TO_PT * 14,
+                                        fontWeight: 700,
+                                        lineHeight: 1.45,
+                                        width: PX_TO_PT * 18,
+                                    }}
+                                >
+                                    {marker}
+                                </Text>
+                                <Text style={itemStyle}>
+                                    {renderRichRuns(item.runs, itemText, itemStyle, `${key}-${itemIndex}`)}
+                                </Text>
+                            </View>
+                        );
+                    }
+                    return renderSoapBullet(text, `${key}-${itemIndex}`);
+                });
+            }
+
+            const text = normalizePdfText(block?.text).trim();
+            if (!text) return null;
+            const isLabel = /:\s*$/.test(text) && !text.includes("\n");
+            const paragraphStyle = {
+                color: block?.isFallback || isNotDocumentedText(text) ? '#6f6f76' : '#000000',
+                fontFamily: getIndianLanguageFont(text, baseFontFamily),
+                fontSize: documentTextFontSize,
+                fontWeight: isLabel ? 700 : 400,
+                lineHeight: 1.45,
+                marginTop: isLabel ? PX_TO_PT * 10 : PX_TO_PT * 4,
+                marginBottom: isLabel ? PX_TO_PT * 1 : PX_TO_PT * 7,
+            };
+            return (
+                <Text
+                    key={key}
+                    style={paragraphStyle}
+                >
+                    {renderRichRuns(block?.runs, text, paragraphStyle, key)}
+                </Text>
+            );
+        };
 
         return (
             <View style={{ marginTop: PX_TO_PT * 15 }}>
@@ -593,7 +718,17 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     const heading = normalizePdfText(section?.title).trim();
                     const blocks = Array.isArray(section?.blocks) && section.blocks.length > 0
                         ? section.blocks
-                        : [{ type: "paragraph", text: section?.notes || "", italic: false }];
+                        : [{ type: "paragraph", text: section?.notes || "", isFallback: false }];
+
+                    if (section?.renderMode === "document") {
+                        return (
+                            <View key={`soap-section-${sectionIndex}`}>
+                                {blocks.map((block, blockIndex) =>
+                                    renderSoapDocumentBlock(block, `soap-document-${sectionIndex}-${blockIndex}`)
+                                )}
+                            </View>
+                        );
+                    }
 
                     return (
                         <View
@@ -613,16 +748,19 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 {heading}
                             </Text>
                             {blocks.map((block, blockIndex) => {
-                                if (block?.type === "list") {
+                                if (block?.type === "list" || block?.type === "ordered-list") {
                                     const items = Array.isArray(block.items) ? block.items : [];
-                                    return items.map((item, itemIndex) =>
-                                        renderSoapBullet(item, `soap-list-item-${sectionIndex}-${blockIndex}-${itemIndex}`)
-                                    );
+                                    return items.map((item, itemIndex) => {
+                                        const text = block?.type === "ordered-list"
+                                            ? `${itemIndex + 1}. ${item}`
+                                            : item;
+                                        return renderSoapBullet(text, `soap-list-item-${sectionIndex}-${blockIndex}-${itemIndex}`);
+                                    });
                                 }
 
                                 const text = normalizePdfText(block?.text).trim();
                                 if (!text) return null;
-                                if (block?.italic || isNotDocumentedText(text)) {
+                                if (block?.isFallback || isNotDocumentedText(text)) {
                                     return (
                                         <Text
                                             key={`soap-fallback-${sectionIndex}-${blockIndex}`}

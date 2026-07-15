@@ -65,7 +65,7 @@ export function BackFace({
   const liveSoapRaw = useSelector((s) => s.voiceDigitization?.soap || null);
   const voiceSessionId = useSelector((s) => s.voiceDigitization?.sessionId);
   // liveSoapHtml updates on every RichEditor edit; prefer over the static voiceRxResult snapshot
-  const effectiveSoap = liveSoapRaw || voiceRxResult?.soap;
+  const effectiveSoap = liveSoapHtml ? liveSoapRaw : liveSoapRaw || voiceRxResult?.soap;
   const effectiveSoapHtml = useMemo(() => {
     const hydratedHtml = liveSoapHtml || voiceRxResult?.soapHtml || "";
     if (hydratedHtml) return hydratedHtml;

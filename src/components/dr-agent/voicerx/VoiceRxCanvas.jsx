@@ -216,7 +216,7 @@ export function VoiceRxCanvas({
   };
 
   const handleCopySoap = async () => {
-    const latestSoapHtml = getLatestSoapDraft(audioChunkContext?.sessionId)?.html || soapHtml;
+    const latestSoapHtml = soapHtml || getLatestSoapDraft(audioChunkContext?.sessionId)?.html;
     if (!latestSoapHtml) return;
     const div = document.createElement("div");
     div.innerHTML = latestSoapHtml;
@@ -240,13 +240,13 @@ export function VoiceRxCanvas({
   };
 
   const handlePrintSoap = async () => {
-    const latestSoapHtml = getLatestSoapDraft(audioChunkContext?.sessionId)?.html || soapHtml;
+    const latestSoapHtml = soapHtml || getLatestSoapDraft(audioChunkContext?.sessionId)?.html;
     if (!latestSoapHtml) return;
     if (onPrintSoap) {
       try {
         await onPrintSoap(latestSoapHtml);
       } catch {
-        // Parent handles user-facing error toast.
+        // Parent handles the user-facing error toast.
       }
       return;
     }
