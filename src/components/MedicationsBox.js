@@ -94,6 +94,10 @@ const isVoiceRxUngroundedMedication = (item) => (
   !!item?.voice_rx_from_module && !hasMedicineMasterId(item?.tmm_id)
 );
 
+const isVoiceRxAutoGroundedMedication = (item) => (
+  !!item?.voice_rx_auto_grounded && hasMedicineMasterId(item?.tmm_id)
+);
+
 const getPositiveId = (...values) => {
   for (const value of values) {
     const id = Number(value);
@@ -144,6 +148,7 @@ const mergeSelectedMedicineForVoiceRow = (current = {}, selected = {}, keyParsed
     tmm_remarks: current.tmm_remarks,
     voice_rx_requires_inventory_selection: false,
     voice_rx_from_module: false,
+    voice_rx_auto_grounded: true,
   };
 };
 
@@ -369,6 +374,20 @@ function MedicationsBox({ showVoiceRxModule }) {
       (isChikitsalayAccessable && hasInvalidChikitsalayMedication(item)),
     [isChikitsalayAccessable]
   );
+  const isVoiceRxAutoGroundedEditable = useCallback(
+    (item) =>
+      isVoiceRxModuleEnabled &&
+      !isZydusAccount &&
+      !isChikitsalayAccessable &&
+      isVoiceRxAutoGroundedMedication(item),
+    [isChikitsalayAccessable, isVoiceRxModuleEnabled, isZydusAccount]
+  );
+  const canEditVoiceMedicineSelection = useCallback(
+    (item) =>
+      isVoiceRxModuleEnabled &&
+      (isMedicationInventorySelectionRequired(item) || isVoiceRxAutoGroundedEditable(item)),
+    [isMedicationInventorySelectionRequired, isVoiceRxAutoGroundedEditable, isVoiceRxModuleEnabled]
+  );
   const hasUngroundedMedications = isVoiceRxModuleEnabled && medicationData.some(isMedicationInventorySelectionRequired);
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
@@ -421,8 +440,10 @@ function MedicationsBox({ showVoiceRxModule }) {
   const activeVoiceMedicineItem = voiceMedicineEdit.index !== null ? medicationData[voiceMedicineEdit.index] : null;
   const isVoiceMedicineFuzzySearchActive = (
     isVoiceRxModuleEnabled &&
-    isZydusAccount &&
-    isMedicationInventorySelectionRequired(activeVoiceMedicineItem)
+    (
+      (isZydusAccount && isMedicationInventorySelectionRequired(activeVoiceMedicineItem)) ||
+      isVoiceRxAutoGroundedEditable(activeVoiceMedicineItem)
+    )
   );
 
   useEffect(() => {
@@ -670,13 +691,13 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const handleVoiceMedicineClick = (item) => {
     if (!isVoiceRxModuleEnabled) return;
-    if (!isMedicationInventorySelectionRequired(item)) return;
+    if (!canEditVoiceMedicineSelection(item)) return;
     const query = item.tmm_medicine_name || "";
     setVoiceMedicineEdit({
       index: item.index,
       query,
     });
-    if (isZydusAccount) {
+    if (isZydusAccount || isVoiceRxAutoGroundedEditable(item)) {
       setParentSearchOptions([]);
     } else {
       dispatch(searchMedication({
@@ -1667,18 +1688,18 @@ function MedicationsBox({ showVoiceRxModule }) {
                             xs={5}
                             className={[
                               isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
-                              isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? "align-self-stretch" : ""
+                              isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? "align-self-stretch" : ""
                             ].filter(Boolean).join(" ") || undefined}
                             data-testid={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
                             onClick={() => {
-                              if (isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) && voiceMedicineEdit.index !== item.index) {
+                              if (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) && voiceMedicineEdit.index !== item.index) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
                             style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isMedicationInventorySelectionRequired(item) ? { background: "#fff8ef" } : undefined}
                           >
-                            <div className={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
-                              {isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? (
+                            <div className={isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
+                              {isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? (
                                 <div className="d-flex align-items-center gap-1 w-100">
                                   <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
                                     {voiceMedicineEdit.index === item.index ? (
@@ -1711,7 +1732,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     )}
                                     {renderHmTypeBadge(item, { hideZ: !isPrescriptionNewContext })}
                                   </div>
-                                  {shouldShowInventorySourceWarning && (
+                                  {shouldShowInventorySourceWarning && isMedicationInventorySelectionRequired(item) && (
                                     <Tooltip
                                       placement="top"
                                       overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
@@ -1737,7 +1758,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                             </div>
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined} style={{ height: isChikitsalayAccessable ? "stretch" : undefined }}>
-                            {!item.pms_default && !(isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item)) &&
+                            {!item.pms_default && !(isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item)) &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
                                   const medicineType = medicineTypeList.find(x => x?.tmy_id == item?.tmm_type)
