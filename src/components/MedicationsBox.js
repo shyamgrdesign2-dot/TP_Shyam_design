@@ -98,6 +98,22 @@ const isVoiceRxAutoGroundedMedication = (item) => (
   !!item?.voice_rx_auto_grounded && hasMedicineMasterId(item?.tmm_id)
 );
 
+const normalizeMedicineNameForExactMatch = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+const isExactMedicineNameMatch = (sourceName, candidate = {}) => {
+  const normalizedSource = normalizeMedicineNameForExactMatch(sourceName);
+  if (!normalizedSource) return false;
+  return [
+    candidate?.tmm_medicine_name,
+    candidate?.medicine_name,
+    candidate?.name,
+  ].some((value) => normalizeMedicineNameForExactMatch(value) === normalizedSource);
+};
+
 const getPositiveId = (...values) => {
   for (const value of values) {
     const id = Number(value);
@@ -470,6 +486,7 @@ function MedicationsBox({ showVoiceRxModule }) {
           const rows = Array.isArray(result) ? result : result ? [result] : [];
           const topResult = rows[0];
           if (!topResult?.tmm_id) return;
+          if (!isExactMedicineNameMatch(medicineName, topResult)) return;
 
           let selected = medicineDetailsById?.[String(topResult.tmm_id)] || null;
           if (!selected) {
@@ -477,6 +494,7 @@ function MedicationsBox({ showVoiceRxModule }) {
             if (action.meta.requestStatus !== "fulfilled") return;
             selected = action.payload?.[0] || topResult;
           }
+          if (!isExactMedicineNameMatch(medicineName, selected)) return;
 
           setMedicationData((prev) => {
             const rowIndex = prev.findIndex((row) => {
@@ -490,6 +508,7 @@ function MedicationsBox({ showVoiceRxModule }) {
           });
         } catch (error) {
           // Keep the copied medicine as free text; the end-visit path will add it as custom.
+          console.warn("VoiceRx medicine auto-grounding failed", error);
         }
       })();
     });
