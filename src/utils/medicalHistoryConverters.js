@@ -274,6 +274,21 @@ export function convertAgentMedicalHistoryRowsToSections(rows = []) {
       return;
     }
 
+    if (normalizeMedicalHistoryTypeKey(row.type) === 'others') {
+      const remarks = formatOtherMedicalHistoryLineItem(row);
+      if (remarks) {
+        normalizedSections.push({
+          tmmhs_id: 1,
+          title: 'Lifestyle',
+          section_name: 'Lifestyle',
+          no_know_history: false,
+          medical_history_remarks: remarks,
+          tags: []
+        });
+      }
+      return;
+    }
+
     const tag = normalizeAgentMedicalHistoryTag(row);
     if (!tag) return;
     const sectionId = medicalHistorySectionIdFromType(row.type);

@@ -107,7 +107,11 @@ function mapMedicalHistoryIdsFromDefaultList(data = [], defaultList = []) {
                 tags: mappedTags,
             };
         })
-        .filter((section) => section.no_know_history || section.tags.length);
+        .filter((section) => (
+            section.no_know_history ||
+            section.tags.length ||
+            hasMedicalHistoryDetailValue(section.medical_history_remarks)
+        ));
 }
 
 function mergeMedicalHistorySections(base = [], incoming = []) {

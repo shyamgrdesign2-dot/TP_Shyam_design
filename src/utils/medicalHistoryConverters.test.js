@@ -1,4 +1,5 @@
 import {
+  convertAgentMedicalHistoryRowsToSections,
   convertMedicalHistoryToContextFormat,
   formatOtherMedicalHistoryLineItem,
 } from "./medicalHistoryConverters";
@@ -49,5 +50,25 @@ describe("medicalHistoryConverters others copy handling", () => {
     expect(copiedAgain[0].medical_history_remarks).toBe(
       "Existing history\nFood Allergy: peanuts, Duration: 2 years"
     );
+  });
+
+  it("keeps agents/module Others medical history rows as additional-history remarks", () => {
+    expect(convertAgentMedicalHistoryRowsToSections([
+      {
+        type: "Others",
+        name: "Food Allergy",
+        notes: "peanuts",
+        duration: "2 years",
+      },
+    ])).toEqual([
+      {
+        tmmhs_id: 1,
+        title: "Lifestyle",
+        section_name: "Lifestyle",
+        no_know_history: false,
+        medical_history_remarks: "Food Allergy: peanuts, Duration: 2 years",
+        tags: [],
+      },
+    ]);
   });
 });
