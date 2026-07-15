@@ -33,6 +33,15 @@ export const hasDiagnosisIcdCode = (diagnosis = {}) =>
 export const isChikitsalayInvestigationRow = (investigation = {}) =>
   Number(investigation?.hm_type) === 15;
 
+export const shouldShowInvestigationVCBadge = (
+  investigation = {},
+  isChikitsalayAccessable = false
+) =>
+  Boolean(isChikitsalayAccessable) &&
+  Number(investigation?.hm_type ?? investigation?.metadata?.hm_type) === 15 &&
+  Number(investigation?.um_id ?? investigation?.metadata?.um_id) === 0 &&
+  Number(investigation?.is_available ?? investigation?.metadata?.is_available) === 1;
+
 export const hasMedicineMasterId = (medicine = {}) => {
   const value = medicine?.tmm_id;
   if (value === undefined || value === null || String(value).trim() === "") {

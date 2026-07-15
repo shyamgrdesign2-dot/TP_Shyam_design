@@ -26,7 +26,7 @@ import {
   getExaminationTemplates,
 } from "../../redux/surgicalSlice";
 
-import { SortableContainer, SortableElement } from "react-sortable-hoc";
+import { SortableContainer, SortableElement } from "./sortableHocAdapter";
 import TabSurgicalSearch from "./TabSurgicalSearch";
 import { ASSETS } from "../../assets";
 const {
