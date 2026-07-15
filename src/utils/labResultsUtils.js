@@ -1,18 +1,15 @@
 import moment from 'moment';
 import { env } from '../EnvironmentConfig';
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from './constants';
+import { isReceptionistSession } from './receptionistSession';
 
 // ----- Lab result GET response normalization (multi-doctor buckets) -----
 
 /**
- * True when current URL is a receptionist session.
+ * True when current URL / tab is a receptionist (Kea) session.
  */
 export function isLabResultsReceptionistSession() {
-  try {
-    return new URLSearchParams(window.location.search).has('receptionist');
-  } catch {
-    return false;
-  }
+  return isReceptionistSession();
 }
 
 /**
@@ -22,7 +19,7 @@ export function isLabResultsReceptionistSession() {
 export function getAttendingDoctorUmIdFromUrl() {
   try {
     const params = new URLSearchParams(window.location.search);
-    if (!params.has('receptionist')) return undefined;
+    if (!isReceptionistSession()) return undefined;
     const raw = params.get('um_id');
     if (!raw) return undefined;
     const first = String(raw).split(',').map((s) => s.trim()).filter(Boolean)[0];
@@ -301,7 +298,7 @@ export function formatLabResultDoctorLabel(doctorId) {
 export function getReceptionistDoctorNameMapFromUrl() {
   try {
     const params = new URLSearchParams(window.location.search);
-    if (!params.has('receptionist')) return {};
+    if (!isReceptionistSession()) return {};
     const ids = String(params.get('um_id') || '')
       .split(',')
       .map((s) => s.trim())

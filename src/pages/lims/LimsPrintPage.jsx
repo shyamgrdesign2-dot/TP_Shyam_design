@@ -338,7 +338,13 @@ function LimsPrintPageMain() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <button type="button" className={styles.backBtn} onClick={() => navigate("/lims")}>
+          <button
+            type="button"
+            className={styles.backBtn}
+            onClick={() =>
+              navigate({ pathname: "/lims", search: location.search })
+            }
+          >
             <i className="icon-right" />
           </button>
           <div className={styles.headerDivider} />

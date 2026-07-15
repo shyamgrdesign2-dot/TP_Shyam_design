@@ -40,6 +40,10 @@ import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateBanner from "./common/UpdateBanner";
 import { clearSentryContext } from "./utils/sentryContext";
 import { growthbook } from "./utils/growthbook";
+import {
+  clearReceptionistSession,
+  isReceptionistSession,
+} from "./utils/receptionistSession";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -263,8 +267,15 @@ function App() {
   const token = getToken();
   const isMobileOrPWA = isMobileDevice || isPWA;
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const isReceptionist = urlParams.has("receptionist");
+  // Persist ?receptionist for the tab so dropping the query on internal
+  // navigations does not re-enable doctor-only boot checks / logout.
+  const isReceptionist = isReceptionistSession(location.search);
+
+  useEffect(() => {
+    if (isLoginPage) {
+      clearReceptionistSession();
+    }
+  }, [isLoginPage]);
 
   useRouteTracking();
   const { updateAvailable } = useVersionCheck();
@@ -320,11 +331,13 @@ function App() {
 
       localStorage.clear();
       sessionStorage.clear();
+      clearReceptionistSession();
       window.location.href = "/login";
     } catch (error) {
       console.error("Error during logout:", error);
       localStorage.clear();
       sessionStorage.clear();
+      clearReceptionistSession();
       window.location.href = "/login";
     } finally {
       window.isLoggingOut = false;
@@ -370,7 +383,7 @@ function App() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [location.pathname]);
+  }, [location.pathname, isReceptionist, isLoginPage]);
 
   useEffect(() => {
     const isUserLocked = async () => {

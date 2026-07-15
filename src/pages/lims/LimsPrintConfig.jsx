@@ -43,7 +43,8 @@ const { alerticon: alertIcon } = ASSETS.images;
 
 function LimsHeaderBar() {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const location = useLocation();
+  const { state } = location;
   const previousPage = state?.from;
   const { defaultPrintSettings } = useSelector((s) => s.doctors);
 
@@ -59,11 +60,14 @@ function LimsHeaderBar() {
 
   const goBack = useCallback(() => {
     if (previousPage) {
-      navigate(previousPage, { replace: true, state });
+      navigate(
+        { pathname: previousPage, search: location.search },
+        { replace: true, state },
+      );
     } else {
-      navigate("/lims", { replace: true });
+      navigate({ pathname: "/lims", search: location.search }, { replace: true });
     }
-  }, [navigate, previousPage, state]);
+  }, [navigate, previousPage, state, location.search]);
 
   const handleBack = () => {
     const saved = loadLimsSettings();
@@ -672,7 +676,8 @@ export function LabResultsPreview({ results, patient, emptyText }) {
 
 function LimsPrintConfigMain() {
   const dispatch = useDispatch();
-  const { state } = useLocation();
+  const location = useLocation();
+  const { state } = location;
   const patient = state?.patient || null;
   const patientId = state?.patientId || patient?.patient_unique_id;
 

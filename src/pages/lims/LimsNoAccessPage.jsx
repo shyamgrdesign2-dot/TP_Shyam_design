@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Button } from "antd";
 import {
@@ -8,12 +8,13 @@ import {
   getTokenData,
   trackEvent,
 } from "../../utils/utils";
+import { isReceptionistSession } from "../../utils/receptionistSession";
 import styles from "./LimsNoAccessPage.module.css";
 
 export default function LimsNoAccessPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const isReceptionist = searchParams.has("receptionist");
+  const location = useLocation();
+  const isReceptionist = isReceptionistSession(location.search);
   const { profile } = useSelector((state) => state.doctors);
   const [submitted, setSubmitted] = useState(false);
 
