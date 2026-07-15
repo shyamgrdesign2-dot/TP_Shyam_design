@@ -14,6 +14,7 @@ import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { GB_HEALTH_CHECKUP_REPORT, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
@@ -165,7 +166,7 @@ function PrescriptionPrintView() {
                     'Authorization': `Bearer ${cleanedToken}`,
                 },
             });
-            setLabParamsData(response.data?.data?.results || []);
+            setLabParamsData(normalizeLabResultsResponse(response));
         } catch (error) {
             console.error("Error fetching lab params:", error);
         }

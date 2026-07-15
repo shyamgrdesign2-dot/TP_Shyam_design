@@ -46,6 +46,7 @@ import {
   ZYDUS_WHATS_APP_API,
   FETCH_SMART_RX,
 } from "../../../../utils/constants";
+import { normalizeLabResultsResponse } from "../../../../utils/labResultsUtils";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useZydusWhatsapp } from "../../../../hooks/useZydusWhatsapp";
 import { env } from "../../../../EnvironmentConfig";
@@ -402,7 +403,7 @@ function TabRxPrescriptionPrintView() {
           },
         },
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }

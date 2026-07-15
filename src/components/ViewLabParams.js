@@ -1,10 +1,11 @@
 import { Button, Input, Tooltip } from 'antd';
-import React, { useState, useRef, useEffect } from 'react';
-import { CaretRightOutlined, CaretDownOutlined } from '@ant-design/icons';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { CaretRightOutlined, CaretDownOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { GB_CVT_EXT_HOS } from '../utils/constants';
+import { getDecodedToken } from '../utils/localStorage';
 
 const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitchToAddLabParams }) => {
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
@@ -16,6 +17,24 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
     const [scrollLeft, setScrollLeft] = useState(0);
     const [filteredReports, setFilteredReports] = useState([]);
     const [groupedData, setGroupedData] = useState({});
+
+    const loggedInDoctorId = useMemo(() => {
+        try {
+            return getDecodedToken()?.result?.user_id;
+        } catch {
+            return undefined;
+        }
+    }, []);
+
+    const columnKey = (entry) =>
+        `${entry?.date ?? ''}|${entry?.doctorId ?? ''}|${entry?.receptionistId ?? ''}`;
+
+    const isOtherDoctorEntry = (entry) => {
+        const entryDoctorId = entry?.doctorId;
+        if (entryDoctorId == null || entryDoctorId === '') return false;
+        if (loggedInDoctorId == null || loggedInDoctorId === '') return false;
+        return String(entryDoctorId) !== String(loggedInDoctorId);
+    };
 
     // Toggle report expansion/collapse
     const toggleReport = (reportName) => {
@@ -57,16 +76,22 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
                         updatedData[reportKey][testKey] = [];
                     }
     
-                    // Push each entry to the respective test within the report, with the date
+                    // Push each entry to the respective test within the report, with the date + ownership
                     updatedData[reportKey][testKey].push({
                         date: report.date,
                         value: input.value,
                         unit: input.units,
                         arrowDirection: input.arrowDirection,
+                        doctorId: report.doctorId,
+                        receptionistId: report.receptionistId,
+                        columnKey: columnKey(report),
                     });
                 });
             });
             setGroupedData(updatedData);
+        } else {
+            setFilteredReports([]);
+            setGroupedData({});
         }
     }, [searchTerm, labParamsData]);
     
@@ -75,9 +100,10 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
         if (!searchKey) return data;
     
         return data
-            .map(({ date, inputs }) => {
+            .map((entry) => {
+                const { date, inputs, doctorId, receptionistId } = entry;
                 // Filter inputs to only include those that match the search term
-                const matchingInputs = inputs.filter(
+                const matchingInputs = (inputs || []).filter(
                     ({ testName, reportName }) =>
                         testName.toLowerCase().includes(searchKey.toLowerCase()) ||
                         reportName.toLowerCase().includes(searchKey.toLowerCase())
@@ -85,14 +111,34 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
     
                 // If there are any matching inputs, keep this date with only those inputs
                 return matchingInputs.length > 0
-                    ? { date, inputs: matchingInputs }
+                    ? { date, inputs: matchingInputs, doctorId, receptionistId }
                     : null;
             })
             .filter(Boolean); // Remove null entries where there are no matches
     };
-    
-    
 
+    const renderColumnHeader = (entry) => {
+        const showOtherDoctorInfo = isOtherDoctorEntry(entry);
+        return (
+            <div className="d-flex align-items-center gap-1">
+                <span>{dayjs(entry?.date).format("DD MMM, YYYY")}</span>
+                {showOtherDoctorInfo ? (
+                    <Tooltip
+                        title="Data added by another doctor"
+                        placement="top"
+                    >
+                        <InfoCircleOutlined
+                            style={{
+                                fontSize: 14,
+                                color: "#696974",
+                                cursor: "pointer",
+                            }}
+                        />
+                    </Tooltip>
+                ) : null}
+            </div>
+        );
+    };
     // Handle horizontal scrolling via dragging
     const handleMouseDown = (e) => {
         setIsDragging(true);
@@ -176,7 +222,7 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
                                             return (
                                                 <>
                                                     <div
-                                                        key={entry.date}
+                                                        key={columnKey(entry)}
                                                         style={{
                                                             width: '160px',
                                                             padding: '10px',
@@ -186,10 +232,10 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
                                                             textWrap: "nowrap",
                                                         }}
                                                     >
-                                                        {dayjs(entry?.date).format("DD MMM, YYYY")}
+                                                        {renderColumnHeader(entry)}
                                                     </div>
                                                     <div
-                                                        key={entry.date}
+                                                        key={`${columnKey(entry)}-spacer`}
                                                         style={{
                                                             width: '160px',
                                                             padding: '10px',
@@ -210,7 +256,7 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
                                             const isLastCell = entryIndex === filteredReports.length - 1;
                                             return (
                                                 <div
-                                                    key={entry.date}
+                                                    key={columnKey(entry)}
                                                     style={{
                                                         width: '160px',
                                                         padding: '10px',
@@ -222,7 +268,7 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
                                                         textWrap: "nowrap",
                                                     }}
                                                 >
-                                                    {dayjs(entry?.date).format("DD MMM, YYYY")}
+                                                    {renderColumnHeader(entry)}
                                                 </div>
                                             );
                                         })
@@ -285,7 +331,7 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
                                                     const isLastCell = entryIndex === filteredReports.length - 1;
                                                     return (
                                                         <td
-                                                            key={entry.date}
+                                                            key={columnKey(entry)}
                                                             style={{
                                                                 background: "#FAFAFB",
                                                                 width: "160px",
@@ -337,11 +383,11 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
                                                                 {filteredReports.map((entry) => {
                                                                     const testOnDate =
                                                                         groupedData[reportName][testName].find(
-                                                                            (t) => t.date === entry.date
+                                                                            (t) => t.columnKey === columnKey(entry)
                                                                         );
                                                                     return (
                                                                       <div
-                                                                        key={entry.date}
+                                                                        key={columnKey(entry)}
                                                                         style={{width: "160px",
                                                                           borderRight: "1px solid #ddd",
                                                                           padding: "10px",

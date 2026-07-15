@@ -2,6 +2,261 @@ import moment from 'moment';
 import { env } from '../EnvironmentConfig';
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from './constants';
 
+// ----- Lab result GET response normalization (multi-doctor buckets) -----
+
+/**
+ * True when current URL is a receptionist session.
+ */
+export function isLabResultsReceptionistSession() {
+  try {
+    return new URLSearchParams(window.location.search).has('receptionist');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Attending doctor um_id from receptionist URL (`um_id=524` or `um_id=524,525`).
+ * Returns the first id when multiple are present.
+ */
+export function getAttendingDoctorUmIdFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('receptionist')) return undefined;
+    const raw = params.get('um_id');
+    if (!raw) return undefined;
+    const first = String(raw).split(',').map((s) => s.trim()).filter(Boolean)[0];
+    if (first == null || first === '') return undefined;
+    const asNum = Number(first);
+    return Number.isNaN(asNum) ? first : asNum;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Owner doctor id used when editing/saving:
+ * - Receptionist → URL um_id (attending) when present
+ * - Doctor → JWT user_id
+ */
+export function getLabResultsOwnerDoctorId(tokenUserId) {
+  if (isLabResultsReceptionistSession()) {
+    return getAttendingDoctorUmIdFromUrl();
+  }
+  return tokenUserId;
+}
+
+/**
+ * Normalizes GET /api/v1/lab-parameters/results/:patientId responses.
+ *
+ * New BE: `data` is always an array of doctor buckets:
+ *   [{ doctorId, receptionistId, results: [{ date, inputs, documentsUrls, ... }] }, ...]
+ * Empty: `data: []`
+ * Legacy bridge: `data` may still be a single document object with `results`.
+ *
+ * Accepts an axios response, API body, or the `data` field directly.
+ * Returns a flat [{ date, inputs, doctorId, receptionistId, documentsUrls, ... }, ...]
+ */
+export function normalizeLabResultsResponse(apiResponseOrBody) {
+  const flattenBuckets = (buckets) =>
+    (Array.isArray(buckets) ? buckets : []).flatMap((bucket) => {
+      if (!bucket || typeof bucket !== 'object') return [];
+      const entries = Array.isArray(bucket.results) ? bucket.results : [];
+      return entries.map((entry) => ({
+        ...entry,
+        doctorId: entry?.doctorId ?? bucket.doctorId ?? null,
+        receptionistId: entry?.receptionistId ?? bucket.receptionistId ?? null,
+      }));
+    });
+
+  const isDoctorBucket = (item) =>
+    item &&
+    typeof item === 'object' &&
+    Array.isArray(item.results) &&
+    !Array.isArray(item.inputs);
+
+  const isFlatResultRow = (item) =>
+    item &&
+    typeof item === 'object' &&
+    (item.date != null || Array.isArray(item.inputs)) &&
+    !Array.isArray(item.results);
+
+  /** Extract the `data` payload from axios / API envelopes. */
+  const unwrapData = (value) => {
+    if (value == null) return value;
+    // Axios response → body
+    if (
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.prototype.hasOwnProperty.call(value, 'data') &&
+      (value.status != null || value.headers != null || value.config != null)
+    ) {
+      return unwrapData(value.data);
+    }
+    // API envelope `{ status, data }` or `{ data }`
+    if (
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.prototype.hasOwnProperty.call(value, 'data') &&
+      (Object.prototype.hasOwnProperty.call(value, 'status') ||
+        Array.isArray(value.data) ||
+        (value.data && typeof value.data === 'object'))
+    ) {
+      return value.data;
+    }
+    return value;
+  };
+
+  const payload = unwrapData(apiResponseOrBody);
+
+  // New / empty: data is always an array of buckets
+  if (Array.isArray(payload)) {
+    if (payload.length === 0) return [];
+    if (payload.some(isDoctorBucket)) return flattenBuckets(payload);
+    // Already flattened rows (rare / intermediate)
+    if (payload.every(isFlatResultRow)) return payload.map((entry) => ({ ...entry }));
+    return [];
+  }
+
+  // Legacy bridge: single document object → treat as one bucket so doctorId is preserved
+  if (payload && typeof payload === 'object' && isDoctorBucket(payload)) {
+    return flattenBuckets([payload]);
+  }
+
+  return [];
+}
+
+/**
+ * Keeps only result entries owned by `ownerDoctorId`.
+ * Untagged entries (no doctorId) are kept so legacy/new rows remain editable.
+ * When ownerDoctorId is null/undefined, only untagged entries are kept.
+ */
+export function filterLabResultsByDoctor(results, ownerDoctorId) {
+  if (!Array.isArray(results)) return [];
+  if (ownerDoctorId == null || ownerDoctorId === '') {
+    return results.filter((entry) => entry?.doctorId == null || entry?.doctorId === '');
+  }
+  return results.filter(
+    (entry) =>
+      entry?.doctorId == null ||
+      entry?.doctorId === '' ||
+      String(entry.doctorId) === String(ownerDoctorId),
+  );
+}
+
+/**
+ * Re-attaches per-row PDF / external metadata from previously loaded GET rows
+ * so an edit/save does not drop documentsUrls / isExternalPatient / etc.
+ */
+export function mergeLabResultRowMeta(assembledResults, sourceResults) {
+  if (!Array.isArray(assembledResults)) return [];
+  const byDate = new Map();
+  (sourceResults || []).forEach((row) => {
+    if (!row?.date) return;
+    byDate.set(String(row.date).slice(0, 10), row);
+  });
+  return assembledResults.map((entry) => {
+    const prev = byDate.get(String(entry?.date || '').slice(0, 10));
+    if (!prev) return entry;
+    return {
+      ...entry,
+      documentsUrls: entry.documentsUrls ?? prev.documentsUrls,
+      isExternalPatient:
+        entry.isExternalPatient != null ? entry.isExternalPatient : prev.isExternalPatient,
+      attendingDoctorId:
+        entry.attendingDoctorId !== undefined ? entry.attendingDoctorId : prev.attendingDoctorId,
+      createdAt: entry.createdAt ?? prev.createdAt,
+    };
+  });
+}
+
+/**
+ * Strips ownership / UI-only fields before POST, while preserving
+ * documentsUrls / isExternalPatient / attendingDoctorId / createdAt on each result row.
+ */
+export function sanitizeLabResultsForSave(results) {
+  if (!Array.isArray(results)) return [];
+  return results
+    .map((entry) => {
+      if (!entry?.date) return null;
+      const inputs = (entry.inputs || [])
+        .map((input) => {
+          if (!input || typeof input !== 'object') return null;
+          const {
+            recentlyUpdated,
+            doctorId,
+            receptionistId,
+            ...rest
+          } = input;
+          return rest;
+        })
+        .filter(Boolean);
+      if (inputs.length === 0) return null;
+
+      const sanitized = { date: entry.date, inputs };
+      if (entry.createdAt != null) sanitized.createdAt = entry.createdAt;
+      if (Array.isArray(entry.documentsUrls)) sanitized.documentsUrls = entry.documentsUrls;
+      if (entry.isExternalPatient != null) sanitized.isExternalPatient = entry.isExternalPatient;
+      if (entry.attendingDoctorId !== undefined) {
+        sanitized.attendingDoctorId = entry.attendingDoctorId;
+      }
+      return sanitized;
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Builds POST /api/v1/lab-parameters/results payload.
+ * Doctor: { patientId, doctorId?, results }
+ * Receptionist: { patientId, um_id?, results } (um_id = attending when known)
+ */
+export function buildLabResultsSavePayload({
+  patientId,
+  results,
+  tokenUserId,
+  attendingDoctorUmId,
+  isReceptionist,
+} = {}) {
+  const sanitized = sanitizeLabResultsForSave(results);
+  const payload = {
+    patientId,
+    results: sanitized,
+  };
+
+  const receptionist =
+    isReceptionist != null ? Boolean(isReceptionist) : isLabResultsReceptionistSession();
+  const attending =
+    attendingDoctorUmId != null ? attendingDoctorUmId : getAttendingDoctorUmIdFromUrl();
+
+  if (receptionist) {
+    if (attending != null && attending !== '') {
+      payload.um_id = attending;
+      // Backend also accepts doctorId for attending doctor.
+      payload.doctorId = attending;
+    } else if (typeof console !== 'undefined') {
+      // Without um_id BE falls back to clinic owner_doctor — likely the wrong bucket.
+      console.warn(
+        '[lab-results] Receptionist POST without um_id/doctorId; backend will use clinic owner_doctor.',
+      );
+    }
+  } else if (tokenUserId != null && tokenUserId !== '') {
+    // Doctor path: patientId + results is enough; doctorId kept for compatibility.
+    payload.doctorId = tokenUserId;
+  }
+
+  return payload;
+}
+
+export function formatLabResultDoctorLabel(doctorId) {
+  if (doctorId == null || doctorId === '') return '';
+  return `Dr ID ${doctorId}`;
+}
+
+export function formatLabResultReceptionistLabel(receptionistId) {
+  if (receptionistId == null || receptionistId === '') return '';
+  return `Entered by ${receptionistId}`;
+}
+
 // ----- Lab result API (GET today's results) -----
 
 function formatResultsFromApiResponse(results) {
@@ -11,7 +266,7 @@ function formatResultsFromApiResponse(results) {
   results.forEach((result) => {
     (result.inputs || []).forEach((input) => {
       if (!input?.testName || input.testName === 'Remarks') return;
-      const testKey = `${input.testName}`.toLowerCase().trim();
+      const testKey = `${input.testName}|${result.doctorId ?? ''}`.toLowerCase().trim();
       if (seenTests.has(testKey)) return;
       const value = input.value != null ? String(input.value).trim() : '';
       if (!value) return;
@@ -27,6 +282,8 @@ function formatResultsFromApiResponse(results) {
         reportName: input.reportName || result.reportName || '',
         units: units || '',
         refRange: input.refRange || null,
+        doctorId: result.doctorId,
+        receptionistId: result.receptionistId,
       });
       seenTests.add(testKey);
     });
@@ -63,7 +320,7 @@ export const getTodayLabResults = async (patient_data, todayOnly = false) => {
       return null;
     }
     const labData = await response.json();
-    const allResults = labData?.data?.results || [];
+    const allResults = normalizeLabResultsResponse(labData);
     if (allResults.length === 0) {
       return null;
     }

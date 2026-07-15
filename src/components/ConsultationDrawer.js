@@ -98,7 +98,7 @@ import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import { addPatientLabReports } from "../api/services/ApiLabParams";
 import ApiVitals from "../api/services/ApiVitals";
-import { prescriptionLabResultsToResultsArray } from "../utils/labResultsUtils";
+import { prescriptionLabResultsToResultsArray, buildLabResultsSavePayload } from "../utils/labResultsUtils";
 import { prescriptionMedicalHistoryToContextFormat } from "../utils/medicalHistoryUtils";
 import { resolveMedicalHistoryForCaseManager } from "../utils/medicalHistoryUtils";
 import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
@@ -3538,11 +3538,11 @@ const ConsultationDrawer = ({
       try {
         const results = prescriptionLabResultsToResultsArray(prescriptionData.labResults);
         if (results.length > 0) {
-          const payload = {
+          const payload = buildLabResultsSavePayload({
             patientId: labPatientId,
-            doctorId: labDoctorId,
             results,
-          };
+            tokenUserId: labDoctorId,
+          });
           const response = await addPatientLabReports(payload);
           const idFromResponse = response?.data?.labReportID ?? response?.data?.data?.labReportID;
           if (idFromResponse != null) {

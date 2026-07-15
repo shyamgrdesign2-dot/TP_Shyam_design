@@ -16,6 +16,12 @@ import ApiCaseManager from "../../api/services/ApiCaseManager";
 import config from "../../config";
 import { env } from "../../EnvironmentConfig";
 import { LAB_PARAMS_RESULTS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
+import {
+  normalizeLabResultsResponse,
+  buildLabResultsSavePayload,
+  getAttendingDoctorUmIdFromUrl,
+  isLabResultsReceptionistSession,
+} from "../../utils/labResultsUtils";
 
 const visitBaseUrl = { customBaseUrl: config.visit_api_url };
 const labBaseUrl = { customBaseUrl: env.lab_params_api_url };
@@ -58,14 +64,14 @@ export async function fetchLimsPatients({
   }
 }
 
-// All saved lab result dates for a patient.
+// All saved lab result dates for a patient (flattened across doctors under hm_id).
 export async function fetchPatientLabResults(patientId) {
   if (!patientId) return [];
   try {
     const res = await axios.get(`${labRoot}/api/v1/lab-parameters/results/${patientId}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
-    return res?.data?.data?.results || [];
+    return normalizeLabResultsResponse(res);
   } catch (e) {
     console.error("LIMS: failed to fetch lab results", e);
     return [];
@@ -88,8 +94,14 @@ export async function searchLabCatalog(query) {
 }
 
 // Persist results against a patient. Same endpoint + payload as the EMR drawer.
-export async function saveLabResults({ patientId, results }) {
-  const payload = { patientId, doctorId: getDoctorId(), results };
+export async function saveLabResults({ patientId, results, um_id }) {
+  const payload = buildLabResultsSavePayload({
+    patientId,
+    results,
+    tokenUserId: getDoctorId(),
+    attendingDoctorUmId: um_id ?? getAttendingDoctorUmIdFromUrl(),
+    isReceptionist: isLabResultsReceptionistSession(),
+  });
   return api.post(LAB_PARAMS_RESULTS, payload, labBaseUrl);
 }
 

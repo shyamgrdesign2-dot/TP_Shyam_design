@@ -40,8 +40,6 @@ import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateBanner from "./common/UpdateBanner";
 import { clearSentryContext } from "./utils/sentryContext";
 import { growthbook } from "./utils/growthbook";
-import LimsAccessGate from "./pages/lims/LimsAccessGate";
-import { PATIENT_PRESCRIPTION_ROUTE } from "./utils/patientPrescriptionLink";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))

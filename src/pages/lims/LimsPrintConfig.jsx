@@ -600,7 +600,17 @@ export function LabResultsPreview({ results, patient, emptyText }) {
                         {reportName}
                       </span>
                       <span className={styles.previewReportMeta}>
-                        {dateLabel}
+                        {[
+                          dateLabel,
+                          // entry.doctorId != null && entry.doctorId !== ""
+                          //   ? `Dr ID ${entry.doctorId}`
+                          //   : null,
+                          // entry.receptionistId != null && entry.receptionistId !== ""
+                          //   ? `Entered by ${entry.receptionistId}`
+                          //   : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     </div>
                     {renderNonTableResults(filledTests, labFormat)}
