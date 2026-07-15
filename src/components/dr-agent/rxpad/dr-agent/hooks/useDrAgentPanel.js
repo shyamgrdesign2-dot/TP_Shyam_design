@@ -48,6 +48,7 @@ import {
 import {
   buildVoiceHistoryEntry,
   trackVoiceRx2StartEvent,
+  VOICE_RX_PROCESSING_API,
   uploadAndLogVoiceRx2,
 } from "../../../voicerx/voiceRx2Logging";
 import {
@@ -1002,6 +1003,7 @@ export function useDrAgentPanel({
         voicecall,
         sourceSurface: "doctor-agent",
         isDoctorAgent: true,
+        processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_AUDIO,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -1052,6 +1054,7 @@ export function useDrAgentPanel({
         voicecall,
         sourceSurface: "doctor-agent",
         isDoctorAgent: true,
+        processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_AUDIO,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -1373,6 +1376,7 @@ export function useDrAgentPanel({
           voicecall,
           sourceSurface: "doctor-agent",
           isDoctorAgent: true,
+          processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_AUDIO,
           micBeingUsed: meta?.micBeingUsed || "",
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -1426,6 +1430,7 @@ export function useDrAgentPanel({
           voicecall,
           sourceSurface: "doctor-agent",
           isDoctorAgent: true,
+          processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_AUDIO,
           micBeingUsed: meta?.micBeingUsed || "",
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),

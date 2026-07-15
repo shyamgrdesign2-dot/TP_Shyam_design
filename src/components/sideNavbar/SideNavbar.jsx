@@ -52,7 +52,7 @@ import { ASSETS } from "../../assets";
 import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
-import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
+import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
 import { toast } from "../dr-agent/voicerx/toast";
@@ -6330,6 +6330,9 @@ export function SideNavbar({
         moduleName: isPrivateNotesVoice ? "Private Notes" : SIDE_NAV_MODULE_NAMES[sectionId],
         sourceSurface: "side-navbar",
         isDoctorAgent: false,
+        processingApiName: isPrivateNotesVoice
+          ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+          : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -6365,6 +6368,9 @@ export function SideNavbar({
         moduleName: isPrivateNotesVoice ? "Private Notes" : SIDE_NAV_MODULE_NAMES[sectionId],
         sourceSurface: "side-navbar",
         isDoctorAgent: false,
+        processingApiName: isPrivateNotesVoice
+          ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+          : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),

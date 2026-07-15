@@ -7,6 +7,11 @@ import { getClinic, trackEvent } from "../../../utils/utils";
 
 export const VOICE_RX_2_VERSION = "2.0";
 export const VOICE_RX_MODEL = "zyvelor";
+export const VOICE_RX_PROCESSING_API = {
+  TRANSCRIBE_ANY_AUDIO: "agents/transcribe-any-audio",
+  AGENTS_MODULE: "agents/module",
+  TRANSCRIBE_AUDIO: "agents/transcribe-audio",
+};
 
 export function getBrowserNameForVoiceRx2() {
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
@@ -62,6 +67,7 @@ export function buildVoiceRx2EventPayload({
   sourceSurface = "",
   voiceInputLocation = "",
   isDoctorAgent = false,
+  processingApiName = "",
   micBeingUsed = "",
   extra = {},
 } = {}) {
@@ -100,6 +106,7 @@ export function buildVoiceRx2EventPayload({
     sourceSurface,
     voiceInputLocation,
     isDoctorAgent,
+    processingApiName,
     voiceRxVersion: VOICE_RX_2_VERSION,
     timestamp: new Date().toISOString(),
     ...extra,
@@ -382,6 +389,7 @@ export async function uploadAndLogVoiceRx2({
   sourceSurface = "",
   voiceInputLocation = "",
   isDoctorAgent = false,
+  processingApiName = "",
   micBeingUsed = "",
   voiceLogCreated = false,
   markVoiceLogCreated,
@@ -432,6 +440,7 @@ export async function uploadAndLogVoiceRx2({
     sourceSurface,
     voiceInputLocation,
     isDoctorAgent,
+    processingApiName,
     micBeingUsed,
     extra: {
       prescriptionUrl: source,

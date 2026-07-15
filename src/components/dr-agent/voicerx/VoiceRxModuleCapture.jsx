@@ -29,6 +29,7 @@ import {
   buildVoiceHistoryEntry,
   trackVoiceRx2DiscardEvent,
   trackVoiceRx2StartEvent,
+  VOICE_RX_PROCESSING_API,
   uploadAndLogVoiceRx2,
 } from "./voiceRx2Logging";
 import { transcribeAnyAudio } from "./api/agent-audio-service";
@@ -1350,6 +1351,9 @@ export function VoiceRxModuleCapture({
           moduleName,
           sourceSurface: "module",
           isDoctorAgent: false,
+          processingApiName: isTranscribeMode
+            ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+            : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
           micBeingUsed,
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -1397,6 +1401,9 @@ export function VoiceRxModuleCapture({
           moduleName,
           sourceSurface: "module",
           isDoctorAgent: false,
+          processingApiName: isTranscribeMode
+            ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+            : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
           micBeingUsed,
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
