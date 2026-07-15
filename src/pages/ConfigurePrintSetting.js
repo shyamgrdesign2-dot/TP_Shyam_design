@@ -39,6 +39,7 @@ import { getGenRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "./snapRx/services/snapRxService";
 import { env } from "../EnvironmentConfig";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
@@ -510,7 +511,7 @@ function ConfigurePrintSetting() {
                         `${baseUrl}/api/v1/lab-parameters/results/${patientId}`,
                         { headers: { Authorization: `Bearer ${cleanedToken}` } }
                     );
-                    const labResults = response?.data?.data?.results ?? response?.data?.results ?? [];
+                    const labResults = normalizeLabResultsResponse(response);
                     const labArray = getTodayLabParams(labResults);
                     setLabParamsData(labArray);
                 } catch (error) {

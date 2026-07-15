@@ -1,0 +1,536 @@
+.shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f7f7f7;
+  font-family: "Inter", sans-serif;
+}
+
+@keyframes limsSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.limsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e2e2ea;
+  flex-shrink: 0;
+}
+
+.limsHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.limsHeaderDivider {
+  width: 1px;
+  height: 24px;
+  background: #e2e2ea;
+}
+
+.limsHeaderTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #171725;
+}
+.backButton {
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #44444f;
+}
+
+.main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* overflow: auto; */
+  padding: 20px 24px 32px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 40;
+}
+
+.searchWrap {
+  width: 24rem;
+  max-width: 50%;
+}
+
+.filterWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+.limsDateWrapper {
+  position: relative;
+  min-width: 220px;
+  height: 40px;
+  border: 1px solid #dce4e8;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.limsDateTrigger {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  font-size: 14px;
+  color: #44444f;
+  cursor: pointer;
+}
+
+.limsDateTriggerActive {
+  color: #171725;
+}
+
+.limsDateTriggerLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.limsDatePickerHost {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.limsDateInput {
+  width: 100%;
+  height: 38px;
+  position: absolute;
+  inset: 0;
+  border-radius: 12px !important;
+  background: transparent;
+  z-index: -1;
+}
+
+.limsDateInput:hover,
+.limsDateInput:focus,
+.limsDateInput:focus-within {
+  border-color: transparent !important;
+  box-shadow: none;
+}
+
+.limsDateFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.limsDateFooterRange {
+  font-size: 13px;
+  color: #44444f;
+}
+
+.limsDateFooterActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.limsDateCancelBtn {
+  border: 0;
+  background: transparent;
+  color: #44444f;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+:global(.lims-date-popup .ant-picker-presets) {
+  width: 170px;
+}
+
+:global(.lims-date-popup .ant-picker-presets ul li) {
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+:global(.lims-date-popup .ant-picker-presets ul li:hover) {
+  background: #f4f4fa;
+}
+.filterButtonActive {
+  border-color: #4b4ad5 !important;
+  color: #4b4ad5 !important;
+}
+
+.filterTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #dce4e8;
+  border-radius: 12px;
+  background: #fff;
+  color: #44444f;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.filterTrigger:hover {
+  border-color: #c9d2d8;
+}
+
+.filterTriggerActive {
+  border-color: #4b4ad5;
+  color: #4b4ad5;
+  background: #f7f7ff;
+}
+
+.filterTriggerIcon,
+.filterTriggerChevron {
+  font-size: 14px;
+}
+
+.filterDropdownOverlay :global(.ant-dropdown-menu) {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.filterPanel {
+  background: #fff;
+  border: 1px solid #ececf2;
+  border-radius: 16px;
+  width: 300px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(23, 23, 37, 0.12);
+}
+
+.filterSection {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #ececf2;
+}
+
+.filterTitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #92929d;
+  margin-bottom: 8px;
+}
+
+.filterOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filterOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.filterOption:hover {
+  background: #f7f7fb;
+}
+
+.filterOptionActive {
+  background: #f0f0ff;
+  border-color: #d7d6ff;
+}
+
+.filterOptionActive .filterOptionLabel {
+  color: #4b4ad5;
+  font-weight: 500;
+}
+
+.filterOptionLabel {
+  font-size: 14px;
+  color: #171725;
+}
+
+.filterOption :global(.ant-checkbox-wrapper),
+.filterOption :global(.ant-checkbox),
+.filterOption :global(.ant-checkbox-input),
+.filterOption :global(input) {
+  pointer-events: none;
+}
+
+.filterOption :global(.ant-checkbox-wrapper) {
+  margin-inline-end: 0;
+}
+
+.filterOption :global(.ant-checkbox-checked .ant-checkbox-inner) {
+  background-color: #4b4ad5;
+  border-color: #4b4ad5;
+}
+
+.filterFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.clearAllBtn {
+  border: 0;
+  background: transparent;
+  color: #d97706;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.filterDoneBtn {
+  min-width: 88px;
+  height: 36px !important;
+  border-radius: 999px !important;
+  padding: 0 20px !important;
+}
+.tableWrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Match All Patients table: sticky header inside scroll container */
+.tableWrap :global(.ant-table) {
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.tableWrap :global(.ant-table table thead) {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+}
+
+.tableWrap :global(.ant-table-thead > tr > th) {
+  background: #f1f1f5 !important;
+}
+
+.tableWrap :global(.ant-table-tbody > tr > td) {
+  background: #fff;
+}
+
+.tableWrap :global(.ant-table-tbody > tr:hover > td) {
+  background: #fafafb;
+}
+
+/* Remove fixed-column shadow/background if any column uses fixed positioning */
+.tableWrap :global(.ant-table-cell-fix-right),
+.tableWrap :global(.ant-table-cell-fix-left) {
+  background: inherit !important;
+}
+
+.tableWrap :global(.ant-table-cell-fix-right::before),
+.tableWrap :global(.ant-table-cell-fix-left::before) {
+  box-shadow: none !important;
+}
+
+.loadMoreSentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+}
+
+.cellText {
+  font-size: 14px;
+  color: #44444f;
+}
+.patientName {
+  font-size: 14px;
+  font-weight: 600;
+}
+.patientSubtext {
+  font-size: 12px;
+  color: #717179;
+}
+
+/* Tests badge with hover info */
+.testsBadgeWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.testsTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.infoIconWrap {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.testsInfoPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 220px;
+  max-width: 300px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  padding: 12px;
+  animation: fadeIn 0.15s ease;
+}
+
+.testsInfoTitle {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: #171725;
+}
+
+.testsInfoList {
+  margin: 0;
+  padding-left: 16px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 13px;
+}
+.testsInfoList li {
+  margin: 2px 0;
+  color: #44444f;
+}
+
+/* Three-dots action menu */
+.actionMenuWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.dotsBtn {
+  border: 0;
+  background: transparent;
+  padding: 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #44444f;
+  transition: background 0.15s;
+}
+.dotsBtn:hover {
+  background: var(--tesseract-bg-hover, rgba(0, 0, 0, 0.06));
+}
+
+.actionDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  background: #fff;
+  border-radius: var(--tesseract-radius-300, 12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  animation: fadeIn 0.15s ease;
+}
+
+.actionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  border-radius: var(--tesseract-radius-200, 8px);
+  font-size: 14px;
+  color: var(--tesseract-fg-secondary, #44444f);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.actionItem:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #171725;
+}
+
+.muted {
+  color: #92929d;
+}
+
+.emptyState {
+  padding: 60px 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #92929d;
+}
+
+.emptyTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #171725;
+  margin-top: 4px;
+}
+
+.emptyDesc {
+  font-size: 14px;
+  color: #92929d;
+  max-width: 360px;
+  line-height: 1.5;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.drawerLoadingOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.45);
+}

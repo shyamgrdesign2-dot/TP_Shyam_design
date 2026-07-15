@@ -17,6 +17,7 @@ import {
 } from '../../api/services/ApiGenRxMobile';
 import ApiMedication from '../../api/services/ApiMedication';
 import { addPatientLabReports } from '../../api/services/ApiLabParams';
+import { buildLabResultsSavePayload } from '../../utils/labResultsUtils';
 import { addCaseManager, editCaseManager, viewCaseManager } from '../../redux/caseManagerSlice';
 import { addUpdateVitals, getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday } from '../../redux/vitalsSlice';
 import { getPatientLastHistory } from '../../redux/medicalhistorySlice';
@@ -760,11 +761,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     const doctorId = profile?.doctor_unique_id || fallbackDoctorId;
     if (!doctorId) return; // Avoid API call that would fail; labParamsData still sent to case manager
     try {
-      await addPatientLabReports({
-        patientId: patient_data.patient_unique_id,
-        doctorId,
-        results: labResultsDataForApi,
-      });
+      await addPatientLabReports(
+        buildLabResultsSavePayload({
+          patientId: patient_data.patient_unique_id,
+          results: labResultsDataForApi,
+          tokenUserId: doctorId,
+        })
+      );
     } catch (err) {
       console.error('Error saving lab results to API:', err);
     }

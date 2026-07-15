@@ -63,6 +63,7 @@ import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import { errorMessage } from "../utils/utils";
 import { MESSAGE_KEY } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import CommonModal from "../common/CommonModal";
 
 import LoopingVideo from "../components/common/LoopingVideo";
@@ -1655,7 +1656,7 @@ function SmartPrescription() {
           },
         }
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }

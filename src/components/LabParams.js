@@ -5,7 +5,16 @@ import axios from 'axios';
 import moment from "moment";
 import { jwtDecode } from 'jwt-decode';
 import { LAB_PARAMS_RESULTS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
-import { extractUnitsFromValue, valueWithoutUnitsForApi } from '../utils/labResultsUtils';
+import {
+  extractUnitsFromValue,
+  valueWithoutUnitsForApi,
+  normalizeLabResultsResponse,
+  filterLabResultsByDoctor,
+  buildLabResultsSavePayload,
+  getLabResultsOwnerDoctorId,
+  isLabResultsReceptionistSession,
+  mergeLabResultRowMeta,
+} from '../utils/labResultsUtils';
 import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
@@ -33,6 +42,8 @@ const LabResultsTable = ({
     onResultsChange,
     /** When false (e.g. consult flow), prefill is never applied. Only voice/snap/ambient/smart should pass true. */
     applyRawPrefill = false,
+    /** Receptionist LIMS: last-visit doctor's um_id — filter + save against this doctor. */
+    attendingDoctorUmId,
 }) => {
 
     const [token, setToken] = useState(null);
@@ -191,17 +202,20 @@ const LabResultsTable = ({
                     'Authorization': `Bearer ${cleanedToken}`,
                 },
             });
-            setExistingResults(response.data?.data?.results || []);
+            const allResults = normalizeLabResultsResponse(response);
+            const ownerDoctorId = getLabResultsOwnerDoctorId(tokenData?.user_id, attendingDoctorUmId);
+            // Edit drawer must only hydrate the owning doctor's rows so save cannot re-post other doctors' data.
+            setExistingResults(filterLabResultsByDoctor(allResults, ownerDoctorId));
         } catch (error) {
             console.error("Error fetching lab params:", error);
         }
     };
 
     useEffect(() => {
-        if (token) {
+        if (token && tokenData) {
             getLabParams();
         }
-    }, [token]);
+    }, [token, tokenData?.user_id, patient_unique_id, attendingDoctorUmId]);
 
     const onSearch = useCallback((query) => {
         setSearchQuery(query);
@@ -872,11 +886,24 @@ const LabResultsTable = ({
 
         setFilledData([]);
 
-        const payload = {
+        const ownerDoctorId = getLabResultsOwnerDoctorId(tokenData?.user_id, attendingDoctorUmId);
+        // Extra safety: never POST another doctor's dated rows if they leaked into state.
+        // Also restore documentsUrls / isExternalPatient / attendingDoctorId from the GET rows.
+        const ownedResults = mergeLabResultRowMeta(
+          filterLabResultsByDoctor(data, ownerDoctorId).map((entry) => {
+            const { doctorId, receptionistId, ...rest } = entry || {};
+            return rest;
+          }),
+          existingResults,
+        );
+
+        const payload = buildLabResultsSavePayload({
             patientId: patient_unique_id,
-            doctorId: tokenData?.user_id,
-            results: data,
-        };
+            results: ownedResults,
+            tokenUserId: tokenData?.user_id,
+            attendingDoctorUmId: ownerDoctorId,
+            isReceptionist: isLabResultsReceptionistSession(),
+        });
 
         try {
             const response = await api.post(
