@@ -84,6 +84,7 @@ import {
     CUSTOM_MEDICINE_TYPE_ID,
     CUSTOM_MEDICINE_UNITS,
     mergeMedicineUnitOptions,
+    parseMedicationFrequencySlots,
     resolveCopiedDoseFields,
 } from "../utils/medicationCopyNormalization";
 const {
@@ -123,6 +124,21 @@ function getEditableSelection(element) {
         selectionStart,
         selectionEnd,
         targetId: getVoiceDictationTargetId(element),
+    };
+}
+
+function getDashedMedicineFrequencyFields(item = {}) {
+    const parsedFrequency = parseMedicationFrequencySlots(item?.tmm_freq_type_name || item?.frequency);
+    if (!parsedFrequency) return {};
+    return {
+        tmm_freq_type_name: parsedFrequency.label,
+        tmm_freq_type: 0,
+        tmf_block: 0,
+        tmf_block_val: "",
+        tcm_tmm_freq_morning: parsedFrequency.morning,
+        tcm_tmm_freq_afternoon: parsedFrequency.afternoon,
+        tcm_tmm_freq_evening: parsedFrequency.evening,
+        tcm_tmm_freq_night: parsedFrequency.night,
     };
 }
 
@@ -1903,6 +1919,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             const voiceMedicineUnits = shouldKeepUnitMetadata
                 ? mergeMedicineUnitOptions(medicineUnit, CUSTOM_MEDICINE_UNITS)
                 : medicineUnit;
+            const dashedFrequencyFields = getDashedMedicineFrequencyFields(rest);
             if (!rest?.voice_rx_from_module || hasMedicineId(rest)) {
                 if (shouldKeepUnitMetadata) {
                     const doseFields = resolveCopiedDoseFields(rest, voiceMedicineUnits, {
@@ -1913,6 +1930,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const resolvedUnit = doseFields.tmm_unit || rest.tmm_unit || rest.tmu_id || rest.default_tmm_unit || 0;
                     payload.push({
                         ...rest,
+                        ...dashedFrequencyFields,
                         ...doseFields,
                         tmm_unit: resolvedUnit,
                         tmu_id: resolvedUnit,
@@ -1976,6 +1994,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 tmm_type: createdMedicine?.tmm_type ?? rest.tmm_type ?? 0,
                 tmm_generic: createdMedicine?.tmm_generic ?? rest.tmm_generic ?? "",
                 tmm_company: createdMedicine?.tmm_company ?? rest.tmm_company ?? "",
+                ...dashedFrequencyFields,
                 ...doseFields,
                 tmm_unit: resolvedUnit,
                 tmu_id: resolvedUnit,

@@ -336,6 +336,14 @@ function findMedicineTiming(value, timingList = []) {
 
 export function getMedicineFrequencyDisplay(medicine, frequencyList = []) {
   const rawFrequency = getRawMedicineFrequencyText(medicine);
+  const parsedRawFrequency = parseMedicationFrequencySlots(rawFrequency);
+  if (parsedRawFrequency) {
+    return {
+      label: parsedRawFrequency.label,
+      blockValue: "",
+    };
+  }
+
   const frequencyObjById = frequencyList.find((x) => x.tmf_id == medicine?.tmm_freq_type);
   const frequencyObjByExactTitle = findMedicineFrequencyTitle(rawFrequency, frequencyList);
   const frequencyObj = frequencyObjById || frequencyObjByExactTitle;

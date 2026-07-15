@@ -135,6 +135,8 @@ const mergeSelectedMedicineForVoiceRow = (current = {}, selected = {}, keyParsed
     ...doseFields,
     default_tmm_unit: getPositiveId(selected.default_tmm_unit, doseFields.tmm_unit, current.default_tmm_unit),
     tmm_freq_type_name: current.tmm_freq_type_name,
+    tmm_freq_type: current.tmm_freq_type,
+    tmf_block: current.tmf_block,
     tmf_block_val: current.tmf_block_val,
     tcm_tmm_freq_morning: current.tcm_tmm_freq_morning,
     tcm_tmm_freq_afternoon: current.tcm_tmm_freq_afternoon,

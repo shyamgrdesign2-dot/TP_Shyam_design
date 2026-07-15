@@ -1,5 +1,6 @@
 import {
   buildMedicineDoseDisplayText,
+  getMedicineFrequencyDisplay,
   normalizeCopiedMedicationRows,
   parseMedicationFrequencySlots,
   resolveCopiedDoseFields,
@@ -175,6 +176,23 @@ describe("normalizeCopiedMedicationRows", () => {
       tmu_id: 2,
       tmm_unit_name: "Tablet(s)",
       tmm_dosage_unit_name: "1 Tablet(s)",
+    });
+  });
+});
+
+describe("getMedicineFrequencyDisplay", () => {
+  it("prefers dashed frequency text over stale dropdown frequency ids", () => {
+    expect(getMedicineFrequencyDisplay({
+      tmm_freq_type_name: "1 - 1 - 1",
+      tmm_freq_type: 2,
+      tmf_block: 1,
+      tcm_tmm_freq_morning: "1",
+      tcm_tmm_freq_afternoon: "1",
+      tcm_tmm_freq_evening: 0,
+      tcm_tmm_freq_night: "1",
+    }, frequencyList)).toMatchObject({
+      label: "1 - 1 - 1",
+      blockValue: "",
     });
   });
 });
