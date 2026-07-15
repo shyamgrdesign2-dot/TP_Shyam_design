@@ -375,6 +375,7 @@
     background: #fff;
   }
 
+  .header,
   .sidebar,
   .settingsPanel,
   .dateSection {
@@ -383,17 +384,21 @@
 
   .body {
     display: block;
+    overflow: visible;
   }
 
   .preview {
     padding: 0;
     overflow: visible;
+    display: block;
   }
 
   .printCard {
     box-shadow: none;
     border-radius: 0;
     max-width: none;
+    width: 100%;
+    min-height: auto;
   }
 
   .previewCard {

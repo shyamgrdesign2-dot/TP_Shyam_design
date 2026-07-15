@@ -399,15 +399,19 @@ export function LabResultsPreview({ results, patient, emptyText }) {
     <div className={styles.inlineWrap}>
       {filledTests.map((t, ti) => {
         const isAbnormal = t.arrowDirection === "UP" || t.arrowDirection === "DOWN";
-        const parts = [t.testName || ""];
-        if (t.value != null) parts.push(String(t.value) + (arrowSymbol(t.arrowDirection) ? " " + arrowSymbol(t.arrowDirection) : ""));
-        if (t.units) parts.push(t.units);
-        const ref = rangeText(t);
-        if (ref) parts.push(`(${ref})`);
+        const valueWithUnit = [
+          t.value != null ? String(t.value) : "",
+          t.units || "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        const arrow = arrowSymbol(t.arrowDirection);
         return (
           <span key={ti} className={isAbnormal ? styles.abnormalText : undefined}>
-            {parts.join(": ")}
-            {ti < filledTests.length - 1 ? " ; " : ""}
+            {t.testName || ""}
+            {valueWithUnit ? `: ${valueWithUnit}` : ""}
+            {arrow ? ` ${arrow}` : ""}
+            {ti < filledTests.length - 1 ? "; " : ""}
           </span>
         );
       })}
