@@ -11,7 +11,7 @@ function ReferralBox() {
   return (
     <div>
       <div className="d-flex align-items-center p-14-pb0">
-          <ReferralIcon size={18} color="#7C3AED" variant="bulk" />
+          <ReferralIcon color="#A461D8" variant="bulk" opacity={0.2} />
         <div className="title-common ms-2">Referral</div>
       </div>
       <div className="p-14">

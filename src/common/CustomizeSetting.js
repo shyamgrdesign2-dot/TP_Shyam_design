@@ -63,17 +63,6 @@ const PadLeftModuleIcon = ({ record }) => {
     setIconSrc(isCanvas ? CANVAS_ICON_PRIMARY_URL : fallbackUrl);
   }, [isCanvas, fallbackUrl]);
 
-  if (record?.tmdpm_id === 25) {
-    return (
-      <span
-        className="me-3 d-inline-flex align-items-center justify-content-center"
-        style={{ marginLeft: -12, width: 28, height: 28 }}
-      >
-        <ReferralIcon size={22} color="#7C3AED" variant="bulk" />
-      </span>
-    );
-  }
-
   return (
     <img
       src={iconSrc}
@@ -90,17 +79,6 @@ const PadLeftModuleIcon = ({ record }) => {
 };
 
 const PadRightModuleIcon = ({ record }) => {
-  if (record?.tmdpm_id === 26) {
-    return (
-      <span
-        className="me-3 d-inline-flex align-items-center justify-content-center"
-        style={{ marginLeft: -12, width: 28, height: 28 }}
-      >
-        <ReferralIcon size={22} color="#7C3AED" variant="bulk" />
-      </span>
-    );
-  }
-
   return (
     <img
       src={record.is_custom_module ? customModuleIcon : record.tmdpm_icon_url}
