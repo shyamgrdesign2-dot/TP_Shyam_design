@@ -67,7 +67,7 @@ export function VoiceRxBottomSheet({ isOpen, onClose, consultOptions, selectedOp
   return (
     <div className={styles.overlay}>
       <div className={styles.backdrop} onClick={onClose} />
-      <div className={styles.sheet}>
+      <div className={styles.sheet} data-testid="voicerx-mode-sheet">
         <div className={styles.dragHandle}>
           <span className={styles.dragPill} aria-hidden />
         </div>
@@ -107,6 +107,7 @@ export function VoiceRxBottomSheet({ isOpen, onClose, consultOptions, selectedOp
                   <div
                     role="button"
                     tabIndex={0}
+                    data-testid={`voicerx-mode-option-${opt.value}`}
                     onClick={() => onSelectOption(opt.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectOption(opt.value); } }}
                     aria-pressed={isSelected}
@@ -177,6 +178,7 @@ export function VoiceRxBottomSheet({ isOpen, onClose, consultOptions, selectedOp
             type="button"
             onClick={onConfirm}
             disabled={!canStart}
+            data-testid="voicerx-start-conversation"
             aria-label={startLabel}
             className={cn(styles.cta, canStart ? styles.ctaEnabled : styles.ctaDisabled)}
           >

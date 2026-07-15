@@ -1,0 +1,273 @@
+@use "../styles/tp-tokens" as tp;
+
+.drawerPanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.actionButton {
+  display: flex;
+  height: 36px;
+  width: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: var(--tp-slate-100);
+  color: var(--tp-slate-700);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  
+  &:hover {
+    background: var(--tp-slate-200);
+  }
+}
+
+.actionWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawerBody {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  background: #f5f5f5;
+  padding: 16px 24px;
+}
+
+.documentPaper {
+  overflow: hidden;
+  border-radius: 12px;
+  border: none;
+  background: #fff;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.letterhead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.clinicLogo {
+  display: flex;
+  height: 44px;
+  width: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--tp-blue-50);
+  color: var(--tp-blue-500);
+}
+
+.clinicInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.clinicName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tp-slate-900);
+}
+
+.doctorName {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tp-slate-600);
+}
+
+.clinicDetails {
+  font-size: 10px;
+  color: var(--tp-slate-500);
+}
+
+.divider {
+  height: 1px;
+  background: var(--tp-slate-100);
+}
+
+.patientContext {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+  row-gap: 6px;
+  background: rgba(var(--tp-slate-50-rgb), 0.7);
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--tp-slate-600);
+}
+
+.labelBold {
+  font-weight: 600;
+  color: var(--tp-slate-700);
+}
+
+.colSpan2 {
+  grid-column: span 2 / span 2;
+}
+
+.limitedServiceNotice {
+  border-top: 1px solid var(--tp-slate-100);
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tp-blue-600);
+}
+
+.rxBody {
+  padding: 14px 16px;
+}
+
+.rxHeader {
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  column-gap: 10px;
+  row-gap: 4px;
+  border-bottom: 1px solid var(--tp-slate-100);
+  padding-bottom: 10px;
+}
+
+.rxSymbol {
+  font-family: serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--tp-blue-600);
+}
+
+.rxTitleWrapper {
+  min-width: 0;
+  flex: 1;
+}
+
+.rxTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tp-slate-800);
+}
+
+.rxSubtitle {
+  font-size: 11px;
+  line-height: 1.375;
+  color: var(--tp-slate-500);
+}
+
+.serviceList {
+  > * + * {
+    margin-top: 0;
+  }
+}
+
+.serviceItem {
+  margin-top: 12px;
+  border-top: 1px solid var(--tp-slate-100);
+  padding-top: 12px;
+}
+
+.serviceItemTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tp-slate-500);
+}
+
+.serviceItemSubtitle {
+  margin-left: 6px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--tp-slate-400);
+}
+
+.noProceduresText {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.625;
+  color: var(--tp-slate-500);
+}
+
+.procedureList {
+  margin: 8px 0 0;
+  list-style: decimal;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--tp-slate-700);
+
+  > * + * {
+    margin-top: 8px;
+  }
+
+  &::marker {
+    color: var(--tp-slate-400);
+  }
+}
+
+.procedureItem {
+  padding-left: 4px;
+}
+
+.procedureName {
+  font-weight: 600;
+  color: var(--tp-slate-800);
+}
+
+.procedureMeta {
+  color: var(--tp-slate-500);
+}
+
+.procedureNotes {
+  margin-top: 2px;
+  display: block;
+  font-size: 11px;
+  color: var(--tp-slate-500);
+}
+
+.footer {
+  border-top: 1px solid var(--tp-slate-100);
+  padding: 14px 16px;
+}
+
+.signatureWrapper {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.signatureBox {
+  text-align: right;
+}
+
+.signatureSpace {
+  height: 36px;
+}
+
+.signatureLine {
+  margin-bottom: 4px;
+  margin-left: auto;
+  height: 1px;
+  width: 160px;
+  background: var(--tp-slate-300);
+}
+
+.signatureLabel {
+  font-size: 11px;
+  color: var(--tp-slate-500);
+}
+
+.footerBranding {
+  border-top: 1px solid var(--tp-slate-100);
+  background: rgba(var(--tp-slate-50-rgb), 0.5);
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--tp-slate-500);
+}

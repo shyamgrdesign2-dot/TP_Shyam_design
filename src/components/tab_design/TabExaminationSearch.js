@@ -15,7 +15,7 @@ import { updateDragDrop } from "../../redux/doctorsSlice";
 import LoopingVideo from "../common/LoopingVideo";
 import TabSearchHeader from "./TabSearchHeader";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import { setIsDDxReadyToGenerate } from "../../redux/ddxSlice";
 import { ASSETS } from "../../assets";
 const {

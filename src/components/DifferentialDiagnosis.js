@@ -42,7 +42,7 @@ const DifferentialDiagnosis = ({
   const { showHideSubModal } = useContext(CashManagerContext);
 
   const { state } = useLocation();
-  const { patient_data } = state;
+  const { patient_data } = state || {};
 
   const { isGynaecHistoryAccessable } = useAccess(patient_data?.ageYears);
 

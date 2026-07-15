@@ -35,7 +35,8 @@ const initialState = {
   loading: false,
   error: null,
   genericList: [],
-  dosesList: []
+  dosesList: [],
+  medicineDetailsById: {}
 };
 
 export const addTemplate = createAsyncThunk(
@@ -131,7 +132,9 @@ export const getFrequentlySearchedMedication = createAsyncThunk(
   "medication/getFrequentlySearchedMedication",
   async (data) => {
     let result = {};
-    result = await ApiMedication.getFrequentlySearchedMedication();
+    result = await ApiMedication.getFrequentlySearchedMedication({
+      isChikitsalayAccessable: data?.isChikitsalayAccessable,
+    });
     if (result.status) {
       const searchResults = Array.isArray(result.data) ? result.data : [];
 
@@ -172,7 +175,9 @@ export const searchMedication = createAsyncThunk(
   "medication/searchMedication",
   async (data) => {
     let result = {};
-    result = await ApiMedication.searchMedication(data.searchQuery);
+    result = await ApiMedication.searchMedication(data.searchQuery, {
+      isChikitsalayAccessable: data?.isChikitsalayAccessable,
+    });
     if (result.status) {
       const searchResults = Array.isArray(result.data) ? result.data : [];
 
@@ -323,6 +328,9 @@ const medicationSlice = createSlice({
     clearGenericList: (state, action) => {
       state.genericList = []
     },
+    clearMedicineDetailsCache: (state) => {
+      state.medicineDetailsById = {}
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -414,6 +422,15 @@ const medicationSlice = createSlice({
           state.childOptionsList = [];
         }
       })
+      .addCase(getMedicineDetails.fulfilled, (state, action) => {
+        const rows = Array.isArray(action.payload) ? action.payload : action.payload ? [action.payload] : [];
+        rows.forEach((medicine) => {
+          const medicineId = medicine?.tmm_id;
+          if (medicineId !== undefined && medicineId !== null && String(medicineId).trim() !== "") {
+            state.medicineDetailsById[String(medicineId)] = medicine;
+          }
+        });
+      })
       .addCase(searchGeneric.pending, (state) => { })
       .addCase(searchGeneric.fulfilled, (state, action) => {
         state.genericList = action.payload;
@@ -456,5 +473,5 @@ const medicationSlice = createSlice({
   },
 });
 
-export const { updateFrequentlyMedication, clearGenericList } = medicationSlice.actions
+export const { updateFrequentlyMedication, clearGenericList, clearMedicineDetailsCache } = medicationSlice.actions
 export default medicationSlice.reducer;

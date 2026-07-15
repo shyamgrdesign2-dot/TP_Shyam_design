@@ -1,6 +1,6 @@
 {
   "name": "react-thyrocare",
-  "version": "4.7.1",
+  "version": "4.7.3",
   "apiCompatibilityVersion": 1.1,
   "private": true,
   "homepage": "/",
@@ -13,18 +13,26 @@
     "@excalidraw/excalidraw": "^0.17.6",
     "@growthbook/growthbook-react": "^1.0.0",
     "@lottiefiles/dotlottie-react": "^0.13.0",
+    "@radix-ui/react-alert-dialog": "^1.1.15",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@react-pdf-viewer/core": "^3.12.0",
     "@react-pdf-viewer/page-navigation": "^3.12.0",
     "@react-pdf-viewer/rotate": "^3.12.0",
     "@react-pdf-viewer/zoom": "^3.12.0",
     "@react-pdf/renderer": "^3.4.0",
+    "@react-three/drei": "9.102.6",
+    "@react-three/fiber": "8.17.14",
     "@reduxjs/toolkit": "^1.9.7",
+    "@ricky0123/vad-react": "^0.0.36",
     "@sentry/cli": "^2.53.0",
     "@sentry/react": "^10.9.0",
     "@tanstack/react-virtual": "^3.13.24",
-    "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
+    "ajv": "^8.20.0",
+    "ajv-keywords": "^5.1.0",
     "antd": "^5.16.4",
     "axios": "^1.6.0",
     "bootstrap": "^5.3.2",
@@ -32,7 +40,6 @@
     "chart.js": "^4.4.3",
     "crypto-js": "^4.1.1",
     "dayjs": "^1.11.10",
-    "env-cmd": "^10.1.0",
     "file-saver": "^2.0.5",
     "firebase": "^10.12.2",
     "framer-motion": "^12.23.0",
@@ -47,6 +54,7 @@
     "jwt-decode": "^4.0.0",
     "lodash": "^4.17.21",
     "lottie-react": "^2.4.0",
+    "lucide-react": "^1.8.0",
     "moment": "^2.29.4",
     "numeral": "^2.0.6",
     "pdf-lib": "^1.17.1",
@@ -76,7 +84,6 @@
     "react-zoom-pan-pinch": "^3.6.1",
     "reactjs-pdf-reader": "^1.0.12",
     "reconnectingwebsocket": "^1.0.0",
-    "redux-devtools-extension": "^2.13.9",
     "redux-persist": "^6.0.0",
     "redux-thunk": "^2.4.2",
     "sass": "^1.69.5",
@@ -86,6 +93,7 @@
     "slate-react": "^0.118.2",
     "slick-carousel": "^1.8.1",
     "smart-webcomponents-react": "^25.5.0",
+    "three": "^0.184.0",
     "uuid": "^9.0.1",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
@@ -100,7 +108,11 @@
     "lint:errors": "eslint \"src/**/*.{js,jsx}\" --quiet --format unix",
     "prepare": "husky",
     "test": "craco test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "PLAYWRIGHT_HTML_OPEN=never playwright test --debug=cli",
     "eject": "react-scripts eject",
+    "compress:models": "node scripts/compress-models.js",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org digicare-health-solutions-priv --project tatvapractice ./build && sentry-cli sourcemaps upload --org digicare-health-solutions-priv --project tatvapractice ./build"
   },
   "eslintConfig": {
@@ -112,14 +124,22 @@
       "import"
     ],
     "rules": {
-      "import/no-unresolved": "error"
+      "import/no-unresolved": ["error", {
+        "ignore": ["three", "@react-three/fiber", "@react-three/drei", "lucide-react", "@radix-ui/react-alert-dialog", "@radix-ui/react-dialog", "@radix-ui/react-select", "@radix-ui/react-popover", "@radix-ui/react-tabs", "@ricky0123/vad-react"]
+      }]
     },
     "settings": {
       "import/resolver": {
         "node": {
           "extensions": [
             ".js",
-            ".jsx"
+            ".jsx",
+            ".json",
+            ".mjs",
+            ".cjs"
+          ],
+          "moduleDirectory": [
+            "node_modules"
           ]
         }
       }
@@ -139,8 +159,16 @@
   },
   "devDependencies": {
     "@craco/craco": "^7.1.0",
+    "@playwright/test": "^1.61.0",
+    "@sentry/cli": "^2.53.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "env-cmd": "^10.1.0",
     "eslint": "^8.57.0",
+    "eslint-import-resolver-node": "^0.3.9",
     "eslint-plugin-import": "^2.29.1",
-    "husky": "^9.0.11"
+    "husky": "^9.0.11",
+    "redux-devtools-extension": "^2.13.9"
   }
 }

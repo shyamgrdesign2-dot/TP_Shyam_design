@@ -1,3 +1,5 @@
+import { getGynecClinicalNoteItems } from '../../../../utils/gynecHistoryUtils';
+
 function humanize(key) {
 	return key
 		.replace(/_/g, ' ')
@@ -150,6 +152,16 @@ export function digitizationToSections(data) {
 		return sectionItem(name, detail);
 	});
 	if (items6.length) sections.push({ id: 'medical-history', title: 'Medical History', tpIconName: 'medicalHistory', items: items6 });
+
+	const gynecItems = getGynecClinicalNoteItems(data.gynaec_history);
+	if (gynecItems.length) {
+		sections.push({
+			id: 'gynaec-history',
+			title: 'Gynec History',
+			tpIconName: 'gynec',
+			items: gynecItems,
+		});
+	}
 
 	const labInvestigation = field(data, 'labInvestigation', 'lab_investigation');
 	const items7 = arraySectionItems(labInvestigation, (l) => {

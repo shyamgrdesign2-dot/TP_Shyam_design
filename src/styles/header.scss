@@ -79,6 +79,49 @@ body{
             &::-webkit-scrollbar {
                 display: none;
             }
+
+            .headerprescription-preview-divider {
+                width: 1.05px;
+                height: 42px;
+                background: linear-gradient(180deg, rgba(208, 213, 221, 0.2) 0%, #d0d5dd 50%, rgba(208, 213, 221, 0.2) 100%);
+                opacity: 0.8;
+                flex-shrink: 0;
+                margin: 0 14px 0 0;
+            }
+
+            .consultation-preview-btn.ant-btn.btn.btn-input {
+                border: 1px solid #4b4ad5 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                height: 41px;
+                padding: 0 8px !important;
+                font-weight: 600;
+
+                .ant-btn-icon,
+                i {
+                    font-size: 19px;
+                    color: #4b4ad5 !important;
+                }
+
+                span:not(.ant-btn-icon) {
+                    color: #4b4ad5 !important;
+                    font-size: 14px;
+                    font-weight: 600 !important;
+                    text-decoration: none !important;
+                }
+
+                &:hover,
+                &:focus {
+                    background-color: #4b4ad5 !important;
+                    border-color: #4b4ad5 !important;
+
+                    .ant-btn-icon,
+                    i,
+                    span:not(.ant-btn-icon) {
+                        color: #fff !important;
+                    }
+                }
+            }
         }
 
         .teleconsult-video-btn {
@@ -108,7 +151,7 @@ body{
             }
 
             .headerprescription-actions {
-                .btn:not(.btn-primary3):not(.btn-more) {
+                .btn:not(.btn-primary3):not(.btn-more):not(.btn-input) {
                     padding: 0 12px 0 0;
                 }
             }

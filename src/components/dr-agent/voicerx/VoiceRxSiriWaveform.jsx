@@ -5,7 +5,7 @@ import styles from "./VoiceRxSiriWaveform.module.scss";
 const opts = {
   smoothing: 0.65,
   fft: 8,
-  minDecibels: -60,
+  minDecibels: -75,
   glow: 40,
   color1: [124, 58, 237],
   color2: [79, 70, 229],
@@ -15,8 +15,13 @@ const opts = {
   blend: "lighter",
   shift: 35,
   width: 50,
-  amp: 0.35
+  amp: 0.5
 };
+
+const VISUAL_FREQUENCY_FLOOR = 3;
+const VISUAL_FREQUENCY_GAIN = 2.4;
+const VISUAL_FREQUENCY_LIFT = 8;
+const LEVEL_GAIN = 3;
 
 const shuffle = [1, 3, 0, 4, 2];
 
@@ -113,6 +118,7 @@ export function VoiceRxSiriWaveform({ stream, paused = false, className, levelRe
   const ctxRef = useRef(null);
   const analyserRef = useRef(null);
   const freqsRef = useRef(null);
+  const displayFreqsRef = useRef(null);
   const sourceRef = useRef(null);
   const rafRef = useRef(null);
   const pausedRef = useRef(paused);
@@ -146,13 +152,15 @@ export function VoiceRxSiriWaveform({ stream, paused = false, className, levelRe
       ctxRef.current = null;
       analyserRef.current = null;
       freqsRef.current = null;
+      displayFreqsRef.current = null;
     };
 
     cleanupAudio();
     if (!stream) return;
 
     try {
-      const ctx = new AudioContext();
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContextCtor();
       const analyser = ctx.createAnalyser();
       analyser.smoothingTimeConstant = opts.smoothing;
       analyser.fftSize = 2 ** opts.fft;
@@ -163,7 +171,11 @@ export function VoiceRxSiriWaveform({ stream, paused = false, className, levelRe
       ctxRef.current = ctx;
       analyserRef.current = analyser;
       freqsRef.current = new Uint8Array(analyser.frequencyBinCount);
+      displayFreqsRef.current = new Uint8Array(analyser.frequencyBinCount);
       sourceRef.current = src;
+      if (ctx.state === "suspended") {
+        void ctx.resume().catch(() => {});
+      }
     } catch {
       /* idle line only */
     }
@@ -199,22 +211,37 @@ export function VoiceRxSiriWaveform({ stream, paused = false, className, levelRe
 
       if (analyser && freqs && stream && !pausedRef.current) {
         analyser.getByteFrequencyData(freqs);
-        const hasAudio = freqs.some((value) => value > 0);
+        let displayFreqs = displayFreqsRef.current;
+        if (!displayFreqs || displayFreqs.length !== freqs.length) {
+          displayFreqs = new Uint8Array(freqs.length);
+          displayFreqsRef.current = displayFreqs;
+        }
+
+        let hasAudio = false;
+        for (let i = 0; i < freqs.length; i++) {
+          const value = freqs[i];
+          if (value > VISUAL_FREQUENCY_FLOOR) {
+            hasAudio = true;
+            displayFreqs[i] = Math.min(255, Math.round((value - VISUAL_FREQUENCY_FLOOR) * VISUAL_FREQUENCY_GAIN + VISUAL_FREQUENCY_LIFT));
+          } else {
+            displayFreqs[i] = 0;
+          }
+        }
         if (hasAudio) {
           if (levelRef) {
             let sum = 0;
             const n = Math.min(24, freqs.length);
-            for (let i = 0; i < n; i++) sum += freqs[i];
+            for (let i = 0; i < n; i++) sum += displayFreqs[i];
             const raw = sum / n / 255;
-            const boosted = Math.min(1, raw * 1.6);
+            const boosted = Math.min(1, raw * LEVEL_GAIN);
             const attack = boosted > levelRef.current ? 0.55 : 0.22;
             levelRef.current = levelRef.current * (1 - attack) + boosted * attack;
             if (boosted < 0.01 && levelRef.current < 0.015) levelRef.current = 0;
           }
           ctx2d.globalCompositeOperation = "source-over";
-          drawChannelPath(ctx2d, 0, drawW, drawH, freqs);
-          drawChannelPath(ctx2d, 1, drawW, drawH, freqs);
-          drawChannelPath(ctx2d, 2, drawW, drawH, freqs);
+          drawChannelPath(ctx2d, 0, drawW, drawH, displayFreqs);
+          drawChannelPath(ctx2d, 1, drawW, drawH, displayFreqs);
+          drawChannelPath(ctx2d, 2, drawW, drawH, displayFreqs);
         } else {
           if (levelRef) {
             levelRef.current *= 0.3;

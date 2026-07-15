@@ -25,7 +25,7 @@ import {
 import TabDiagnosisSearch from "../../components/tab_design/TabDiagnosisSearch";
 import DifferentialDiagnosis from "../DifferentialDiagnosis";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import { setIsDiagnosisBox } from "../../redux/ddxSlice";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { ASSETS } from "../../assets";

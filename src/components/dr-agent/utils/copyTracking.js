@@ -17,6 +17,14 @@ function cleanMeta(meta = {}) {
 
 export function trackDrAgentCopyUsed(meta = {}) {
   const payload = cleanMeta({
+    doctor_id: cleanValue(meta.doctorId || meta.doctor_id),
+    doctor_name: cleanValue(meta.doctorName || meta.doctor_name),
+    patient_id: cleanValue(meta.patientId || meta.patient_id),
+    patient_name: cleanValue(meta.patientName || meta.patient_name),
+    session_id: cleanValue(meta.sessionId || meta.session_id),
+    voice_rx_version: cleanValue(meta.voiceRxVersion || meta.voice_rx_version),
+    source_surface: cleanValue(meta.sourceSurface || meta.source_surface),
+    voice_input_location: cleanValue(meta.voiceInputLocation || meta.voice_input_location),
     source: cleanValue(meta.source),
     source_section: cleanValue(meta.sourceSection || meta.source_section),
     component: cleanValue(meta.component),

@@ -39,7 +39,7 @@ import {
 import { addModule, searchModule, userPreModulesRX } from "../../redux/customModuleSlice";
 
 import TabCustomModuleSearch from "../../components/tab_design/TabCustomModuleSearch";
-import { SortableContainer, SortableElement } from "react-sortable-hoc";
+import { SortableContainer, SortableElement } from "./sortableHocAdapter";
 import { MESSAGE_KEY } from "../../utils/constants";
 import { getDecodedToken } from "../../utils/localStorage";
 import { ASSETS } from "../../assets";

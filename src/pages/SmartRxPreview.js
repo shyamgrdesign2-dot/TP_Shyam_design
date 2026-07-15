@@ -19,6 +19,7 @@ import config from "../../src/config";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../redux/dentalExaminationSlice";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
@@ -61,6 +62,8 @@ function SmartRxPreview() {
     const {
         loading,
     } = useSelector((state) => state.caseManager);
+    const dentalExaminationData = useSelector(selectDentalExamination);
+    const oralExamination = useSelector((state) => state.oralExamination);
     const dispatch = useDispatch();
 
     const navigate = useNavigate();
@@ -615,6 +618,11 @@ function SmartRxPreview() {
         selectedLang,
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
+        dentalExaminationData,
+        oralExamination,
+        patientUniqueId: patient_data?.patient_unique_id,
+        patientId: patient_data?.patient_unique_id,
+        tcmId: state?.tcm_id,
         isCvtExtHosAccessableFromGB,
     });
 

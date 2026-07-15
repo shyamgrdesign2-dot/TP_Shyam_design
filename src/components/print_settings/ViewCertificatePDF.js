@@ -1,11 +1,12 @@
 import React from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 import { NORMAL, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
+import { getIndianLanguageFont } from '../../utils/utils';
 import Html from 'react-pdf-html';
 
 const PX_TO_PT = 0.75
 
-// Register only Roboto font - other fonts will fallback to Roboto via CSS
+// Register Roboto (English) and AnekDevanagari (Hindi/Marathi)
 try {
     Font.register({
         family: 'Roboto',
@@ -16,6 +17,15 @@ try {
             { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Italic.ttf`, fontStyle: 'italic' },
             { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-MediumItalic.ttf`, fontWeight: 500, fontStyle: 'italic' },
             { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-BoldItalic.ttf`, fontWeight: 700, fontStyle: 'italic' },
+        ],
+    });
+
+    Font.register({
+        family: 'AnekDevanagari',
+        fonts: [
+            { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekDevanagari-Regular.ttf`, fontWeight: 400 },
+            { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekDevanagari-Medium.ttf`, fontWeight: 500 },
+            { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekDevanagari-Bold.ttf`, fontWeight: 700 },
         ],
     });
 } catch (error) {
@@ -171,14 +181,21 @@ const ViewCertificatePDF = ({ mode = NORMAL, ...props }) => {
         return transformedHtml;
     };
 
-    const convertInputToLabel = (content) => {
-        if (!content) return '';
+    const contentFontFamily = getIndianLanguageFont(
+        `${heading || ''} ${content || ''}`,
+        'Roboto',
+    );
+
+    const convertInputToLabel = (htmlContent) => {
+        if (!htmlContent) return '';
         
-        let transformedData = transformInputToLabel(content);
+        let transformedData = transformInputToLabel(htmlContent);
         
-        // Remove or replace problematic font-family declarations
-        // This handles inline styles like style="font-family: Calibri"
-        transformedData = transformedData.replace(/font-family:\s*['"]?[^;'"]+['"]?/gi, 'font-family: Roboto');
+        // Replace inline font-family with the language-aware font (Roboto / AnekDevanagari)
+        transformedData = transformedData.replace(
+            /font-family:\s*['"]?[^;'"]+['"]?/gi,
+            `font-family: ${contentFontFamily}`,
+        );
         
         // Also remove font-family from any style tags in the content
         transformedData = transformedData.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
@@ -367,18 +384,18 @@ const ViewCertificatePDF = ({ mode = NORMAL, ...props }) => {
                 <View style={{ backgroundColor: '#171725', height: PX_TO_PT * 2, width: '100%' }} />
 
                 <View>
-                    <Html style={{ fontSize: PX_TO_PT * 14, fontFamily: 'Roboto' }}>
+                    <Html style={{ fontSize: PX_TO_PT * 14, fontFamily: contentFontFamily }}>
                         {`<html>
                             <body>
                                 <style>
                                     * {
-                                        font-family: Roboto !important; 
+                                        font-family: ${contentFontFamily} !important; 
                                     }
                                     body {
-                                        font-family: Roboto !important; 
+                                        font-family: ${contentFontFamily} !important; 
                                     }
                                     p, div, span, label, strong, em, h1, h2, h3, h4, h5, h6 {
-                                        font-family: Roboto !important;
+                                        font-family: ${contentFontFamily} !important;
                                     }
                                     label {
                                         font-weight: 500;

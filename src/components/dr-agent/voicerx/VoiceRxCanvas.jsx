@@ -14,9 +14,11 @@ import { ShineBorder } from "./ShineBorder";
 import { FeedbackRow } from "./VoiceRxResultTabs";
 import { VoiceRxIcon } from "./voice-consult-icons";
 import { VoiceRecorderCore } from "./VoiceRecorderCore";
+import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent } from "./voiceRx2Logging";
 import { toast } from "./toast";
 import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import styles from "./VoiceRxCanvas.module.scss";
+import { getLatestSoapDraft } from "./utils/soap-session-draft";
 
 const VRX_CANVAS_COACHMARK_KEY = "tp-vrx-canvas-coachmark-v1";
 
@@ -69,11 +71,13 @@ export function VoiceRxCanvas({
   inlineRecorderSlot,
   onCopyToRx,
   onCopySoap,
+  onPrintSoap,
   onBack,
   onMinimize,
   onAddDetailsByVoice,
   onQuickEditSubmit,
   audioChunkContext,
+  analyticsContext,
   voiceLocked = false
 }) {
   const canvasTitle = "Back";
@@ -127,6 +131,19 @@ export function VoiceRxCanvas({
     if (voiceLocked) return;
     if (coachmarkVisible) dismissCoachmark();
     if (onQuickEditSubmit) {
+      trackVoiceRx2StartEvent({
+        ...analyticsContext,
+        mode: analyticsContext?.mode || "module",
+        moduleName: analyticsContext?.moduleName || "Clinical Notes",
+        sourceSurface: analyticsContext?.sourceSurface || "dr_agent",
+        voiceInputLocation: "Clinical Notes",
+        extra: {
+          doctorId: analyticsContext?.doctorId || "",
+          patientId: analyticsContext?.patientId || "",
+          selectedPatientId: analyticsContext?.selectedPatientId || "",
+          trigger_location: "clinical_notes_voice_edit_cta",
+        },
+      });
       setVoiceEditOpen(true);
       setVoiceEditProcessing(false);
       setVoiceEditPhase("idle");
@@ -136,12 +153,12 @@ export function VoiceRxCanvas({
     onAddDetailsByVoice?.();
   };
 
-  const handleVoiceEditSubmit = async ({ audioBlob, transcript, durationMs } = {}) => {
+  const handleVoiceEditSubmit = async ({ audioBlob, transcript, durationMs, speechAnalysis } = {}) => {
     setVoiceEditProcessing(true);
     setVoiceEditPhase("creating_transcript");
     setVoiceEditTranscript("");
     try {
-      await onQuickEditSubmit?.({ audioBlob, transcript, durationMs }, {
+      await onQuickEditSubmit?.({ audioBlob, transcript, durationMs, speechAnalysis }, {
         onPhase: (phase, payload = {}) => {
           setVoiceEditPhase(phase);
           if (Object.prototype.hasOwnProperty.call(payload, "transcript")) {
@@ -154,7 +171,10 @@ export function VoiceRxCanvas({
       setVoiceEditPhase("idle");
       setVoiceEditTranscript("");
     } catch {
+      setVoiceEditOpen(false);
       setVoiceEditProcessing(false);
+      setVoiceEditPhase("idle");
+      setVoiceEditTranscript("");
     }
   };
 
@@ -176,20 +196,36 @@ export function VoiceRxCanvas({
   };
 
   const handleDiscardVoiceEditAndBack = () => {
+    trackVoiceRx2DiscardEvent({
+      ...analyticsContext,
+      mode: analyticsContext?.mode || "module",
+      moduleName: analyticsContext?.moduleName || "Clinical Notes",
+      sourceSurface: analyticsContext?.sourceSurface || "dr_agent",
+      voiceInputLocation: "Clinical Notes",
+      discardSource: "clinical_notes_discard_modal",
+      discardAction: "discard_confirm",
+      extra: {
+        doctorId: analyticsContext?.doctorId || "",
+        patientId: analyticsContext?.patientId || "",
+        selectedPatientId: analyticsContext?.selectedPatientId || "",
+        trigger_location: "clinical_notes_voice_discard_modal",
+      },
+    });
     handleVoiceEditCancel();
     onBack?.();
   };
 
   const handleCopySoap = async () => {
-    if (!soapHtml) return;
+    const latestSoapHtml = soapHtml || getLatestSoapDraft(audioChunkContext?.sessionId)?.html;
+    if (!latestSoapHtml) return;
     const div = document.createElement("div");
-    div.innerHTML = soapHtml;
+    div.innerHTML = latestSoapHtml;
     const text = (div.innerText || div.textContent || "").trim();
     try {
       if (window.ClipboardItem && navigator.clipboard?.write) {
         await navigator.clipboard.write([
           new window.ClipboardItem({
-            "text/html": new Blob([soapHtml], { type: "text/html" }),
+            "text/html": new Blob([latestSoapHtml], { type: "text/html" }),
             "text/plain": new Blob([text], { type: "text/plain" }),
           }),
         ]);
@@ -203,8 +239,17 @@ export function VoiceRxCanvas({
     }
   };
 
-  const handlePrintSoap = () => {
-    if (!soapHtml) return;
+  const handlePrintSoap = async () => {
+    const latestSoapHtml = soapHtml || getLatestSoapDraft(audioChunkContext?.sessionId)?.html;
+    if (!latestSoapHtml) return;
+    if (onPrintSoap) {
+      try {
+        await onPrintSoap(latestSoapHtml);
+      } catch {
+        // Parent handles the user-facing error toast.
+      }
+      return;
+    }
     // Inject print-only CSS once.
     if (!document.getElementById("vrx-soap-print-css")) {
       const style = document.createElement("style");
@@ -214,7 +259,7 @@ export function VoiceRxCanvas({
     }
     const container = document.createElement("div");
     container.className = "vrx-soap-print";
-    container.innerHTML = soapHtml;
+    container.innerHTML = latestSoapHtml;
     document.body.appendChild(container);
     const cleanup = () => {
       container.remove();
@@ -227,7 +272,7 @@ export function VoiceRxCanvas({
   };
 
   return (
-    <div className={["vrx-canvas vrx-canvas--enter", styles.root].join(" ")}>
+    <div className={["vrx-canvas vrx-canvas--enter", styles.root].join(" ")} data-testid="voicerx-canvas">
       {/* Header */}
       <div className={styles.topBar}>
         <button
@@ -356,13 +401,17 @@ export function VoiceRxCanvas({
             </div>
           </div>
         ) : (
-          <div className={styles.emrTabContent}>
-            <div className={["vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell].join(" ")}>
-              <div className={styles.emrShellInner}>{emrCard}</div>
-            </div>
-            <FeedbackRow
-              value={feedback.emr}
-              onChange={(v) => handleFeedback("emr", v)} />
+          <div className={styles.emrTabContent} data-testid="voicerx-clinical-notes">
+            {emrCard ? (
+              <>
+                <div className={["vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell].join(" ")}>
+                  <div className={styles.emrShellInner}>{emrCard}</div>
+                </div>
+                <FeedbackRow
+                  value={feedback.emr}
+                  onChange={(v) => handleFeedback("emr", v)} />
+              </>
+            ) : null}
           </div>
         )}
       </div>
@@ -419,6 +468,7 @@ export function VoiceRxCanvas({
               type="button"
               onClick={handleCopyToRx}
               disabled={!onCopyToRx}
+              data-testid="voicerx-copy-all-to-rxpad"
               className={["vrx-cn-secondary-blue", styles.footerPrimary].join(" ")}>
               <CopyGlyph size={16} variant="Linear" color="currentColor" />
               Copy all to RxPad
@@ -433,6 +483,7 @@ export function VoiceRxCanvas({
                 onClick={handleVoiceEditOpen}
                 disabled={voiceLocked || (!onQuickEditSubmit && !onAddDetailsByVoice)}
                 aria-label="Edit clinical notes with voice"
+                data-testid="voicerx-add-details-by-voice"
                 className={["vrx-rt-voice-cta-outline", styles.footerVoiceCta].join(" ")}>
                 <VoiceRxIcon size={20} color="#673AAC" />
               </button>
@@ -441,7 +492,7 @@ export function VoiceRxCanvas({
         </div>
       )}
       {voiceEditOpen ? (
-        <div className={styles.overlayWrap}>
+        <div className={styles.overlayWrap} data-testid="voicerx-voice-edit-overlay">
           <div className={styles.overlayInner}>
             <VoiceRecorderCore
               layout="overlay"
@@ -451,6 +502,12 @@ export function VoiceRxCanvas({
               processingTranscript={voiceEditTranscript}
               processingLabel={voiceEditPhase === "creating_transcript" ? "Refining your captured consultation..." : "Updating clinical notes…"}
               audioChunkContext={audioChunkContext}
+              analyticsContext={{
+                ...analyticsContext,
+                moduleName: "Clinical Notes",
+                sourceSurface: analyticsContext?.sourceSurface || "dr_agent",
+                voiceInputLocation: "Clinical Notes",
+              }}
               onCancel={handleVoiceEditCancel}
               onSubmit={handleVoiceEditSubmit}
               radiusClassName="rounded-t-[18px]"

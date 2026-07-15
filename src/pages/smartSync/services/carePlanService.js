@@ -187,5 +187,32 @@ export const getCarePlanAssignments = async (patientId, options = {}) => {
   }
 };
 
-
+/**
+ * Returns whether the patient already has a care plan assigned for the given consultation (tcm_id).
+ * @param {string} patientUniqueId - Patient unique id
+ * @param {number|string} tcmId - Consultation id (tcm_id)
+ * @param {string} [errorContext] - Optional context for error logging
+ * @returns {Promise<boolean>}
+ */
+export const hasExistingCarePlanForConsultation = async (
+  patientUniqueId,
+  tcmId,
+  errorContext = 'care plan assignment check'
+) => {
+  try {
+    if (!patientUniqueId || tcmId == null || tcmId === '') {
+      return false;
+    }
+    const assignmentsResp = await getCarePlanAssignments(patientUniqueId);
+    const assignments = Array.isArray(assignmentsResp?.data)
+      ? assignmentsResp.data
+      : Array.isArray(assignmentsResp)
+      ? assignmentsResp
+      : assignmentsResp?.assignments || [];
+    return assignments.some((cp) => Number(cp?.tcm_id) === Number(tcmId));
+  } catch (err) {
+    console.error(`Failed to resolve existing care plan assignment for consultation (${errorContext}):`, err);
+    return false;
+  }
+};
 

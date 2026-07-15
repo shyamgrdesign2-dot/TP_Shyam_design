@@ -2,6 +2,30 @@ import React from "react";
 import { pdf } from "@react-pdf/renderer";
 import { ensureDrawingCanvasCaseOption } from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
 import ViewPDF from "./server/viewpdf";
+import { prefetchDentalToothImageMap } from "../components/dental/examination/dentalChartPdf";
+import { resolveDentitionType } from "../components/dental/examination/dentalChartConstants";
+import { resolveExamChartForPrintWithContext } from "./examChartStorage";
+import { DENTAL_EXAM_CASE_OPTION_ID } from "./dentalDefaultPrintSettings";
+import { hasDentalExamPayload } from "./cardiologyDentalOralExam";
+import { normalizeSmartRxDataForPrint } from "./smartRxPrintUtils";
+import { resolveFooterImageDimensions } from "./utils";
+
+function shouldPrefetchDentalToothImages({
+  dentalExaminationData,
+  printSettings,
+  onlyShowDental,
+}) {
+  if (onlyShowDental) return true;
+  if (hasDentalExamPayload(dentalExaminationData)) return true;
+  const dentalOption = printSettings?.prescription?.case_option?.find(
+    (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID
+  );
+  return (
+    dentalOption?.enable === "Y" &&
+    dentalOption?.custom_status === "Y" &&
+    dentalOption?.showDentalChart !== false
+  );
+}
 
 const resolveSelectedLang = (payload, selectedLang) => {
   if (selectedLang !== undefined && selectedLang !== null) {
@@ -28,7 +52,7 @@ const normalizeArrayValue = (value, fallbackKey) => {
 
 export const renderPrintPayloadToBlob = async (
   payload,
-  { selectedLang, isGynaecHistoryAccessable, showSnapRxImages = false } = {}
+  { selectedLang, isGynaecHistoryAccessable, showSnapRxImages = false, onlyShowDental = false } = {}
 ) => {
   if (!payload) {
     return null;
@@ -65,9 +89,28 @@ export const renderPrintPayloadToBlob = async (
     ophthalModuleData,
     zydusLabData,
     abhaDetails,
+    dentalData,
+    dentalExaminationData,
+    isDigitisedPrintConfig,
+    examChart: examChartFromPayload,
+    oralExamination,
+    patientUniqueId,
+    tcmId,
+    dentalChartPrintMode,
     isCvtExtHosAccessableFromGB,
     drawingCanvases
   } = payload;
+
+  const examChart =
+    dentalChartPrintMode === "plain"
+      ? null
+      : resolveExamChartForPrintWithContext({
+          caseManagerData,
+          examChartOverride: examChartFromPayload,
+          oralExamination,
+          patientUniqueId,
+          tcmId,
+        });
 
   const combinedCaseManagerData = {
     ...caseManagerData,
@@ -84,11 +127,21 @@ export const renderPrintPayloadToBlob = async (
   };
 
   const resolvedLang = resolveSelectedLang(payload, selectedLang);
+  const dentitionType = resolveDentitionType(dentalExaminationData);
+  const toothImageMap = shouldPrefetchDentalToothImages({
+    dentalExaminationData,
+    printSettings,
+    onlyShowDental,
+  })
+    ? await prefetchDentalToothImageMap({ dentitionType })
+    : {};
 
   const resolvedPrintSettings =
     Array.isArray(drawingCanvases) && drawingCanvases.length > 0
       ? ensureDrawingCanvasCaseOption(printSettings)
       : printSettings;
+
+  const resolvedFileFooter = await resolveFooterImageDimensions(fileFooter);
 
   const normalizedCustomModules = Array.isArray(customModules)
     ? customModules
@@ -108,7 +161,7 @@ export const renderPrintPayloadToBlob = async (
       timingList={timingList}
       printSettings={resolvedPrintSettings}
       fileHeader={fileHeader}
-      fileFooter={fileFooter}
+      fileFooter={resolvedFileFooter}
       fileLogo={fileLogo}
       fileWatermark={fileWatermark}
       fileSignature={fileSignature}
@@ -116,7 +169,7 @@ export const renderPrintPayloadToBlob = async (
       givenVaccines={givenVaccines}
       dueVaccines={dueVaccines}
       carePlanAssignments={carePlanAssignments}
-      smartRxData={smartDigitizeRxData}
+      smartRxData={normalizeSmartRxDataForPrint(smartDigitizeRxData)}
       growthChartDetails={growthChartDetails}
       isGynaecHistoryAccessable={isGynaecHistoryAccessable}
       gynecHistoryData={gynecHistoryData}
@@ -131,6 +184,12 @@ export const renderPrintPayloadToBlob = async (
       zydusLabData={zydusLabData?.length > 0 ? {data: zydusLabData} : null}
       showSnapRxImages={showSnapRxImages}
       abhaDetails={abhaDetails}
+      dentalData={dentalData}
+      dentalExaminationData={dentalExaminationData}
+      isDigitisedPrintConfig={isDigitisedPrintConfig}
+      onlyShowDental={onlyShowDental}
+      toothImageMap={toothImageMap}
+      examChart={examChart}
       isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
       drawingCanvases={drawingCanvases}
     />

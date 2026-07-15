@@ -7,6 +7,9 @@ import {
   Image,
   Document,
   StyleSheet,
+  Svg,
+  Path,
+  Circle,
 } from "@react-pdf/renderer";
 import {
   isNumeric,
@@ -35,6 +38,18 @@ import {
   MISSION_HOSPITAL_ADDRESS,
 } from "../constants";
 import moment from "moment";
+import { transformToothStateToApi } from "../../components/dental/lib/examination-helpers";
+import {
+  DENTAL_EXAM_CASE_OPTION_ID,
+  ORAL_EXAM_CASE_OPTION_ID,
+} from "../dentalDefaultPrintSettings";
+import {
+  resolveExamChartForPrint,
+  hasOralExamChartData,
+} from "../examChartStorage";
+import { renderOralExamPdf } from "../../components/print_settings/oral/renderOralExamPdf";
+import { renderDentalExamPdf } from "../../components/print_settings/dental/renderDentalExamPdf";
+import { toothHasDentalPrintData } from "../../components/print_settings/dental/dentalPrintHelpers";
 import {
   getCvtExtHosPatientDataShowValue,
   shouldUseCvtExtHosDigitisedPatientMapping,
@@ -51,10 +66,10 @@ import OphthalmologyTableView from "../../components/print_settings/ophthalmolog
 import ThenConnector from "../../components/print_settings/ThenConnector";
 import { getDecodedToken } from "../localStorage";
 import { ASSETS } from "../../assets";
-import { getUploadedFilePublicUrl } from "../../pages/smartSync/services/templateUtils";
-
-const getSmartSyncUploadedFileUri = (file) =>
-  getUploadedFilePublicUrl(file) || file?.fileUrl || file?.showFile || null;
+import {
+  getSmartSyncUploadedFileUri,
+  normalizeSmartRxDataForPrint,
+} from "../smartRxPrintUtils";
 
 const PX_TO_PT = 0.75;
 
@@ -386,12 +401,33 @@ const AI_FLOW_MEDICINE_UNIT_MAP = {
   9: "Drop",
   14: "Drops",
 };
+const CUSTOM_MEDICINE_UNIT_MAP = {
+  1: "Ampule(s)",
+  2: "Tablet(s)",
+  4: "ml",
+  5: "unit(s)",
+  6: "Capsule(s)",
+  7: "Fingertip(s)",
+  8: "Pea sized",
+  9: "gm",
+  11: "tsp",
+  14: "Drop(s)",
+  24: "Puff(s)",
+  27: "tbsp(s)",
+};
+const MEDICINE_UNIT_FALLBACK_MAP = {
+  ...AI_FLOW_MEDICINE_UNIT_MAP,
+  ...CUSTOM_MEDICINE_UNIT_MAP,
+};
 
 function getAiFlowMedicationDisplayList(medicine) {
   if (!Array.isArray(medicine) || medicine.length === 0) return [];
   return medicine.map((item, index) => {
     const tmm_unit = item.tmm_unit ?? item.unit_id;
-    const unitTitle = tmm_unit ? AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] : "";
+    const unitTitleMap = item?.tmm_type == 40
+      ? CUSTOM_MEDICINE_UNIT_MAP
+      : AI_FLOW_MEDICINE_UNIT_MAP;
+    const unitTitle = tmm_unit ? unitTitleMap[tmm_unit] : "";
     const medicineUnit =
       Array.isArray(item.medicineUnit) && item.medicineUnit.length > 0
         ? item.medicineUnit
@@ -645,6 +681,39 @@ const styles = StyleSheet.create({
 const formatCustomModuleColumnTitle = (value = "") =>
   value == null || value === "" ? "" : String(value).replace(/\u00A0/g, " ");
 
+const SOAP_PRINT_MODULE_ID = 90000101;
+const SOAP_SECTION_TITLES = ["subjective", "objective", "assessment", "plan"];
+
+const idsMatch = (left, right) =>
+  left != null && right != null && String(left) === String(right);
+
+const normalizeModuleLabel = (value) =>
+  formatCustomModuleColumnTitle(value).trim().replace(/:$/, "").toLowerCase();
+
+const isSoapLabel = (value) => {
+  const label = normalizeModuleLabel(value);
+  return label === "soap note" || label === "soap";
+};
+
+const hasSoapBlocks = (content) =>
+  Array.isArray(content) &&
+  content.some(
+    (item) =>
+      Array.isArray(item?.blocks) &&
+      SOAP_SECTION_TITLES.includes(normalizeModuleLabel(item?.title)),
+  );
+
+const isSoapPrintModule = (option, customModule) =>
+  idsMatch(option?.id, SOAP_PRINT_MODULE_ID) ||
+  idsMatch(customModule?.module_id, SOAP_PRINT_MODULE_ID) ||
+  idsMatch(customModule?.origin_id, SOAP_PRINT_MODULE_ID) ||
+  idsMatch(customModule?.id, SOAP_PRINT_MODULE_ID) ||
+  isSoapLabel(option?.title) ||
+  isSoapLabel(option?.name) ||
+  isSoapLabel(customModule?.module_name) ||
+  isSoapLabel(customModule?.name) ||
+  hasSoapBlocks(customModule?.content);
+
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const {
     rx,
@@ -663,7 +732,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     givenVaccines,
     dueVaccines,
     carePlanAssignments,
-    smartRxData,
+    smartRxData: rawSmartRxData,
     growthChartDetails,
     gynecHistoryData,
     obsHistoryData,
@@ -676,9 +745,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     customModules,
     abhaDetails,
     isDigitisedPrintConfig,
+    dentalExaminationData: rawDentalData,
+    onlyShowDental = false,
+    toothImageMap = {},
+    examChart: examChartProp,
     isCvtExtHosAccessableFromGB,
     drawingCanvases,
   } = props;
+  const smartRxData = normalizeSmartRxDataForPrint(rawSmartRxData);
+  let dentalExaminationData = rawDentalData || props.dentalExaminationData;
+  if (dentalExaminationData && dentalExaminationData.toothState && typeof dentalExaminationData.toothState === "object") {
+    try {
+      dentalExaminationData = {
+        ...dentalExaminationData,
+        tooth_states: transformToothStateToApi(dentalExaminationData.toothState),
+        dentition_type: dentalExaminationData.dentition_type || dentalExaminationData.dentitionType,
+      };
+    } catch (err) {
+      console.error("Failed to transform toothState inside viewpdf.js:", err);
+    }
+  }
   const isPediatricAccessable =
     caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID ||
     caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
@@ -1001,6 +1087,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       value = abhaToken ? (abhaToken.length === 1 ? `0${abhaToken}` : abhaToken) : "-";
     } else if (id == 16) {
       value = `${abhaDetails?.abha_number ?? "-"}`;
+    } else if (id == 18) {
+      value = `${caseManagerData?.patient_data?.caseType ? caseManagerData?.patient_data?.caseType : "-"}`;
+    } else if (id == 19) {
+      value = `${caseManagerData?.patient_data?.patientCategory ? caseManagerData?.patient_data?.patientCategory : "-"}`;
     }
     return value;
   };
@@ -1119,6 +1209,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     history = [],
     editedData = null,
   } = smartRxData || {};
+  // const isRxDigitizeBool = !!(
+  //   rawRxDigitizeBool ||
+  //   caseManagerData?.isRxDigitize ||
+  //   isDigitisedPrintConfig ||
+  //   caseManagerData?.doctor_data?.dp_id == 26 ||
+  //   (caseManagerData?.doctor_data?.dp_name &&
+  //     String(caseManagerData.doctor_data.dp_name).toLowerCase().includes("dental"))
+  // );
   const isSnapRx = uploaded_files?.[0]?.filename?.includes("snap_rx");
   const hasUploadedFileWithUri =
     Array.isArray(uploaded_files) &&
@@ -1305,6 +1403,46 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       )
     : [];
   const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
+  const examChart =
+    examChartProp !== undefined
+      ? hasOralExamChartData(examChartProp)
+        ? examChartProp
+        : null
+      : resolveExamChartForPrint(caseManagerData, examChartProp);
+  const hasOralExaminationData = hasOralExamChartData(examChart);
+  const oralExamEnabledInCaseOptions = printSettings?.prescription?.case_option?.some(
+    (o) =>
+      o?.id === ORAL_EXAM_CASE_OPTION_ID &&
+      o?.enable === "Y" &&
+      o?.custom_status === "Y",
+  );
+  const oralPrintOption = printSettings?.prescription?.case_option?.find(
+    (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+  );
+  const isOralPrintOptionEnabled =
+    oralPrintOption?.enable === "Y" && oralPrintOption?.custom_status === "Y";
+  const shouldRenderOralInDentalBlock =
+    hasOralExaminationData &&
+    (onlyShowDental ? isOralPrintOptionEnabled : !oralExamEnabledInCaseOptions);
+
+  const hasDentalExaminationData =
+    Array.isArray(dentalExaminationData?.tooth_states) &&
+    dentalExaminationData.tooth_states.some((toothState) =>
+      toothHasDentalPrintData(toothState)
+    );
+
+  const dentalPrintOption = printSettings?.prescription?.case_option?.find(
+    (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID,
+  );
+  const shouldShowDentalChartOnly =
+    onlyShowDental &&
+    dentalPrintOption?.enable === "Y" &&
+    dentalPrintOption?.custom_status === "Y" &&
+    dentalPrintOption?.showDentalChart !== false;
+
+  const showPatientInfoHeader =
+    printSettings?.header_footer?.show_patient_info !== "none";
+
   const hasDentalSectionData =
     dentalComplaintRowsFiltered.length > 0 ||
     dentalMedicationRowsFiltered.length > 0 ||
@@ -1314,11 +1452,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     hasToothDiagramNotes ||
     dentalWorkDoneRowsFiltered.length > 0 ||
     hasWorkDoneNotes;
+
   const shouldHidePrimaryMedicationSection =
     (isRxDigitizeBool ||
       caseManagerData?.isRxDigitize ||
       isDigitisedPrintConfig) &&
     dentalMedicationRowsFiltered.length > 0;
+
   const dentalQuadrantSections = [
     { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
     { key: "UPPER_LEFT", label: "UPPER LEFT" },
@@ -1590,6 +1730,261 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const normalizePdfText = (value) =>
     value == null ? "" : String(value).replace(/\u00A0/g, " ");
 
+  const isNotDocumentedText = (value) =>
+    normalizePdfText(value).trim().toLowerCase() === "not documented.";
+
+  const renderSoapBullet = (text, key) => {
+    const normalizedText = normalizePdfText(text).trim();
+    if (!normalizedText) return null;
+    return (
+      <View
+        key={key}
+        style={{
+          flexDirection: "row",
+          marginTop: PX_TO_PT * 5,
+          paddingLeft: PX_TO_PT * 24,
+        }}
+      >
+        <Text
+          style={{
+            color: "#000000",
+            fontFamily: baseFontFamily,
+            fontSize: PX_TO_PT * 14,
+            fontWeight: 700,
+            lineHeight: 1.45,
+            width: PX_TO_PT * 18,
+          }}
+        >
+          {"\u2022"}
+        </Text>
+        <Text
+          style={{
+            color: "#000000",
+            fontFamily: getIndianLanguageFont(normalizedText, baseFontFamily),
+            fontSize: PX_TO_PT * 14,
+            fontWeight: 400,
+            lineHeight: 1.45,
+            flex: 1,
+          }}
+        >
+          {normalizedText}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderSoapPrintSections = (sections = []) => {
+    const headingFontSize = Math.max(baseFontSize + PX_TO_PT * 12, PX_TO_PT * 22);
+    const fallbackFontSize = Math.max(baseFontSize + PX_TO_PT * 4, PX_TO_PT * 14);
+    const getDocumentHeadingFontSize = (level) =>
+      Number(level) === 1
+        ? Math.max(baseFontSize + PX_TO_PT * 8, PX_TO_PT * 18)
+        : Math.max(baseFontSize + PX_TO_PT * 5, PX_TO_PT * 14);
+    const documentTextFontSize = Math.max(baseFontSize + PX_TO_PT * 2, PX_TO_PT * 12);
+    const getRunText = (run) => normalizePdfText(run?.text || "");
+    const getItalicFontFamily = (run) =>
+      run?.bold ? "Helvetica-BoldOblique" : "Helvetica-Oblique";
+    const renderRichRuns = (runs, fallbackText, baseStyle, keyPrefix) => {
+      const normalizedRuns = Array.isArray(runs)
+        ? runs
+            .map((run) => ({ ...run, text: getRunText(run) }))
+            .filter((run) => run.text)
+        : [];
+      if (!normalizedRuns.length) return normalizePdfText(fallbackText || "");
+      return normalizedRuns.map((run, index) => (
+        <Text
+          key={`${keyPrefix}-run-${index}`}
+          style={{
+            ...baseStyle,
+            fontFamily: run.italic
+              ? getItalicFontFamily(run)
+              : baseStyle.fontFamily,
+            fontWeight: run.italic ? 400 : run.bold ? 700 : baseStyle.fontWeight,
+          }}
+        >
+          {run.text}
+        </Text>
+      ));
+    };
+
+    const renderSoapDocumentBlock = (block, key) => {
+      if (block?.type === "heading") {
+        const text = normalizePdfText(block?.text).trim();
+        if (!text) return null;
+        const level = Number(block?.level) || 2;
+        const headingStyle = {
+          color: "#000000",
+          fontFamily: getIndianLanguageFont(text, baseFontFamily),
+          fontSize: getDocumentHeadingFontSize(level),
+          fontWeight: 700,
+          lineHeight: level === 1 ? 1.25 : 1.35,
+          marginTop: level === 1 ? PX_TO_PT * 18 : PX_TO_PT * 13,
+          marginBottom: level === 1 ? PX_TO_PT * 12 : PX_TO_PT * 8,
+        };
+        return (
+          <Text
+            key={key}
+            style={headingStyle}
+          >
+            {renderRichRuns(block?.runs, text, headingStyle, key)}
+          </Text>
+        );
+      }
+
+      if (block?.type === "list" || block?.type === "ordered-list") {
+        const items = Array.isArray(block.items) ? block.items : [];
+        return items.map((item, itemIndex) => {
+          const itemText =
+            typeof item === "string"
+              ? item
+              : item?.text || (Array.isArray(item?.runs) ? item.runs.map((run) => run?.text || "").join("") : "");
+          const text =
+            block?.type === "ordered-list" ? `${itemIndex + 1}. ${itemText}` : itemText;
+          if (typeof item !== "string" && Array.isArray(item?.runs)) {
+            const marker = block?.type === "ordered-list" ? `${itemIndex + 1}.` : "\u2022";
+            const itemStyle = {
+              color: "#000000",
+              fontFamily: getIndianLanguageFont(itemText, baseFontFamily),
+              fontSize: PX_TO_PT * 14,
+              fontWeight: 400,
+              lineHeight: 1.45,
+              flex: 1,
+            };
+            return (
+              <View
+                key={`${key}-${itemIndex}`}
+                style={{
+                  flexDirection: "row",
+                  marginTop: PX_TO_PT * 5,
+                  paddingLeft: PX_TO_PT * 24,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#000000",
+                    fontFamily: baseFontFamily,
+                    fontSize: PX_TO_PT * 14,
+                    fontWeight: 700,
+                    lineHeight: 1.45,
+                    width: PX_TO_PT * 18,
+                  }}
+                >
+                  {marker}
+                </Text>
+                <Text style={itemStyle}>
+                  {renderRichRuns(item.runs, itemText, itemStyle, `${key}-${itemIndex}`)}
+                </Text>
+              </View>
+            );
+          }
+          return renderSoapBullet(text, `${key}-${itemIndex}`);
+        });
+      }
+
+      const text = normalizePdfText(block?.text).trim();
+      if (!text) return null;
+      const isLabel = /:\s*$/.test(text) && !text.includes("\n");
+      const paragraphStyle = {
+        color: block?.isFallback || isNotDocumentedText(text) ? "#6f6f76" : "#000000",
+        fontFamily: getIndianLanguageFont(text, baseFontFamily),
+        fontSize: documentTextFontSize,
+        fontWeight: isLabel ? 700 : 400,
+        lineHeight: 1.45,
+        marginTop: isLabel ? PX_TO_PT * 10 : PX_TO_PT * 4,
+        marginBottom: isLabel ? PX_TO_PT * 1 : PX_TO_PT * 7,
+      };
+      return (
+        <Text
+          key={key}
+          style={paragraphStyle}
+        >
+          {renderRichRuns(block?.runs, text, paragraphStyle, key)}
+        </Text>
+      );
+    };
+
+    return (
+      <View style={{ marginTop: PX_TO_PT * 15 }}>
+        {sections.map((section, sectionIndex) => {
+          const heading = normalizePdfText(section?.title).trim();
+          const blocks =
+            Array.isArray(section?.blocks) && section.blocks.length > 0
+              ? section.blocks
+              : [{ type: "paragraph", text: section?.notes || "", isFallback: false }];
+
+          if (section?.renderMode === "document") {
+            return (
+              <View key={`soap-section-${sectionIndex}`}>
+                {blocks.map((block, blockIndex) =>
+                  renderSoapDocumentBlock(block, `soap-document-${sectionIndex}-${blockIndex}`)
+                )}
+              </View>
+            );
+          }
+
+          return (
+            <View
+              key={`soap-section-${sectionIndex}`}
+              style={{ marginTop: sectionIndex === 0 ? 0 : PX_TO_PT * 22 }}
+            >
+              <Text
+                style={{
+                  color: "#000000",
+                  fontFamily: getIndianLanguageFont(heading, baseFontFamily),
+                  fontSize: headingFontSize,
+                  fontWeight: 700,
+                  lineHeight: 1.15,
+                  marginBottom: PX_TO_PT * 9,
+                }}
+              >
+                {heading}
+              </Text>
+              {blocks.map((block, blockIndex) => {
+                if (block?.type === "list" || block?.type === "ordered-list") {
+                  const items = Array.isArray(block.items) ? block.items : [];
+                  return items.map((item, itemIndex) => {
+                    const text =
+                      block?.type === "ordered-list"
+                        ? `${itemIndex + 1}. ${item}`
+                        : item;
+                    return renderSoapBullet(
+                      text,
+                      `soap-list-item-${sectionIndex}-${blockIndex}-${itemIndex}`,
+                    );
+                  });
+                }
+
+                const text = normalizePdfText(block?.text).trim();
+                if (!text) return null;
+                if (block?.isFallback || isNotDocumentedText(text)) {
+                  return (
+                    <Text
+                      key={`soap-fallback-${sectionIndex}-${blockIndex}`}
+                      style={{
+                        color: "#6f6f76",
+                        fontFamily: getIndianLanguageFont(text, baseFontFamily),
+                        fontSize: fallbackFontSize,
+                        fontWeight: 400,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {text}
+                    </Text>
+                  );
+                }
+
+                return renderSoapBullet(
+                  text,
+                  `soap-paragraph-${sectionIndex}-${blockIndex}`,
+                );
+              })}
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
   /** AI / digitized medication only — respects print option numeric vs text frequency. */
   const getAiMedicationFrequencyDisplay = (item, medOption) => {
     const hasSlotFrequency = !!(
@@ -1726,33 +2121,45 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       .trim();
   }
 
-  function getAiMedicationDoseDisplay(item, option) {
+  function getMedicationUnitTitle(item = {}, unitId) {
+    if (unitId === undefined || unitId === null || unitId === "") return "";
+    if (item.tmm_unit == unitId && item.tmm_unit_name) return item.tmm_unit_name;
+    const matchedUnit = Array.isArray(item.medicineUnit)
+      ? item.medicineUnit.find((x) => x.tmu_id == unitId)
+      : null;
+    if (matchedUnit?.tmu_title) return matchedUnit.tmu_title;
+    if (MEDICINE_UNIT_FALLBACK_MAP[unitId]) return MEDICINE_UNIT_FALLBACK_MAP[unitId];
+    return "";
+  }
+
+  function getMedicationDoseDisplay(item = {}, option) {
     const doseVal =
       item?.tmm_dosage != null && String(item.tmm_dosage).trim() !== ""
         ? item.tmm_dosage
-        : item?.dosage;
+        : item?.unitPerDose ?? item?.dosage ?? item?.unit_per_dose;
     if (doseVal == null || String(doseVal).trim() === "") {
-      return (
-        item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)
-          ?.tmu_title || "-"
-      );
+      return item?.tmm_dosage_unit_name || getMedicationUnitTitle(item, item.default_tmm_unit) || "-";
+    }
+    const doseText = String(doseVal).trim();
+    if (/\d/.test(doseText) && /[a-zA-Z]/i.test(doseText)) {
+      return item?.tmm_dosage_unit_name || doseText;
     }
     if (item.tmm_unit) {
-      const u =
-        item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title ||
-        "";
+      const u = getMedicationUnitTitle(item, item.tmm_unit);
       return u
         ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u}`
-        : String(doseVal).trim();
+        : item?.tmm_dosage_unit_name || doseText;
     }
-    const s = String(doseVal).trim();
+    const s = doseText;
     if (/\d/.test(s) && /[a-zA-Z]/i.test(s)) return s;
-    const u0 =
-      item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)
-        ?.tmu_title || "";
+    const u0 = getMedicationUnitTitle(item, item.default_tmm_unit);
     return u0
       ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u0}`
-      : s;
+      : item?.tmm_dosage_unit_name || s;
+  }
+
+  function getAiMedicationDoseDisplay(item, option) {
+    return getMedicationDoseDisplay(item, option);
   }
 
   function getAiMedicationDurationDisplay(item) {
@@ -1780,14 +2187,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const getCustomModuleName = (id) => {
     const customModuleList = Array.isArray(customModules) ? customModules : customModules?.modules;
     const customModule = customModuleList?.find(
-      (module) => module?.module_id === id,
+      (module) =>
+        idsMatch(module?.module_id, id) ||
+        idsMatch(module?.origin_id, id) ||
+        idsMatch(module?.id, id),
     );
     return customModule?.name
       ? customModule?.printConfig?.nameOverride !== undefined
         ? customModule?.printConfig?.nameOverride
         : customModule?.name
       : caseManagerData?.moduleContents?.find(
-          (module) => module?.module_id === id,
+          (module) =>
+            idsMatch(module?.module_id, id) ||
+            idsMatch(module?.origin_id, id) ||
+            idsMatch(module?.id, id),
         )?.module_name;
   };
 
@@ -1953,11 +2366,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     printSettings?.prescription?.case_option
   ) {
     const existingModuleIds = new Set(
-      printSettings?.prescription?.case_option?.map((option) => option?.id),
+      printSettings?.prescription?.case_option?.map((option) =>
+        String(option?.id),
+      ),
     );
 
     caseManagerData?.moduleContents
-      ?.filter((module) => !existingModuleIds.has(module?.module_id))
+      ?.filter((module) => !existingModuleIds.has(String(module?.module_id)))
       ?.forEach((module) => {
         printSettings?.prescription?.case_option?.push({
           id: module?.module_id,
@@ -2005,7 +2420,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         (isRxDigitizeBool ||
           isVoiceRxDigitizeBool ||
           isAmbientVoiceRxDigitizeBool ||
-          (caseManagerData.isCustomSSRX === "0" && uploaded_files?.length > 0)))
+          (caseManagerData.isCustomSSRX === "0" && uploaded_files?.length > 0))) ||
+      hasDentalExaminationData ||
+      hasOralExaminationData ||
+      shouldShowDentalChartOnly
 
       // // Check case manager data
       // hasAnyCaseManagerData(caseManagerData) ||
@@ -2108,7 +2526,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
       // Check if custom module data exists
       let customModule = caseManagerData?.moduleContents?.find(
-        (e) => e?.module_id === option?.id,
+        (e) =>
+          idsMatch(e?.module_id, option?.id) ||
+          idsMatch(e?.origin_id, option?.id) ||
+          idsMatch(e?.id, option?.id),
       );
       if (customModule) {
         customModule = {
@@ -2181,6 +2602,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           return caseManagerData?.visit_advice;
         case 20: // Ophthal Module
           return hasOphthalModuleData;
+        case 21: // Dental Examination
+          return hasDentalExaminationData;
+        case 22: // Oral Examination
+          return hasOralExaminationData;
         default:
           return false;
       }
@@ -2725,16 +3150,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
               />
             )}
           {/* Patient Info */}
-          <View
-            style={{
-              backgroundColor: "#171725",
-              height: PX_TO_PT * 2,
-              width: "100%",
-            }}
-            fixed={printSettings?.header_footer?.show_patient_info === "all"}
-          />
+          <>
+            <View
+              style={{
+                backgroundColor: "#171725",
+                height: PX_TO_PT * 2,
+                width: "100%",
+              }}
+              fixed={printSettings?.header_footer?.show_patient_info === "all"}
+            />
 
-          {printSettings?.header_footer?.show_patient_info === "all" ? (
+            {showPatientInfoHeader &&
+              (printSettings?.header_footer?.show_patient_info === "all" ? (
             <>
               <View
                 style={{ flexDirection: "row", marginVertical: PX_TO_PT * 15 }}
@@ -2845,7 +3272,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 fixed
               />
             </>
-          ) : (
+              ) : (
             <>
               <View
                 style={{ flexDirection: "row", marginVertical: PX_TO_PT * 15 }}
@@ -2954,7 +3381,19 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 }}
               />
             </>
-          )}
+              ))}
+
+            {!showPatientInfoHeader && (
+              <View
+                style={{
+                  marginBottom: PX_TO_PT * 15,
+                  backgroundColor: "#171725",
+                  height: PX_TO_PT * 1,
+                  width: "100%",
+                }}
+              />
+            )}
+          </>
 
           {/* <View style={{
                         marginTop: (printSettings?.header_footer?.show_patient_info === 'first' ||
@@ -3015,6 +3454,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                   return advanceReceipts?.length > 0;
                 case 20:
                   return hasOphthalModuleData;
+                case 21:
+                  return hasDentalExaminationData;
+                case 22:
+                  return hasOralExaminationData;
                 default:
                   if (option.is_custom_module) {
                     const customModule = caseManagerData?.moduleContents?.find(
@@ -3403,12 +3846,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       },
                                     ]}
                                   >
-                                    {item?.tmm_dosage && item?.tmm_unit
-                                      ? `${formatUnitPerDose(item?.tmm_dosage, dentalMedicationOption?.is_dosage_decimal)} ${item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit)?.tmu_title || ""}`
-                                      : item?.medicineUnit?.find(
-                                          (x) =>
-                                            x?.tmu_id == item?.default_tmm_unit,
-                                        )?.tmu_title || "-"}
+                                    {getMedicationDoseDisplay(
+                                      item,
+                                      dentalMedicationOption,
+                                    )}
                                   </Text>
                                 )}
                                 {dentalMedicationOption?.medicine_option?.includes(
@@ -3541,6 +3982,32 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                         </View>
                       </View>
                     )}
+
+                    {/* {hasDentalExaminationData
+                      ? renderDentalExamPdf({
+                          dentalExaminationData,
+                          dentalOption: printSettings?.prescription?.case_option?.find(
+                            (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID,
+                          ),
+                          printSettings,
+                          consultationDate:
+                            caseManagerData?.patient_data?.patient_consultaion_date,
+                          PX_TO_PT,
+                          toothImageMap,
+                        })
+                      : null}
+                    {shouldRenderOralInDentalBlock
+                      ? renderOralExamPdf({
+                          examChart,
+                          oralOption: printSettings?.prescription?.case_option?.find(
+                            (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+                          ),
+                          printSettings,
+                          consultationDate:
+                            caseManagerData?.patient_data?.patient_consultaion_date,
+                          PX_TO_PT,
+                        })
+                      : null} */}
 
                     {hasTeethData && (
                       <View style={styles.dentalQuadrantGrid}>
@@ -3894,28 +4361,58 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     )}
                   </View>
                 )}
-                {/* {hasBlankSmartSyncCanvas &&
+                {onlyShowDental && (
+                  <>
+                    {(hasDentalExaminationData || shouldShowDentalChartOnly)
+                      ? renderDentalExamPdf({
+                          dentalExaminationData,
+                          dentalOption: dentalPrintOption,
+                          printSettings,
+                          consultationDate:
+                            caseManagerData?.patient_data?.patient_consultaion_date,
+                          PX_TO_PT,
+                          toothImageMap,
+                        })
+                      : null}
+                    {shouldRenderOralInDentalBlock
+                      ? renderOralExamPdf({
+                          examChart,
+                          oralOption: printSettings?.prescription?.case_option?.find(
+                            (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+                          ),
+                          printSettings,
+                          consultationDate:
+                            caseManagerData?.patient_data?.patient_consultaion_date,
+                          PX_TO_PT,
+                        })
+                      : null}
+                  </>
+                )}
+                {hasBlankSmartSyncCanvas &&
                   uploaded_files
                     ?.filter((item) => getSmartSyncUploadedFileUri(item))
                     ?.map((item, i) => (
-                    <View key={`blank-smartsync-canvas-${i}`}>
-                      <View
-                        style={{
-                          marginTop: PX_TO_PT * 15,
-                          width: "100%",
-                          height: 800,
-                        }}
-                      >
-                        <Image
-                          style={{ width: "100%", height: "100%" }}
-                          source={{ uri: getSmartSyncUploadedFileUri(item) }}
-                          resizeMode="contain"
-                        />
+                      <View key={`blank-smartsync-canvas-${i}`}>
+                        <View
+                          style={{
+                            marginTop: PX_TO_PT * 15,
+                            width: "100%",
+                            height: 800,
+                          }}
+                        >
+                          <Image
+                            style={{ width: "100%", height: "100%" }}
+                            source={{ uri: getSmartSyncUploadedFileUri(item) }}
+                            resizeMode="contain"
+                          />
+                        </View>
                       </View>
-                    </View>
-                  ))} */}
+                    ))}
                 {printSettings?.prescription?.case_option?.map(
                   (option, index) => {
+                    if (onlyShowDental) {
+                      return null;
+                    }
                     if (
                       isCvtExtHosAccessableForPrint &&
                       !isRxDigitizeBool &&
@@ -3933,7 +4430,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       ) || false;
                     // Try to find custom module by module_id matching option.id
                     let customModule = caseManagerData?.moduleContents?.find(
-                      (e) => e?.module_id === option?.id,
+                      (e) =>
+                        idsMatch(e?.module_id, option?.id) ||
+                        idsMatch(e?.origin_id, option?.id) ||
+                        idsMatch(e?.id, option?.id),
                     );
 
                     // If not found, try to find by module_name matching option.title
@@ -3942,10 +4442,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       option?.is_custom_module &&
                       option?.title
                     ) {
+                      const optionTitle = normalizeModuleLabel(option?.title);
                       customModule = caseManagerData?.moduleContents?.find(
                         (e) =>
-                          e?.module_name === option?.title ||
-                          e?.name === option?.title,
+                          normalizeModuleLabel(e?.module_name) === optionTitle ||
+                          normalizeModuleLabel(e?.name) === optionTitle,
                       );
                     }
 
@@ -4138,6 +4639,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       customModule._isV2 = moduleIsV2;
                       customModule._namedFields = moduleNamedFields;
                     }
+
+                    const isSoapPrintOption = isSoapPrintModule(
+                      option,
+                      customModule,
+                    );
 
                     // Skip rendering if it's a custom module with no data
                     if (
@@ -6572,6 +7078,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           tmm_dosage,
                                                           medicineUnit,
                                                           tmm_unit,
+                                                          tmm_dosage_unit_name,
+                                                          tmm_unit_name,
                                                           tcm_tmm_freq_morning,
                                                           tcm_tmm_freq_afternoon,
                                                           tcm_tmm_freq_evening,
@@ -6594,10 +7102,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             option?.medicine_option?.includes(
                                                               "dose",
                                                             )
-                                                              ? tmm_dosage &&
-                                                                tmm_unit
-                                                                ? `${formatUnitPerDose(tmm_dosage, option?.is_dosage_decimal)} ${medicineUnit && medicineUnit?.find((x) => x?.tmu_id == tmm_unit) !== undefined ? medicineUnit?.find((x) => x?.tmu_id == tmm_unit)?.tmu_title : ""}`
-                                                                : `${medicineUnit && medicineUnit?.find((x) => x?.tmu_id == default_tmm_unit) !== undefined ? medicineUnit?.find((x) => x?.tmu_id == default_tmm_unit)?.tmu_title : ""}`
+                                                              ? getMedicationDoseDisplay({
+                                                                  tmm_dosage,
+                                                                  medicineUnit,
+                                                                  tmm_unit,
+                                                                  tmm_dosage_unit_name,
+                                                                  tmm_unit_name,
+                                                                  default_tmm_unit,
+                                                                }, option)
                                                               : "",
 
                                                           modiFrequency:
@@ -6790,6 +7302,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           tmm_dosage,
                                                           medicineUnit,
                                                           tmm_unit,
+                                                          tmm_dosage_unit_name,
+                                                          tmm_unit_name,
                                                           tcm_tmm_freq_morning,
                                                           tcm_tmm_freq_afternoon,
                                                           tcm_tmm_freq_evening,
@@ -6812,10 +7326,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             option?.medicine_option?.includes(
                                                               "dose",
                                                             )
-                                                              ? tmm_dosage &&
-                                                                tmm_unit
-                                                                ? `${formatUnitPerDose(tmm_dosage, option?.is_dosage_decimal)} ${medicineUnit && medicineUnit?.find((x) => x?.tmu_id == tmm_unit) !== undefined ? medicineUnit?.find((x) => x?.tmu_id == tmm_unit)?.tmu_title : ""}`
-                                                                : `${medicineUnit && medicineUnit?.find((x) => x?.tmu_id == default_tmm_unit) !== undefined ? medicineUnit?.find((x) => x?.tmu_id == default_tmm_unit)?.tmu_title : ""}`
+                                                              ? getMedicationDoseDisplay({
+                                                                  tmm_dosage,
+                                                                  medicineUnit,
+                                                                  tmm_unit,
+                                                                  tmm_dosage_unit_name,
+                                                                  tmm_unit_name,
+                                                                  default_tmm_unit,
+                                                                }, option)
                                                               : "",
 
                                                           modiFrequency:
@@ -7225,7 +7743,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           fontWeight: 500,
                                                         },
                                                       ]}
-                                                    >{`${item?.tmm_dosage && item?.tmm_unit ? `${formatUnitPerDose(item?.tmm_dosage, option?.is_dosage_decimal)} ${item?.medicineUnit && item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit) !== undefined ? item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit)?.tmu_title : ""}` : `${item?.medicineUnit && item?.medicineUnit?.find((x) => x?.tmu_id == item?.default_tmm_unit) !== undefined ? item?.medicineUnit?.find((x) => x?.tmu_id == item?.default_tmm_unit)?.tmu_title : ""}`}`}</Text>
+                                                    >{getMedicationDoseDisplay(item, option)}</Text>
                                                   )}
                                                   {option?.medicine_option?.includes(
                                                     "frequency",
@@ -7989,14 +8507,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 {items.map((item, ii) => {
                                                   const isLastItem =
                                                     ii === items.length - 1;
-                                                  const unitPerDose = (
-                                                    item?.unitPerDose ||
-                                                    item?.dosage ||
-                                                    item?.unit_per_dose ||
-                                                    ""
-                                                  )
-                                                    .toString()
-                                                    .trim();
+                                                  const unitPerDose =
+                                                    getAiMedicationDoseDisplay(
+                                                      item,
+                                                      option,
+                                                    );
                                                   const when = (
                                                     item?.when ||
                                                     item?.schedule ||
@@ -13652,6 +14167,38 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 </>
                               ))}
                           </>
+                        ) : option?.id === DENTAL_EXAM_CASE_OPTION_ID &&
+                          option?.enable === "Y" &&
+                          option?.custom_status === "Y" ? (
+                          <>
+                            {hasDentalExaminationData ? renderDentalExamPdf({
+                              dentalExaminationData,
+                              dentalOption: option,
+                              printSettings,
+                              consultationDate:
+                                caseManagerData?.patient_data
+                                  ?.patient_consultaion_date,
+                              PX_TO_PT,
+                              toothImageMap,
+                            })
+                            : null}
+                          </>
+                        ) : option?.id === ORAL_EXAM_CASE_OPTION_ID &&
+                          option?.enable === "Y" &&
+                          option?.custom_status === "Y" ? (
+                          <>
+                            {hasOralExaminationData
+                              ? renderOralExamPdf({
+                                  examChart,
+                                  oralOption: option,
+                                  printSettings,
+                                  consultationDate:
+                                    caseManagerData?.patient_data
+                                      ?.patient_consultaion_date,
+                                  PX_TO_PT,
+                                })
+                              : null}
+                          </>
                         ) : option?.id === 11 &&
                           ((option?.enable === "Y" &&
                             option?.custom_status === "Y") ||
@@ -13662,8 +14209,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               caseManagerData.isCustomSSRX === "0" &&
                               !isSnapRx &&
                               !isDigitizedFlow() &&
-                              // !hasBlankSmartSyncCanvas &&
-                              uploaded_files?.map((item, i) => (
+                              !hasBlankSmartSyncCanvas &&
+                              uploaded_files
+                                ?.filter((item) => getSmartSyncUploadedFileUri(item))
+                                ?.map((item, i) => (
                                 <View key={i}>
                                   <View
                                     style={{
@@ -15253,6 +15802,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 </View>
                               ))}
                           </>
+                        ) : isSoapPrintOption &&
+                          option?.enable === "Y" &&
+                          option?.custom_status === "Y" &&
+                          customModule?.content?.length > 0 &&
+                          !rx ? (
+                          renderSoapPrintSections(customModule?.content || [])
                         ) : option?.is_custom_module === true &&
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" &&
@@ -15322,6 +15877,43 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               isV2 && customModule?.content?.length > 0
                                 ? getFieldKeys(customModule.content[0])
                                 : [];
+                            const isV2SingleColumn =
+                              isV2 &&
+                              fieldKeys.length > 0 &&
+                              customModule?.content?.length > 0 &&
+                              (fieldKeys.length === 1 ||
+                                namedFields.length === 1 ||
+                                customModule.content[0].order === 0 ||
+                                customModule.content[0].order === "0");
+                            const normalizeCustomModuleTitle = (value) =>
+                              String(value || "")
+                                .trim()
+                                .toLowerCase()
+                                .replace(/[^a-z0-9]/g, "");
+                            const resolveCustomModuleDisplayName = () =>
+                              getCustomModuleName(option?.id) ||
+                              customModule?.name ||
+                              customModule?.module_name ||
+                              option?.title ||
+                              "";
+                            const isV2NameMatchesColumnTitle =
+                              isV2SingleColumn &&
+                              fieldKeys.length > 0 &&
+                              (() => {
+                                const normalizedModuleName =
+                                  normalizeCustomModuleTitle(
+                                    resolveCustomModuleDisplayName(),
+                                  );
+                                if (!normalizedModuleName) return false;
+                                const fieldKey = fieldKeys[0];
+                                const fieldLabel = getFieldLabel(fieldKey);
+                                return (
+                                  normalizedModuleName ===
+                                    normalizeCustomModuleTitle(fieldLabel) ||
+                                  normalizedModuleName ===
+                                    normalizeCustomModuleTitle(fieldKey)
+                                );
+                              })();
 
                             // Helper to check if V2 content has any data
                             const hasV2Content = (item) => {
@@ -15365,6 +15957,53 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   </Text>
                                   {customModule?.content?.map((item, i) => {
                                     if (isV2) {
+                                      if (isV2NameMatchesColumnTitle) {
+                                        const value = item[fieldKeys[0]];
+                                        if (!value?.trim?.().length > 0)
+                                          return null;
+                                        return (
+                                          <Text key={i}>
+                                            <Text
+                                              style={{
+                                                color: "#171725",
+                                                fontFamily:
+                                                  getIndianLanguageFont(
+                                                    value,
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  ),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                              }}
+                                            >
+                                              {normalizePdfText(value)}
+                                            </Text>
+                                            {i <
+                                              customModule?.content.length -
+                                                1 && (
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {" "}
+                                                |{" "}
+                                              </Text>
+                                            )}
+                                          </Text>
+                                        );
+                                      }
                                       // V2: Render all fields with their keys as labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
                                       const fieldEntries = fieldKeys
                                         .map((fieldKey) => ({
@@ -15585,6 +16224,55 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   </Text>
                                   {customModule?.content.map((item, i) => {
                                     if (isV2) {
+                                      if (isV2NameMatchesColumnTitle) {
+                                        const value = item[fieldKeys[0]];
+                                        if (!value?.trim?.().length > 0)
+                                          return null;
+                                        return (
+                                          <Text
+                                            key={i}
+                                            style={{
+                                              marginTop:
+                                                PX_TO_PT * (i == 0 ? 4 : 2),
+                                              lineHeight: 1.4,
+                                            }}
+                                          >
+                                            <Text
+                                              style={{
+                                                color: "#171725",
+                                                fontFamily:
+                                                  printSettings?.page_format
+                                                    ?.font_family,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                              }}
+                                            >
+                                              &nbsp;&nbsp;&nbsp;{i + 1}.
+                                            </Text>
+                                            <Text
+                                              style={{
+                                                color: "#171725",
+                                                fontFamily:
+                                                  getIndianLanguageFont(
+                                                    value,
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  ),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                              }}
+                                            >
+                                              {normalizePdfText(value)}
+                                            </Text>
+                                          </Text>
+                                        );
+                                      }
                                       // V2: Render all fields with their keys as labels in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
                                       const fieldEntries = fieldKeys
                                         .map((fieldKey) => ({
@@ -15782,7 +16470,44 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   </Text>
                                   <View style={styles.table}>
                                     <View style={styles.headerRowFixed} fixed />
-                                    {customModule.module_version === "v2" && (
+                                    {customModule.module_version === "v2" &&
+                                      (isV2SingleColumn
+                                        ? !isV2NameMatchesColumnTitle && (
+                                            <View
+                                              style={[
+                                                styles.row,
+                                                { backgroundColor: "#f5f5f5" },
+                                              ]}
+                                              wrap={false}
+                                            >
+                                              <Text
+                                                style={[
+                                                  styles.dynamicModuleCell,
+                                                  {
+                                                    flex: 1,
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      getIndianLanguageFont(
+                                                        getFieldLabel(
+                                                          fieldKeys[0],
+                                                        ),
+                                                        printSettings?.page_format
+                                                          ?.font_family,
+                                                      ),
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 700,
+                                                  },
+                                                ]}
+                                              >
+                                                {getFieldLabel(fieldKeys[0])}
+                                                &nbsp;
+                                              </Text>
+                                            </View>
+                                          )
+                                        : (
                                       // V2: Render column headers with field keys
                                       <View
                                         style={[
@@ -15821,11 +16546,47 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           );
                                         })}
                                       </View>
-                                    )}
+                                    ))}
                                     {customModule?.content.map((item, i) => {
                                       if (
                                         customModule.module_version === "v2"
                                       ) {
+                                        if (isV2SingleColumn) {
+                                          const value =
+                                            item[fieldKeys[0]] != null
+                                              ? String(item[fieldKeys[0]]).trim()
+                                              : "-";
+                                          return (
+                                            <View
+                                              style={styles.row}
+                                              key={i}
+                                              wrap={false}
+                                            >
+                                              <Text
+                                                style={[
+                                                  styles.dynamicModuleCell,
+                                                  {
+                                                    flex: 1,
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      getIndianLanguageFont(
+                                                        value,
+                                                        printSettings?.page_format
+                                                          ?.font_family,
+                                                      ),
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 500,
+                                                  },
+                                                ]}
+                                              >
+                                                {value || "-"}&nbsp;
+                                              </Text>
+                                            </View>
+                                          );
+                                        }
                                         // V2: Render all fields in columns using fieldKeys from content
                                         const fieldValues = fieldKeys.map(
                                           (fieldKey) => item[fieldKey] || "-",
