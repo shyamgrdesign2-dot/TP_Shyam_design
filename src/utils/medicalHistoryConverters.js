@@ -90,6 +90,128 @@ function firstMedicalHistoryTextValue(...values) {
   return '';
 }
 
+const OTHER_HISTORY_EXCLUDED_KEYS = new Set([
+  'type',
+  'enable',
+  'pms_default',
+  'tmmhs_id',
+  'tmmhst_id',
+  'section',
+  'section_name',
+  'title',
+  'tags',
+  'no_know_history',
+  'medical_history_remarks',
+  'id',
+  '_id',
+  'uuid',
+  'unique_id',
+  'created_at',
+  'updated_at',
+  'createdAt',
+  'updatedAt'
+]);
+
+const OTHER_HISTORY_FIELD_LABELS = {
+  notes: 'Notes',
+  note: 'Notes',
+  duration: 'Duration',
+  since: 'Duration',
+  relation: 'Relation',
+  relationship: 'Relation',
+  medication: 'Medication',
+  status: 'Status',
+  date: 'Date',
+  dateType: 'Date Type',
+  lineItem: 'Details',
+  line_item: 'Details',
+  name: 'Name'
+};
+
+function isEmptyMedicalHistoryValue(value) {
+  if (value === undefined || value === null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+}
+
+function stringifyMedicalHistoryValue(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => stringifyMedicalHistoryValue(entry))
+      .filter(Boolean)
+      .join(', ');
+  }
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .filter(([, entryValue]) => !isEmptyMedicalHistoryValue(entryValue))
+      .map(([entryKey, entryValue]) => `${formatOtherHistoryFieldLabel(entryKey)}: ${stringifyMedicalHistoryValue(entryValue)}`)
+      .join(', ');
+  }
+  return String(value ?? '').trim();
+}
+
+function formatOtherHistoryFieldLabel(key) {
+  if (OTHER_HISTORY_FIELD_LABELS[key]) return OTHER_HISTORY_FIELD_LABELS[key];
+  return String(key || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export function formatOtherMedicalHistoryLineItem(item = {}) {
+  if (!item || typeof item !== 'object') return '';
+
+  const heading = firstMedicalHistoryTextValue(item.name, item.title);
+  const noteValue = firstMedicalHistoryTextValue(item.notes, item.note);
+  const parts = [];
+
+  if (heading && noteValue) {
+    parts.push(`${heading}: ${noteValue}`);
+  } else if (heading) {
+    parts.push(heading);
+  } else if (noteValue) {
+    parts.push(`Notes: ${noteValue}`);
+  }
+
+  const handledKeys = new Set(['name', 'title', 'notes', 'note']);
+  if (heading && !noteValue && item.lineItem && String(item.lineItem).trim() !== heading) {
+    parts.push(`Details: ${String(item.lineItem).trim()}`);
+    handledKeys.add('lineItem');
+  }
+
+  Object.entries(item).forEach(([key, value]) => {
+    if (handledKeys.has(key) || OTHER_HISTORY_EXCLUDED_KEYS.has(key) || isEmptyMedicalHistoryValue(value)) return;
+    const text = stringifyMedicalHistoryValue(value);
+    if (!text || text.toLowerCase() === 'others') return;
+    parts.push(`${formatOtherHistoryFieldLabel(key)}: ${text}`);
+  });
+
+  return parts.join(', ').replace(/^others[, ]+/i, '').trim();
+}
+
+function mergeMedicalHistoryRemarks(existingRemarks, incomingRemarks) {
+  const lines = [];
+  const seen = new Set();
+  const addLine = (line) => {
+    const text = String(line ?? '').trim();
+    if (!text || seen.has(text)) return;
+    seen.add(text);
+    lines.push(text);
+  };
+
+  String(existingRemarks || '')
+    .split('\n')
+    .forEach(addLine);
+  String(incomingRemarks || '')
+    .split('\n')
+    .forEach(addLine);
+
+  return lines.join('\n');
+}
+
 function normalizeAgentMedicalHistoryTag(row = {}) {
   let title = firstMedicalHistoryTextValue(row.title, row.name, row.lineItem);
   if (!title) return null;
@@ -251,9 +373,11 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
   apiMedicalHistory.forEach((item) => {
     const type = item.type || 'Lifestyle';
     const normalizedType = normalizeMedicalHistoryTypeKey(type);
-    if (normalizedType === 'others' || type === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
+    if (normalizedType === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
       let noteText = '';
-      if (item.lineItem && item.lineItem.trim()) {
+      if (normalizedType === 'others') {
+        noteText = formatOtherMedicalHistoryLineItem(item);
+      } else if (item.lineItem && item.lineItem.trim()) {
         noteText = item.lineItem.trim();
       } else if (item.notes && item.notes.trim()) {
         const namePart = item.name ? `${item.name}` : '';
@@ -376,8 +500,18 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
     ? filteredAdditionalNotes.join('\n') 
     : null;
 
-  if (medicalHistoryDataArray.length > 0 && medicalHistoryRemarks) {
-    medicalHistoryDataArray[0].medical_history_remarks = medicalHistoryRemarks;
+  if (medicalHistoryRemarks) {
+    if (medicalHistoryDataArray.length > 0) {
+      medicalHistoryDataArray[0].medical_history_remarks = medicalHistoryRemarks;
+    } else if (!existingContextData || existingContextData.length === 0) {
+      medicalHistoryDataArray.push({
+        tmmhs_id: 1,
+        section_name: 'Lifestyle',
+        title: 'Lifestyle',
+        tags: [],
+        medical_history_remarks: medicalHistoryRemarks
+      });
+    }
   }
 
   if (existingContextData && existingContextData.length > 0) {
@@ -459,7 +593,10 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
 
     if (merged.length > 0) {
       if (medicalHistoryRemarks) {
-        merged[0].medical_history_remarks = medicalHistoryRemarks;
+        merged[0].medical_history_remarks = mergeMedicalHistoryRemarks(
+          existingContextData[0]?.medical_history_remarks,
+          medicalHistoryRemarks
+        );
       } else if (existingContextData[0]?.medical_history_remarks) {
         merged[0].medical_history_remarks = existingContextData[0].medical_history_remarks;
       }
