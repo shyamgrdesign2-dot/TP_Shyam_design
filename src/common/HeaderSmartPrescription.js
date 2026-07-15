@@ -57,7 +57,10 @@ import { GB_SMARTSYNC_CONNECT } from "../utils/constants";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { setDefaultCustomSyncPadTemplate } from "../pages/smartSync/services/uploadService";
 import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
-import { syncCrossConsultReferral } from "../utils/crossConsultHelpers";
+import {
+  attachCrossConsultToCaseManagerPayload,
+  syncCrossConsultReferral,
+} from "../utils/crossConsultHelpers";
 import VideoConsultButton from "../components/VideoConsultButton";
 import { ASSETS } from "../assets";
 const {
@@ -539,6 +542,11 @@ function HeaderPrescription({
       isCustomSSRX: isCustomSSRX ? "1" : "0",
       custom_ss_data: prepareMetadataForSubmissionData?.custom_ss_data || null,
     };
+
+    attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+      referredBy: profile?.um_name,
+      pendingCrossConsult: patient_data,
+    });
 
     const action =
       tcmId == 0

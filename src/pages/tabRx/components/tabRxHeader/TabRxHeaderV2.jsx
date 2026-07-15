@@ -98,7 +98,10 @@ import useTabletViewport from "../../../../hooks/useTabletViewport";
 import { useChikitsalay } from "../../../../pages/chikitsalay/useChikitsalay";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { getTabRxFiles, upsertTabRxRx } from "../../services/tabRxService";
-import { syncCrossConsultReferral } from "../../../../utils/crossConsultHelpers";
+import {
+    attachCrossConsultToCaseManagerPayload,
+    syncCrossConsultReferral,
+} from "../../../../utils/crossConsultHelpers";
 import {
     getMetadata,
     setMetadata,
@@ -1828,6 +1831,11 @@ function TabRxHeaderV2({
                     zydusSelectedLabParams: zydusSelectedLabParams,
                 };
             }
+
+            attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+                referredBy: profile?.um_name,
+                pendingCrossConsult: patient_data,
+            });
 
             const clinic_name = getClinicName(profile?.hospital_data);
             tcmId == 0

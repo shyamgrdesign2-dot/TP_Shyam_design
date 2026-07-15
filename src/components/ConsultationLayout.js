@@ -201,6 +201,7 @@ import { ToothIcon } from "./dental/ToothIcon";
 import { syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import { EMPTY_REFERRAL_DATA } from "./referral/ReferralPanelForm";
 import {
+  attachCrossConsultToCaseManagerPayload,
   fetchReferralDataForCaseManager,
   syncCrossConsultReferral,
 } from "../utils/crossConsultHelpers";
@@ -2378,6 +2379,11 @@ function ConsultationLayout({ children, headerProps }) {
         medical_history: medicalHistoryData,
         moduleContents: customModuleContents,
       };
+
+      attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+        referredBy: profile?.um_name,
+        pendingCrossConsult: patient_data,
+      });
 
       const action = await (currentTcmId === 0
         ? dispatch(addCaseManager(sendData))

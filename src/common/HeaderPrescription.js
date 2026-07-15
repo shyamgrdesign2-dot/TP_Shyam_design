@@ -54,7 +54,10 @@ import GenRxButton from '../components/GenRxButton';
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import { getDecodedToken } from '../utils/localStorage';
 import { appendStripped, stripEmptyRows } from '../utils/voiceRxRowStrip';
-import { syncCrossConsultReferral } from '../utils/crossConsultHelpers';
+import {
+  attachCrossConsultToCaseManagerPayload,
+  syncCrossConsultReferral,
+} from '../utils/crossConsultHelpers';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
@@ -2274,6 +2277,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     "zydusSelectedLabParams": zydusSelectedLabParams
                 }
             }
+
+            attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+                referredBy: profile?.um_name,
+                pendingCrossConsult: patient_data,
+            });
 
             const clinic_name = getClinicName(profile?.hospital_data);
             const consultationEventPayload = {
