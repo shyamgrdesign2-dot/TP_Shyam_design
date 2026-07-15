@@ -69,7 +69,7 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
     if (clinicId && clinicId !== "all" && !String(clinicId).includes(",")) summaryParams.clinicId = clinicId;
     if (doctorId && doctorId !== "all") summaryParams.doctorId = doctorId;
     const rangeDays = (new Date(endDate) - new Date(startDate)) / 86400000 + 1;
-    const [res, prevRes, undigitised, apptSummary] = await Promise.all([
+    const [res, prevRes, undigitised, apptSummary, prevApptSummary] = await Promise.all([
       post(body),
       prevWin ? post({ ...body, startDate: prevWin.startDate, endDate: prevWin.endDate }) : Promise.resolve(null),
       // The full pending-digitisation list — the SAME source as the appointment
@@ -80,14 +80,19 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
       rangeDays <= 30
         ? ApiReporting.clinicalAppointmentSummary(summaryParams).then((r) => r).catch(() => null)
         : Promise.resolve(null),
+      // Previous-window channel split → deltas on the In-clinic / Video cards
+      rangeDays <= 30 && prevWin
+        ? ApiReporting.clinicalAppointmentSummary({ ...summaryParams, startDate: prevWin.startDate, endDate: prevWin.endDate }).then((r) => r).catch(() => null)
+        : Promise.resolve(null),
     ]);
     const undigitisedList = Array.isArray(undigitised)
       ? undigitised
       : undigitised?.undigitizedAppointments ?? undigitised?.data?.undigitizedAppointments ?? [];
     const pendingDecisions = Array.isArray(undigitisedList) ? undigitisedList.length : 0;
     const summarySrc = apptSummary?.data ?? apptSummary ?? null;
-    const channelOf = (label) => {
-      const mix = Array.isArray(summarySrc?.channelMix) ? summarySrc.channelMix : [];
+    const prevSummarySrc = prevApptSummary?.data ?? prevApptSummary ?? null;
+    const channelOf = (label, src = summarySrc) => {
+      const mix = Array.isArray(src?.channelMix) ? src.channelMix : [];
       const hit = mix.find((m) => new RegExp(label, "i").test(String(m.label)));
       return hit ? num(hit.value) : 0;
     };
@@ -119,8 +124,8 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
         { key: "pendingDecisions", label: "Pending digitization", kind: "number", value: pendingDecisions, tooltip: "Finished SnapRx visits awaiting digitization, a live backlog as of now, not filtered by the date range" },
         { key: "cancelled", label: "Cancelled", kind: "number", value: cancelled, invert: true, tooltip: "Appointments cancelled in the selected period", ...(hasPrev ? { delta: pctDelta(cancelled, prevCancelled) } : {}) },
         ...(summarySrc ? [
-          { key: "bookedClinic", label: "In-clinic visits", kind: "number", value: bookedClinic, tooltip: "In-person clinic visits in the selected period (channel split from the reporting service)" },
-          { key: "bookedVideo", label: "Video consultations", kind: "number", value: bookedVideo, tooltip: "Teleconsultation visits in the selected period (channel split from the reporting service)" },
+          { key: "bookedClinic", label: "In-clinic visits", kind: "number", value: bookedClinic, tooltip: "In-person clinic visits in the selected period (channel split from the reporting service)", ...maybeDelta(bookedClinic, channelOf("clinic", prevSummarySrc)) },
+          { key: "bookedVideo", label: "Video consultations", kind: "number", value: bookedVideo, tooltip: "Teleconsultation visits in the selected period (channel split from the reporting service)", ...maybeDelta(bookedVideo, channelOf("video", prevSummarySrc)) },
         ] : []),
         { key: "cancelRate", label: "Cancellation rate", kind: "percent", value: total ? (cancelled / total) * 100 : 0, invert: true, tooltip: "Cancelled as a share of total footfall in the selected period", ...(hasPrev ? { delta: pctDelta(total ? (cancelled / total) * 100 : 0, prevTotal ? (prevCancelled / prevTotal) * 100 : 0) } : {}) },
       ],
@@ -151,4 +156,10 @@ function pctDelta(current, previous) {
   // is only meaningful when the previous window actually had volume.
   if (!Number.isFinite(previous) || previous <= 0) return undefined;
   return Math.round(((current - previous) / previous) * 100);
+}
+
+// { delta } only when a real previous value exists — keeps card objects clean.
+function maybeDelta(current, previous) {
+  const d = pctDelta(current, previous);
+  return d == null ? {} : { delta: d };
 }

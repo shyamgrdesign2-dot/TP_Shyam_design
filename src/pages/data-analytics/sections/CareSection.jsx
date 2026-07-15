@@ -125,15 +125,10 @@ function buildTiles(subTab, data) {
       </ChartTile>
     );
 
-  if (subTab === "diagnosis") {
-    // Conditions belong to History, not Diagnoses (user ruling): this tab
-    // carries exactly Top diagnoses + Diagnosis status.
-    donut("status", "Diagnosis status", "Selected period", "diagnosis", "How diagnoses split by the status picked at entry: suspected, confirmed, ruled out. Zero until the backend serves statusMix.", data.diagStatus, "Diagnoses");
-  }
-
-  if (subTab === "symptoms") {
-    donut("severity", "Symptom severity", "Mild / moderate / severe, selected period", "virus", "How symptom mentions split by the severity recorded at entry. Zero until the backend serves severityMix (severity IS captured in the product).", data.symptomSeverity, "Mentions");
-  }
+  // Diagnosis status (Suspected/Confirmed/Ruled-out) and symptom severity
+  // (Mild/Moderate/Severe) tiles were REMOVED: the Rx-pad pickers exist but
+  // the EMR never persists the values to MySQL (WONT-BUILD, verified against
+  // the save code 2026-07-15 — API-CONTRACTS-CURRENT §7).
 
   if (subTab === "medications") {
     donut("salts", "Top generics", "Molecule-level, selected period", "tablets", "Most prescribed generics (salts) across all brands in the selected period", data.salts, "Prescribed");
@@ -154,11 +149,12 @@ function buildTiles(subTab, data) {
   }
 
   if (subTab === "medical-history") {
+    // Surgical history + additional-notes tiles were REMOVED: the EMR has
+    // only 3 medical-history sections (lifestyle/conditions/family) and no
+    // surgical or notes source (NO-SOURCE, API-CONTRACTS-CURRENT \u00a74/\u00a77).
     donut("allergies", "Top allergies", "Reported allergies", "health-care", "Most commonly reported patient allergies", data.allergies, "Patients");
-    donut("familyHistory", "Top family history", "Reported family conditions", "health-care", "Most common conditions in patients\u2019 family history. Zero until the backend serves the field.", data.familyHistory, "Patients");
+    donut("familyHistory", "Top family history", "Reported family conditions", "health-care", "Most common conditions in patients\u2019 family history", data.familyHistory, "Patients");
     donut("lifestyle", "Top lifestyle factors", "Reported habits", "health-care", "Most common lifestyle habits reported", data.lifestyle, "Patients");
-    donut("surgical", "Top surgical history", "Past procedures", "health-care", "Most common past surgical procedures", data.surgicalHistory, "Patients");
-    donut("additionalHistory", "Additional history notes", "With vs without", "health-care", "History entries carrying additional free-text notes vs none. Zero until the backend serves the split.", data.additionalHistory, "Entries");
   }
 
   if (subTab === "certificates") {
@@ -195,6 +191,21 @@ function buildTiles(subTab, data) {
 
 const top = (list) => list?.[0]?.label || "No data";
 
+// Previous-period blocks arrive with endpoint-specific field names — read the
+// first one that carries a real number, then emit { delta } only when the
+// previous window had volume (pctDelta guards the zero baseline).
+function deltaVs(current, prev, keys) {
+  if (!prev || typeof prev !== "object") return {};
+  for (const k of keys) {
+    const n = Number(prev[k]);
+    if (Number.isFinite(n) && prev[k] != null) {
+      const d = pctDelta(current, n);
+      return d == null ? {} : { delta: d };
+    }
+  }
+  return {};
+}
+
 // KPI doctrine (user ruling): NO "unique/distinct" counters anywhere — the
 // headline is always the TOP name, plus patient/entry counts where they exist.
 function buildKpis(subTab, data) {
@@ -202,29 +213,29 @@ function buildKpis(subTab, data) {
     case "diagnosis":
       return [
         { key: "topDiagnosis", label: "Top diagnosis", kind: "text", value: top(data.diagnosis), tooltip: "Most recorded diagnosis in the selected period" },
-        { key: "patientsDiagnosed", label: "Patients with diagnosis", kind: "number", value: sumDonut(data.diagnosis), tooltip: "Patients who received a diagnosis in the selected period" },
+        { key: "patientsDiagnosed", label: "Patients with diagnosis", kind: "number", value: sumDonut(data.diagnosis), tooltip: "Patients who received a diagnosis in the selected period", ...deltaVs(sumDonut(data.diagnosis), data.diagPrev, ["patientsDiagnosed", "patientsWith", "patients", "count", "total"]) },
       ];
     case "symptoms":
       return [
         { key: "topSymptom", label: "Top symptom", kind: "text", value: top(data.symptoms), tooltip: "Symptom reported most often in the selected period" },
-        { key: "totalSxMentions", label: "Symptom entries", kind: "number", value: sumDonut(data.symptoms), tooltip: "Symptom entries recorded across visits in the selected period" },
-        { key: "patientsWithSymptoms", label: "Patients with symptoms", kind: "number", value: data.symptomPatients, tooltip: "Patients with at least one recorded symptom in the selected period" },
+        { key: "totalSxMentions", label: "Symptom entries", kind: "number", value: sumDonut(data.symptoms), tooltip: "Symptom entries recorded across visits in the selected period", ...deltaVs(sumDonut(data.symptoms), data.symptomPrev, ["entries", "mentions", "total", "count"]) },
+        { key: "patientsWithSymptoms", label: "Patients with symptoms", kind: "number", value: data.symptomPatients, tooltip: "Patients with at least one recorded symptom in the selected period", ...deltaVs(data.symptomPatients, data.symptomPrev, ["patientsWithSymptoms", "patientsWith", "patients"]) },
       ];
     case "examination":
       return [
         { key: "topExamination", label: "Top examination", kind: "text", value: top(data.examination), tooltip: "Most documented examination finding in the selected period" },
-        { key: "totalExam", label: "Total examinations", kind: "number", value: sumDonut(data.examination), tooltip: "Examination entries documented in the selected period" },
+        { key: "totalExam", label: "Total examinations", kind: "number", value: sumDonut(data.examination), tooltip: "Examination entries documented in the selected period", ...deltaVs(sumDonut(data.examination), data.examPrev, ["entries", "total", "count"]) },
       ];
     case "medications":
       return [
         { key: "topMedication", label: "Top medication", kind: "text", value: top(data.medications), tooltip: "Most prescribed medicine in the selected period" },
-        { key: "totalRxPrescribed", label: "Total prescribed", kind: "number", value: sumDonut(data.medications), tooltip: "Medication line items prescribed in the selected period" },
+        { key: "totalRxPrescribed", label: "Total prescribed", kind: "number", value: sumDonut(data.medications), tooltip: "Medication line items prescribed in the selected period", ...deltaVs(sumDonut(data.medications), data.rxPrev, ["entries", "prescribed", "total", "count"]) },
         { key: "drugsPerRx", label: "Drugs per prescription", kind: "number", value: data.drugsPerRx, approx: true, tooltip: "Average medicine count per prescription in the selected period" },
       ];
     case "lab-tests":
       return [
         { key: "topInvestigation", label: "Top investigation", kind: "text", value: top(data.investigations), tooltip: "Most suggested lab investigation in the selected period" },
-        { key: "totalLabs", label: "Suggested investigations", kind: "number", value: sumDonut(data.investigations), tooltip: "Lab investigations suggested in the selected period" },
+        { key: "totalLabs", label: "Suggested investigations", kind: "number", value: sumDonut(data.investigations), tooltip: "Lab investigations suggested in the selected period", ...deltaVs(sumDonut(data.investigations), data.labPrev, ["entries", "suggested", "total", "count"]) },
       ];
     case "vitals":
       return [
@@ -237,13 +248,12 @@ function buildKpis(subTab, data) {
         { key: "topAllergy", label: "Top allergy", kind: "text", value: top(data.allergies), tooltip: "Most commonly reported allergy" },
         { key: "topFamilyHistory", label: "Top family history", kind: "text", value: top(data.familyHistory), tooltip: "Most common family-history condition" },
         { key: "topLifestyle", label: "Top lifestyle factor", kind: "text", value: top(data.lifestyle), tooltip: "Most common lifestyle factor reported" },
-        { key: "topSurgery", label: "Top surgery", kind: "text", value: top(data.surgicalHistory), tooltip: "Most common past surgical procedure" },
         { key: "patientsWithHistory", label: "Patients with history", kind: "number", value: sumDonut(data.conditions), tooltip: "Patients with at least one medical history entry" },
       ];
     case "advice":
       return [
         { key: "topAdvice", label: "Top advice", kind: "text", value: top(data.advice), tooltip: "Advice given most often in the selected period" },
-        { key: "totalAdvice", label: "Total advice given", kind: "number", value: sumDonut(data.advice), tooltip: "Advice entries documented across visits" },
+        { key: "totalAdvice", label: "Total advice given", kind: "number", value: sumDonut(data.advice), tooltip: "Advice entries documented across visits", ...deltaVs(sumDonut(data.advice), data.advicePrev, ["entries", "total", "count"]) },
       ];
     case "vaccines": {
       const vp = data.vaccines.prev;
@@ -256,7 +266,7 @@ function buildKpis(subTab, data) {
     case "certificates":
       return [
         { key: "topCertType", label: "Top certificate", kind: "text", value: top(data.certificates.top), tooltip: "Certificate type issued most often in the selected period" },
-        { key: "certificatesIssued", label: "Certificates issued", kind: "number", value: data.certificates.issued, tooltip: "Certificates issued in the selected period" },
+        { key: "certificatesIssued", label: "Certificates issued", kind: "number", value: data.certificates.issued, tooltip: "Certificates issued in the selected period", ...deltaVs(data.certificates.issued, data.certificates.prev, ["totalIssued", "issued", "total", "count"]) },
         { key: "topIssuingDoctor", label: "Top issuing doctor", kind: "text", value: data.certificates.topDoctor || "No data", tooltip: "Doctor who issued the most certificates in the selected period" },
         { key: "totalPatientCerts", label: "Patients certified", kind: "number", value: data.certificates.patientsCertified, tooltip: "Distinct patients who received a certificate. Zero until the backend serves it." },
       ];

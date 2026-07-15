@@ -201,6 +201,10 @@ function SidebarDoctor() {
       setHoveredItem(null);
     }
 
+    if (moduleName === "data_analytics") {
+      return navigate("/data-analytics-x");
+    }
+
     if(moduleName === "ipd") {
       return check_SSO(moduleName);
     }
@@ -553,6 +557,12 @@ function SidebarDoctor() {
                   <div key={i} className="position-relative">
                     <NavLink
                       onClick={(e) => {
+                        // Data analytics opens the in-app full-page drawer;
+                        // block the NavLink's default "/" replace navigation
+                        // so it doesn't clobber the route we push.
+                        if (item.type === "data_analytics") {
+                          e.preventDefault();
+                        }
                         // For external redirect modules, clear hover state immediately on click
                         if (isExternalRedirect) {
                           setHoveredItem(null);

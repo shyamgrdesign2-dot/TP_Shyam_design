@@ -233,13 +233,15 @@ div[role="dialog"] button[data-variant="solid"][data-theme="primary"] [data-tp-i
 
 /* Report cards use the same responsive grid as KPI cards */
 
-/* ── Dropdown footer "Clear" action ──────────────────────────────────── */
+/* ── Dropdown footer actions ("Select all" / "Clear") ────────────────── */
 
-/* The filter dropdowns' footer Clear renders as an outline/neutral Button by
-   default. Restyle to a link look in the warning tone (user spec: ghost/link,
-   underlined, orange-ish). Menus portal to <body>, so this targets the
-   Tesseract dropdown menu module classes directly — the only Tesseract
-   Dropdowns in this app are the analytics filters. */
+/* Footer actions render as chromeless underlined links. Tone follows the
+   Button's own data-theme: the primary action ("Select all") reads in the
+   primary violet, everything else (Clear — secondary/neutral) keeps the
+   warning orange, matching the page-level "Clear all". Menus portal to
+   <body>, so this targets the Tesseract dropdown menu module classes
+   directly — the only Tesseract Dropdowns in this app are the analytics
+   filters. */
 div[class*="_menu_"] div[class*="_actions_"] button {
   background: none !important;
   border: none !important;
@@ -252,6 +254,10 @@ div[class*="_menu_"] div[class*="_actions_"] button * {
   text-decoration: underline;
   text-underline-offset: 3px;
   font-weight: 600;
+}
+div[class*="_menu_"] div[class*="_actions_"] button[data-theme="primary"],
+div[class*="_menu_"] div[class*="_actions_"] button[data-theme="primary"] * {
+  color: var(--tesseract-violet-600) !important;
 }
 
 /* ── Link/warning buttons (calendar "Clear", filter clears) ──────────── */

@@ -66,12 +66,12 @@ export default function useGrowData({ month, startDate, endDate, doctorId, clini
       kpis: [
         { key: "followups", label: "Follow-ups advised", kind: "number", value: totalAdvised, tooltip: "Total follow-up appointments recommended by doctors", ...(hasFollowPrev ? { delta: pctDelta(totalAdvised, prevTotalAdvised) } : {}) },
         { key: "fuKept", label: "Follow-ups kept", kind: "number", value: totalKept, tooltip: "Follow-up appointments that patients attended", ...(hasFollowPrev ? { delta: pctDelta(totalKept, prevTotalKept) } : {}) },
-        { key: "adherence", label: "Follow-up adherence", kind: "percent", value: adherenceRate, tooltip: "Percentage of advised follow-ups that were kept" },
-        { key: "fuMissed", label: "Follow-ups missed", kind: "number", value: Math.max(totalAdvised - totalKept, 0), invert: true, tooltip: "Advised follow-ups that patients did not keep in the selected period" },
+        { key: "adherence", label: "Follow-up adherence", kind: "percent", value: adherenceRate, tooltip: "Percentage of advised follow-ups that were kept", ...(hasFollowPrev ? { delta: pctDelta(adherenceRate, (prevTotalKept / prevTotalAdvised) * 100) } : {}) },
+        { key: "fuMissed", label: "Follow-ups missed", kind: "number", value: Math.max(totalAdvised - totalKept, 0), invert: true, tooltip: "Advised follow-ups that patients did not keep in the selected period", ...(hasFollowPrev ? { delta: pctDelta(Math.max(totalAdvised - totalKept, 0), Math.max(prevTotalAdvised - prevTotalKept, 0)) } : {}) },
         // ABHA kept simple (user ruling): linked vs not linked, nothing more.
         // (Avg follow-up interval removed: not honestly computable today.)
         { key: "abhaLinked", label: "Patients with ABHA linked", kind: "number", value: linkedCount, tooltip: "Patients with a verified ABHA health ID linked", ...(hasAbhaPrev ? { delta: pctDelta(linkedCount, prevLinkedCount) } : {}) },
-        { key: "abhaNotLinked", label: "Patients without ABHA", kind: "number", value: Math.max(totalPatients - linkedCount, 0), tooltip: "Patients who do not have an ABHA health ID linked yet" },
+        { key: "abhaNotLinked", label: "Patients without ABHA", kind: "number", value: Math.max(totalPatients - linkedCount, 0), invert: true, tooltip: "Patients who do not have an ABHA health ID linked yet", ...(hasAbhaPrev ? { delta: pctDelta(Math.max(totalPatients - linkedCount, 0), Math.max(prevTotalPatients - prevLinkedCount, 0)) } : {}) },
       ],
       followups: follow ? seriesToXY(follow) : null,
       fuByDoctor: follow?.byDoctor ? seriesToXY(follow.byDoctor) : null,

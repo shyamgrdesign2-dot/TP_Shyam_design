@@ -181,19 +181,23 @@ function buildKpis(raw) {
   let topMode = null;
   let topCount = 0;
   let assisted = 0;
+  let prevAssisted = 0;
   for (const [label, key, isAssisted] of MODES) {
     const n = toNum(key === "typeRx" ? raw.typeRx || raw.keyboardRx : raw[key]);
     if (n > topCount) {
       topMode = label;
       topCount = n;
     }
-    if (isAssisted) assisted += n;
+    if (isAssisted) {
+      assisted += n;
+      prevAssisted += toNum(key === "typeRx" ? prev.typeRx || prev.keyboardRx : prev[key]);
+    }
   }
 
   return [
     { key: "total", label: "Total consultations", kind: "number", value: total, tooltip: "Consultations across all Rx modes in the selected period", ...(hasPrev ? { delta: pctDelta(total, toNum(prev.total)) } : {}) },
     { key: "topMode", label: "Top mode", kind: "text", value: topMode || "No data", tooltip: "The Rx mode used most often in the selected period" },
-    { key: "aiAssisted", label: "AI-assisted Rx", kind: "number", value: assisted, tooltip: "Consultations completed with an AI-assisted mode (Smart Sync, Voice RX or Snap RX) in the selected period" },
+    { key: "aiAssisted", label: "AI-assisted Rx", kind: "number", value: assisted, tooltip: "Consultations completed with an AI-assisted mode (Smart Sync, Voice RX or Snap RX) in the selected period", ...(hasPrev ? { delta: pctDelta(assisted, prevAssisted) } : {}) },
   ];
 }
 

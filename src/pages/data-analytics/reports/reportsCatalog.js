@@ -2,25 +2,51 @@ import ApiReporting from "../../../api/services/ApiReporting";
 
 const dates = (f) => ({ startDate: f?.startDate, endDate: f?.endDate });
 
+// Bill/document types — the EXACT tokens the Pm-Core schemas accept
+// (collection.schema.ts / billingOverall.schema.ts: "CSV subset of
+// cash_memo,receipt,advance,refund"). Multi-select; empty = all.
 export const BILL_TYPE_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "consultation", label: "Consultation" },
-  { value: "pharmacy", label: "Pharmacy" },
-  { value: "lab", label: "Lab" },
-  { value: "procedure", label: "Procedure" },
+  { value: "cash_memo", label: "Cash Memo" },
+  { value: "receipt", label: "Receipt" },
+  { value: "advance", label: "Advance" },
+  { value: "refund", label: "Refund" },
 ];
 
-export const PAYMENT_MODE_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "cash", label: "Cash" },
-  { value: "card", label: "Card" },
-  { value: "upi", label: "UPI" },
-  { value: "online", label: "Online" },
-  { value: "cheque", label: "Cheque" },
+// 3C bill types (threeC.schema.ts) — note "credite_notes" is the backend's
+// own token spelling; do not "fix" it client-side.
+export const THREE_C_BILL_TYPE_OPTIONS = [
+  { value: "cash_memo", label: "Cash Memo" },
+  { value: "invoice", label: "Invoice" },
+  { value: "credite_notes", label: "Credit Notes" },
 ];
 
+// pm_gender is matched verbatim in SQL (appointment.model.ts) — capitalized,
+// single value (the column filter is `= ?`, not an IN list).
+export const GENDER_OPTIONS = [
+  { value: "Male", label: "Male" },
+  { value: "Female", label: "Female" },
+  { value: "Others", label: "Others" },
+];
+
+// pam_status codes (appointment.constant.ts): 0=Queue, 1=Arrived, 2=Engaged,
+// 3=Finished, >=4=Cancelled. The `statuses` param is a CSV of these codes.
+export const APPOINTMENT_STATUS_OPTIONS = [
+  { value: "0", label: "In Queue" },
+  { value: "1", label: "Arrived" },
+  { value: "2", label: "Engaged" },
+  { value: "3", label: "Completed" },
+  { value: "4", label: "Cancelled" },
+];
+
+export const BILLING_OVERALL_TYPE_OPTIONS = [
+  { value: "revenue", label: "Revenue" },
+  { value: "cashflow", label: "Cash Flow" },
+];
+
+// ipdReports.schema.ts: filterBy=department needs dp_ids, doctor needs
+// um_ids. Only Doctor is offered — the FE has um_ids (doctor list) but no
+// dp_id lookup exists anywhere in the API surface yet (backend gap).
 export const IPD_FILTER_BY_OPTIONS = [
-  { value: "department", label: "Department" },
   { value: "doctor", label: "Doctor" },
 ];
 
@@ -46,16 +72,6 @@ export const THREE_C_REPORT_TYPE_OPTIONS = [
   { value: "details", label: "Details" },
 ];
 
-export const THREE_C_SELECT_TYPE_OPTIONS = [
-  { value: "case_memo", label: "Case Memo" },
-  { value: "invoice", label: "Invoice" },
-  { value: "credit_notes", label: "Credit Notes" },
-];
-
-export const CLINICAL_DATA_OPTIONS = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
-];
 
 export const IPD_REPORT_TYPE_OPTIONS = [
   { value: "admitting", label: "Admitting Report" },
@@ -79,7 +95,10 @@ export const REPORTS = [
     label: "Collection Report",
     desc: "Day-wise or detailed collection by date, bill type and payment mode.",
     live: true,
-    filters: ["collectionReportType", "dateRange", "billType", "paymentMode"],
+    // Mode-of-payment filter is withheld: the endpoint takes a CSV of
+    // payment-option ids (bpid) and no lookup endpoint for those ids exists
+    // yet (backend gap) — name strings would silently match nothing.
+    filters: ["collectionReportType", "dateRange", "billType", "issuedBy"],
     fetcher: ApiReporting.financialCollectionSummary,
     exportFetcher: ApiReporting.exportFinancialCollectionSummary,
     subFetchers: {
@@ -87,42 +106,54 @@ export const REPORTS = [
       detailed: { fetcher: ApiReporting.financialCollectionDetailed, exportFetcher: ApiReporting.exportFinancialCollectionDetailed },
       daywise: { fetcher: ApiReporting.financialCollectionSummary, exportFetcher: ApiReporting.exportFinancialCollectionSummary },
     },
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, doctorId: f?.doctorId, billTypes: f?.billType, modeOfPayment: f?.paymentMode }),
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy }),
   },
   {
     id: "incentive-report", group: "Financial", dept: "opd",
     label: "Incentive Reports",
     desc: "Per-user and service-level incentive payouts.",
-    filters: ["incentiveReportType", "dateRange", "incentiveUser", "department"],
+    // incentive.schema.ts: detailed takes `user` = CSV of incentive-user ids
+    // (tim_id, NOT um_id); overall takes only dates + type. No department
+    // dimension exists on this endpoint.
+    filters: ["incentiveReportType", "dateRange", "incentiveUser"],
     subFetchers: {
       detailed: { fetcher: ApiReporting.financialIncentiveDetailed, exportFetcher: ApiReporting.exportFinancialIncentiveDetailed },
       overall: { fetcher: ApiReporting.financialIncentiveOverall, exportFetcher: ApiReporting.exportFinancialIncentiveOverall },
     },
     fetcher: ApiReporting.financialIncentiveDetailed,
     exportFetcher: ApiReporting.exportFinancialIncentiveDetailed,
-    buildParams: (f) => ({ ...dates(f), incentiveUser: f?.incentiveUser, department: f?.department }),
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", user: f?.incentiveUser }),
   },
   {
     id: "3c-report", group: "Financial", dept: "opd",
     label: "3C Report",
     desc: "Cash, invoice and credit-note breakdown by account.",
-    filters: ["threeCReportType", "dateRange", "selectType"],
+    // threeC.schema.ts: summary takes REQUIRED `account` (tban_id; "all"
+    // passes) + `billTypes` CSV; details takes `user` (CSV of tim_id).
+    filters: ["threeCReportType", "dateRange", "threeCBillTypes", "account", "incentiveUser"],
     subFetchers: {
       summary: { fetcher: ApiReporting.financialThreeC, exportFetcher: ApiReporting.exportFinancialThreeC },
       details: { fetcher: ApiReporting.financialThreeCDetails, exportFetcher: ApiReporting.exportFinancialThreeCDetails },
     },
     fetcher: ApiReporting.financialThreeC,
     exportFetcher: ApiReporting.exportFinancialThreeC,
-    buildParams: (f) => ({ ...dates(f), selectType: f?.selectType }),
+    buildParams: (f) => ({ ...dates(f), account: f?.account || "all", billTypes: f?.threeCBillTypes, user: f?.incentiveUser }),
   },
   {
     id: "billing-overall", group: "Financial", dept: "both",
     label: "Billing Overall Reports",
     desc: "Revenue and cash-flow reports across the whole practice.",
-    filters: ["dateRange", "billType", "issuedBy", "accountant", "paymentMode"],
+    // billingOverall.schema.ts — Revenue: issuedBy + accountant CSVs;
+    // Cash Flow adds billTypes. `accountant` (tban_id) and `modeOfPayment`
+    // (bpid) need id lookups that don't exist yet (backend gap) — withheld.
+    filters: ["billingOverallType", "dateRange", "billType", "issuedBy"],
+    subFetchers: {
+      revenue: { fetcher: ApiReporting.financialBillingOverallRevenue, exportFetcher: ApiReporting.exportFinancialBillingOverallRevenue },
+      cashflow: { fetcher: ApiReporting.financialBillingOverallCashFlow, exportFetcher: ApiReporting.exportFinancialBillingOverallCashFlow },
+    },
     fetcher: ApiReporting.financialBillingOverallRevenue,
     exportFetcher: ApiReporting.exportFinancialBillingOverallRevenue,
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, doctorId: f?.doctorId, billTypes: f?.billType, issuedBy: f?.issuedBy, accountant: f?.accountant, modeOfPayment: f?.paymentMode }),
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy }),
   },
   {
     id: "ipd-reports", group: "Financial", dept: "ipd",
@@ -139,7 +170,12 @@ export const REPORTS = [
     id: "appointment-analytics", group: "Clinical", dept: "opd",
     label: "Appointment Analytics",
     desc: "Appointment status and doctor-wise breakdown.",
-    filters: ["appointmentReportType", "dateRange", "clinic", "clinicalData"],
+    // appointment.schema.ts — overall takes ONLY startDate+endDate; detailed
+    // takes gender (single, verbatim pm_gender), fromAge+toAge (both or
+    // neither), statuses (CSV of pam_status codes), caseTypes (CSV of
+    // toct_id), doctorIds (CSV of um_id). No clinicId (token-scoped) and no
+    // clinicalData flag — the legacy PHP toggle has no Pm-Core equivalent.
+    filters: ["appointmentReportType", "dateRange", "appointmentDetailFields"],
     subFetchers: {
       general: { fetcher: ApiReporting.clinicalAppointmentOverall, exportFetcher: ApiReporting.exportClinicalAppointmentOverall },
       detailed: { fetcher: ApiReporting.clinicalAppointmentDetailed, exportFetcher: ApiReporting.exportClinicalAppointmentDetailed },
@@ -147,7 +183,14 @@ export const REPORTS = [
     },
     fetcher: ApiReporting.clinicalAppointmentOverall,
     exportFetcher: ApiReporting.exportClinicalAppointmentOverall,
-    buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, doctorId: f?.doctorId, clinicalData: f?.clinicalData }),
+    buildParams: (f) => ({
+      ...dates(f),
+      gender: f?.gender,
+      ...(f?.ageMin != null && f?.ageMax != null ? { fromAge: f.ageMin, toAge: f.ageMax } : {}),
+      statuses: f?.status,
+      caseTypes: f?.caseType,
+      doctorIds: f?.doctorId,
+    }),
   },
   {
     id: "ipd-analytics", group: "Clinical", dept: "ipd",
@@ -156,7 +199,7 @@ export const REPORTS = [
     filters: ["dateRange", "clinic", "ipdFilterBy"],
     fetcher: ApiReporting.financialIpdReports,
     exportFetcher: ApiReporting.exportFinancialIpdReports,
-    buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, filterBy: f?.ipdFilterBy }),
+    buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, filterBy: f?.ipdFilterBy, ids: f?.ipdFilterIds }),
   },
   {
     id: "prescription-analytics", group: "Clinical", dept: "opd",

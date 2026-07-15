@@ -20,6 +20,15 @@ const FORMATTERS = {
   currency: formatINR,
 };
 
+// Approximate values read as whole numbers: "~1.9 drugs" is false precision —
+// round first, then format ("~2"). Percent skips formatPct's fixed decimal
+// so it reads "~83%", not "~83.0%".
+const approxFormat = (kind) => (v) => {
+  const r = Math.round(Number(v) || 0);
+  if (kind === "percent") return `~${r}%`;
+  return `~${(FORMATTERS[kind] || FORMATTERS.number)(r)}`;
+};
+
 const KPI_ICON = {
   consultations: "stethoscope",
   topMode: "flash",
@@ -427,7 +436,7 @@ export default function KpiRow({ title = "Key metrics", kpis = [], loading = fal
               value={k.value}
               format={
                 k.approx
-                  ? (v) => `~${(FORMATTERS[k.kind] || FORMATTERS.number)(v)}`
+                  ? approxFormat(k.kind)
                   : FORMATTERS[k.kind] || FORMATTERS.number
               }
               showSparkline={false}

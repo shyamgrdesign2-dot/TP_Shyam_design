@@ -49,7 +49,7 @@ function buildKpis(raw) {
     { key: "clinicalNotes", label: "Clinical notes", kind: "number", value: toNum(raw.clinicalNotes), tooltip: "Total progress and nursing notes documented", ...(hasPrev ? { delta: pctDelta(toNum(raw.clinicalNotes), toNum(prev.clinicalNotes)) } : {}) },
     { key: "otProcedures", label: "OT procedures", kind: "number", value: toNum(raw.otProcedures), tooltip: "Surgical procedures performed in the operation theatre", ...(hasPrev ? { delta: pctDelta(toNum(raw.otProcedures), toNum(prev.otProcedures)) } : {}) },
     { key: "dischargeSummaries", label: "Discharge summaries", kind: "number", value: toNum(raw.dischargeSummaries), tooltip: "Number of discharge summary documents completed", ...(hasPrev ? { delta: pctDelta(toNum(raw.dischargeSummaries), toNum(prev.dischargeSummaries)) } : {}) },
-    { key: "labResults", label: "Lab results", kind: "number", value: toNum(raw.labResults), tooltip: "Lab results recorded for admitted patients in the selected period" },
+    { key: "labResults", label: "Lab results", kind: "number", value: toNum(raw.labResults), tooltip: "Lab results recorded for admitted patients in the selected period", ...(hasPrev ? { delta: pctDelta(toNum(raw.labResults), toNum(prev.labResults)) } : {}) },
   ];
 }
 

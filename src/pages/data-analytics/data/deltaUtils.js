@@ -10,8 +10,10 @@
 export function pctDelta(current, previous) {
   const c = toNum(current);
   const p = toNum(previous);
-  if (p === 0 && c === 0) return null;
-  if (p === 0) return 100;
+  // No pill without a real baseline: previous 0/absent produces absurd
+  // percentages — "vs previous" is only meaningful when the previous
+  // window actually had volume.
+  if (p <= 0) return null;
   return Math.round(((c - p) / p) * 100);
 }
 

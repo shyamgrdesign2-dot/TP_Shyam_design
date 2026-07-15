@@ -1,27 +1,59 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Drawer,
   DrawerContent,
   DateRangePicker,
   SegmentedControl,
   Dropdown,
+  InputBox,
   Button,
   TPLibraryIcon,
+  Toast,
 } from "@dhspl-tatvacare/tesseract-ui";
 import { downloadBlob } from "./tableUtils";
 import useFilterOptions from "../data/useFilterOptions";
+import ApiReporting from "../../../api/services/ApiReporting";
+import ApiAppointments from "../../../api/services/ApiAppointments";
 import {
   BILL_TYPE_OPTIONS,
-  PAYMENT_MODE_OPTIONS,
+  THREE_C_BILL_TYPE_OPTIONS,
+  GENDER_OPTIONS,
+  APPOINTMENT_STATUS_OPTIONS,
+  BILLING_OVERALL_TYPE_OPTIONS,
   IPD_FILTER_BY_OPTIONS,
   APPOINTMENT_REPORT_TYPE_OPTIONS,
   COLLECTION_REPORT_TYPE_OPTIONS,
   INCENTIVE_REPORT_TYPE_OPTIONS,
   THREE_C_REPORT_TYPE_OPTIONS,
-  THREE_C_SELECT_TYPE_OPTIONS,
-  CLINICAL_DATA_OPTIONS,
   IPD_REPORT_TYPE_OPTIONS,
 } from "./reportsCatalog";
+
+// Every report endpoint rejects ranges longer than this ("Date range must
+// not exceed 30 days", 400) — 31 days inclusive passes, so full calendar
+// months work. Verified against UAT on every /financial and /clinical report.
+const MAX_REPORT_RANGE_DAYS = 31;
+
+// Quick-select presets capped at the export limit — no This year / Till date
+// here (they'd always 400).
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const REPORT_PRESETS = [
+  { id: "today", label: "Today", getRange: () => ({ start: startOfDay(new Date()), end: startOfDay(new Date()) }) },
+  { id: "yesterday", label: "Yesterday", getRange: () => ({ start: addDays(new Date(), -1), end: addDays(new Date(), -1) }) },
+  { id: "last-7", label: "Past 7 days", getRange: () => ({ start: addDays(new Date(), -6), end: startOfDay(new Date()) }) },
+  { id: "last-30", label: "Past 30 days", getRange: () => ({ start: addDays(new Date(), -29), end: startOfDay(new Date()) }) },
+  { id: "this-month", label: "This month", getRange: () => ({ start: new Date(new Date().getFullYear(), new Date().getMonth(), 1), end: startOfDay(new Date()) }) },
+  { id: "last-month", label: "Last month", getRange: () => ({ start: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1), end: new Date(new Date().getFullYear(), new Date().getMonth(), 0) }) },
+];
+
+function rangeDaysOf(startDate, endDate) {
+  if (!startDate || !endDate) return 0;
+  const s = new Date(startDate);
+  const e = new Date(endDate);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return 0;
+  return Math.round((e - s) / 86400000) + 1;
+}
 
 export default function ReportDownloadDrawer({ report, department = "opd", filters, onClose }) {
   const open = !!report;
@@ -29,14 +61,29 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const [type, setType] = useState(department);
   const [downloading, setDownloading] = useState(false);
   // "N rows exported" / "0 rows for these filters" from the X-Report-Rows
-  // header every CSV export now carries (API-CONTRACTS-CURRENT §1).
+  // header every CSV export carries (API-CONTRACTS-CURRENT §1).
   const [exportedRows, setExportedRows] = useState(null);
+  // Tesseract Toast: { status, title, subtext } — the drawer's one feedback
+  // surface for range violations, empty results and failed downloads.
+  const [toast, setToast] = useState(null);
 
-  const [billType, setBillType] = useState(undefined);
-  const [paymentMode, setPaymentMode] = useState(undefined);
-  const [issuedBy, setIssuedBy] = useState(undefined);
-  const [accountant, setAccountant] = useState(undefined);
+  // Multi-selects (checkbox dropdowns): arrays of the backend's own tokens/
+  // ids, empty = "all". Serialized to CSV at download time.
+  const [billType, setBillType] = useState([]);
+  const [threeCBillTypes, setThreeCBillTypes] = useState([]);
+  const [issuedBy, setIssuedBy] = useState([]);
+  const [incentiveUser, setIncentiveUser] = useState([]);
+  const [apptStatus, setApptStatus] = useState([]);
+  const [caseType, setCaseType] = useState([]);
+  const [ipdFilterIds, setIpdFilterIds] = useState([]);
+
+  // Singles — gender is matched verbatim in SQL (`pm_gender = ?`), account
+  // is REQUIRED by 3C ("all" sentinel accepted).
   const [clinicId, setClinicId] = useState(undefined);
+  const [gender, setGender] = useState(undefined);
+  const [account, setAccount] = useState("all");
+  const [ageMin, setAgeMin] = useState("");
+  const [ageMax, setAgeMax] = useState("");
   const [ipdFilterBy, setIpdFilterBy] = useState(undefined);
 
   const [appointmentReportType, setAppointmentReportType] = useState("general");
@@ -44,36 +91,38 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const [incentiveReportType, setIncentiveReportType] = useState("detailed");
   const [threeCReportType, setThreeCReportType] = useState("summary");
   const [ipdReportType, setIpdReportType] = useState("admitting");
-  const [clinicalData, setClinicalData] = useState(undefined);
-  const [selectType, setSelectType] = useState(undefined);
-  const [incentiveUser, setIncentiveUser] = useState(undefined);
-  const [deptFilter, setDeptFilter] = useState(undefined);
+  const [billingOverallType, setBillingOverallType] = useState("revenue");
 
   useEffect(() => {
     if (open) {
       setRange(null);
       setType(department);
-      setBillType(undefined);
-      setPaymentMode(undefined);
-      setIssuedBy(undefined);
-      setAccountant(undefined);
+      setBillType([]);
+      setThreeCBillTypes([]);
+      setIssuedBy([]);
+      setIncentiveUser([]);
+      setApptStatus([]);
+      setCaseType([]);
+      setIpdFilterIds([]);
       setClinicId(undefined);
+      setGender(undefined);
+      setAccount("all");
+      setAgeMin("");
+      setAgeMax("");
       setIpdFilterBy(undefined);
       setAppointmentReportType("general");
       setCollectionReportType("general");
       setIncentiveReportType("detailed");
       setThreeCReportType("summary");
       setIpdReportType("admitting");
-      setClinicalData(undefined);
-      setSelectType(undefined);
-      setIncentiveUser(undefined);
-      setDeptFilter(undefined);
+      setBillingOverallType("revenue");
+      setExportedRows(null);
+      setToast(null);
     }
   }, [open, department]);
 
   // Same live doctor + clinic sources as the page FilterBar (Redux with API
-  // fallback; hospital_data lives on the DOCTORS slice) — the old direct
-  // selectors here read a dead path, so these dropdowns were always empty.
+  // fallback; hospital_data lives on the DOCTORS slice).
   const { doctorOptions, clinicOptions } = useFilterOptions();
 
   const reportFilters = report?.filters || [];
@@ -83,19 +132,81 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const needsDateRange = reportFilters.includes("dateRange");
   const needsClinic = reportFilters.includes("clinic");
   const needsBillType = reportFilters.includes("billType");
-  const needsPaymentMode = reportFilters.includes("paymentMode");
+  const needsThreeCBillTypes = reportFilters.includes("threeCBillTypes");
   const needsIssuedBy = reportFilters.includes("issuedBy");
-  const needsAccountant = reportFilters.includes("accountant");
   const needsIpdFilter = reportFilters.includes("ipdFilterBy");
   const needsAppointmentReportType = reportFilters.includes("appointmentReportType");
   const needsCollectionReportType = reportFilters.includes("collectionReportType");
   const needsIncentiveReportType = reportFilters.includes("incentiveReportType");
   const needsThreeCReportType = reportFilters.includes("threeCReportType");
   const needsIpdReportType = reportFilters.includes("ipdReportType");
-  const needsClinicalData = reportFilters.includes("clinicalData");
-  const needsSelectType = reportFilters.includes("selectType");
+  const needsBillingOverallType = reportFilters.includes("billingOverallType");
   const needsIncentiveUser = reportFilters.includes("incentiveUser");
-  const needsDepartment = reportFilters.includes("department");
+  const needsAccount = reportFilters.includes("account");
+  const hasAppointmentDetailFields = reportFilters.includes("appointmentDetailFields");
+
+  // Per-tab field visibility, matched to what each endpoint's schema accepts:
+  // • Collection: Bill Type / Issued By exist only on the Detailed endpoint.
+  // • Billing Overall: Revenue takes Issued By; Cash Flow adds Bill Types.
+  // • 3C: Summary takes account + billTypes; Details takes incentive users.
+  // • Appointment Analytics: Detailed swaps to gender/age/status/case-type.
+  const isCashFlow = needsBillingOverallType && billingOverallType === "cashflow";
+  const isCollectionDetailed = !needsCollectionReportType || collectionReportType === "detailed";
+  const showBillType = needsBillType && isCollectionDetailed && (!needsBillingOverallType || isCashFlow);
+  const showIssuedBy = needsIssuedBy && isCollectionDetailed;
+  const showThreeCBillTypes = needsThreeCBillTypes && threeCReportType === "summary";
+  const showAccount = needsAccount && (!needsThreeCReportType || threeCReportType === "summary");
+  const showIncentiveUser = needsIncentiveUser && (!needsThreeCReportType || threeCReportType === "details");
+  const showAppointmentDetail = hasAppointmentDetailFields && appointmentReportType === "detailed";
+
+  // Case types are ids (toct_id) — pulled from the EMR's own case-type list.
+  const [caseTypeOptions, setCaseTypeOptions] = useState([]);
+  useEffect(() => {
+    if (!open || !showAppointmentDetail || caseTypeOptions.length) return;
+    let alive = true;
+    ApiAppointments.getCaseTypes()
+      .then((r) => {
+        const rows = Array.isArray(r) ? r : r?.data ?? r?.caseTypes ?? [];
+        if (alive && Array.isArray(rows) && rows.length) {
+          setCaseTypeOptions(
+            rows
+              .filter((c) => c?.toct_id != null)
+              .map((c) => ({ value: String(c.toct_id), label: c.toct_type || `Type ${c.toct_id}` }))
+          );
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [open, showAppointmentDetail, caseTypeOptions.length]);
+
+  // Incentive users are tim_ids (NOT doctor um_ids) and have no lookup
+  // endpoint — the incentive OVERALL rows carry { timId, incentiveUser },
+  // so they double as the picker's option source.
+  const [incentiveUserOptions, setIncentiveUserOptions] = useState([]);
+  useEffect(() => {
+    if (!open || !showIncentiveUser || incentiveUserOptions.length) return;
+    let alive = true;
+    const { startDate, endDate } = resolveDates(range, filters);
+    if (!startDate || !endDate) return;
+    ApiReporting.financialIncentiveOverall({ startDate, endDate, limit: 100 })
+      .then((r) => {
+        const rows = (r?.data ?? r)?.rows || [];
+        if (alive && rows.length) {
+          setIncentiveUserOptions(
+            rows
+              .filter((u) => u?.timId != null)
+              .map((u) => ({ value: String(u.timId), label: u.incentiveUser || `User ${u.timId}` }))
+          );
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, showIncentiveUser, incentiveUserOptions.length]);
 
   const resolvedReport = useMemo(() => {
     if (!report?.subFetchers) return report;
@@ -104,19 +215,35 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
     else if (needsCollectionReportType) key = collectionReportType;
     else if (needsIncentiveReportType) key = incentiveReportType;
     else if (needsThreeCReportType) key = threeCReportType;
+    else if (needsBillingOverallType) key = billingOverallType;
     else return report;
 
     const sub = report.subFetchers[key];
     if (!sub) return report;
     return { ...report, fetcher: sub.fetcher, exportFetcher: sub.exportFetcher };
-  }, [report, appointmentReportType, collectionReportType, incentiveReportType, threeCReportType, needsAppointmentReportType, needsCollectionReportType, needsIncentiveReportType, needsThreeCReportType]);
+  }, [report, appointmentReportType, collectionReportType, incentiveReportType, threeCReportType, billingOverallType, needsAppointmentReportType, needsCollectionReportType, needsIncentiveReportType, needsThreeCReportType, needsBillingOverallType]);
 
   const canExport = typeof resolvedReport?.exportFetcher === "function";
 
   const doDownload = async () => {
     if (!resolvedReport || !canExport) return;
+    // Server-enforced export window: every report endpoint 400s beyond 31
+    // days — surface the reason instead of a silent no-op.
+    if (needsDate || needsDateRange) {
+      const { startDate, endDate } = resolveDates(range, filters);
+      const days = rangeDaysOf(startDate, endDate);
+      if (days > MAX_REPORT_RANGE_DAYS) {
+        setToast({
+          status: "warning",
+          title: "Date range too long",
+          subtext: `Reports can be downloaded for up to ${MAX_REPORT_RANGE_DAYS} days at a time. Please pick a shorter period.`,
+        });
+        return;
+      }
+    }
     setDownloading(true);
     setExportedRows(null);
+    setToast(null);
     try {
       const { startDate, endDate } = resolveDates(range, filters);
       const base = {
@@ -124,31 +251,51 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         endDate,
         type,
         // The page-level filters follow into the download: the drawer's own
-        // clinic pick wins, else the FilterBar selection. The report
-        // endpoints accept a SINGLE id today (contract §Reports), so a
-        // multi-select is withheld rather than silently mis-filtered.
+        // clinic pick wins, else the FilterBar selection. Multi-selects
+        // serialize to CSV lists; empty = all = omitted.
         clinicId: clinicId || singleId(filters?.clinic),
-        doctorId: singleId(filters?.doctor),
-        billType: billType || undefined,
-        paymentMode: paymentMode || undefined,
-        issuedBy: issuedBy || undefined,
-        accountant: accountant || undefined,
+        doctorId: filters?.doctor || undefined,
+        billType: csv(billType),
+        threeCBillTypes: csv(threeCBillTypes),
+        issuedBy: showIssuedBy ? csv(issuedBy) : undefined,
+        incentiveUser: showIncentiveUser ? csv(incentiveUser) : undefined,
+        gender: showAppointmentDetail ? gender : undefined,
+        // fromAge/toAge apply only as a pair (appointment.model.ts)
+        ageMin: showAppointmentDetail && ageMin !== "" && ageMax !== "" ? Number(ageMin) : undefined,
+        ageMax: showAppointmentDetail && ageMin !== "" && ageMax !== "" ? Number(ageMax) : undefined,
+        status: showAppointmentDetail ? csv(apptStatus) : undefined,
+        caseType: showAppointmentDetail ? csv(caseType) : undefined,
         ipdFilterBy: ipdFilterBy || undefined,
+        ipdFilterIds: csv(ipdFilterIds),
         ipdReportType: ipdReportType || undefined,
-        clinicalData: clinicalData || undefined,
-        selectType: selectType || undefined,
-        incentiveUser: incentiveUser || undefined,
-        department: deptFilter || undefined,
+        account: needsAccount ? account : undefined,
       };
       const built = resolvedReport.buildParams ? resolvedReport.buildParams(base) : base;
       const blob = await resolvedReport.exportFetcher({ ...built, format: "csv" });
       const rows = blob?.headers?.["x-report-rows"];
       if (rows != null) setExportedRows(Number(rows));
+      // Empty result: tell the user why nothing useful downloaded instead of
+      // saving a headers-only file.
+      if (rows != null && Number(rows) === 0) {
+        setToast({
+          status: "info",
+          title: "No data available",
+          subtext: "There are no records for the selected filters and period. Try widening the date range or clearing some filters.",
+        });
+        return;
+      }
       downloadBlob(blob?.data ?? blob, `${resolvedReport.id}.csv`);
     } catch (e) {
-      // Endpoint not deployed / errored — surface it instead of a silent no-op
+      // Surface the failure — with the server's own reason when it sent one
+      // (error payloads arrive as a Blob because the request asked for one).
+      const serverMsg = await extractErrorMessage(e);
       // eslint-disable-next-line no-console
       console.warn("Report export failed", resolvedReport?.id, e?.response?.status || e?.message);
+      setToast({
+        status: "error",
+        title: "Download failed",
+        subtext: serverMsg || "The report could not be downloaded. Please try again in a moment.",
+      });
     } finally {
       setDownloading(false);
     }
@@ -223,6 +370,18 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             </Field>
           )}
 
+          {needsBillingOverallType && (
+            <Field label="Report Type">
+              <SegmentedControl
+                size="sm"
+                theme="primary"
+                options={BILLING_OVERALL_TYPE_OPTIONS}
+                value={billingOverallType}
+                onValueChange={setBillingOverallType}
+              />
+            </Field>
+          )}
+
           {needsDept && (
             <Field label="Department">
               <SegmentedControl
@@ -245,41 +404,43 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
                 options={clinicOptions}
                 value={clinicId}
                 onChange={setClinicId}
+                searchable={clinicOptions.length > 5}
               />
             </Field>
           )}
 
           {needsIpdFilter && (
-            <Field label="Department or Doctor">
+            <Field label="Filter By">
               <Dropdown
                 placeholder="Select"
                 options={IPD_FILTER_BY_OPTIONS}
                 value={ipdFilterBy}
-                onChange={setIpdFilterBy}
+                onChange={(v) => {
+                  setIpdFilterBy(v);
+                  setIpdFilterIds([]);
+                }}
               />
             </Field>
           )}
 
-          {needsIncentiveUser && (
-            <Field label="Incentive User">
-              <Dropdown
-                placeholder="Select Incentive User"
-                options={doctorOptions}
-                value={incentiveUser}
-                onChange={setIncentiveUser}
-              />
-            </Field>
+          {needsIpdFilter && ipdFilterBy === "doctor" && (
+            <MultiField
+              label="Doctors"
+              placeholder="Select doctors"
+              options={doctorOptions}
+              value={ipdFilterIds}
+              onChange={setIpdFilterIds}
+            />
           )}
 
-          {needsDepartment && (
-            <Field label="Department">
-              <Dropdown
-                placeholder="Select"
-                options={IPD_FILTER_BY_OPTIONS}
-                value={deptFilter}
-                onChange={setDeptFilter}
-              />
-            </Field>
+          {showIncentiveUser && (
+            <MultiField
+              label="Incentive User"
+              placeholder="All users"
+              options={incentiveUserOptions}
+              value={incentiveUser}
+              onChange={setIncentiveUser}
+            />
           )}
 
           {needsDate && (
@@ -301,93 +462,122 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
                 mode="range"
                 size="sm"
                 showPresets
+                presets={REPORT_PRESETS}
                 value={range}
-                onChange={setRange}
+                onChange={(v) => {
+                  setRange(v);
+                  // Immediate feedback when a hand-picked range exceeds the
+                  // export window (presets can never exceed it).
+                  const { startDate, endDate } = resolveDates(v, {});
+                  if (rangeDaysOf(startDate, endDate) > MAX_REPORT_RANGE_DAYS) {
+                    setToast({
+                      status: "warning",
+                      title: "Date range too long",
+                      subtext: `Reports can be downloaded for up to ${MAX_REPORT_RANGE_DAYS} days at a time.`,
+                    });
+                  }
+                }}
                 placeholder="Select range"
               />
             </Field>
           )}
 
-          {needsBillType && (
-            <Field label="Bill Type">
+          {showBillType && (
+            <MultiField
+              label={needsBillingOverallType ? "Type" : "Bill Type"}
+              placeholder="All types"
+              options={BILL_TYPE_OPTIONS}
+              value={billType}
+              onChange={setBillType}
+            />
+          )}
+
+          {showThreeCBillTypes && (
+            <MultiField
+              label="Bill Type"
+              placeholder="All types"
+              options={THREE_C_BILL_TYPE_OPTIONS}
+              value={threeCBillTypes}
+              onChange={setThreeCBillTypes}
+            />
+          )}
+
+          {showIssuedBy && (
+            <MultiField
+              label="Issued By"
+              placeholder="All users"
+              options={doctorOptions}
+              value={issuedBy}
+              onChange={setIssuedBy}
+            />
+          )}
+
+          {showAccount && (
+            <Field label="Account">
               <Dropdown
-                placeholder="All types"
-                options={BILL_TYPE_OPTIONS}
-                value={billType}
-                onChange={setBillType}
+                placeholder="All accounts"
+                options={[{ value: "all", label: "All accounts" }]}
+                value={account}
+                onChange={(v) => setAccount(v || "all")}
               />
             </Field>
           )}
 
-          {needsPaymentMode && (
-            <Field label="Payment Mode">
-              <Dropdown
-                placeholder="All modes"
-                options={PAYMENT_MODE_OPTIONS}
-                value={paymentMode}
-                onChange={setPaymentMode}
+          {showAppointmentDetail && (
+            <>
+              <Field label="Gender">
+                <Dropdown
+                  placeholder="All genders"
+                  options={GENDER_OPTIONS}
+                  value={gender}
+                  onChange={setGender}
+                  clearable
+                />
+              </Field>
+              <Field label="Age (both fields apply together)">
+                <div style={{ display: "flex", gap: 10 }}>
+                  <InputBox
+                    size="sm"
+                    allow="numeric"
+                    placeholder="Min"
+                    value={ageMin}
+                    onChange={(e) => setAgeMin(e?.target?.value ?? e ?? "")}
+                    showLabel={false}
+                    showHelper={false}
+                    fullWidth
+                  />
+                  <InputBox
+                    size="sm"
+                    allow="numeric"
+                    placeholder="Max"
+                    value={ageMax}
+                    onChange={(e) => setAgeMax(e?.target?.value ?? e ?? "")}
+                    showLabel={false}
+                    showHelper={false}
+                    fullWidth
+                  />
+                </div>
+              </Field>
+              <MultiField
+                label="Status"
+                placeholder="All statuses"
+                options={APPOINTMENT_STATUS_OPTIONS}
+                value={apptStatus}
+                onChange={setApptStatus}
               />
-            </Field>
+              <MultiField
+                label="Case Type"
+                placeholder="All case types"
+                options={caseTypeOptions}
+                value={caseType}
+                onChange={setCaseType}
+              />
+            </>
           )}
 
-          {needsIssuedBy && (
-            <Field label="Issued By">
-              <Dropdown
-                placeholder="All users"
-                options={doctorOptions}
-                value={issuedBy}
-                onChange={setIssuedBy}
-              />
-            </Field>
-          )}
-
-          {needsAccountant && (
-            <Field label="Accountant">
-              <Dropdown
-                placeholder="All users"
-                options={doctorOptions}
-                value={accountant}
-                onChange={setAccountant}
-              />
-            </Field>
-          )}
-
-          {needsSelectType && (
-            <Field label="Select Type">
-              <Dropdown
-                placeholder="Select"
-                options={THREE_C_SELECT_TYPE_OPTIONS}
-                value={selectType}
-                onChange={setSelectType}
-              />
-            </Field>
-          )}
-
-          {needsClinicalData && (
-            <Field label="Clinical Data">
-              <SegmentedControl
-                size="sm"
-                theme="primary"
-                options={CLINICAL_DATA_OPTIONS}
-                value={clinicalData || "no"}
-                onValueChange={setClinicalData}
-              />
-            </Field>
-          )}
-
-          {exportedRows != null && (
-            <span
-              style={{
-                fontSize: 12.5,
-                color:
-                  exportedRows === 0
-                    ? "var(--tesseract-warning-600)"
-                    : "var(--tesseract-success-600)",
-              }}
-            >
-              {exportedRows === 0
-                ? "No records found for these filters — the file has headers only."
-                : `${exportedRows} rows exported.`}
+          {exportedRows != null && exportedRows > 0 && (
+            <span style={{ fontSize: 12.5, color: "var(--tesseract-success-600)" }}>
+              {`${exportedRows} rows exported.`}
             </span>
           )}
 
@@ -409,6 +599,37 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             Download CSV
           </Button>
         </div>
+
+        {/* Portal to <body>: DrawerContent animates with a CSS transform,
+            which turns position:fixed descendants into drawer-relative
+            boxes and pushes them off screen. */}
+        {toast &&
+          createPortal(
+            <div
+              style={{
+                position: "fixed",
+                bottom: 24,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 10000,
+                width: "max-content",
+                maxWidth: "90vw",
+              }}
+            >
+              <Toast
+                status={toast.status}
+                title={toast.title}
+                subtext={toast.subtext}
+                withSubtext={!!toast.subtext}
+                withCTA={false}
+                dismissible
+                duration={5000}
+                progress
+                onDismiss={() => setToast(null)}
+              />
+            </div>,
+            document.body
+          )}
       </DrawerContent>
     </Drawer>
   );
@@ -433,10 +654,38 @@ function Field({ label, children }) {
   );
 }
 
+// The one multi-select every report filter uses: checkbox option rows, live
+// search on longer lists, and footer "Select all" / "Clear" CTAs. Empty
+// selection means "all" (the param is omitted from the export).
+function MultiField({ label, placeholder, options = [], value = [], onChange }) {
+  return (
+    <Field label={label}>
+      <Dropdown
+        placeholder={placeholder}
+        options={options}
+        value={value}
+        onChange={onChange}
+        mode="multi"
+        optionControl="checkbox"
+        searchable={options.length > 5}
+        withActions
+        primaryAction={{ label: "Select all", onClick: () => onChange(options.map((o) => o.value)) }}
+        secondaryAction={{ label: "Clear", onClick: () => onChange([]) }}
+        ariaLabel={`Select ${label}`}
+      />
+    </Field>
+  );
+}
+
+// Multi-select array → CSV list; empty = all = omitted.
+function csv(arr) {
+  return Array.isArray(arr) && arr.length ? arr.join(",") : undefined;
+}
+
 // Multi-select CSV → single id when exactly one is selected, else undefined
-// (report endpoints accept one id; withholding beats mis-filtering).
-function singleId(csv) {
-  const s = csv == null ? "" : String(csv);
+// (single-value endpoints; withholding beats mis-filtering).
+function singleId(csvStr) {
+  const s = csvStr == null ? "" : String(csvStr);
   return s && !s.includes(",") ? s : undefined;
 }
 
@@ -451,4 +700,17 @@ function resolveDates(range, filters) {
     startDate: (start && toISO(start)) || filters?.startDate,
     endDate: (end && toISO(end)) || filters?.endDate,
   };
+}
+
+// Axios error → the server's own error line. Blob responses (CSV requests)
+// need reading + parsing before the message is visible.
+async function extractErrorMessage(e) {
+  try {
+    let data = e?.response?.data;
+    if (data instanceof Blob) data = JSON.parse(await data.text());
+    else if (typeof data === "string") data = JSON.parse(data);
+    return data?.error || data?.message || null;
+  } catch {
+    return null;
+  }
 }

@@ -106,27 +106,22 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
       loading: false,
       error: null,
       diagnosis: listToDonut(diag?.topDiagnosis, { labelKey: "name", valueKey: "count" }),
+      diagPrev: diag?.previous ?? null,
       symptoms: anyToDonut(symp?.topSymptoms),
-      // Severity IS captured at symptom entry (Mild/Moderate/Severe) — the
-      // matrix renders zero-filled until the backend ships severityMix (§10).
-      symptomSeverity: withCategories(anyToDonut(symp?.severityMix ?? symp?.severity), ["Mild", "Moderate", "Severe"]),
       symptomPatients: num(symp?.patientsWithSymptoms ?? symp?.patientsWith),
       symptomPrev: symp?.previous ?? null,
       investigations: dropJunk(anyToDonut(lab?.topInvestigations).map(cleanInvestigation)),
+      labPrev: lab?.previous ?? null,
       conditions: anyToDonut(cond?.topConditions),
       medications: anyToDonut(rx?.topBrands),
+      rxPrev: rx?.previous ?? null,
       salts: anyToDonut(rx?.topSalts),
       // Medicines with an empty manufacturer field are a real bucket (custom
       // entries mostly) — name it honestly instead of a blank slice.
       companyShare: anyToDonut(rx?.companyShare).map((d) =>
         String(d.label || "").trim() ? d : { ...d, label: "No manufacturer name" }
       ),
-      // The Rx pad captures diagnosis status as Suspected/Confirmed/Ruled out
-      // (the product's real enum — the backend's "Primary/Secondary/Provisional"
-      // is a different column; contested in the contract doc §10).
-      diagStatus: withCategories(anyToDonut(diag?.statusMix), ["Suspected", "Confirmed", "Ruled out"]),
-      familyHistory: normalizeList(cond?.topFamilyHistory),
-      additionalHistory: withCategories(anyToDonut(cond?.additionalHistory), ["With notes", "Without notes"]),
+      familyHistory: anyToDonut(cond?.topFamilyHistory),
       catalogVsCustom: withCategories(anyToDonut(rx?.catalogVsCustom), ["Catalog", "Custom"]),
       customByDoctor: rx?.customByDoctor ? seriesToXY(rx.customByDoctor) : null,
       drugsPerRx: num(rx?.drugsPerRx),
@@ -174,10 +169,12 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
         topDoctor: cert?.topDoctor || null,
         patientsCertified: num(cert?.patientsCertified),
         byDoctor: cert?.byDoctor ? seriesToXY(cert.byDoctor) : null,
+        prev: cert?.previous ?? null,
       },
-      allergies: normalizeList(cond?.topAllergies),
-      lifestyle: normalizeList(cond?.topLifestyle),
-      surgicalHistory: normalizeList(cond?.topSurgicalHistory),
+      // medical-history fields arrive as chart series {labels,datasets}
+      // (API-CONTRACTS-CURRENT §4) — anyToDonut handles both shapes.
+      allergies: anyToDonut(cond?.topAllergies),
+      lifestyle: anyToDonut(cond?.topLifestyle),
       // Per-topic monthly trends (clinical/trends + diagnosis-trends), only
       // for month-scoped ranges — keyed by Care sub-tab id.
       trends: {
@@ -203,13 +200,15 @@ function initialState() {
     loading: true,
     error: null,
     diagnosis: [],
+    diagPrev: null,
     symptoms: [],
-    symptomSeverity: [],
     symptomPatients: 0,
     symptomPrev: null,
     investigations: [],
+    labPrev: null,
     conditions: [],
     medications: [],
+    rxPrev: null,
     vitals: [],
     examination: [],
     examPatients: 0,
@@ -221,15 +220,12 @@ function initialState() {
     advicePrev: null,
     vaccines: { given: [], brandMix: [], doses: 0, patients: 0, prev: null },
     customModels: { created: 0, creatingDoctors: 0, modelsByType: [], modelsByDoctor: [] },
-    certificates: { issued: 0, top: [], topDoctor: null, patientsCertified: 0, byDoctor: null },
+    certificates: { issued: 0, top: [], topDoctor: null, patientsCertified: 0, byDoctor: null, prev: null },
     allergies: [],
     lifestyle: [],
-    surgicalHistory: [],
     salts: [],
     companyShare: [],
-    diagStatus: [],
     familyHistory: [],
-    additionalHistory: [],
     catalogVsCustom: [],
     customByDoctor: null,
     drugsPerRx: 0,
@@ -283,14 +279,6 @@ function iapScheduleMix(vaccineMix) {
 
 function toTrend(t) {
   return t ? seriesToXY(t) : null;
-}
-
-function normalizeList(raw) {
-  if (!Array.isArray(raw) || !raw.length) return [];
-  return raw.map((v) => ({
-    label: v.name || v.label || v.key || v.type || "Unknown",
-    value: Number(v.count || v.value || 0),
-  }));
 }
 
 function num(v) {
