@@ -333,6 +333,24 @@ const styles = StyleSheet.create({
 });
 
 const AI_FLOW_MEDICINE_UNIT_MAP = { 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: 'Capsule', 7: 'Sachet', 8: 'Injection', 9: 'Drop', 14: 'Drops' };
+const CUSTOM_MEDICINE_UNIT_MAP = {
+    1: 'Ampule(s)',
+    2: 'Tablet(s)',
+    4: 'ml',
+    5: 'unit(s)',
+    6: 'Capsule(s)',
+    7: 'Fingertip(s)',
+    8: 'Pea sized',
+    9: 'gm',
+    11: 'tsp',
+    14: 'Drop(s)',
+    24: 'Puff(s)',
+    27: 'tbsp(s)',
+};
+const MEDICINE_UNIT_FALLBACK_MAP = {
+    ...AI_FLOW_MEDICINE_UNIT_MAP,
+    ...CUSTOM_MEDICINE_UNIT_MAP,
+};
 
 function parseAiFrequencyLeadingPattern(fullRaw) {
     const m = (fullRaw || "").toString().trim().match(/^((?:\d+(?:\.\d+)?)(?:\s*-\s*(?:\d+(?:\.\d+)?)){1,3})(?:\s+(.*))?$/);
@@ -1118,22 +1136,40 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         return (item?.schedule || item?.when || item?.timing || item?.instruction || '').toString().trim();
     }
 
-    function getAiMedicationDoseDisplay(item, option) {
+    function getMedicationUnitTitle(item = {}, unitId) {
+        if (unitId === undefined || unitId === null || unitId === '') return '';
+        if (item.tmm_unit == unitId && item.tmm_unit_name) return item.tmm_unit_name;
+        const matchedUnit = Array.isArray(item.medicineUnit)
+            ? item.medicineUnit.find((x) => x.tmu_id == unitId)
+            : null;
+        if (matchedUnit?.tmu_title) return matchedUnit.tmu_title;
+        return MEDICINE_UNIT_FALLBACK_MAP[unitId] || '';
+    }
+
+    function getMedicationDoseDisplay(item = {}, option) {
         const doseVal =
             item?.tmm_dosage != null && String(item.tmm_dosage).trim() !== ''
                 ? item.tmm_dosage
-                : item?.dosage;
+                : item?.unitPerDose ?? item?.dosage ?? item?.unit_per_dose;
         if (doseVal == null || String(doseVal).trim() === '') {
-            return item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-';
+            return item?.tmm_dosage_unit_name || getMedicationUnitTitle(item, item.default_tmm_unit) || '-';
+        }
+        const doseText = String(doseVal).trim();
+        if (/\d/.test(doseText) && /[a-zA-Z]/i.test(doseText)) {
+            return item?.tmm_dosage_unit_name || doseText;
         }
         if (item.tmm_unit) {
-            const u = item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || '';
-            return u ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u}` : String(doseVal).trim();
+            const u = getMedicationUnitTitle(item, item.tmm_unit);
+            return u ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u}` : item?.tmm_dosage_unit_name || doseText;
         }
-        const s = String(doseVal).trim();
+        const s = doseText;
         if (/\d/.test(s) && /[a-zA-Z]/i.test(s)) return s;
-        const u0 = item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '';
-        return u0 ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u0}` : s;
+        const u0 = getMedicationUnitTitle(item, item.default_tmm_unit);
+        return u0 ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u0}` : item?.tmm_dosage_unit_name || s;
+    }
+
+    function getAiMedicationDoseDisplay(item, option) {
+        return getMedicationDoseDisplay(item, option);
     }
 
     function getAiMedicationDurationDisplay(item) {
@@ -2094,7 +2130,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             <View style={{ flex: dentalMedicationOption?.medicine_option?.length === 0 ? 0.25 : dentalMedicationOption?.medicine_option?.length === 1 ? 0.8 : dentalMedicationOption?.medicine_option?.length === 2 ? 1.2 : dentalMedicationOption?.medicine_option?.length === 3 ? 1.4 : 2.4, flexDirection: 'row' }}>
                                                                 {dentalMedicationOption?.medicine_option?.includes('dose') && (
                                                                     <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
-                                                                        {item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, dentalMedicationOption?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}` : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-')}
+                                                                        {getMedicationDoseDisplay(item, dentalMedicationOption)}
                                                                     </Text>
                                                                 )}
                                                                 {dentalMedicationOption?.medicine_option?.includes('frequency') && (
@@ -3075,13 +3111,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                                     modiGeneric: option?.medicine_with_generic && ii === 0 ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || "") : "",
 
                                                                                                     modiUnitPerDose: option?.medicine_option?.includes("dose")
-                                                                                                        ? item.tmm_dosage && item.tmm_unit
-                                                                                                            ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${
-                                                                                                                item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ""
-                                                                                                            }`
-                                                                                                            : `${
-                                                                                                                item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ""
-                                                                                                            }`
+                                                                                                        ? getMedicationDoseDisplay(item, option)
                                                                                                         : "",
 
                                                                                                     modiFrequency:option?.medicine_option?.includes("frequency")
@@ -3168,13 +3198,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                                     modiGeneric: option?.medicine_with_generic && ii === 0 ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || "") : "",
 
                                                                                                     modiUnitPerDose: option?.medicine_option?.includes("dose")
-                                                                                                        ? item.tmm_dosage && item.tmm_unit
-                                                                                                            ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${
-                                                                                                                item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ""
-                                                                                                            }`
-                                                                                                            : `${
-                                                                                                                item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ""
-                                                                                                            }`
+                                                                                                        ? getMedicationDoseDisplay(item, option)
                                                                                                         : "",
 
                                                                                                     modiFrequency:option?.medicine_option?.includes("frequency")
@@ -3297,7 +3321,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                             <View style={{ flexGrow: 1, flexDirection: 'row', borderBottom: ii != innerMedication(pItem.index)?.length - 1 ? '1px solid #171725' : '0px' }} key={ii}>
                                                                                 {option?.medicine_option?.includes('dose') && (
                                                                                   <>
-                                                                                    <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{`${item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit).tmu_title : ""}` : `${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit).tmu_title : ""}`}`}</Text>
+                                                                                    <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{getMedicationDoseDisplay(item, option)}</Text>
                                                                                     {isTapered && !isLastItem && (
                                                                                       <ThenConnector printSettings={printSettings} />
                                                                                     )}

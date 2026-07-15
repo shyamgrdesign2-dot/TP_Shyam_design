@@ -52,7 +52,7 @@ import { ASSETS } from "../../assets";
 import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
-import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
+import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
 import { toast } from "../dr-agent/voicerx/toast";
@@ -71,6 +71,7 @@ import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescript
 import { getDecodedToken } from "../../utils/localStorage";
 import { trackEvent } from "../../utils/utils";
 import { GB_ZYDUS_USER } from "../../utils/constants";
+import { buildMedicineDoseDisplayText } from "../../utils/medicationCopyNormalization";
 import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import { ToothIcon } from "../dental/ToothIcon";
 import { env } from "../../EnvironmentConfig";
@@ -1206,17 +1207,8 @@ function pastVisitMedicationName(item) {
   );
 }
 
-function findMedicineUnitTitle(item) {
-  const unitId = firstTextValue(item?.tmm_unit, item?.tmu_id);
-  const units = legacyArray(item?.medicineUnit);
-  const matchedUnit = units.find((unit) => String(unit?.tmu_id) === String(unitId));
-  return firstTextValue(item?.tmm_unit_name, matchedUnit?.tmu_title);
-}
-
 function buildPastVisitDoseText(item) {
-  const dosage = firstTextValue(item?.dosage, item?.tmm_dosage);
-  if (!dosage) return firstTextValue(item?.tmm_dosage_unit_name);
-  return [dosage, findMedicineUnitTitle(item)].filter(Boolean).join(" ");
+  return buildMedicineDoseDisplayText(item) || firstTextValue(item?.tmm_dosage_unit_name);
 }
 
 function hasFrequencySlotValue(item) {
@@ -1233,24 +1225,35 @@ function frequencySlotText(value) {
   return String(value).trim();
 }
 
+function hasNonZeroFrequencySlot(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "" && String(value).trim() !== "0";
+}
+
+function buildPastVisitFrequencySlotText(item) {
+  const morning = frequencySlotText(item?.tcm_tmm_freq_morning);
+  const afternoon = frequencySlotText(item?.tcm_tmm_freq_afternoon);
+  const evening = frequencySlotText(item?.tcm_tmm_freq_evening);
+  const night = frequencySlotText(item?.tcm_tmm_freq_night);
+
+  return hasNonZeroFrequencySlot(item?.tcm_tmm_freq_evening)
+    ? [morning, afternoon, evening, night].join(" - ")
+    : [morning, afternoon, night].join(" - ");
+}
+
 function buildPastVisitFrequencyText(item, frequencyList = []) {
   if (firstTextValue(item?.frequency, item?.freq, item?.frequencyText, item?.frequency_text)) {
     return firstTextValue(item?.frequency, item?.freq, item?.frequencyText, item?.frequency_text);
   }
+  if (firstTextValue(item?.tmm_freq_type_name)) {
+    return firstTextValue(item?.tmm_freq_type_name);
+  }
 
   if (String(item?.tmf_block ?? "").trim() === "0") {
-    return hasFrequencySlotValue(item)
-      ? [
-          frequencySlotText(item?.tcm_tmm_freq_morning),
-          frequencySlotText(item?.tcm_tmm_freq_afternoon),
-          frequencySlotText(item?.tcm_tmm_freq_evening),
-          frequencySlotText(item?.tcm_tmm_freq_night),
-        ].join(" - ")
-      : "";
+    return hasFrequencySlotValue(item) ? buildPastVisitFrequencySlotText(item) : "";
   }
 
   const frequency = frequencyList.find((entry) => String(entry?.tmf_id) === String(item?.tmm_freq_type));
-  return firstTextValue(item?.tmm_freq_type_name, frequency?.tmf_title);
+  return firstTextValue(frequency?.tmf_title);
 }
 
 function buildPastVisitScheduleText(item, timingList = []) {
@@ -6327,6 +6330,9 @@ export function SideNavbar({
         moduleName: isPrivateNotesVoice ? "Private Notes" : SIDE_NAV_MODULE_NAMES[sectionId],
         sourceSurface: "side-navbar",
         isDoctorAgent: false,
+        processingApiName: isPrivateNotesVoice
+          ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+          : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -6362,6 +6368,9 @@ export function SideNavbar({
         moduleName: isPrivateNotesVoice ? "Private Notes" : SIDE_NAV_MODULE_NAMES[sectionId],
         sourceSurface: "side-navbar",
         isDoctorAgent: false,
+        processingApiName: isPrivateNotesVoice
+          ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+          : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),

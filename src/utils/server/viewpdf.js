@@ -401,12 +401,33 @@ const AI_FLOW_MEDICINE_UNIT_MAP = {
   9: "Drop",
   14: "Drops",
 };
+const CUSTOM_MEDICINE_UNIT_MAP = {
+  1: "Ampule(s)",
+  2: "Tablet(s)",
+  4: "ml",
+  5: "unit(s)",
+  6: "Capsule(s)",
+  7: "Fingertip(s)",
+  8: "Pea sized",
+  9: "gm",
+  11: "tsp",
+  14: "Drop(s)",
+  24: "Puff(s)",
+  27: "tbsp(s)",
+};
+const MEDICINE_UNIT_FALLBACK_MAP = {
+  ...AI_FLOW_MEDICINE_UNIT_MAP,
+  ...CUSTOM_MEDICINE_UNIT_MAP,
+};
 
 function getAiFlowMedicationDisplayList(medicine) {
   if (!Array.isArray(medicine) || medicine.length === 0) return [];
   return medicine.map((item, index) => {
     const tmm_unit = item.tmm_unit ?? item.unit_id;
-    const unitTitle = tmm_unit ? AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] : "";
+    const unitTitleMap = item?.tmm_type == 40
+      ? CUSTOM_MEDICINE_UNIT_MAP
+      : AI_FLOW_MEDICINE_UNIT_MAP;
+    const unitTitle = tmm_unit ? unitTitleMap[tmm_unit] : "";
     const medicineUnit =
       Array.isArray(item.medicineUnit) && item.medicineUnit.length > 0
         ? item.medicineUnit
@@ -1956,33 +1977,45 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       .trim();
   }
 
-  function getAiMedicationDoseDisplay(item, option) {
+  function getMedicationUnitTitle(item = {}, unitId) {
+    if (unitId === undefined || unitId === null || unitId === "") return "";
+    if (item.tmm_unit == unitId && item.tmm_unit_name) return item.tmm_unit_name;
+    const matchedUnit = Array.isArray(item.medicineUnit)
+      ? item.medicineUnit.find((x) => x.tmu_id == unitId)
+      : null;
+    if (matchedUnit?.tmu_title) return matchedUnit.tmu_title;
+    if (MEDICINE_UNIT_FALLBACK_MAP[unitId]) return MEDICINE_UNIT_FALLBACK_MAP[unitId];
+    return "";
+  }
+
+  function getMedicationDoseDisplay(item = {}, option) {
     const doseVal =
       item?.tmm_dosage != null && String(item.tmm_dosage).trim() !== ""
         ? item.tmm_dosage
-        : item?.dosage;
+        : item?.unitPerDose ?? item?.dosage ?? item?.unit_per_dose;
     if (doseVal == null || String(doseVal).trim() === "") {
-      return (
-        item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)
-          ?.tmu_title || "-"
-      );
+      return item?.tmm_dosage_unit_name || getMedicationUnitTitle(item, item.default_tmm_unit) || "-";
+    }
+    const doseText = String(doseVal).trim();
+    if (/\d/.test(doseText) && /[a-zA-Z]/i.test(doseText)) {
+      return item?.tmm_dosage_unit_name || doseText;
     }
     if (item.tmm_unit) {
-      const u =
-        item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title ||
-        "";
+      const u = getMedicationUnitTitle(item, item.tmm_unit);
       return u
         ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u}`
-        : String(doseVal).trim();
+        : item?.tmm_dosage_unit_name || doseText;
     }
-    const s = String(doseVal).trim();
+    const s = doseText;
     if (/\d/.test(s) && /[a-zA-Z]/i.test(s)) return s;
-    const u0 =
-      item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)
-        ?.tmu_title || "";
+    const u0 = getMedicationUnitTitle(item, item.default_tmm_unit);
     return u0
       ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u0}`
-      : s;
+      : item?.tmm_dosage_unit_name || s;
+  }
+
+  function getAiMedicationDoseDisplay(item, option) {
+    return getMedicationDoseDisplay(item, option);
   }
 
   function getAiMedicationDurationDisplay(item) {
@@ -3669,12 +3702,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       },
                                     ]}
                                   >
-                                    {item?.tmm_dosage && item?.tmm_unit
-                                      ? `${formatUnitPerDose(item?.tmm_dosage, dentalMedicationOption?.is_dosage_decimal)} ${item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit)?.tmu_title || ""}`
-                                      : item?.medicineUnit?.find(
-                                          (x) =>
-                                            x?.tmu_id == item?.default_tmm_unit,
-                                        )?.tmu_title || "-"}
+                                    {getMedicationDoseDisplay(
+                                      item,
+                                      dentalMedicationOption,
+                                    )}
                                   </Text>
                                 )}
                                 {dentalMedicationOption?.medicine_option?.includes(
@@ -6903,6 +6934,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           tmm_dosage,
                                                           medicineUnit,
                                                           tmm_unit,
+                                                          tmm_dosage_unit_name,
+                                                          tmm_unit_name,
                                                           tcm_tmm_freq_morning,
                                                           tcm_tmm_freq_afternoon,
                                                           tcm_tmm_freq_evening,
@@ -6925,10 +6958,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             option?.medicine_option?.includes(
                                                               "dose",
                                                             )
-                                                              ? tmm_dosage &&
-                                                                tmm_unit
-                                                                ? `${formatUnitPerDose(tmm_dosage, option?.is_dosage_decimal)} ${medicineUnit && medicineUnit?.find((x) => x?.tmu_id == tmm_unit) !== undefined ? medicineUnit?.find((x) => x?.tmu_id == tmm_unit)?.tmu_title : ""}`
-                                                                : `${medicineUnit && medicineUnit?.find((x) => x?.tmu_id == default_tmm_unit) !== undefined ? medicineUnit?.find((x) => x?.tmu_id == default_tmm_unit)?.tmu_title : ""}`
+                                                              ? getMedicationDoseDisplay({
+                                                                  tmm_dosage,
+                                                                  medicineUnit,
+                                                                  tmm_unit,
+                                                                  tmm_dosage_unit_name,
+                                                                  tmm_unit_name,
+                                                                  default_tmm_unit,
+                                                                }, option)
                                                               : "",
 
                                                           modiFrequency:
@@ -7121,6 +7158,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           tmm_dosage,
                                                           medicineUnit,
                                                           tmm_unit,
+                                                          tmm_dosage_unit_name,
+                                                          tmm_unit_name,
                                                           tcm_tmm_freq_morning,
                                                           tcm_tmm_freq_afternoon,
                                                           tcm_tmm_freq_evening,
@@ -7143,10 +7182,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             option?.medicine_option?.includes(
                                                               "dose",
                                                             )
-                                                              ? tmm_dosage &&
-                                                                tmm_unit
-                                                                ? `${formatUnitPerDose(tmm_dosage, option?.is_dosage_decimal)} ${medicineUnit && medicineUnit?.find((x) => x?.tmu_id == tmm_unit) !== undefined ? medicineUnit?.find((x) => x?.tmu_id == tmm_unit)?.tmu_title : ""}`
-                                                                : `${medicineUnit && medicineUnit?.find((x) => x?.tmu_id == default_tmm_unit) !== undefined ? medicineUnit?.find((x) => x?.tmu_id == default_tmm_unit)?.tmu_title : ""}`
+                                                              ? getMedicationDoseDisplay({
+                                                                  tmm_dosage,
+                                                                  medicineUnit,
+                                                                  tmm_unit,
+                                                                  tmm_dosage_unit_name,
+                                                                  tmm_unit_name,
+                                                                  default_tmm_unit,
+                                                                }, option)
                                                               : "",
 
                                                           modiFrequency:
@@ -7556,7 +7599,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           fontWeight: 500,
                                                         },
                                                       ]}
-                                                    >{`${item?.tmm_dosage && item?.tmm_unit ? `${formatUnitPerDose(item?.tmm_dosage, option?.is_dosage_decimal)} ${item?.medicineUnit && item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit) !== undefined ? item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit)?.tmu_title : ""}` : `${item?.medicineUnit && item?.medicineUnit?.find((x) => x?.tmu_id == item?.default_tmm_unit) !== undefined ? item?.medicineUnit?.find((x) => x?.tmu_id == item?.default_tmm_unit)?.tmu_title : ""}`}`}</Text>
+                                                    >{getMedicationDoseDisplay(item, option)}</Text>
                                                   )}
                                                   {option?.medicine_option?.includes(
                                                     "frequency",
@@ -8320,14 +8363,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 {items.map((item, ii) => {
                                                   const isLastItem =
                                                     ii === items.length - 1;
-                                                  const unitPerDose = (
-                                                    item?.unitPerDose ||
-                                                    item?.dosage ||
-                                                    item?.unit_per_dose ||
-                                                    ""
-                                                  )
-                                                    .toString()
-                                                    .trim();
+                                                  const unitPerDose =
+                                                    getAiMedicationDoseDisplay(
+                                                      item,
+                                                      option,
+                                                    );
                                                   const when = (
                                                     item?.when ||
                                                     item?.schedule ||

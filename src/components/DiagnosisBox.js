@@ -1028,6 +1028,9 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
             <div className="title-common">Diagnosis {isChikitsalayAccessable ? <span className="text-danger">*</span> : ""}</div>
           </div>
           <div className="d-flex align-items-center">
+            {isChikitsalayAccessable && (<a href="https://icdcodes.ai/results" target="_blank" rel="noopener noreferrer" className="text-decoration-underline text-primary fs-14">
+              Find ICD codes
+            </a>)}
             {isVoiceRxModuleEnabled && (
               <VoiceRxModuleButton
                 active={voiceCaptureOpen}
