@@ -58,6 +58,7 @@ import {
   errorMessage,
 } from "../utils/utils";
 import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
+import { resolveMedicineUnitTitle } from "../utils/medicationCopyNormalization";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
@@ -1471,26 +1472,8 @@ function Cardiology(props) {
         <>
           <div>{`${
             record.tmm_dosage && record.tmm_unit
-              ? `${medicine_freq_dosage_format(record.tmm_dosage, medicationCaseOptions?.is_dosage_decimal)} ${
-                  record?.medicineUnit &&
-                  record?.medicineUnit.find(
-                    (x) => x.tmu_id == record.tmm_unit
-                  ) !== undefined
-                    ? record?.medicineUnit.find(
-                        (x) => x.tmu_id == record.tmm_unit
-                      ).tmu_title
-                    : ""
-                }`
-              : `${
-                  record?.medicineUnit &&
-                  record?.medicineUnit.find(
-                    (x) => x.tmu_id == record.default_tmm_unit
-                  ) !== undefined
-                    ? record?.medicineUnit.find(
-                        (x) => x.tmu_id == record.default_tmm_unit
-                      ).tmu_title
-                    : ""
-                }`
+              ? `${medicine_freq_dosage_format(record.tmm_dosage, medicationCaseOptions?.is_dosage_decimal)} ${resolveMedicineUnitTitle(record, record.tmm_unit)}`
+              : resolveMedicineUnitTitle(record, record.default_tmm_unit)
           }`}</div>
 
           {record?.tmm_id == medicationData[index - 1]?.tmm_id && (

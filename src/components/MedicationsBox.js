@@ -57,6 +57,10 @@ import {
   hasInvalidChikitsalayMedication,
   MEDICATION_INVENTORY_WARNING,
 } from "../utils/chikitsalayInventory";
+import {
+  normalizeCopiedMedicationRows,
+  resolveCopiedDoseFields,
+} from "../utils/medicationCopyNormalization";
 const {
   alerticon: alertIcon,
   medication: Medicationicon,
@@ -86,132 +90,13 @@ const getMedicationGroupKey = (item) => {
   return `voice:${item?.voice_rx_group_id || item?.unique_id || ""}`;
 };
 
-const getRawMedicineFrequencyText = (medicine) => (
-  [
-    medicine?.frequency,
-    medicine?.freq,
-    medicine?.frequencyText,
-    medicine?.frequency_text,
-    medicine?.tmm_freq_type_name,
-  ].find((value) => value !== undefined && value !== null && String(value).trim() !== "") || ""
-);
-
-const getRawMedicineScheduleText = (medicine) => (
-  [
-    medicine?.schedule,
-    medicine?.when,
-    medicine?.timing,
-    medicine?.tmm_time_name,
-  ].find((value) => value !== undefined && value !== null && String(value).trim() !== "") || ""
-);
-
-const isNumericMedicineFrequencyText = (value) => /^(?!-)[\d.\s-]+$/.test(String(value || "").trim());
-
-const isExactMedicineFrequencyTitle = (value, frequencyList = []) => {
-  const text = String(value || "").trim();
-  if (!text) return false;
-  return frequencyList.some(
-    (item) => item?.tmf_block !== 0 && String(item?.tmf_title || "").trim() === text
-  );
-};
-
-const findExactMedicineTiming = (value, timingList = []) => {
-  const text = String(value || "").trim();
-  if (!text || text === "None") return null;
-  return timingList.find(
-    (item) => String(item?.tmt_title || "").trim().toLowerCase() === text.toLowerCase()
-  ) || null;
-};
-
-const appendMedicineTextToNotes = (notes, value) => {
-  const current = String(notes || "").trim();
-  const text = String(value || "").trim();
-  if (!text || current.includes(text)) return current;
-  return current ? `${current} | ${text}` : text;
-};
-
-const appendMedicineFrequencyToNotes = (notes, frequency) => {
-  return appendMedicineTextToNotes(notes, frequency);
-};
-
-const appendMedicineScheduleToNotes = (notes, schedule) => {
-  return appendMedicineTextToNotes(notes, schedule);
-};
-
-const moveUnmatchedMedicineFrequenciesToNotes = (rows = [], frequencyList = []) => rows.map((row) => {
-  const rawFrequency = getRawMedicineFrequencyText(row);
-  if (!rawFrequency) return row;
-
-  const normalizedFrequency = String(row?.tmm_freq_type_name || "").trim();
-  const canUseFrequencyField =
-    isNumericMedicineFrequencyText(normalizedFrequency) ||
-    isExactMedicineFrequencyTitle(rawFrequency, frequencyList) ||
-    isExactMedicineFrequencyTitle(normalizedFrequency, frequencyList);
-
-  if (canUseFrequencyField) return row;
-
-  return {
-    ...row,
-    tmm_freq_type_name: "",
-    tmm_freq_type: 0,
-    tmf_block: 0,
-    tmf_block_val: "",
-    tcm_tmm_freq_morning: 0,
-    tcm_tmm_freq_afternoon: 0,
-    tcm_tmm_freq_evening: 0,
-    tcm_tmm_freq_night: 0,
-    tmm_remarks: appendMedicineFrequencyToNotes(row?.tmm_remarks || row?.notes || row?.note, rawFrequency),
-  };
-});
-
-const moveUnmatchedMedicineSchedulesToNotes = (rows = [], timingList = []) => rows.map((row) => {
-  const rawSchedule = getRawMedicineScheduleText(row);
-  if (!rawSchedule || String(rawSchedule).trim() === "None") return row;
-
-  const timingObj = findExactMedicineTiming(rawSchedule, timingList);
-  if (timingObj) {
-    return {
-      ...row,
-      tmm_time: timingObj.tmt_id,
-      tmm_time_name: timingObj.tmt_title,
-    };
-  }
-
-  return {
-    ...row,
-    tmm_time: 0,
-    tmm_time_name: "",
-    tmm_remarks: appendMedicineScheduleToNotes(row?.tmm_remarks || row?.notes || row?.note, rawSchedule),
-  };
-});
-
 const isVoiceRxUngroundedMedication = (item) => (
   !!item?.voice_rx_from_module && !hasMedicineMasterId(item?.tmm_id)
 );
 
-const VOICE_RX_DOSAGE_WORDS = {
-  one: "1",
-  two: "2",
-  three: "3",
-  four: "4",
-  five: "5",
-  six: "6",
-  seven: "7",
-  eight: "8",
-  nine: "9",
-  ten: "10",
-};
-
-const getVoiceRxDosageValue = (medicine = {}) => {
-  const dosageText = String(medicine?.tmm_dosage || medicine?.tmm_dosage_unit_name || "").trim();
-  if (!dosageText) return "";
-
-  const numericMatch = dosageText.match(/^(\d+(?:\.\d+)?)/);
-  if (numericMatch) return numericMatch[1];
-
-  const wordMatch = dosageText.match(/^([a-z]+)/i);
-  return VOICE_RX_DOSAGE_WORDS[wordMatch?.[1]?.toLowerCase()] || dosageText;
-};
+const isVoiceRxAutoGroundedMedication = (item) => (
+  !!item?.voice_rx_auto_grounded && hasMedicineMasterId(item?.tmm_id)
+);
 
 const getPositiveId = (...values) => {
   for (const value of values) {
@@ -219,6 +104,54 @@ const getPositiveId = (...values) => {
     if (Number.isFinite(id) && id > 0) return value;
   }
   return 0;
+};
+
+const getDefaultMedicineUnitId = (medicine = {}) => getPositiveId(
+  medicine.default_tmm_unit,
+  medicine.tmm_unit,
+  medicine.tmu_id,
+  medicine.medicineUnit?.[0]?.tmu_id
+);
+
+const mergeSelectedMedicineForVoiceRow = (current = {}, selected = {}, keyParsed = {}) => {
+  const medicineUnits = Array.isArray(selected.medicineUnit) ? selected.medicineUnit : [];
+  const defaultUnitId = getDefaultMedicineUnitId(selected);
+  const doseFields = resolveCopiedDoseFields(current, medicineUnits, {
+    defaultIfMissing: true,
+    defaultUnitId,
+    defaultDose: "1",
+    includeCustomUnits: true,
+  });
+
+  return {
+    ...current,
+    ...selected,
+    objectID: keyParsed.objectID ?? selected.objectID ?? current.objectID,
+    reference_id: keyParsed.reference_id ?? selected.reference_id ?? current.reference_id,
+    quantity: keyParsed.quantity ?? selected.quantity ?? current.quantity,
+    stock_status: keyParsed.stock_status ?? selected.stock_status ?? current.stock_status,
+    tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type ?? current.tmm_hm_type,
+    um_id: selected.um_id ?? keyParsed.um_id ?? current.um_id,
+    ...doseFields,
+    default_tmm_unit: getPositiveId(selected.default_tmm_unit, doseFields.tmm_unit, current.default_tmm_unit),
+    tmm_freq_type_name: current.tmm_freq_type_name,
+    tmm_freq_type: current.tmm_freq_type,
+    tmf_block: current.tmf_block,
+    tmf_block_val: current.tmf_block_val,
+    tcm_tmm_freq_morning: current.tcm_tmm_freq_morning,
+    tcm_tmm_freq_afternoon: current.tcm_tmm_freq_afternoon,
+    tcm_tmm_freq_evening: current.tcm_tmm_freq_evening,
+    tcm_tmm_freq_night: current.tcm_tmm_freq_night,
+    tmm_time: current.tmm_time,
+    tmm_time_name: current.tmm_time_name,
+    tmm_days: current.tmm_days,
+    tmm_duration_type: current.tmm_duration_type,
+    tmm_days_duration_type: current.tmm_days_duration_type,
+    tmm_remarks: current.tmm_remarks,
+    voice_rx_requires_inventory_selection: false,
+    voice_rx_from_module: false,
+    voice_rx_auto_grounded: true,
+  };
 };
 
 const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
@@ -357,10 +290,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const { patient_data, medicationData, setMedicationData, pillupSwitch, setPillupSwitch, tcmId } = useContext(CashManagerContext);
   const applyVoiceMedication = useCallback((nextMedicines) => {
-    const normalizedMedicines = moveUnmatchedMedicineSchedulesToNotes(
-      moveUnmatchedMedicineFrequenciesToNotes(nextMedicines, frequencyList),
-      timingList
-    );
+    const normalizedMedicines = normalizeCopiedMedicationRows(nextMedicines, frequencyList, timingList);
     if (normalizedMedicines.length > 0) {
       setMedicationData(normalizedMedicines);
     }
@@ -394,6 +324,7 @@ function MedicationsBox({ showVoiceRxModule }) {
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
   const [voiceMedicineEdit, setVoiceMedicineEdit] = useState({ index: null, query: "" });
   const voiceMedicineSearchRequestRef = useRef(0);
+  const autoVoiceMedicineGroundingRef = useRef(new Set());
 
   const [unitPerDoseOptions, setUnitPerDoseOptions] = useState([]);
   const [frequencyOptions, setFrequencyOptions] = useState([]);
@@ -444,6 +375,20 @@ function MedicationsBox({ showVoiceRxModule }) {
       isVoiceRxUngroundedMedication(item) ||
       (isChikitsalayAccessable && hasInvalidChikitsalayMedication(item)),
     [isChikitsalayAccessable]
+  );
+  const isVoiceRxAutoGroundedEditable = useCallback(
+    (item) =>
+      isVoiceRxModuleEnabled &&
+      !isZydusAccount &&
+      !isChikitsalayAccessable &&
+      isVoiceRxAutoGroundedMedication(item),
+    [isChikitsalayAccessable, isVoiceRxModuleEnabled, isZydusAccount]
+  );
+  const canEditVoiceMedicineSelection = useCallback(
+    (item) =>
+      isVoiceRxModuleEnabled &&
+      (isMedicationInventorySelectionRequired(item) || isVoiceRxAutoGroundedEditable(item)),
+    [isMedicationInventorySelectionRequired, isVoiceRxAutoGroundedEditable, isVoiceRxModuleEnabled]
   );
   const hasUngroundedMedications = isVoiceRxModuleEnabled && medicationData.some(isMedicationInventorySelectionRequired);
   const getMedicationPopupProps = useCallback(
@@ -497,9 +442,66 @@ function MedicationsBox({ showVoiceRxModule }) {
   const activeVoiceMedicineItem = voiceMedicineEdit.index !== null ? medicationData[voiceMedicineEdit.index] : null;
   const isVoiceMedicineFuzzySearchActive = (
     isVoiceRxModuleEnabled &&
-    isZydusAccount &&
-    isMedicationInventorySelectionRequired(activeVoiceMedicineItem)
+    (
+      (isZydusAccount && isMedicationInventorySelectionRequired(activeVoiceMedicineItem)) ||
+      isVoiceRxAutoGroundedEditable(activeVoiceMedicineItem)
+    )
   );
+
+  useEffect(() => {
+    if (!isVoiceRxModuleEnabled || isZydusAccount || isChikitsalayAccessable) return;
+
+    const candidates = medicationData
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => isVoiceRxUngroundedMedication(item));
+
+    candidates.forEach(({ item, index }) => {
+      const medicineName = String(item?.tmm_medicine_name || item?.voice_rx_original_name || "").trim();
+      if (!medicineName) return;
+      const key = String(item?.voice_rx_group_id || item?.unique_id || medicineName).trim().toLowerCase();
+      if (!key || autoVoiceMedicineGroundingRef.current.has(key)) return;
+
+      autoVoiceMedicineGroundingRef.current.add(key);
+      (async () => {
+        try {
+          const result = await ApiMedication.getFuzzySearch(medicineName, 10, {
+            isChikitsalayAccessable: false,
+          });
+          const rows = Array.isArray(result) ? result : result ? [result] : [];
+          const topResult = rows[0];
+          if (!topResult?.tmm_id) return;
+
+          let selected = medicineDetailsById?.[String(topResult.tmm_id)] || null;
+          if (!selected) {
+            const action = await dispatch(getMedicineDetails(topResult.tmm_id));
+            if (action.meta.requestStatus !== "fulfilled") return;
+            selected = action.payload?.[0] || topResult;
+          }
+
+          setMedicationData((prev) => {
+            const rowIndex = prev.findIndex((row) => {
+              const rowKey = String(row?.voice_rx_group_id || row?.unique_id || row?.tmm_medicine_name || "").trim().toLowerCase();
+              return rowKey === key;
+            });
+            if (rowIndex === -1 || !isVoiceRxUngroundedMedication(prev[rowIndex])) return prev;
+            const next = [...prev];
+            next[rowIndex] = mergeSelectedMedicineForVoiceRow(prev[rowIndex], selected, topResult);
+            return next;
+          });
+        } catch (error) {
+          // Keep the copied medicine as free text; the end-visit path will add it as custom.
+        }
+      })();
+    });
+  }, [
+    dispatch,
+    isChikitsalayAccessable,
+    isVoiceRxModuleEnabled,
+    isZydusAccount,
+    medicationData,
+    medicineDetailsById,
+    setMedicationData,
+  ]);
 
   const buildMedicineSearchOption = useCallback(
     (medicine) => {
@@ -691,13 +693,13 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const handleVoiceMedicineClick = (item) => {
     if (!isVoiceRxModuleEnabled) return;
-    if (!isMedicationInventorySelectionRequired(item)) return;
+    if (!canEditVoiceMedicineSelection(item)) return;
     const query = item.tmm_medicine_name || "";
     setVoiceMedicineEdit({
       index: item.index,
       query,
     });
-    if (isZydusAccount) {
+    if (isZydusAccount || isVoiceRxAutoGroundedEditable(item)) {
       setParentSearchOptions([]);
     } else {
       dispatch(searchMedication({
@@ -746,53 +748,18 @@ function MedicationsBox({ showVoiceRxModule }) {
     const shouldUseSelectedVoiceUnit =
       isVoiceRxModuleEnabled &&
       (current?.voice_rx_group_id || current?.voice_rx_from_module || current?.voice_rx_original_name);
-    const selectedUnitId = getPositiveId(
-      selected.tmm_unit,
-      selected.tmu_id,
-      selected.default_tmm_unit,
-      selected.medicineUnit?.[0]?.tmu_id
-    );
-    const selectedUnit = shouldUseSelectedVoiceUnit && Array.isArray(selected.medicineUnit)
-      ? selected.medicineUnit.find((unit) => unit.tmu_id == selectedUnitId)
-      : null;
-    const selectedUnitTitle = selectedUnit?.tmu_title || "";
-    const voiceDosageValue = shouldUseSelectedVoiceUnit ? getVoiceRxDosageValue(current) : "";
-    const voiceDoseLabel = voiceDosageValue && selectedUnitTitle
-      ? `${voiceDosageValue} ${selectedUnitTitle}`
-      : current.tmm_dosage_unit_name;
-    medicationData[index] = {
-      ...current,
-      ...selected,
-      objectID: keyParsed.objectID,
-      reference_id: keyParsed.reference_id,
-      quantity: keyParsed.quantity,
-      stock_status: keyParsed.stock_status,
-      tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type,
-      um_id: selected.um_id ?? keyParsed.um_id,
-      tmm_dosage: shouldUseSelectedVoiceUnit ? voiceDosageValue : current.tmm_dosage,
-      tmm_dosage_unit_name: shouldUseSelectedVoiceUnit ? voiceDoseLabel : current.tmm_dosage_unit_name,
-      tmm_unit: shouldUseSelectedVoiceUnit ? selectedUnitId : current.tmm_unit,
-      tmm_unit_name: shouldUseSelectedVoiceUnit ? selectedUnitTitle : current.tmm_unit_name,
-      tmu_id: shouldUseSelectedVoiceUnit ? selectedUnitId : current.tmu_id,
-      default_tmm_unit: shouldUseSelectedVoiceUnit
-        ? getPositiveId(selected.default_tmm_unit, selectedUnitId)
-        : current.default_tmm_unit,
-      tmm_freq_type_name: current.tmm_freq_type_name,
-      tmf_block_val: current.tmf_block_val,
-      tcm_tmm_freq_morning: current.tcm_tmm_freq_morning,
-      tcm_tmm_freq_afternoon: current.tcm_tmm_freq_afternoon,
-      tcm_tmm_freq_evening: current.tcm_tmm_freq_evening,
-      tcm_tmm_freq_night: current.tcm_tmm_freq_night,
-      tmm_time: current.tmm_time,
-      tmm_time_name: current.tmm_time_name,
-      tmm_days: current.tmm_days,
-      tmm_duration_type: current.tmm_duration_type,
-      tmm_days_duration_type: current.tmm_days_duration_type,
-      tmm_remarks: current.tmm_remarks,
-      unique_id: current.unique_id,
-      voice_rx_from_module: false,
-      voice_rx_requires_inventory_selection: false,
-    };
+    medicationData[index] = shouldUseSelectedVoiceUnit
+      ? mergeSelectedMedicineForVoiceRow(current, selected, keyParsed)
+      : {
+        ...current,
+        ...selected,
+        objectID: keyParsed.objectID,
+        reference_id: keyParsed.reference_id,
+        quantity: keyParsed.quantity,
+        stock_status: keyParsed.stock_status,
+        tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type,
+        um_id: selected.um_id ?? keyParsed.um_id,
+      };
     setMedicationData((prev) => [...prev]);
     setVoiceMedicineEdit({ index: null, query: "" });
   };
@@ -1723,18 +1690,18 @@ function MedicationsBox({ showVoiceRxModule }) {
                             xs={5}
                             className={[
                               isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
-                              isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? "align-self-stretch" : ""
+                              isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? "align-self-stretch" : ""
                             ].filter(Boolean).join(" ") || undefined}
                             data-testid={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
                             onClick={() => {
-                              if (isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) && voiceMedicineEdit.index !== item.index) {
+                              if (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) && voiceMedicineEdit.index !== item.index) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
                             style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isMedicationInventorySelectionRequired(item) ? { background: "#fff8ef" } : undefined}
                           >
-                            <div className={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
-                              {isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? (
+                            <div className={isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
+                              {isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? (
                                 <div className="d-flex align-items-center gap-1 w-100">
                                   <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
                                     {voiceMedicineEdit.index === item.index ? (
@@ -1767,7 +1734,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     )}
                                     {renderHmTypeBadge(item, { hideZ: !isPrescriptionNewContext })}
                                   </div>
-                                  {shouldShowInventorySourceWarning && (
+                                  {shouldShowInventorySourceWarning && isMedicationInventorySelectionRequired(item) && (
                                     <Tooltip
                                       placement="top"
                                       overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
@@ -1793,7 +1760,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                             </div>
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined} style={{ height: isChikitsalayAccessable ? "stretch" : undefined }}>
-                            {!item.pms_default && !(isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item)) &&
+                            {!item.pms_default && !(isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item)) &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
                                   const medicineType = medicineTypeList.find(x => x?.tmy_id == item?.tmm_type)
