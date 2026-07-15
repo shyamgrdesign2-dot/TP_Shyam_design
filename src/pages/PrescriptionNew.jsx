@@ -45,7 +45,7 @@ import Obstetric from "./obstetric/Obstetric";
 import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails, resetObstetricState } from "../redux/obstetricSlice";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, getImageDimensions, isIPad, isVoiceRxFree } from "../utils/utils";
 import {
   findLatestVitalsRowIndexForDate,
   getCopiedVitalsObject,
@@ -113,7 +113,7 @@ import GenRxBox from "../components/GenRxBox";
 // import ConsultationDrawer from "../components/ConsultationDrawer";
 import ExpiredSubModal from "./monetization/components/ExpiredSubModal";
 import { checkCredits } from "../redux/monetizationSlice";
-import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
+import { getDefaultPrintsettings, services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData, getGenRx } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import ZydusLabParams from "../components/ZydusLabParams";
@@ -122,6 +122,7 @@ import TatvaAiBanner from "../components/TatvaAiBanner";
 import ApexAIPopup from "../components/ApexAIPopup";
 import GenRxBanner from "../components/GenRxBanner";
 import Carousel from "react-multi-carousel";
+import { isMobile as isMobileDevice, isTablet as isTabletDevice } from "react-device-detect";
 import GroundingBanner from "../components/GroundingBanner";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
@@ -176,6 +177,11 @@ import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew
 import { SideNavbar } from "../components/sideNavbar";
 import { TreatmentPlanDrawer } from "../components/dental/plan/TreatmentPlanDrawer";
 import { useTabletViewport } from "../hooks/useTabletViewport";
+import { getLatestSoapDraft } from "../components/dr-agent/voicerx/utils/soap-session-draft";
+import { renderPrintPayloadToBlob } from "../utils/printPayload";
+import { buildSoapIndividualPrintPayload } from "../utils/soapPrintPayload";
+import { hasMeaningfulVoicePayloadData } from "../utils/voiceSoapPayload";
+import { printBlobInNewTab } from "./opdBilling/utils/helper";
 
 const FOLLOW_UP_DATE_FORMATS = [
   "YYYY-MM-DD",
@@ -205,6 +211,92 @@ function toArray(value) {
   if (Array.isArray(value)) return value;
   if (value === undefined || value === null || String(value).trim() === "") return [];
   return [value];
+}
+
+function printPdfBlob(pdfBlob) {
+  if (!(pdfBlob instanceof Blob)) {
+    throw new Error("PDF is not ready.");
+  }
+
+  if (isMobileDevice || isTabletDevice || isIPad()) {
+    printBlobInNewTab(pdfBlob);
+    return;
+  }
+
+  const blobURL = URL.createObjectURL(pdfBlob);
+  document.querySelectorAll("iframe[data-soap-pdf-print-frame='true']").forEach((iframe) => {
+    iframe.parentNode?.removeChild(iframe);
+  });
+  const iframe = document.createElement("iframe");
+  iframe.dataset.soapPdfPrintFrame = "true";
+  document.body.appendChild(iframe);
+  iframe.style.display = "none";
+  iframe.src = blobURL;
+  iframe.onload = function () {
+    setTimeout(function () {
+      iframe.focus();
+      iframe.contentWindow?.print();
+      URL.revokeObjectURL(blobURL);
+    }, 1);
+  };
+}
+
+async function hydrateFooterImageDimensions(payload) {
+  if (!payload?.fileFooter?.imageShow || !payload?.fileFooter?.showFile) {
+    return payload;
+  }
+
+  try {
+    const { height, width } = await getImageDimensions(payload.fileFooter.showFile);
+    const footerHeight = Number(height) || 0;
+    const footerWidth = Number(width) || 0;
+    const widthOfA4PageInPts = 595;
+    const pageXPadding = 0.75 * 60;
+    return {
+      ...payload,
+      fileFooter: {
+        ...payload.fileFooter,
+        footerHeight,
+        footerWidth,
+        renderedFooterImageHeight:
+          footerWidth > 0
+            ? (footerHeight / footerWidth) * (widthOfA4PageInPts - pageXPadding)
+            : 0,
+      },
+    };
+  } catch (error) {
+    console.error("Failed to read SOAP footer image dimensions", error);
+    return payload;
+  }
+}
+
+function resolvePrescriptionPrintUrl(caseManagerData, routeState) {
+  return (
+    caseManagerData?.print_url ||
+    caseManagerData?.printUrl ||
+    caseManagerData?.print_rx_url ||
+    caseManagerData?.printRxUrl ||
+    routeState?.print_url ||
+    routeState?.printUrl ||
+    ""
+  );
+}
+
+async function fetchPrescriptionPrintPayload({ printUrl, pamId, selectedLang }) {
+  if (!printUrl) return null;
+
+  const url = new URL(printUrl, window.location.origin);
+  url.searchParams.set("output", "json");
+  if (pamId && !url.searchParams.get("pam_id")) {
+    url.searchParams.set("pam_id", String(pamId));
+  }
+  const resolvedLang = !selectedLang || selectedLang === "English" ? 1 : selectedLang;
+  if (!url.searchParams.get("lg")) {
+    url.searchParams.set("lg", btoa(String(resolvedLang)));
+  }
+
+  const response = await axios.get(url.toString());
+  return response?.data?.data || null;
 }
 
 function parseFollowUpDate(value, baseDate) {
@@ -847,7 +939,7 @@ function PrescriptionNew() {
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
 
-  const { profile } = useSelector((state) => state.doctors);
+  const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
 
   const [symptomsData, setSymptomsData] = useState([]);
@@ -1152,19 +1244,6 @@ function PrescriptionNew() {
   const [symptomCollectorStatus, setSymptomCollectorStatus] = useState("idle");
   const symptomCollectorRequestRef = useRef(0);
 
-  const hasMeaningfulVoicePayload = (payload) => {
-    if (!payload || typeof payload !== "object") return false;
-    const hasHistory = Array.isArray(payload.history) && payload.history.length > 0;
-    const hasObjectData = (value) =>
-      value && typeof value === "object" && Object.keys(value).length > 0;
-    return (
-      hasHistory ||
-      hasObjectData(payload.digitizeData) ||
-      hasObjectData(payload.editedData) ||
-      hasObjectData(payload.clinicNotes)
-    );
-  };
-
   const hasDisplayableSymptomCollectorPayload = (payload) => {
     if (!payload || typeof payload !== "object") return false;
     return Boolean(
@@ -1220,7 +1299,7 @@ function PrescriptionNew() {
         const response = await getGenRx(recordId);
         if (cancelled) return;
         const payload = response?.data?.data || response?.data || response;
-        if (hasMeaningfulVoicePayload(payload)) {
+        if (hasMeaningfulVoicePayloadData(payload)) {
           dispatch(hydrateVoiceDigitization(payload));
           setVoiceHydrationStatus("hydrated");
         } else {
@@ -2806,6 +2885,79 @@ function PrescriptionNew() {
     labParamsData?.length,
   ]);
 
+  const handlePrintSoapPdf = useCallback(async (soapHtml) => {
+    const latestSoapHtml = soapHtml || getLatestSoapDraft(voiceDigitization?.sessionId)?.html;
+    if (!latestSoapHtml) return;
+
+    try {
+      let basePrintPayload = null;
+      let activePrintSettings = defaultPrintSettings;
+      const prescriptionPrintUrl = resolvePrescriptionPrintUrl(caseManagerData, state);
+
+      try {
+        basePrintPayload = await fetchPrescriptionPrintPayload({
+          printUrl: prescriptionPrintUrl,
+          pamId,
+          selectedLang: defaultPrintSettings?.default_language,
+        });
+        if (basePrintPayload?.printSettings) {
+          activePrintSettings = basePrintPayload.printSettings;
+        }
+      } catch (payloadError) {
+        console.error("Failed to fetch SOAP base print payload", payloadError);
+      }
+
+      if (!activePrintSettings) {
+        const action = await dispatch(getDefaultPrintsettings({ default: false }));
+        if (action.meta.requestStatus !== "fulfilled" || !action.payload) {
+          throw new Error("Print settings are unavailable.");
+        }
+        activePrintSettings = action.payload;
+      }
+
+      const payload = buildSoapIndividualPrintPayload({
+        soapHtml: latestSoapHtml,
+        basePrintPayload,
+        patient_data,
+        profile,
+        userId,
+        caseManagerData,
+        currentTcmId: tcmId,
+        pamId,
+        consultationDate,
+        defaultPrintSettings: activePrintSettings,
+        frequencyList,
+        timingList,
+      });
+
+      if (!payload) {
+        throw new Error("SOAP print payload could not be generated.");
+      }
+
+      const hydratedPayload = await hydrateFooterImageDimensions(payload);
+      const blob = await renderPrintPayloadToBlob(hydratedPayload);
+      printPdfBlob(blob);
+    } catch (error) {
+      console.error("Failed to print SOAP note PDF", error);
+      toast.error("SOAP printout could not be generated.");
+      throw error;
+    }
+  }, [
+    caseManagerData,
+    consultationDate,
+    defaultPrintSettings,
+    dispatch,
+    frequencyList,
+    pamId,
+    patient_data,
+    profile,
+    state,
+    tcmId,
+    timingList,
+    userId,
+    voiceDigitization?.sessionId,
+  ]);
+
   return (
     <CashManagerContext.Provider value={contextApi}>
       <RxPadSyncProvider>
@@ -3367,6 +3519,7 @@ function PrescriptionNew() {
               patientData={patient_data}
               voiceHydrationStatus={voiceHydrationStatus}
               symptomCollectorStatus={symptomCollectorStatus}
+              onPrintSoap={handlePrintSoapPdf}
               onClose={() => setDrAgentOpen(false)}
               onOpen={() => setDrAgentOpen(true)}
             />

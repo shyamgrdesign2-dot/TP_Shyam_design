@@ -681,6 +681,39 @@ const styles = StyleSheet.create({
 const formatCustomModuleColumnTitle = (value = "") =>
   value == null || value === "" ? "" : String(value).replace(/\u00A0/g, " ");
 
+const SOAP_PRINT_MODULE_ID = 90000101;
+const SOAP_SECTION_TITLES = ["subjective", "objective", "assessment", "plan"];
+
+const idsMatch = (left, right) =>
+  left != null && right != null && String(left) === String(right);
+
+const normalizeModuleLabel = (value) =>
+  formatCustomModuleColumnTitle(value).trim().replace(/:$/, "").toLowerCase();
+
+const isSoapLabel = (value) => {
+  const label = normalizeModuleLabel(value);
+  return label === "soap note" || label === "soap";
+};
+
+const hasSoapBlocks = (content) =>
+  Array.isArray(content) &&
+  content.some(
+    (item) =>
+      Array.isArray(item?.blocks) &&
+      SOAP_SECTION_TITLES.includes(normalizeModuleLabel(item?.title)),
+  );
+
+const isSoapPrintModule = (option, customModule) =>
+  idsMatch(option?.id, SOAP_PRINT_MODULE_ID) ||
+  idsMatch(customModule?.module_id, SOAP_PRINT_MODULE_ID) ||
+  idsMatch(customModule?.origin_id, SOAP_PRINT_MODULE_ID) ||
+  idsMatch(customModule?.id, SOAP_PRINT_MODULE_ID) ||
+  isSoapLabel(option?.title) ||
+  isSoapLabel(option?.name) ||
+  isSoapLabel(customModule?.module_name) ||
+  isSoapLabel(customModule?.name) ||
+  hasSoapBlocks(customModule?.content);
+
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const {
     rx,
@@ -1697,6 +1730,261 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const normalizePdfText = (value) =>
     value == null ? "" : String(value).replace(/\u00A0/g, " ");
 
+  const isNotDocumentedText = (value) =>
+    normalizePdfText(value).trim().toLowerCase() === "not documented.";
+
+  const renderSoapBullet = (text, key) => {
+    const normalizedText = normalizePdfText(text).trim();
+    if (!normalizedText) return null;
+    return (
+      <View
+        key={key}
+        style={{
+          flexDirection: "row",
+          marginTop: PX_TO_PT * 5,
+          paddingLeft: PX_TO_PT * 24,
+        }}
+      >
+        <Text
+          style={{
+            color: "#000000",
+            fontFamily: baseFontFamily,
+            fontSize: PX_TO_PT * 14,
+            fontWeight: 700,
+            lineHeight: 1.45,
+            width: PX_TO_PT * 18,
+          }}
+        >
+          {"\u2022"}
+        </Text>
+        <Text
+          style={{
+            color: "#000000",
+            fontFamily: getIndianLanguageFont(normalizedText, baseFontFamily),
+            fontSize: PX_TO_PT * 14,
+            fontWeight: 400,
+            lineHeight: 1.45,
+            flex: 1,
+          }}
+        >
+          {normalizedText}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderSoapPrintSections = (sections = []) => {
+    const headingFontSize = Math.max(baseFontSize + PX_TO_PT * 12, PX_TO_PT * 22);
+    const fallbackFontSize = Math.max(baseFontSize + PX_TO_PT * 4, PX_TO_PT * 14);
+    const getDocumentHeadingFontSize = (level) =>
+      Number(level) === 1
+        ? Math.max(baseFontSize + PX_TO_PT * 8, PX_TO_PT * 18)
+        : Math.max(baseFontSize + PX_TO_PT * 5, PX_TO_PT * 14);
+    const documentTextFontSize = Math.max(baseFontSize + PX_TO_PT * 2, PX_TO_PT * 12);
+    const getRunText = (run) => normalizePdfText(run?.text || "");
+    const getItalicFontFamily = (run) =>
+      run?.bold ? "Helvetica-BoldOblique" : "Helvetica-Oblique";
+    const renderRichRuns = (runs, fallbackText, baseStyle, keyPrefix) => {
+      const normalizedRuns = Array.isArray(runs)
+        ? runs
+            .map((run) => ({ ...run, text: getRunText(run) }))
+            .filter((run) => run.text)
+        : [];
+      if (!normalizedRuns.length) return normalizePdfText(fallbackText || "");
+      return normalizedRuns.map((run, index) => (
+        <Text
+          key={`${keyPrefix}-run-${index}`}
+          style={{
+            ...baseStyle,
+            fontFamily: run.italic
+              ? getItalicFontFamily(run)
+              : baseStyle.fontFamily,
+            fontWeight: run.italic ? 400 : run.bold ? 700 : baseStyle.fontWeight,
+          }}
+        >
+          {run.text}
+        </Text>
+      ));
+    };
+
+    const renderSoapDocumentBlock = (block, key) => {
+      if (block?.type === "heading") {
+        const text = normalizePdfText(block?.text).trim();
+        if (!text) return null;
+        const level = Number(block?.level) || 2;
+        const headingStyle = {
+          color: "#000000",
+          fontFamily: getIndianLanguageFont(text, baseFontFamily),
+          fontSize: getDocumentHeadingFontSize(level),
+          fontWeight: 700,
+          lineHeight: level === 1 ? 1.25 : 1.35,
+          marginTop: level === 1 ? PX_TO_PT * 18 : PX_TO_PT * 13,
+          marginBottom: level === 1 ? PX_TO_PT * 12 : PX_TO_PT * 8,
+        };
+        return (
+          <Text
+            key={key}
+            style={headingStyle}
+          >
+            {renderRichRuns(block?.runs, text, headingStyle, key)}
+          </Text>
+        );
+      }
+
+      if (block?.type === "list" || block?.type === "ordered-list") {
+        const items = Array.isArray(block.items) ? block.items : [];
+        return items.map((item, itemIndex) => {
+          const itemText =
+            typeof item === "string"
+              ? item
+              : item?.text || (Array.isArray(item?.runs) ? item.runs.map((run) => run?.text || "").join("") : "");
+          const text =
+            block?.type === "ordered-list" ? `${itemIndex + 1}. ${itemText}` : itemText;
+          if (typeof item !== "string" && Array.isArray(item?.runs)) {
+            const marker = block?.type === "ordered-list" ? `${itemIndex + 1}.` : "\u2022";
+            const itemStyle = {
+              color: "#000000",
+              fontFamily: getIndianLanguageFont(itemText, baseFontFamily),
+              fontSize: PX_TO_PT * 14,
+              fontWeight: 400,
+              lineHeight: 1.45,
+              flex: 1,
+            };
+            return (
+              <View
+                key={`${key}-${itemIndex}`}
+                style={{
+                  flexDirection: "row",
+                  marginTop: PX_TO_PT * 5,
+                  paddingLeft: PX_TO_PT * 24,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#000000",
+                    fontFamily: baseFontFamily,
+                    fontSize: PX_TO_PT * 14,
+                    fontWeight: 700,
+                    lineHeight: 1.45,
+                    width: PX_TO_PT * 18,
+                  }}
+                >
+                  {marker}
+                </Text>
+                <Text style={itemStyle}>
+                  {renderRichRuns(item.runs, itemText, itemStyle, `${key}-${itemIndex}`)}
+                </Text>
+              </View>
+            );
+          }
+          return renderSoapBullet(text, `${key}-${itemIndex}`);
+        });
+      }
+
+      const text = normalizePdfText(block?.text).trim();
+      if (!text) return null;
+      const isLabel = /:\s*$/.test(text) && !text.includes("\n");
+      const paragraphStyle = {
+        color: block?.isFallback || isNotDocumentedText(text) ? "#6f6f76" : "#000000",
+        fontFamily: getIndianLanguageFont(text, baseFontFamily),
+        fontSize: documentTextFontSize,
+        fontWeight: isLabel ? 700 : 400,
+        lineHeight: 1.45,
+        marginTop: isLabel ? PX_TO_PT * 10 : PX_TO_PT * 4,
+        marginBottom: isLabel ? PX_TO_PT * 1 : PX_TO_PT * 7,
+      };
+      return (
+        <Text
+          key={key}
+          style={paragraphStyle}
+        >
+          {renderRichRuns(block?.runs, text, paragraphStyle, key)}
+        </Text>
+      );
+    };
+
+    return (
+      <View style={{ marginTop: PX_TO_PT * 15 }}>
+        {sections.map((section, sectionIndex) => {
+          const heading = normalizePdfText(section?.title).trim();
+          const blocks =
+            Array.isArray(section?.blocks) && section.blocks.length > 0
+              ? section.blocks
+              : [{ type: "paragraph", text: section?.notes || "", isFallback: false }];
+
+          if (section?.renderMode === "document") {
+            return (
+              <View key={`soap-section-${sectionIndex}`}>
+                {blocks.map((block, blockIndex) =>
+                  renderSoapDocumentBlock(block, `soap-document-${sectionIndex}-${blockIndex}`)
+                )}
+              </View>
+            );
+          }
+
+          return (
+            <View
+              key={`soap-section-${sectionIndex}`}
+              style={{ marginTop: sectionIndex === 0 ? 0 : PX_TO_PT * 22 }}
+            >
+              <Text
+                style={{
+                  color: "#000000",
+                  fontFamily: getIndianLanguageFont(heading, baseFontFamily),
+                  fontSize: headingFontSize,
+                  fontWeight: 700,
+                  lineHeight: 1.15,
+                  marginBottom: PX_TO_PT * 9,
+                }}
+              >
+                {heading}
+              </Text>
+              {blocks.map((block, blockIndex) => {
+                if (block?.type === "list" || block?.type === "ordered-list") {
+                  const items = Array.isArray(block.items) ? block.items : [];
+                  return items.map((item, itemIndex) => {
+                    const text =
+                      block?.type === "ordered-list"
+                        ? `${itemIndex + 1}. ${item}`
+                        : item;
+                    return renderSoapBullet(
+                      text,
+                      `soap-list-item-${sectionIndex}-${blockIndex}-${itemIndex}`,
+                    );
+                  });
+                }
+
+                const text = normalizePdfText(block?.text).trim();
+                if (!text) return null;
+                if (block?.isFallback || isNotDocumentedText(text)) {
+                  return (
+                    <Text
+                      key={`soap-fallback-${sectionIndex}-${blockIndex}`}
+                      style={{
+                        color: "#6f6f76",
+                        fontFamily: getIndianLanguageFont(text, baseFontFamily),
+                        fontSize: fallbackFontSize,
+                        fontWeight: 400,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {text}
+                    </Text>
+                  );
+                }
+
+                return renderSoapBullet(
+                  text,
+                  `soap-paragraph-${sectionIndex}-${blockIndex}`,
+                );
+              })}
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
   /** AI / digitized medication only — respects print option numeric vs text frequency. */
   const getAiMedicationFrequencyDisplay = (item, medOption) => {
     const hasSlotFrequency = !!(
@@ -1899,14 +2187,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const getCustomModuleName = (id) => {
     const customModuleList = Array.isArray(customModules) ? customModules : customModules?.modules;
     const customModule = customModuleList?.find(
-      (module) => module?.module_id === id,
+      (module) =>
+        idsMatch(module?.module_id, id) ||
+        idsMatch(module?.origin_id, id) ||
+        idsMatch(module?.id, id),
     );
     return customModule?.name
       ? customModule?.printConfig?.nameOverride !== undefined
         ? customModule?.printConfig?.nameOverride
         : customModule?.name
       : caseManagerData?.moduleContents?.find(
-          (module) => module?.module_id === id,
+          (module) =>
+            idsMatch(module?.module_id, id) ||
+            idsMatch(module?.origin_id, id) ||
+            idsMatch(module?.id, id),
         )?.module_name;
   };
 
@@ -2072,11 +2366,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     printSettings?.prescription?.case_option
   ) {
     const existingModuleIds = new Set(
-      printSettings?.prescription?.case_option?.map((option) => option?.id),
+      printSettings?.prescription?.case_option?.map((option) =>
+        String(option?.id),
+      ),
     );
 
     caseManagerData?.moduleContents
-      ?.filter((module) => !existingModuleIds.has(module?.module_id))
+      ?.filter((module) => !existingModuleIds.has(String(module?.module_id)))
       ?.forEach((module) => {
         printSettings?.prescription?.case_option?.push({
           id: module?.module_id,
@@ -2230,7 +2526,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
       // Check if custom module data exists
       let customModule = caseManagerData?.moduleContents?.find(
-        (e) => e?.module_id === option?.id,
+        (e) =>
+          idsMatch(e?.module_id, option?.id) ||
+          idsMatch(e?.origin_id, option?.id) ||
+          idsMatch(e?.id, option?.id),
       );
       if (customModule) {
         customModule = {
@@ -4131,7 +4430,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       ) || false;
                     // Try to find custom module by module_id matching option.id
                     let customModule = caseManagerData?.moduleContents?.find(
-                      (e) => e?.module_id === option?.id,
+                      (e) =>
+                        idsMatch(e?.module_id, option?.id) ||
+                        idsMatch(e?.origin_id, option?.id) ||
+                        idsMatch(e?.id, option?.id),
                     );
 
                     // If not found, try to find by module_name matching option.title
@@ -4140,10 +4442,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       option?.is_custom_module &&
                       option?.title
                     ) {
+                      const optionTitle = normalizeModuleLabel(option?.title);
                       customModule = caseManagerData?.moduleContents?.find(
                         (e) =>
-                          e?.module_name === option?.title ||
-                          e?.name === option?.title,
+                          normalizeModuleLabel(e?.module_name) === optionTitle ||
+                          normalizeModuleLabel(e?.name) === optionTitle,
                       );
                     }
 
@@ -4336,6 +4639,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       customModule._isV2 = moduleIsV2;
                       customModule._namedFields = moduleNamedFields;
                     }
+
+                    const isSoapPrintOption = isSoapPrintModule(
+                      option,
+                      customModule,
+                    );
 
                     // Skip rendering if it's a custom module with no data
                     if (
@@ -15494,6 +15802,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 </View>
                               ))}
                           </>
+                        ) : isSoapPrintOption &&
+                          option?.enable === "Y" &&
+                          option?.custom_status === "Y" &&
+                          customModule?.content?.length > 0 &&
+                          !rx ? (
+                          renderSoapPrintSections(customModule?.content || [])
                         ) : option?.is_custom_module === true &&
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" &&

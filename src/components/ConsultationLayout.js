@@ -152,6 +152,7 @@ import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
 import useTabletViewport from "../hooks/useTabletViewport";
 import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { getGenRx } from "../api/services/ApiGenRx";
+import { hasMeaningfulVoicePayloadData } from "../utils/voiceSoapPayload";
 import TabRxCanvas from "../pages/tabRx/components/TabRxCanvas";
 import { uploadTabRxFiles, upsertTabRxRx } from "../pages/tabRx/services/tabRxService";
 import { getMetadata, getTemplates } from "../pages/tabRx/services/templateService";
@@ -2086,19 +2087,6 @@ function ConsultationLayout({ children, headerProps }) {
     }
   }, [canUseVoiceRxModuleUi, drAgentOpen]);
 
-  const hasMeaningfulVoicePayload = (payload) => {
-    if (!payload || typeof payload !== "object") return false;
-    const hasHistory = Array.isArray(payload.history) && payload.history.length > 0;
-    const hasObjectData = (value) =>
-      value && typeof value === "object" && Object.keys(value).length > 0;
-    return (
-      hasHistory ||
-      hasObjectData(payload.digitizeData) ||
-      hasObjectData(payload.editedData) ||
-      hasObjectData(payload.clinicNotes)
-    );
-  };
-
   useEffect(() => {
     const voiceSessionId = voiceDigitization?.sessionId;
     if (!voiceSessionId) return;
@@ -2129,7 +2117,7 @@ function ConsultationLayout({ children, headerProps }) {
         const response = await getGenRx(recordId);
         if (cancelled) return;
         const payload = response?.data?.data || response?.data || response;
-        if (hasMeaningfulVoicePayload(payload)) {
+        if (hasMeaningfulVoicePayloadData(payload)) {
           dispatch(hydrateVoiceDigitization(payload));
           setVoiceHydrationStatus("hydrated");
         } else {

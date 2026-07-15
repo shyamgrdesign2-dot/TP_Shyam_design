@@ -50,7 +50,6 @@ import EditCustomModuleDrawer from "./EditCustomModuleDrawer";
 import { ASSETS } from "../../assets";
 import {
   VoiceRxModuleActionButton,
-  VoiceRxModuleButton,
   VoiceRxModuleCapture,
   useVoiceRxModuleCapture,
 } from "../dr-agent/voicerx/VoiceRxModuleCapture";
@@ -1609,13 +1608,6 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
             </div>
 
             <div className="d-flex align-items-center">
-              {isVoiceRxModuleEnabled && (
-                <VoiceRxModuleButton
-                  active={voiceCaptureOpen}
-                  dictationTargetId={voiceDictationTargetId}
-                  label={`Start ${module?.name || "Custom Module"} voice input`}
-                  onClick={() => setVoiceCaptureOpen(true)} />
-              )}
               {isVoiceRxModuleEnabled ? (
                 <Tooltip placement="bottom" title="Load previous data">
                   <VoiceRxModuleActionButton type="reload" label="Load previous data" onClick={loadPreviousClick} />
