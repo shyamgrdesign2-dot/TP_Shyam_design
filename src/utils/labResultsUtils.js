@@ -245,8 +245,13 @@ export function sanitizeLabResultsForSave(results) {
 
 /**
  * Builds POST /api/v1/lab-parameters/results payload.
- * Doctor: { patientId, doctorId?, results }
- * Receptionist: { patientId, um_id?, results } (um_id = attending when known)
+ * Doctor: { patientId, doctorId, results }
+ * Receptionist: {
+ *   patientId,
+ *   doctorId (last-visit um_id),
+ *   receptionist_id (kea token user_id),
+ *   results
+ * }
  */
 export function buildLabResultsSavePayload({
   patientId,
@@ -268,17 +273,17 @@ export function buildLabResultsSavePayload({
 
   if (receptionist) {
     if (attending != null && attending !== '') {
-      payload.um_id = attending;
-      // Backend also accepts doctorId for attending doctor.
+      // Attending / last-visit doctor bucket — do not also send um_id.
       payload.doctorId = attending;
     } else if (typeof console !== 'undefined') {
-      // Without um_id BE falls back to clinic owner_doctor — likely the wrong bucket.
       console.warn(
-        '[lab-results] Receptionist POST without um_id/doctorId; backend will use clinic owner_doctor.',
+        '[lab-results] Receptionist POST without doctorId; backend will use clinic owner_doctor.',
       );
     }
+    if (tokenUserId != null && tokenUserId !== '') {
+      payload.receptionist_id = tokenUserId;
+    }
   } else if (tokenUserId != null && tokenUserId !== '') {
-    // Doctor path: patientId + results is enough; doctorId kept for compatibility.
     payload.doctorId = tokenUserId;
   }
 
