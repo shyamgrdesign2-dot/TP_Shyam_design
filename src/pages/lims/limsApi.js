@@ -94,6 +94,8 @@ export async function searchLabCatalog(query) {
 }
 
 // Persist results against a patient. Same endpoint + payload as the EMR drawer.
+// Receptionist LIMS: pass um_id = patient's lastVisitDoctor.um_id so results
+// land in that doctor's bucket.
 export async function saveLabResults({ patientId, results, um_id }) {
   const payload = buildLabResultsSavePayload({
     patientId,

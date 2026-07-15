@@ -20,6 +20,11 @@ import { errorMessage, updateFooterImageHeight } from "../../utils/utils";
 import { fetchPatientLabResults } from "./limsApi";
 import { specimenForReport, formatDateLabel } from "./limsHelpers";
 import {
+  filterLabResultsByDoctor,
+  getPatientLastVisitDoctorUmId,
+  isLabResultsReceptionistSession,
+} from "../../utils/labResultsUtils";
+import {
   LIMS_SETTINGS_KEY, LAB_RESULTS_CASE_ID,
   fileToBase64, serializeFileState, saveLimsSettings, loadLimsSettings,
   ensureLabOption, initFileStates, groupByReport, rangeText, arrowSymbol,
@@ -713,9 +718,15 @@ function LimsPrintConfigMain() {
 
   useEffect(() => {
     if (patientId) {
-      fetchPatientLabResults(patientId).then((r) => setResults(r || []));
+      fetchPatientLabResults(patientId).then((r) => {
+        if (isLabResultsReceptionistSession()) {
+          setResults(filterLabResultsByDoctor(r || [], getPatientLastVisitDoctorUmId(patient)));
+        } else {
+          setResults(r || []);
+        }
+      });
     }
-  }, [patientId]);
+  }, [patientId, patient]);
 
   const onTabChange = useCallback((key) => {
     setSelectedTab(key === TAB_LAB_RESULTS ? TAB_LAB_RESULTS : Number(key));

@@ -42,6 +42,8 @@ const LabResultsTable = ({
     onResultsChange,
     /** When false (e.g. consult flow), prefill is never applied. Only voice/snap/ambient/smart should pass true. */
     applyRawPrefill = false,
+    /** Receptionist LIMS: last-visit doctor's um_id — filter + save against this doctor. */
+    attendingDoctorUmId,
 }) => {
 
     const [token, setToken] = useState(null);
@@ -201,7 +203,7 @@ const LabResultsTable = ({
                 },
             });
             const allResults = normalizeLabResultsResponse(response);
-            const ownerDoctorId = getLabResultsOwnerDoctorId(tokenData?.user_id);
+            const ownerDoctorId = getLabResultsOwnerDoctorId(tokenData?.user_id, attendingDoctorUmId);
             // Edit drawer must only hydrate the owning doctor's rows so save cannot re-post other doctors' data.
             setExistingResults(filterLabResultsByDoctor(allResults, ownerDoctorId));
         } catch (error) {
@@ -213,7 +215,7 @@ const LabResultsTable = ({
         if (token && tokenData) {
             getLabParams();
         }
-    }, [token, tokenData?.user_id, patient_unique_id]);
+    }, [token, tokenData?.user_id, patient_unique_id, attendingDoctorUmId]);
 
     const onSearch = useCallback((query) => {
         setSearchQuery(query);
@@ -884,7 +886,7 @@ const LabResultsTable = ({
 
         setFilledData([]);
 
-        const ownerDoctorId = getLabResultsOwnerDoctorId(tokenData?.user_id);
+        const ownerDoctorId = getLabResultsOwnerDoctorId(tokenData?.user_id, attendingDoctorUmId);
         // Extra safety: never POST another doctor's dated rows if they leaked into state.
         // Also restore documentsUrls / isExternalPatient / attendingDoctorId from the GET rows.
         const ownedResults = mergeLabResultRowMeta(

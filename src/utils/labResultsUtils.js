@@ -35,12 +35,32 @@ export function getAttendingDoctorUmIdFromUrl() {
 }
 
 /**
+ * Normalizes an attending doctor um_id (number when numeric).
+ */
+export function normalizeAttendingDoctorUmId(umId) {
+  if (umId == null || umId === '') return undefined;
+  const asNum = Number(umId);
+  return Number.isNaN(asNum) ? umId : asNum;
+}
+
+/**
+ * Last-visit doctor's um_id from a LIMS patient list row (`lastVisitDoctor.um_id`).
+ * Receptionists enter lab results on behalf of this doctor.
+ */
+export function getPatientLastVisitDoctorUmId(patient) {
+  return normalizeAttendingDoctorUmId(patient?.lastVisitDoctor?.um_id);
+}
+
+/**
  * Owner doctor id used when editing/saving:
- * - Receptionist → URL um_id (attending) when present
+ * - Receptionist → explicit attendingDoctorUmId (e.g. lastVisitDoctor) when present,
+ *   else URL um_id
  * - Doctor → JWT user_id
  */
-export function getLabResultsOwnerDoctorId(tokenUserId) {
+export function getLabResultsOwnerDoctorId(tokenUserId, attendingDoctorUmId) {
   if (isLabResultsReceptionistSession()) {
+    const fromProp = normalizeAttendingDoctorUmId(attendingDoctorUmId);
+    if (fromProp != null) return fromProp;
     return getAttendingDoctorUmIdFromUrl();
   }
   return tokenUserId;
@@ -250,6 +270,54 @@ export function buildLabResultsSavePayload({
 export function formatLabResultDoctorLabel(doctorId) {
   if (doctorId == null || doctorId === '') return '';
   return `Dr ID ${doctorId}`;
+}
+
+/**
+ * Receptionist URL → map of um_id → um_name (`um_id=524,552&um_name=Dr%20A,Dr%20B`).
+ */
+export function getReceptionistDoctorNameMapFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('receptionist')) return {};
+    const ids = String(params.get('um_id') || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const names = String(params.get('um_name') || '')
+      .split(',')
+      .map((s) => s.trim());
+    const map = {};
+    ids.forEach((id, i) => {
+      const name = names[i];
+      if (name) map[String(id)] = name;
+    });
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Resolves a display name for a lab-result doctorId.
+ * Prefers explicit name map, then entry metadata, then receptionist URL names.
+ */
+export function resolveLabResultDoctorName(doctorId, doctorNameById = {}) {
+  if (doctorId == null || doctorId === '') return '';
+  const key = String(doctorId);
+  const fromMap = doctorNameById?.[key] || doctorNameById?.[doctorId];
+  if (fromMap) return String(fromMap).trim();
+  const fromUrl = getReceptionistDoctorNameMapFromUrl()[key];
+  if (fromUrl) return String(fromUrl).trim();
+  return '';
+}
+
+/**
+ * Tooltip for a lab-result column owned by another doctor.
+ */
+export function formatOtherDoctorLabResultTooltip(doctorId, doctorNameById = {}) {
+  const name = resolveLabResultDoctorName(doctorId, doctorNameById);
+  if (name) return `Data added by ${name}`;
+  return 'Data added by another doctor';
 }
 
 export function formatLabResultReceptionistLabel(receptionistId) {

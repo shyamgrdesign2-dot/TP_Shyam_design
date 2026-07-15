@@ -1,4 +1,9 @@
 import { fetchPatientLabResults } from "./limsApi";
+import {
+  filterLabResultsByDoctor,
+  getPatientLastVisitDoctorUmId,
+  isLabResultsReceptionistSession,
+} from "../../utils/labResultsUtils";
 import { specimenForReport, formatDateLabel } from "./limsHelpers";
 
 function groupByReport(inputs) {
@@ -157,7 +162,10 @@ function buildHTML(patient, results, dateFilter) {
 
 export async function printPatientResults(patient, dateFilter) {
   if (!patient?.patient_unique_id) return;
-  const results = await fetchPatientLabResults(patient.patient_unique_id);
+  let results = await fetchPatientLabResults(patient.patient_unique_id);
+  if (isLabResultsReceptionistSession()) {
+    results = filterLabResultsByDoctor(results, getPatientLastVisitDoctorUmId(patient));
+  }
   const html = buildHTML(patient, results, dateFilter || null);
 
   const win = window.open("", "_blank", "width=800,height=900");

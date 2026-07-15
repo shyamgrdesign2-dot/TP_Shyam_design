@@ -10,6 +10,12 @@ import ViewLabParam from "../../components/ViewLabParams";
 import LabResultsDrawer from "./LabResultsDrawer";
 import AddPatientDrawer from "./AddPatientDrawer";
 import LimsAccessBoundary from "./LimsAccessBoundary";
+import {
+  filterLabResultsByDoctor,
+  getPatientLastVisitDoctorUmId,
+  getReceptionistDoctorNameMapFromUrl,
+  normalizeLabResultsResponse,
+} from "../../utils/labResultsUtils";
 import styles from "./LimsPage.module.css";
 
 const ICON_DOTS = "https://pmdoctorportal.tatvacare.in/tp-icons/straight/bold/settings/3-dots-more.svg";
@@ -61,6 +67,13 @@ function formatVisitDate(iso) {
   const mmm = MONTH_ABBR[d.getMonth()];
   const yy = String(d.getFullYear()).slice(-2);
   return `${dd}-${mmm}-${yy}`;
+}
+
+/** Receptionist LIMS: only show / summarise results owned by lastVisitDoctor. */
+function labResultsForLimsPatient(patient, results, isReceptionist) {
+  const flat = normalizeLabResultsResponse({ data: results || [] });
+  if (!isReceptionist) return flat;
+  return filterLabResultsByDoctor(flat, getPatientLastVisitDoctorUmId(patient));
 }
 
 function ActionMenu({ onAction, isFilled }) {
@@ -466,6 +479,27 @@ function LimsPageMain() {
 
   const PAGE_SIZE = 25;
 
+  const doctorNameById = useMemo(() => {
+    const map = { ...getReceptionistDoctorNameMapFromUrl() };
+    patients.forEach((p) => {
+      const id = p?.lastVisitDoctor?.um_id;
+      const name = p?.lastVisitDoctor?.um_name;
+      if (id != null && id !== "" && name) {
+        map[String(id)] = name;
+      }
+    });
+    const drawerDoc = drawerPatient?.lastVisitDoctor;
+    if (drawerDoc?.um_id != null && drawerDoc?.um_name) {
+      map[String(drawerDoc.um_id)] = drawerDoc.um_name;
+    }
+    return map;
+  }, [patients, drawerPatient]);
+
+  const viewOwnerDoctorId = useMemo(
+    () => getPatientLastVisitDoctorUmId(drawerPatient),
+    [drawerPatient]
+  );
+
   useEffect(() => {
     listMetaRef.current = listMeta;
   }, [listMeta]);
@@ -496,19 +530,21 @@ function LimsPageMain() {
     // The `/lims` list already returns each patient's lab results and last-visit
     // investigations inline, so we derive the row summary and tests directly
     // instead of firing a follow-up request per patient.
+    // Receptionist: summarise only lastVisitDoctor's results (enter on their behalf).
     const summaryMap = {};
     const testMap = {};
     incoming.forEach((p) => {
       const id = p?.patient_unique_id;
       if (!id) return;
-      summaryMap[id] = summariseResults(latestDateResults(p.labResults || []));
+      const ownedLabs = labResultsForLimsPatient(p, p.labResults || [], isReceptionist);
+      summaryMap[id] = summariseResults(latestDateResults(ownedLabs));
       testMap[id] = (p.investigations || [])
         .map((i) => ({ name: (i.investigation_name || "").trim(), note: i.note || "" }))
         .filter((i) => i.name);
     });
     setSummaries((prev) => ({ ...prev, ...summaryMap }));
     setLastVisitTests((prev) => ({ ...prev, ...testMap }));
-  }, [dateRange]);
+  }, [dateRange, isReceptionist]);
 
   useEffect(() => {
     setPage(1);
@@ -665,10 +701,12 @@ function LimsPageMain() {
     return list;
   }, [patients, summaries, lastVisitTests, statusFilter]);
 
-  const refreshSummary = useCallback(async (patientId) => {
+  const refreshSummary = useCallback(async (patientId, patient = null) => {
     const results = await fetchPatientLabResults(patientId);
-    setSummaries((prev) => ({ ...prev, [patientId]: summariseResults(latestDateResults(results)) }));
-  }, []);
+    const owned = labResultsForLimsPatient(patient, results, isReceptionist);
+    setSummaries((prev) => ({ ...prev, [patientId]: summariseResults(latestDateResults(owned)) }));
+    return results;
+  }, [isReceptionist]);
 
   const closeAddDrawer = useCallback(() => {
     setAddDrawerOpen(false);
@@ -693,9 +731,10 @@ function LimsPageMain() {
   const handleLabParamsSaved = useCallback(async () => {
     if (!drawerPatient) return;
     const patientId = drawerPatient.patient_unique_id;
-    await refreshSummary(patientId);
-    const data = await fetchPatientLabResults(patientId);
-    setViewLabParamsData(data);
+    // Row summary stays scoped to lastVisitDoctor for receptionists;
+    // View drawer always shows every doctor's buckets (separate columns per doctor+date).
+    const allResults = await refreshSummary(patientId, drawerPatient);
+    setViewLabParamsData(allResults || []);
   }, [drawerPatient, refreshSummary]);
 
   const handleAction = useCallback(async (action, patient) => {
@@ -709,6 +748,9 @@ function LimsPageMain() {
       setDrawerPatient(patient);
       setViewLabParamsLoading(true);
       try {
+        // Do not filter by lastVisitDoctor here — ViewLabParams keys columns by
+        // date|doctorId|receptionistId (same as EMR). Filtering collapses two
+        // doctors on the same date into one column.
         const data = await fetchPatientLabResults(patient.patient_unique_id);
         if (!data?.length) {
           setViewDrawerOpen(false);
@@ -992,6 +1034,8 @@ function LimsPageMain() {
             handleViewLabParamsDrawer={closeViewDrawer}
             labParamsData={viewLabParamsData}
             handleSwitchToAddLabParams={switchViewToAdd}
+            ownerDoctorId={isReceptionist ? viewOwnerDoctorId : undefined}
+            doctorNameById={doctorNameById}
           />
         </Drawer>
       )}

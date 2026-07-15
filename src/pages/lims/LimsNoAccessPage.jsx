@@ -23,13 +23,10 @@ export default function LimsNoAccessPage() {
     const deviceSdkData = getDeviceSdkData();
 
     trackEvent("TP_LIMS_RequestAccess", {
-      doctor_name: profile?.um_name,
-      doctor_number: profile?.um_contact,
-      doctor_unique_id: profile?.doctor_unique_id,
-      doctor_specialty: profile?.dp_name,
+      mobile_no: tokenData?.mobile_no,
+      hospital_business_id: tokenData?.hospital_business_id,
       clinic_id: tokenData?.clinic_id,
-      um_id: tokenData?.user_id,
-      clinic_name,
+      receptionist_id: tokenData?.user_id,
       former_page: "lims",
       feature: "lims",
       ...deviceSdkData,

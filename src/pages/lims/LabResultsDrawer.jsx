@@ -2,11 +2,13 @@ import React, { useCallback, useRef } from "react";
 import { Button, Drawer } from "antd";
 import { CloseOutlined, PrinterOutlined } from "@ant-design/icons";
 import LabParams from "../../components/LabParams";
+import { getPatientLastVisitDoctorUmId } from "../../utils/labResultsUtils";
 import { printPatientResults } from "./limsPrint";
 import "./LabResultsDrawer.css";
 
 export default function LabResultsDrawer({ open, patient, onClose, onSaved }) {
   const bodyRef = useRef(null);
+  const attendingDoctorUmId = getPatientLastVisitDoctorUmId(patient);
 
   const handleSave = useCallback(() => {
     const btn = bodyRef.current?.querySelector(".modalCard-header .btn-primary3");
@@ -57,6 +59,7 @@ export default function LabResultsDrawer({ open, patient, onClose, onSaved }) {
           isBackModalOpen={false}
           showHideBackModal={onClose}
           onSave={() => onSaved?.()}
+          attendingDoctorUmId={attendingDoctorUmId}
         />
       </div>
     </Drawer>

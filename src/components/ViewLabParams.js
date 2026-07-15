@@ -6,8 +6,21 @@ import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { GB_CVT_EXT_HOS } from '../utils/constants';
 import { getDecodedToken } from '../utils/localStorage';
+import { formatOtherDoctorLabResultTooltip } from '../utils/labResultsUtils';
 
-const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitchToAddLabParams }) => {
+const LabResultsTable = ({
+    handleViewLabParamsDrawer,
+    labParamsData,
+    handleSwitchToAddLabParams,
+    /**
+     * Primary doctor for this view (e.g. LIMS lastVisitDoctor.um_id).
+     * Columns matching this id do not show the "other doctor" info icon —
+     * needed for receptionist sessions where JWT user_id is not a doctor.
+     */
+    ownerDoctorId,
+    /** Optional map of doctorId → display name for tooltips. */
+    doctorNameById = {},
+}) => {
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedReports, setExpandedReports] = useState({});
@@ -26,14 +39,21 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
         }
     }, []);
 
+    // Prefer last-visit / attending doctor when provided (receptionist LIMS);
+    // otherwise compare against the logged-in doctor (EMR).
+    const primaryDoctorId = useMemo(() => {
+        if (ownerDoctorId != null && ownerDoctorId !== '') return ownerDoctorId;
+        return loggedInDoctorId;
+    }, [ownerDoctorId, loggedInDoctorId]);
+
     const columnKey = (entry) =>
         `${entry?.date ?? ''}|${entry?.doctorId ?? ''}|${entry?.receptionistId ?? ''}`;
 
     const isOtherDoctorEntry = (entry) => {
         const entryDoctorId = entry?.doctorId;
         if (entryDoctorId == null || entryDoctorId === '') return false;
-        if (loggedInDoctorId == null || loggedInDoctorId === '') return false;
-        return String(entryDoctorId) !== String(loggedInDoctorId);
+        if (primaryDoctorId == null || primaryDoctorId === '') return false;
+        return String(entryDoctorId) !== String(primaryDoctorId);
     };
 
     // Toggle report expansion/collapse
@@ -124,7 +144,7 @@ const LabResultsTable = ({ handleViewLabParamsDrawer, labParamsData, handleSwitc
                 <span>{dayjs(entry?.date).format("DD MMM, YYYY")}</span>
                 {showOtherDoctorInfo ? (
                     <Tooltip
-                        title="Data added by another doctor"
+                        title={formatOtherDoctorLabResultTooltip(entry?.doctorId, doctorNameById)}
                         placement="top"
                     >
                         <InfoCircleOutlined

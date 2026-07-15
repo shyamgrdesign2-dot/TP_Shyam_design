@@ -18,6 +18,11 @@ import { loadLimsSettings, ensureLabOption, initFileStates } from "./limsPrintUt
 import { LabResultsPreview } from "./LimsPrintConfig";
 import styles from "./LimsPrintPage.module.css";
 import LimsAccessBoundary from "./LimsAccessBoundary";
+import {
+  filterLabResultsByDoctor,
+  getPatientLastVisitDoctorUmId,
+  isLabResultsReceptionistSession,
+} from "../../utils/labResultsUtils";
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DOWNLOAD_MESSAGE_KEY = "lims-download-report";
@@ -71,11 +76,16 @@ function LimsPrintPageMain() {
     if (!patientId) return;
     setLoading(true);
 
+    const filterOwned = (labRes, p) => {
+      if (!isLabResultsReceptionistSession()) return labRes || [];
+      return filterLabResultsByDoctor(labRes || [], getPatientLastVisitDoctorUmId(p));
+    };
+
     const labPromise = fetchPatientLabResults(patientId);
 
     if (patient) {
       labPromise.then((labRes) => {
-        setResults(labRes || []);
+        setResults(filterOwned(labRes, patient));
         setLoading(false);
       });
     } else {
@@ -88,7 +98,7 @@ function LimsPrintPageMain() {
           (p) => String(p.patient_unique_id) === String(patientId)
         );
         setPatient(found || null);
-        setResults(labRes || []);
+        setResults(filterOwned(labRes, found));
         setLoading(false);
       });
     }
