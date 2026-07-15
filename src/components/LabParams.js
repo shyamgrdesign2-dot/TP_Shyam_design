@@ -12,6 +12,8 @@ import {
   filterLabResultsByDoctor,
   buildLabResultsSavePayload,
   getLabResultsOwnerDoctorId,
+  getAttendingDoctorUmIdFromUrl,
+  normalizeAttendingDoctorUmId,
   isLabResultsReceptionistSession,
   mergeLabResultRowMeta,
 } from '../utils/labResultsUtils';
@@ -44,6 +46,12 @@ const LabResultsTable = ({
     applyRawPrefill = false,
     /** Receptionist LIMS: last-visit doctor's um_id — filter + save against this doctor. */
     attendingDoctorUmId,
+    /**
+     * Explicit receptionist flag from LIMS (URL ?receptionist). Prefer this over
+     * re-reading window.location so save does not fall through to the doctor path
+     * when lastVisitDoctor um_id is available.
+     */
+    isReceptionistSession,
 }) => {
 
     const [token, setToken] = useState(null);
@@ -203,7 +211,12 @@ const LabResultsTable = ({
                 },
             });
             const allResults = normalizeLabResultsResponse(response);
-            const ownerDoctorId = getLabResultsOwnerDoctorId(tokenData?.user_id, attendingDoctorUmId);
+            const isReceptionist =
+              isReceptionistSession === true || isLabResultsReceptionistSession();
+            const ownerDoctorId = isReceptionist
+              ? (normalizeAttendingDoctorUmId(attendingDoctorUmId) ??
+                getAttendingDoctorUmIdFromUrl())
+              : getLabResultsOwnerDoctorId(tokenData?.user_id, attendingDoctorUmId);
             // Edit drawer must only hydrate the owning doctor's rows so save cannot re-post other doctors' data.
             setExistingResults(filterLabResultsByDoctor(allResults, ownerDoctorId));
         } catch (error) {
@@ -215,7 +228,7 @@ const LabResultsTable = ({
         if (token && tokenData) {
             getLabParams();
         }
-    }, [token, tokenData?.user_id, patient_unique_id, attendingDoctorUmId]);
+    }, [token, tokenData?.user_id, patient_unique_id, attendingDoctorUmId, isReceptionistSession]);
 
     const onSearch = useCallback((query) => {
         setSearchQuery(query);
@@ -886,7 +899,18 @@ const LabResultsTable = ({
 
         setFilledData([]);
 
-        const ownerDoctorId = getLabResultsOwnerDoctorId(tokenData?.user_id, attendingDoctorUmId);
+        // Prefer parent-provided receptionist flag (LIMS) so we do not treat a
+        // kea/receptionist token as a doctor just because location.search was lost.
+        const isReceptionist =
+          isReceptionistSession === true || isLabResultsReceptionistSession();
+        const attendingForSave = isReceptionist
+          ? (normalizeAttendingDoctorUmId(attendingDoctorUmId) ??
+            getAttendingDoctorUmIdFromUrl())
+          : undefined;
+        const ownerDoctorId = isReceptionist
+          ? attendingForSave
+          : tokenData?.user_id;
+
         // Extra safety: never POST another doctor's dated rows if they leaked into state.
         // Also restore documentsUrls / isExternalPatient / attendingDoctorId from the GET rows.
         const ownedResults = mergeLabResultRowMeta(
@@ -901,8 +925,9 @@ const LabResultsTable = ({
             patientId: patient_unique_id,
             results: ownedResults,
             tokenUserId: tokenData?.user_id,
-            attendingDoctorUmId: ownerDoctorId,
-            isReceptionist: isLabResultsReceptionistSession(),
+            // Always the last-visit doctor when receptionist — never the kea user_id.
+            attendingDoctorUmId: attendingForSave,
+            isReceptionist,
         });
 
         try {

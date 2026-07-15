@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button, Checkbox, DatePicker, Drawer, Dropdown, Input, Spin, Table, Tag } from "antd";
 import { InfoCircleOutlined, DownOutlined, FilterOutlined, PlusOutlined, PrinterOutlined, SearchOutlined, UpOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -17,6 +17,7 @@ import {
   getReceptionistDoctorNameMapFromUrl,
   normalizeLabResultsResponse,
 } from "../../utils/labResultsUtils";
+import { isReceptionistSession } from "../../utils/receptionistSession";
 import styles from "./LimsPage.module.css";
 
 const ICON_DOTS = "https://pmdoctorportal.tatvacare.in/tp-icons/straight/bold/settings/3-dots-more.svg";
@@ -452,8 +453,8 @@ function FilterContent({ value, onChange, onClear, onDone }) {
 
 function LimsPageMain() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const isReceptionist = searchParams.has("receptionist");
+  const location = useLocation();
+  const isReceptionist = isReceptionistSession(location.search);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -764,9 +765,15 @@ function LimsPageMain() {
         setViewLabParamsLoading(false);
       }
     } else if (action === "print") {
-      navigate(`/lims/print/${patient.patient_unique_id}`, { state: { patient } });
+      navigate(
+        {
+          pathname: `/lims/print/${patient.patient_unique_id}`,
+          search: location.search,
+        },
+        { state: { patient } },
+      );
     }
-  }, [navigate]);
+  }, [navigate, location.search]);
 
   const columns = useMemo(
     () => [
@@ -1018,6 +1025,7 @@ function LimsPageMain() {
         patient={drawerPatient}
         onClose={closeAddDrawer}
         onSaved={handleLabParamsSaved}
+        isReceptionistSession={isReceptionist}
       />
 
       {viewDrawerOpen && (

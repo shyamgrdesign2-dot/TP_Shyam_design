@@ -6,7 +6,13 @@ import { getPatientLastVisitDoctorUmId } from "../../utils/labResultsUtils";
 import { printPatientResults } from "./limsPrint";
 import "./LabResultsDrawer.css";
 
-export default function LabResultsDrawer({ open, patient, onClose, onSaved }) {
+export default function LabResultsDrawer({
+  open,
+  patient,
+  onClose,
+  onSaved,
+  isReceptionistSession = false,
+}) {
   const bodyRef = useRef(null);
   const attendingDoctorUmId = getPatientLastVisitDoctorUmId(patient);
 
@@ -60,6 +66,7 @@ export default function LabResultsDrawer({ open, patient, onClose, onSaved }) {
           showHideBackModal={onClose}
           onSave={() => onSaved?.()}
           attendingDoctorUmId={attendingDoctorUmId}
+          isReceptionistSession={isReceptionistSession}
         />
       </div>
     </Drawer>
