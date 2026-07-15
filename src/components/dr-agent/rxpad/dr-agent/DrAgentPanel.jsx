@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo } from "react";
-import { message } from "antd";
 import { useSelector } from "react-redux";
 import { cn } from "../../utils";
 import styles from "./DrAgentPanel.module.scss";
@@ -7,6 +6,7 @@ import styles from "./DrAgentPanel.module.scss";
 import { useRxPadSync } from "./RxPadSyncContext";
 import { VoiceRxBottomSheet } from "../../voicerx/VoiceRxBottomSheet";
 import { toast } from "../../voicerx/toast";
+import { qdToast } from "../../../quick-dictator/voice-bar-context";
 import { AgentHeader } from "./shell/AgentHeader";
 import { SessionHistoryDrawer } from "./shell/SessionHistoryDrawer";
 import { ChatThread } from "./chat/ChatThread";
@@ -199,39 +199,13 @@ export function DrAgentPanel({
 
   useEffect(() => {
     toast.setHandler(({ type, msg, duration, closable, key, onDismiss }) => {
-      const notify = message[type] || message.info;
-      const messageKey = key || `dr-agent-toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const content = closable ? (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
-          <span>{msg}</span>
-          <button
-            type="button"
-            aria-label="Dismiss notification"
-            onClick={(event) => {
-              event.stopPropagation();
-              message.destroy(messageKey);
-              onDismiss?.();
-            }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 22,
-              height: 22,
-              border: 0,
-              borderRadius: 11,
-              background: "rgba(17, 24, 39, 0.10)",
-              color: "inherit",
-              cursor: "pointer",
-              fontSize: 16,
-              lineHeight: 1,
-              padding: 0,
-            }}>
-            {"\u00d7"}
-          </button>
-        </span>
-      ) : msg;
-      notify({ key: messageKey, content, duration: duration ?? 2.5 });
+      qdToast(msg, {
+        type,
+        duration: duration ?? 2.5,
+        key,
+        closable,
+        onDismiss,
+      });
     });
     return () => toast.setHandler(null);
   }, []);

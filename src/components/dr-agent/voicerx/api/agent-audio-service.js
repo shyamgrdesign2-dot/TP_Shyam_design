@@ -55,7 +55,7 @@ export function extractAnyAudioTranscript(responseJson) {
 
 export async function transcribeAnyAudio({
   audioBlob,
-  context,
+  context = {},
   prompt = PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
   timeoutMs = TRANSCRIBE_ANY_AUDIO_TIMEOUT_MS,
   signal,

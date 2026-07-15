@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { message } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 
 import { useRxPadSync } from "../RxPadSyncContext";
@@ -814,7 +813,7 @@ export function useDrAgentPanel({
     if (!voiceRxResult) return;
     const audioBlob = meta?.audioBlob || null;
     if (!audioBlob) {
-      message.error("No audio recording was captured.");
+      toast.error("No audio recording was captured.");
       throw new Error("No audio recording was captured.");
     }
     voiceSubmitInFlightRef.current = true;
@@ -1071,7 +1070,7 @@ export function useDrAgentPanel({
         previousContext: voiceRxLogPreviousContext,
         speechAnalysis: meta?.speechAnalysis,
       });
-      message.error(error?.message || "Voice edit failed.");
+      toast.error(error?.message || "Voice edit failed.");
       setMessagesByPatient((prev) => {
         const list = prev[selectedPatientId] || [];
         return { ...prev, [selectedPatientId]: list.filter((m) => m.id !== userMsg.id) };
@@ -1447,7 +1446,7 @@ export function useDrAgentPanel({
           previousContext: voiceRxLogPreviousContext,
           speechAnalysis: meta?.speechAnalysis,
         });
-        message.error(error?.message || "Voice consultation failed.");
+        toast.error(error?.message || "Voice consultation failed.");
         // Remove the optimistic user echo so the chat doesn't dangle.
         setMessagesByPatient((prev) => {
           const list = prev[selectedPatientId] || [];

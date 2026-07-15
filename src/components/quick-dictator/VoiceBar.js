@@ -44,7 +44,7 @@ const MicSlash = () => <Ico name="mic-slash" size={18} />;
 const UndoGlyph = () => <Ico name="undo" size={14} />;
 
 export function VoiceBar() {
-  const { isOpen, close, route } = useVoiceBar();
+  const { isOpen, close, route, externalControllerActive, externalState } = useVoiceBar();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -73,6 +73,48 @@ export function VoiceBar() {
   const rafRef = useRef(0);
   const waveRef = useRef(null);
   const switcherRef = useRef(null);
+  const controlledStatus = externalState?.status || "idle";
+  const isControlled = externalControllerActive && controlledStatus !== "idle";
+  const controlledStream = isControlled ? externalState?.stream : null;
+
+  const setWaveFromFrequencyBins = useCallback((bins, { muted: forceMuted = false } = {}) => {
+    const bars = waveRef.current?.querySelectorAll?.(".qd-wave-bar");
+    if (!bars?.length) return;
+    if (forceMuted || !bins?.length) {
+      bars.forEach((bar) => {
+        bar.style.setProperty("--qd-scale", "0.35");
+        bar.style.setProperty("--qd-level", "0");
+      });
+      return;
+    }
+    const usableBins = Math.max(1, Math.min(bins.length - 1, Math.floor(bins.length * 0.42)));
+    const bandLevels = Array.from({ length: 5 }, (_, bandIndex) => {
+      const startRatio = bandIndex / 5;
+      const endRatio = (bandIndex + 1) / 5;
+      const start = Math.max(1, Math.floor(startRatio * startRatio * usableBins));
+      const end = Math.max(start + 1, Math.floor(endRatio * endRatio * usableBins));
+      let weightedSum = 0;
+      let weightTotal = 0;
+      for (let i = start; i < Math.min(end, bins.length); i += 1) {
+        const binValue = bins[i] / 255;
+        const weight = 1 + bandIndex * 0.18;
+        weightedSum += binValue * weight;
+        weightTotal += weight;
+      }
+      return weightTotal > 0 ? weightedSum / weightTotal : 0;
+    });
+    const averageLevel = bandLevels.reduce((sum, value) => sum + value, 0) / bandLevels.length;
+    const mirroredPattern = [1, 2, 3, 4, 3, 4, 3, 2, 1];
+    bars.forEach((bar, index) => {
+      const bandLevel = bandLevels[mirroredPattern[index] || 0] || 0;
+      const shaped = Math.max(0, Math.min(1, bandLevel * 2.55 + averageLevel * 1.35));
+      const distanceFromCenter = Math.abs(index - (bars.length - 1) / 2) / ((bars.length - 1) / 2);
+      const visualLift = 0.78 + (1 - distanceFromCenter) * 0.18;
+      const scale = 0.24 + shaped * 1.34 * visualLift;
+      bar.style.setProperty("--qd-scale", scale.toFixed(3));
+      bar.style.setProperty("--qd-level", shaped.toFixed(3));
+    });
+  }, []);
 
   // ── Sound cues (mirror VoiceRx): Active = open, Submit = accept, Cancelled = cancel
   // Played once per state transition; fires on `isOpen` flip only (device-id
@@ -80,6 +122,16 @@ export function VoiceBar() {
   useEffect(() => {
     if (isOpen) playVoiceRxStartSound();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isControlled) return;
+    setRecordError(null);
+    setMicDenied(false);
+    setCancelPending(false);
+    setRecording(controlledStatus === "recording");
+    setProcessing(controlledStatus === "transcribing");
+    setMuted(Boolean(externalState?.muted));
+  }, [controlledStatus, externalState?.muted, isControlled]);
 
   // Online/offline indicator
   useEffect(() => {
@@ -115,7 +167,7 @@ export function VoiceBar() {
   // Lifecycle — record audio (for AI transcription) + drive the waveform,
   // spun up on open / device change.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || isControlled) return;
     setRecordError(null);
     setMicDenied(false);
     setCancelPending(false);
@@ -180,8 +232,8 @@ export function VoiceBar() {
           for (let i = 0; i < bins.length; i++) sum += bins[i];
           const avg = sum / bins.length / 255;
           const level = Math.max(0, Math.min(1, avg * 1.8));
-          // Write straight to the DOM — no per-frame React re-render.
           waveRef.current?.style.setProperty("--qd-level", level.toFixed(3));
+          setWaveFromFrequencyBins(bins, { muted });
           rafRef.current = requestAnimationFrame(tick);
         };
         rafRef.current = requestAnimationFrame(tick);
@@ -219,11 +271,60 @@ export function VoiceBar() {
       analyserRef.current = null;
       audioChunksRef.current = [];
     };
-  }, [isOpen, activeDeviceId]);
+  }, [activeDeviceId, isControlled, isOpen, muted, setWaveFromFrequencyBins]);
+
+  useEffect(() => {
+    if (!isControlled || !controlledStream || controlledStatus !== "recording" || muted) {
+      setWaveFromFrequencyBins(null, { muted: true });
+      return undefined;
+    }
+    const w = typeof window !== "undefined" ? window : null;
+    const AC = w?.AudioContext || w?.webkitAudioContext;
+    if (!AC) return undefined;
+
+    let rafId = 0;
+    let ctx = null;
+    let source = null;
+    let analyser = null;
+    let bins = null;
+    try {
+      ctx = new AC();
+      source = ctx.createMediaStreamSource(controlledStream);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.55;
+      source.connect(analyser);
+      bins = new Uint8Array(analyser.frequencyBinCount);
+      if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+    } catch (_) {
+      void ctx?.close?.().catch(() => {});
+      return undefined;
+    }
+
+    const tick = () => {
+      analyser.getByteFrequencyData(bins);
+      setWaveFromFrequencyBins(bins);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      source?.disconnect();
+      void ctx?.close?.().catch(() => {});
+      setWaveFromFrequencyBins(null, { muted: true });
+    };
+  }, [controlledStatus, controlledStream, isControlled, muted, setWaveFromFrequencyBins]);
 
   // Accept — stop recording, send the audio to the AI transcription backend,
   // and route the refined transcript into the focused field.
   const handleAccept = useCallback(async () => {
+    if (isControlled) {
+      if (controlledStatus !== "recording" || processing) return;
+      playSubmitSound();
+      window.dispatchEvent(new CustomEvent("tp-quickdict-submit"));
+      return;
+    }
     if (processing || micDenied) return;
     const recorder = mediaRecorderRef.current;
     if (!recorder || recorder.state === "inactive") {
@@ -259,13 +360,18 @@ export function VoiceBar() {
         type: "error",
       });
     }
-  }, [processing, micDenied, route, close]);
+  }, [controlledStatus, isControlled, micDenied, processing, route, close]);
 
   // Cancel pauses the recording (keeping the audio) so Undo can resume it.
   // Also notifies the coach mark so it can tick its cancel counter toward
   // auto-dismissal.
   const handleCancel = useCallback(() => {
     if (processing) return;
+    if (isControlled) {
+      playVoiceRxErrorSound();
+      window.dispatchEvent(new CustomEvent("tp-quickdict-cancel"));
+      return;
+    }
     try {
       if (mediaRecorderRef.current?.state === "recording")
         mediaRecorderRef.current.pause();
@@ -275,7 +381,7 @@ export function VoiceBar() {
       window.dispatchEvent(new CustomEvent("tp-voicerx-dictation-cancelled"));
     }
     setCancelPending(true);
-  }, [processing]);
+  }, [isControlled, processing]);
 
   const handleUndoCancel = useCallback(() => {
     setCancelPending(false);
@@ -289,6 +395,10 @@ export function VoiceBar() {
   // recorder while muted, resumes both on unmute. No-op without access.
   const toggleMute = useCallback(() => {
     if (micDenied) return;
+    if (isControlled) {
+      window.dispatchEvent(new CustomEvent("tp-quickdict-toggle-mute"));
+      return;
+    }
     setMuted((prev) => {
       const next = !prev;
       streamRef.current?.getAudioTracks().forEach((t) => (t.enabled = !next));
@@ -299,7 +409,7 @@ export function VoiceBar() {
       } catch (_) {}
       return next;
     });
-  }, [micDenied]);
+  }, [isControlled, micDenied]);
 
   // Auto-discard once the undo window elapses. The countdown bar itself is a
   // pure CSS animation (qd-undo-countdown), so it always runs the full window
@@ -347,7 +457,9 @@ export function VoiceBar() {
   if (!mounted || !isOpen) return null;
 
   const denied = micDenied;
-  const acceptDisabled = denied || processing || !recording;
+  const acceptDisabled = isControlled
+    ? controlledStatus !== "recording"
+    : denied || processing || !recording;
 
   return createPortal(
     <div
@@ -356,6 +468,7 @@ export function VoiceBar() {
       aria-label="Voice dictation bar"
       data-quickdict-no-shimmer="true"
       data-quickdict-no-block="true"
+      data-header-dictation-trigger="quick-dictator"
     >
       {/* Page is fully interactive while Quick Dictator is up: scroll, click,
           focus other inputs, etc. — matching VoiceRx's behaviour. The host
@@ -427,7 +540,7 @@ export function VoiceBar() {
                 <button
                   type="button"
                   onClick={() => setSwitcherOpen((v) => !v)}
-                  disabled={processing}
+                  disabled={processing || isControlled}
                   aria-label="Switch microphone"
                   aria-expanded={switcherOpen}
                   className="qd-mic-caret"
@@ -439,7 +552,7 @@ export function VoiceBar() {
                   />
                 </button>
               </div>
-              {switcherOpen && (
+              {switcherOpen && !isControlled && (
                 <div className="qd-switcher-menu" role="menu">
                   <div className="qd-switcher-eyebrow">Microphone</div>
                   {devices.length === 0 && (
@@ -457,7 +570,7 @@ export function VoiceBar() {
                         aria-checked={isActive}
                         onClick={() => {
                           const label = d.label || `Microphone ${i + 1}`;
-                          setActiveDeviceId(d.deviceId || "default");
+                          if (!isControlled) setActiveDeviceId(d.deviceId || "default");
                           setSwitcherOpen(false);
                           qdToast(`Switched to ${label}`, { duration: 2 });
                         }}
@@ -510,6 +623,8 @@ export function VoiceBar() {
                       <span className="qd-status-muted">Muted</span>
                     ) : !online ? (
                       <span className="qd-status-error">No internet</span>
+                    ) : isControlled && controlledStatus === "transcribing" ? (
+                      <span className="qd-status-listening">Processing</span>
                     ) : recordError ? (
                       <span className="qd-status-error">Mic not available</span>
                     ) : !recordingSupported ? (

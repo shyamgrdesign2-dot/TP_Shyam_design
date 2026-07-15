@@ -309,9 +309,7 @@
   padding: 2px 0;
 }
 
-/* Wave bars — rounded equalizer matching the VoiceRx FAB.
-   `--qd-level` (0–1) is written each animation frame from the live mic
-   level and drives bar opacity; the pulse rhythm itself is CSS-driven. */
+/* Wave bars — rounded equalizer driven by live mic frequency bins. */
 .qd-wave {
   display: flex;
   align-items: center;
@@ -325,20 +323,15 @@
   height: 16px;
   border-radius: 999px;
   background: #fff;
-  transform: scaleY(0.45);
+  transform: scaleY(var(--qd-scale, 0.35));
   transform-origin: center;
   opacity: calc(0.78 + var(--qd-level, 0) * 0.22);
-  animation: qd-wave-pulse 950ms ease-in-out infinite;
+  transition: transform 80ms linear, opacity 80ms linear;
 }
 .qd-wave-bar-muted {
   background: rgba(255, 255, 255, 0.16);
-  animation: none;
   transform: scaleY(0.5);
   opacity: 0.55;
-}
-@keyframes qd-wave-pulse {
-  0%, 100% { transform: scaleY(0.45); }
-  50% { transform: scaleY(1.25); }
 }
 
 /* Status line */

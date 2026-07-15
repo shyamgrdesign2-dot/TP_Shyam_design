@@ -28,16 +28,18 @@ const DOUBLE_TAP_WINDOW_MS = 400;
 //   success → dark `.message-appointment` card with a green tick
 //   error   → red `.error-red` card with a red danger icon
 // Icon + text live in one flex row inside the content so they never stack.
-export function qdToast(content, { type = "success", duration = 3 } = {}) {
+export function qdToast(content, { type = "success", duration = 3, key, closable = false, onDismiss } = {}) {
   const isError = type === "error";
+  const isWarning = type === "warning";
   const icon = React.createElement("span", {
+    key: "icon",
     "aria-hidden": true,
-    className: `qd-ico qd-ico-${isError ? "danger" : "check"}`,
+    className: `qd-ico qd-ico-${isError || isWarning ? "danger" : "check"}`,
     style: {
       width: 18,
       height: 18,
       flexShrink: 0,
-      color: isError ? "#dc6069" : "#52c41a",
+      color: isError ? "#dc6069" : isWarning ? "#f59e0b" : "#52c41a",
     },
   });
   // The success card's CSS only paints `div`s white; without an inline colour
@@ -45,7 +47,47 @@ export function qdToast(content, { type = "success", duration = 3 } = {}) {
   // toasts already force red via `.error-red div, span`, so we hand them the
   // colour they expect.
   const textColor = isError ? "#dc6069" : "#fff";
+  const messageKey = key || `qd-toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const bodyChildren = [
+    icon,
+    React.createElement("span", { key: "text", style: { color: textColor } }, content),
+  ];
+  if (closable) {
+    bodyChildren.push(
+      React.createElement(
+        "button",
+        {
+          key: "close",
+          type: "button",
+          "aria-label": "Dismiss notification",
+          onClick: (event) => {
+            event.stopPropagation();
+            message.destroy(messageKey);
+            onDismiss?.();
+          },
+          style: {
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 22,
+            height: 22,
+            marginLeft: 4,
+            border: 0,
+            borderRadius: 11,
+            background: isError ? "rgba(220, 96, 105, 0.12)" : "rgba(255, 255, 255, 0.14)",
+            color: textColor,
+            cursor: "pointer",
+            fontSize: 16,
+            lineHeight: 1,
+            padding: 0,
+          },
+        },
+        "\u00d7"
+      )
+    );
+  }
   return message.open({
+    key: messageKey,
     type: "",
     className: isError ? "error-red" : "message-appointment",
     content: React.createElement(
@@ -58,8 +100,7 @@ export function qdToast(content, { type = "success", duration = 3 } = {}) {
           color: textColor,
         },
       },
-      icon,
-      React.createElement("span", { style: { color: textColor } }, content)
+      ...bodyChildren
     ),
     duration,
   });
@@ -67,6 +108,8 @@ export function qdToast(content, { type = "success", duration = 3 } = {}) {
 
 export function VoiceBarProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [externalControllerActive, setExternalControllerActive] = useState(false);
+  const [externalState, setExternalState] = useState({ status: "idle" });
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
 
   const [shimmerTick, setShimmerTick] = useState(0);
@@ -107,6 +150,43 @@ export function VoiceBarProvider({ children }) {
 
   const openTutorial = useCallback(() => setIsTutorialOpen(true), []);
   const closeTutorial = useCallback(() => setIsTutorialOpen(false), []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onController = (event) => {
+      const active = Boolean(event?.detail?.active);
+      setExternalControllerActive(active);
+      if (!active) {
+        setExternalState({ status: "idle" });
+        setIsOpen(false);
+      }
+    };
+
+    const onExternalState = (event) => {
+      const detail = event?.detail || {};
+      const status = detail.status || "idle";
+      setExternalState({
+        status,
+        stream: detail.stream || null,
+        muted: Boolean(detail.muted),
+        targetId: detail.targetId || "",
+        error: detail.error || "",
+      });
+      setExternalControllerActive(true);
+      setIsOpen(status !== "idle");
+    };
+
+    window.addEventListener("tp-quickdict-controller", onController);
+    window.addEventListener("tp-quickdict-state", onExternalState);
+    if (window.__tpQuickDictControllerActive) {
+      setExternalControllerActive(true);
+    }
+    return () => {
+      window.removeEventListener("tp-quickdict-controller", onController);
+      window.removeEventListener("tp-quickdict-state", onExternalState);
+    };
+  }, []);
 
   // ── Route the final transcript ──────────────────────────────────────────
   // Returns "input" | "editable" | "clipboard" | "empty" so the caller can
@@ -173,6 +253,7 @@ export function VoiceBarProvider({ children }) {
     let lastShiftTs = 0;
 
     const onKeyDown = (e) => {
+      if (externalControllerActive) return;
       if (isOpen) {
         if (e.key === "Escape") {
           e.preventDefault();
@@ -209,7 +290,7 @@ export function VoiceBarProvider({ children }) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, open, close]);
+  }, [externalControllerActive, isOpen, open, close]);
 
   // ── Auto-shimmer ping on every qualifying text focus ───────────────────
   useEffect(() => {
@@ -239,6 +320,8 @@ export function VoiceBarProvider({ children }) {
   const value = useMemo(
     () => ({
       isOpen,
+      externalControllerActive,
+      externalState,
       open,
       close,
       route,
@@ -251,6 +334,8 @@ export function VoiceBarProvider({ children }) {
     }),
     [
       isOpen,
+      externalControllerActive,
+      externalState,
       open,
       close,
       route,
