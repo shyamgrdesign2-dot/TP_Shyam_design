@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { trackEvent } from "../utils/utils";
 
 function pickStableDentalInput(dentalExaminationData, dentalexaminationData) {
@@ -53,6 +54,8 @@ export const usePrintPayloadPdf = ({
   payloadOverride,
   skipFetch = false,
   zydusSelectedLabParams = null,
+  /** Client-fetched lab rows (preferably already flattened via normalizeLabResultsResponse). */
+  labParamsData = null,
   dentalexaminationData = null,
   dentalExaminationData = null,
   oralExamination = null,
@@ -185,13 +188,23 @@ export const usePrintPayloadPdf = ({
       setError(null);
       const pdfStartTime = Date.now();
       try {
-        const payloadWithZydus =
-          zydusSelectedLabParams != null
-            ? { ...payload, zydusLabData: zydusSelectedLabParams }
-            : payload;
+        // Prefer client lab rows; otherwise flatten whatever the print payload API sent
+        // (new multi-doctor bucket shape or legacy single-doc shape).
+        const clientLabParams = normalizeLabResultsResponse(labParamsData);
+        const payloadLabParams = normalizeLabResultsResponse(payload?.labParamsData);
+        const resolvedLabParams =
+          clientLabParams.length > 0 ? clientLabParams : payloadLabParams;
+
+        const payloadWithLabs = {
+          ...payload,
+          labParamsData: resolvedLabParams,
+          ...(zydusSelectedLabParams != null
+            ? { zydusLabData: zydusSelectedLabParams }
+            : {}),
+        };
 
         const { blob, drawingCanvases, corruptedCanvasSkipped } =
-          await buildPrintPdfBlobFromPayload(payloadWithZydus, {
+          await buildPrintPdfBlobFromPayload(payloadWithLabs, {
             selectedLang,
             isGynaecHistoryAccessable,
             showSnapRxImages,
@@ -257,6 +270,7 @@ export const usePrintPayloadPdf = ({
     onlyShowDental,
     showSnapRxImages,
     zydusSelectedLabParams,
+    labParamsData,
     allowFullApiFallback,
     isCvtExtHosAccessableFromGB,
     isDentalEnabled,

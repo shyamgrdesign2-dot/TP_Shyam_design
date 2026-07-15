@@ -475,12 +475,13 @@ function TabRxPrescriptionPrintView() {
     isGynaecHistoryAccessable,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
-        dentalExaminationData,
-        oralExamination,
-        patientUniqueId: patient_data?.patient_unique_id,
-        patientId: patient_data?.patient_unique_id,
-        tcmId: state?.tcm_id,
-        isCvtExtHosAccessableFromGB,
+    labParamsData,
+    dentalExaminationData,
+    oralExamination,
+    patientUniqueId: patient_data?.patient_unique_id,
+    patientId: patient_data?.patient_unique_id,
+    tcmId: state?.tcm_id,
+    isCvtExtHosAccessableFromGB,
   });
 
 

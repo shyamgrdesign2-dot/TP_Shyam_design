@@ -121,7 +121,9 @@ function PrescriptionPrintView() {
     const [printBlob, setPrintBlob] = useState(null);
 
     const [gynecHistoryData, setGynecHistoryData] = useState(null);
-    const [labParamsData, setLabParamsData] = useState([]);
+    const [labParamsData, setLabParamsData] = useState(() =>
+        Array.isArray(passedLabParamsData) ? passedLabParamsData : []
+    );
     const [createBillDrawer, setCreateBillDrawer] = useState(false);
     const [recentBillDrawer, setRecentBillDrawer] = useState(false);
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
@@ -215,6 +217,7 @@ function PrescriptionPrintView() {
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
         zydusSelectedLabParams,
+        labParamsData,
         dentalExaminationData,
         oralExamination,
         patientUniqueId: patient_data?.patient_unique_id,
