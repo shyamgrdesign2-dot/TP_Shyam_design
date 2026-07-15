@@ -35,6 +35,7 @@ import {
   GB_VOICE_RX_FREE,
 } from "../../utils/constants";
 import { FETCH_SMART_RX } from "../../utils/constants";
+import { normalizeLabResultsResponse } from "../../utils/labResultsUtils";
 
 import {
   getPatientBirthWeight,
@@ -1476,7 +1477,7 @@ function TabRx() {
           },
         },
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }

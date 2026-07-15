@@ -19,6 +19,11 @@ const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabPara
       <div style={{ display: "flex", flexDirection: "column", rowGap: "16px" }}>
         <div style={{ fontSize: "14px", fontWeight: "600" }}>
           {dayjs(labParamsdeatils?.date).format("DD MMM, YYYY")}
+          {labParamsdeatils?.doctorId != null && labParamsdeatils?.doctorId !== "" ? (
+            <div style={{ fontSize: 12, fontWeight: 500, color: "#696974" }}>
+              {`Dr ID ${labParamsdeatils.doctorId}`}
+            </div>
+          ) : null}
         </div>
         {labParamsdeatils?.inputs
           ?.filter((labParamItem) => labParamItem?.testName !== "Remarks") // Filter out "Remarks"

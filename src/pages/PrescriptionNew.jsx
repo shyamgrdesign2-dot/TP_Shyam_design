@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useSelector, useDispatch } from "react-redux";
 
 import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 
 import { addUpdateVitals, clearListVitalsToday, getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
@@ -2189,7 +2190,7 @@ function PrescriptionNew() {
           },
         }
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }
