@@ -12,6 +12,7 @@ import AddPatientDrawer from "./AddPatientDrawer";
 import LimsAccessBoundary from "./LimsAccessBoundary";
 import {
   filterLabResultsByDoctor,
+  filterLabResultsForLimsLastVisit,
   getPatientLastVisitDoctorUmId,
   getReceptionistDoctorNameMapFromUrl,
   normalizeLabResultsResponse,
@@ -732,9 +733,9 @@ function LimsPageMain() {
     if (!drawerPatient) return;
     const patientId = drawerPatient.patient_unique_id;
     // Row summary stays scoped to lastVisitDoctor for receptionists;
-    // View drawer always shows every doctor's buckets (separate columns per doctor+date).
+    // View drawer only shows results on lastVisitDate (if any).
     const allResults = await refreshSummary(patientId, drawerPatient);
-    setViewLabParamsData(allResults || []);
+    setViewLabParamsData(filterLabResultsForLimsLastVisit(drawerPatient, allResults));
   }, [drawerPatient, refreshSummary]);
 
   const handleAction = useCallback(async (action, patient) => {
@@ -748,15 +749,15 @@ function LimsPageMain() {
       setDrawerPatient(patient);
       setViewLabParamsLoading(true);
       try {
-        // Do not filter by lastVisitDoctor here — ViewLabParams keys columns by
-        // date|doctorId|receptionistId (same as EMR). Filtering collapses two
-        // doctors on the same date into one column.
+        // LIMS View: only lastVisitDate rows (all doctors that day). Info icon
+        // is driven by lastVisitDoctor via ownerDoctorId — not every historical date.
         const data = await fetchPatientLabResults(patient.patient_unique_id);
-        if (!data?.length) {
+        const lastVisitResults = filterLabResultsForLimsLastVisit(patient, data);
+        if (!lastVisitResults?.length) {
           setViewDrawerOpen(false);
           setAddDrawerOpen(true);
         } else {
-          setViewLabParamsData(data);
+          setViewLabParamsData(lastVisitResults);
           setViewDrawerOpen(true);
         }
       } finally {
@@ -1034,7 +1035,7 @@ function LimsPageMain() {
             handleViewLabParamsDrawer={closeViewDrawer}
             labParamsData={viewLabParamsData}
             handleSwitchToAddLabParams={switchViewToAdd}
-            ownerDoctorId={isReceptionist ? viewOwnerDoctorId : undefined}
+            ownerDoctorId={viewOwnerDoctorId}
             doctorNameById={doctorNameById}
           />
         </Drawer>

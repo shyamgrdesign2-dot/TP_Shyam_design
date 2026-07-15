@@ -39,7 +39,7 @@ const LabResultsTable = ({
         }
     }, []);
 
-    // Prefer last-visit / attending doctor when provided (receptionist LIMS);
+    // Prefer last-visit doctor when provided (LIMS flow);
     // otherwise compare against the logged-in doctor (EMR).
     const primaryDoctorId = useMemo(() => {
         if (ownerDoctorId != null && ownerDoctorId !== '') return ownerDoctorId;
@@ -50,6 +50,8 @@ const LabResultsTable = ({
         `${entry?.date ?? ''}|${entry?.doctorId ?? ''}|${entry?.receptionistId ?? ''}`;
 
     const isOtherDoctorEntry = (entry) => {
+        // Info icon only when this column belongs to a doctor other than the
+        // primary / last-visit doctor (ownerDoctorId in LIMS, JWT doctor in EMR).
         const entryDoctorId = entry?.doctorId;
         if (entryDoctorId == null || entryDoctorId === '') return false;
         if (primaryDoctorId == null || primaryDoctorId === '') return false;

@@ -52,6 +52,24 @@ export function getPatientLastVisitDoctorUmId(patient) {
 }
 
 /**
+ * LIMS View drawer: only result rows on the patient's lastVisitDate.
+ * Does not fall back to other / latest dates. Empty when none match.
+ */
+export function filterLabResultsForLimsLastVisit(patient, results) {
+  const flat = normalizeLabResultsResponse({ data: results || [] });
+  if (flat.length === 0) return [];
+
+  const visitDate = patient?.lastVisitDate
+    ? String(patient.lastVisitDate).slice(0, 10)
+    : '';
+  if (!visitDate) return [];
+
+  return flat.filter(
+    (entry) => entry?.date && String(entry.date).slice(0, 10) === visitDate,
+  );
+}
+
+/**
  * Owner doctor id used when editing/saving:
  * - Receptionist → explicit attendingDoctorUmId (e.g. lastVisitDoctor) when present,
  *   else URL um_id
