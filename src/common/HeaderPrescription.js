@@ -60,7 +60,7 @@ import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
 import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
 import { store } from '../redux/store';
-import { VOICE_RX_2_VERSION, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent, trackVoiceRx2RecorderEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { VOICE_RX_2_VERSION, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent, uploadAndTrackVoiceRx2LowSpeechBlock } from '../components/dr-agent/voicerx/voiceRx2Logging';
 import { htmlToSoapSections } from '../components/dr-agent/voicerx/utils/soap-formatter';
 import { getLatestSoapDraft } from '../components/dr-agent/voicerx/utils/soap-session-draft';
 import { buildVoiceSoapStoreFields } from '../utils/voiceSoapPayload';
@@ -910,6 +910,16 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 : !humanVoiceDetected
                 ? "Human voice not detected in header dictation."
                 : "Audio duration is too short for transcription.";
+            const blockedFailedPhase = !audioBlob.size
+                ? "audio-precheck-no-audio"
+                : !humanVoiceDetected
+                ? "vad-precheck"
+                : "audio-precheck-too-short";
+            const blockedAction = !audioBlob.size
+                ? "blocked_no_audio_recording"
+                : !humanVoiceDetected
+                ? "blocked_before_transcribe_audio"
+                : "blocked_audio_too_short";
             qdToast(!audioBlob.size
                 ? "No audio was captured. Please try recording again."
                 : !humanVoiceDetected
@@ -917,7 +927,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 : "The recording was too short. Please speak for at least a second.", {
                     type: "warning",
                 });
-            trackVoiceRx2RecorderEvent("TP_Voice_V2_Submit_Click", {
+            void uploadAndTrackVoiceRx2LowSpeechBlock({
                 patientData: patient_data,
                 profile,
                 sessionId: voiceDigitization?.sessionId || submitId,
@@ -938,15 +948,20 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     doctorId: profile?.doctor_unique_id || "",
                     patientId: patient_data?.patient_unique_id || "",
                     voiceApiCalled: false,
-                    audioSizeBytes: audioBlob?.size || 0,
-                    audioMimeType: audioBlob?.type || "audio/webm",
                     status: "blocked",
                     voice_failed: true,
-                    failedPhase: "audio-precheck",
+                    failedPhase: blockedFailedPhase,
                     error_message: blockedErrorMessage,
                     retry_attempts: 0,
+                },
+                speechAnalysis: {
+                    action: blockedAction,
+                    failedPhase: blockedFailedPhase,
+                    error_message: blockedErrorMessage,
                     ...speechAnalysis,
                 },
+            }).catch((error) => {
+                console.error("[HeaderTranscribe] blocked event logging failed", error);
             });
             headerVoiceAudioChunksRef.current = [];
             setHeaderVoiceState("idle");

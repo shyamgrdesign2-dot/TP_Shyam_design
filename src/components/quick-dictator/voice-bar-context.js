@@ -19,29 +19,42 @@ import React, {
   useState,
 } from "react";
 import { message } from "antd";
+import { Danger } from "iconsax-reactjs";
 
 const VoiceBarContext = createContext(null);
 const DOUBLE_TAP_WINDOW_MS = 400;
 
 // TP design-system snackbars, reusing the app's existing antd-message styles
-// (see allComponent.scss) plus TP CDN mask icons (see `.qd-ico*` in the CSS):
+// (see allComponent.scss) plus compact status icons:
 //   success → dark `.message-appointment` card with a green tick
 //   error   → red `.error-red` card with a red danger icon
+//   warning → dark `.message-appointment` card with an orange warning icon
 // Icon + text live in one flex row inside the content so they never stack.
 export function qdToast(content, { type = "success", duration = 3, key, closable = false, onDismiss } = {}) {
   const isError = type === "error";
   const isWarning = type === "warning";
-  const icon = React.createElement("span", {
-    key: "icon",
-    "aria-hidden": true,
-    className: `qd-ico qd-ico-${isError || isWarning ? "danger" : "check"}`,
-    style: {
-      width: 18,
-      height: 18,
-      flexShrink: 0,
-      color: isError ? "#dc6069" : isWarning ? "#f59e0b" : "#52c41a",
-    },
-  });
+  const icon = isWarning
+    ? React.createElement(Danger, {
+        key: "icon",
+        size: 20,
+        variant: "Bold",
+        "aria-hidden": true,
+        style: {
+          flexShrink: 0,
+          color: "#F59E0B",
+        },
+      })
+    : React.createElement("span", {
+        key: "icon",
+        "aria-hidden": true,
+        className: `qd-ico qd-ico-${isError ? "danger" : "check"}`,
+        style: {
+          width: 18,
+          height: 18,
+          flexShrink: 0,
+          color: isError ? "#dc6069" : "#52c41a",
+        },
+      });
   // The success card's CSS only paints `div`s white; without an inline colour
   // here, the app's global `span` rule would re-tint the text dark. Error
   // toasts already force red via `.error-red div, span`, so we hand them the

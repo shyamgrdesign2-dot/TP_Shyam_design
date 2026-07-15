@@ -268,6 +268,7 @@ export async function uploadAndTrackVoiceRx2LowSpeechBlock({
   sourceSurface = "",
   voiceInputLocation = "",
   isDoctorAgent = false,
+  processingApiName = "",
   micBeingUsed = "",
   extra = {},
   speechAnalysis = {},
@@ -304,6 +305,7 @@ export async function uploadAndTrackVoiceRx2LowSpeechBlock({
     sourceSurface,
     voiceInputLocation,
     isDoctorAgent,
+    processingApiName,
     micBeingUsed,
     extra: {
       ...extra,
