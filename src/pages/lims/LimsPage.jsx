@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Button, Checkbox, DatePicker, Dropdown, Input, Spin, Table, Tag } from "antd";
+import { Button, Checkbox, DatePicker, Drawer, Dropdown, Input, Spin, Table, Tag } from "antd";
 import { InfoCircleOutlined, DownOutlined, FilterOutlined, PlusOutlined, PrinterOutlined, SearchOutlined, UpOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { fetchLimsPatients, fetchPatientLabResults } from "./limsApi";
 import { summariseResults, latestDateResults } from "./limsHelpers";
+import ViewLabParam from "../../components/ViewLabParams";
 import LabResultsDrawer from "./LabResultsDrawer";
 import AddPatientDrawer from "./AddPatientDrawer";
 import LimsAccessBoundary from "./LimsAccessBoundary";
@@ -118,7 +119,7 @@ function ActionMenu({ onAction, isFilled }) {
           <button
             type="button"
             className={styles.actionItem}
-            onClick={() => { onAction("view"); setOpen(false); }}
+            onClick={() => { onAction(isFilled ? "view" : "add"); setOpen(false); }}
           >
             <PlusOutlined />
             <span>{isFilled ? "View / Edit Lab Results" : "Add Lab Results"}</span>
@@ -445,6 +446,10 @@ function LimsPageMain() {
   const [summaries, setSummaries] = useState({});
   const [lastVisitTests, setLastVisitTests] = useState({});
   const [drawerPatient, setDrawerPatient] = useState(null);
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [viewDrawerOpen, setViewDrawerOpen] = useState(false);
+  const [viewLabParamsData, setViewLabParamsData] = useState([]);
+  const [viewLabParamsLoading, setViewLabParamsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [listMeta, setListMeta] = useState({ total: 0, totalPages: 0, page: 1 });
   const [loadingMore, setLoadingMore] = useState(false);
@@ -665,9 +670,56 @@ function LimsPageMain() {
     setSummaries((prev) => ({ ...prev, [patientId]: summariseResults(latestDateResults(results)) }));
   }, []);
 
-  const handleAction = useCallback((action, patient) => {
-    if (action === "view") {
+  const closeAddDrawer = useCallback(() => {
+    setAddDrawerOpen(false);
+    if (!viewDrawerOpen) {
+      setDrawerPatient(null);
+      setViewLabParamsData([]);
+    }
+  }, [viewDrawerOpen]);
+
+  const closeViewDrawer = useCallback(() => {
+    setViewDrawerOpen(false);
+    setViewLabParamsData([]);
+    if (!addDrawerOpen) setDrawerPatient(null);
+  }, [addDrawerOpen]);
+
+  const switchViewToAdd = useCallback(() => {
+    setViewDrawerOpen(false);
+    setViewLabParamsData([]);
+    setAddDrawerOpen(true);
+  }, []);
+
+  const handleLabParamsSaved = useCallback(async () => {
+    if (!drawerPatient) return;
+    const patientId = drawerPatient.patient_unique_id;
+    await refreshSummary(patientId);
+    const data = await fetchPatientLabResults(patientId);
+    setViewLabParamsData(data);
+  }, [drawerPatient, refreshSummary]);
+
+  const handleAction = useCallback(async (action, patient) => {
+    if (action === "add") {
+      setViewDrawerOpen(false);
+      setViewLabParamsData([]);
       setDrawerPatient(patient);
+      setAddDrawerOpen(true);
+    } else if (action === "view") {
+      setAddDrawerOpen(false);
+      setDrawerPatient(patient);
+      setViewLabParamsLoading(true);
+      try {
+        const data = await fetchPatientLabResults(patient.patient_unique_id);
+        if (!data?.length) {
+          setViewDrawerOpen(false);
+          setAddDrawerOpen(true);
+        } else {
+          setViewLabParamsData(data);
+          setViewDrawerOpen(true);
+        }
+      } finally {
+        setViewLabParamsLoading(false);
+      }
     } else if (action === "print") {
       navigate(`/lims/print/${patient.patient_unique_id}`, { state: { patient } });
     }
@@ -912,12 +964,37 @@ function LimsPageMain() {
         </div>
       </main>
 
+      {viewLabParamsLoading && (
+        <div className={styles.drawerLoadingOverlay}>
+          <Spin size="large" />
+        </div>
+      )}
+
       <LabResultsDrawer
-        open={Boolean(drawerPatient)}
+        open={addDrawerOpen}
         patient={drawerPatient}
-        onClose={() => setDrawerPatient(null)}
-        onSaved={() => drawerPatient && refreshSummary(drawerPatient.patient_unique_id)}
+        onClose={closeAddDrawer}
+        onSaved={handleLabParamsSaved}
       />
+
+      {viewDrawerOpen && (
+        <Drawer
+          closeIcon={false}
+          className="modalWidth-700"
+          placement="right"
+          open={viewDrawerOpen}
+          bodyStyle={{ backgroundColor: "white" }}
+          onClose={closeViewDrawer}
+          width="auto"
+          destroyOnClose
+        >
+          <ViewLabParam
+            handleViewLabParamsDrawer={closeViewDrawer}
+            labParamsData={viewLabParamsData}
+            handleSwitchToAddLabParams={switchViewToAdd}
+          />
+        </Drawer>
+      )}
 
       <AddPatientDrawer
         open={addPatientOpen}
