@@ -23,7 +23,7 @@ export default function LabResultsDrawer({ open, patient, onClose, onSaved }) {
       closeIcon={false}
       className="lims-lab-drawer"
       placement="right"
-      width="80%"
+      width="60%"
       open={open}
       onClose={onClose}
       destroyOnClose
@@ -41,9 +41,9 @@ export default function LabResultsDrawer({ open, patient, onClose, onSaved }) {
         <span className="lims-drawer-title">Add Lab Results</span>
         <div className="lims-drawer-spacer" />
         <div className="lims-drawer-actions">
-          <Button onClick={handlePrint} icon={<PrinterOutlined />}>
+          {/* <Button onClick={handlePrint} icon={<PrinterOutlined />}>
             Print
-          </Button>
+          </Button> */}
           <Button type="primary" className="btn btn-primary3 px-4" onClick={handleSave} style={{ minWidth: 100 }}>
             Save
           </Button>

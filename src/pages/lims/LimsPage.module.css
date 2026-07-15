@@ -286,8 +286,15 @@
   color: #171725;
 }
 
-.filterOption :global(.ant-checkbox) {
+.filterOption :global(.ant-checkbox-wrapper),
+.filterOption :global(.ant-checkbox),
+.filterOption :global(.ant-checkbox-input),
+.filterOption :global(input) {
   pointer-events: none;
+}
+
+.filterOption :global(.ant-checkbox-wrapper) {
+  margin-inline-end: 0;
 }
 
 .filterOption :global(.ant-checkbox-checked .ant-checkbox-inner) {

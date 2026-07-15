@@ -337,7 +337,7 @@ function LimsPrintPageMain() {
             <div className={styles.meta}>{[patientInfo.gender, patientInfo.age].filter(Boolean).join(", ")}</div>
           </div>
         </div>
-        <Button
+        {/* <Button
           icon={<SettingOutlined />}
           onClick={() =>
             navigate("/lims/print-settings", {
@@ -350,7 +350,7 @@ function LimsPrintPageMain() {
           }
         >
           Print Settings
-        </Button>
+        </Button> */}
       </div>
 
       <div className={styles.body}>

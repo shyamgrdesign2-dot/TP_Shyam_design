@@ -361,14 +361,23 @@ const TEST_FILTER_OPTIONS = [
 
 function FilterOptionRow({ label, checked, onToggle }) {
   return (
-    <button
-      type="button"
+    <div
+      role="checkbox"
+      aria-checked={checked}
+      tabIndex={0}
       className={`${styles.filterOption} ${checked ? styles.filterOptionActive : ""}`}
       onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
     >
-      <Checkbox checked={checked} />
+      {/* Visual only — whole row handles toggle (avoid nested interactive / label capture). */}
+      <Checkbox checked={checked} tabIndex={-1} />
       <span className={styles.filterOptionLabel}>{label}</span>
-    </button>
+    </div>
   );
 }
 
@@ -547,9 +556,14 @@ function LimsPageMain() {
 
   const disabledDate = useCallback((current) => current && current > dayjs().endOf("day"), []);
 
-  const rangePresets = useMemo(
-    () => [
-      { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
+  const rangePresets = useMemo(() => {
+    // Preset ranges that include future calendar days break with disabledDate
+    // (e.g. endOf("month") / endOf("year") after today). Clamp end to today.
+    const todayEnd = dayjs().endOf("day");
+    const clampToToday = (end) => (end.isAfter(todayEnd) ? todayEnd : end);
+
+    return [
+      { label: "Today", value: [dayjs().startOf("day"), todayEnd] },
       {
         label: "Yesterday",
         value: [
@@ -559,13 +573,16 @@ function LimsPageMain() {
       },
       {
         label: "Past 7 days",
-        value: [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")],
+        value: [dayjs().subtract(6, "day").startOf("day"), todayEnd],
       },
       {
         label: "Past 30 days",
-        value: [dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")],
+        value: [dayjs().subtract(29, "day").startOf("day"), todayEnd],
       },
-      { label: "This month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
+      {
+        label: "This month",
+        value: [dayjs().startOf("month"), clampToToday(dayjs().endOf("month"))],
+      },
       {
         label: "Last month",
         value: [
@@ -573,7 +590,10 @@ function LimsPageMain() {
           dayjs().subtract(1, "month").endOf("month"),
         ],
       },
-      { label: "This year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
+      {
+        label: "This year",
+        value: [dayjs().startOf("year"), clampToToday(dayjs().endOf("year"))],
+      },
       {
         label: "Last year",
         value: [
@@ -581,9 +601,8 @@ function LimsPageMain() {
           dayjs().subtract(1, "year").endOf("year"),
         ],
       },
-    ],
-    []
-  );
+    ];
+  }, []);
 
   const onRangeChange = useCallback((dates) => {
     setPage(1);
@@ -591,9 +610,13 @@ function LimsPageMain() {
       setDateRange(null);
       return;
     }
+    const todayEnd = dayjs().endOf("day");
+    const start = dates[0].startOf("day");
+    let end = dates[1].endOf("day");
+    if (end.isAfter(todayEnd)) end = todayEnd;
     setDateRange({
-      startDate: dates[0].format(DATE_FORMAT),
-      endDate: dates[1].format(DATE_FORMAT),
+      startDate: start.format(DATE_FORMAT),
+      endDate: end.format(DATE_FORMAT),
     });
   }, []);
 
