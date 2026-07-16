@@ -115,54 +115,33 @@ export const fetchReferralDataForCaseManager = async (
   }
 };
 
-/**
- * Cross-consult fields for add/edit case manager (backend posts cross-consult internally).
- * Omits referred_tcm_id — case manager response supplies the tcm linkage.
- */
-export const buildCaseManagerCrossConsultFields = (
-  referralData,
-  { referredBy, pendingCrossConsult } = {}
-) => {
-  // Existing pending cross-consult is linked after save via updateCrossConsult.
-  if (getCrossConsultRecordId(pendingCrossConsult)) return null;
-  if (!hasCrossConsultReferralData(referralData)) return null;
-
-  return {
-    department_id: referralData?.dp_id,
-    department_name: referralData?.department_name || "",
-    um_id: referralData?.um_id,
-    um_name: referralData?.um_name,
-    date_of_referral:
-      referralData?.date_of_referral || moment().format("YYYY-MM-DD"),
-    reason_for_cross_consult: referralData?.reason_for_cross_consult || "",
-    referred_by: referredBy || "",
-  };
-};
-
 export const attachCrossConsultToCaseManagerPayload = (
   sendData,
   referralData,
-  options = {}
+  { referredBy, pendingCrossConsult } = {}
 ) => {
-  if (!sendData) return sendData;
-  const fields = buildCaseManagerCrossConsultFields(referralData, options);
-  if (!fields) return sendData;
-  Object.assign(sendData, fields);
+  if (
+    !sendData ||
+    getCrossConsultRecordId(pendingCrossConsult) ||
+    !hasCrossConsultReferralData(referralData)
+  ) {
+    return sendData;
+  }
+
+  sendData.department_id = referralData?.dp_id;
+  sendData.department_name = referralData?.department_name || "";
+  sendData.um_id = referralData?.um_id;
+  sendData.um_name = referralData?.um_name;
+  sendData.date_of_referral =
+    referralData?.date_of_referral || moment().format("YYYY-MM-DD");
+  sendData.reason_for_cross_consult = referralData?.reason_for_cross_consult || "";
+  sendData.referred_by = referredBy || "";
   return sendData;
 };
 
-/**
- * After case manager succeeds: only links an existing pending cross-consult to tcm_id.
- * New referrals are created by addCaseManager / editCaseManager from attached payload fields.
- */
-export const syncCrossConsultReferral = async (
-  _referralData,
-  { tcmId, pendingCrossConsult }
-) => {
-  if (!tcmId) return null;
-
+export const syncCrossConsultReferral = async ({ tcmId, pendingCrossConsult }) => {
   const crossConsultId = getCrossConsultRecordId(pendingCrossConsult);
-  if (!crossConsultId) return null;
+  if (!tcmId || !crossConsultId) return null;
 
   return SnapRxDigitization.updateCrossConsult(crossConsultId, {
     tcm_id: Number(tcmId),

@@ -584,11 +584,8 @@ function HeaderPrescription({
       }
 
       try {
-        const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-        await syncCrossConsultReferral(referralData, {
-          tcmId: generatedTcmId,
-          patientUniqueId: patient_data?.patient_unique_id,
-          referredBy: profile?.um_name,
+        await syncCrossConsultReferral({
+          tcmId: action?.payload?.tcm_id ?? tcmId,
           pendingCrossConsult: patient_data,
         });
       } catch (error) {

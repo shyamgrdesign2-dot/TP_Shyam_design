@@ -2454,10 +2454,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
 
                 try {
-                    await syncCrossConsultReferral(referralData, {
+                    await syncCrossConsultReferral({
                         tcmId: generatedTcmId,
-                        patientUniqueId: patient_data?.patient_unique_id,
-                        referredBy: profile?.um_name,
                         pendingCrossConsult: patient_data,
                     });
                 } catch (error) {
