@@ -35,6 +35,7 @@ import {
   sortDentalBillItemsForSearch,
 } from "../lib/billing-catalog";
 import { useBillingCatalog } from "../lib/useBillingCatalog";
+import { searchDentalBillItems } from "../../../pages/opdBilling/service";
 import ServiceItemPopup from "../../../pages/opdBilling/components/serviceItemPopup/ServiceItemPopup";
 import { useDirtyDrawerGuard } from "./use-dirty-drawer-guard";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
@@ -64,6 +65,9 @@ export function AddEditPlanDrawer() {
     () => getUniqueDentalBillItems(billingItems),
     [billingItems]
   );
+  const [apiDentalBillItems, setApiDentalBillItems] = useState([]);
+  const [apiDentalLoading, setApiDentalLoading] = useState(false);
+  const apiDentalReqIdRef = useRef(0);
   const [catalogDentalDrawerOpen, setCatalogDentalDrawerOpen] = useState(false);
   const [catalogDentalInitialName, setCatalogDentalInitialName] = useState("");
   const {
@@ -115,10 +119,90 @@ export function AddEditPlanDrawer() {
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const searchRef = useRef(null);
   const dropdownRef = useRef(null);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const [dropdownPos, setDropdownPos] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+    maxHeight: 260,
+    placement: "below",
+    bottom: undefined,
+  });
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  const updateDropdownPos = useCallback(() => {
+    if (!searchRef.current) return;
+    const rect = searchRef.current.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    const width = Math.max(rect.width, 400);
+    const left = Math.max(8, Math.min(rect.left, vw - width - 8));
+    const GAP = 4;
+    const MARGIN = 8;
+    const HEADER_H = 40;
+    const MIN_LIST_H = 80;
+    const PREFERRED_LIST_H = 260;
+    const spaceBelow = vh - rect.bottom - GAP - MARGIN;
+    const spaceAbove = rect.top - GAP - MARGIN;
+    const openBelow = spaceBelow >= spaceAbove;
+    const available = openBelow ? spaceBelow : spaceAbove;
+    const maxHeight = Math.max(
+      MIN_LIST_H,
+      Math.min(PREFERRED_LIST_H, available - HEADER_H)
+    );
+
+    if (openBelow) {
+      setDropdownPos({
+        top: rect.bottom + GAP,
+        bottom: undefined,
+        left,
+        width,
+        maxHeight,
+        placement: "below",
+      });
+    } else {
+      setDropdownPos({
+        top: undefined,
+        bottom: vh - rect.top + GAP,
+        left,
+        width,
+        maxHeight,
+        placement: "above",
+      });
+    }
+  }, []);
+
+  const fetchDentalServices = useCallback(async (query) => {
+    const reqId = ++apiDentalReqIdRef.current;
+    setApiDentalLoading(true);
+    try {
+      const raw = await searchDentalBillItems(query);
+      if (apiDentalReqIdRef.current !== reqId) return;
+      const mapped = (raw || [])
+        .map((item) => mapApiBillItemToDentalCatalog(item))
+        .filter(Boolean);
+      // De-dupe by case-insensitive name
+      const seen = new Set();
+      const unique = [];
+      for (const t of mapped) {
+        const key = String(t?.name ?? "").trim().toLowerCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        unique.push(t);
+      }
+      setApiDentalBillItems(unique);
+    } catch (e) {
+      // Non-blocking; keep previous data (or fallback to local catalog)
+      if (apiDentalReqIdRef.current === reqId) {
+        setApiDentalBillItems([]);
+      }
+      // eslint-disable-next-line no-console
+      console.error("Failed to fetch dental services:", e);
+    } finally {
+      if (apiDentalReqIdRef.current === reqId) setApiDentalLoading(false);
+    }
   }, []);
 
   const planTpl = useTreatmentPlanTemplates("plan");
@@ -208,19 +292,24 @@ export function AddEditPlanDrawer() {
     setSearchOpen(false);
   }, [isOpen, isEdit, editPlan]);
 
+  // API-driven catalog results; fallback to local catalog if API yields nothing.
+  const catalogPool = useMemo(() => {
+    if (apiDentalBillItems.length > 0) return apiDentalBillItems;
+    return dentalBillItems;
+  }, [apiDentalBillItems, dentalBillItems]);
+
   const filteredTreatments = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    let pool = dentalBillItems.filter(
-      (t) => !q || t.name.toLowerCase().includes(q)
-    );
-    pool = sortDentalBillItemsForSearch(pool, searchQuery.trim());
+    const qTrim = searchQuery.trim();
+    const q = qTrim.toLowerCase();
+    let pool = catalogPool.filter((t) => !q || t.name.toLowerCase().includes(q));
+    pool = sortDentalBillItemsForSearch(pool, qTrim);
     return pool.slice(0, 25);
-  }, [searchQuery, dentalBillItems]);
+  }, [searchQuery, catalogPool]);
 
   const searchTrim = searchQuery.trim();
   const catalogHasExactName =
     searchTrim.length > 0 &&
-    dentalBillItems.some(
+    catalogPool.some(
       (t) => t.name.toLowerCase() === searchTrim.toLowerCase()
     );
   const showAddCustomDental = searchTrim.length > 0 && !catalogHasExactName;
@@ -238,20 +327,31 @@ export function AddEditPlanDrawer() {
 
   // Remaining catalog chips (not yet added)
   const remainingCatalogChips = useMemo(() => {
-    return dentalBillItems
+    return catalogPool
       .filter((t) => !rows.some((r) => r.treatment === t.name))
       .slice(0, 8);
-  }, [rows, dentalBillItems]);
+  }, [rows, catalogPool]);
 
   useEffect(() => {
-    if (!searchOpen || !searchRef.current) return;
-    const rect = searchRef.current.getBoundingClientRect();
-    setDropdownPos({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, [searchOpen, searchQuery]);
+    if (!searchOpen) return;
+    updateDropdownPos();
+    const reposition = () => updateDropdownPos();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [searchOpen, searchQuery, rows.length, updateDropdownPos]);
+
+  // Fetch dental services when dropdown opens and while typing (debounced).
+  useEffect(() => {
+    if (!searchOpen || catalogDentalDrawerOpen) return;
+    const t = window.setTimeout(() => {
+      fetchDentalServices(searchQuery);
+    }, searchQuery.trim() ? 250 : 0);
+    return () => window.clearTimeout(t);
+  }, [searchOpen, searchQuery, catalogDentalDrawerOpen, fetchDentalServices]);
 
   // Hide this drawer's dropdown whenever the nested "Add dental service" drawer
   // opens so it doesn't paint above the child sidebar via its portal.
@@ -304,8 +404,10 @@ export function AddEditPlanDrawer() {
       );
     }
     setSearchQuery("");
-    setSearchOpen(false);
-    // Don't focus search input — user asked not to activate input on tag click
+    setHighlightedIndex(0);
+    // Keep dropdown open so users can add multiple services in a row.
+    setSearchOpen(true);
+    window.requestAnimationFrame(() => updateDropdownPos());
   };
 
   const updateRow = (id, patch) => {
@@ -322,10 +424,10 @@ export function AddEditPlanDrawer() {
 
   const handleSearchKeyDown = (e) => {
     const q = searchQuery.trim();
-    const showCatalog = q.length > 0;
+    const showCatalog = true;
     const examCount = filteredExamSuggestions.length;
     const catCount = showCatalog ? filteredTreatments.length : 0;
-    const customRowCount = showCatalog && showAddCustomDental ? 1 : 0;
+    const customRowCount = showCatalog && q.length > 0 && showAddCustomDental ? 1 : 0;
     const totalItems = examCount + catCount + customRowCount;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -359,10 +461,10 @@ export function AddEditPlanDrawer() {
   useEffect(() => {
     if (!searchOpen) return;
     const q = searchQuery.trim();
-    const showCat = q.length > 0;
+    const showCat = true;
     const examCount = filteredExamSuggestions.length;
     const catCount = showCat ? filteredTreatments.length : 0;
-    const customRowCount = showCat && showAddCustomDental ? 1 : 0;
+    const customRowCount = showCat && q.length > 0 && showAddCustomDental ? 1 : 0;
     const total = examCount + catCount + customRowCount;
     if (total <= 0) return;
     setHighlightedIndex((i) => Math.min(i, total - 1));
@@ -452,10 +554,10 @@ export function AddEditPlanDrawer() {
     if (showNameError && e.target.value.trim()) setShowNameError(false);
   };
 
-  const showCatalogInDropdown = searchQuery.trim().length > 0;
+  const showCatalogInDropdown = true;
   const showChartDropdownSection = false;
   const showDentalServiceDropdownSection = showCatalogInDropdown;
-  const showSearchEmptyHint = searchQuery.trim() === "";
+  const showSearchEmptyHint = searchQuery.trim() === "" && !apiDentalLoading && filteredTreatments.length === 0;
 
   const isAntdOverlayTarget = (target) =>
     target instanceof Element &&
@@ -654,15 +756,19 @@ export function AddEditPlanDrawer() {
                 </div>
               </header>
 
-              <PlanServiceTable
-                rows={rows}
-                updateRow={updateRow}
-                removeRow={removeRow}
-                activeCell={activeCell}
-                setCellActive={setCellActive}
-                clearCellActive={clearCellActive}
-                isCellActive={isCellActive}
-              />
+              {rows.length > 0 && (
+                <div className={styles.servicesTableScroll}>
+                  <PlanServiceTable
+                    rows={rows}
+                    updateRow={updateRow}
+                    removeRow={removeRow}
+                    activeCell={activeCell}
+                    setCellActive={setCellActive}
+                    clearCellActive={clearCellActive}
+                    isCellActive={isCellActive}
+                  />
+                </div>
+              )}
 
               <div
                 data-rx-module-root="true"
@@ -683,7 +789,12 @@ export function AddEditPlanDrawer() {
                         setSearchOpen(true);
                         setHighlightedIndex(0);
                       }}
-                      onFocus={() => setSearchOpen(true)}
+                      onFocus={() => {
+                        setSearchOpen(true);
+                        setHighlightedIndex(0);
+                        fetchDentalServices(searchQuery);
+                        window.requestAnimationFrame(() => updateDropdownPos());
+                      }}
                       onKeyDown={handleSearchKeyDown}
                       placeholder="Search & Add Service"
                       className={styles.searchInput}
@@ -780,6 +891,7 @@ export function AddEditPlanDrawer() {
               showSearchEmptyHint={showSearchEmptyHint}
               showAddCustomDental={showAddCustomDental}
               searchQuery={searchQuery}
+              catalogLoading={apiDentalLoading}
               onAddExamSuggestion={addTreatmentRow}
               onAddCatalogItem={addTreatmentRow}
               onOpenCustomDentalDrawer={() => {
