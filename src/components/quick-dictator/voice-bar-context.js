@@ -119,7 +119,7 @@ export function qdToast(content, { type = "success", duration = 3, key, closable
   });
 }
 
-export function VoiceBarProvider({ children }) {
+export function VoiceBarProvider({ children, enabled = true }) {
   const [isOpen, setIsOpen] = useState(false);
   const [externalControllerActive, setExternalControllerActive] = useState(false);
   const [externalState, setExternalState] = useState({ status: "idle" });
@@ -137,13 +137,14 @@ export function VoiceBarProvider({ children }) {
   const restoreFocusRef = useRef(null);
 
   const open = useCallback(() => {
+    if (!enabled) return;
     if (typeof document !== "undefined") {
       const active = document.activeElement;
       restoreFocusRef.current =
         active && active !== document.body ? active : null;
     }
     setIsOpen(true);
-  }, []);
+  }, [enabled]);
 
   const close = useCallback(({ restoreFocus = true } = {}) => {
     setIsOpen(false);
@@ -161,10 +162,20 @@ export function VoiceBarProvider({ children }) {
     restoreFocusRef.current = null;
   }, []);
 
-  const openTutorial = useCallback(() => setIsTutorialOpen(true), []);
+  const openTutorial = useCallback(() => {
+    if (!enabled) return;
+    setIsTutorialOpen(true);
+  }, [enabled]);
   const closeTutorial = useCallback(() => setIsTutorialOpen(false), []);
 
   useEffect(() => {
+    if (!enabled) {
+      setExternalControllerActive(false);
+      setExternalState({ status: "idle" });
+      setIsOpen(false);
+      setIsTutorialOpen(false);
+      return undefined;
+    }
     if (typeof window === "undefined") return;
 
     const onController = (event) => {
@@ -199,7 +210,7 @@ export function VoiceBarProvider({ children }) {
       window.removeEventListener("tp-quickdict-controller", onController);
       window.removeEventListener("tp-quickdict-state", onExternalState);
     };
-  }, []);
+  }, [enabled]);
 
   // ── Route the final transcript ──────────────────────────────────────────
   // Returns "input" | "editable" | "clipboard" | "empty" so the caller can
@@ -262,6 +273,7 @@ export function VoiceBarProvider({ children }) {
 
   // ── Double-tap Shift / single-Shift / Esc ──────────────────────────────
   useEffect(() => {
+    if (!enabled) return;
     if (typeof window === "undefined") return;
     let lastShiftTs = 0;
 
@@ -303,10 +315,11 @@ export function VoiceBarProvider({ children }) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [externalControllerActive, isOpen, open, close]);
+  }, [enabled, externalControllerActive, isOpen, open, close]);
 
   // ── Auto-shimmer ping on every qualifying text focus ───────────────────
   useEffect(() => {
+    if (!enabled) return;
     if (typeof window === "undefined") return;
 
     const isShimmerSource = (el) => {
@@ -328,7 +341,7 @@ export function VoiceBarProvider({ children }) {
     };
     window.addEventListener("focusin", onFocusIn, true);
     return () => window.removeEventListener("focusin", onFocusIn, true);
-  }, [pingShimmer]);
+  }, [enabled, pingShimmer]);
 
   const value = useMemo(
     () => ({

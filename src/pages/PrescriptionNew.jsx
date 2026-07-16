@@ -2961,7 +2961,7 @@ function PrescriptionNew() {
   ]);
 
   return (
-    <VoiceBarProvider>
+    <VoiceBarProvider enabled={canUseVoiceRxModuleUi}>
     <CashManagerContext.Provider value={contextApi}>
       <RxPadSyncProvider>
         <PrescriptionNewRxPadCopyListener />
@@ -3533,9 +3533,13 @@ function PrescriptionNew() {
         </>
       </RxPadSyncProvider>
     </CashManagerContext.Provider>
-    <VoiceBar />
-    <QuickDictateCoachMark />
-    <TutorialDrawer />
+    {canUseVoiceRxModuleUi && (
+      <>
+        <VoiceBar />
+        <QuickDictateCoachMark />
+        <TutorialDrawer />
+      </>
+    )}
     </VoiceBarProvider>
   );
 }
