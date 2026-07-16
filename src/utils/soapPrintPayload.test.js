@@ -243,6 +243,19 @@ describe("buildSoapIndividualPrintPayload", () => {
           showFile: "data:image/png;base64,watermark",
         },
         caseManagerData: {
+          patient_data: {
+            patient_name: "Print Patient",
+            patient_id: "PAT077",
+            patient_gender: "Male",
+            ageYears: 38,
+            ageMonths: 6,
+            ageDays: 13,
+            patient_ht_wt: "876kgs",
+          },
+          doctor_data: {
+            um_id: "PRINT_DOCTOR",
+            doctor_name: "Print Doctor",
+          },
           symptoms: [{ symptom_name: "old symptom" }],
           moduleContents: [{ module_id: 123, content: [] }],
         },
@@ -251,7 +264,16 @@ describe("buildSoapIndividualPrintPayload", () => {
       patient_data: { patient_unique_id: "P1" },
       profile: {},
       userId: "U1",
-      caseManagerData: {},
+      caseManagerData: {
+        patient_data: {
+          patient_name: "Route Patient",
+          patient_id: "ROUTE",
+        },
+        doctor_data: {
+          um_id: "ROUTE_DOCTOR",
+          doctor_name: "Route Doctor",
+        },
+      },
       currentTcmId: 1,
       pamId: 2,
       consultationDate: "2026-07-14 17:00:00",
@@ -285,6 +307,152 @@ describe("buildSoapIndividualPrintPayload", () => {
     expect(payload.caseManagerData.moduleContents[0]).toEqual(
       expect.objectContaining({ module_id: SOAP_PRINT_MODULE_ID })
     );
+    expect(payload.caseManagerData.patient_data).toEqual(
+      expect.objectContaining({
+        patient_name: "Print Patient",
+        patient_id: "PAT077",
+        patient_gender: "Male",
+        ageYears: 38,
+        ageMonths: 6,
+        ageDays: 13,
+        patient_ht_wt: "876kgs",
+      })
+    );
+    expect(payload.caseManagerData.doctor_data).toEqual(
+      expect.objectContaining({
+        um_id: "PRINT_DOCTOR",
+        doctor_name: "Print Doctor",
+      })
+    );
     expect(payload.patientBills).toEqual([]);
+  });
+
+  it("falls back to print settings when base print payload is unavailable", () => {
+    const payload = buildSoapIndividualPrintPayload({
+      soapHtml: "<h1>Subjective</h1><ul><li>Fever</li></ul>",
+      basePrintPayload: null,
+      patient_data: { patient_unique_id: "P1" },
+      profile: {},
+      userId: "U1",
+      caseManagerData: {},
+      currentTcmId: 1,
+      pamId: 2,
+      consultationDate: "2026-07-14 17:00:00",
+      defaultPrintSettings: {
+        ...defaultPrintSettings,
+        letterhead_format: 1,
+        header_image: "https://example.com/header.png",
+        footer_image: "https://example.com/footer.png",
+      },
+      frequencyList: [],
+      timingList: [],
+    });
+
+    expect(payload).toEqual(
+      expect.objectContaining({
+        fileHeader: expect.objectContaining({
+          imageShow: true,
+          showFile: "https://example.com/header.png",
+        }),
+        fileFooter: expect.objectContaining({
+          imageShow: true,
+          showFile: "https://example.com/footer.png",
+        }),
+      })
+    );
+    expect(payload.caseManagerData.moduleContents[0]).toEqual(
+      expect.objectContaining({ module_id: SOAP_PRINT_MODULE_ID })
+    );
+  });
+
+  it("does not read asset fields from a null base print payload", () => {
+    const payload = buildSoapIndividualPrintPayload({
+      soapHtml: "<h1>Subjective</h1><ul><li>Fever</li></ul>",
+      basePrintPayload: null,
+      patient_data: { patient_unique_id: "P1" },
+      profile: {},
+      userId: "U1",
+      caseManagerData: {},
+      currentTcmId: 1,
+      pamId: 2,
+      consultationDate: "2026-07-14 17:00:00",
+      defaultPrintSettings: {
+        ...defaultPrintSettings,
+        logo_enable: "Y",
+        logo_image: "https://example.com/logo.png",
+        water_mark_enable: "Y",
+        water_mark_image: "https://example.com/watermark.png",
+        signature_enable: "Y",
+        signature_image: "https://example.com/signature.png",
+        header_image: "https://example.com/header.png",
+        footer_image: "https://example.com/footer.png",
+      },
+      frequencyList: [],
+      timingList: [],
+    });
+
+    expect(payload.fileLogo).toEqual(
+      expect.objectContaining({ showFile: "https://example.com/logo.png" })
+    );
+    expect(payload.fileWatermark).toEqual(
+      expect.objectContaining({ showFile: "https://example.com/watermark.png" })
+    );
+    expect(payload.fileSignature).toEqual(
+      expect.objectContaining({ showFile: "https://example.com/signature.png" })
+    );
+  });
+
+  it("maps confirmed route patient fields when print patient data is unavailable", () => {
+    const payload = buildSoapIndividualPrintPayload({
+      soapHtml: "<h1>Subjective</h1><ul><li>Fever</li></ul>",
+      basePrintPayload: null,
+      patient_data: {
+        pm_fullname: "Test  Test",
+        patient_unique_id: 6328056543,
+        pm_id: 7564994,
+        pm_pid: "PAT0000",
+        pm_salutation: "Mr",
+        pm_contact_no: "1231231231",
+        DOB: "23rd Aug 2001",
+        ageYears: 24,
+        ageMonths: 10,
+        ageDays: 23,
+        pm_gender: "Male",
+        pm_email: null,
+        pm_address: "",
+        pm_blood_group: null,
+        patient_address: "",
+      },
+      profile: {},
+      userId: "U1",
+      caseManagerData: {},
+      currentTcmId: 1,
+      pamId: 2,
+      consultationDate: "2026-07-16 14:33:32",
+      defaultPrintSettings,
+      frequencyList: [],
+      timingList: [],
+    });
+
+    expect(payload.caseManagerData.patient_data).toEqual(
+      expect.objectContaining({
+        patient_unique_id: 6328056543,
+        pm_id: 7564994,
+        patient_id: "PAT0000",
+        patient_salutation: "Mr",
+        patient_name: "Test  Test",
+        patient_dob: "23rd Aug 2001",
+        patient_age: 24,
+        ageYears: 24,
+        ageMonths: 10,
+        ageDays: 23,
+        patient_gender: "Male",
+        patient_contact_no: "1231231231",
+        patient_email: null,
+        patient_address: "",
+        patient_blood_group: null,
+        patient_consultaion_date: "2026-07-16 14:33:32",
+      })
+    );
   });
 });

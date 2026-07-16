@@ -261,6 +261,7 @@ function normalizePrintAsset(asset, fallbackUrl) {
 }
 
 function buildPrintAssetsFromSettings(printSettings, basePayload = {}) {
+  const safeBasePayload = basePayload || {};
   if (!printSettings) {
     return {
       fileHeader: null,
@@ -274,18 +275,18 @@ function buildPrintAssetsFromSettings(printSettings, basePayload = {}) {
   return {
     fileLogo:
       printSettings.logo_enable === "Y"
-        ? normalizePrintAsset(basePayload.fileLogo, printSettings.logo_image)
+        ? normalizePrintAsset(safeBasePayload.fileLogo, printSettings.logo_image)
         : null,
     fileWatermark:
       printSettings.water_mark_enable === "Y"
-        ? normalizePrintAsset(basePayload.fileWatermark, printSettings.water_mark_image)
+        ? normalizePrintAsset(safeBasePayload.fileWatermark, printSettings.water_mark_image)
         : null,
     fileSignature:
       printSettings.signature_enable === "Y"
-        ? normalizePrintAsset(basePayload.fileSignature, printSettings.signature_image)
+        ? normalizePrintAsset(safeBasePayload.fileSignature, printSettings.signature_image)
         : null,
-    fileHeader: normalizePrintAsset(basePayload.fileHeader, printSettings.header_image),
-    fileFooter: normalizePrintAsset(basePayload.fileFooter, printSettings.footer_image),
+    fileHeader: normalizePrintAsset(safeBasePayload.fileHeader, printSettings.header_image),
+    fileFooter: normalizePrintAsset(safeBasePayload.fileFooter, printSettings.footer_image),
   };
 }
 
@@ -294,28 +295,42 @@ function mapPatientDataForPrint(patientData, consultationDate, existing = {}) {
     ...existing,
     patient_unique_id:
       patientData?.patient_unique_id || existing?.patient_unique_id,
+    pm_id: existing?.pm_id ?? patientData?.pm_id,
+    patient_id: existing?.patient_id || patientData?.patient_id || patientData?.pm_pid,
+    patient_salutation:
+      existing?.patient_salutation || patientData?.patient_salutation || patientData?.pm_salutation,
     patient_name:
-      patientData?.pm_fullname ||
-      existing?.patient_name ||
-      patientData?.patient_name,
-    patient_id: patientData?.pm_pid || existing?.patient_id,
+      existing?.patient_name || patientData?.patient_name || patientData?.pm_fullname,
+    patient_dob: existing?.patient_dob || patientData?.patient_dob || patientData?.DOB,
+    patient_age: existing?.patient_age ?? patientData?.patient_age ?? patientData?.ageYears,
+    ageYears: existing?.ageYears ?? patientData?.ageYears,
+    ageMonths: existing?.ageMonths ?? patientData?.ageMonths,
+    ageDays: existing?.ageDays ?? patientData?.ageDays,
+    patient_gender:
+      existing?.patient_gender || patientData?.patient_gender || patientData?.pm_gender,
     patient_contact_no:
-      patientData?.pm_contact_no || existing?.patient_contact_no,
-    patient_gender: patientData?.pm_gender || existing?.patient_gender,
-    patient_age: patientData?.ageYears || patientData?.age || existing?.patient_age,
+      existing?.patient_contact_no || patientData?.patient_contact_no || patientData?.pm_contact_no,
+    patient_email: existing?.patient_email ?? patientData?.patient_email ?? patientData?.pm_email,
+    patient_address:
+      existing?.patient_address ?? patientData?.patient_address ?? patientData?.pm_address,
+    patient_blood_group:
+      existing?.patient_blood_group ?? patientData?.patient_blood_group ?? patientData?.pm_blood_group,
+    patient_secondary_name:
+      existing?.patient_secondary_name ?? patientData?.patient_secondary_name,
+    patient_secondary_contact:
+      existing?.patient_secondary_contact ?? patientData?.patient_secondary_contact,
+    patient_reference_id:
+      existing?.patient_reference_id || patientData?.patient_reference_id,
+    patient_ht_wt: existing?.patient_ht_wt || patientData?.patient_ht_wt,
+    patient_consultation_type:
+      existing?.patient_consultation_type ?? patientData?.patient_consultation_type,
     patient_consultaion_date:
       consultationDate || existing?.patient_consultaion_date,
-    patient_salutation:
-      patientData?.pm_salutation || existing?.patient_salutation,
-    patient_address: patientData?.pm_address || existing?.patient_address,
-    patient_blood_group:
-      patientData?.pm_blood_group || existing?.patient_blood_group,
-    patient_dob: patientData?.pm_dob || existing?.patient_dob,
-    patient_email: patientData?.pm_email || existing?.patient_email,
-    patient_reference_id:
-      patientData?.pm_reference_id ||
-      patientData?.mrno ||
-      existing?.patient_reference_id,
+    patient_edd_date: existing?.patient_edd_date ?? patientData?.patient_edd_date,
+    patient_date_time: existing?.patient_date_time || patientData?.patient_date_time,
+    abhaAddress: existing?.abhaAddress ?? patientData?.abhaAddress,
+    patientCategory: existing?.patientCategory ?? patientData?.patientCategory,
+    caseType: existing?.caseType || patientData?.caseType,
     pam_id: patientData?.pam_id || existing?.pam_id,
   };
 }
@@ -372,6 +387,12 @@ export function buildSoapIndividualPrintPayload({
     fileSignature,
   } = buildPrintAssetsFromSettings(printSettings, basePrintPayload);
   const baseCaseManagerData = basePrintPayload?.caseManagerData || {};
+  const printSourceCaseManagerData =
+    Object.keys(baseCaseManagerData).length > 0
+      ? baseCaseManagerData
+      : caseManagerData || {};
+  const sourcePatientData = printSourceCaseManagerData.patient_data;
+  const sourceDoctorData = printSourceCaseManagerData.doctor_data;
 
   return {
     ...(basePrintPayload || {}),
@@ -385,15 +406,12 @@ export function buildSoapIndividualPrintPayload({
       patient_data: mapPatientDataForPrint(
         patient_data,
         consultationDate,
-        caseManagerData?.patient_data || baseCaseManagerData?.patient_data
+        sourcePatientData
       ),
       doctor_data: mapDoctorDataForPrint(
         profile,
         userId,
-        caseManagerData?.doctor_data ||
-          caseManagerData?.doctor_Data ||
-          baseCaseManagerData?.doctor_data ||
-          baseCaseManagerData?.doctor_Data
+        sourceDoctorData
       ),
       symptoms: [],
       examination: [],
