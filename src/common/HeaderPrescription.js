@@ -759,7 +759,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         // still loading, or AudioContext unsupported) — the backend judges the audio instead.
         const humanVoiceDetected = speechAnalysis.canEvaluateSpeechCoverage
             ? Boolean(
-                headerVoiceHumanVoiceDetectedRef.current &&
                 speechAnalysis.speechDurationMs >= HEADER_DICTATION_MIN_ACTIVE_AUDIO_MS &&
                 speechAnalysis.speechCoverageRatio >= HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO
             )
