@@ -283,6 +283,14 @@ function resolvePrescriptionPrintUrl(caseManagerData, routeState) {
   );
 }
 
+function resolvePrescriptionDoctorUserId(caseManagerData, profile, userId) {
+  return (
+    caseManagerData?.doctor_data?.um_id ||
+    profile?.um_id ||
+    userId
+  );
+}
+
 async function fetchPrescriptionPrintPayload({ printUrl, pamId, selectedLang }) {
   if (!printUrl) return null;
 
@@ -2908,8 +2916,31 @@ function PrescriptionNew() {
         console.error("Failed to fetch SOAP base print payload", payloadError);
       }
 
+      const prescriptionDoctorUserId = resolvePrescriptionDoctorUserId(
+        basePrintPayload?.caseManagerData || caseManagerData,
+        profile,
+        userId
+      );
+
+      if (!basePrintPayload?.printSettings) {
+        const action = await dispatch(
+          getDefaultPrintsettings({
+            default: false,
+            ...(prescriptionDoctorUserId ? { um_id: prescriptionDoctorUserId } : {}),
+          })
+        );
+        if (action.meta.requestStatus === "fulfilled" && action.payload) {
+          activePrintSettings = action.payload;
+        }
+      }
+
       if (!activePrintSettings) {
-        const action = await dispatch(getDefaultPrintsettings({ default: false }));
+        const action = await dispatch(
+          getDefaultPrintsettings({
+            default: false,
+            ...(prescriptionDoctorUserId ? { um_id: prescriptionDoctorUserId } : {}),
+          })
+        );
         if (action.meta.requestStatus !== "fulfilled" || !action.payload) {
           throw new Error("Print settings are unavailable.");
         }
