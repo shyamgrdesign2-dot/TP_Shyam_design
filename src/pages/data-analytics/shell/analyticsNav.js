@@ -24,7 +24,10 @@ export const IPD_NAV = [
   { id: "overview", label: "Overview", icon: "grids" },
   { id: "admissions", label: "Admissions", icon: "login" },
   { id: "wards", label: "Wards", icon: "building" },
-  { id: "clinical", label: "Clinical", icon: "health" },
+  // "Clinical Activity" removed (user ruling 2026-07-15): ipd/clinical returns
+  // zeros for every KPI/chart even over a 365-day window (notes/OT untracked;
+  // labResults reads the wrong table — Pm-Core BUG-5). Restore this entry when
+  // the backend ships real data.
   { id: "billing", label: "Billing", icon: "wallet-3" },
   { id: "reports", label: "Reports", icon: "document-download" },
 ];

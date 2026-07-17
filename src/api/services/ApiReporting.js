@@ -250,6 +250,10 @@ ApiReporting.clinicalCustomModels = (params) =>
 ApiReporting.clinicalProcedures = (params) =>
   get(`/api/v1/reports/clinical/procedures`, params);
 
+// Lookups — payment options, accounts, departments, incentive users
+ApiReporting.reportLookups = (params) =>
+  get(`/api/v1/reports/lookups`, params);
+
 /* --- v2.0 additions (API-CONTRACTS-CURRENT.md §3/§4) --- */
 // Per-topic monthly trends: topic=symptoms|investigations|conditions|medications,
 // months=3|6|12, top=1..10 → { trends:{labels,datasets}, emerging:[...] }

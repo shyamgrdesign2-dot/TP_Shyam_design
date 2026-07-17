@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiBulkMessages from "../../../api/services/ApiBulkMessages";
-import { previousWindow } from "./deltaUtils";
+import { toNum, pctDelta, safe, previousWindow } from "./deltaUtils";
 
 // Messages (bulk SMS / WhatsApp campaigns) — LIVE from the same APIs the
 // Messages page uses:
@@ -37,7 +37,6 @@ export default function useMessagesData({ startDate, endDate } = {}) {
       prevBody.start_date = prevWin.startDate;
       prevBody.end_date = prevWin.endDate;
     }
-    const safe = (p) => p.then((r) => r).catch(() => null);
     const [creditRes, campaignRes, prevCampaignRes] = await Promise.all([
       safe(ApiBulkMessages.userCredit()),
       safe(ApiBulkMessages.userCampaign(body)),
@@ -116,14 +115,6 @@ function buildKpis(credits, period = [], sent = [], scheduled = [], prevSent = [
   ];
 }
 
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return null;
-  return Math.round(((current - previous) / previous) * 100);
-}
-
 // Top campaigns by patients reached — chart series for a scrollable bar
 function buildReach(sent) {
   const rows = [...sent]
@@ -150,7 +141,3 @@ function truncate(s, max) {
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
-function toNum(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}

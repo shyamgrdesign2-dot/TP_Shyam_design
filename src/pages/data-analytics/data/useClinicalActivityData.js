@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { anyToDonut, seriesToXY } from "../charts/adapters";
+import { anyToDonut, seriesToXY, compactXY, compactDoctorLabel } from "../charts/adapters";
+import { toNum, pctDelta } from "./deltaUtils";
 
 export default function useClinicalActivityData({ startDate, endDate, clinicId } = {}) {
   const [state, setState] = useState({
@@ -19,9 +20,7 @@ export default function useClinicalActivityData({ startDate, endDate, clinicId }
     if (endDate) params.endDate = endDate;
     if (clinicId && clinicId !== "all") params.clinicId = clinicId;
 
-    const payload = await ApiReporting.ipdClinical(params)
-      .then((r) => r)
-      .catch(() => null);
+    const payload = await ApiReporting.ipdClinical(params).catch(() => null);
     const src = payload?.data ?? payload ?? {};
 
     setState({
@@ -29,7 +28,7 @@ export default function useClinicalActivityData({ startDate, endDate, clinicId }
       error: null,
       kpis: buildKpis(src.kpis),
       notesByType: anyToDonut(src.notesByType),
-      otByDoctor: src.otByDoctor ? seriesToXY(src.otByDoctor) : null,
+      otByDoctor: src.otByDoctor ? compactXY(seriesToXY(src.otByDoctor), compactDoctorLabel) : null,
       anaesthesiaMix: anyToDonut(src.anaesthesiaMix),
     });
   }, [startDate, endDate, clinicId]);
@@ -53,14 +52,6 @@ function buildKpis(raw) {
   ];
 }
 
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return undefined;
-  return Math.round(((current - previous) / previous) * 100);
-}
-
 function defaultKpis() {
   return [
     { key: "clinicalNotes", label: "Clinical notes", kind: "number", value: 0, tooltip: "Total progress and nursing notes documented" },
@@ -68,9 +59,4 @@ function defaultKpis() {
     { key: "dischargeSummaries", label: "Discharge summaries", kind: "number", value: 0, tooltip: "Number of discharge summary documents completed" },
     { key: "labResults", label: "Lab results", kind: "number", value: 0, tooltip: "Lab results recorded for admitted patients in the selected period" },
   ];
-}
-
-function toNum(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
 }

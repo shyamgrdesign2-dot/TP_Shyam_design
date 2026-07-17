@@ -123,6 +123,88 @@ export function capDonut(data, max = 5) {
   return [...data].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, max);
 }
 
+// Shorten x-axis labels so vertical bar charts don't overlap.
+// Common medical department abbreviations, then a general character cap.
+const DEPT_SHORT = {
+  paediatrics: "Pedia",
+  pediatrics: "Pedia",
+  gynaecology: "Gynec",
+  gynecology: "Gynec",
+  orthopaedics: "Ortho",
+  orthopedics: "Ortho",
+  ophthalmology: "Ophthal",
+  dermatology: "Derma",
+  cardiology: "Cardio",
+  neurology: "Neuro",
+  pulmonology: "Pulmo",
+  gastroenterology: "Gastro",
+  endocrinology: "Endo",
+  nephrology: "Nephro",
+  rheumatology: "Rheum",
+  anaesthesiology: "Anaesth",
+  anesthesiology: "Anesth",
+  "general/ family physician": "Gen/Family",
+  "general/family physician": "Gen/Family",
+  "general medicine": "Gen Med",
+  "general surgery": "Gen Surg",
+  "general surgical": "Gen Surg",
+};
+
+export function compactLabel(label, maxLen = 14) {
+  if (typeof label !== "string") return label;
+  const trimmed = label.trim();
+  const lower = trimmed.toLowerCase();
+  if (DEPT_SHORT[lower]) return DEPT_SHORT[lower];
+  if (trimmed.length <= maxLen) return trimmed;
+  return trimmed.slice(0, maxLen - 1).trimEnd() + "…";
+}
+
+export function compactDoctorLabel(label) {
+  if (typeof label !== "string") return label;
+  const trimmed = label.trim();
+  if (trimmed.length <= 12) return trimmed;
+  const drMatch = trimmed.match(/^(Dr\.?\s+)(\S+)/i);
+  if (drMatch) return drMatch[1] + drMatch[2];
+  const parts = trimmed.split(/\s+/);
+  if (parts.length > 1) return parts[0];
+  return trimmed.slice(0, 11).trimEnd() + "…";
+}
+
+export function compactXY(xy, formatter) {
+  if (!xy?.data) return xy;
+  const fmt = formatter || compactLabel;
+  return {
+    ...xy,
+    data: xy.data.map((row) => ({
+      ...row,
+      [xy.xKey || "x"]: fmt(row[xy.xKey || "x"]),
+    })),
+  };
+}
+
+export function zeroFillXY(xy, knownLabels, defaultSeriesKey) {
+  if (!xy) {
+    return {
+      data: knownLabels.map((l) => ({ x: l, [defaultSeriesKey]: 0 })),
+      series: [{ key: defaultSeriesKey, label: defaultSeriesKey }],
+      xKey: "x",
+    };
+  }
+  const xKey = xy.xKey || "x";
+  const existingLabels = (xy.data || []).map((r) => String(r[xKey]).trim().toLowerCase());
+  const missing = knownLabels.filter((w) => {
+    const wl = w.toLowerCase();
+    return !existingLabels.some((e) => e === wl || e.startsWith(wl) || wl.startsWith(e));
+  });
+  if (!missing.length) return xy;
+  const zeroRow = (label) => {
+    const row = { [xKey]: label };
+    for (const s of xy.series) row[s.key] = 0;
+    return row;
+  };
+  return { ...xy, data: [...(xy.data || []), ...missing.map(zeroRow)] };
+}
+
 function toNum(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
 import { listToDonut } from "../charts/adapters";
+import { pctDelta } from "./deltaUtils";
 
 // IPD Overview — /analytics/inpatient-summary (API-CONTRACTS-CURRENT §4).
 // REQUIRES startDate+endDate (a `days`-only request 400s); kpis are nested
@@ -24,9 +25,7 @@ export default function useInpatientData({ days, startDate, endDate, clinicId } 
     }
     if (clinicId && clinicId !== "all") params.clinicId = clinicId;
 
-    const payload = await ApiReporting.analyticsInpatientSummary(params)
-      .then((r) => r)
-      .catch(() => null);
+    const payload = await ApiReporting.analyticsInpatientSummary(params).catch(() => null);
     const src = payload?.data ?? payload;
 
     setState({
@@ -60,7 +59,10 @@ function buildKpis(src) {
   const prev = map.previous ?? map.lastPeriod ?? {};
   const hasPrev = prev && typeof prev === "object" && Object.keys(prev).length > 0;
   return IPD_KPIS.map((spec) => {
-    const val = firstAlias(map, spec.aliases);
+    let val = firstAlias(map, spec.aliases);
+    // The backend does not ship an `adc` kpi — derive it honestly as the
+    // mean of the census day-series in the same response.
+    if (spec.key === "adc" && !val) val = censusMean(src);
     const prevVal = hasPrev ? firstAlias(prev, spec.aliases) : 0;
     const showDelta = hasPrev && prevVal > 0 && spec.kind === "number";
     return {
@@ -75,12 +77,13 @@ function buildKpis(src) {
   });
 }
 
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return undefined;
-  return Math.round(((current - previous) / previous) * 100);
+// Average of the census day-series (occupied beds per day over the window).
+function censusMean(src) {
+  const data = src?.census?.datasets?.[0]?.data;
+  if (!Array.isArray(data) || !data.length) return 0;
+  const nums = data.map(Number).filter(Number.isFinite);
+  if (!nums.length) return 0;
+  return nums.reduce((a, v) => a + v, 0) / nums.length;
 }
 
 function wardsFromSummary(src) {

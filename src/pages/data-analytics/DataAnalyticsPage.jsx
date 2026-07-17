@@ -120,6 +120,11 @@ export default function DataAnalyticsPage() {
     if (doctorLocked) setDoctors([caps.selfId]);
   }, [doctorLocked, caps.selfId]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const handleRefresh = useCallback(() => {
+    // Bust the request cache so every endpoint re-fetches
+    import("./data/apiCache").then((m) => m.clearApiCache());
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   const navItems = NAV_BY_DEPARTMENT[department];
   const hero = heroFor(department, section);
@@ -234,7 +239,7 @@ export default function DataAnalyticsPage() {
                 </div>
               }
               actions={[
-                { type: "cta", icon: "refresh-arrow2", variant: "tonal", theme: "neutral", onClick: () => setRefreshKey((k) => k + 1), ariaLabel: "Refresh" },
+                { type: "cta", icon: "refresh-arrow2", variant: "tonal", theme: "neutral", onClick: handleRefresh, ariaLabel: "Refresh" },
               ]}
               density="compact"
             />

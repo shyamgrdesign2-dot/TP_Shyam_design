@@ -101,6 +101,8 @@ const KPI_ICON = {
   uniqueSx: "clipboard-text",
   totalSxMentions: "clipboard-text",
   patientsWithSymptoms: "profile-2user",
+  patientsExamined: "profile-2user",
+  patientsAdvised: "profile-2user",
   uniqueRx: "pill",
   totalRx: "pill",
   uniqueLabs: "flask",
@@ -400,7 +402,7 @@ function InfoTooltip({ text }) {
 
 export { InfoTooltip };
 
-export default function KpiRow({ title = "Key metrics", kpis = [], loading = false, columns }) {
+function KpiRow({ title = "Key metrics", kpis = [], loading = false, columns }) {
   const count = kpis.length || 4;
   return (
     <SectionBlock title={title} count={kpis.length}>
@@ -451,3 +453,5 @@ export default function KpiRow({ title = "Key metrics", kpis = [], loading = fal
     </SectionBlock>
   );
 }
+
+export default React.memo(KpiRow);

@@ -149,12 +149,18 @@
 
 /* ── Care sub-tabs ────────────────────────────────────────────────────── */
 
-/* Active trigger: label + icon in primary blue. Tesseract Tabs does this by
-   default (accent = blue-600), but the host app's global text cascade forces
-   the inner label span dark — restore the DS behaviour, tokens only. */
+/* Inactive trigger: primary text colour at semi-bold weight */
+.da-root [role="tab"][data-state="inactive"],
+.da-root [role="tab"][data-state="inactive"] [class*="_label"] {
+  color: var(--tesseract-fg-primary, var(--tesseract-slate-900)) !important;
+  font-weight: 600 !important;
+}
+
+/* Active trigger: label + icon in primary blue, bold weight */
 .da-root [role="tab"][data-state="active"],
 .da-root [role="tab"][data-state="active"] [class*="_label"] {
   color: var(--tesseract-blue-600) !important;
+  font-weight: 700 !important;
 }
 .da-root [role="tab"][data-state="active"] [aria-hidden="true"][style*="mask-image"] {
   background-color: var(--tesseract-blue-600) !important;

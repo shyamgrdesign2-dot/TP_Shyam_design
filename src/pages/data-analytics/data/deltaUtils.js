@@ -36,6 +36,19 @@ export function toNum(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Guarantee zero-filled donut categories: ensures every expected slice appears
+// even when the backend omits it.
+export function withCategories(list, categories) {
+  const have = new Map((list || []).map((d) => [String(d.label).toLowerCase(), d]));
+  return categories.map((c) => have.get(c.toLowerCase()) || { label: c, value: 0 });
+}
+
+// Swallow errors on a promise — returns null on failure so Promise.all never
+// rejects and downstream code can treat null as "no data".
+export function safe(p) {
+  return p.catch(() => null);
+}
+
 // LOWER_IS_BETTER keys: delta pill should be green when value decreases.
 export const INVERTED_POLARITY_KEYS = new Set([
   "cancelled",
@@ -49,6 +62,16 @@ export const INVERTED_POLARITY_KEYS = new Set([
   "avgQueueTime",
   "bedsBlocked",
 ]);
+
+// The clinic/care-family endpoints compare `hm_id = ?` / `um_id = ?` with the
+// raw value — a CSV like "390,391" silently coerces to the FIRST id (MySQL
+// string→number). Only the analytics/appointment/prescription families split
+// CSVs (contract §1). For care-family calls: pass a single id through, and
+// OMIT a multi-select (business-wide beats silently-one-clinic).
+export function singleIdOnly(v) {
+  const s = v == null || v === "all" ? "" : String(v);
+  return s && !s.includes(",") ? s : undefined;
+}
 
 // The equal-length window immediately before [startDate, endDate] — used to
 // fetch true previous-period numbers from endpoints that accept any range.

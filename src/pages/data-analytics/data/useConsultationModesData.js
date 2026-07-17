@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
 import ApiBulkMessages from "../../../api/services/ApiBulkMessages";
-import { anyToDonut, seriesToXY } from "../charts/adapters";
+import { anyToDonut, seriesToXY, compactXY, compactDoctorLabel } from "../charts/adapters";
+import { toNum, pctDelta, singleIdOnly } from "./deltaUtils";
+import { cached } from "./apiCache";
 
 // ── Stacked "Usage by doctor" ────────────────────────────────────────────
 // The backend's `byDoctor` is still a single "Consultations" series (spec
@@ -45,6 +47,8 @@ function getDoctorList() {
   return doctorListPromise;
 }
 
+const BATCH_SIZE = 4;
+
 async function buildStackedByDoctor(baseParams, doctorFilterCsv) {
   let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
   if (doctorFilterCsv) {
@@ -54,13 +58,22 @@ async function buildStackedByDoctor(baseParams, doctorFilterCsv) {
   doctors = doctors.slice(0, FANOUT_CAP);
   if (!doctors.length) return null;
 
-  const results = await Promise.all(
-    doctors.map((d) =>
-      ApiReporting.clinicConsultationModes({ ...baseParams, doctorId: d.um_id })
-        .then((r) => (r?.data ?? r)?.kpis ?? null)
-        .catch(() => null)
-    )
-  );
+  // Batch in groups of BATCH_SIZE to avoid saturating the browser's
+  // per-origin connection limit (6 for HTTP/1.1).
+  const results = new Array(doctors.length);
+  for (let i = 0; i < doctors.length; i += BATCH_SIZE) {
+    const batch = doctors.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map((d) =>
+        cached(`modes-dr-${d.um_id}`, baseParams, () =>
+          ApiReporting.clinicConsultationModes({ ...baseParams, doctorId: d.um_id })
+        )
+          .then((r) => (r?.data ?? r)?.kpis ?? null)
+          .catch(() => null)
+      )
+    );
+    batchResults.forEach((r, j) => { results[i + j] = r; });
+  }
 
   const rows = doctors
     .map((d, i) => ({ name: d.um_name || `Doctor ${d.um_id}`, k: results[i] }))
@@ -96,17 +109,20 @@ export default function useConsultationModesData({ month, startDate, endDate, do
       params.startDate = startDate;
       params.endDate = endDate;
     }
-    if (doctorId && doctorId !== "all") params.doctorId = doctorId;
-    if (clinicId && clinicId !== "all") params.clinicId = clinicId;
+    // clinic-family endpoint: single ids only (CSV silently narrows to the
+    // first id server-side). Multi-doctor is handled by the per-doctor
+    // stacked fan-out below, which filters by the selected CSV client-side.
+    const singleDoctor = singleIdOnly(doctorId);
+    const singleClinic = singleIdOnly(clinicId);
+    if (singleDoctor) params.doctorId = singleDoctor;
+    if (singleClinic) params.clinicId = singleClinic;
 
-    const payload = await ApiReporting.clinicConsultationModes(params)
-      .then((r) => r)
-      .catch(() => null);
+    const payload = await cached("modes", params, () => ApiReporting.clinicConsultationModes(params)).catch(() => null);
     const src = payload?.data ?? payload ?? {};
 
     // Prefer the backend's byDoctor only once it is per-mode (multi-dataset);
     // otherwise assemble the true stacked series via per-doctor calls.
-    let byDoctor = src.byDoctor ? seriesToXY(src.byDoctor) : null;
+    let byDoctor = src.byDoctor ? compactXY(seriesToXY(src.byDoctor), compactDoctorLabel) : null;
     if ((src.byDoctor?.datasets?.length || 0) <= 1) {
       const baseParams = {};
       if (month) baseParams.month = month;
@@ -114,9 +130,9 @@ export default function useConsultationModesData({ month, startDate, endDate, do
         baseParams.startDate = startDate;
         baseParams.endDate = endDate;
       }
-      if (clinicId && clinicId !== "all") baseParams.clinicId = clinicId;
+      if (singleClinic) baseParams.clinicId = singleClinic;
       const stacked = await buildStackedByDoctor(baseParams, doctorId && doctorId !== "all" ? doctorId : null);
-      if (stacked) byDoctor = seriesToXY(stacked);
+      if (stacked) byDoctor = compactXY(seriesToXY(stacked), compactDoctorLabel);
     }
 
     // Who uses it most — the doctor with the highest consultation volume
@@ -217,14 +233,6 @@ function mostActiveDoctor(byDoctor) {
   return bestTotal > 0 ? best : null;
 }
 
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return undefined;
-  return Math.round(((current - previous) / previous) * 100);
-}
-
 function defaultKpis() {
   return [
     { key: "total", label: "Total consultations", kind: "number", value: 0, tooltip: "Consultations across all Rx modes in the selected period" },
@@ -233,7 +241,3 @@ function defaultKpis() {
   ];
 }
 
-function toNum(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}

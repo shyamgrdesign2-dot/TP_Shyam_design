@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Skeleton } from "@dhspl-tatvacare/tesseract-ui";
 import SectionBlock from "./SectionBlock";
 import { ChartGrid, ChartTile, MaybeScroll } from "./ChartLayout";
@@ -7,6 +7,7 @@ import DonutWithLegend from "../charts/DonutWithLegend";
 import TrendTile from "./TrendTile";
 import { WEEK_LABELS } from "../charts/scaffolds";
 import useCareData from "../data/useCareData";
+import { pctDelta } from "../data/deltaUtils";
 import KpiRow from "./KpiRow";
 
 const ICON_BASE = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/";
@@ -53,7 +54,11 @@ export default function CareSection({ filters, subTab = "all" }) {
     endDate: filters?.endDate,
     doctorId: filters?.doctor,
     clinicId: filters?.clinic,
+    subTab,
   });
+
+  const kpis = useMemo(() => buildKpis(subTab, data), [subTab, data]);
+  const tiles = useMemo(() => buildTiles(subTab, data), [subTab, data]);
 
   if (data.loading) {
     return (
@@ -67,9 +72,6 @@ export default function CareSection({ filters, subTab = "all" }) {
       </div>
     );
   }
-
-  const kpis = buildKpis(subTab, data);
-  const tiles = buildTiles(subTab, data);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -137,8 +139,20 @@ function buildTiles(subTab, data) {
     bar("customByDoctor", "Custom medicines by doctor", "Selected period", "tablets", "Which doctors add the most custom (non-catalog) medicines. Zero until the backend serves the split.", data.customByDoctor, "Custom Rx", ["Dr A", "Dr B", "Dr C"]);
   }
 
+  if (subTab === "symptoms") {
+    bar("sympByDoctor", "Symptoms by doctor", "Selected period", "virus", "Which doctors record the most symptoms per patient", data.sympByDoctor, "Patients", ["Dr A", "Dr B", "Dr C"]);
+  }
+
+  if (subTab === "examination") {
+    bar("examByDoctor", "Examinations by doctor", "Selected period", "medical-service", "Which doctors document the most examination findings", data.examByDoctor, "Patients", ["Dr A", "Dr B", "Dr C"]);
+  }
+
   if (subTab === "lab-tests") {
-    bar("labByDoctor", "Investigations by doctor", "Selected period", "lab", "Which doctors suggest the most lab investigations. Zero until the backend serves the split.", data.labByDoctor, "Suggested", ["Dr A", "Dr B", "Dr C"]);
+    bar("labByDoctor", "Investigations by doctor", "Selected period", "lab", "Which doctors suggest the most lab investigations", data.labByDoctor, "Suggested", ["Dr A", "Dr B", "Dr C"]);
+  }
+
+  if (subTab === "advice") {
+    bar("adviceByDoctor", "Advice by doctor", "Selected period", "medical-service", "Which doctors give the most advice entries", data.adviceByDoctor, "Given", ["Dr A", "Dr B", "Dr C"]);
   }
 
   if (subTab === "vitals") {
@@ -221,11 +235,15 @@ function buildKpis(subTab, data) {
         { key: "totalSxMentions", label: "Symptom entries", kind: "number", value: sumDonut(data.symptoms), tooltip: "Symptom entries recorded across visits in the selected period", ...deltaVs(sumDonut(data.symptoms), data.symptomPrev, ["entries", "mentions", "total", "count"]) },
         { key: "patientsWithSymptoms", label: "Patients with symptoms", kind: "number", value: data.symptomPatients, tooltip: "Patients with at least one recorded symptom in the selected period", ...deltaVs(data.symptomPatients, data.symptomPrev, ["patientsWithSymptoms", "patientsWith", "patients"]) },
       ];
-    case "examination":
+    case "examination": {
+      // `entries` is the endpoint's exact count — sumDonut(top-10) undercounts.
+      const examCount = data.examEntries || sumDonut(data.examination);
       return [
         { key: "topExamination", label: "Top examination", kind: "text", value: top(data.examination), tooltip: "Most documented examination finding in the selected period" },
-        { key: "totalExam", label: "Total examinations", kind: "number", value: sumDonut(data.examination), tooltip: "Examination entries documented in the selected period", ...deltaVs(sumDonut(data.examination), data.examPrev, ["entries", "total", "count"]) },
+        { key: "totalExam", label: "Total examinations", kind: "number", value: examCount, tooltip: "Examination entries documented in the selected period", ...deltaVs(examCount, data.examPrev, ["entries", "total", "count"]) },
+        { key: "patientsExamined", label: "Patients examined", kind: "number", value: data.examPatients, tooltip: "Patients with at least one examination entry in the selected period", ...deltaVs(data.examPatients, data.examPrev, ["patientsExamined", "patients"]) },
       ];
+    }
     case "medications":
       return [
         { key: "topMedication", label: "Top medication", kind: "text", value: top(data.medications), tooltip: "Most prescribed medicine in the selected period" },
@@ -236,6 +254,7 @@ function buildKpis(subTab, data) {
       return [
         { key: "topInvestigation", label: "Top investigation", kind: "text", value: top(data.investigations), tooltip: "Most suggested lab investigation in the selected period" },
         { key: "totalLabs", label: "Suggested investigations", kind: "number", value: sumDonut(data.investigations), tooltip: "Lab investigations suggested in the selected period", ...deltaVs(sumDonut(data.investigations), data.labPrev, ["entries", "suggested", "total", "count"]) },
+        { key: "consultsWithTest", label: "Consults with investigation", kind: "percent", value: data.labCoveragePct, tooltip: "Share of consultations where at least one investigation was suggested" },
       ];
     case "vitals":
       return [
@@ -250,11 +269,14 @@ function buildKpis(subTab, data) {
         { key: "topLifestyle", label: "Top lifestyle factor", kind: "text", value: top(data.lifestyle), tooltip: "Most common lifestyle factor reported" },
         { key: "patientsWithHistory", label: "Patients with history", kind: "number", value: sumDonut(data.conditions), tooltip: "Patients with at least one medical history entry" },
       ];
-    case "advice":
+    case "advice": {
+      const adviceCount = data.adviceEntries || sumDonut(data.advice);
       return [
         { key: "topAdvice", label: "Top advice", kind: "text", value: top(data.advice), tooltip: "Advice given most often in the selected period" },
-        { key: "totalAdvice", label: "Total advice given", kind: "number", value: sumDonut(data.advice), tooltip: "Advice entries documented across visits", ...deltaVs(sumDonut(data.advice), data.advicePrev, ["entries", "total", "count"]) },
+        { key: "totalAdvice", label: "Total advice given", kind: "number", value: adviceCount, tooltip: "Advice entries documented across visits", ...deltaVs(adviceCount, data.advicePrev, ["entries", "total", "count"]) },
+        { key: "patientsAdvised", label: "Patients advised", kind: "number", value: data.advicePatients, tooltip: "Patients who received at least one advice entry in the selected period", ...deltaVs(data.advicePatients, data.advicePrev, ["patientsAdvised", "patients"]) },
       ];
+    }
     case "vaccines": {
       const vp = data.vaccines.prev;
       return [
@@ -293,14 +315,6 @@ function buildKpis(subTab, data) {
         { key: "topAdvice", label: "Top advice", kind: "text", value: top(data.advice), tooltip: "Advice given most often" },
       ];
   }
-}
-
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return undefined;
-  return Math.round(((current - previous) / previous) * 100);
 }
 
 function sumDonut(data) {

@@ -24,7 +24,10 @@ const monthOf = (d) =>
 export function datesToRange(start, end) {
   if (!(start instanceof Date) || !(end instanceof Date)) return periodToRange("7d");
   const diff = Math.round(Math.abs(end - start) / 86400000) + 1;
-  const days = [7, 15, 30, 90].reduce(
+  // 365 included: the billing analytics endpoints accept days=365, so
+  // Till date / This year charts cover the full year instead of snapping
+  // to 90 and silently dropping older activity.
+  const days = [7, 15, 30, 90, 365].reduce(
     (best, d) => (Math.abs(d - diff) < Math.abs(best - diff) ? d : best),
     7
   );

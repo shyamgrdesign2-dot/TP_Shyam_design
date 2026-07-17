@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { DonutChartZ } from "./EmptyAware";
 import { capDonut } from "./adapters";
 
@@ -8,9 +8,11 @@ export const DONUT_PALETTE = [
   "var(--tesseract-amber-500)",
   "var(--tesseract-success-500)",
   "var(--tesseract-error-500)",
+  "var(--tesseract-blue-300)",
+  "var(--tesseract-violet-300)",
 ];
 
-export default function DonutWithLegend({
+function DonutWithLegend({
   data,
   centerLabel,
   height = 200,
@@ -19,11 +21,17 @@ export default function DonutWithLegend({
   valueFormat,
   ...rest
 }) {
-  const capped = capDonut(data, max);
-  const items = capped.map((d, i) => ({
-    ...d,
-    color: colors[i] || colors[colors.length - 1],
-  }));
+  const items = useMemo(() =>
+    capDonut(data, max).map((d, i) => ({
+      ...d,
+      color: colors[i] || colors[colors.length - 1],
+    })),
+    [data, max, colors]
+  );
+  const centerFmt = useMemo(
+    () => (valueFormat ? (v) => valueFormat(v) : undefined),
+    [valueFormat]
+  );
 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
@@ -32,7 +40,7 @@ export default function DonutWithLegend({
           data={items}
           colors={colors}
           centerLabel={centerLabel}
-          centerValueFormat={(v) => (valueFormat ? valueFormat(v) : v)}
+          centerValueFormat={centerFmt}
           height={height}
           {...rest}
         />
@@ -86,3 +94,5 @@ export default function DonutWithLegend({
     </div>
   );
 }
+
+export default React.memo(DonutWithLegend);

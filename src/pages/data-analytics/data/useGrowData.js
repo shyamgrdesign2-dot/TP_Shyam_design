@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { anyToDonut, seriesToXY } from "../charts/adapters";
+import { anyToDonut, seriesToXY, compactXY, compactDoctorLabel } from "../charts/adapters";
+import { toNum, pctDelta, safe, singleIdOnly } from "./deltaUtils";
 
 export default function useGrowData({ month, startDate, endDate, doctorId, clinicId } = {}) {
   const [state, setState] = useState({
@@ -15,17 +16,20 @@ export default function useGrowData({ month, startDate, endDate, doctorId, clini
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
+    // clinic/operational endpoints take SINGLE ids (a CSV silently narrows
+    // to the first id server-side) — single passes, multi is omitted.
+    const singleDoctor = singleIdOnly(doctorId);
+    const singleClinic = singleIdOnly(clinicId);
     const monthParams = {};
     if (month) monthParams.month = month;
-    if (doctorId && doctorId !== "all") monthParams.doctorId = doctorId;
-    if (clinicId && clinicId !== "all") monthParams.clinicId = clinicId;
+    if (singleDoctor) monthParams.doctorId = singleDoctor;
+    if (singleClinic) monthParams.clinicId = singleClinic;
     const rangeParams = {};
     if (startDate) rangeParams.startDate = startDate;
     if (endDate) rangeParams.endDate = endDate;
-    if (doctorId && doctorId !== "all") rangeParams.doctorId = doctorId;
-    if (clinicId && clinicId !== "all") rangeParams.clinicId = clinicId;
+    if (singleDoctor) rangeParams.doctorId = singleDoctor;
+    if (singleClinic) rangeParams.clinicId = singleClinic;
 
-    const safe = (p) => p.then((r) => r).catch(() => null);
     const [followPayload, abhaPayload] = await Promise.all([
       safe(ApiReporting.clinicFollowups(monthParams)),
       safe(ApiReporting.operationalAbha(rangeParams)),
@@ -74,7 +78,7 @@ export default function useGrowData({ month, startDate, endDate, doctorId, clini
         { key: "abhaNotLinked", label: "Patients without ABHA", kind: "number", value: Math.max(totalPatients - linkedCount, 0), invert: true, tooltip: "Patients who do not have an ABHA health ID linked yet", ...(hasAbhaPrev ? { delta: pctDelta(Math.max(totalPatients - linkedCount, 0), Math.max(prevTotalPatients - prevLinkedCount, 0)) } : {}) },
       ],
       followups: follow ? seriesToXY(follow) : null,
-      fuByDoctor: follow?.byDoctor ? seriesToXY(follow.byDoctor) : null,
+      fuByDoctor: follow?.byDoctor ? compactXY(seriesToXY(follow.byDoctor), compactDoctorLabel) : null,
       abhaLinkage: linkageData,
       abhaTrend: abhaTrendData,
     });
@@ -104,15 +108,3 @@ function isLinkedLabel(label) {
   return (l.includes("linked") || l.includes("verified")) && !l.includes("not");
 }
 
-function toNum(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return undefined;
-  return Math.round(((current - previous) / previous) * 100);
-}

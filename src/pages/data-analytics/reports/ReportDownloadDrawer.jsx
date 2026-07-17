@@ -116,6 +116,8 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       setThreeCReportType("summary");
       setIpdReportType("admitting");
       setBillingOverallType("revenue");
+      setPaymentMode([]);
+      setDeptIds([]);
       setExportedRows(null);
       setToast(null);
     }
@@ -143,6 +145,8 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const needsBillingOverallType = reportFilters.includes("billingOverallType");
   const needsIncentiveUser = reportFilters.includes("incentiveUser");
   const needsAccount = reportFilters.includes("account");
+  const needsPaymentMode = reportFilters.includes("paymentMode");
+  const needsDepartment = reportFilters.includes("department");
   const hasAppointmentDetailFields = reportFilters.includes("appointmentDetailFields");
 
   // Per-tab field visibility, matched to what each endpoint's schema accepts:
@@ -154,10 +158,46 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const isCollectionDetailed = !needsCollectionReportType || collectionReportType === "detailed";
   const showBillType = needsBillType && isCollectionDetailed && (!needsBillingOverallType || isCashFlow);
   const showIssuedBy = needsIssuedBy && isCollectionDetailed;
+  const showPaymentMode = needsPaymentMode && isCollectionDetailed;
   const showThreeCBillTypes = needsThreeCBillTypes && threeCReportType === "summary";
   const showAccount = needsAccount && (!needsThreeCReportType || threeCReportType === "summary");
   const showIncentiveUser = needsIncentiveUser && (!needsThreeCReportType || threeCReportType === "details");
   const showAppointmentDetail = hasAppointmentDetailFields && appointmentReportType === "detailed";
+
+  // Mode of Payment (bpid), Account (tban_id), Department (dp_id) — pulled
+  // from the new /reports/lookups endpoint.
+  const [paymentModeOptions, setPaymentModeOptions] = useState([]);
+  const [accountOptions, setAccountOptions] = useState([]);
+  const [departmentOptions, setDepartmentOptions] = useState([]);
+  const [paymentMode, setPaymentMode] = useState([]);
+  const [deptFilter, setDeptIds] = useState([]);
+
+  useEffect(() => {
+    if (!open) return;
+    const needsLookup = needsPaymentMode || needsAccount || needsDepartment || needsIpdFilter;
+    if (!needsLookup) return;
+    let alive = true;
+    ApiReporting.reportLookups()
+      .then((r) => {
+        const data = r?.data ?? r ?? {};
+        if (!alive) return;
+        if (Array.isArray(data.paymentOptions) && data.paymentOptions.length) {
+          setPaymentModeOptions(data.paymentOptions.map((p) => ({ value: String(p.id), label: p.name || `Option ${p.id}` })));
+        }
+        if (Array.isArray(data.accounts) && data.accounts.length) {
+          setAccountOptions([
+            { value: "all", label: "All accounts" },
+            ...data.accounts.map((a) => ({ value: String(a.id), label: a.name || `Account ${a.id}` })),
+          ]);
+        }
+        if (Array.isArray(data.departments) && data.departments.length) {
+          setDepartmentOptions(data.departments.map((d) => ({ value: String(d.id), label: d.name || `Dept ${d.id}` })));
+        }
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, needsPaymentMode, needsAccount, needsDepartment, needsIpdFilter]);
 
   // Case types are ids (toct_id) — pulled from the EMR's own case-type list.
   const [caseTypeOptions, setCaseTypeOptions] = useState([]);
@@ -269,6 +309,8 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         ipdFilterIds: csv(ipdFilterIds),
         ipdReportType: ipdReportType || undefined,
         account: needsAccount ? account : undefined,
+        modeOfPayment: needsPaymentMode ? csv(paymentMode) : undefined,
+        deptIds: needsDepartment ? csv(deptFilter) : undefined,
       };
       const built = resolvedReport.buildParams ? resolvedReport.buildParams(base) : base;
       const blob = await resolvedReport.exportFetcher({ ...built, format: "csv" });
@@ -433,6 +475,16 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             />
           )}
 
+          {needsIpdFilter && ipdFilterBy === "department" && (
+            <MultiField
+              label="Departments"
+              placeholder="Select departments"
+              options={departmentOptions}
+              value={ipdFilterIds}
+              onChange={setIpdFilterIds}
+            />
+          )}
+
           {showIncentiveUser && (
             <MultiField
               label="Incentive User"
@@ -516,11 +568,32 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             <Field label="Account">
               <Dropdown
                 placeholder="All accounts"
-                options={[{ value: "all", label: "All accounts" }]}
+                options={accountOptions.length ? accountOptions : [{ value: "all", label: "All accounts" }]}
                 value={account}
                 onChange={(v) => setAccount(v || "all")}
+                searchable={accountOptions.length > 5}
               />
             </Field>
+          )}
+
+          {showPaymentMode && (
+            <MultiField
+              label="Mode of Payment"
+              placeholder="All modes"
+              options={paymentModeOptions}
+              value={paymentMode}
+              onChange={setPaymentMode}
+            />
+          )}
+
+          {needsDepartment && (
+            <MultiField
+              label="Department"
+              placeholder="All departments"
+              options={departmentOptions}
+              value={deptFilter}
+              onChange={setDeptIds}
+            />
           )}
 
           {showAppointmentDetail && (

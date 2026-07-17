@@ -38,22 +38,22 @@ export default function AdmissionsDepthSection({ filters }) {
       <SectionBlock title="More insights" count={4}>
         <ChartGrid>
           <ChartTile title="Discharge types" subtitle="Selected period" icon="logout" titleTooltip="How discharges split by type: recovered, referred, LAMA, DAMA, transfer out, death. Zero until the backend serves the split (discharge status, plausible from the discharge summary).">
-            <DonutWithLegend data={dischargeTypes} centerLabel="Discharges" height={240} />
+            <DonutWithLegend data={dischargeTypes} centerLabel="Discharges" height={240} max={7} />
           </ChartTile>
 
-          <ChartTile title="Admissions by department" subtitle="Selected period" icon="building" titleTooltip="Which departments admit the most patients. Zero until the backend serves the split (needs department on the admission record, profiling required).">
+          <ChartTile title="Admissions by department" subtitle="Departments with no admissions in the period are not shown" icon="building" titleTooltip="Which departments admit the most patients in the selected period. Departments without any admissions in the window are omitted from the chart.">
             <MaybeScroll count={admissionsByDept?.data?.length}>
               <BarChartZ
                 data={admissionsByDept?.data}
                 series={admissionsByDept?.series}
-                fallbackLabels={["General Med", "Ortho", "Gynec", "Surgery", "Paeds"]}
+                fallbackLabels={["Gen Med", "Ortho", "Gynec", "Surgery", "Pedia"]}
                 fallbackSeries={[{ key: "Admissions", label: "Admissions" }]}
                 height={240}
               />
             </MaybeScroll>
           </ChartTile>
 
-          <ChartTile title="Admissions by ward" subtitle="Selected period" icon="bed" titleTooltip="Which wards receive the most admissions, buildable from the ward tables">
+          <ChartTile title="Admissions by ward" subtitle="Wards with no admissions in the period are not shown" icon="bed" titleTooltip="Which wards receive the most admissions in the selected period. Wards without any admissions in the window (e.g. an idle ICU) are omitted from the chart, not zero.">
             <MaybeScroll count={admissionsByWard?.data?.length}>
               <BarChartZ
                 data={admissionsByWard?.data}

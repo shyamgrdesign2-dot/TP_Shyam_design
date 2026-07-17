@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { anyToDonut, seriesToXY } from "../charts/adapters";
+import { anyToDonut, seriesToXY, compactXY, zeroFillXY } from "../charts/adapters";
+import { toNum, pctDelta, withCategories } from "./deltaUtils";
 
 // IPD Admissions & Discharges — /analytics/inpatient-summary, DEPLOYED per
 // API-CONTRACTS-CURRENT §4: kpis{census,admissions,discharges,bor,alos,
@@ -8,6 +9,10 @@ import { anyToDonut, seriesToXY } from "../charts/adapters";
 // dischargeTypes donut + admissionsByDept/Ward + losDistribution.
 // WONT-BUILD (§7, removed from the UI): readmissions (always 0),
 // avgQueueTimeHrs (always 0), payorMix (no payor column).
+
+const KNOWN_DEPTS = ["Gen Med", "Ortho", "Gynec", "Surgery", "Pedia"];
+const KNOWN_WARDS = ["General", "Semi-private", "Private", "ICU", "NICU"];
+const LOS_BUCKETS = ["0-1d", "2-3d", "4-7d", "8-14d", "15d+"];
 
 export default function useAdmissionsData({ startDate, endDate, days, clinicId } = {}) {
   const [state, setState] = useState({
@@ -27,9 +32,7 @@ export default function useAdmissionsData({ startDate, endDate, days, clinicId }
     if (endDate) params.endDate = endDate;
     if (clinicId && clinicId !== "all") params.clinicId = clinicId;
 
-    const payload = await ApiReporting.analyticsInpatientSummary(params)
-      .then((r) => r)
-      .catch(() => null);
+    const payload = await ApiReporting.analyticsInpatientSummary(params).catch(() => null);
     const src = payload?.data ?? payload ?? {};
 
     setState({
@@ -42,10 +45,20 @@ export default function useAdmissionsData({ startDate, endDate, days, clinicId }
         "DAMA",
         "Transfer out",
         "Death",
+        "Unspecified",
       ]),
-      admissionsByDept: src.admissionsByDept ? seriesToXY(src.admissionsByDept) : null,
-      admissionsByWard: src.admissionsByWard ? seriesToXY(src.admissionsByWard) : null,
-      losDistribution: src.losDistribution ? seriesToXY(src.losDistribution) : null,
+      admissionsByDept: zeroFillXY(
+        src.admissionsByDept ? compactXY(seriesToXY(src.admissionsByDept)) : null,
+        KNOWN_DEPTS, "Admissions"
+      ),
+      admissionsByWard: zeroFillXY(
+        src.admissionsByWard ? compactXY(seriesToXY(src.admissionsByWard)) : null,
+        KNOWN_WARDS, "Admissions"
+      ),
+      losDistribution: zeroFillXY(
+        src.losDistribution ? seriesToXY(src.losDistribution) : null,
+        LOS_BUCKETS, "Stays"
+      ),
     });
   }, [startDate, endDate, days, clinicId]);
 
@@ -57,31 +70,17 @@ export default function useAdmissionsData({ startDate, endDate, days, clinicId }
 }
 
 function buildKpis(src) {
-  const prev = src.previous ?? src.lastPeriod ?? {};
-  const hasPrev = prev && (num(prev.admissions) > 0 || num(prev.discharges) > 0);
+  // v2.0 nests the numbers under `kpis` (API-CONTRACTS-CURRENT §4) — the old
+  // top-level read left this row at zero while the charts (top-level fields)
+  // rendered real data.
+  const k = (src && typeof src === "object" && (src.kpis || src)) || {};
+  const prev = k.previous ?? k.lastPeriod ?? {};
+  const hasPrev = prev && (toNum(prev.admissions) > 0 || toNum(prev.discharges) > 0);
   return [
-    { key: "admissions", label: "Total admissions", kind: "number", value: num(src.admissions ?? src.totalAdmissions), tooltip: "Patients admitted in the selected period", ...(hasPrev ? { delta: pctDelta(num(src.admissions ?? src.totalAdmissions), num(prev.admissions)) } : {}) },
-    { key: "discharges", label: "Total discharges", kind: "number", value: num(src.discharges ?? src.totalDischarges), tooltip: "Patients discharged in the selected period", ...(hasPrev ? { delta: pctDelta(num(src.discharges ?? src.totalDischarges), num(prev.discharges)) } : {}) },
-    { key: "alos", label: "Avg length of stay", kind: "days", value: num(src.alos ?? src.avgLengthOfStay), approx: true, tooltip: "Average days from admission to discharge, for stays discharged in the selected period" },
-    { key: "dischargeQueue", label: "Discharge queue", kind: "number", value: num(src.dischargeQueue), tooltip: "Patients whose discharge is initiated but not completed, as of now" },
-    { key: "longestStay", label: "Longest stay", kind: "days", value: num(src.longestStayDays), tooltip: "Longest current or completed stay in the selected period" },
+    { key: "admissions", label: "Total admissions", kind: "number", value: toNum(k.admissions ?? k.totalAdmissions), tooltip: "Patients admitted in the selected period", ...(hasPrev ? { delta: pctDelta(toNum(k.admissions ?? k.totalAdmissions), toNum(prev.admissions)) } : {}) },
+    { key: "discharges", label: "Total discharges", kind: "number", value: toNum(k.discharges ?? k.totalDischarges), tooltip: "Patients discharged in the selected period", ...(hasPrev ? { delta: pctDelta(toNum(k.discharges ?? k.totalDischarges), toNum(prev.discharges)) } : {}) },
+    { key: "alos", label: "Avg length of stay", kind: "days", value: toNum(k.alos ?? k.avgLengthOfStay), approx: true, tooltip: "Average days from admission to discharge, for stays discharged in the selected period" },
+    { key: "dischargeQueue", label: "Discharge queue", kind: "number", value: toNum(k.dischargeQueue), tooltip: "Patients whose discharge is initiated but not completed, as of now" },
+    { key: "longestStay", label: "Longest stay", kind: "days", value: toNum(k.longestStayDays), tooltip: "Longest current or completed stay in the selected period" },
   ];
-}
-
-function withCategories(list, categories) {
-  const have = new Map((list || []).map((d) => [String(d.label).toLowerCase(), d]));
-  return categories.map((c) => have.get(c.toLowerCase()) || { label: c, value: 0 });
-}
-
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return undefined;
-  return Math.round(((current - previous) / previous) * 100);
-}
-
-function num(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
 }

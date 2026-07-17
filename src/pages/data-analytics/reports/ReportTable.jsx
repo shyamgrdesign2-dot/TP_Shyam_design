@@ -28,7 +28,7 @@ export default function ReportTable({
       return;
     }
     setState((s) => ({ ...s, loading: true }));
-    const payload = await fetcher(params).then((r) => r).catch(() => null);
+    const payload = await fetcher(params).catch(() => null);
     setState({ loading: false, ...normalizeTable(payload) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey]);

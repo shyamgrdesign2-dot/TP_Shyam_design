@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import api from "../../../api/services/axiosService";
 import ApiAppointments from "../../../api/services/ApiAppointments";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { previousWindow } from "./deltaUtils";
+import { toNum as num, pctDelta, previousWindow } from "./deltaUtils";
 import config from "../../../config";
+import { cached } from "./apiCache";
 
 // NOTE: this is the ONE non-GET analytics call. It reuses the app's
 // operational POST /appointment/listAppointment because it is today's only
@@ -57,7 +58,6 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
         .post(`/api/v1/appointment/listAppointment`, b, {
           customBaseUrl: config.appointment_api_url,
         })
-        .then((r) => r)
         .catch(() => null);
     // True previous-period numbers: same query over the equal-length window
     // immediately before the selected range → real "vs previous period" pills.
@@ -70,19 +70,14 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
     if (doctorId && doctorId !== "all") summaryParams.doctorId = doctorId;
     const rangeDays = (new Date(endDate) - new Date(startDate)) / 86400000 + 1;
     const [res, prevRes, undigitised, apptSummary, prevApptSummary] = await Promise.all([
-      post(body),
-      prevWin ? post({ ...body, startDate: prevWin.startDate, endDate: prevWin.endDate }) : Promise.resolve(null),
-      // The full pending-digitisation list — the SAME source as the appointment
-      // list's "Pending Digitisation" tab (the ids endpoint returns 0 rows).
-      ApiAppointments.getAllUnDigitisedAppointmentsList()
-        .then((r) => r)
-        .catch(() => null),
+      cached("apptList", body, () => post(body)),
+      prevWin ? cached("apptList-prev", { ...body, startDate: prevWin.startDate, endDate: prevWin.endDate }, () => post({ ...body, startDate: prevWin.startDate, endDate: prevWin.endDate })) : Promise.resolve(null),
+      cached("undigitised", {}, () => ApiAppointments.getAllUnDigitisedAppointmentsList().catch(() => null)),
       rangeDays <= 30
-        ? ApiReporting.clinicalAppointmentSummary(summaryParams).then((r) => r).catch(() => null)
+        ? cached("apptSummary", summaryParams, () => ApiReporting.clinicalAppointmentSummary(summaryParams).catch(() => null))
         : Promise.resolve(null),
-      // Previous-window channel split → deltas on the In-clinic / Video cards
       rangeDays <= 30 && prevWin
-        ? ApiReporting.clinicalAppointmentSummary({ ...summaryParams, startDate: prevWin.startDate, endDate: prevWin.endDate }).then((r) => r).catch(() => null)
+        ? cached("apptSummary-prev", { ...summaryParams, startDate: prevWin.startDate, endDate: prevWin.endDate }, () => ApiReporting.clinicalAppointmentSummary({ ...summaryParams, startDate: prevWin.startDate, endDate: prevWin.endDate }).catch(() => null))
         : Promise.resolve(null),
     ]);
     const undigitisedList = Array.isArray(undigitised)
@@ -145,20 +140,6 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
   return { ...state, reload: load };
 }
 
-function num(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return undefined;
-  return Math.round(((current - previous) / previous) * 100);
-}
-
-// { delta } only when a real previous value exists — keeps card objects clean.
 function maybeDelta(current, previous) {
   const d = pctDelta(current, previous);
   return d == null ? {} : { delta: d };

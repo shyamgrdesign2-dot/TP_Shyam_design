@@ -3,7 +3,8 @@ import { useSelector } from "react-redux";
 import api from "../../../api/services/axiosService";
 import config from "../../../config";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { previousWindow } from "./deltaUtils";
+import { toNum as num, pctDelta, safe, previousWindow } from "./deltaUtils";
+import { cached } from "./apiCache";
 
 const ZERO_KPIS = [
   { key: "billed", label: "Total billed", kind: "money", value: 0 },
@@ -54,7 +55,6 @@ export default function useBillingLive({ startDate, endDate, department = "opd",
       String(clinicId).split(",").filter(Boolean).forEach((id) => qp.append("clinicId", id));
     }
     const billPath = department === "ipd" ? "ipd-bill" : "bill";
-    const safe = (p) => p.then((r) => r).catch(() => null);
     // True previous-period numbers: same query over the equal-length window
     // immediately before the selected range → real "vs previous period" pills.
     const prevWin = previousWindow(startDate, endDate);
@@ -70,12 +70,14 @@ export default function useBillingLive({ startDate, endDate, department = "opd",
     const collParams = { startDate, endDate, type: department };
     if (clinicId && clinicId !== "all" && !String(clinicId).includes(",")) collParams.clinicId = clinicId;
     if (doctorId && doctorId !== "all" && !String(doctorId).includes(",")) collParams.doctorId = doctorId;
+    const billUrl = `/api/v1/billing/${billPath}/dashboard?${qp.toString()}`;
+    const advUrl = `/api/v1/billing/advancedDeposit/dashboard?${qp.toString()}`;
     const [bill, adv, prevBill, prevAdv, collSummary] = await Promise.all([
-      safe(api.get(`/api/v1/billing/${billPath}/dashboard?${qp.toString()}`, base)),
-      safe(api.get(`/api/v1/billing/advancedDeposit/dashboard?${qp.toString()}`, base)),
-      prevWin ? safe(api.get(`/api/v1/billing/${billPath}/dashboard?${prevQp.toString()}`, base)) : Promise.resolve(null),
-      prevWin ? safe(api.get(`/api/v1/billing/advancedDeposit/dashboard?${prevQp.toString()}`, base)) : Promise.resolve(null),
-      safe(ApiReporting.financialCollectionSummary(collParams)),
+      safe(cached(`bill-${billPath}`, { q: qp.toString() }, () => api.get(billUrl, base))),
+      safe(cached("advDeposit", { q: qp.toString() }, () => api.get(advUrl, base))),
+      prevWin ? safe(cached(`bill-${billPath}-prev`, { q: prevQp.toString() }, () => api.get(`/api/v1/billing/${billPath}/dashboard?${prevQp.toString()}`, base))) : Promise.resolve(null),
+      prevWin ? safe(cached("advDeposit-prev", { q: prevQp.toString() }, () => api.get(`/api/v1/billing/advancedDeposit/dashboard?${prevQp.toString()}`, base))) : Promise.resolve(null),
+      safe(cached("collSummary", collParams, () => ApiReporting.financialCollectionSummary(collParams))),
     ]);
 
     const s = bill?.summary ?? bill?.data?.summary ?? bill ?? {};
@@ -115,6 +117,10 @@ export default function useBillingLive({ startDate, endDate, department = "opd",
       ),
       refundModes: firstNonEmpty(
         paymentModeDonut(s.refundPaymentModeSummary || s.refundPaymentModes, "refundedAmount"),
+        // The bill dashboard's paymentModeSummary carries refundedAmount per
+        // mode — the dedicated refund summary field never ships, so this is
+        // the real source (works for any window).
+        paymentModeDonut(s.paymentModeSummary || s.paymentModes, "refundedAmount"),
         reportingModeDonut(collSummary, (m) => num(m.refundTotal))
       ),
       advanceModes: firstNonEmpty(
@@ -159,15 +165,3 @@ function paymentModeDonut(modes, preferKey) {
     .filter((d) => d.value > 0);
 }
 
-function num(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return undefined;
-  return Math.round(((current - previous) / previous) * 100);
-}

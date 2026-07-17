@@ -1,21 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { anyToDonut } from "../charts/adapters";
+import { anyToDonut, capDonut } from "../charts/adapters";
+import { toNum, extractDelta, safe, singleIdOnly, withCategories } from "./deltaUtils";
+import { cached } from "./apiCache";
 
-// OPD Overview data — the 10-second practice pulse: operational volume/money
-// KPIs PLUS the clinical highlight row (top diagnosis / symptom / medication /
-// chronic condition — the user considers these headline items). Deep clinical
-// breakdowns stay in Care.
-//
-// Money KPIs are NOT fetched here — the section merges them in from
-// useBillingLive, and footfall from useAppointmentsLive, so Overview always
-// matches the Billing / Appointments sections number-for-number.
-//
-// Sources:
-//   #1 /clinic/dashboard/top-cards   → consultations count + delta, topDiagnosis
-//   #2 /clinic/consultations/weekly  → weekly chart (calendar-month comparison)
-//   /clinic/consultation-modes       → top mode KPI + mode-mix donut
-//   /operational/overview            → topMedication, topSymptom, topMedicalCondition
+// OPD Overview data — the 10-second practice pulse.
+// Optimized: primary batch = 5 calls (cards, weekly, modes, overview, patients).
+// Fallback batch (clinicRx, symptoms, medHistory) fires ONLY when
+// operationalOverview returns empty for topMedication/topSymptom/topCondition,
+// cutting the common-case burst from 8 to 5 concurrent requests.
 
 export default function useOverviewData({ month, startDate, endDate, doctorId, clinicId } = {}) {
   const [state, setState] = useState({
@@ -24,46 +17,77 @@ export default function useOverviewData({ month, startDate, endDate, doctorId, c
     kpis: buildKpis(),
     weekly: null,
     modeMix: [],
+    topMedications: [],
+    genderDistribution: [],
   });
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
-    // top-cards / consultation-modes accept the additive range (overrides
-    // month); the weekly chart is month-structured and ignores it.
     const params = {};
     if (month) params.month = month;
     if (startDate && endDate) {
       params.startDate = startDate;
       params.endDate = endDate;
     }
-    if (doctorId && doctorId !== "all") params.doctorId = doctorId;
-    if (clinicId && clinicId !== "all") params.clinicId = clinicId;
+    const singleDoctor = singleIdOnly(doctorId);
+    const singleClinic = singleIdOnly(clinicId);
+    if (singleDoctor) params.doctorId = singleDoctor;
+    if (singleClinic) params.clinicId = singleClinic;
     const rangeParams = { ...params };
     delete rangeParams.month;
+    const weeklyParams = {
+      ...(month ? { month } : {}),
+      ...(params.doctorId ? { doctorId: params.doctorId } : {}),
+      ...(params.clinicId ? { clinicId: params.clinicId } : {}),
+    };
 
-    const safe = (promise) => promise.then((r) => r).catch(() => null);
-    // operational/overview currently 500s on UAT (regression — reported to
-    // backend); the clinical topic endpoints are live, so the top-name KPIs
-    // fall back to the same sources Care uses.
-    const [cards, weekly, modes, overview, rxP, histP, sympP] = await Promise.all([
-      safe(ApiReporting.clinicDashboardTopCards(params)),
-      safe(ApiReporting.clinicConsultationsWeekly({ ...(month ? { month } : {}), ...(params.doctorId ? { doctorId: params.doctorId } : {}), ...(params.clinicId ? { clinicId: params.clinicId } : {}) })),
-      safe(ApiReporting.clinicConsultationModes(params)),
-      safe(ApiReporting.operationalOverview(rangeParams)),
-      safe(ApiReporting.clinicRx(params)),
-      safe(ApiReporting.clinicalMedicalHistory(params)),
-      safe(ApiReporting.clinicalSymptoms(params)),
+    // --- Primary batch (5 calls) ---
+    const [cards, weekly, modes, overview, patientsP] = await Promise.all([
+      safe(cached("topCards", params, () => ApiReporting.clinicDashboardTopCards(params))),
+      safe(cached("weekly", weeklyParams, () => ApiReporting.clinicConsultationsWeekly(weeklyParams))),
+      safe(cached("modes", params, () => ApiReporting.clinicConsultationModes(params))),
+      safe(cached("opOverview", rangeParams, () => ApiReporting.operationalOverview(rangeParams))),
+      safe(cached("patients", rangeParams, () => ApiReporting.analyticsPatients(rangeParams))),
     ]);
+
     const modesSrc = modes?.data ?? modes ?? {};
     const ov = overview?.data ?? overview ?? {};
-    const rx = rxP?.data ?? rxP ?? {};
-    const hist = histP?.data ?? histP ?? {};
-    const symp = sympP?.data ?? sympP ?? {};
+    const patientsSrc = patientsP?.data ?? patientsP ?? {};
+
+    // --- Fallback batch: fire only for fields the overview left empty ---
+    const needRx = !ov.topMedication;
+    const needSymp = !ov.topSymptom;
+    const needHist = !ov.topMedicalCondition;
+    const needFallbacks = needRx || needSymp || needHist;
+
+    let rx = {}, symp = {}, hist = {};
+    if (needFallbacks) {
+      const [rxP, sympP, histP] = await Promise.all([
+        needRx ? safe(cached("clinicRx", params, () => ApiReporting.clinicRx(params))) : null,
+        needSymp ? safe(cached("symptoms", params, () => ApiReporting.clinicalSymptoms(params))) : null,
+        needHist ? safe(cached("medHistory", params, () => ApiReporting.clinicalMedicalHistory(params))) : null,
+      ]);
+      rx = rxP?.data ?? rxP ?? {};
+      symp = sympP?.data ?? sympP ?? {};
+      hist = histP?.data ?? histP ?? {};
+    }
+
     const fallbacks = {
       topMedication: firstLabel(anyToDonut(rx.topBrands)),
       topCondition: firstLabel(anyToDonut(hist.topConditions)),
       topSymptom: firstLabel(anyToDonut(symp.topSymptoms)),
     };
+
+    // topMedications donut: prefer Rx endpoint (always has full list),
+    // but if we didn't fetch it, skip (overview KPI is text-only anyway).
+    const rxDonut = needRx ? anyToDonut(rx.topBrands) : [];
+    // If Rx wasn't fetched as a fallback, fire it now for the donut chart
+    let medDonut = rxDonut;
+    if (!needRx) {
+      const rxFresh = await safe(cached("clinicRx", params, () => ApiReporting.clinicRx(params)));
+      const rxData = rxFresh?.data ?? rxFresh ?? {};
+      medDonut = anyToDonut(rxData.topBrands);
+    }
 
     setState({
       loading: false,
@@ -71,6 +95,8 @@ export default function useOverviewData({ month, startDate, endDate, doctorId, c
       kpis: buildKpis(cards, modesSrc, ov, fallbacks),
       weekly: weekly || null,
       modeMix: anyToDonut(modesSrc.modeMix),
+      topMedications: capDonut(medDonut, 5),
+      genderDistribution: withCategories(anyToDonut(patientsSrc.gender), ["Male", "Female", "Others"]),
     });
   }, [month, startDate, endDate, doctorId, clinicId]);
 
@@ -112,7 +138,7 @@ function buildKpis(payload, modesSrc, ov = {}, fallbacks = {}) {
       label: "Total consultations",
       kind: "number",
       value: metricCount(consultations),
-      delta: metricDelta(consultations),
+      delta: extractDelta(consultations),
       tooltip: "Completed doctor consultations in the selected period",
     },
     {
@@ -168,22 +194,8 @@ function topDiagnosisName(src) {
   return null;
 }
 
-// A metric may be a number or a { count, pctChange, isDown } object.
 function metricCount(node) {
   if (node == null) return 0;
   if (typeof node === "object") return toNum(node.count ?? node.value ?? node.total);
   return toNum(node);
-}
-
-function metricDelta(node) {
-  if (node && typeof node === "object" && node.pctChange != null) {
-    const n = Number(node.pctChange);
-    return Number.isFinite(n) ? n : null;
-  }
-  return null;
-}
-
-function toNum(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
 }

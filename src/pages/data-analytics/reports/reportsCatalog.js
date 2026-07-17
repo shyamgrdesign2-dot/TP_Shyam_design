@@ -43,11 +43,9 @@ export const BILLING_OVERALL_TYPE_OPTIONS = [
   { value: "cashflow", label: "Cash Flow" },
 ];
 
-// ipdReports.schema.ts: filterBy=department needs dp_ids, doctor needs
-// um_ids. Only Doctor is offered — the FE has um_ids (doctor list) but no
-// dp_id lookup exists anywhere in the API surface yet (backend gap).
 export const IPD_FILTER_BY_OPTIONS = [
   { value: "doctor", label: "Doctor" },
+  { value: "department", label: "Department" },
 ];
 
 export const APPOINTMENT_REPORT_TYPE_OPTIONS = [
@@ -95,10 +93,7 @@ export const REPORTS = [
     label: "Collection Report",
     desc: "Day-wise or detailed collection by date, bill type and payment mode.",
     live: true,
-    // Mode-of-payment filter is withheld: the endpoint takes a CSV of
-    // payment-option ids (bpid) and no lookup endpoint for those ids exists
-    // yet (backend gap) — name strings would silently match nothing.
-    filters: ["collectionReportType", "dateRange", "billType", "issuedBy"],
+    filters: ["collectionReportType", "dateRange", "billType", "issuedBy", "paymentMode"],
     fetcher: ApiReporting.financialCollectionSummary,
     exportFetcher: ApiReporting.exportFinancialCollectionSummary,
     subFetchers: {
@@ -106,7 +101,7 @@ export const REPORTS = [
       detailed: { fetcher: ApiReporting.financialCollectionDetailed, exportFetcher: ApiReporting.exportFinancialCollectionDetailed },
       daywise: { fetcher: ApiReporting.financialCollectionSummary, exportFetcher: ApiReporting.exportFinancialCollectionSummary },
     },
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy }),
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment }),
   },
   {
     id: "incentive-report", group: "Financial", dept: "opd",
@@ -143,17 +138,14 @@ export const REPORTS = [
     id: "billing-overall", group: "Financial", dept: "both",
     label: "Billing Overall Reports",
     desc: "Revenue and cash-flow reports across the whole practice.",
-    // billingOverall.schema.ts — Revenue: issuedBy + accountant CSVs;
-    // Cash Flow adds billTypes. `accountant` (tban_id) and `modeOfPayment`
-    // (bpid) need id lookups that don't exist yet (backend gap) — withheld.
-    filters: ["billingOverallType", "dateRange", "billType", "issuedBy"],
+    filters: ["billingOverallType", "dateRange", "billType", "issuedBy", "paymentMode", "account"],
     subFetchers: {
       revenue: { fetcher: ApiReporting.financialBillingOverallRevenue, exportFetcher: ApiReporting.exportFinancialBillingOverallRevenue },
       cashflow: { fetcher: ApiReporting.financialBillingOverallCashFlow, exportFetcher: ApiReporting.exportFinancialBillingOverallCashFlow },
     },
     fetcher: ApiReporting.financialBillingOverallRevenue,
     exportFetcher: ApiReporting.exportFinancialBillingOverallRevenue,
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy }),
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment, accountant: f?.account && f.account !== "all" ? f.account : undefined }),
   },
   {
     id: "ipd-reports", group: "Financial", dept: "ipd",

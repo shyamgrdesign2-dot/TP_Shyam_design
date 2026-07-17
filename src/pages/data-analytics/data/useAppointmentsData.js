@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
 import { anyToDonut, sumDatasetByLabel, seriesToXY } from "../charts/adapters";
+import { cached } from "./apiCache";
 
 export default function useAppointmentsData({ days, doctorId, clinicId } = {}) {
   const [state, setState] = useState({
@@ -18,13 +19,11 @@ export default function useAppointmentsData({ days, doctorId, clinicId } = {}) {
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     const params = {};
-    if (days) params.days = days;
+    if (days) params.days = Math.min(days, 90);
     if (doctorId && doctorId !== "all") params.doctorId = doctorId;
     if (clinicId && clinicId !== "all") params.clinicId = clinicId;
 
-    const payload = await ApiReporting.analyticsAppointment(params)
-      .then((r) => r)
-      .catch(() => null);
+    const payload = await cached("apptAnalytics", params, () => ApiReporting.analyticsAppointment(params)).catch(() => null);
     const src = payload?.data ?? payload;
 
     setState({

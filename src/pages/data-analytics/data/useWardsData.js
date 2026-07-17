@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { seriesToXY } from "../charts/adapters";
+import { seriesToXY, compactXY, zeroFillXY } from "../charts/adapters";
+import { toNum, pctDelta } from "./deltaUtils";
 
 export default function useWardsData({ startDate, endDate, clinicId } = {}) {
   const [state, setState] = useState({
@@ -18,9 +19,7 @@ export default function useWardsData({ startDate, endDate, clinicId } = {}) {
     if (endDate) params.endDate = endDate;
     if (clinicId && clinicId !== "all") params.clinicId = clinicId;
 
-    const payload = await ApiReporting.ipdWards(params)
-      .then((r) => r)
-      .catch(() => null);
+    const payload = await ApiReporting.ipdWards(params).catch(() => null);
     const src = payload?.data ?? payload ?? {};
 
     setState({
@@ -28,7 +27,10 @@ export default function useWardsData({ startDate, endDate, clinicId } = {}) {
       error: null,
       kpis: buildKpis(src.kpis),
       occupancyOverTime: src.occupancyOverTime ? seriesToXY(src.occupancyOverTime) : null,
-      alosByWard: src.alosByWard ? seriesToXY(src.alosByWard) : null,
+      alosByWard: zeroFillXY(
+        src.alosByWard ? compactXY(seriesToXY(src.alosByWard)) : null,
+        KNOWN_WARDS, "ALOS (days)"
+      ),
     });
   }, [startDate, endDate, clinicId]);
 
@@ -52,14 +54,6 @@ function buildKpis(raw) {
 }
 
 
-function pctDelta(current, previous) {
-  // No pill without a real baseline: previous 0/absent produces absurd
-  // percentages (e.g. +1944836% when last week had ₹1) — "vs previous"
-  // is only meaningful when the previous window actually had volume.
-  if (!Number.isFinite(previous) || previous <= 0) return undefined;
-  return Math.round(((current - previous) / previous) * 100);
-}
-
 function defaultKpis() {
   return [
     { key: "totalBeds", label: "Total beds", kind: "number", value: 0, tooltip: "Total bed capacity across all wards" },
@@ -69,7 +63,4 @@ function defaultKpis() {
   ];
 }
 
-function toNum(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
+const KNOWN_WARDS = ["General", "Semi-private", "Private", "ICU", "NICU"];

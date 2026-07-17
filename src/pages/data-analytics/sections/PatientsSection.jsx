@@ -8,7 +8,7 @@ import usePatientsData from "../data/usePatientsData";
 import KpiRow from "./KpiRow";
 
 export default function PatientsSection({ filters }) {
-  const { loading, kpis, gender, maritalStatus, bloodGroups, age, visitFrequency } = usePatientsData({
+  const { loading, kpis, gender, maritalStatus, bloodGroups, age, visitFrequency, topCities, rfm } = usePatientsData({
     startDate: filters?.startDate,
     endDate: filters?.endDate,
     doctorId: filters?.doctor,
@@ -32,7 +32,7 @@ export default function PatientsSection({ filters }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <KpiRow title="Key metrics" kpis={kpis} loading={false} columns={3} />
 
-      <SectionBlock title="More insights" count={5}>
+      <SectionBlock title="More insights" count={7}>
         <ChartGrid>
           <ChartTile title="Gender distribution" subtitle="Patients seen in selected period" icon="cards-heart" titleTooltip="Gender split of patients who visited in the selected period">
             <DonutWithLegend data={gender} centerLabel="Patients" height={240} />
@@ -64,6 +64,14 @@ export default function PatientsSection({ filters }) {
               fallbackSeries={[{ key: "Patients", label: "Patients" }]}
               height={240}
             />
+          </ChartTile>
+
+          <ChartTile title="Top cities" subtitle="Patients seen in selected period" icon="building" titleTooltip="Where the patients seen in the selected period come from, top cities by patient count">
+            <DonutWithLegend data={topCities} centerLabel="Patients" height={240} />
+          </ChartTile>
+
+          <ChartTile title="Patient segments" subtitle="Recency-frequency mix, selected period" icon="profile-2user" titleTooltip="RFM segmentation: how patients split into champions, loyal, at-risk and other segments based on how recently and how often they visit">
+            <DonutWithLegend data={rfm} centerLabel="Patients" height={240} />
           </ChartTile>
         </ChartGrid>
       </SectionBlock>
