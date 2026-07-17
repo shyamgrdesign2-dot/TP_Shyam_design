@@ -42,7 +42,7 @@ function buildHTML(patient, results, dateFilter) {
     ? `${patient.pm_age}y`
     : "";
   const gender = patient.pm_gender || "";
-  const pid = patient.tpml_refrence_id || patient.pm_pid || "";
+  const pid = patient.pm_pid || patient.tpml_refrence_id || "";
   const contact = patient.pm_contact_no || "";
 
   let filtered = results || [];
