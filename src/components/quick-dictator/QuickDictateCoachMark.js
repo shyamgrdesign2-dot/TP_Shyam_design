@@ -288,110 +288,47 @@ export function QuickDictateCoachMark() {
 
   if (!open || !pos || typeof document === "undefined") return null;
   const isAbove = pos.placement === "above";
+  // The coach card is portalled to document.body, so its input-relative
+  // coordinates must be runtime CSS variables. All static styling stays in
+  // quick-dictator.css.
+  const coachCardRef = (node) => {
+    cardRef.current = node;
+    if (!node) return;
+    node.style.setProperty("--qd-coach-left", `${pos.left}px`);
+    node.style.setProperty("--qd-coach-top", `${pos.top}px`);
+    node.style.setProperty("--qd-coach-width", `${CARD_WIDTH}px`);
+  };
 
   return createPortal(
     <div
-      ref={cardRef}
+      ref={coachCardRef}
       role="dialog"
       aria-label="Quick dictation tip"
       data-quickdict-no-shimmer="true"
-      style={{
-        position: "fixed",
-        left: pos.left,
-        top: pos.top,
-        width: CARD_WIDTH,
-        zIndex: 2147483647,
-        background: "#0F172A",
-        color: "#fff",
-        borderRadius: 12,
-        padding: "12px 14px 10px",
-        boxShadow:
-          "0 18px 48px rgba(15,23,42,0.32), 0 2px 6px rgba(15,23,42,0.22), inset 0 0 0 1px rgba(255,255,255,0.06)",
-        fontFamily: "Inter, sans-serif",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
+      className={`qd-coach-card ${isAbove ? "qd-coach-card-above" : "qd-coach-card-below"}`}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          left: 30,
-          ...(isAbove ? { bottom: -6 } : { top: -6 }),
-          width: 12,
-          height: 12,
-          background: "#0F172A",
-          transform: "rotate(45deg)",
-          borderTopLeftRadius: 2,
-        }}
-      />
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span
-          style={{
-            marginRight: 6,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.16em",
-            color: "rgba(255,255,255,0.85)",
-            textTransform: "uppercase",
-          }}
-        >
+      <span aria-hidden="true" className="qd-coach-arrow" />
+      <div className="qd-coach-kicker-row">
+        <span className="qd-coach-kicker">
           Quick Dictator
         </span>
-        <span style={kbdStyle}>⇧</span>
-        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 600 }}>+</span>
-        <span style={kbdStyle}>⇧</span>
+        <span className="qd-kbd">⇧</span>
+        <span className="qd-key-plus">+</span>
+        <span className="qd-kbd">⇧</span>
       </div>
-      <div
-        style={{
-          fontSize: 12.5,
-          lineHeight: 1.55,
-          color: "rgba(255,255,255,0.86)",
-        }}
-      >
-        <strong style={{ color: "#fff" }}>Double-tap the Shift key</strong> and
+      <div className="qd-coach-copy">
+        <strong>Double-tap the Shift key</strong> and
         start talking. Your words land right here, exactly as you said them.{" "}
         <button
           type="button"
           onClick={handleMore}
-          style={{
-            display: "inline",
-            padding: 0,
-            background: "transparent",
-            border: "none",
-            color: "#fff",
-            fontWeight: 600,
-            cursor: "pointer",
-            textDecoration: "underline",
-            textUnderlineOffset: 2,
-            fontSize: "inherit",
-          }}
+          className="qd-link-button"
         >
           Know more
         </button>
       </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 10,
-          marginTop: 2,
-        }}
-      >
-        <label
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            cursor: "pointer",
-            color: "rgba(255,255,255,0.78)",
-            fontSize: 11,
-            fontWeight: 500,
-            userSelect: "none",
-          }}
-        >
+      <div className="qd-coach-actions">
+        <label className="qd-coach-checkbox-label">
           <input
             type="checkbox"
             checked={dontShowAgain}
@@ -413,27 +350,14 @@ export function QuickDictateCoachMark() {
                 });
             }}
             data-quickdict-no-coach="true"
-            style={{ width: 14, height: 14, accentColor: "#3B82F6", cursor: "pointer" }}
+            className="qd-coach-checkbox"
           />
           Don't show again
         </label>
         <button
           type="button"
           onClick={handleGotIt}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: 28,
-            padding: "0 14px",
-            borderRadius: 8,
-            background: "#fff",
-            color: "#0F172A",
-            border: "none",
-            cursor: "pointer",
-            fontSize: 12,
-            fontWeight: 700,
-          }}
+          className="qd-coach-got-it"
         >
           Got it
         </button>
@@ -442,22 +366,6 @@ export function QuickDictateCoachMark() {
     document.body
   );
 }
-
-const kbdStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "2px 7px",
-  minWidth: 20,
-  height: 18,
-  borderRadius: 4,
-  background: "rgba(255,255,255,0.12)",
-  color: "#fff",
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: "0.04em",
-  fontFamily: "JetBrains Mono, SF Mono, monospace",
-};
 
 // ── "Know more" tutorial drawer ──────────────────────────────────────────
 // Opened from the coach mark's "Know more" link via openTutorial().
@@ -490,14 +398,7 @@ export function TutorialDrawer() {
   return (
     <Drawer
       title={
-        <span
-          style={{
-            fontFamily: "Mulish, sans-serif",
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#0F172A",
-          }}
-        >
+        <span className="qd-tutorial-title">
           Quick Dictator
         </span>
       }
@@ -507,145 +408,40 @@ export function TutorialDrawer() {
       onClose={closeTutorial}
       destroyOnClose={false}
       zIndex={2147483647}
+      rootClassName="qd-tutorial-drawer"
       closeIcon={
         <span
           aria-hidden
-          className="qd-ico qd-ico-close-square"
-          style={{ width: 20, height: 20, color: "#334155" }}
+          className="qd-ico qd-ico-close-square qd-tutorial-close-icon"
         />
       }
-      styles={{
-        wrapper: {
-          boxShadow: "-8px 0 32px rgba(0,0,0,0.12)",
-        },
-        header: {
-          minHeight: 60,
-          height: 60,
-          padding: "0 20px",
-          display: "flex",
-          alignItems: "center",
-          borderBottom: "1px solid #E2E8F0",
-          boxSizing: "border-box",
-        },
-        body: {
-          padding: "24px 20px",
-        },
-        content: {
-          borderLeft: "1px solid #E2E8F0",
-        },
-      }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: "Mulish, sans-serif",
-            fontSize: 18,
-            fontWeight: 700,
-            lineHeight: 1.3,
-            letterSpacing: "-0.01em",
-            color: "#0F172A",
-          }}
-        >
+      <div className="qd-tutorial-content">
+        <h2 className="qd-tutorial-heading">
           Talk through your notes in four steps.
         </h2>
 
-        <ol
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            margin: 0,
-            padding: 0,
-            listStyle: "none",
-          }}
-        >
+        <ol className="qd-tutorial-steps">
           {STEPS.map((step, idx) => {
             const isLast = idx === STEPS.length - 1;
             return (
               <li
                 key={step.n}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "32px 1fr",
-                  gap: 14,
-                  padding: "4px 0 16px",
-                  alignItems: "flex-start",
-                }}
+                className="qd-tutorial-step"
               >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    alignSelf: "stretch",
-                  }}
-                >
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      background:
-                        "linear-gradient(135deg, #6938EF 0%, #4338CA 100%)",
-                      color: "#fff",
-                      boxShadow: "0 6px 14px -6px rgba(105,56,239,0.45)",
-                      fontFamily: "JetBrains Mono, SF Mono, monospace",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      letterSpacing: "0.02em",
-                      flexShrink: 0,
-                    }}
-                  >
+                <span aria-hidden="true" className="qd-tutorial-step-index-wrap">
+                  <span className="qd-tutorial-step-index">
                     {step.n}
                   </span>
                   {!isLast && (
-                    <span
-                      style={{
-                        flex: 1,
-                        width: 2,
-                        minHeight: 28,
-                        marginTop: 6,
-                        marginBottom: 6,
-                        backgroundImage:
-                          "linear-gradient(180deg, #CBD5E1 0%, #CBD5E1 50%, transparent 50%, transparent 100%)",
-                        backgroundSize: "2px 8px",
-                        backgroundRepeat: "repeat-y",
-                      }}
-                    />
+                    <span className="qd-tutorial-step-line" />
                   )}
                 </span>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                    paddingTop: 4,
-                  }}
-                >
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontFamily: "Mulish, sans-serif",
-                      fontSize: 14,
-                      fontWeight: 700,
-                      letterSpacing: "-0.005em",
-                      color: "#0F172A",
-                    }}
-                  >
+                <div className="qd-tutorial-step-copy">
+                  <h3 className="qd-tutorial-step-title">
                     {step.title}
                   </h3>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: 12,
-                      lineHeight: 1.55,
-                      color: "#475569",
-                    }}
-                  >
+                  <p className="qd-tutorial-step-body">
                     {step.body}
                   </p>
                 </div>
@@ -654,32 +450,15 @@ export function TutorialDrawer() {
           })}
         </ol>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            padding: "14px 16px",
-            borderRadius: 12,
-            background: "#F4EFFF",
-            border: "1px solid #E0D4FF",
-          }}
-        >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <span style={kbdBig}>⇧</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#64748B" }}>
+        <div className="qd-tutorial-try">
+          <span className="qd-tutorial-shortcut">
+            <span className="qd-kbd qd-kbd-big">⇧</span>
+            <span className="qd-key-plus qd-key-plus-dark">
               +
             </span>
-            <span style={kbdBig}>⇧</span>
+            <span className="qd-kbd qd-kbd-big">⇧</span>
           </span>
-          <span
-            style={{
-              fontSize: 12,
-              lineHeight: 1.55,
-              fontWeight: 600,
-              color: "#2A1E5C",
-            }}
-          >
+          <span className="qd-tutorial-try-text">
             Try it now. Focus a notes field and double-tap Shift.
           </span>
         </div>
@@ -687,19 +466,3 @@ export function TutorialDrawer() {
     </Drawer>
   );
 }
-
-const kbdBig = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minWidth: 22,
-  height: 22,
-  padding: "0 6px",
-  borderRadius: 4,
-  background: "#0F172A",
-  color: "#fff",
-  fontFamily: "JetBrains Mono, SF Mono, monospace",
-  fontSize: 12,
-  fontWeight: 700,
-  letterSpacing: "0.04em",
-};

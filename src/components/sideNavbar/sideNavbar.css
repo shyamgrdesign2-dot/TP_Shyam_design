@@ -1166,6 +1166,10 @@
   font-weight: 400;
 }
 
+.snv-bullet-label-pre-line {
+  white-space: pre-line;
+}
+
 .snv-bullet-detail {
   color: var(--tp-slate-500) !important;
   font-weight: 400;

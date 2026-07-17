@@ -14,6 +14,15 @@ describe("medicalHistoryConverters others copy handling", () => {
     })).toBe("Food Allergy: peanuts, Duration: 2 years");
   });
 
+  it("does not repeat Past medication use heading for Others additional history", () => {
+    expect(formatOtherMedicalHistoryLineItem({
+      type: "Others",
+      name: "**Past medication use**",
+      notes: "Taking XYZ",
+      duration: "5 Years",
+    })).toBe("Taking XYZ, Duration: 5 Years");
+  });
+
   it("appends others medical history to existing additional history with exact line dedupe", () => {
     const existing = [
       {
@@ -50,6 +59,27 @@ describe("medicalHistoryConverters others copy handling", () => {
     expect(copiedAgain[0].medical_history_remarks).toBe(
       "Existing history\nFood Allergy: peanuts, Duration: 2 years"
     );
+  });
+
+  it("only appends new incoming additional-history chunks when older chunks are already present", () => {
+    const existing = [
+      {
+        tmmhs_id: 1,
+        section_name: "Lifestyle",
+        title: "Lifestyle",
+        tags: [],
+        medical_history_remarks: "qwerty xyz",
+      },
+    ];
+
+    const copied = convertMedicalHistoryToContextFormat([
+      {
+        type: "Others",
+        notes: "xyz. abc.",
+      },
+    ], existing);
+
+    expect(copied[0].medical_history_remarks).toBe("qwerty xyz\nabc.");
   });
 
   it("keeps agents/module Others medical history rows as additional-history remarks", () => {

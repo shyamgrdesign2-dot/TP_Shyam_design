@@ -20,6 +20,7 @@ import React, {
 } from "react";
 import { message } from "antd";
 import { Danger } from "iconsax-reactjs";
+import PropTypes from "prop-types";
 
 const VoiceBarContext = createContext(null);
 const DOUBLE_TAP_WINDOW_MS = 400;
@@ -33,87 +34,42 @@ const DOUBLE_TAP_WINDOW_MS = 400;
 export function qdToast(content, { type = "success", duration = 3, key, closable = false, onDismiss } = {}) {
   const isError = type === "error";
   const isWarning = type === "warning";
-  const icon = isWarning
-    ? React.createElement(Danger, {
-        key: "icon",
-        size: 20,
-        variant: "Bold",
-        "aria-hidden": true,
-        style: {
-          flexShrink: 0,
-          color: "#F59E0B",
-        },
-      })
-    : React.createElement("span", {
-        key: "icon",
-        "aria-hidden": true,
-        className: `qd-ico qd-ico-${isError ? "danger" : "check"}`,
-        style: {
-          width: 18,
-          height: 18,
-          flexShrink: 0,
-          color: isError ? "#dc6069" : "#52c41a",
-        },
-      });
-  // The success card's CSS only paints `div`s white; without an inline colour
-  // here, the app's global `span` rule would re-tint the text dark. Error
-  // toasts already force red via `.error-red div, span`, so we hand them the
-  // colour they expect.
-  const textColor = isError ? "#dc6069" : "#fff";
   const messageKey = key || `qd-toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const bodyChildren = [
-    icon,
-    React.createElement("span", { key: "text", style: { color: textColor } }, content),
-  ];
-  if (closable) {
-    bodyChildren.push(
-      React.createElement(
-        "button",
-        {
-          key: "close",
-          type: "button",
-          "aria-label": "Dismiss notification",
-          onClick: (event) => {
-            event.stopPropagation();
-            message.destroy(messageKey);
-            onDismiss?.();
-          },
-          style: {
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 22,
-            height: 22,
-            marginLeft: 4,
-            border: 0,
-            borderRadius: 11,
-            background: isError ? "rgba(220, 96, 105, 0.12)" : "rgba(255, 255, 255, 0.14)",
-            color: textColor,
-            cursor: "pointer",
-            fontSize: 16,
-            lineHeight: 1,
-            padding: 0,
-          },
-        },
-        "\u00d7"
-      )
-    );
-  }
   return message.open({
     key: messageKey,
     type: "",
     className: isError ? "error-red" : "message-appointment",
-    content: React.createElement(
-      "div",
-      {
-        style: {
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          color: textColor,
-        },
-      },
-      ...bodyChildren
+    content: (
+      <div className={`qd-toast-content ${isError ? "qd-toast-content-error" : ""}`}>
+        {isWarning ? (
+          <Danger
+            size={20}
+            variant="Bold"
+            aria-hidden
+            className="qd-toast-warning-icon"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className={`qd-ico qd-toast-icon qd-ico-${isError ? "danger" : "check"}`}
+          />
+        )}
+        <span className="qd-toast-text">{content}</span>
+        {closable ? (
+          <button
+            type="button"
+            aria-label="Dismiss notification"
+            onClick={(event) => {
+              event.stopPropagation();
+              message.destroy(messageKey);
+              onDismiss?.();
+            }}
+            className={`qd-toast-close ${isError ? "qd-toast-close-error" : ""}`}
+          >
+            {"\u00d7"}
+          </button>
+        ) : null}
+      </div>
     ),
     duration,
   });
@@ -380,6 +336,15 @@ export function VoiceBarProvider({ children, enabled = true }) {
     </VoiceBarContext.Provider>
   );
 }
+
+VoiceBarProvider.propTypes = {
+  children: PropTypes.node.isRequired,
+  enabled: PropTypes.bool,
+};
+
+VoiceBarProvider.defaultProps = {
+  enabled: true,
+};
 
 export function useVoiceBar() {
   const ctx = useContext(VoiceBarContext);

@@ -1,6 +1,6 @@
 // Quick Dictator — floating black "dynamic island" bar.
 // Activated by double-Shift via VoiceBarProvider. Closes on single-Shift,
-// Esc, ✕ (cancel-undo flow with 8s grace), or ✓ (route + processing
+// Esc, ✕ (cancel-undo flow with 5s grace), or ✓ (route + processing
 // state). Mic switcher exposes audio inputs and doubles as mute.
 
 import React, {
@@ -10,6 +10,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import PropTypes from "prop-types";
 import { useVoiceBar, qdToast } from "./voice-bar-context";
 import { transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
 import {
@@ -27,21 +28,37 @@ const CANCEL_UNDO_WINDOW_MS = 5000;
 
 // TP CDN icons rendered as recolourable masks (see `.qd-ico*` in the CSS).
 // `currentColor` lets each icon pick up its context colour.
-const Ico = ({ name, size = 16, className = "", style }) => (
+const Ico = ({ name, className = "" }) => (
   <span
     aria-hidden
     className={`qd-ico qd-ico-${name} ${className}`.trim()}
-    style={{ width: size, height: size, ...style }}
   />
 );
-const CheckGlyph = () => <Ico name="check" size={18} />;
-const XGlyph = () => <Ico name="close" size={16} />;
+const CheckGlyph = () => <Ico name="check" className="qd-ico-md" />;
+const XGlyph = () => <Ico name="close" className="qd-ico-sm" />;
 const ChevronDown = ({ className }) => (
-  <Ico name="chevron" size={14} className={className} />
+  <Ico name="chevron" className={`qd-ico-xs ${className || ""}`} />
 );
-const MicGlyph = () => <Ico name="mic" size={18} />;
-const MicSlash = () => <Ico name="mic-slash" size={18} />;
-const UndoGlyph = () => <Ico name="undo" size={14} />;
+const MicGlyph = () => <Ico name="mic" className="qd-ico-md" />;
+const MicSlash = () => <Ico name="mic-slash" className="qd-ico-md" />;
+const UndoGlyph = () => <Ico name="undo" className="qd-ico-xs" />;
+
+Ico.propTypes = {
+  name: PropTypes.string.isRequired,
+  className: PropTypes.string,
+};
+
+Ico.defaultProps = {
+  className: "",
+};
+
+ChevronDown.propTypes = {
+  className: PropTypes.string,
+};
+
+ChevronDown.defaultProps = {
+  className: "",
+};
 
 export function VoiceBar() {
   const { isOpen, close, route, externalControllerActive, externalState } = useVoiceBar();
@@ -490,16 +507,12 @@ export function VoiceBar() {
               onClick={handleUndoCancel}
               aria-label="Undo cancel"
               className="qd-undo-btn"
-              style={{ color: "#fff" }}
             >
               <UndoGlyph />
-              <span style={{ color: "#fff" }}>Undo</span>
+              <span>Undo</span>
             </button>
             <div className="qd-undo-track" aria-hidden>
-              <div
-                className="qd-undo-fill"
-                style={{ animationDuration: `${CANCEL_UNDO_WINDOW_MS}ms` }}
-              />
+              <div className="qd-undo-fill" />
             </div>
           </>
         ) : (
@@ -612,7 +625,6 @@ export function VoiceBar() {
                           "qd-wave-bar " +
                           (denied || muted ? "qd-wave-bar-muted" : "")
                         }
-                        style={{ animationDelay: `${(i * 0.09).toFixed(2)}s` }}
                       />
                     ))}
                   </div>

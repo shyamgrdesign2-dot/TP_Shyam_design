@@ -159,6 +159,12 @@ function hasMedicalHistoryDetailValue(value) {
     return String(value).trim() !== "" && String(value).trim() !== "-";
 }
 
+function getMedicalHistoryRemarks(data = []) {
+    if (!Array.isArray(data)) return "";
+    const section = data.find((item) => hasMedicalHistoryDetailValue(item?.medical_history_remarks));
+    return String(section?.medical_history_remarks || "");
+}
+
 function medicalHistoryEnableState(value) {
     const key = String(value || "").trim().toLowerCase();
     if (["n", "no", "false", "absent", "negative"].includes(key)) return "N";
@@ -693,12 +699,17 @@ function MedicalHistoryBox(props) {
                 console.log("mergedArray for cloneMedicalHistoryData", mergedArray);
                 console.groupEnd();
                 setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
+                setRemarks(getMedicalHistoryRemarks(mergedArray));
             } else if (isPrescriptionOnly && Array.isArray(data2) && data2.length > 0) {
                 setCloneMedicalHistoryData(JSON.parse(JSON.stringify(ensureFiveSections(data2))));
+                setRemarks(getMedicalHistoryRemarks(data2));
+            } else {
+                setRemarks("");
             }
         } catch (error) {
             console.error("Error merging medical history data:", error);
             setCloneMedicalHistoryData([]);
+            setRemarks("");
         }
     // defaultList always; overrideMedicalHistoryData for voice/snap/smart; medicalHistoryData for voice merge and consult.
     // eslint-disable-next-line react-hooks/exhaustive-deps

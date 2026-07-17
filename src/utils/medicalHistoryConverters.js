@@ -161,6 +161,13 @@ function formatOtherHistoryFieldLabel(key) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function isPastMedicationUseHeading(value) {
+  return String(value || '')
+    .replace(/\*/g, '')
+    .trim()
+    .toLowerCase() === 'past medication use';
+}
+
 export function formatOtherMedicalHistoryLineItem(item = {}) {
   if (!item || typeof item !== 'object') return '';
 
@@ -168,12 +175,16 @@ export function formatOtherMedicalHistoryLineItem(item = {}) {
   const noteValue = firstMedicalHistoryTextValue(item.notes, item.note);
   const parts = [];
 
-  if (heading && noteValue) {
+  if (heading && noteValue && !isPastMedicationUseHeading(heading)) {
     parts.push(`${heading}: ${noteValue}`);
   } else if (heading) {
-    parts.push(heading);
+    if (noteValue) {
+      parts.push(noteValue);
+    } else if (!isPastMedicationUseHeading(heading)) {
+      parts.push(heading);
+    }
   } else if (noteValue) {
-    parts.push(`Notes: ${noteValue}`);
+    parts.push(noteValue);
   }
 
   const handledKeys = new Set(['name', 'title', 'notes', 'note']);
@@ -195,19 +206,46 @@ export function formatOtherMedicalHistoryLineItem(item = {}) {
 function mergeMedicalHistoryRemarks(existingRemarks, incomingRemarks) {
   const lines = [];
   const seen = new Set();
-  const addLine = (line) => {
+  const searchParts = [];
+  const normalizeForSearch = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[.,;:!?]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const splitRemarkChunks = (value) => String(value || '')
+    .split('\n')
+    .flatMap((line) => {
+      const text = line.trim();
+      if (!text) return [];
+      return text.match(/[^.!?]+[.!?]?/g) || [text];
+    })
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const addExistingLine = (line) => {
     const text = String(line ?? '').trim();
-    if (!text || seen.has(text)) return;
-    seen.add(text);
+    const normalized = normalizeForSearch(text);
+    if (!text || seen.has(normalized)) return;
+    seen.add(normalized);
+    searchParts.push(normalized);
+    lines.push(text);
+  };
+  const addIncomingChunk = (chunk) => {
+    const text = String(chunk ?? '').trim();
+    const normalized = normalizeForSearch(text);
+    if (!text || !normalized || seen.has(normalized)) return;
+    const existingSearch = searchParts.join(' ');
+    if (normalized.length >= 3 && existingSearch.includes(normalized)) return;
+    seen.add(normalized);
+    searchParts.push(normalized);
     lines.push(text);
   };
 
   String(existingRemarks || '')
     .split('\n')
-    .forEach(addLine);
-  String(incomingRemarks || '')
-    .split('\n')
-    .forEach(addLine);
+    .forEach(addExistingLine);
+  splitRemarkChunks(incomingRemarks)
+    .forEach(addIncomingChunk);
 
   return lines.join('\n');
 }
