@@ -181,6 +181,30 @@ export function VoiceBar() {
     };
   }, [switcherOpen]);
 
+  useEffect(() => {
+    if (!isOpen || typeof navigator === "undefined") return undefined;
+    const mediaDevices = navigator.mediaDevices;
+    if (!mediaDevices?.enumerateDevices) return undefined;
+
+    let cancelled = false;
+    const refreshDevices = async () => {
+      try {
+        const allDevices = await mediaDevices.enumerateDevices();
+        if (cancelled) return;
+        setDevices(allDevices.filter((device) => device.kind === "audioinput"));
+      } catch (_) {
+        if (!cancelled) setDevices([]);
+      }
+    };
+
+    refreshDevices();
+    mediaDevices.addEventListener?.("devicechange", refreshDevices);
+    return () => {
+      cancelled = true;
+      mediaDevices.removeEventListener?.("devicechange", refreshDevices);
+    };
+  }, [isOpen]);
+
   // Lifecycle — record audio (for AI transcription) + drive the waveform,
   // spun up on open / device change.
   useEffect(() => {
@@ -553,7 +577,7 @@ export function VoiceBar() {
                 <button
                   type="button"
                   onClick={() => setSwitcherOpen((v) => !v)}
-                  disabled={processing || isControlled}
+                  disabled={processing}
                   aria-label="Switch microphone"
                   aria-expanded={switcherOpen}
                   className="qd-mic-caret"
@@ -565,7 +589,7 @@ export function VoiceBar() {
                   />
                 </button>
               </div>
-              {switcherOpen && !isControlled && (
+              {switcherOpen && (
                 <div className="qd-switcher-menu" role="menu">
                   <div className="qd-switcher-eyebrow">Microphone</div>
                   {devices.length === 0 && (
@@ -583,8 +607,17 @@ export function VoiceBar() {
                         aria-checked={isActive}
                         onClick={() => {
                           const label = d.label || `Microphone ${i + 1}`;
-                          if (!isControlled) setActiveDeviceId(d.deviceId || "default");
+                          const nextDeviceId = d.deviceId || "default";
+                          setActiveDeviceId(nextDeviceId);
                           setSwitcherOpen(false);
+                          if (isControlled && typeof window !== "undefined") {
+                            window.dispatchEvent(new CustomEvent("tp-quickdict-switch-device", {
+                              detail: {
+                                deviceId: nextDeviceId,
+                                label,
+                              },
+                            }));
+                          }
                           qdToast(`Switched to ${label}`, { duration: 2 });
                         }}
                         className={

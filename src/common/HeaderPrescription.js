@@ -412,6 +412,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceVadStartTokenRef = useRef(0);
     const headerVoiceSilenceReminderIntervalRef = useRef(null);
     const headerVoiceMutedRef = useRef(false);
+    const headerVoiceDeviceIdRef = useRef("default");
 
     useEffect(() => {
         headerVoiceVadEnabledRef.current = headerVoiceVadEnabled;
@@ -475,6 +476,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 ...extra,
             },
         }));
+    }, []);
+
+    const getHeaderVoiceAudioConstraints = useCallback(() => {
+        const deviceId = headerVoiceDeviceIdRef.current;
+        return deviceId && deviceId !== "default"
+            ? { audio: { deviceId: { exact: deviceId } } }
+            : { audio: true };
     }, []);
 
     const handleHeaderVadFrameProcessed = useCallback((probs) => {
@@ -1075,7 +1083,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceTargetIdRef.current = targetId;
         headerVoiceInputLocationRef.current = hasCursor ? targetId : HEADER_DICTATION_NO_INPUT_LOCATION;
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const stream = await navigator.mediaDevices.getUserMedia(getHeaderVoiceAudioConstraints());
             headerVoiceStreamRef.current = stream;
             headerVoiceMutedRef.current = false;
             startHeaderVoiceActivityDetection(stream);
@@ -1120,7 +1128,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
             publishQuickDictState("idle");
         }
-    }, [activeVoiceModule, isHeaderVoiceDictationEnabled, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, startHeaderVoiceActivityDetection, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
+    }, [activeVoiceModule, getHeaderVoiceAudioConstraints, isHeaderVoiceDictationEnabled, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, startHeaderVoiceActivityDetection, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
 
     const headerVoiceCancelRecording = useCallback(() => {
         const recorder = headerVoiceMediaRecorderRef.current;
@@ -1140,6 +1148,58 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         publishQuickDictState("idle");
     }, [publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, stopHeaderVoiceActivityDetection]);
+
+    const headerVoiceSwitchDevice = useCallback(async ({ deviceId } = {}) => {
+        const nextDeviceId = deviceId || "default";
+        headerVoiceDeviceIdRef.current = nextDeviceId;
+        if (!isHeaderVoiceDictationEnabled) return;
+        if (headerVoiceStateRef.current !== "recording") return;
+
+        const previousRecorder = headerVoiceMediaRecorderRef.current;
+        if (previousRecorder && previousRecorder.state !== "inactive") {
+            previousRecorder.ondataavailable = null;
+            previousRecorder.onstop = null;
+            try { previousRecorder.stop(); } catch (_) {}
+        }
+        headerVoiceMediaRecorderRef.current = null;
+        headerVoiceAudioChunksRef.current = [];
+        stopHeaderVoiceActivityDetection();
+
+        const previousStream = headerVoiceStreamRef.current;
+        if (previousStream) {
+            previousStream.getTracks().forEach((track) => track.stop());
+            headerVoiceStreamRef.current = null;
+        }
+
+        const targetId = headerVoiceTargetIdRef.current || HEADER_DICTATION_TARGET;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(getHeaderVoiceAudioConstraints());
+            headerVoiceStreamRef.current = stream;
+            headerVoiceMutedRef.current = false;
+            startHeaderVoiceActivityDetection(stream);
+            const mimeType = getSupportedMimeType();
+            const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) headerVoiceAudioChunksRef.current.push(event.data);
+            };
+            headerVoiceMediaRecorderRef.current = recorder;
+            recorder.start();
+            headerVoiceRecordStartMsRef.current = Date.now();
+            setHeaderVoiceState("recording");
+            publishHeaderDictation("recording", targetId);
+            publishQuickDictState("recording", { stream, muted: false });
+        } catch (error) {
+            console.error("[HeaderTranscribe] mic switch failed", error);
+            qdToast("Unable to switch microphone. Please try again.", { type: "error" });
+            headerVoiceAudioChunksRef.current = [];
+            headerVoiceMutedRef.current = false;
+            setHeaderVoiceState("idle");
+            headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+            headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
+            publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+            publishQuickDictState("idle");
+        }
+    }, [getHeaderVoiceAudioConstraints, isHeaderVoiceDictationEnabled, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, startHeaderVoiceActivityDetection, stopHeaderVoiceActivityDetection]);
 
     useEffect(() => {
         if (!isHeaderVoiceDictationEnabled || typeof window === "undefined") return undefined;
@@ -1172,16 +1232,21 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 duration: 2,
             });
         };
+        const onQuickDictSwitchDevice = (event) => {
+            headerVoiceSwitchDevice(event?.detail || {});
+        };
 
         window.addEventListener("tp-quickdict-submit", onQuickDictSubmit);
         window.addEventListener("tp-quickdict-cancel", onQuickDictCancel);
         window.addEventListener("tp-quickdict-toggle-mute", onQuickDictToggleMute);
+        window.addEventListener("tp-quickdict-switch-device", onQuickDictSwitchDevice);
         return () => {
             window.removeEventListener("tp-quickdict-submit", onQuickDictSubmit);
             window.removeEventListener("tp-quickdict-cancel", onQuickDictCancel);
             window.removeEventListener("tp-quickdict-toggle-mute", onQuickDictToggleMute);
+            window.removeEventListener("tp-quickdict-switch-device", onQuickDictSwitchDevice);
         };
-    }, [headerVoiceCancelRecording, headerVoiceStopAndTranscribe, isHeaderVoiceDictationEnabled, publishQuickDictState]);
+    }, [headerVoiceCancelRecording, headerVoiceStopAndTranscribe, headerVoiceSwitchDevice, isHeaderVoiceDictationEnabled, publishQuickDictState]);
 
     // ── Header transcribe: keyboard triggers ───────────────────────────────
     // double-shift → start | single shift (while recording) → submit | Esc → cancel
