@@ -13,6 +13,7 @@ import {
 } from "@dhspl-tatvacare/tesseract-ui";
 import { downloadBlob } from "./tableUtils";
 import useFilterOptions from "../data/useFilterOptions";
+import { trackAnalytics, EVENTS } from "../data/analyticsTracking";
 import ApiReporting from "../../../api/services/ApiReporting";
 import ApiAppointments from "../../../api/services/ApiAppointments";
 import {
@@ -57,6 +58,9 @@ function rangeDaysOf(startDate, endDate) {
 
 export default function ReportDownloadDrawer({ report, department = "opd", filters, onClose }) {
   const open = !!report;
+  useEffect(() => {
+    if (open && report) trackAnalytics(EVENTS.REPORT_OPENED, { department, report_name: report.label || report.id });
+  }, [open, report, department]);
   const [range, setRange] = useState(null);
   const [type, setType] = useState(department);
   const [downloading, setDownloading] = useState(false);
@@ -327,6 +331,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         return;
       }
       downloadBlob(blob?.data ?? blob, `${resolvedReport.id}.csv`);
+      trackAnalytics(EVENTS.REPORT_DOWNLOADED, { department, report_name: resolvedReport.label || resolvedReport.id, rows_exported: rows != null ? Number(rows) : undefined });
     } catch (e) {
       // Surface the failure — with the server's own reason when it sent one
       // (error payloads arrive as a Blob because the request asked for one).

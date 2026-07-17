@@ -35,6 +35,7 @@ import ClinicalActivitySection from "./sections/ClinicalActivitySection";
 import ReportsTab from "./reports/ReportsTab";
 import useFilterOptions from "./data/useFilterOptions";
 import useCapabilities from "./data/useCapabilities";
+import { trackAnalytics, EVENTS } from "./data/analyticsTracking";
 
 const MED_ICON_BASE = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded";
 // `icon` is a folder-qualified path ("medical/diagnosis"). Tesseract's
@@ -95,6 +96,15 @@ export default function DataAnalyticsPage() {
   // What this account is configured for (role, clinics, modules, modes) —
   // features a clinic/doctor doesn't have are never rendered (spec §1.7).
   const caps = useCapabilities();
+  const openedAtRef = useRef(Date.now());
+
+  useEffect(() => {
+    trackAnalytics(EVENTS.OPENED, { department });
+    return () => {
+      const seconds = Math.round((Date.now() - openedAtRef.current) / 1000);
+      trackAnalytics(EVENTS.CLOSED, { department, section, time_spent_seconds: seconds });
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Only Care has sub-tabs; Grow is a single combined view (user ruling).
   // Procedures / Gynec / Obstetric tabs were REMOVED (API-CONTRACTS-CURRENT
@@ -121,10 +131,10 @@ export default function DataAnalyticsPage() {
   }, [doctorLocked, caps.selfId]);
   const [refreshKey, setRefreshKey] = useState(0);
   const handleRefresh = useCallback(() => {
-    // Bust the request cache so every endpoint re-fetches
+    trackAnalytics(EVENTS.REFRESH, { department, section });
     import("./data/apiCache").then((m) => m.clearApiCache());
     setRefreshKey((k) => k + 1);
-  }, []);
+  }, [department, section]);
 
   const navItems = NAV_BY_DEPARTMENT[department];
   const hero = heroFor(department, section);
@@ -143,6 +153,7 @@ export default function DataAnalyticsPage() {
     if (v?.presetId) setDateValue(v.presetId);
     else setDateValue(start ? { start, end } : DEFAULT_DATE_VALUE);
     if (start) setDateRange(datesToRange(start, end));
+    trackAnalytics(EVENTS.FILTER_APPLIED, { department, section, filter_type: "period", filter_value: v?.presetId || "custom_range" });
   };
 
   // Hooks consume `doctor`/`clinic` as a CSV id string (spec §1.2 accepts a
@@ -165,12 +176,14 @@ export default function DataAnalyticsPage() {
   };
 
   const onDepartmentChange = (value) => {
+    trackAnalytics(EVENTS.DEPT_SWITCH, { from_department: department, to_department: value });
     setDepartment(value);
     setSection("overview");
     setSubTab("all");
   };
 
   const onSectionChange = (value) => {
+    trackAnalytics(EVENTS.SECTION_VIEW, { department, section: value });
     setSection(value);
     setSubTab("all");
   };
@@ -306,7 +319,7 @@ export default function DataAnalyticsPage() {
                           borderBottom: "0.5px solid var(--tesseract-slate-100, #e2e8f0)",
                         }}
                       >
-                        <Tabs value={subTab} onValueChange={setSubTab} size="md" variant="line">
+                        <Tabs value={subTab} onValueChange={(v) => { trackAnalytics(EVENTS.SUBTAB_VIEW, { department, section, subtab: v }); setSubTab(v); }} size="md" variant="line">
                           {/* Care's 15 tabs fill the row; Grow's 3 hug their text, left-aligned */}
                           <TabsList fullWidth={section === "care"}>
                             {subTabsConfig.map((tab) => (
@@ -339,9 +352,9 @@ export default function DataAnalyticsPage() {
                         dateValue={dateValue}
                         onDateChange={handleDateChange}
                         doctors={doctors}
-                        onDoctorsChange={setDoctors}
+                        onDoctorsChange={(v) => { setDoctors(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department, section, filter_type: "doctor", filter_count: v.length }); }}
                         clinics={clinics}
-                        onClinicsChange={setClinics}
+                        onClinicsChange={(v) => { setClinics(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department, section, filter_type: "clinic", filter_count: v.length }); }}
                         doctorOptions={doctorOptions}
                         clinicOptions={clinicOptions}
                         doctorLocked={doctorLocked}
