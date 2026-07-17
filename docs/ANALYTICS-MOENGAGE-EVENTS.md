@@ -2,7 +2,7 @@
 
 **Module:** `data_analytics`
 **Implementation:** `src/pages/data-analytics/data/analyticsTracking.js`
-**Branch:** `tp-data-analytics`
+**Branch:** `TPA-data-analytics`
 **Date:** 2026-07-17
 
 ---

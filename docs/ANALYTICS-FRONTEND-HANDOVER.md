@@ -1,7 +1,7 @@
 # Data Analytics Module: Frontend Handover
 
 **Repository:** `DHSPL-Tatvacare/Pm-Doctor-Portal` (GitHub)
-**Branch:** `tp-data-analytics`
+**Branch:** `TPA-data-analytics`
 **Target branch:** `prod`
 **Route:** `/data-analytics-x` (lazy-loaded in `src/App.js:52,787`)
 **Date:** 2026-07-17
@@ -292,7 +292,7 @@ All API calls go through `src/api/services/ApiReporting.js`, which uses the shar
 | Messages | `operational/overview` (messaging fields) | |
 | IPD Overview | `analytics/inpatient-summary` | BOR, ALOS, ADC |
 | IPD Admissions | `analytics/inpatient-summary` | census series, discharge types |
-| IPD Wards | `ipd/wards` | occupancy, ALOS by ward |
+| IPD Wards | `ipd/wards`, `analytics/inpatient-summary` | 5 KPIs (total wards, beds, occupied, available, occupancy rate) + 4 charts (beds per ward, occupancy by ward, bed distribution donut, ALOS by ward). Per-ward breakdown needs backend `wardBreakdown` array (fix #20) |
 | IPD Billing | `analytics/ipd-billing` | same shape as OPD billing |
 | Reports (CSV) | `financial/*`, `clinical/appointment/*`, `clinical/prescription/*`, `reference/*` | Tab 3, CSV export via `?format=csv` |
 
@@ -331,7 +331,7 @@ Key overrides:
 
 ## 10. Known backend issues
 
-See `docs/ANALYTICS-BACKEND-FIXES.md` for the complete list (19 items, prioritized P0 to P3). The most impactful ones for the frontend:
+See `docs/ANALYTICS-BACKEND-FIXES.md` for the complete list (20 items, prioritized P0 to P3). The most impactful ones for the frontend:
 
 **Currently broken (P0):**
 - `operational/overview` crashes (500) for any date window. Overview uses fallback calls.
@@ -363,6 +363,7 @@ These are frontend-ready features waiting on backend support:
 | Follow-ups by doctor | `byDoctor` field on `clinic/followups` | `GrowSection.jsx` |
 | IPD Clinical Activity section | Fix `ipd/clinical` to return real data | `ClinicalActivitySection.jsx` exists but nav entry is commented out |
 | Till-date preset with real account creation date | `accountCreatedAt` from backend | `FilterBar.jsx` (currently uses 365 days as fallback) |
+| IPD per-ward breakdown (beds, occupancy, ALOS per ward) | `wardBreakdown` array on `ipd/wards` or `inpatient-summary` | `useWardsData.js` already parses it; charts zero-fill until data ships |
 
 ---
 

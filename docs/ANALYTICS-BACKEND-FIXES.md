@@ -1,7 +1,7 @@
 # Data Analytics: Backend fixes needed
 
 **Date:** 2026-07-17
-**Branch:** `tp-data-analytics`
+**Branch:** `TPA-data-analytics`
 **UAT:** `pm-core-uat.tatvacare.in` (business 396741719906700, clinic 390)
 
 All items below are things the frontend cannot fix. They are ordered by what
