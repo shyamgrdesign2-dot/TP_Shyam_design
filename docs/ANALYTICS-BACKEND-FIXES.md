@@ -223,6 +223,28 @@ multi-clinic accounts without an explicit clinic.
 **Ask:** Expose `accountCreatedAt` (on capabilities or a lookup). The FE
 will build the "Till date" preset from it. Keep the 366-day cap.
 
+### 20. Per-ward breakdown on `ipd/wards` (or `inpatient-summary`)
+
+**Endpoint:** `ipd/wards` or `analytics/inpatient-summary`
+
+**Ask:** Add a `wardBreakdown` array to the response:
+
+```json
+"wardBreakdown": [
+  { "ward": "General", "beds": 12, "occupied": 10, "available": 2, "occupancy": 83.3, "alos": 3.2 },
+  { "ward": "ICU",     "beds": 6,  "occupied": 5,  "available": 1, "occupancy": 83.3, "alos": 5.1 }
+]
+```
+
+**Source:** `tbl_admission_type_details` joined to `tbl_admit_patient_master`
+for the per-ward bed counts and occupancy. ALOS per ward from the discharge
+records already used for the `alosByWard` chart series.
+
+**FE impact:** Unblocks 4 new ward-level charts (beds per ward, occupancy %
+per ward, bed distribution donut, total wards KPI). The FE is already wired
+to parse `wardBreakdown` with fallbacks to `wards`/`wardSummary`. Until this
+ships, the charts render zero-filled placeholders.
+
 ---
 
 ## Frontend optimizations already shipped (this branch)
