@@ -218,7 +218,20 @@ const styles = StyleSheet.create({
 const cleanSubheader = (text) =>
   text ? text.replace(/^null\s*/i, "").trim() || "" : "";
 
-const imageUrl = (state) => state?.showFile || null;
+/**
+ * The preview <img> stores a no-CORS response (without the
+ * Access-Control-Allow-Origin header) in the browser cache, and the image
+ * server sends no `Vary: Origin`. react-pdf fetches images with CORS, so it
+ * would be served that cached header-less response and fail. A unique query
+ * string bypasses the cache so the CORS request reaches the server, which
+ * does return the CORS headers (this is why the bill PDF, which has no <img>
+ * preview, always worked).
+ */
+const imageUrl = (state, cacheBust) => {
+  const url = state?.showFile || null;
+  if (typeof url !== "string" || !/^https?:/i.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}pdfcb=${cacheBust}`;
+};
 
 const resultText = (test) =>
   [String(test.value), test.units || ""].filter(Boolean).join(" ");
@@ -241,7 +254,7 @@ function PatientFields({ patient, fields, fontSize }) {
         : "";
   const values = {
     1: ["Name", patient.pm_fullname || "Patient Name"],
-    2: ["ID", patient.tpml_refrence_id || patient.pm_pid || ""],
+    2: ["ID", patient.pm_pid || patient.tpml_refrence_id || ""],
     3: ["Date", new Date().toLocaleDateString("en-IN")],
     4: ["Age", age],
     5: ["Gender", patient.pm_gender || ""],
@@ -453,11 +466,17 @@ export default function LimsReportPdf({
     (option) => option.id === LAB_RESULTS_CASE_ID,
   );
   const format = labOption?.format || "table";
-  const showLogo = printSettings?.logo_enable === "Y" && imageUrl(fileLogo);
+  const cacheBust = Date.now();
+  const logoSrc = imageUrl(fileLogo, cacheBust);
+  const watermarkSrc = imageUrl(fileWatermark, cacheBust);
+  const signatureSrc = imageUrl(fileSignature, cacheBust);
+  const headerSrc = imageUrl(fileHeader, cacheBust);
+  const footerSrc = imageUrl(fileFooter, cacheBust);
+  const showLogo = printSettings?.logo_enable === "Y" && logoSrc;
   const showWatermark =
-    printSettings?.water_mark_enable === "Y" && imageUrl(fileWatermark);
+    printSettings?.water_mark_enable === "Y" && watermarkSrc;
   const showSignature =
-    printSettings?.signature_enable === "Y" && imageUrl(fileSignature);
+    printSettings?.signature_enable === "Y" && signatureSrc;
   const hasResults = results.some((entry) =>
     (entry.inputs || []).some(
       (input) =>
@@ -506,12 +525,12 @@ export default function LimsReportPdf({
         wrap
       >
         {showWatermark && (
-          <Image src={imageUrl(fileWatermark)} style={styles.watermark} fixed />
+          <Image src={watermarkSrc} style={styles.watermark} fixed />
         )}
 
         {/* Letterhead: Upload (1) */}
-        {letterhead === 1 && imageUrl(fileHeader) && (
-          <Image src={imageUrl(fileHeader)} style={styles.uploadedHeaderImg} />
+        {letterhead === 1 && headerSrc && (
+          <Image src={headerSrc} style={styles.uploadedHeaderImg} />
         )}
 
         {/* Letterhead: Custom (0) — logo stacks above the info block, like preview */}
@@ -520,14 +539,14 @@ export default function LimsReportPdf({
             <View style={styles.headerRow} wrap={false}>
               <View style={styles.headerLeft}>
                 {showLogo && !doctorOnRight && (
-                  <Image src={imageUrl(fileLogo)} style={styles.logo} />
+                  <Image src={logoSrc} style={styles.logo} />
                 )}
                 {!doctorOnRight && renderDoctorBlock("left")}
                 {clinicInfo?.place !== "R" && renderClinicBlock("left")}
               </View>
               <View style={styles.headerRight}>
                 {showLogo && doctorOnRight && (
-                  <Image src={imageUrl(fileLogo)} style={styles.logo} />
+                  <Image src={logoSrc} style={styles.logo} />
                 )}
                 {doctorOnRight && renderDoctorBlock("right")}
                 {clinicInfo?.place === "R" && renderClinicBlock("right")}
@@ -560,7 +579,7 @@ export default function LimsReportPdf({
             ]}
             wrap={false}
           >
-            <Image src={imageUrl(fileSignature)} style={styles.signatureImg} />
+            <Image src={signatureSrc} style={styles.signatureImg} />
             {otherSettings?.name_of_doctor_enable === "Y" && doctorInfo?.header && (
               <Text style={styles.signatureName}>{doctorInfo.header}</Text>
             )}
@@ -574,8 +593,8 @@ export default function LimsReportPdf({
         )}
 
         {/* Footer: uploaded image (letterhead 1) */}
-        {letterhead === 1 && imageUrl(fileFooter) && (
-          <Image src={imageUrl(fileFooter)} style={styles.uploadedFooterImg} />
+        {letterhead === 1 && footerSrc && (
+          <Image src={footerSrc} style={styles.uploadedFooterImg} />
         )}
 
         {/* Footer: text */}

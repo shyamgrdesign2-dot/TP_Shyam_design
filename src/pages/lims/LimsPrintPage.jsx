@@ -115,7 +115,7 @@ function LimsPrintPageMain() {
       name: patient.pm_fullname || "Unknown",
       age,
       gender: patient.pm_gender || "",
-      pid: patient.tpml_refrence_id || patient.pm_pid || "",
+      pid: patient.pm_pid || patient.tpml_refrence_id || "",
       contact: patient.pm_contact_no || "",
     };
   }, [patient]);
