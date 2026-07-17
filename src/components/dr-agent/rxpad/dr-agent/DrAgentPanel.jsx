@@ -44,7 +44,8 @@ export function DrAgentPanel({
   doctorId,
   patientData,
   voiceHydrationStatus,
-  symptomCollectorStatus
+  symptomCollectorStatus,
+  onPrintSoap,
 }) {
   const { profile } = useSelector((state) => state.doctors || {});
   const voiceDigitization = useSelector((state) => state.voiceDigitization || {});
@@ -444,6 +445,7 @@ export function DrAgentPanel({
             copyScope: "soap_note",
             cta: "copy_soap_note",
           }))}
+          onPrintSoap={onPrintSoap}
         />
 
       </div>

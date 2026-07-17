@@ -1,4 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { resolveVoiceSoapHtml, resolveVoiceSoapSections } from "../utils/voiceSoapPayload";
 
 const createVoiceSessionId = () =>
   `voice-session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -15,7 +16,7 @@ const initialState = {
   // Persisted to /voice/store under key "soap" and used as previous_context on regen.
   soap: null,
   // soapHtml = display/edit HTML for RichEditor (derived from soap via soapToHtml).
-  // Not persisted to /voice/store; lives in redux for cross-component access during session.
+  // On edit, this is converted back into soap so user changes are stored on end visit.
   soapHtml: "",
   recordId: null,
 };
@@ -50,12 +51,14 @@ const voiceDigitizationSlice = createSlice({
     },
     hydrateVoiceDigitization: (state, action) => {
       const payload = action.payload || {};
+      const soap = resolveVoiceSoapSections(payload);
+      const soapHtml = resolveVoiceSoapHtml(payload);
       state.history = Array.isArray(payload.history) ? payload.history : [];
       state.digitizeData = payload.digitizeData ?? null;
       state.editedData = payload.editedData ?? null;
       state.clinicNotes = payload.clinicNotes || {};
-      state.soap = payload.soap && typeof payload.soap === "object" ? payload.soap : null;
-      state.soapHtml = typeof payload.soapHtml === "string" ? payload.soapHtml : "";
+      state.soap = soap;
+      state.soapHtml = soapHtml;
       state.recordId = payload._id || payload.id || state.recordId;
       state.voiceLogCreated = state.history.length > 0;
     },

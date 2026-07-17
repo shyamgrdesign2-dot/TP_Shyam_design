@@ -58,6 +58,7 @@ import {
   errorMessage,
 } from "../utils/utils";
 import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
+import { resolveMedicineUnitTitle } from "../utils/medicationCopyNormalization";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
@@ -86,6 +87,7 @@ import PrimaryActionButton from "./PrimaryActionButton";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
 import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { ASSETS } from "../assets";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import ApiMedication from "../api/services/ApiMedication";
@@ -568,6 +570,7 @@ function Cardiology(props) {
   const [isRxdigitised, setIsRxdigitised] = useState(null);
   const [cvtDrawer, setCvtDrawer] = useState(false);
   const [printUrl, setPrintUrl] = useState(null);
+  const [labParamsData, setLabParamsData] = useState([]);
   const [imageUrl, setImageUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -830,6 +833,42 @@ function Cardiology(props) {
     }
   }, [defaultPrintSettings]);
 
+  useEffect(() => {
+    const patientUniqueId = patient_data?.patient_unique_id;
+    if (!patientUniqueId) {
+      setLabParamsData([]);
+      return;
+    }
+
+    let isCancelled = false;
+    const fetchLabParams = async () => {
+      try {
+        const labParamsBaseUrl = env.lab_params_api_url;
+        if (!labParamsBaseUrl) {
+          if (!isCancelled) setLabParamsData([]);
+          return;
+        }
+        const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+        const cleanedToken = token ? token.replace(/['"]+/g, "") : "";
+        const response = await axios.get(
+          `${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientUniqueId}?today=true`,
+          { headers: { Authorization: `Bearer ${cleanedToken}` } },
+        );
+        if (!isCancelled) {
+          setLabParamsData(normalizeLabResultsResponse(response));
+        }
+      } catch (error) {
+        console.error("Error fetching lab params for cardiology print:", error);
+        if (!isCancelled) setLabParamsData([]);
+      }
+    };
+
+    fetchLabParams();
+    return () => {
+      isCancelled = true;
+    };
+  }, [patient_data?.patient_unique_id]);
+
   // MOBILE OPTIMIZATION: Memoize PDF URL calculation to prevent expensive recalculations on every render
   // This function is called in render and useEffect, so memoization prevents redundant work
   // MUST be defined before mobilePdfUrl useMemo to avoid initialization error
@@ -972,6 +1011,7 @@ function Cardiology(props) {
     isGynaecHistoryAccessable: false,
     payloadOverride: null,
     skipFetch: !printUrlWithLang,
+    labParamsData,
     isCvtExtHosAccessableFromGB,
     patientId: patient_data?.patient_unique_id,
     tcmId: viewCaseManagerData?.tcm_id,
@@ -1046,17 +1086,25 @@ function Cardiology(props) {
     const payload = response?.data?.data || null;
     if (!payload) return null;
 
+    const clientLabParams = normalizeLabResultsResponse(labParamsData);
+    const payloadLabParams = normalizeLabResultsResponse(payload?.labParamsData);
+    const resolvedLabParams =
+      clientLabParams.length > 0 ? clientLabParams : payloadLabParams;
+
     try {
-      const { blob } = await buildPrintPdfBlobFromPayload(payload, {
-        selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
-        isGynaecHistoryAccessable: false,
-        patientId: patient_data?.patient_unique_id,
-        tcmId: viewCaseManagerData?.tcm_id ?? payload?.caseManagerData?.tcm_id,
-        canvasFilename:
-          viewCaseManagerData?.canvas_filename ?? payload?.caseManagerData?.canvas_filename,
-        isCvtExtHosAccessableFromGB,
-        allowFullApiFallback: true,
-      });
+      const { blob } = await buildPrintPdfBlobFromPayload(
+        { ...payload, labParamsData: resolvedLabParams },
+        {
+          selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
+          isGynaecHistoryAccessable: false,
+          patientId: patient_data?.patient_unique_id,
+          tcmId: viewCaseManagerData?.tcm_id ?? payload?.caseManagerData?.tcm_id,
+          canvasFilename:
+            viewCaseManagerData?.canvas_filename ?? payload?.caseManagerData?.canvas_filename,
+          isCvtExtHosAccessableFromGB,
+          allowFullApiFallback: true,
+        },
+      );
       return blob instanceof Blob ? blob : null;
     } catch (err) {
       console.error("Failed to build print PDF blob", err);
@@ -1068,6 +1116,7 @@ function Cardiology(props) {
     patient_data?.patient_unique_id,
     viewCaseManagerData?.tcm_id,
     viewCaseManagerData?.canvas_filename,
+    labParamsData,
   ]);
 
   useEffect(() => {
@@ -1471,26 +1520,8 @@ function Cardiology(props) {
         <>
           <div>{`${
             record.tmm_dosage && record.tmm_unit
-              ? `${medicine_freq_dosage_format(record.tmm_dosage, medicationCaseOptions?.is_dosage_decimal)} ${
-                  record?.medicineUnit &&
-                  record?.medicineUnit.find(
-                    (x) => x.tmu_id == record.tmm_unit
-                  ) !== undefined
-                    ? record?.medicineUnit.find(
-                        (x) => x.tmu_id == record.tmm_unit
-                      ).tmu_title
-                    : ""
-                }`
-              : `${
-                  record?.medicineUnit &&
-                  record?.medicineUnit.find(
-                    (x) => x.tmu_id == record.default_tmm_unit
-                  ) !== undefined
-                    ? record?.medicineUnit.find(
-                        (x) => x.tmu_id == record.default_tmm_unit
-                      ).tmu_title
-                    : ""
-                }`
+              ? `${medicine_freq_dosage_format(record.tmm_dosage, medicationCaseOptions?.is_dosage_decimal)} ${resolveMedicineUnitTitle(record, record.tmm_unit)}`
+              : resolveMedicineUnitTitle(record, record.default_tmm_unit)
           }`}</div>
 
           {record?.tmm_id == medicationData[index - 1]?.tmm_id && (

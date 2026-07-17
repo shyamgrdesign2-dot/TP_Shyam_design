@@ -2,7 +2,7 @@
  * PlanSearchDropdown — Portal-rendered search dropdown for AddEditPlanDrawer.
  * Renders exam suggestions and catalog items inside a fixed-position portal.
  */
-import { forwardRef } from "react";
+import { forwardRef, useRef, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { SURFACE_COLORS, SURFACE_ABBR } from "./plan-types";
 import { formatINR } from "./plan-shared";
@@ -12,7 +12,7 @@ const cx = (...classes) => classes.filter(Boolean).join(" ");
 
 /**
  * @param {object} props
- * @param {{ top: number, left: number, width: number }} props.dropdownPos
+ * @param {{ top?: number, left: number, width: number, maxHeight?: number, placement?: string, bottom?: number }} props.dropdownPos
  * @param {object[]} props.filteredExamSuggestions
  * @param {object[]} props.filteredTreatments
  * @param {object[]} props.rows - Current service rows (used for already-added checks)
@@ -22,6 +22,7 @@ const cx = (...classes) => classes.filter(Boolean).join(" ");
  * @param {boolean} props.showSearchEmptyHint
  * @param {boolean} props.showAddCustomDental
  * @param {string} props.searchQuery
+ * @param {boolean} [props.catalogLoading]
  * @param {function} props.onAddExamSuggestion - (treatment, [toothFdi], surfaces) => void
  * @param {function} props.onAddCatalogItem - (name, [], [], item) => void
  * @param {function} props.onOpenCustomDentalDrawer - () => void
@@ -38,18 +39,48 @@ export const PlanSearchDropdown = forwardRef(function PlanSearchDropdown(
     showSearchEmptyHint,
     showAddCustomDental,
     searchQuery,
+    catalogLoading = false,
     onAddExamSuggestion,
     onAddCatalogItem,
     onOpenCustomDentalDrawer,
   },
   ref
 ) {
+  const catalogListRef = useRef(null);
+
+  const handleCatalogWheel = useCallback((e) => {
+    const el = catalogListRef.current;
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const delta = e.deltaY;
+    const atTop = scrollTop <= 0;
+    const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+    const canScroll = scrollHeight > clientHeight;
+    if (canScroll && !(atTop && delta < 0) && !(atBottom && delta > 0)) {
+      el.scrollTop += delta;
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = catalogListRef.current;
+    if (!el) return;
+    el.addEventListener("wheel", handleCatalogWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleCatalogWheel);
+  }, [handleCatalogWheel, filteredTreatments.length, catalogLoading]);
+
+  const listMaxHeight = dropdownPos.maxHeight ?? 260;
+  const placement = dropdownPos.placement ?? "below";
+
   return (
     <div
       ref={ref}
       style={{
         position: "fixed",
-        top: dropdownPos.top,
+        ...(placement === "above"
+          ? { bottom: dropdownPos.bottom, top: "auto" }
+          : { top: dropdownPos.top }),
         left: dropdownPos.left,
         width: Math.max(dropdownPos.width, 400),
         zIndex: 10001,
@@ -141,8 +172,22 @@ export const PlanSearchDropdown = forwardRef(function PlanSearchDropdown(
           <div className={styles.dropdownCatalogHeader}>
             <p className={styles.dropdownCatalogTitle}>Dental service</p>
           </div>
-          <div className={styles.dropdownCatalogList}>
+          <div
+            ref={catalogListRef}
+            className={styles.dropdownCatalogList}
+            style={{ maxHeight: listMaxHeight }}
+          >
             <>
+              {catalogLoading && filteredTreatments.length === 0 && (
+                <div className={styles.searchEmptyWrap}>
+                  <p className={styles.searchEmptyText}>Loading dental services…</p>
+                </div>
+              )}
+              {!catalogLoading && filteredTreatments.length === 0 && searchQuery.trim() !== "" && (
+                <div className={styles.searchEmptyWrap}>
+                  <p className={styles.searchEmptyText}>No dental services found.</p>
+                </div>
+              )}
               {filteredTreatments.map((t, i) => {
                 const globalIdx = filteredExamSuggestions.length + i;
                 const alreadyAdded = rows.some((r) => r.treatment === t.name);
