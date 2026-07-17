@@ -31,6 +31,7 @@ export default function LimsNoAccessPage() {
       receptionist_id: tokenData?.user_id,
       receptionist_name: urlParams.get("receptionistName"),
       clinic_name: urlParams.get("clinicName") || clinic_name,
+      center_city: urlParams.get("centerCity"),
       former_page: "lims",
       feature: "lims",
       ...deviceSdkData,
