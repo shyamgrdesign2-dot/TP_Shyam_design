@@ -1,6 +1,6 @@
 # Data Analytics Module: PR Document
 
-**Branch:** `Tp_new_data_analytics_shyam`
+**Branch:** `tp-data-analytics`
 **Route:** `/data-analytics-x`
 **Target:** `prod`
 

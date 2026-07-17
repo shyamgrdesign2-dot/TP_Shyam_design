@@ -197,6 +197,7 @@ export default function DataAnalyticsPage() {
     (!caps.singleClinic && clinics.length > 0) ||
     dateValue !== DEFAULT_DATE_VALUE;
   const clearAllFilters = () => {
+    trackAnalytics(EVENTS.FILTER_CLEARED, { department, section });
     setDoctors(doctorLocked ? [caps.selfId] : []);
     setClinics([]);
     setDateValue(DEFAULT_DATE_VALUE);

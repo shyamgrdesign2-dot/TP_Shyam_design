@@ -33,7 +33,10 @@ export const EVENTS = {
   SECTION_VIEW: "TP_Analytics_SectionView",
   SUBTAB_VIEW: "TP_Analytics_SubtabView",
   FILTER_APPLIED: "TP_Analytics_FilterApplied",
+  FILTER_CLEARED: "TP_Analytics_FilterCleared",
   REFRESH: "TP_Analytics_Refresh",
   REPORT_OPENED: "TP_Analytics_ReportOpened",
   REPORT_DOWNLOADED: "TP_Analytics_ReportDownloaded",
+  REPORT_ERROR: "TP_Analytics_ReportError",
+  DATA_ERROR: "TP_Analytics_DataError",
 };

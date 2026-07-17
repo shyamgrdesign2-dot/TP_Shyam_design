@@ -323,6 +323,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       // Empty result: tell the user why nothing useful downloaded instead of
       // saving a headers-only file.
       if (rows != null && Number(rows) === 0) {
+        trackAnalytics(EVENTS.DATA_ERROR, { department, section: "reports", error_type: "empty_data", report_name: resolvedReport?.label || resolvedReport?.id });
         setToast({
           status: "info",
           title: "No data available",
@@ -338,6 +339,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       const serverMsg = await extractErrorMessage(e);
       // eslint-disable-next-line no-console
       console.warn("Report export failed", resolvedReport?.id, e?.response?.status || e?.message);
+      trackAnalytics(EVENTS.REPORT_ERROR, { department, report_name: resolvedReport?.label || resolvedReport?.id, error_status: e?.response?.status || "unknown", error_message: serverMsg || e?.message || "" });
       setToast({
         status: "error",
         title: "Download failed",
@@ -746,7 +748,6 @@ function MultiField({ label, placeholder, options = [], value = [], onChange }) 
         mode="multi"
         optionControl="checkbox"
         searchable={options.length > 5}
-        withActions
         primaryAction={{ label: "Select all", onClick: () => onChange(options.map((o) => o.value)) }}
         secondaryAction={{ label: "Clear", onClick: () => onChange([]) }}
         ariaLabel={`Select ${label}`}

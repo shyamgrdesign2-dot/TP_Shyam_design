@@ -76,7 +76,6 @@ export default function FilterBar({
             mode="multi"
             optionControl="checkbox"
             searchable
-            withActions
             secondaryAction={{ label: "Clear", onClick: () => onDoctorsChange([]) }}
             ariaLabel="Filter by doctors"
           />
@@ -103,7 +102,6 @@ export default function FilterBar({
             mode="multi"
             optionControl="checkbox"
             searchable={clinicOptions.length > 5}
-            withActions
             secondaryAction={{ label: "Clear", onClick: () => onClinicsChange([]) }}
             ariaLabel="Filter by clinics"
           />
