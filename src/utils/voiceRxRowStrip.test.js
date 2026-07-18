@@ -293,6 +293,19 @@ describe("mergeCopiedRows", () => {
       },
     ]);
   });
+
+  it("prevents duplicated surgeries when copied again by name", () => {
+    const existing = [
+      { name: "Knee replacement", notes: "existing note", masterId: "surgery-1" },
+    ];
+    const incoming = [
+      { name: "knee replacement", notes: "new note", masterId: "generated-copy-id" },
+    ];
+
+    expect(mergeCopiedRows(existing, incoming, "surgeries")).toEqual([
+      { name: "knee replacement", notes: "new note", masterId: "surgery-1" },
+    ]);
+  });
 });
 
 describe("appendDedupedText", () => {

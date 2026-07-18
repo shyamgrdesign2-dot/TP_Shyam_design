@@ -121,6 +121,7 @@ function rowMergeKeys(row = {}, moduleKey) {
     case "surgeries":
       return [
         textKey("surgery", firstValue(row, ["name", "surgery_name", "procedure_name", "lineItem", "title"])),
+        idKey("surgery-master", row.masterId),
         idKey("surgery-id", row.id),
       ].filter(Boolean);
     default:
@@ -198,6 +199,10 @@ function shouldPreserveSelectedRowValue(existing = {}, key, moduleKey) {
       hasNonZeroValue(existing?.service_code) ||
       hasNonZeroValue(existing?.hm_type);
     return hasSelectedInvestigation && SELECTED_INVESTIGATION_KEYS.has(key) && hasValue(existing?.[key]);
+  }
+
+  if (moduleKey === "surgeries") {
+    return key === "masterId" && hasValue(existing?.masterId);
   }
 
   return false;

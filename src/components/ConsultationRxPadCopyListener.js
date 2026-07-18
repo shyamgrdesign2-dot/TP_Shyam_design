@@ -9,6 +9,7 @@ import { normalizeModuleRows } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import { toast } from "./dr-agent/voicerx/toast";
 import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
 import { normalizeCopiedMedicationRows } from "../utils/medicationCopyNormalization";
+import { enrichCopiedSurgeryRows } from "../utils/surgeryCopyNormalization";
 import { addUpdateVitals } from "../redux/vitalsSlice";
 import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
 import { errorMessage } from "../utils/utils";
@@ -359,12 +360,18 @@ export default function ConsultationRxPadCopyListener() {
       }
     }
 
-    const surgeries = firstNonEmpty(digitization.surgeries, payload.surgeries);
-    appendRows(
-      setSurgeriesData,
-      normalizeModuleRows({ surgery: toArray(surgeries) }, "surgery"),
-      "surgeries"
+    const surgeries = firstNonEmpty(
+      digitization.surgery,
+      digitization.surgeries,
+      payload.surgery,
+      payload.surgeries
     );
+    const surgeryRows = normalizeModuleRows({ surgery: toArray(surgeries) }, "surgery");
+    if (surgeryRows.length) {
+      enrichCopiedSurgeryRows(surgeryRows)
+        .then((enrichedRows) => appendRows(setSurgeriesData, enrichedRows, "surgeries"))
+        .catch(() => appendRows(setSurgeriesData, surgeryRows, "surgeries"));
+    }
 
     const followUp = firstNonEmpty(digitization.follow_up, digitization.followUp, payload.followUp);
     toArray(followUp).forEach((item) => {

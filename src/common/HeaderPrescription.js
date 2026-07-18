@@ -290,6 +290,20 @@ function normalizeVoiceHistoryForStore(history) {
     });
 }
 
+function withSurgeriesAliasForVoiceStore(value, fallbackSurgeries) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const hasSurgeries = Array.isArray(value.surgeries) && value.surgeries.length > 0;
+    if (hasSurgeries) return value;
+
+    const surgeryRows = Array.isArray(value.surgery) && value.surgery.length > 0
+        ? value.surgery
+        : Array.isArray(fallbackSurgeries) && fallbackSurgeries.length > 0
+            ? fallbackSurgeries
+            : [];
+
+    return surgeryRows.length > 0 ? { ...value, surgeries: surgeryRows } : value;
+}
+
 function getVoiceSoapDraftForStore(voiceDigitization) {
     const liveVoiceDigitization = store.getState()?.voiceDigitization || voiceDigitization || {};
     const sessionId = liveVoiceDigitization?.sessionId || voiceDigitization?.sessionId || "";
@@ -3169,6 +3183,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     try {
                         const consentPayload = await getConsentForVoicePrescriptionPayload();
                         const voiceStoreDraft = getVoiceSoapDraftForStore(liveVoiceDigitizationForStore);
+                        const voiceStoreDigitizeData = withSurgeriesAliasForVoiceStore(
+                            voiceStoreDraft.liveVoiceDigitization?.digitizeData,
+                            surgeriesData
+                        );
+                        const voiceStoreClinicNotes = withSurgeriesAliasForVoiceStore(
+                            voiceStoreDraft.liveVoiceDigitization?.clinicNotes,
+                            surgeriesData
+                        );
                         await storeVoicePrescription({
                             patientId: patient_data?.patient_unique_id,
                             doctorId: profile?.doctor_unique_id,
@@ -3177,9 +3199,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             sessionId: voiceStoreDraft.sessionId,
                             payload: {
                                 history: normalizeVoiceHistoryForStore(voiceStoreDraft.liveVoiceDigitization?.history),
-                                digitizeData: voiceStoreDraft.liveVoiceDigitization?.digitizeData || {},
+                                digitizeData: voiceStoreDigitizeData,
                                 editedData: voiceEditedData,
-                                clinicNotes: voiceStoreDraft.liveVoiceDigitization?.clinicNotes || {},
+                                clinicNotes: voiceStoreClinicNotes,
                                 ...buildVoiceSoapStoreFields({
                                     soap: voiceStoreDraft.soap,
                                     soapHtml: voiceStoreDraft.soapHtml,

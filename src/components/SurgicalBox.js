@@ -174,7 +174,7 @@ function SurgicalBox({ showVoiceRxModule }) {
     moduleName: "Surgeries/Procedures",
     onApply: applyVoiceSurgeries,
     successMessage: "Surgeries/Procedures filled from voice dictation",
-    copyPayloadKeys: ["surgeries"],
+    copyPayloadKeys: ["surgery", "surgeries"],
   });
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);

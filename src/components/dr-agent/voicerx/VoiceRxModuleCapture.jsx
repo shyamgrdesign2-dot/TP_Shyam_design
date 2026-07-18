@@ -761,6 +761,8 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
     ? [moduleApiName, artifactType, "medications", "medicine", "medicines", "items", "data"]
     : moduleApiName === "lab_investigations"
       ? [moduleApiName, artifactType, "lab_investigation", "lab_investigations", "items", "data"]
+      : moduleApiName === "surgery"
+        ? [moduleApiName, artifactType, "surgery", "surgeries", "procedure", "procedures", "items", "data"]
       : moduleApiName === "medical_history"
         ? [moduleApiName, artifactType, "medical_history", "medicalHistory", "pastMedicalHistory", "history", "response", "result", "results", "output", "items", "rows", "records", "data"]
       : [moduleApiName, artifactType, "items", "data"];
@@ -898,7 +900,7 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
         return {
           ...row,
           masterId: row?.masterId || row?.id || createModuleVoiceId(),
-          name: row?.name || row?.surgery_name || row?.procedure_name || "",
+          name: row?.name || row?.surgery_name || row?.procedure_name || name,
           notes,
         };
       default:
