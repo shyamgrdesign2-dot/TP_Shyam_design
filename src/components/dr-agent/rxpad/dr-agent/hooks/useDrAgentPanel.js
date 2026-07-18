@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -35,6 +35,7 @@ import {
 import { generateSoapNote } from "../../../voicerx/api/soap-service";
 import { digitizationToSections } from "../../../voicerx/utils/result-formatters";
 import { soapToHtml, htmlToSoapSections } from "../../../voicerx/utils/soap-formatter";
+import { clearLatestSoapDraft } from "../../../voicerx/utils/soap-session-draft";
 import {
   addVoiceHistoryEntry,
   beginVoiceAttempt,
@@ -469,6 +470,7 @@ export function useDrAgentPanel({
   useEffect(() => {
     setVoiceRxResult(null);
     setVoiceRxResultMinimized(false);
+    hasAutoHydratedRef.current = false;
   }, [selectedPatientId]);
 
   useEffect(() => {
@@ -590,6 +592,54 @@ export function useDrAgentPanel({
      setAiFillInProgress, pushHistoricalUpdates, activeVoiceModule, headerDictation, runCopyWithAura } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const lastSignalIdRef = useRef(0);
+  const voiceSessionCleanupSeenRef = useRef(voiceDigitization?.sessionId || "");
+  useLayoutEffect(() => {
+    const nextSessionId = voiceDigitization?.sessionId || "";
+    if (voiceSessionCleanupSeenRef.current === nextSessionId) return;
+    const previousSessionId = voiceSessionCleanupSeenRef.current;
+    voiceSessionCleanupSeenRef.current = nextSessionId;
+    if (previousSessionId) {
+      clearLatestSoapDraft(previousSessionId);
+    }
+    if (nextSessionId) {
+      clearLatestSoapDraft(nextSessionId);
+    }
+    if (voiceRxTimeoutRef.current) {
+      clearTimeout(voiceRxTimeoutRef.current);
+      voiceRxTimeoutRef.current = null;
+    }
+    abortActiveVoiceRxRequest(VOICE_V2_ABORT_REASONS.USER_DISCARDED_VOICE_RX);
+    voiceRxSessionRef.current = null;
+    pendingInitialVoiceUserMsgIdRef.current = null;
+    priorVoiceResultRef.current = null;
+    hasAutoHydratedRef.current = false;
+    soapRetryInFlightRef.current = false;
+    setVoiceRxResult(null);
+    setVoiceRxResultMinimized(false);
+    setVoiceRxRecording(false);
+    setVoiceRxScriptedTranscript("");
+    setVoiceRxSubmittedTranscript("");
+    setVoiceRxProcessingTranscript("");
+    setVoiceRxAwaitingResponse(false);
+    setVoiceRxPaused(false);
+    voiceRxPausedRef.current = false;
+    resetLiveTranscript();
+    onVoiceCaptureModeChange?.(null);
+    setAiFillInProgress(false);
+    setMessagesByPatient((prev) => {
+      const existingMessages = prev[selectedPatientId] || [];
+      if (!existingMessages.length) return prev;
+      return { ...prev, [selectedPatientId]: [] };
+    });
+  }, [
+    abortActiveVoiceRxRequest,
+    onVoiceCaptureModeChange,
+    resetLiveTranscript,
+    selectedPatientId,
+    setAiFillInProgress,
+    setMessagesByPatient,
+    voiceDigitization?.sessionId,
+  ]);
   const voiceCopyTrackingContext = useMemo(() => ({
     doctorId: doctorId || profile?.doctor_unique_id || "",
     doctorName: profile?.um_name || "",

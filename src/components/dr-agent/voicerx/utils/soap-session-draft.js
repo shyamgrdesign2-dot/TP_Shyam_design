@@ -19,6 +19,7 @@ export function getLatestSoapDraft(sessionId = "") {
 	if (sessionId && soapDraftBySession.has(sessionId)) {
 		return soapDraftBySession.get(sessionId);
 	}
+	if (sessionId) return null;
 	return latestSoapDraft;
 }
 
