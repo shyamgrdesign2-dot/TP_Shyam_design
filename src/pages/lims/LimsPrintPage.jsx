@@ -3,8 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Button, Select, message } from "antd";
 import { PrinterOutlined, SettingOutlined, DownloadOutlined } from "@ant-design/icons";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import { pdf } from "@react-pdf/renderer";
 import { browserName } from "react-device-detect";
 
 import PrintSettingsContext from "../../context/PrintSettingsContext";
@@ -16,6 +15,7 @@ import { printBlobInNewTab } from "../opdBilling/utils/helper";
 import { fetchLimsPatients, fetchPatientLabResults } from "./limsApi";
 import { loadLimsSettings, ensureLabOption, initFileStates } from "./limsPrintUtils";
 import { LabResultsPreview } from "./LimsPrintConfig";
+import LimsReportPdf from "./LimsReportPdf";
 import styles from "./LimsPrintPage.module.css";
 import LimsAccessBoundary from "./LimsAccessBoundary";
 import {
@@ -27,8 +27,6 @@ import {
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DOWNLOAD_MESSAGE_KEY = "lims-download-report";
 const PRINT_MESSAGE_KEY = "lims-print-report";
-/** Ignore tiny leftover height so html2canvas/jsPDF rounding does not create a blank last page. */
-const PDF_PAGE_OVERFLOW_TOLERANCE_MM = 2;
 
 function LimsPrintPageMain() {
   const { patientId } = useParams();
@@ -117,7 +115,7 @@ function LimsPrintPageMain() {
       name: patient.pm_fullname || "Unknown",
       age,
       gender: patient.pm_gender || "",
-      pid: patient.tpml_refrence_id || patient.pm_pid || "",
+      pid: patient.pm_pid || patient.tpml_refrence_id || "",
       contact: patient.pm_contact_no || "",
     };
   }, [patient]);
@@ -132,67 +130,58 @@ function LimsPrintPageMain() {
     return `${safeName}-lab-results-${datePart}.pdf`;
   }, [patientInfo.name, selectedDate]);
 
-  /**
-   * Capture only the report card as PDF (not the web page).
-   * Strips A4 min-height during capture so a nearly-empty second page is not created.
-   */
+  const availableDates = useMemo(() => {
+    const dateSet = new Set();
+    (results || []).forEach((entry) => {
+      if (entry.date) dateSet.add(entry.date.slice(0, 10));
+    });
+    const sorted = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
+    return sorted.map((iso) => {
+      const d = new Date(iso + "T00:00:00");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mmm = MONTH_ABBR[d.getMonth()];
+      const yyyy = d.getFullYear();
+      return { value: iso, label: `${dd} ${mmm} ${yyyy}` };
+    });
+  }, [results]);
+
+  useEffect(() => {
+    if (availableDates.length > 0 && !selectedDate) {
+      setSelectedDate(availableDates[0].value);
+    }
+  }, [availableDates, selectedDate]);
+
+  const filteredResults = useMemo(() => {
+    if (!selectedDate) return results;
+    return results.filter((entry) => entry.date && entry.date.startsWith(selectedDate));
+  }, [results, selectedDate]);
+
   const buildReportPdfBlob = useCallback(async () => {
-    const element = printRef.current;
-    if (!element) {
+    if (!printSettings) {
       throw new Error("Print preview is not ready.");
     }
-
-    const prevStyles = {
-      minHeight: element.style.minHeight,
-      height: element.style.height,
-      overflow: element.style.overflow,
-      boxShadow: element.style.boxShadow,
-      borderRadius: element.style.borderRadius,
-    };
-    element.style.minHeight = "0";
-    element.style.height = "auto";
-    element.style.overflow = "visible";
-    element.style.boxShadow = "none";
-    element.style.borderRadius = "0";
-
-    try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-      });
-      const imgData = canvas.toDataURL("image/jpeg", 0.98);
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 8;
-      const contentWidth = pageWidth - margin * 2;
-      const usablePageHeight = pageHeight - margin * 2;
-      const imgHeight = (canvas.height * contentWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let offsetY = margin;
-
-      pdf.addImage(imgData, "JPEG", margin, offsetY, contentWidth, imgHeight);
-      heightLeft -= usablePageHeight;
-
-      while (heightLeft > PDF_PAGE_OVERFLOW_TOLERANCE_MM) {
-        offsetY = margin - (imgHeight - heightLeft);
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", margin, offsetY, contentWidth, imgHeight);
-        heightLeft -= usablePageHeight;
-      }
-
-      return pdf.output("blob");
-    } finally {
-      element.style.minHeight = prevStyles.minHeight;
-      element.style.height = prevStyles.height;
-      element.style.overflow = prevStyles.overflow;
-      element.style.boxShadow = prevStyles.boxShadow;
-      element.style.borderRadius = prevStyles.borderRadius;
-    }
-  }, []);
+    return pdf(
+      <LimsReportPdf
+        results={filteredResults}
+        patient={patient}
+        printSettings={printSettings}
+        fileHeader={fileHeader}
+        fileFooter={fileFooter}
+        fileLogo={fileLogo}
+        fileWatermark={fileWatermark}
+        fileSignature={fileSignature}
+      />,
+    ).toBlob();
+  }, [
+    fileFooter,
+    fileHeader,
+    fileLogo,
+    fileSignature,
+    fileWatermark,
+    filteredResults,
+    patient,
+    printSettings,
+  ]);
 
   const handlePrint = useCallback(async () => {
     if (!printRef.current) {
@@ -284,32 +273,6 @@ function LimsPrintPageMain() {
       setIsDownloading(false);
     }
   }, [buildReportPdfBlob, isDownloading, reportFileName]);
-
-  const availableDates = useMemo(() => {
-    const dateSet = new Set();
-    (results || []).forEach((entry) => {
-      if (entry.date) dateSet.add(entry.date.slice(0, 10));
-    });
-    const sorted = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
-    return sorted.map((iso) => {
-      const d = new Date(iso + "T00:00:00");
-      const dd = String(d.getDate()).padStart(2, "0");
-      const mmm = MONTH_ABBR[d.getMonth()];
-      const yyyy = d.getFullYear();
-      return { value: iso, label: `${dd} ${mmm} ${yyyy}` };
-    });
-  }, [results]);
-
-  useEffect(() => {
-    if (availableDates.length > 0 && !selectedDate) {
-      setSelectedDate(availableDates[0].value);
-    }
-  }, [availableDates, selectedDate]);
-
-  const filteredResults = useMemo(() => {
-    if (!selectedDate) return results;
-    return results.filter((entry) => entry.date && entry.date.startsWith(selectedDate));
-  }, [results, selectedDate]);
 
   const contextApi = {
     printSettings,
