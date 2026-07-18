@@ -101,6 +101,7 @@ import {
   normalizeCopiedMedicationRows,
   resolveMedicineUnitTitle,
 } from "../utils/medicationCopyNormalization";
+import { enrichCopiedSurgeryRows } from "../utils/surgeryCopyNormalization";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
@@ -178,6 +179,7 @@ import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew
 import { SideNavbar } from "../components/sideNavbar";
 import { TreatmentPlanDrawer } from "../components/dental/plan/TreatmentPlanDrawer";
 import { useTabletViewport } from "../hooks/useTabletViewport";
+import { VoiceBarProvider, VoiceBar, QuickDictateCoachMark, TutorialDrawer } from "../components/quick-dictator";
 import { getLatestSoapDraft } from "../components/dr-agent/voicerx/utils/soap-session-draft";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { buildSoapIndividualPrintPayload } from "../utils/soapPrintPayload";
@@ -615,12 +617,18 @@ function PrescriptionNewRxPadCopyListener() {
       }
     }
 
-    const surgeries = firstNonEmpty(digitization.surgeries, payload.surgeries);
-    appendRows(
-      setSurgeriesData,
-      normalizeModuleRows({ surgery: toArray(surgeries) }, "surgery"),
-      "surgeries"
+    const surgeries = firstNonEmpty(
+      digitization.surgery,
+      digitization.surgeries,
+      payload.surgery,
+      payload.surgeries
     );
+    const surgeryRows = normalizeModuleRows({ surgery: toArray(surgeries) }, "surgery");
+    if (surgeryRows.length) {
+      enrichCopiedSurgeryRows(surgeryRows)
+        .then((enrichedRows) => appendRows(setSurgeriesData, enrichedRows, "surgeries"))
+        .catch(() => appendRows(setSurgeriesData, surgeryRows, "surgeries"));
+    }
 
     const followUp = firstNonEmpty(digitization.follow_up, digitization.followUp, payload.followUp);
     toArray(followUp).forEach((item) => {
@@ -2991,6 +2999,7 @@ function PrescriptionNew() {
   ]);
 
   return (
+    <VoiceBarProvider enabled={canUseVoiceRxModuleUi}>
     <CashManagerContext.Provider value={contextApi}>
       <RxPadSyncProvider>
         <PrescriptionNewRxPadCopyListener />
@@ -3562,6 +3571,14 @@ function PrescriptionNew() {
         </>
       </RxPadSyncProvider>
     </CashManagerContext.Provider>
+    {canUseVoiceRxModuleUi && (
+      <>
+        <VoiceBar />
+        <QuickDictateCoachMark />
+        <TutorialDrawer />
+      </>
+    )}
+    </VoiceBarProvider>
   );
 }
 

@@ -25,6 +25,7 @@ import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 import {
     VoiceRxModuleActionButton,
 } from '../components/dr-agent/voicerx/VoiceRxModuleCapture';
+import { qdToast } from '../components/quick-dictator/voice-bar-context';
 import voiceModuleStyles from '../components/dr-agent/voicerx/VoiceRxModuleCapture.module.scss';
 import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncContext';
 
@@ -59,7 +60,7 @@ import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
 import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
 import { store } from '../redux/store';
-import { VOICE_RX_2_VERSION, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent, trackVoiceRx2RecorderEvent } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { VOICE_RX_2_VERSION, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent, uploadAndTrackVoiceRx2LowSpeechBlock } from '../components/dr-agent/voicerx/voiceRx2Logging';
 import { htmlToSoapSections } from '../components/dr-agent/voicerx/utils/soap-formatter';
 import { getLatestSoapDraft } from '../components/dr-agent/voicerx/utils/soap-session-draft';
 import { buildVoiceSoapStoreFields } from '../utils/voiceSoapPayload';
@@ -133,7 +134,39 @@ function getVoiceDictationTargetId(element) {
 }
 
 function getEditableSelection(element) {
-    if (!element || (element.tagName !== "INPUT" && element.tagName !== "TEXTAREA")) return null;
+    if (!element) return null;
+    const editableRoot = element.isContentEditable
+        ? element
+        : element.closest?.("[contenteditable='true'], [contenteditable='']");
+    if (editableRoot) {
+        const selection = window.getSelection?.();
+        let range = null;
+        if (selection && selection.rangeCount > 0) {
+            const candidate = selection.getRangeAt(0);
+            const startElement = candidate.startContainer?.nodeType === 1
+                ? candidate.startContainer
+                : candidate.startContainer?.parentElement;
+            const endElement = candidate.endContainer?.nodeType === 1
+                ? candidate.endContainer
+                : candidate.endContainer?.parentElement;
+            if (
+                startElement &&
+                endElement &&
+                editableRoot.contains(startElement) &&
+                editableRoot.contains(endElement)
+            ) {
+                range = candidate.cloneRange();
+            }
+        }
+        return {
+            type: "contenteditable",
+            element: editableRoot,
+            range,
+            targetId: getVoiceDictationTargetId(editableRoot),
+        };
+    }
+
+    if (element.tagName !== "INPUT" && element.tagName !== "TEXTAREA") return null;
     let selectionStart = null;
     let selectionEnd = null;
     try {
@@ -144,6 +177,7 @@ function getEditableSelection(element) {
         selectionEnd = null;
     }
     return {
+        type: "input",
         element,
         selectionStart,
         selectionEnd,
@@ -254,6 +288,20 @@ function normalizeVoiceHistoryForStore(history) {
             digitize,
         };
     });
+}
+
+function withSurgeriesAliasForVoiceStore(value, fallbackSurgeries) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const hasSurgeries = Array.isArray(value.surgeries) && value.surgeries.length > 0;
+    if (hasSurgeries) return value;
+
+    const surgeryRows = Array.isArray(value.surgery) && value.surgery.length > 0
+        ? value.surgery
+        : Array.isArray(fallbackSurgeries) && fallbackSurgeries.length > 0
+            ? fallbackSurgeries
+            : [];
+
+    return surgeryRows.length > 0 ? { ...value, surgeries: surgeryRows } : value;
 }
 
 function getVoiceSoapDraftForStore(voiceDigitization) {
@@ -376,10 +424,27 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceVadLastSpeechFrameAtRef = useRef(0);
     const headerVoiceVadInstanceRef = useRef(null);
     const headerVoiceVadStartTokenRef = useRef(0);
+    const headerVoiceSilenceReminderIntervalRef = useRef(null);
+    const headerVoiceMutedRef = useRef(false);
+    const headerVoiceDeviceIdRef = useRef("default");
 
     useEffect(() => {
         headerVoiceVadEnabledRef.current = headerVoiceVadEnabled;
     }, [headerVoiceVadEnabled]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return undefined;
+        window.__tpQuickDictControllerActive = Boolean(isHeaderVoiceDictationEnabled);
+        window.dispatchEvent(new CustomEvent("tp-quickdict-controller", {
+            detail: { active: Boolean(isHeaderVoiceDictationEnabled) },
+        }));
+        return () => {
+            window.__tpQuickDictControllerActive = false;
+            window.dispatchEvent(new CustomEvent("tp-quickdict-controller", {
+                detail: { active: false },
+            }));
+        };
+    }, [isHeaderVoiceDictationEnabled]);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tokenData = getDecodedToken()?.result;
     const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
@@ -412,6 +477,28 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         setHeaderDictation({ status, targetId: resolvedTargetId });
     }, [setHeaderDictation]);
 
+    const publishQuickDictState = useCallback((status, extra = {}) => {
+        if (typeof window === "undefined") return;
+        window.dispatchEvent(new CustomEvent("tp-quickdict-state", {
+            detail: {
+                status,
+                stream: status === "idle" ? null : headerVoiceStreamRef.current,
+                targetId: status === "idle"
+                    ? HEADER_DICTATION_TARGET
+                    : headerVoiceTargetIdRef.current || HEADER_DICTATION_TARGET,
+                muted: headerVoiceMutedRef.current,
+                ...extra,
+            },
+        }));
+    }, []);
+
+    const getHeaderVoiceAudioConstraints = useCallback(() => {
+        const deviceId = headerVoiceDeviceIdRef.current;
+        return deviceId && deviceId !== "default"
+            ? { audio: { deviceId: { exact: deviceId } } }
+            : { audio: true };
+    }, []);
+
     const handleHeaderVadFrameProcessed = useCallback((probs) => {
         if (!headerVoiceVadActiveRef.current || !headerVoiceVadEnabledRef.current || typeof performance === "undefined") return;
         const now = performance.now();
@@ -434,6 +521,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             stats.speechDurationMs += frameDeltaMs;
             stats.firstSpeechAtMs = stats.firstSpeechAtMs || now;
             stats.lastSpeechAtMs = now;
+            headerVoiceLastAudioAtRef.current = now;
             if (!headerVoiceVadSpeechCandidateStartedAtRef.current) headerVoiceVadSpeechCandidateStartedAtRef.current = now;
             headerVoiceVadLastSpeechFrameAtRef.current = now;
             if (!headerVoiceHumanVoiceDetectedRef.current && now - headerVoiceVadSpeechCandidateStartedAtRef.current >= HEADER_DICTATION_VAD_WAVEFORM_ON_MS) {
@@ -477,6 +565,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             onSpeechRealStart: () => {
                 if (!headerVoiceVadActiveRef.current || !headerVoiceVadEnabledRef.current) return;
                 headerVoiceHumanVoiceDetectedRef.current = true;
+                headerVoiceLastAudioAtRef.current = typeof performance !== "undefined" ? performance.now() : Date.now();
             },
             onSpeechEnd: () => {
                 headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
@@ -501,6 +590,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     }, [destroyHeaderVadInstance, handleHeaderVadFrameProcessed]);
 
     const stopHeaderVoiceActivityDetection = useCallback(() => {
+        if (headerVoiceSilenceReminderIntervalRef.current) {
+            window.clearInterval(headerVoiceSilenceReminderIntervalRef.current);
+            headerVoiceSilenceReminderIntervalRef.current = null;
+        }
         headerVoiceActivityCleanupRef.current?.();
         headerVoiceActivityCleanupRef.current = null;
         headerVoiceVadActiveRef.current = false;
@@ -629,6 +722,25 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
         headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
         headerVoiceVadLastSpeechFrameAtRef.current = 0;
+        if (headerVoiceSilenceReminderIntervalRef.current) {
+            window.clearInterval(headerVoiceSilenceReminderIntervalRef.current);
+            headerVoiceSilenceReminderIntervalRef.current = null;
+        }
+        if (typeof window !== "undefined" && headerVoiceSilenceThresholdMs > 0) {
+            const checkIntervalMs = Math.min(1000, Math.max(250, headerVoiceSilenceThresholdMs / 4));
+            headerVoiceSilenceReminderIntervalRef.current = window.setInterval(() => {
+                if (headerVoiceStateRef.current !== "recording") return;
+                if (headerVoiceMutedRef.current) return;
+                const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+                const lastAudioAt = headerVoiceLastAudioAtRef.current || now;
+                if (now - lastAudioAt < headerVoiceSilenceThresholdMs) return;
+                headerVoiceLastAudioAtRef.current = now;
+                qdToast("Audio seems quiet. Please try speaking a little closer to the mic.", {
+                    type: "warning",
+                    duration: 3,
+                });
+            }, checkIntervalMs);
+        }
 
         if (headerVoiceVadEnabledRef.current) {
             headerVoiceVadActiveRef.current = true;
@@ -643,12 +755,57 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
         headerVoiceVadActiveRef.current = false;
         startHeaderRmsActivityDetection(stream);
-    }, [startHeaderRmsActivityDetection, startHeaderVad, stopHeaderVoiceActivityDetection]);
+    }, [headerVoiceSilenceThresholdMs, startHeaderRmsActivityDetection, startHeaderVad, stopHeaderVoiceActivityDetection]);
 
     const insertTranscriptAtCursor = useCallback((transcript, cursor) => {
         const text = String(transcript || "");
         const el = cursor?.element;
-        if (!text || !el || !document.contains(el) || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return false;
+        if (!text || !el || !document.contains(el)) return false;
+
+        if (cursor?.type === "contenteditable" || el.isContentEditable) {
+            el.focus();
+            try {
+                const selection = window.getSelection?.();
+                if (selection) {
+                    selection.removeAllRanges();
+                    if (cursor?.range) {
+                        selection.addRange(cursor.range);
+                    } else {
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        range.collapse(false);
+                        selection.addRange(range);
+                    }
+                }
+                const inserted = document.execCommand("insertText", false, text);
+                if (!inserted) {
+                    const selection = window.getSelection?.();
+                    if (!selection || selection.rangeCount === 0) return false;
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    const textNode = document.createTextNode(text);
+                    range.insertNode(textNode);
+                    range.setStartAfter(textNode);
+                    range.setEndAfter(textNode);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+                const inputEvent = typeof InputEvent === "function"
+                    ? new InputEvent("input", {
+                        bubbles: true,
+                        inputType: "insertText",
+                        data: text,
+                    })
+                    : new Event("input", { bubbles: true });
+                el.dispatchEvent(inputEvent);
+                return true;
+            } catch (error) {
+                console.warn("[HeaderTranscribe] contenteditable insert failed", error);
+                return false;
+            }
+        }
+
+        if (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA") return false;
         const current = el.value || "";
         const start = typeof cursor.selectionStart === "number" ? cursor.selectionStart : current.length;
         const end = typeof cursor.selectionEnd === "number" ? cursor.selectionEnd : start;
@@ -685,11 +842,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 document.execCommand("copy");
                 document.body.removeChild(textarea);
             }
-            message.success("Transcript copied to clipboard.");
+            qdToast("Transcript copied to clipboard.");
         } catch (error) {
             console.error("[HeaderTranscribe] clipboard copy failed", error);
             setHeaderTranscriptFallback(text);
-            message.warning("Transcript is ready. Please copy it from the popup.");
+            qdToast("Transcript is ready. Please copy it from the popup.", { type: "warning" });
         }
     }, []);
 
@@ -742,6 +899,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const voiceInputLocation = headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION;
         setHeaderVoiceState("transcribing");
         publishHeaderDictation("transcribing", targetId);
+        publishQuickDictState("transcribing", { stream: headerVoiceStreamRef.current });
         const submitClickedAtMs = Date.now();
         const submitClickedAt = new Date(submitClickedAtMs).toISOString();
         const durationMs = submitClickedAtMs - (headerVoiceRecordStartMsRef.current || submitClickedAtMs);
@@ -774,12 +932,24 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 : !humanVoiceDetected
                 ? "Human voice not detected in header dictation."
                 : "Audio duration is too short for transcription.";
-            message.warning(!audioBlob.size
+            const blockedFailedPhase = !audioBlob.size
+                ? "audio-precheck-no-audio"
+                : !humanVoiceDetected
+                ? "vad-precheck"
+                : "audio-precheck-too-short";
+            const blockedAction = !audioBlob.size
+                ? "blocked_no_audio_recording"
+                : !humanVoiceDetected
+                ? "blocked_before_transcribe_audio"
+                : "blocked_audio_too_short";
+            qdToast(!audioBlob.size
                 ? "No audio was captured. Please try recording again."
                 : !humanVoiceDetected
                 ? "We couldn't detect any speech in the recording. Please try again."
-                : "The recording was too short. Please speak for at least a second.");
-            trackVoiceRx2RecorderEvent("TP_Voice_V2_Submit_Click", {
+                : "The recording was too short. Please speak for at least a second.", {
+                    type: "warning",
+                });
+            void uploadAndTrackVoiceRx2LowSpeechBlock({
                 patientData: patient_data,
                 profile,
                 sessionId: voiceDigitization?.sessionId || submitId,
@@ -800,21 +970,27 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     doctorId: profile?.doctor_unique_id || "",
                     patientId: patient_data?.patient_unique_id || "",
                     voiceApiCalled: false,
-                    audioSizeBytes: audioBlob?.size || 0,
-                    audioMimeType: audioBlob?.type || "audio/webm",
                     status: "blocked",
                     voice_failed: true,
-                    failedPhase: "audio-precheck",
+                    failedPhase: blockedFailedPhase,
                     error_message: blockedErrorMessage,
                     retry_attempts: 0,
+                },
+                speechAnalysis: {
+                    action: blockedAction,
+                    failedPhase: blockedFailedPhase,
+                    error_message: blockedErrorMessage,
                     ...speechAnalysis,
                 },
+            }).catch((error) => {
+                console.error("[HeaderTranscribe] blocked event logging failed", error);
             });
             headerVoiceAudioChunksRef.current = [];
             setHeaderVoiceState("idle");
             headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
             headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+            publishQuickDictState("idle");
             return;
         }
         const cursor = headerVoiceCursorRef.current;
@@ -876,6 +1052,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             });
         } catch (err) {
             console.error('[HeaderTranscribe] transcription failed', err);
+            qdToast("Couldn't transcribe audio. Please try again.", { type: "error" });
             uploadAndLogVoiceRx2({
                 audioBlob,
                 patientData: patient_data,
@@ -907,7 +1084,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
         headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
-    }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, stopHeaderVoiceActivityDetection, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
+        publishQuickDictState("idle");
+    }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, stopHeaderVoiceActivityDetection, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const headerVoiceStartRecording = useCallback(async (triggerType = "manual_click") => {
         if (!isHeaderVoiceDictationEnabled) return;
@@ -919,8 +1097,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceTargetIdRef.current = targetId;
         headerVoiceInputLocationRef.current = hasCursor ? targetId : HEADER_DICTATION_NO_INPUT_LOCATION;
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const stream = await navigator.mediaDevices.getUserMedia(getHeaderVoiceAudioConstraints());
             headerVoiceStreamRef.current = stream;
+            headerVoiceMutedRef.current = false;
             startHeaderVoiceActivityDetection(stream);
             const mimeType = getSupportedMimeType();
             const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
@@ -950,16 +1129,20 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             });
             setHeaderVoiceState("recording");
             publishHeaderDictation("recording", targetId);
+            publishQuickDictState("recording", { stream });
         } catch (err) {
             console.error('[HeaderTranscribe] mic access failed', err);
+            qdToast("Unable to access microphone. Please try again.", { type: "error" });
             stopHeaderVoiceActivityDetection();
             const stream = headerVoiceStreamRef.current;
             if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
+            headerVoiceMutedRef.current = false;
             headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
             headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+            publishQuickDictState("idle");
         }
-    }, [activeVoiceModule, isHeaderVoiceDictationEnabled, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, startHeaderVoiceActivityDetection, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
+    }, [activeVoiceModule, getHeaderVoiceAudioConstraints, isHeaderVoiceDictationEnabled, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, startHeaderVoiceActivityDetection, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
 
     const headerVoiceCancelRecording = useCallback(() => {
         const recorder = headerVoiceMediaRecorderRef.current;
@@ -972,11 +1155,112 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         const stream = headerVoiceStreamRef.current;
         if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
         headerVoiceAudioChunksRef.current = [];
+        headerVoiceMutedRef.current = false;
         setHeaderVoiceState("idle");
         headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
         headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
-    }, [publishHeaderDictation, setHeaderVoiceState, stopHeaderVoiceActivityDetection]);
+        publishQuickDictState("idle");
+    }, [publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, stopHeaderVoiceActivityDetection]);
+
+    const headerVoiceSwitchDevice = useCallback(async ({ deviceId } = {}) => {
+        const nextDeviceId = deviceId || "default";
+        headerVoiceDeviceIdRef.current = nextDeviceId;
+        if (!isHeaderVoiceDictationEnabled) return;
+        if (headerVoiceStateRef.current !== "recording") return;
+
+        const previousRecorder = headerVoiceMediaRecorderRef.current;
+        if (previousRecorder && previousRecorder.state !== "inactive") {
+            previousRecorder.ondataavailable = null;
+            previousRecorder.onstop = null;
+            try { previousRecorder.stop(); } catch (_) {}
+        }
+        headerVoiceMediaRecorderRef.current = null;
+        headerVoiceAudioChunksRef.current = [];
+        stopHeaderVoiceActivityDetection();
+
+        const previousStream = headerVoiceStreamRef.current;
+        if (previousStream) {
+            previousStream.getTracks().forEach((track) => track.stop());
+            headerVoiceStreamRef.current = null;
+        }
+
+        const targetId = headerVoiceTargetIdRef.current || HEADER_DICTATION_TARGET;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(getHeaderVoiceAudioConstraints());
+            headerVoiceStreamRef.current = stream;
+            headerVoiceMutedRef.current = false;
+            startHeaderVoiceActivityDetection(stream);
+            const mimeType = getSupportedMimeType();
+            const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) headerVoiceAudioChunksRef.current.push(event.data);
+            };
+            headerVoiceMediaRecorderRef.current = recorder;
+            recorder.start();
+            headerVoiceRecordStartMsRef.current = Date.now();
+            setHeaderVoiceState("recording");
+            publishHeaderDictation("recording", targetId);
+            publishQuickDictState("recording", { stream, muted: false });
+        } catch (error) {
+            console.error("[HeaderTranscribe] mic switch failed", error);
+            qdToast("Unable to switch microphone. Please try again.", { type: "error" });
+            headerVoiceAudioChunksRef.current = [];
+            headerVoiceMutedRef.current = false;
+            setHeaderVoiceState("idle");
+            headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+            headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
+            publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+            publishQuickDictState("idle");
+        }
+    }, [getHeaderVoiceAudioConstraints, isHeaderVoiceDictationEnabled, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, startHeaderVoiceActivityDetection, stopHeaderVoiceActivityDetection]);
+
+    useEffect(() => {
+        if (!isHeaderVoiceDictationEnabled || typeof window === "undefined") return undefined;
+
+        const onQuickDictSubmit = () => {
+            if (headerVoiceStateRef.current === "recording") {
+                headerVoiceStopAndTranscribe();
+            }
+        };
+        const onQuickDictCancel = () => {
+            if (headerVoiceStateRef.current === "recording") {
+                headerVoiceCancelRecording();
+            }
+        };
+        const onQuickDictToggleMute = () => {
+            if (headerVoiceStateRef.current !== "recording") return;
+            const stream = headerVoiceStreamRef.current;
+            if (!stream) return;
+            const nextMuted = !headerVoiceMutedRef.current;
+            headerVoiceMutedRef.current = nextMuted;
+            stream.getAudioTracks().forEach((track) => {
+                track.enabled = !nextMuted;
+            });
+            if (!nextMuted) {
+                headerVoiceLastAudioAtRef.current = typeof performance !== "undefined" ? performance.now() : Date.now();
+            }
+            publishQuickDictState("recording", { stream, muted: nextMuted });
+            qdToast(nextMuted ? "Microphone muted" : "Microphone resumed", {
+                type: nextMuted ? "warning" : "success",
+                duration: 2,
+            });
+        };
+        const onQuickDictSwitchDevice = (event) => {
+            headerVoiceSwitchDevice(event?.detail || {});
+        };
+
+        window.addEventListener("tp-quickdict-submit", onQuickDictSubmit);
+        window.addEventListener("tp-quickdict-cancel", onQuickDictCancel);
+        window.addEventListener("tp-quickdict-toggle-mute", onQuickDictToggleMute);
+        window.addEventListener("tp-quickdict-switch-device", onQuickDictSwitchDevice);
+        return () => {
+            window.removeEventListener("tp-quickdict-submit", onQuickDictSubmit);
+            window.removeEventListener("tp-quickdict-cancel", onQuickDictCancel);
+            window.removeEventListener("tp-quickdict-toggle-mute", onQuickDictToggleMute);
+            window.removeEventListener("tp-quickdict-switch-device", onQuickDictSwitchDevice);
+        };
+    }, [headerVoiceCancelRecording, headerVoiceStopAndTranscribe, headerVoiceSwitchDevice, isHeaderVoiceDictationEnabled, publishQuickDictState]);
 
     // ── Header transcribe: keyboard triggers ───────────────────────────────
     // double-shift → start | single shift (while recording) → submit | Esc → cancel
@@ -2899,6 +3183,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     try {
                         const consentPayload = await getConsentForVoicePrescriptionPayload();
                         const voiceStoreDraft = getVoiceSoapDraftForStore(liveVoiceDigitizationForStore);
+                        const voiceStoreDigitizeData = withSurgeriesAliasForVoiceStore(
+                            voiceStoreDraft.liveVoiceDigitization?.digitizeData,
+                            surgeriesData
+                        );
+                        const voiceStoreClinicNotes = withSurgeriesAliasForVoiceStore(
+                            voiceStoreDraft.liveVoiceDigitization?.clinicNotes,
+                            surgeriesData
+                        );
                         await storeVoicePrescription({
                             patientId: patient_data?.patient_unique_id,
                             doctorId: profile?.doctor_unique_id,
@@ -2907,9 +3199,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             sessionId: voiceStoreDraft.sessionId,
                             payload: {
                                 history: normalizeVoiceHistoryForStore(voiceStoreDraft.liveVoiceDigitization?.history),
-                                digitizeData: voiceStoreDraft.liveVoiceDigitization?.digitizeData || {},
+                                digitizeData: voiceStoreDigitizeData,
                                 editedData: voiceEditedData,
-                                clinicNotes: voiceStoreDraft.liveVoiceDigitization?.clinicNotes || {},
+                                clinicNotes: voiceStoreClinicNotes,
                                 ...buildVoiceSoapStoreFields({
                                     soap: voiceStoreDraft.soap,
                                     soapHtml: voiceStoreDraft.soapHtml,
@@ -3230,11 +3522,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                                     onClick={async () => {
                                                         try {
                                                             await navigator.clipboard.writeText(headerTranscriptFallback);
-                                                            message.success("Transcript copied to clipboard.");
+                                                            qdToast("Transcript copied to clipboard.");
                                                             setHeaderTranscriptFallback("");
                                                         } catch (error) {
                                                             console.error("[HeaderTranscribe] manual clipboard copy failed", error);
-                                                            message.warning("Select the transcript text and copy it manually.");
+                                                            qdToast("Select the transcript text and copy it manually.", { type: "warning" });
                                                         }
                                                     }}
                                                 >
@@ -3250,6 +3542,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     </Col>
                     <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
                         <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
+                            {/* Header VoiceRx dictation icon removed — dictation is now
+                                triggered via Quick Dictator (double-Shift). */}
                             {!showVoiceRxModule && (
                                 <Popover
                                     open={popOverVideo}
@@ -3469,15 +3763,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {/* Legacy VoiceRx CTA belongs only to the old prescription UI. */}
                             {shouldShowLegacyVoiceRxCta ? (
                                 isCompactHeader ?
-                                    <>
-                                        <div className="headerprescription-tablet-sep" aria-hidden="true" />
-                                        <TabVoiceRxButton onClick={handleGenRx} />
-                                    </>
+                                    <TabVoiceRxButton onClick={handleGenRx} />
                                     :
                                     <GenRxButton onClick={handleGenRx} />
                             ) : null}
-
-                            {isCompactHeader && <div className="headerprescription-tablet-sep" aria-hidden="true" />}
 
                             {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isCompactHeader ? 'Draft' : 'Save as Draft'} />}
 

@@ -2861,9 +2861,10 @@ function BulletList({ items }) {
       {items.map((item, index) => {
         const label = typeof item === "string" ? item : item.label;
         const detail = typeof item === "string" ? "" : item.detail;
+        const preLine = typeof item !== "string" && item.preLine;
         return (
           <li key={`${label}-${index}`} className={item?.fresh ? "snv-fresh-row" : ""}>
-            <span className="snv-bullet-label">{label}</span>
+            <span className={`snv-bullet-label ${preLine ? "snv-bullet-label-pre-line" : ""}`}>{label}</span>
             {detail ? <span className="snv-bullet-detail"> ({detail})</span> : null}
           </li>
         );
@@ -3766,7 +3767,12 @@ function HistoryContent({ sections = [], emptyState }) {
           <div className="snv-info-card-title">{section.title}</div>
           {section.items.length ? (
             <div className="snv-bullet-list-wrapper">
-              <BulletList items={section.items.map((item) => ({ label: item.name, detail: formatMedicalHistoryDetail(item.detail), fresh: item.fresh }))} />
+              <BulletList items={section.items.map((item) => ({
+                label: item.name,
+                detail: formatMedicalHistoryDetail(item.detail),
+                fresh: item.fresh,
+                preLine: section.id === "legacy-history-additional",
+              }))} />
             </div>
           )
            : <div className="snv-empty-state">No data recorded.</div>}
