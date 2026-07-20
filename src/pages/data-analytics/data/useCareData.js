@@ -99,6 +99,45 @@ async function buildDiagByDoctor(baseParams, doctorFilterCsv) {
   };
 }
 
+async function buildLabByDoctor(baseParams, doctorFilterCsv) {
+  let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
+  if (doctorFilterCsv) {
+    const wanted = new Set(String(doctorFilterCsv).split(","));
+    doctors = doctors.filter((d) => wanted.has(String(d.um_id)));
+  }
+  doctors = doctors.slice(0, FANOUT_CAP);
+  if (!doctors.length) return null;
+
+  const results = new Array(doctors.length);
+  for (let i = 0; i < doctors.length; i += BATCH) {
+    const batch = doctors.slice(i, i + BATCH);
+    const br = await Promise.all(
+      batch.map((d) =>
+        cached(`lab-dr-${d.um_id}`, baseParams, () =>
+          ApiReporting.clinicalLabTest({ ...baseParams, doctorId: d.um_id })
+        )
+          .then((r) => anyToDonut((r?.data ?? r)?.topInvestigations))
+          .catch(() => [])
+      )
+    );
+    br.forEach((r, j) => { results[i + j] = r; });
+  }
+
+  const globalTop = topNLabels(results, 5);
+  if (!globalTop.length) return null;
+
+  return {
+    labels: doctors.map((d) => d.um_name || `Doctor ${d.um_id}`),
+    datasets: globalTop.map((inv) => ({
+      label: inv,
+      data: doctors.map((_, i) => {
+        const hit = (results[i] || []).find((d) => d.label === inv);
+        return hit?.value || 0;
+      }),
+    })),
+  };
+}
+
 function topNLabels(perDoctorDonuts, n) {
   const totals = {};
   for (const donut of perDoctorDonuts) {
@@ -209,7 +248,9 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
       patch.investigations = dropJunk(anyToDonut(lab?.topInvestigations).map(cleanInvestigation));
       patch.labPrev = lab?.previous ?? null;
       patch.labCoveragePct = num(lab?.coveragePct);
-      patch.labByDoctor = lab?.byDoctor ? compactXY(seriesToXY(lab.byDoctor), compactDoctorLabel) : null;
+      const labBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
+      const labStacked = await buildLabByDoctor(labBase, doctorId && doctorId !== "all" ? doctorId : null);
+      patch.labByDoctor = labStacked ? compactXY(seriesToXY(labStacked), compactDoctorLabel) : null;
     }
     if (on("medical-history")) {
       patch.conditions = anyToDonut(cond?.topConditions);

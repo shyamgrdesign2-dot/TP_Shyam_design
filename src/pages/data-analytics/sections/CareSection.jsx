@@ -20,7 +20,7 @@ const ATOM_ICON = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/s
 // until deployed.
 const TREND_META = {
   // diagnosis trend hidden: backend returns "test test test" stub labels.
-  medications: { label: "Medications", series: "Prescribed" },
+  // medications trend removed: user prefers by-doctor stacked bar instead.
   "lab-tests": { label: "Investigations", series: "Suggested" },
   vitals: { label: "Vitals recorded", series: "Recordings" },
   advice: { label: "Advice given", series: "Given" },
@@ -95,7 +95,7 @@ function donutTile(key, meta, data) {
 // its topic donut + prototype extras + the topic trend (trend only when the
 // backend serves a range-aware series).
 function buildTiles(subTab, data) {
-  const HIDDEN_TOPICS = new Set(["symptoms", "examination", "medical-history", "custom-modules", "certificates"]);
+  const HIDDEN_TOPICS = new Set(["diagnosis", "symptoms", "examination", "medical-history", "custom-modules", "certificates"]);
   if (subTab === "all" || !TOPIC_TILE[subTab]) {
     return Object.entries(TOPIC_TILE)
       .filter(([key]) => !HIDDEN_TOPICS.has(key))
@@ -156,7 +156,13 @@ function buildTiles(subTab, data) {
   }
 
   if (subTab === "lab-tests") {
-    bar("labByDoctor", "Investigations by doctor", "Selected period", "lab", "Which doctors suggest the most lab investigations", data.labByDoctor, "Suggested", ["Dr A", "Dr B", "Dr C"]);
+    if (data.labByDoctor) tiles.push(
+      <ChartTile key="labByDoctor" title="Top investigations by doctor" subtitle="Top 5 investigations, selected period" iconUrl={`${ICON_BASE}lab.svg`} titleTooltip="Top 5 most suggested investigations broken down by doctor">
+        <MaybeScroll count={data.labByDoctor?.data?.length}>
+          <StackedBarWithTotal data={data.labByDoctor?.data} series={data.labByDoctor?.series} xKey="x" height={CHART_H} />
+        </MaybeScroll>
+      </ChartTile>
+    );
   }
 
   if (subTab === "advice") {
@@ -312,7 +318,6 @@ function buildKpis(subTab, data) {
       // Symptoms, Examination, and Medical History hidden: backend data-quality
       // issues (see SYMPTOMS-EXAM-HISTORY-DATA-QUALITY.md). Restore when fixed.
       return [
-        { key: "topDiagnosis", label: "Top diagnosis", kind: "text", value: top(data.diagnosis), tooltip: "Most recorded diagnosis in the selected period" },
         { key: "topMedication", label: "Top medication", kind: "text", value: top(data.medications), tooltip: "Most prescribed medicine" },
         { key: "topLabTest", label: "Top investigation", kind: "text", value: top(data.investigations), tooltip: "Most suggested lab investigation" },
         { key: "topVital", label: "Top vital", kind: "text", value: top(data.vitals || []), tooltip: "Vital sign captured most often" },
