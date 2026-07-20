@@ -13,7 +13,7 @@ import { cached } from "./apiCache";
 const MODE_SERIES = [
   ["Smart Sync", "smartSync"],
   ["Voice RX", "voiceRx"],
-  ["Type RX", "typeRx"],
+  ["Type Rx", "typeRx"],
   ["Tab RX", "tabRx"],
   ["Snap RX", "snapRx"],
 ];
@@ -30,6 +30,29 @@ const MODE_CAP_KEY = {
   "tab rx": "tabRx",
   "snap rx": "snapRx",
 };
+
+const MODE_LABEL_NORM = { "point and click": "Type Rx", "type rx": "Type Rx" };
+function normModeLabel(label) {
+  return MODE_LABEL_NORM[String(label).toLowerCase()] || label;
+}
+function normTrendLabels(xy) {
+  if (!xy?.series) return xy;
+  const remap = {};
+  const series = xy.series.map((s) => {
+    const norm = normModeLabel(s.label);
+    if (norm !== s.label || norm !== s.key) remap[s.key] = norm;
+    return { key: norm, label: norm };
+  });
+  if (!Object.keys(remap).length) return { ...xy, series };
+  const data = xy.data.map((row) => {
+    const r = { ...row };
+    for (const [old, nw] of Object.entries(remap)) {
+      if (old in r && old !== nw) { r[nw] = (r[nw] || 0) + (r[old] || 0); delete r[old]; }
+    }
+    return r;
+  });
+  return { ...xy, data, series };
+}
 function modeAllowed(enabledModes, label, hasData) {
   if (!enabledModes) return true;
   const capKey = MODE_CAP_KEY[String(label).toLowerCase()];
@@ -143,11 +166,13 @@ export default function useConsultationModesData({ month, startDate, endDate, do
       kpisOut.push({ key: "mostActiveDoctor", label: "Most active doctor", kind: "text", value: most, tooltip: "Doctor with the most consultations in the selected period, across all modes" });
     }
 
+    if (byDoctor) byDoctor = normTrendLabels(byDoctor);
+
     // Drop disabled modes from the donut and the stacked series — zero rows
     // for a feature the account doesn't have are noise, not insight.
-    const modeMix = anyToDonut(src.modeMix).filter((d) =>
-      modeAllowed(enabledModes, d.label, toNum(d.value) > 0)
-    );
+    const modeMix = anyToDonut(src.modeMix)
+      .map((d) => ({ ...d, label: normModeLabel(d.label) }))
+      .filter((d) => modeAllowed(enabledModes, d.label, toNum(d.value) > 0));
     if (byDoctor?.series?.length) {
       const kept = byDoctor.series.filter((se) =>
         modeAllowed(
@@ -164,7 +189,7 @@ export default function useConsultationModesData({ month, startDate, endDate, do
       error: null,
       kpis: kpisOut,
       modeMix,
-      modeTrend: src.modeTrend ? seriesToXY(src.modeTrend) : null,
+      modeTrend: src.modeTrend ? normTrendLabels(seriesToXY(src.modeTrend)) : null,
       byDoctor,
     });
     // enabledModes is consumed via ref-stable JSON below
@@ -185,7 +210,7 @@ const MODES = [
   ["Voice RX", "voiceRx", true],
   ["Snap RX", "snapRx", true],
   ["Tab RX", "tabRx", false],
-  ["Point and Click", "typeRx", false],
+  ["Type Rx", "typeRx", false],
 ];
 
 function buildKpis(raw) {

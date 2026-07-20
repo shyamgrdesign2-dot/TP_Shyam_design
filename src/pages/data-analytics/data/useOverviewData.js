@@ -94,7 +94,7 @@ export default function useOverviewData({ month, startDate, endDate, doctorId, c
       error: null,
       kpis: buildKpis(cards, modesSrc, ov, fallbacks),
       weekly: weekly || null,
-      modeMix: anyToDonut(modesSrc.modeMix),
+      modeMix: anyToDonut(modesSrc.modeMix).map(normMode),
       topMedications: capDonut(medDonut, 5),
       genderDistribution: withCategories(anyToDonut(patientsSrc.gender), ["Male", "Female", "Others"]),
     });
@@ -107,12 +107,18 @@ export default function useOverviewData({ month, startDate, endDate, doctorId, c
   return { ...state, reload: load };
 }
 
+const MODE_LABEL_NORM = { "point and click": "Type Rx", "type rx": "Type Rx" };
+function normMode(d) {
+  const n = MODE_LABEL_NORM[String(d.label).toLowerCase()];
+  return n ? { ...d, label: n } : d;
+}
+
 const MODE_LABELS = [
   ["Smart Sync", "smartSync"],
   ["Voice RX", "voiceRx"],
   ["Tab RX", "tabRx"],
   ["Snap RX", "snapRx"],
-  ["Point and Click", "typeRx"],
+  ["Type Rx", "typeRx"],
 ];
 
 function topConsultationMode(raw) {

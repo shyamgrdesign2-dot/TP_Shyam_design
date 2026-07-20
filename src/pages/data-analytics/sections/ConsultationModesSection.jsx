@@ -26,7 +26,7 @@ export default function ConsultationModesSection({ filters }) {
     { key: "Voice RX", label: "Voice RX", on: caps.modes.voiceRx },
     { key: "Tab RX", label: "Tab RX", on: caps.modes.tabRx },
     { key: "Snap RX", label: "Snap RX", on: caps.modes.snapRx },
-    { key: "Point and Click", label: "Point and Click", on: caps.modes.typeRx },
+    { key: "Type Rx", label: "Type Rx", on: caps.modes.typeRx },
   ].filter((s) => s.on).map(({ key, label }) => ({ key, label }));
 
   if (loading) {
