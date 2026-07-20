@@ -78,8 +78,9 @@ const CARE_SUB_TABS = [
   { id: "advice", label: "Advice", icon: "medical/medical-service" },
   { id: "vaccines", label: "Vaccines", icon: "medical/injection" },
   { id: "certificates", label: "Certificates", icon: "sports2/award-badge5" },
-  // atom exists only as linear on the CDN — pin it so the active state doesn't 404
-  { id: "custom-modules", label: "Custom Modules", icon: "social/atom", fixedVariant: "linear" },
+  // custom-modules hidden: backend returns all zeros (2-hop doctor-to-business scope bug).
+  // Restore when Pm-Core fixes the custom-models endpoint (BUG-6 / item #6).
+  // { id: "custom-modules", label: "Custom Modules", icon: "social/atom", fixedVariant: "linear" },
 ];
 
 

@@ -35,11 +35,10 @@ export default function AdmissionsDepthSection({ filters }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <KpiRow title="Key metrics" kpis={kpis} loading={false} />
 
-      <SectionBlock title="More insights" count={4}>
+      <SectionBlock title="More insights" count={3}>
         <ChartGrid>
-          <ChartTile title="Discharge types" subtitle="Selected period" icon="logout" titleTooltip="How discharges split by type: recovered, referred, LAMA, DAMA, transfer out, death. Zero until the backend serves the split (discharge status, plausible from the discharge summary).">
-            <DonutWithLegend data={dischargeTypes} centerLabel="Discharges" height={240} max={7} />
-          </ChartTile>
+          {/* Discharge types hidden: backend returns empty array despite having discharge counts.
+              Restore when Pm-Core fixes the dischargeTypes join (item #9). */}
 
           <ChartTile title="Admissions by department" subtitle="Departments with no admissions in the period are not shown" icon="building" titleTooltip="Which departments admit the most patients in the selected period. Departments without any admissions in the window are omitted from the chart.">
             <MaybeScroll count={admissionsByDept?.data?.length}>
