@@ -692,8 +692,8 @@ function SidebarDoctor() {
               </div>
             </NavLink>
           )}
-          {/* {isLimsAccessableFromGB && ( */}
-            {/* <NavLink
+          {!isLimsAccessableFromGB && (
+             <NavLink
               to="/lims"
               replace={true}
               className={({ isActive, isPending }) =>
@@ -707,8 +707,8 @@ function SidebarDoctor() {
                 <path d="M9 2h6M7.5 15h9" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
               <div className="mt-1 px-2">LIMS</div>
-            </NavLink> */}
-          {/* )} */}
+            </NavLink> 
+          )} 
           </>
           )}
         {/* </div> */}

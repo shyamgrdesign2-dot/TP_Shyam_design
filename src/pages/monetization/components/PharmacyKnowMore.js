@@ -1,5 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { Button, Tabs } from "antd";
+import { useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
 
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "./ContactSupport";
@@ -8,17 +10,62 @@ import { S_PHARMACY } from "../../../utils/constants";
 import FreeTrialButton from "./FreeTrialButton";
 import ExpiredSubModal from "./ExpiredSubModal";
 import { ASSETS } from "../../../assets";
+import {
+  getClinicCity,
+  getClinicName,
+  getDeviceSdkData,
+  getTokenData,
+  trackEvent,
+} from "../../../utils/utils";
+import { isReceptionistSession } from "../../../utils/receptionistSession";
 const playIcons = ASSETS.images.tubeIcon;
 
 const { TabPane } = Tabs;
 
 const PharmacyKnowMore = ({ handlePharmacyKnowMore, onRedirect }) => {
+  const location = useLocation();
+  const isReceptionist = isReceptionistSession(location.search);
+  const { profile } = useSelector((state) => state.doctors);
   const [videoLink, setVideoLink] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const showHideSubModal = useCallback(() => {
     setIsSubModalOpen(!isSubModalOpen);
   }, [isSubModalOpen]);
+
+  const handleRequestAccess = useCallback(() => {
+    const clinic_name = getClinicName(profile?.hospital_data);
+    const clinic_city = getClinicCity(profile?.hospital_data);
+    const tokenData = getTokenData();
+    const deviceSdkData = getDeviceSdkData();
+    const urlParams = new URLSearchParams(window.location.search);
+
+    trackEvent("TP_Pharmacy_Request", {
+      mobile_no: tokenData?.mobile_no,
+      hospital_business_id: tokenData?.hospital_business_id,
+      clinic_id: tokenData?.clinic_id,
+      clinic_name: isReceptionist
+        ? urlParams.get("clinicName") || clinic_name
+        : clinic_name,
+      center_city: isReceptionist
+        ? urlParams.get("centerCity") || clinic_city
+        : clinic_city,
+      feature: "pharmacy",
+      ...(isReceptionist
+        ? {
+            receptionist_id: tokenData?.user_id,
+            receptionist_name: urlParams.get("receptionistName"),
+          }
+        : {
+            doctor_id: tokenData?.doctor_unique_id || profile?.doctor_unique_id,
+            doctor_name: profile?.um_name,
+          }),
+      ...deviceSdkData,
+    });
+
+    setSubmitted(true);
+  }, [profile, isReceptionist]);
 
   const scrollToSection = (sectionId) => {
     const section = document.getElementById(sectionId);
@@ -93,6 +140,20 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore, onRedirect }) => {
         </div> */}
 
         <ContactSupport />
+      </div>
+
+      <div className="position-sticky bottom-0 bg-white w-100 px-4 py-3">
+        <Button
+          className="btn btn-primary1 btn-41 align-items-center justify-content-center d-flex"
+          onClick={submitted ? undefined : handleRequestAccess}
+          aria-disabled={submitted}
+          style={{
+            backgroundColor: "#fff",
+            ...(submitted ? { pointerEvents: "none" } : {}),
+          }}
+        >
+          {submitted ? "Interest submitted" : "I'm interested"}
+        </Button>
       </div>
 
       <ExpiredText title={S_PHARMACY} onRedirect={onRedirect} />
