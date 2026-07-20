@@ -9,7 +9,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from 'uuid';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, removeBeforeWhiteSpace, onlyNumberFormat, hasNumber, capitalizeAfterSentence, isNumeric } from "../utils/utils";
+import { errorMessage, removeBeforeWhiteSpace, onlyNumberFormat, onlyDecimalFormat, hasNumber, capitalizeAfterSentence, isDecimalNumeric } from "../utils/utils";
 
 import moment from "moment";
 import dayjs from "dayjs";
@@ -807,7 +807,7 @@ function MedicalHistoryBox(props) {
                 setSurgicalDate(null);
             }
         } else {
-            setSinceValue(cloneMedicalHistoryData[i].tags[i1].since ? parseInt(cloneMedicalHistoryData[i].tags[i1].since.split(" ")[0]) : 1)
+            setSinceValue(cloneMedicalHistoryData[i].tags[i1].since ? parseFloat(cloneMedicalHistoryData[i].tags[i1].since.split(" ")[0]) : 1)
             setSelectedRelationship(cloneMedicalHistoryData[i].tags[i1].relationship ? cloneMedicalHistoryData[i].tags[i1].relationship.split(', ') : [])
         }
     }, [addEditData, selectData, cloneMedicalHistoryData]);
@@ -895,7 +895,7 @@ function MedicalHistoryBox(props) {
                 setSurgicalDate(null);
             }
         } else {
-            setSinceValue(cloneMedicalHistoryData[i].tags[i1].since ? parseInt(cloneMedicalHistoryData[i].tags[i1].since.split(" ")[0]) : 1)
+            setSinceValue(cloneMedicalHistoryData[i].tags[i1].since ? parseFloat(cloneMedicalHistoryData[i].tags[i1].since.split(" ")[0]) : 1)
             setSelectedRelationship(cloneMedicalHistoryData[i].tags[i1].relationship ? cloneMedicalHistoryData[i].tags[i1].relationship.split(', ') : [])
         }
     }, [addEditData, selectData, cloneMedicalHistoryData]);
@@ -1046,7 +1046,7 @@ function MedicalHistoryBox(props) {
 
     const onChangeInputSinceChild = useCallback(
         (e) => {
-            const updateQuery = onlyNumberFormat(e.target.value);
+            const updateQuery = onlyDecimalFormat(e.target.value);
             setInputSince(updateQuery);
             cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].since = ''
             setCloneMedicalHistoryData((prev) => [...prev]);
@@ -1108,7 +1108,7 @@ function MedicalHistoryBox(props) {
     // Since Web
     const onSearchSinceChid = useCallback(
         (query) => {
-            const updateQuery = onlyNumberFormat(query);
+            const updateQuery = onlyDecimalFormat(query);
             cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].since = updateQuery
             setCloneMedicalHistoryData((prev) => [...prev]);
             if (updateQuery) {
@@ -1129,8 +1129,9 @@ function MedicalHistoryBox(props) {
 
     const onBlurSinceChid = useCallback(
         () => {
-            if (isNumeric(cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].since)) {
-                cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].since = `${cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].since} ${parseInt(cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].since) <= 1 ? 'Day' : 'Day(s)'}`;
+            const sinceValue = String(cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].since || '').replace(/\.$/, '');
+            if (isDecimalNumeric(sinceValue)) {
+                cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].since = `${sinceValue} ${parseFloat(sinceValue) <= 1 ? 'Day' : 'Day(s)'}`;
                 setCloneMedicalHistoryData((prev) => [...prev]);
             }
         },
