@@ -101,4 +101,45 @@ describe("medicalHistoryConverters others copy handling", () => {
       },
     ]);
   });
+
+  it("appends copied notes to an existing matching medical condition without repeating them", () => {
+    const existing = [
+      {
+        tmmhs_id: 2,
+        section_name: "Medical Condition",
+        title: "Medical Condition",
+        tags: [
+          {
+            title: "Type 2 diabetes",
+            enable: "Y",
+            since: "2 Years",
+            status: "Active",
+            note: "metformin 500 mg and glimepiride 2 mg",
+          },
+        ],
+      },
+    ];
+    const copiedPayload = [
+      {
+        name: "Type 2 diabetes",
+        type: "Medical Condition",
+        duration: "2 Years",
+        relation: "",
+        enable: "Y",
+        notes: "Using insulin",
+      },
+    ];
+
+    const copiedOnce = convertMedicalHistoryToContextFormat(copiedPayload, existing);
+
+    expect(copiedOnce[0].tags[0].note).toBe(
+      "metformin 500 mg and glimepiride 2 mg, Using insulin"
+    );
+
+    const copiedAgain = convertMedicalHistoryToContextFormat(copiedPayload, copiedOnce);
+
+    expect(copiedAgain[0].tags[0].note).toBe(
+      "metformin 500 mg and glimepiride 2 mg, Using insulin"
+    );
+  });
 });

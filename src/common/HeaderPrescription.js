@@ -651,7 +651,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceVadInstanceRef.current = vad;
     }, [destroyHeaderVadInstance, handleHeaderVadFrameProcessed]);
 
-    const stopHeaderVoiceActivityDetection = useCallback(() => {
+    const stopHeaderVoiceActivityDetection = useCallback(({ preserveSpeechAnalysis = false } = {}) => {
         if (headerVoiceSilenceReminderIntervalRef.current) {
             window.clearInterval(headerVoiceSilenceReminderIntervalRef.current);
             headerVoiceSilenceReminderIntervalRef.current = null;
@@ -668,7 +668,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceActivityReadyAtRef.current = 0;
         headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
         headerVoiceVadLastSpeechFrameAtRef.current = 0;
-        headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
+        if (preserveSpeechAnalysis) {
+            headerVoiceSpeechAnalysisStatsRef.current.lastFrameAtMs = 0;
+        } else {
+            headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
+        }
     }, [destroyHeaderVadInstance]);
 
     const startHeaderRmsActivityDetection = useCallback((stream) => {
@@ -771,8 +775,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         };
     }, [headerVoiceSilenceThresholdMs]);
 
-    const startHeaderVoiceActivityDetection = useCallback((stream) => {
-        stopHeaderVoiceActivityDetection();
+    const startHeaderVoiceActivityDetection = useCallback((stream, { resetSpeechAnalysis = true } = {}) => {
+        stopHeaderVoiceActivityDetection({ preserveSpeechAnalysis: !resetSpeechAnalysis });
         headerVoiceHumanVoiceDetectedRef.current = false;
         headerVoiceActivityStartedAtRef.current = 0;
         headerVoiceActivityInactiveStartedAtRef.current = 0;
@@ -781,7 +785,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceActivityReadyAtRef.current = typeof performance !== "undefined"
             ? performance.now() + HEADER_DICTATION_AUDIO_ACTIVITY_WARMUP_MS
             : 0;
-        headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
+        if (resetSpeechAnalysis) {
+            headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
+        }
         headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
         headerVoiceVadLastSpeechFrameAtRef.current = 0;
         if (headerVoiceSilenceReminderIntervalRef.current) {
@@ -1244,7 +1250,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             if (headerVoiceMediaRecorderRef.current === previousRecorder) {
                 headerVoiceMediaRecorderRef.current = null;
             }
-            stopHeaderVoiceActivityDetection();
+            stopHeaderVoiceActivityDetection({ preserveSpeechAnalysis: true });
 
             const previousStream = headerVoiceStreamRef.current;
             if (previousStream) {
@@ -1257,7 +1263,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 const stream = await navigator.mediaDevices.getUserMedia(getHeaderVoiceAudioConstraints());
                 headerVoiceStreamRef.current = stream;
                 headerVoiceMutedRef.current = false;
-                startHeaderVoiceActivityDetection(stream);
+                startHeaderVoiceActivityDetection(stream, { resetSpeechAnalysis: false });
                 startHeaderVoiceRecorder(stream);
                 setHeaderVoiceState("recording");
                 publishHeaderDictation("recording", targetId);

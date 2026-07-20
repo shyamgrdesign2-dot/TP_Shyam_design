@@ -250,6 +250,25 @@ function mergeMedicalHistoryRemarks(existingRemarks, incomingRemarks) {
   return lines.join('\n');
 }
 
+function mergeMedicalHistoryTagText(existingText, incomingText) {
+  const existing = String(existingText ?? '').trim();
+  const incoming = String(incomingText ?? '').trim();
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+
+  const normalize = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
+  const normalizedIncoming = normalize(incoming);
+  if (!normalizedIncoming || normalize(existing).includes(normalizedIncoming)) {
+    return existing;
+  }
+
+  return `${existing}, ${incoming}`;
+}
+
 function normalizeAgentMedicalHistoryTag(row = {}) {
   let title = firstMedicalHistoryTextValue(row.title, row.name, row.lineItem);
   if (!title) return null;
@@ -492,8 +511,8 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
       const incomingDuration = item.duration || item.since;
       const incomingStatus = item.status || statusFromMedicalHistoryEnable(item.enable);
       const incomingRelationship = item.relation || item.relationship;
-      if (incomingNote && !existingTag.note) {
-        existingTag.note = incomingNote;
+      if (incomingNote) {
+        existingTag.note = mergeMedicalHistoryTagText(existingTag.note || existingTag.notes, incomingNote);
       }
       if (incomingDuration && !existingTag.since) {
         existingTag.since = incomingDuration;
@@ -597,8 +616,11 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
               } else if (newTag.enable !== existingTag.enable) {
                 updatedTags[existingIndex].enable = newTag.enable;
               }
-              if (newTag.note && !updatedTags[existingIndex].note) {
-                updatedTags[existingIndex].note = newTag.note;
+              if (newTag.note) {
+                updatedTags[existingIndex].note = mergeMedicalHistoryTagText(
+                  updatedTags[existingIndex].note || updatedTags[existingIndex].notes,
+                  newTag.note
+                );
               }
               // Surgical History (tmmhs_id 5) uses 'date' instead of 'since'
               // Update date/dateType if Rx pad has explicit values (preserve existing if Rx pad doesn't have them)
