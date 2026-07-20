@@ -769,8 +769,13 @@ function MedicationsBox({ showVoiceRxModule }) {
   const onSelectVoiceMedicine = async (data, item, index) => {
     const keyParsed = JSON.parse(item.key);
     if (keyParsed.tmm_id === 0) {
+      const current = medicationData[index];
       showHideAddMedicineModal();
-      setAddCustom(keyParsed);
+      setAddCustom({
+        ...keyParsed,
+        voice_rx_replace_index: index,
+        voice_rx_replace_group_id: current?.voice_rx_group_id || "",
+      });
       setVoiceMedicineEdit({ index: null, query: "" });
       return;
     }
@@ -2658,9 +2663,23 @@ function MedicationsBox({ showVoiceRxModule }) {
             exist: dosesList.some((e1) => e1.medicine_id == modifyData.tmm_id) ? true : false
           });
         } else {
-          medicationData.push({
-            ...updatedData[0],
-          });
+          const replaceIndex = Number(addCustom?.voice_rx_replace_index);
+          const replaceGroupId = String(addCustom?.voice_rx_replace_group_id || "").trim();
+          const replaceIndexMatches = Number.isInteger(replaceIndex) &&
+            replaceIndex >= 0 &&
+            (!replaceGroupId || String(medicationData[replaceIndex]?.voice_rx_group_id || "").trim() === replaceGroupId);
+          const targetIndex = replaceIndexMatches
+            ? replaceIndex
+            : (replaceGroupId ? medicationData.findIndex((item) => String(item?.voice_rx_group_id || "").trim() === replaceGroupId) : -1);
+          const targetRow = targetIndex >= 0 ? medicationData[targetIndex] : null;
+
+          if (targetRow) {
+            medicationData[targetIndex] = mergeSelectedMedicineForVoiceRow(targetRow, updatedData[0], updatedData[0]);
+          } else {
+            medicationData.push({
+              ...updatedData[0],
+            });
+          }
         }
       }
       if (doseCalculatorDrawer) {
