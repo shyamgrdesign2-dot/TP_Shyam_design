@@ -149,18 +149,18 @@
 
 /* ── Care sub-tabs ────────────────────────────────────────────────────── */
 
-/* Inactive trigger: primary text colour at semi-bold weight */
+/* Inactive trigger: primary text colour at regular weight */
 .da-root [role="tab"][data-state="inactive"],
 .da-root [role="tab"][data-state="inactive"] [class*="_label"] {
-  color: var(--tesseract-fg-primary, var(--tesseract-slate-900)) !important;
-  font-weight: 600 !important;
+  color: var(--tesseract-fg-secondary, var(--tesseract-slate-500)) !important;
+  font-weight: 400 !important;
 }
 
-/* Active trigger: label + icon in primary blue, bold weight */
+/* Active trigger: label + icon in primary blue, semi-bold weight */
 .da-root [role="tab"][data-state="active"],
 .da-root [role="tab"][data-state="active"] [class*="_label"] {
   color: var(--tesseract-blue-600) !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 .da-root [role="tab"][data-state="active"] [aria-hidden="true"][style*="mask-image"] {
   background-color: var(--tesseract-blue-600) !important;

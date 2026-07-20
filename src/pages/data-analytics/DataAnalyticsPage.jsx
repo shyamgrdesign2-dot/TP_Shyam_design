@@ -80,7 +80,8 @@ const CARE_SUB_TABS = [
   // { id: "medical-history", label: "History", icon: "medical/health-care" },
   { id: "advice", label: "Advice", icon: "medical/medical-service" },
   { id: "vaccines", label: "Vaccines", icon: "medical/injection" },
-  { id: "certificates", label: "Certificates", icon: "sports2/award-badge5" },
+  // certificates hidden: backend returns certificate counts but no type names (all show "Unknown").
+  // { id: "certificates", label: "Certificates", icon: "sports2/award-badge5" },
   // custom-modules hidden: backend returns all zeros (2-hop doctor-to-business scope bug).
   // Restore when Pm-Core fixes the custom-models endpoint (BUG-6 / item #6).
   // { id: "custom-modules", label: "Custom Modules", icon: "social/atom", fixedVariant: "linear" },
@@ -325,8 +326,7 @@ export default function DataAnalyticsPage() {
                         }}
                       >
                         <Tabs value={subTab} onValueChange={(v) => { trackAnalytics(EVENTS.SUBTAB_VIEW, { department, section, subtab: v }); setSubTab(v); }} size="md" variant="line">
-                          {/* Care's 15 tabs fill the row; Grow's 3 hug their text, left-aligned */}
-                          <TabsList fullWidth={section === "care"}>
+                          <TabsList>
                             {subTabsConfig.map((tab) => (
                               <TabsTrigger
                                 key={tab.id}

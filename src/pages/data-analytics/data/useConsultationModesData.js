@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
-import ApiBulkMessages from "../../../api/services/ApiBulkMessages";
 import { anyToDonut, seriesToXY, compactXY, compactDoctorLabel } from "../charts/adapters";
 import { toNum, pctDelta, singleIdOnly } from "./deltaUtils";
 import { cached } from "./apiCache";
+import { getDoctorList } from "./doctorList";
 
 // ── Stacked "Usage by doctor" ────────────────────────────────────────────
 // The backend's `byDoctor` is still a single "Consultations" series (spec
@@ -58,16 +58,6 @@ function modeAllowed(enabledModes, label, hasData) {
   const capKey = MODE_CAP_KEY[String(label).toLowerCase()];
   if (capKey == null || enabledModes[capKey]) return true;
   return hasData;
-}
-
-let doctorListPromise = null;
-function getDoctorList() {
-  if (!doctorListPromise) {
-    doctorListPromise = ApiBulkMessages.listDoctor()
-      .then((r) => (Array.isArray(r) ? r : r?.data ?? []))
-      .catch(() => []);
-  }
-  return doctorListPromise;
 }
 
 const BATCH_SIZE = 4;
@@ -237,7 +227,6 @@ function buildKpis(raw) {
   return [
     { key: "total", label: "Total consultations", kind: "number", value: total, tooltip: "Consultations across all Rx modes in the selected period", ...(hasPrev ? { delta: pctDelta(total, toNum(prev.total)) } : {}) },
     { key: "topMode", label: "Top mode", kind: "text", value: topMode || "No data", tooltip: "The Rx mode used most often in the selected period" },
-    { key: "aiAssisted", label: "AI-assisted Rx", kind: "number", value: assisted, tooltip: "Consultations completed with an AI-assisted mode (Smart Sync, Voice RX or Snap RX) in the selected period", ...(hasPrev ? { delta: pctDelta(assisted, prevAssisted) } : {}) },
   ];
 }
 
@@ -261,7 +250,6 @@ function defaultKpis() {
   return [
     { key: "total", label: "Total consultations", kind: "number", value: 0, tooltip: "Consultations across all Rx modes in the selected period" },
     { key: "topMode", label: "Top mode", kind: "text", value: "No data", tooltip: "The Rx mode used most often in the selected period" },
-    { key: "aiAssisted", label: "AI-assisted Rx", kind: "number", value: 0, tooltip: "Consultations completed with an AI-assisted mode (Smart Sync, Voice RX or Snap RX) in the selected period" },
   ];
 }
 

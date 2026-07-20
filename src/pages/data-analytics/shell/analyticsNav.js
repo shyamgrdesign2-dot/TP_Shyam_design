@@ -15,7 +15,8 @@ export const OPD_NAV = [
   { id: "billing", label: "Billing", icon: "wallet-3" },
   { id: "patients", label: "Patients", icon: "profile-2user" },
   { id: "care", label: "Care", icon: "health" },
-  { id: "grow", label: "Grow", icon: "chart-2" },
+  // grow hidden: backend follow-ups endpoint returns empty data (no records in reporting tables).
+  // { id: "grow", label: "Grow", icon: "chart-2" },
   { id: "messages", label: "Messages", icon: "message" },
   { id: "reports", label: "Reports", icon: "document-download" },
 ];

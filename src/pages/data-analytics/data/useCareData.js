@@ -4,6 +4,7 @@ import { listToDonut, anyToDonut, donutToXY, seriesToXY, compactXY, compactDocto
 import { isMonthScoped } from "../filters/periods";
 import { toNum as num, safe, withCategories, singleIdOnly } from "./deltaUtils";
 import { cached } from "./apiCache";
+import { getDoctorList } from "./doctorList";
 
 // Care data — optimized with request caching and state merging.
 // Sub-tab switches within the cache TTL return instantly from cache.
@@ -16,6 +17,100 @@ const IAP_VACCINES = [
   "td", "tdap", "influenza", "je", "japanese", "mcv", "meningo",
   "pentavalent", "hexavalent", "cholera",
 ];
+
+const FANOUT_CAP = 20;
+const BATCH = 4;
+
+async function buildMedsByDoctor(baseParams, doctorFilterCsv) {
+  let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
+  if (doctorFilterCsv) {
+    const wanted = new Set(String(doctorFilterCsv).split(","));
+    doctors = doctors.filter((d) => wanted.has(String(d.um_id)));
+  }
+  doctors = doctors.slice(0, FANOUT_CAP);
+  if (!doctors.length) return null;
+
+  const results = new Array(doctors.length);
+  for (let i = 0; i < doctors.length; i += BATCH) {
+    const batch = doctors.slice(i, i + BATCH);
+    const br = await Promise.all(
+      batch.map((d) =>
+        cached(`rx-dr-${d.um_id}`, baseParams, () =>
+          ApiReporting.clinicRx({ ...baseParams, doctorId: d.um_id })
+        )
+          .then((r) => anyToDonut((r?.data ?? r)?.topBrands))
+          .catch(() => [])
+      )
+    );
+    br.forEach((r, j) => { results[i + j] = r; });
+  }
+
+  const globalTop = topNLabels(results, 5);
+  if (!globalTop.length) return null;
+
+  return {
+    labels: doctors.map((d) => d.um_name || `Doctor ${d.um_id}`),
+    datasets: globalTop.map((med) => ({
+      label: med,
+      data: doctors.map((_, i) => {
+        const hit = (results[i] || []).find((d) => d.label === med);
+        return hit?.value || 0;
+      }),
+    })),
+  };
+}
+
+async function buildDiagByDoctor(baseParams, doctorFilterCsv) {
+  let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
+  if (doctorFilterCsv) {
+    const wanted = new Set(String(doctorFilterCsv).split(","));
+    doctors = doctors.filter((d) => wanted.has(String(d.um_id)));
+  }
+  doctors = doctors.slice(0, FANOUT_CAP);
+  if (!doctors.length) return null;
+
+  const results = new Array(doctors.length);
+  for (let i = 0; i < doctors.length; i += BATCH) {
+    const batch = doctors.slice(i, i + BATCH);
+    const br = await Promise.all(
+      batch.map((d) =>
+        cached(`diag-dr-${d.um_id}`, baseParams, () =>
+          ApiReporting.clinicDiagnosis({ ...baseParams, doctorId: d.um_id })
+        )
+          .then((r) => listToDonut((r?.data ?? r)?.topDiagnosis, { labelKey: "name", valueKey: "count" }))
+          .catch(() => [])
+      )
+    );
+    br.forEach((r, j) => { results[i + j] = r; });
+  }
+
+  const globalTop = topNLabels(results, 5);
+  if (!globalTop.length) return null;
+
+  return {
+    labels: doctors.map((d) => d.um_name || `Doctor ${d.um_id}`),
+    datasets: globalTop.map((diag) => ({
+      label: diag,
+      data: doctors.map((_, i) => {
+        const hit = (results[i] || []).find((d) => d.label === diag);
+        return hit?.value || 0;
+      }),
+    })),
+  };
+}
+
+function topNLabels(perDoctorDonuts, n) {
+  const totals = {};
+  for (const donut of perDoctorDonuts) {
+    for (const d of donut || []) {
+      if (d.label) totals[d.label] = (totals[d.label] || 0) + (d.value || 0);
+    }
+  }
+  return Object.entries(totals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([label]) => label);
+}
 
 export default function useCareData({ month, startDate, endDate, doctorId, clinicId, subTab = "all" } = {}) {
   const [state, setState] = useState(initialState());
@@ -100,6 +195,9 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
     if (on("diagnosis")) {
       patch.diagnosis = listToDonut(diag?.topDiagnosis, { labelKey: "name", valueKey: "count" });
       patch.diagPrev = diag?.previous ?? null;
+      const diagBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
+      const diagStacked = await buildDiagByDoctor(diagBase, doctorId && doctorId !== "all" ? doctorId : null);
+      patch.diagByDoctor = diagStacked ? compactXY(seriesToXY(diagStacked), compactDoctorLabel) : null;
     }
     if (on("symptoms")) {
       patch.symptoms = anyToDonut(symp?.topSymptoms);
@@ -129,6 +227,9 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
       patch.catalogVsCustom = withCategories(anyToDonut(rx?.catalogVsCustom), ["Catalog", "Custom"]);
       patch.customByDoctor = rx?.customByDoctor ? compactXY(seriesToXY(rx.customByDoctor), compactDoctorLabel) : null;
       patch.drugsPerRx = num(rx?.drugsPerRx);
+      const medsBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
+      const medsStacked = await buildMedsByDoctor(medsBase, doctorId && doctorId !== "all" ? doctorId : null);
+      patch.medsByDoctor = medsStacked ? compactXY(seriesToXY(medsStacked), compactDoctorLabel) : null;
     }
     if (on("vitals")) {
       patch.bpStages = anyToDonut(vit?.bpStages);
@@ -213,6 +314,7 @@ function initialState() {
     error: null,
     diagnosis: [],
     diagPrev: null,
+    diagByDoctor: null,
     symptoms: [],
     symptomPatients: 0,
     symptomPrev: null,
@@ -223,6 +325,7 @@ function initialState() {
     conditions: [],
     medications: [],
     rxPrev: null,
+    medsByDoctor: null,
     vitals: [],
     examination: [],
     examPatients: 0,

@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Skeleton } from "@dhspl-tatvacare/tesseract-ui";
 import SectionBlock from "./SectionBlock";
 import { ChartGrid, ChartTile, MaybeScroll } from "./ChartLayout";
-import { BarChartZ } from "../charts/EmptyAware";
+import { BarChartZ, StackedBarWithTotal } from "../charts/EmptyAware";
 import DonutWithLegend from "../charts/DonutWithLegend";
 import TrendTile from "./TrendTile";
 import { WEEK_LABELS } from "../charts/scaffolds";
@@ -19,17 +19,12 @@ const ATOM_ICON = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/s
 // the `trend` field specced on each clinical endpoint (§3.6) — zero-fills
 // until deployed.
 const TREND_META = {
-  diagnosis: { label: "Diagnoses", series: "Recorded" },
-  symptoms: { label: "Symptoms", series: "Mentions" },
-  examination: { label: "Examinations", series: "Findings" },
+  // diagnosis trend hidden: backend returns "test test test" stub labels.
   medications: { label: "Medications", series: "Prescribed" },
   "lab-tests": { label: "Investigations", series: "Suggested" },
   vitals: { label: "Vitals recorded", series: "Recordings" },
-  "medical-history": { label: "History entries", series: "Entries" },
   advice: { label: "Advice given", series: "Given" },
   vaccines: { label: "Doses administered", series: "Doses" },
-  certificates: { label: "Certificates issued", series: "Issued" },
-  "custom-modules": { label: "Template usage", series: "Uses" },
 };
 
 // The one topic donut every tab (and the Overview mix) shows.
@@ -100,7 +95,7 @@ function donutTile(key, meta, data) {
 // its topic donut + prototype extras + the topic trend (trend only when the
 // backend serves a range-aware series).
 function buildTiles(subTab, data) {
-  const HIDDEN_TOPICS = new Set(["symptoms", "examination", "medical-history", "custom-modules"]);
+  const HIDDEN_TOPICS = new Set(["symptoms", "examination", "medical-history", "custom-modules", "certificates"]);
   if (subTab === "all" || !TOPIC_TILE[subTab]) {
     return Object.entries(TOPIC_TILE)
       .filter(([key]) => !HIDDEN_TOPICS.has(key))
@@ -130,16 +125,26 @@ function buildTiles(subTab, data) {
       </ChartTile>
     );
 
-  // Diagnosis status (Suspected/Confirmed/Ruled-out) and symptom severity
-  // (Mild/Moderate/Severe) tiles were REMOVED: the Rx-pad pickers exist but
-  // the EMR never persists the values to MySQL (WONT-BUILD, verified against
-  // the save code 2026-07-15 — API-CONTRACTS-CURRENT §7).
+  if (subTab === "diagnosis") {
+    if (data.diagByDoctor) tiles.push(
+      <ChartTile key="diagByDoctor" title="Top diagnoses by doctor" subtitle="Top 5 diagnoses, selected period" iconUrl={`${ICON_BASE}diagnosis.svg`} titleTooltip="Top 5 most recorded diagnoses broken down by doctor">
+        <MaybeScroll count={data.diagByDoctor?.data?.length}>
+          <StackedBarWithTotal data={data.diagByDoctor?.data} series={data.diagByDoctor?.series} xKey="x" height={CHART_H} />
+        </MaybeScroll>
+      </ChartTile>
+    );
+  }
 
   if (subTab === "medications") {
     donut("salts", "Top generics", "Molecule-level, selected period", "tablets", "Most prescribed generics (salts) across all brands in the selected period", data.salts, "Prescribed");
     donut("company", "Top manufacturers", "Brand manufacturer split, selected period", "tablets", "How prescriptions split across pharmaceutical companies in the selected period", data.companyShare, "Rx");
-    donut("catalogCustom", "Catalog vs custom medicines", "Selected period", "tablets", "Medicines picked from the catalog vs typed in by the doctor as custom entries. Zero until the backend serves the split.", data.catalogVsCustom, "Medicines");
-    bar("customByDoctor", "Custom medicines by doctor", "Selected period", "tablets", "Which doctors add the most custom (non-catalog) medicines. Zero until the backend serves the split.", data.customByDoctor, "Custom Rx", ["Dr A", "Dr B", "Dr C"]);
+    if (data.medsByDoctor) tiles.push(
+      <ChartTile key="medsByDoctor" title="Top medications by doctor" subtitle="Top 5 medications, selected period" iconUrl={`${ICON_BASE}tablets.svg`} titleTooltip="Top 5 most prescribed medications broken down by doctor">
+        <MaybeScroll count={data.medsByDoctor?.data?.length}>
+          <StackedBarWithTotal data={data.medsByDoctor?.data} series={data.medsByDoctor?.series} xKey="x" height={CHART_H} />
+        </MaybeScroll>
+      </ChartTile>
+    );
   }
 
   if (subTab === "symptoms") {
@@ -188,7 +193,7 @@ function buildTiles(subTab, data) {
   }
 
   const trend = TREND_META[subTab];
-  if (data.trends[subTab]) tiles.push(
+  if (trend && data.trends[subTab]) tiles.push(
     <TrendTile
       key="trend"
       title={`${trend.label} over time`}
