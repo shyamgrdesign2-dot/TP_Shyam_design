@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
+import { errorMessage, isDecimalNumeric, onlyDecimalFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
 import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
@@ -448,7 +448,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
 
   const onSearchSinceChid = useCallback(
     (query, i) => {
-      const updateQuery = onlyNumberFormat(query);
+      const updateQuery = onlyDecimalFormat(query);
       symptomsData[i].since = updateQuery;
       setSymptomsData((prev) => [...prev]);
       if (updateQuery) {
@@ -469,8 +469,9 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
 
   const onBlurSinceChid = useCallback(
     (i) => {
-      if (isNumeric(symptomsData[i].since)) {
-        symptomsData[i].since = `${symptomsData[i].since} ${parseInt(symptomsData[i].since) <= 1 ? 'Day' : 'Day(s)'}`;
+      const sinceValue = String(symptomsData[i].since || '').replace(/\.$/, '');
+      if (isDecimalNumeric(sinceValue)) {
+        symptomsData[i].since = `${sinceValue} ${parseFloat(sinceValue) <= 1 ? 'Day' : 'Day(s)'}`;
         setSymptomsData((prev) => [...prev]);
       }
     },
