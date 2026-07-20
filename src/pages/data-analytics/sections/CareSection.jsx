@@ -166,7 +166,13 @@ function buildTiles(subTab, data) {
   }
 
   if (subTab === "advice") {
-    bar("adviceByDoctor", "Advice by doctor", "Selected period", "medical-service", "Which doctors give the most advice entries", data.adviceByDoctor, "Given", ["Dr A", "Dr B", "Dr C"]);
+    if (data.adviceByDoctor) tiles.push(
+      <ChartTile key="adviceByDoctor" title="Top advice by doctor" subtitle="Top 5 advice, selected period" iconUrl={`${ICON_BASE}medical-service.svg`} titleTooltip="Top 5 most given advice broken down by doctor">
+        <MaybeScroll count={data.adviceByDoctor?.data?.length}>
+          <StackedBarWithTotal data={data.adviceByDoctor?.data} series={data.adviceByDoctor?.series} xKey="x" height={CHART_H} />
+        </MaybeScroll>
+      </ChartTile>
+    );
   }
 
   if (subTab === "vitals") {

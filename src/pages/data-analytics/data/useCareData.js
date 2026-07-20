@@ -138,6 +138,45 @@ async function buildLabByDoctor(baseParams, doctorFilterCsv) {
   };
 }
 
+async function buildAdviceByDoctor(baseParams, doctorFilterCsv) {
+  let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
+  if (doctorFilterCsv) {
+    const wanted = new Set(String(doctorFilterCsv).split(","));
+    doctors = doctors.filter((d) => wanted.has(String(d.um_id)));
+  }
+  doctors = doctors.slice(0, FANOUT_CAP);
+  if (!doctors.length) return null;
+
+  const results = new Array(doctors.length);
+  for (let i = 0; i < doctors.length; i += BATCH) {
+    const batch = doctors.slice(i, i + BATCH);
+    const br = await Promise.all(
+      batch.map((d) =>
+        cached(`advice-dr-${d.um_id}`, baseParams, () =>
+          ApiReporting.clinicalAdvice({ ...baseParams, doctorId: d.um_id })
+        )
+          .then((r) => anyToDonut((r?.data ?? r)?.topAdvice))
+          .catch(() => [])
+      )
+    );
+    br.forEach((r, j) => { results[i + j] = r; });
+  }
+
+  const globalTop = topNLabels(results, 5);
+  if (!globalTop.length) return null;
+
+  return {
+    labels: doctors.map((d) => d.um_name || `Doctor ${d.um_id}`),
+    datasets: globalTop.map((adv) => ({
+      label: adv,
+      data: doctors.map((_, i) => {
+        const hit = (results[i] || []).find((d) => d.label === adv);
+        return hit?.value || 0;
+      }),
+    })),
+  };
+}
+
 function topNLabels(perDoctorDonuts, n) {
   const totals = {};
   for (const donut of perDoctorDonuts) {
@@ -293,7 +332,9 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
       patch.advicePatients = num(adv?.patientsAdvised);
       patch.adviceEntries = num(adv?.entries);
       patch.advicePrev = adv?.previous ?? null;
-      patch.adviceByDoctor = adv?.byDoctor ? compactXY(seriesToXY(adv.byDoctor), compactDoctorLabel) : null;
+      const advBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
+      const advStacked = await buildAdviceByDoctor(advBase, doctorId && doctorId !== "all" ? doctorId : null);
+      patch.adviceByDoctor = advStacked ? compactXY(seriesToXY(advStacked), compactDoctorLabel) : null;
     }
     if (on("vaccines")) {
       patch.vaccines = {
