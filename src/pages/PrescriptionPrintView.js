@@ -85,6 +85,7 @@ function PrescriptionPrintView() {
 
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID, isVoiceRxNewUiFlow } = state;
+    const isVoiceRxV2 = Boolean(isVoiceRxNewUiFlow);
     const isDentalEnabled = useIsDentalEnabled(); // this isDentalEnabled is not required here(will remove it)
     const isDental = state?.from === DENTAL_RX_PAD_ROUTE ;
 
@@ -574,7 +575,8 @@ function PrescriptionPrintView() {
         const body = {
             patient_unique_id: parseInt(patient_data.patient_unique_id),
             pm_pid: String(pm_pid),
-            tcm_id: parseInt(state.tcm_id)
+            tcm_id: parseInt(state.tcm_id),
+            isVoiceRxV2
         };
         setIsWhatsAppLoading(true);
         setWhatsAppButtonText("Sending...");
@@ -676,7 +678,7 @@ function PrescriptionPrintView() {
 
     return (
         <>
-            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={pam_id} selectedLang={selectedLang} />
+            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={pam_id} selectedLang={selectedLang} isVoiceRxV2={isVoiceRxV2} />
             <div className={`${isMobile ? 'p-0' : ''} w-100 bg-body wrapper2 prescription-wrapper`}>
                 {/* <img src={hey} alt="Hey" className='me-3 hey' /> */}
                 <Row gutter={{ xl: 40, lg: 0 }} justify="center">
