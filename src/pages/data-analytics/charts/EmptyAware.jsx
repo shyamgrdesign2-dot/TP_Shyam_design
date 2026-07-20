@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import { LineChart, BarChart, DonutChart } from "@dhspl-tatvacare/tesseract-ui";
 import {
   xyOrZero,
@@ -112,5 +112,59 @@ export function DonutChartZ({ data, colors, showPercent, showValue, centerValueF
       showTooltip={showTooltip}
       {...rest}
     />
+  );
+}
+
+// Stacked BarChart wrapper that injects a "Total" row into the Tesseract
+// tooltip. The Tesseract BarChart doesn't expose tooltip customization, so we
+// observe DOM mutations and append the total when the tooltip appears.
+export function StackedBarWithTotal({ data, series, xKey = "x", ...rest }) {
+  const wrapRef = useRef(null);
+  const totalsRef = useRef({});
+
+  useEffect(() => {
+    const map = {};
+    for (const row of data || []) {
+      const name = row[xKey];
+      const t = (series || []).reduce((s, se) => s + (Number(row[se.key]) || 0), 0);
+      map[name] = t;
+    }
+    totalsRef.current = map;
+  }, [data, series, xKey]);
+
+  const injectTotal = useCallback(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const tip = el.querySelector("[style*='position: absolute'][style*='z-index']");
+    if (!tip || tip.querySelector("[data-total-row]")) return;
+    const titleDiv = tip.querySelector("div");
+    if (!titleDiv) return;
+    const doctorName = titleDiv.textContent;
+    const total = totalsRef.current[doctorName];
+    if (total == null) return;
+    const row = document.createElement("div");
+    row.setAttribute("data-total-row", "1");
+    row.style.cssText =
+      "display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;" +
+      "border-top:1px solid var(--tesseract-border-neutral);margin-top:4px;padding-top:4px";
+    row.innerHTML =
+      '<span style="width:9px;height:9px;flex-shrink:0"></span>' +
+      '<span style="color:var(--tesseract-fg-secondary);margin-right:auto">Total</span>' +
+      `<strong style="color:var(--tesseract-fg-primary);font-weight:600">${total}</strong>`;
+    tip.appendChild(row);
+  }, []);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const obs = new MutationObserver(injectTotal);
+    obs.observe(el, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, [injectTotal]);
+
+  return (
+    <div ref={wrapRef}>
+      <BarChartZ data={data} series={series} xKey={xKey} stacked {...rest} />
+    </div>
   );
 }

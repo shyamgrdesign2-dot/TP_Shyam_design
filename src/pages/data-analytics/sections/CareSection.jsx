@@ -100,8 +100,11 @@ function donutTile(key, meta, data) {
 // its topic donut + prototype extras + the topic trend (trend only when the
 // backend serves a range-aware series).
 function buildTiles(subTab, data) {
+  const HIDDEN_TOPICS = new Set(["symptoms", "examination", "medical-history", "custom-modules"]);
   if (subTab === "all" || !TOPIC_TILE[subTab]) {
-    return Object.entries(TOPIC_TILE).map(([key, meta]) => donutTile(key, meta, data));
+    return Object.entries(TOPIC_TILE)
+      .filter(([key]) => !HIDDEN_TOPICS.has(key))
+      .map(([key, meta]) => donutTile(key, meta, data));
   }
 
   const tiles = [donutTile(subTab, TOPIC_TILE[subTab], data)];
@@ -300,18 +303,14 @@ function buildKpis(subTab, data) {
         { key: "creatingDoctors", label: "Creating doctors", kind: "number", value: Number(data.customModels.creatingDoctors) || 0, tooltip: "Doctors who created at least one custom model — an all-time snapshot" },
       ];
     default:
-      // Care Overview — the top-name headline row only (user ruling)
+      // Care Overview — the top-name headline row only (user ruling).
+      // Symptoms, Examination, and Medical History hidden: backend data-quality
+      // issues (see SYMPTOMS-EXAM-HISTORY-DATA-QUALITY.md). Restore when fixed.
       return [
         { key: "topDiagnosis", label: "Top diagnosis", kind: "text", value: top(data.diagnosis), tooltip: "Most recorded diagnosis in the selected period" },
-        { key: "topSymptom", label: "Top symptom", kind: "text", value: top(data.symptoms), tooltip: "Symptom reported most often" },
-        { key: "topExamination", label: "Top examination", kind: "text", value: top(data.examination), tooltip: "Most documented examination finding" },
         { key: "topMedication", label: "Top medication", kind: "text", value: top(data.medications), tooltip: "Most prescribed medicine" },
         { key: "topLabTest", label: "Top investigation", kind: "text", value: top(data.investigations), tooltip: "Most suggested lab investigation" },
         { key: "topVital", label: "Top vital", kind: "text", value: top(data.vitals || []), tooltip: "Vital sign captured most often" },
-        { key: "topCondition", label: "Top medical condition", kind: "text", value: top(data.conditions), tooltip: "Most common medical condition" },
-        { key: "topAllergy", label: "Top allergy", kind: "text", value: top(data.allergies), tooltip: "Most commonly reported allergy" },
-        { key: "topFamilyHistory", label: "Top family history", kind: "text", value: top(data.familyHistory), tooltip: "Most common family-history condition" },
-        { key: "topLifestyle", label: "Top lifestyle factor", kind: "text", value: top(data.lifestyle), tooltip: "Most common lifestyle factor" },
         { key: "topAdvice", label: "Top advice", kind: "text", value: top(data.advice), tooltip: "Advice given most often" },
       ];
   }

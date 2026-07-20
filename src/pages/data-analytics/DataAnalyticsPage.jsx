@@ -69,12 +69,15 @@ function MedicalTabIcon({ icon, variant = "linear", fixedVariant, size = 18 }) {
 const CARE_SUB_TABS = [
   { id: "all", label: "Overview", icon: "medical/health-care" },
   { id: "diagnosis", label: "Diagnoses", icon: "medical/diagnosis" },
-  { id: "symptoms", label: "Symptoms", icon: "medical/virus" },
-  { id: "examination", label: "Examination", icon: "medical/medical-service" },
+  // symptoms hidden: backend data-quality issues (severity text as names, slash artifacts).
+  // Restore when Pm-Core fixes jsonEntryNames / splitFreeText (see SYMPTOMS-EXAM-HISTORY-DATA-QUALITY.md).
+  // { id: "symptoms", label: "Symptoms", icon: "medical/virus" },
+  // { id: "examination", label: "Examination", icon: "medical/medical-service" },
   { id: "medications", label: "Medications", icon: "medical/tablets" },
   { id: "lab-tests", label: "Investigations", icon: "medical/lab" },
   { id: "vitals", label: "Vitals", icon: "medical/heart-rate" },
-  { id: "medical-history", label: "History", icon: "medical/health-care" },
+  // medical-history hidden: backend returns empty arrays (JSON shape mismatch in parseMhSection).
+  // { id: "medical-history", label: "History", icon: "medical/health-care" },
   { id: "advice", label: "Advice", icon: "medical/medical-service" },
   { id: "vaccines", label: "Vaccines", icon: "medical/injection" },
   { id: "certificates", label: "Certificates", icon: "sports2/award-badge5" },

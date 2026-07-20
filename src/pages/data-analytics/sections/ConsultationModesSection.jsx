@@ -2,7 +2,7 @@ import React from "react";
 import { Skeleton } from "@dhspl-tatvacare/tesseract-ui";
 import SectionBlock from "./SectionBlock";
 import { ChartGrid, ChartTile, MaybeScroll } from "./ChartLayout";
-import { BarChartZ } from "../charts/EmptyAware";
+import { StackedBarWithTotal } from "../charts/EmptyAware";
 import TrendTile from "./TrendTile";
 import DonutWithLegend from "../charts/DonutWithLegend";
 import { WEEK_LABELS } from "../charts/scaffolds";
@@ -70,12 +70,11 @@ export default function ConsultationModesSection({ filters }) {
 
           <ChartTile title="Usage by doctor" subtitle="Mode split per doctor, selected period" icon="profile-2user" titleTooltip="Each doctor's consultations in the selected period, stacked by the Rx mode used">
             <MaybeScroll count={byDoctor?.data?.length}>
-            <BarChartZ
+            <StackedBarWithTotal
               data={byDoctor?.data}
               series={byDoctor?.series}
               fallbackLabels={["Dr A", "Dr B", "Dr C"]}
               fallbackSeries={stackFallback}
-              stacked
               height={280}
             />
             </MaybeScroll>

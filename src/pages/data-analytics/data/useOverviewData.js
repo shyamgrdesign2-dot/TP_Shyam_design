@@ -54,40 +54,16 @@ export default function useOverviewData({ month, startDate, endDate, doctorId, c
     const ov = overview?.data ?? overview ?? {};
     const patientsSrc = patientsP?.data ?? patientsP ?? {};
 
-    // --- Fallback batch: fire only for fields the overview left empty ---
+    // --- Fallback batch: Rx endpoint for the top-medications donut ---
+    // Symptoms and medical-history fallbacks removed: those sections are hidden
+    // due to backend data-quality issues (see SYMPTOMS-EXAM-HISTORY-DATA-QUALITY.md).
     const needRx = !ov.topMedication;
-    const needSymp = !ov.topSymptom;
-    const needHist = !ov.topMedicalCondition;
-    const needFallbacks = needRx || needSymp || needHist;
+    const fallbacks = { topMedication: null };
 
-    let rx = {}, symp = {}, hist = {};
-    if (needFallbacks) {
-      const [rxP, sympP, histP] = await Promise.all([
-        needRx ? safe(cached("clinicRx", params, () => ApiReporting.clinicRx(params))) : null,
-        needSymp ? safe(cached("symptoms", params, () => ApiReporting.clinicalSymptoms(params))) : null,
-        needHist ? safe(cached("medHistory", params, () => ApiReporting.clinicalMedicalHistory(params))) : null,
-      ]);
-      rx = rxP?.data ?? rxP ?? {};
-      symp = sympP?.data ?? sympP ?? {};
-      hist = histP?.data ?? histP ?? {};
-    }
-
-    const fallbacks = {
-      topMedication: firstLabel(anyToDonut(rx.topBrands)),
-      topCondition: firstLabel(anyToDonut(hist.topConditions)),
-      topSymptom: firstLabel(anyToDonut(symp.topSymptoms)),
-    };
-
-    // topMedications donut: prefer Rx endpoint (always has full list),
-    // but if we didn't fetch it, skip (overview KPI is text-only anyway).
-    const rxDonut = needRx ? anyToDonut(rx.topBrands) : [];
-    // If Rx wasn't fetched as a fallback, fire it now for the donut chart
-    let medDonut = rxDonut;
-    if (!needRx) {
-      const rxFresh = await safe(cached("clinicRx", params, () => ApiReporting.clinicRx(params)));
-      const rxData = rxFresh?.data ?? rxFresh ?? {};
-      medDonut = anyToDonut(rxData.topBrands);
-    }
+    const rxFresh = await safe(cached("clinicRx", params, () => ApiReporting.clinicRx(params)));
+    const rxData = rxFresh?.data ?? rxFresh ?? {};
+    const medDonut = anyToDonut(rxData.topBrands);
+    if (needRx) fallbacks.topMedication = firstLabel(medDonut);
 
     setState({
       loading: false,
@@ -162,25 +138,11 @@ function buildKpis(payload, modesSrc, ov = {}, fallbacks = {}) {
       tooltip: "Most recorded diagnosis in the selected period",
     },
     {
-      key: "topSymptom",
-      label: "Top symptom",
-      kind: "text",
-      value: ov.topSymptom || fallbacks.topSymptom || "No data",
-      tooltip: "Symptom reported most often in the selected period",
-    },
-    {
       key: "topMedication",
       label: "Top medication",
       kind: "text",
       value: ov.topMedication || fallbacks.topMedication || "No data",
       tooltip: "Most prescribed medicine in the selected period",
-    },
-    {
-      key: "topCondition",
-      label: "Top medical condition",
-      kind: "text",
-      value: ov.topMedicalCondition || fallbacks.topCondition || "No data",
-      tooltip: "Most common medical condition (medical history) among patients seen in the selected period",
     },
   ];
 }

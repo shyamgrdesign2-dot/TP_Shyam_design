@@ -99,8 +99,7 @@ async function buildStackedByDoctor(baseParams, doctorFilterCsv) {
   }
 
   const rows = doctors
-    .map((d, i) => ({ name: d.um_name || `Doctor ${d.um_id}`, k: results[i] }))
-    .filter((r) => r.k && toNum(r.k.total) > 0)
+    .map((d, i) => ({ name: d.um_name || `Doctor ${d.um_id}`, k: results[i] || { total: 0 } }))
     .sort((a, b) => toNum(b.k.total) - toNum(a.k.total));
   if (!rows.length) return null;
 
