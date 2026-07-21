@@ -142,6 +142,7 @@ export const ASSETS = {
     adharIcon: `${BASE_URL}/images/adhar-icon.svg`,
     advice: `${BASE_URL}/images/advice.svg`,
     aiAgent: `${BASE_URL}/images/ai-agent.webp`,
+    referral: `${BASE_URL}/images/referral.svg`,
     aiPowered: `${BASE_URL}/images/ai-powered.svg`,
     aisparkleloader: `${BASE_URL}/images/aiSparkleLoader.mp4`,
     aisparkleloader_2: `${BASE_URL}/images/aiSparkleLoader.webm`,

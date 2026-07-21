@@ -34,6 +34,7 @@ const {
   editIconBlue: editIcon,
   deleteIconBlue: deleteIcon,
   alerticon: alertIcon,
+  referral,
 } = ASSETS.images;
 
 const CANVAS_ICON_PRIMARY_URL =
@@ -218,6 +219,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           tmdpm_name: "Referral",
           tmdpm_short_name: "Referral",
           tmdpm_status: 1,
+          tmdpm_icon_url: referral,
         });
       }
 
@@ -260,6 +262,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           tmdpm_name: "Referral",
           tmdpm_short_name: "Referral",
           tmdpm_status: 1,
+          tmdpm_icon_url: referral,
         });
       }
 
