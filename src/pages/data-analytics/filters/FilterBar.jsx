@@ -1,20 +1,17 @@
 import React from "react";
 import { Dropdown, DateRangePicker } from "@dhspl-tatvacare/tesseract-ui";
 
-// Quick-select presets: the DS defaults plus "Till date". The reporting API
-// caps ranges at 366 days (contract §1), so Till date = the last 365 days
-// until the backend lifts the cap / exposes the account-creation date (§10).
+// Quick-select presets. Backend endpoints cap ranges at 31 days, so no
+// "This year" / "Till date" options (they'd always 400).
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const DA_PRESETS = [
   { id: "today", label: "Today", getRange: () => ({ start: startOfDay(new Date()), end: startOfDay(new Date()) }) },
   { id: "yesterday", label: "Yesterday", getRange: () => ({ start: addDays(new Date(), -1), end: addDays(new Date(), -1) }) },
   { id: "last-7", label: "Past 7 days", getRange: () => ({ start: addDays(new Date(), -6), end: startOfDay(new Date()) }) },
-  { id: "last-30", label: "Past 30 days", getRange: () => ({ start: addDays(new Date(), -29), end: startOfDay(new Date()) }) },
+  { id: "last-30", label: "Past 30 days", getRange: () => ({ start: addDays(new Date(), -30), end: startOfDay(new Date()) }) },
   { id: "this-month", label: "This month", getRange: () => ({ start: new Date(new Date().getFullYear(), new Date().getMonth(), 1), end: startOfDay(new Date()) }) },
   { id: "last-month", label: "Last month", getRange: () => ({ start: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1), end: new Date(new Date().getFullYear(), new Date().getMonth(), 0) }) },
-  { id: "this-year", label: "This year", getRange: () => ({ start: new Date(new Date().getFullYear(), 0, 1), end: startOfDay(new Date()) }) },
-  { id: "till-date", label: "Till date", getRange: () => ({ start: addDays(new Date(), -364), end: startOfDay(new Date()) }) },
 ];
 
 // The sticky filter row: Doctor + Clinic multi-selects on the left, the date

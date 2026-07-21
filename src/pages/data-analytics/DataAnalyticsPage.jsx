@@ -152,9 +152,16 @@ export default function DataAnalyticsPage() {
   // The DateRangePicker emits { presetId, start, end, ... }. Keep the preset id
   // as the display value when a preset is picked (so the trigger reads its
   // label); otherwise show the raw {start,end} range.
+  const MAX_RANGE_DAYS = 31;
   const handleDateChange = (v) => {
-    const start = v?.start instanceof Date ? v.start : null;
+    let start = v?.start instanceof Date ? v.start : null;
     const end = v?.end instanceof Date ? v.end : start;
+    if (start && end) {
+      const span = Math.round((end - start) / 86400000) + 1;
+      if (span > MAX_RANGE_DAYS) {
+        start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - (MAX_RANGE_DAYS - 1));
+      }
+    }
     if (v?.presetId) setDateValue(v.presetId);
     else setDateValue(start ? { start, end } : DEFAULT_DATE_VALUE);
     if (start) setDateRange(datesToRange(start, end));

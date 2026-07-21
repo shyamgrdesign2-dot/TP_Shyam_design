@@ -16,19 +16,19 @@ export default function useGrowData({ month, startDate, endDate, doctorId, clini
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
-    // clinic/operational endpoints take SINGLE ids (a CSV silently narrows
-    // to the first id server-side) — single passes, multi is omitted.
-    const singleDoctor = singleIdOnly(doctorId);
-    const singleClinic = singleIdOnly(clinicId);
+    // clinic/followups rejects CSV (400); operational/abha accepts CSV
+    const sd = singleIdOnly(doctorId);
+    const sc = singleIdOnly(clinicId);
+
     const monthParams = {};
     if (month) monthParams.month = month;
-    if (singleDoctor) monthParams.doctorId = singleDoctor;
-    if (singleClinic) monthParams.clinicId = singleClinic;
+    if (sd) monthParams.doctorId = sd;
+    if (sc) monthParams.clinicId = sc;
     const rangeParams = {};
     if (startDate) rangeParams.startDate = startDate;
     if (endDate) rangeParams.endDate = endDate;
-    if (singleDoctor) rangeParams.doctorId = singleDoctor;
-    if (singleClinic) rangeParams.clinicId = singleClinic;
+    if (doctorId && doctorId !== "all") rangeParams.doctorId = doctorId;
+    if (clinicId && clinicId !== "all") rangeParams.clinicId = clinicId;
 
     const [followPayload, abhaPayload] = await Promise.all([
       safe(ApiReporting.clinicFollowups(monthParams)),

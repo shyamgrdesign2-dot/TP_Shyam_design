@@ -121,13 +121,10 @@ export default function useConsultationModesData({ month, startDate, endDate, do
       params.startDate = startDate;
       params.endDate = endDate;
     }
-    // clinic-family endpoint: single ids only (CSV silently narrows to the
-    // first id server-side). Multi-doctor is handled by the per-doctor
-    // stacked fan-out below, which filters by the selected CSV client-side.
-    const singleDoctor = singleIdOnly(doctorId);
+    // clinic/consultation-modes rejects CSV doctorId/clinicId (400)
+    if (singleIdOnly(doctorId)) params.doctorId = singleIdOnly(doctorId);
+    if (singleIdOnly(clinicId)) params.clinicId = singleIdOnly(clinicId);
     const singleClinic = singleIdOnly(clinicId);
-    if (singleDoctor) params.doctorId = singleDoctor;
-    if (singleClinic) params.clinicId = singleClinic;
 
     const payload = await cached("modes", params, () => ApiReporting.clinicConsultationModes(params)).catch(() => null);
     const src = payload?.data ?? payload ?? {};

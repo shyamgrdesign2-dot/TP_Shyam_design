@@ -12,6 +12,8 @@ export default function ConsultationModesSection({ filters }) {
   const caps = useCapabilities();
   const { loading, kpis, modeMix, modeTrend, byDoctor } = useConsultationModesData({
     month: filters?.month,
+    startDate: filters?.startDate,
+    endDate: filters?.endDate,
     doctorId: filters?.doctor,
     clinicId: filters?.clinic,
     enabledModes: caps.modes,

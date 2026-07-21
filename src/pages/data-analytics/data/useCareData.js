@@ -219,24 +219,28 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
       error: null,
     }));
 
+    // Most clinic/* and clinical/* endpoints reject CSV doctorId/clinicId (400).
+    // Use singleIdOnly to pass only single values.
+    const sd = singleIdOnly(doctorId);
+    const sc = singleIdOnly(clinicId);
+    const singleClinic = sc;
+
     const params = {};
     if (month) params.month = month;
     if (startDate && endDate) {
       params.startDate = startDate;
       params.endDate = endDate;
     }
-    const singleDoctor = singleIdOnly(doctorId);
-    const singleClinic = singleIdOnly(clinicId);
-    if (singleDoctor) params.doctorId = singleDoctor;
-    if (singleClinic) params.clinicId = singleClinic;
+    if (sd) params.doctorId = sd;
+    if (sc) params.clinicId = sc;
 
     const { clinicId: _c, ...noClinic } = params;
     const { doctorId: _d, ...noDoctor } = params;
 
     const monthScoped = isMonthScoped(startDate, endDate);
     const trendParams = { months: 3, top: 5 };
-    if (singleDoctor) trendParams.doctorId = singleDoctor;
-    if (singleClinic) trendParams.clinicId = singleClinic;
+    if (sd) trendParams.doctorId = sd;
+    if (sc) trendParams.clinicId = sc;
 
     const all = subTab === "all";
     const on = (tab) => all || subTab === tab;

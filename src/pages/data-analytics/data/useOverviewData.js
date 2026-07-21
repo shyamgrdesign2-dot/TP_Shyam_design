@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
 import { anyToDonut, capDonut } from "../charts/adapters";
-import { toNum, extractDelta, safe, singleIdOnly, withCategories } from "./deltaUtils";
+import { toNum, extractDelta, safe, withCategories, singleIdOnly } from "./deltaUtils";
 import { cached } from "./apiCache";
 
 // OPD Overview data — the 10-second practice pulse.
@@ -23,29 +23,38 @@ export default function useOverviewData({ month, startDate, endDate, doctorId, c
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
-    const params = {};
-    if (month) params.month = month;
-    if (startDate && endDate) {
-      params.startDate = startDate;
-      params.endDate = endDate;
-    }
-    const singleDoctor = singleIdOnly(doctorId);
-    const singleClinic = singleIdOnly(clinicId);
-    if (singleDoctor) params.doctorId = singleDoctor;
-    if (singleClinic) params.clinicId = singleClinic;
-    const rangeParams = { ...params };
+    // clinic/* endpoints reject CSV doctorId/clinicId (400 VALIDATION_ERROR).
+    // operational/* and analytics/* accept CSV. Split params accordingly.
+    const sd = singleIdOnly(doctorId);
+    const sc = singleIdOnly(clinicId);
+
+    const sp = {};
+    if (month) sp.month = month;
+    if (startDate && endDate) { sp.startDate = startDate; sp.endDate = endDate; }
+    if (sd) sp.doctorId = sd;
+    if (sc) sp.clinicId = sc;
+
+    const csvParams = {};
+    if (month) csvParams.month = month;
+    if (startDate && endDate) { csvParams.startDate = startDate; csvParams.endDate = endDate; }
+    if (doctorId && doctorId !== "all") csvParams.doctorId = doctorId;
+    if (clinicId && clinicId !== "all") csvParams.clinicId = clinicId;
+
+    const rangeParams = { ...csvParams };
     delete rangeParams.month;
     const weeklyParams = {
       ...(month ? { month } : {}),
-      ...(params.doctorId ? { doctorId: params.doctorId } : {}),
-      ...(params.clinicId ? { clinicId: params.clinicId } : {}),
+      ...(sd ? { doctorId: sd } : {}),
+      ...(sc ? { clinicId: sc } : {}),
     };
 
     // --- Primary batch (5 calls) ---
+    // sp = single-ID params for clinic/* endpoints
+    // rangeParams = CSV-ok params for operational/analytics endpoints
     const [cards, weekly, modes, overview, patientsP] = await Promise.all([
-      safe(cached("topCards", params, () => ApiReporting.clinicDashboardTopCards(params))),
+      safe(cached("topCards", sp, () => ApiReporting.clinicDashboardTopCards(sp))),
       safe(cached("weekly", weeklyParams, () => ApiReporting.clinicConsultationsWeekly(weeklyParams))),
-      safe(cached("modes", params, () => ApiReporting.clinicConsultationModes(params))),
+      safe(cached("modes", sp, () => ApiReporting.clinicConsultationModes(sp))),
       safe(cached("opOverview", rangeParams, () => ApiReporting.operationalOverview(rangeParams))),
       safe(cached("patients", rangeParams, () => ApiReporting.analyticsPatients(rangeParams))),
     ]);
@@ -60,7 +69,7 @@ export default function useOverviewData({ month, startDate, endDate, doctorId, c
     const needRx = !ov.topMedication;
     const fallbacks = { topMedication: null };
 
-    const rxFresh = await safe(cached("clinicRx", params, () => ApiReporting.clinicRx(params)));
+    const rxFresh = await safe(cached("clinicRx", sp, () => ApiReporting.clinicRx(sp)));
     const rxData = rxFresh?.data ?? rxFresh ?? {};
     const medDonut = anyToDonut(rxData.topBrands);
     if (needRx) fallbacks.topMedication = firstLabel(medDonut);

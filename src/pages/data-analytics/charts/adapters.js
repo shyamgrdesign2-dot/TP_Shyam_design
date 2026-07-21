@@ -56,15 +56,18 @@ export function donutToXY(list, seriesLabel = "Count") {
   };
 }
 
-// Generic [{name/label, count/value}] list → Donut data
+// Generic [{name/label, count/value}] list → Donut data.
+// Aggregates entries that share the same label (backend may return un-grouped rows).
 export function listToDonut(list, { labelKey = "name", valueKey = "count" } = {}) {
   if (!Array.isArray(list)) return [];
-  return list
-    .map((it) => ({
-      label: it[labelKey] ?? it.label ?? it.title ?? "Unknown",
-      value: toNum(it[valueKey] ?? it.value ?? it.count),
-    }))
-    .filter((d) => d.label != null);
+  const agg = {};
+  for (const it of list) {
+    const label = it[labelKey] ?? it.label ?? it.title ?? "Unknown";
+    if (label == null) continue;
+    const value = toNum(it[valueKey] ?? it.value ?? it.count);
+    agg[label] = (agg[label] || 0) + value;
+  }
+  return Object.entries(agg).map(([label, value]) => ({ label, value }));
 }
 
 // { buckets|labels:[...], series:{ current:[...], last:[...] } } → Line/Bar XY.
