@@ -8,6 +8,7 @@ import { resolveExamChartForPrintWithContext } from "./examChartStorage";
 import { DENTAL_EXAM_CASE_OPTION_ID } from "./dentalDefaultPrintSettings";
 import { hasDentalExamPayload } from "./cardiologyDentalOralExam";
 import { normalizeSmartRxDataForPrint } from "./smartRxPrintUtils";
+import { normalizeLabResultsResponse } from "./labResultsUtils";
 import { resolveFooterImageDimensions } from "./utils";
 
 function shouldPrefetchDentalToothImages({
@@ -113,10 +114,13 @@ export const renderPrintPayloadToBlob = async (
           tcmId,
         });
 
+  // Flatten multi-doctor lab buckets (or legacy single-doc) before ViewPDF consume.
+  const normalizedLabParamsData = normalizeLabResultsResponse(labParamsData);
+
   const combinedCaseManagerData = {
     ...caseManagerData,
     gynecHistoryData,
-    labParamsData,
+    labParamsData: normalizedLabParamsData,
     labReportData,
     ophthalModuleData,
     ...(zydusLabData?.length > 0 ? { zydusSelectedLabParams: zydusLabData } : {}),
@@ -174,7 +178,7 @@ export const renderPrintPayloadToBlob = async (
       growthChartDetails={growthChartDetails}
       isGynaecHistoryAccessable={isGynaecHistoryAccessable}
       gynecHistoryData={gynecHistoryData}
-      labParamsData={labParamsData}
+      labParamsData={normalizedLabParamsData}
       obsHistoryData={obsHistoryData}
       customModules={normalizedCustomModules}
       patientBills={patientBills}

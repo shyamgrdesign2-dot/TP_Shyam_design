@@ -193,7 +193,8 @@
 
 .drawerBody {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   padding: 20px 24px 24px;
   display: flex;
   flex-direction: column;
@@ -203,6 +204,7 @@
 .formField {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .fieldLabel {
@@ -263,6 +265,10 @@
   border-radius: 16px;
   background-color: white;
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .clusterHeader {
@@ -270,6 +276,14 @@
   align-items: center;
   gap: 10px;
   padding: 14px 16px;
+  flex-shrink: 0;
+}
+
+.servicesTableScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .servicesTitle {
@@ -307,7 +321,8 @@
 .tableShell {
   width: 100%;
   min-width: 0;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
   border: 1px solid var(--tp-slate-200);
   border-radius: 10px;
 }
@@ -328,6 +343,9 @@
   text-align: left;
   font-family: 'Inter', sans-serif;
   font-size: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 .tableHeadCellBase {
@@ -829,6 +847,9 @@
 .drawerPanel {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .surfaceTriggerText {
@@ -839,6 +860,7 @@
 
 .searchBlock {
   padding: 4px 16px 16px;
+  flex-shrink: 0;
 }
 
 .searchInputWrap {
@@ -1194,6 +1216,7 @@
 .dropdownCatalogList {
   max-height: 260px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 4px 0;
 }
 

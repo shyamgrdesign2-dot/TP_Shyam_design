@@ -67,7 +67,7 @@ const PatientListItem = React.memo(({
   );
 
   const patientId = useMemo(() => 
-    patient.tpml_refrence_id || patient.pm_pid || patient.pm_patient_id,
+    patient.pm_pid || patient.tpml_refrence_id || patient.pm_patient_id,
     [patient.tpml_refrence_id, patient.pm_pid, patient.pm_patient_id]
   );
 

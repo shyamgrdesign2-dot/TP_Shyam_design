@@ -10,6 +10,7 @@ import { env } from "../../EnvironmentConfig";
 import { useSelector, useDispatch } from "react-redux";
 
 import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_VIDEO_CONSULT, GB_TELE_CONSULT, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE, GB_VOICE_RX_FREE } from "../../utils/constants";
+import { normalizeLabResultsResponse } from "../../utils/labResultsUtils";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../../redux/vitalsSlice";
 import { getPatientLastHistory, listPrivateNotes } from "../../redux/medicalhistorySlice";
@@ -1297,7 +1298,7 @@ function TabPrescription() {
           'Authorization': `Bearer ${cleanedToken}`,
         },
       });
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       // Error fetching lab params
     }

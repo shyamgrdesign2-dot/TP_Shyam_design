@@ -49,7 +49,7 @@ import TabMedicationMoreModal from "./TabMedicationMoreModal";
 import { EXTRA_OPTIONS, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../../utils/constants";
 import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import DoseCalculator from "../dose_calculator/doseCalculator";
 import FreeBadge from "../../common/FreeBadge";
 import { ASSETS } from "../../assets";

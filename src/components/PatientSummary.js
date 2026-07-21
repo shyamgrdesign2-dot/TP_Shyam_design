@@ -16,6 +16,7 @@ import { getClinicName, getTokenData, isValidMongoId, trackEvent } from "../util
 import { setShowSCPopup } from "../redux/ddxSlice";
 import { env } from "../EnvironmentConfig";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import ViewLabParam from "./ViewLabParams";
@@ -89,13 +90,9 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           },
         });
         
-        if (response?.data?.data?.results) {
-          setLabResults(response.data.data.results);
-          setLabParamsData(response.data.data.results);
-        } else {
-          setLabResults([]);
-          setLabParamsData([]);
-        }
+        const normalized = normalizeLabResultsResponse(response);
+        setLabResults(normalized);
+        setLabParamsData(normalized);
       } catch (error) {
         console.error('Error fetching lab results:', error);
         setLabResults([]);

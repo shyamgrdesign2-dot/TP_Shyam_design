@@ -107,7 +107,11 @@ function mapMedicalHistoryIdsFromDefaultList(data = [], defaultList = []) {
                 tags: mappedTags,
             };
         })
-        .filter((section) => section.no_know_history || section.tags.length);
+        .filter((section) => (
+            section.no_know_history ||
+            section.tags.length ||
+            hasMedicalHistoryDetailValue(section.medical_history_remarks)
+        ));
 }
 
 function mergeMedicalHistorySections(base = [], incoming = []) {
@@ -153,6 +157,12 @@ function mergeMedicalHistorySections(base = [], incoming = []) {
 function hasMedicalHistoryDetailValue(value) {
     if (value === undefined || value === null) return false;
     return String(value).trim() !== "" && String(value).trim() !== "-";
+}
+
+function getMedicalHistoryRemarks(data = []) {
+    if (!Array.isArray(data)) return "";
+    const section = data.find((item) => hasMedicalHistoryDetailValue(item?.medical_history_remarks));
+    return String(section?.medical_history_remarks || "");
 }
 
 function medicalHistoryEnableState(value) {
@@ -689,12 +699,17 @@ function MedicalHistoryBox(props) {
                 console.log("mergedArray for cloneMedicalHistoryData", mergedArray);
                 console.groupEnd();
                 setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
+                setRemarks(getMedicalHistoryRemarks(mergedArray));
             } else if (isPrescriptionOnly && Array.isArray(data2) && data2.length > 0) {
                 setCloneMedicalHistoryData(JSON.parse(JSON.stringify(ensureFiveSections(data2))));
+                setRemarks(getMedicalHistoryRemarks(data2));
+            } else {
+                setRemarks("");
             }
         } catch (error) {
             console.error("Error merging medical history data:", error);
             setCloneMedicalHistoryData([]);
+            setRemarks("");
         }
     // defaultList always; overrideMedicalHistoryData for voice/snap/smart; medicalHistoryData for voice merge and consult.
     // eslint-disable-next-line react-hooks/exhaustive-deps

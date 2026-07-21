@@ -193,6 +193,7 @@ import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { clinicTargetStatus, generateClinicToken } from "../pages/chikitsalay/service";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { ASSETS } from "../assets";
 import { useCrossConsult } from "../hooks/useCrossConsult";
 const {
@@ -576,6 +577,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     isGynaecHistoryAccessable: false,
     payloadOverride: null,
     skipFetch: !pendingFinishedPrint?.printUrl || pendingFinishedPrint?.printChannel === "in_app",
+    labParamsData: pendingFinishedPrint?.labParamsData ?? null,
     isCvtExtHosAccessableFromGB,
     patientId:
       pendingFinishedPrint?.record?.patient_unique_id ||
@@ -2469,6 +2471,27 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           content: "Preparing PDF...",
           duration: 0,
         });
+
+        // Fetch + flatten labs client-side so finished-tab print works with multi-doctor bucket API.
+        let labParamsData = [];
+        try {
+          const patientUniqueId =
+            record?.patient_unique_id ||
+            caseManagerData?.patient_data?.patient_unique_id;
+          const labParamsBaseUrl = env.lab_params_api_url;
+          if (patientUniqueId && labParamsBaseUrl) {
+            const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+            const cleanedToken = token ? token.replace(/['"]+/g, "") : "";
+            const labResponse = await axios.get(
+              `${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientUniqueId}?today=true`,
+              { headers: { Authorization: `Bearer ${cleanedToken}` } },
+            );
+            labParamsData = normalizeLabResultsResponse(labResponse);
+          }
+        } catch (labError) {
+          console.error("Error fetching lab params for finished print:", labError);
+        }
+
         setPendingFinishedPrint({
           printUrl,
           selectedLang: encodedData,
@@ -2476,6 +2499,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           record,
           caseManagerData,
           latestConsultation,
+          labParamsData,
         });
       } catch (error) {
         message.open({

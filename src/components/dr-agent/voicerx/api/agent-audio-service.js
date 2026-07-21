@@ -5,7 +5,7 @@ const TRANSCRIBE_ANY_AUDIO_ENDPOINT = "/agents/transcribe-any-audio";
 const TRANSCRIBE_ANY_AUDIO_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const PRIVATE_NOTES_TRANSCRIPTION_PROMPT =
-  "Transcribe the audio exactly as spoken, preserving the original language. Do not summarize. Remove any silent filler words (e.g., 'um', 'uh'); do not include them in the transcription."
+  "Transcribe the audio as dictated clinical text, preserving the original language and clinical meaning. Do not summarize. Remove silent filler words (e.g., 'um', 'uh') and do not include them in the transcription. Apply natural punctuation, capitalization, and paragraph spacing so the result reads like rich clinical notes. Use context to identify spoken formatting commands. Treat phrases such as 'add new line', 'new line', 'next line', or 'line break' as instructions to insert a newline only when they are used as standalone dictation commands between two pieces of dictated text; do not transcribe the command words in that case. If those words are part of the actual sentence content, transcribe them normally and do not insert a newline. For example, if the doctor says 'patient is ill add new line patient should take 650', output 'Patient is ill\\nPatient should take 650'. If the doctor says 'we are going to add new lines of hospitals in Hyderabad', output that sentence normally without adding a newline.";
 
 function getTimerApi() {
   return typeof window !== "undefined" ? window : null;
@@ -55,7 +55,7 @@ export function extractAnyAudioTranscript(responseJson) {
 
 export async function transcribeAnyAudio({
   audioBlob,
-  context,
+  context = {},
   prompt = PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
   timeoutMs = TRANSCRIBE_ANY_AUDIO_TIMEOUT_MS,
   signal,

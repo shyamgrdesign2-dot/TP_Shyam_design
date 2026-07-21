@@ -4,6 +4,7 @@ import LabParametersList from "./LabParametersList";
 
 import { Card } from "react-bootstrap";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import axios from 'axios';
 import { env } from "../EnvironmentConfig";
 import LabParams from "../components/LabParams";
@@ -28,7 +29,7 @@ const VisitLabParameters = ( {patient_unique_id, doc_id, onSave}) => {
                 'Authorization': `Bearer ${cleanedToken}`,
             },
         });
-        setLabParamsData(response.data?.data?.results || []);
+        setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
         console.error("Error fetching lab params:", error);
     }

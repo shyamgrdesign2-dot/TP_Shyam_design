@@ -14,6 +14,7 @@ import {
   prescriptionLabResultsToResultsArray,
   extractUnitsFromValue,
   valueWithoutUnitsForApi,
+  buildLabResultsSavePayload,
 } from '../utils/labResultsUtils';
 import { addPatientLabReports } from '../api/services/ApiLabParams';
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
@@ -167,7 +168,13 @@ const LabResultsRichTextEditor = ({
         try {
           const results = prescriptionLabResultsToResultsArray(finalResults);
           if (results.length > 0) {
-            await addPatientLabReports({ patientId, doctorId, results });
+            await addPatientLabReports(
+              buildLabResultsSavePayload({
+                patientId,
+                results,
+                tokenUserId: doctorId,
+              })
+            );
             const refetched = await fetchLabResultsTodayOnly(patient_data);
             if (refetched && refetched.length > 0) {
               const sig = JSON.stringify(refetched.map((r) => ({ testname: (r.testName || r.testname || r.name || '').trim(), value: (r.value || '').trim() })));

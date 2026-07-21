@@ -20,7 +20,7 @@ import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { clinicTargetStatus } from '../pages/chikitsalay/service';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
-function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang, isVoiceOrAmbientFlow }) {
+function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang, isVoiceOrAmbientFlow, isVoiceRxV2 }) {
     const navigate = useNavigate();
     const { state } = useLocation();
     const { profile } = useSelector((state) => state.doctors);
@@ -48,6 +48,7 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
               pm_pid: patient_data !== undefined ? patient_data.pm_pid : 0,
               tcm_id: tcm_id,
               lg: selectedLang !== undefined && selectedLang !== "English" ? btoa(selectedLang.toString()) : '',
+              ...(isVoiceRxV2 !== undefined ? { isVoiceRxV2: Boolean(isVoiceRxV2) } : {}),
             };
 
             if (!isChikitsalayAccessable) {

@@ -57,6 +57,12 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
 const {
   alerticon: alertIcon,
   surgery: surgeryIcon,
@@ -65,6 +71,7 @@ const {
 const { TextArea } = Input;
 
 function SurgicalBox({ showVoiceRxModule }) {
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedSurgicalList,
     parentOptionsList,
@@ -174,7 +181,7 @@ function SurgicalBox({ showVoiceRxModule }) {
     moduleName: "Surgeries/Procedures",
     onApply: applyVoiceSurgeries,
     successMessage: "Surgeries/Procedures filled from voice dictation",
-    copyPayloadKeys: ["surgeries"],
+    copyPayloadKeys: ["surgery", "surgeries"],
   });
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
@@ -203,6 +210,12 @@ function SurgicalBox({ showVoiceRxModule }) {
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
+
+  const createCustomSurgeryRow = useCallback((surgeryName) => ({
+    change: 1,
+    name: surgeryName,
+    isCustom: true,
+  }), []);
 
   useEffect(() => {
     if (selectedSurgicalList?.length > 0) {
@@ -320,6 +333,37 @@ function SurgicalBox({ showVoiceRxModule }) {
     },
     [searchParentQuery, surgeriesData]
   );
+
+  const onEmptyLineSurgeryCommit = useCallback((surgeryRow) => {
+    return onSelectParent(surgeryRow?.name, {
+      key: JSON.stringify(surgeryRow),
+    });
+  }, [onSelectParent]);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: surgeriesData,
+    setRows: setSurgeriesData,
+    showVoiceRxModule,
+    nameField: "name",
+    rowKeyPrefix: "surgery",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomSurgeryRow,
+    commitRow: onEmptyLineSurgeryCommit,
+    canCreateCustomRow: !isApolloHosBusinessIdAccessableFromGB,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
 
   //Child AutoComplete
   useEffect(() => {
@@ -450,6 +494,10 @@ function SurgicalBox({ showVoiceRxModule }) {
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     surgeriesData.splice(index, 1);
     setSurgeriesData((prev) => [...prev]);
   };
@@ -632,104 +680,205 @@ function SurgicalBox({ showVoiceRxModule }) {
   };
 
   const TABLE_EXAMINATION = useMemo(() => {
+    const surgeryRows = Array.isArray(surgeriesData) ? surgeriesData : [];
+    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled;
+
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="surgeries" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
-              {surgeriesData.length > 0 &&
-                surgeriesData.map((item, index) => (
-                  <Draggable
-                    key={index}
-                    draggableId={`surgeries-${index}`}
-                    index={index}
-                  >
-                    {(provided) => (
-                      <Row
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        key={index}
-                        gutter={[0]}
-                        className={`${
-                          index === 0 && "mt-14 border-top"
-                        } align-items-center border-bottom`}
-                      >
-                        <Col
-                          lg={1}
-                          md={1}
-                          sm={1}
-                          xs={1}
-                          className="text-center"
+      <div className={shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : undefined}>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="surgeries" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={[
+                  isNewEmptyLineUiEnabled ? "mt-2 prescription-empty-line-ui" : "",
+                  shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableBody : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {surgeryRows.map((item, index) => {
+                  const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(item, index) : `surgeries-${index}`;
+
+                  return (
+                    <Draggable
+                      key={rowKey}
+                      draggableId={rowKey}
+                      index={index}
+                    >
+                      {(provided) => (
+                        <Row
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          key={rowKey}
+                          gutter={[0]}
+                          className={isNewEmptyLineUiEnabled ? [
+                            "symptoms-table-row",
+                            emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                          ].filter(Boolean).join(" ") : [
+                            index === 0 && "mt-14 border-top",
+                            "align-items-center border-bottom",
+                            isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableRow : "",
+                          ].filter(Boolean).join(" ")}
                         >
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: "grab" }}
-                          ></MenuOutlined>
-                        </Col>
-                        <Col lg={8} md={8} sm={8} xs={8} className="border-end">
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.name}
-                              value={item.name}
-                              placeholder="Surgeries/Procedures Name"
-                              bordered={false}
-                              defaultOpen={false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) =>
-                                onSelectChild(data, e, index)
-                              }
-                            />
-                          </div>
-                        </Col>
-                        <Col
-                          lg={14}
-                          md={14}
-                          sm={13}
-                          xs={13}
-                          className="border-end"
-                        >
-                          <TextArea
-                            className="notesinput border-0"
-                            placeholder="Notes"
-                            defaultValue={item.notes}
-                            value={item.notes}
-                            autoSize={{
-                              minRows: 1,
-                              maxRows: 2,
-                            }}
-                            onChange={(e) => onChangeNoteChild(e, index)}
-                          />
-                        </Col>
-                        <Col
-                          lg={1}
-                          md={1}
-                          sm={2}
-                          xs={2}
-                          className="text-center"
-                        >
-                          <Button
-                            className="btn py-0 btn-delete-prescription px-0"
-                            onClick={() => onRemoveRow(index)}
+                          <Col
+                            lg={1}
+                            md={1}
+                            sm={1}
+                            xs={1}
+                            className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                            ].filter(Boolean).join(" ")}
                           >
-                            {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
-                          </Button>
-                        </Col>
-                      </Row>
-                    )}
-                  </Draggable>
-                ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                            {isNewEmptyLineUiEnabled ? (
+                              <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                            ) : (
+                              <MenuOutlined
+                                {...provided.dragHandleProps}
+                                className="drag-handle"
+                              ></MenuOutlined>
+                            )}
+                          </Col>
+                          <Col lg={8} md={8} sm={8} xs={8} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            <div className="fontroboto fw-medium w-100">
+                              <AutoComplete
+                                defaultValue={item.name}
+                                value={item.name}
+                                placeholder="Surgeries/Procedures Name"
+                                bordered={false}
+                                defaultOpen={false}
+                                onSearch={(query) => onSearchChild(query, index)}
+                                onFocus={() => onFocusChid(index)}
+                                options={childSearchOptions}
+                                className="autocomplete-custom w-100 inputborder"
+                                {...getPrescriptionNewPopupProps()}
+                                defaultActiveFirstOption={true}
+                                onSelect={(data, e) =>
+                                  onSelectChild(data, e, index)
+                                }
+                              />
+                            </div>
+                          </Col>
+                          <Col
+                            lg={14}
+                            md={14}
+                            sm={13}
+                            xs={13}
+                            className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                            ].filter(Boolean).join(" ")}
+                          >
+                            <TextArea
+                              className="notesinput border-0"
+                              placeholder="Notes"
+                              defaultValue={item.notes}
+                              value={item.notes}
+                              autoSize={{
+                                minRows: 1,
+                                maxRows: 2,
+                              }}
+                              onChange={(e) => onChangeNoteChild(e, index)}
+                            />
+                          </Col>
+                          <Col
+                            lg={1}
+                            md={1}
+                            sm={2}
+                            xs={2}
+                            className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                            ].filter(Boolean).join(" ")}
+                          >
+                            <Button
+                              className="btn py-0 btn-delete-prescription px-0"
+                              onClick={() => onRemoveRow(index)}
+                            >
+                              {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                            </Button>
+                          </Col>
+                        </Row>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
+                {isNewEmptyLineUiEnabled && (
+                  <Row
+                    gutter={[0]}
+                    className={[
+                      "symptoms-table-row",
+                      "prescription-empty-line-row--animated",
+                      "prescription-empty-line-row--draft",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <Col lg={1} md={1} sm={1} xs={1} className={[
+                      "symptoms-table-cell center",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                    ].filter(Boolean).join(" ")} />
+                    <Col lg={8} md={8} sm={8} xs={8} className={[
+                      "symptoms-table-cell prescription-empty-line-cell--draft-active",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <PrescriptionEmptyLineDraftSearch
+                        inputRef={emptyLineDraftInputRef}
+                        inputClassName="fontroboto fw-medium w-100"
+                        value={emptyLineDraftName}
+                        options={parentSearchOptions}
+                        popupProps={getPrescriptionNewPopupProps()}
+                        onSearch={onEmptyLineDraftSearch}
+                        onSelect={onEmptyLineDraftSelect}
+                        onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                      />
+                    </Col>
+                    <Col lg={14} md={14} sm={13} xs={13} className={[
+                      "symptoms-table-cell",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <TextArea
+                        className="notesinput border-0 prescription-empty-line-draft-disabled-control"
+                        placeholder="Notes"
+                        value=""
+                        disabled
+                        autoSize={{
+                          minRows: 1,
+                          maxRows: 2,
+                        }}
+                      />
+                    </Col>
+                    <Col lg={1} md={1} sm={2} xs={2} className={[
+                      "symptoms-table-cell center",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                    ].filter(Boolean).join(" ")} />
+                  </Row>
+                )}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [surgeriesData, childSearchOptions]);
+  }, [
+    surgeriesData,
+    childSearchOptions,
+    isVoiceRxModuleEnabled,
+    isNewEmptyLineUiEnabled,
+    emptyLineDraftInputRef,
+    emptyLineDraftName,
+    emptyLineRemovingRowKeys,
+    getEmptyLineRowKey,
+    getPrescriptionNewPopupProps,
+    onEmptyLineDraftInputKeyDown,
+    onEmptyLineDraftSearch,
+    onEmptyLineDraftSelect,
+    parentSearchOptions,
+  ]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -904,6 +1053,7 @@ function SurgicalBox({ showVoiceRxModule }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setSurgeriesData([]);
     showHideClearData();
   };
@@ -1036,15 +1186,17 @@ function SurgicalBox({ showVoiceRxModule }) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+          <div className={voiceModuleStyles.moduleSlot}>
             <VoiceRxModuleCapture
               moduleName="Surgeries/Procedures"
               previousContext={surgeriesVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.surgeries}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : (
+          </div>
+        ) : !isNewEmptyLineUiEnabled ? (
+          <div className="p-14">
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1058,8 +1210,8 @@ function SurgicalBox({ showVoiceRxModule }) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </>
   );

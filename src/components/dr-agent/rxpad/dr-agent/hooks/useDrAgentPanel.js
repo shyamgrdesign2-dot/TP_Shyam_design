@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { message } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 
 import { useRxPadSync } from "../RxPadSyncContext";
@@ -36,6 +35,7 @@ import {
 import { generateSoapNote } from "../../../voicerx/api/soap-service";
 import { digitizationToSections } from "../../../voicerx/utils/result-formatters";
 import { soapToHtml, htmlToSoapSections } from "../../../voicerx/utils/soap-formatter";
+import { clearLatestSoapDraft } from "../../../voicerx/utils/soap-session-draft";
 import {
   addVoiceHistoryEntry,
   beginVoiceAttempt,
@@ -48,6 +48,7 @@ import {
 import {
   buildVoiceHistoryEntry,
   trackVoiceRx2StartEvent,
+  VOICE_RX_PROCESSING_API,
   uploadAndLogVoiceRx2,
 } from "../../../voicerx/voiceRx2Logging";
 import {
@@ -82,6 +83,9 @@ const toStructuredVoiceItem = (item) => {
 const hasObjectData = (value) =>
   value && typeof value === "object" && Object.keys(value).length > 0;
 
+const hasTextData = (value) =>
+  typeof value === "string" && value.trim().length > 0;
+
 const firstMeaningfulObject = (...values) =>
   values.find((value) => hasObjectData(value)) || null;
 
@@ -91,7 +95,9 @@ const hasMeaningfulVoiceDigitization = (voiceDigitization) => {
     (Array.isArray(voiceDigitization.history) && voiceDigitization.history.length > 0) ||
     hasObjectData(voiceDigitization.clinicNotes) ||
     hasObjectData(voiceDigitization.digitizeData) ||
-    hasObjectData(voiceDigitization.editedData)
+    hasObjectData(voiceDigitization.editedData) ||
+    hasObjectData(voiceDigitization.soap) ||
+    hasTextData(voiceDigitization.soapHtml)
   );
 };
 
@@ -464,6 +470,7 @@ export function useDrAgentPanel({
   useEffect(() => {
     setVoiceRxResult(null);
     setVoiceRxResultMinimized(false);
+    hasAutoHydratedRef.current = false;
   }, [selectedPatientId]);
 
   useEffect(() => {
@@ -585,6 +592,54 @@ export function useDrAgentPanel({
      setAiFillInProgress, pushHistoricalUpdates, activeVoiceModule, headerDictation, runCopyWithAura } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const lastSignalIdRef = useRef(0);
+  const voiceSessionCleanupSeenRef = useRef(voiceDigitization?.sessionId || "");
+  useLayoutEffect(() => {
+    const nextSessionId = voiceDigitization?.sessionId || "";
+    if (voiceSessionCleanupSeenRef.current === nextSessionId) return;
+    const previousSessionId = voiceSessionCleanupSeenRef.current;
+    voiceSessionCleanupSeenRef.current = nextSessionId;
+    if (previousSessionId) {
+      clearLatestSoapDraft(previousSessionId);
+    }
+    if (nextSessionId) {
+      clearLatestSoapDraft(nextSessionId);
+    }
+    if (voiceRxTimeoutRef.current) {
+      clearTimeout(voiceRxTimeoutRef.current);
+      voiceRxTimeoutRef.current = null;
+    }
+    abortActiveVoiceRxRequest(VOICE_V2_ABORT_REASONS.USER_DISCARDED_VOICE_RX);
+    voiceRxSessionRef.current = null;
+    pendingInitialVoiceUserMsgIdRef.current = null;
+    priorVoiceResultRef.current = null;
+    hasAutoHydratedRef.current = false;
+    soapRetryInFlightRef.current = false;
+    setVoiceRxResult(null);
+    setVoiceRxResultMinimized(false);
+    setVoiceRxRecording(false);
+    setVoiceRxScriptedTranscript("");
+    setVoiceRxSubmittedTranscript("");
+    setVoiceRxProcessingTranscript("");
+    setVoiceRxAwaitingResponse(false);
+    setVoiceRxPaused(false);
+    voiceRxPausedRef.current = false;
+    resetLiveTranscript();
+    onVoiceCaptureModeChange?.(null);
+    setAiFillInProgress(false);
+    setMessagesByPatient((prev) => {
+      const existingMessages = prev[selectedPatientId] || [];
+      if (!existingMessages.length) return prev;
+      return { ...prev, [selectedPatientId]: [] };
+    });
+  }, [
+    abortActiveVoiceRxRequest,
+    onVoiceCaptureModeChange,
+    resetLiveTranscript,
+    selectedPatientId,
+    setAiFillInProgress,
+    setMessagesByPatient,
+    voiceDigitization?.sessionId,
+  ]);
   const voiceCopyTrackingContext = useMemo(() => ({
     doctorId: doctorId || profile?.doctor_unique_id || "",
     doctorName: profile?.um_name || "",
@@ -808,7 +863,7 @@ export function useDrAgentPanel({
     if (!voiceRxResult) return;
     const audioBlob = meta?.audioBlob || null;
     if (!audioBlob) {
-      message.error("No audio recording was captured.");
+      toast.error("No audio recording was captured.");
       throw new Error("No audio recording was captured.");
     }
     voiceSubmitInFlightRef.current = true;
@@ -1002,6 +1057,7 @@ export function useDrAgentPanel({
         voicecall,
         sourceSurface: "doctor-agent",
         isDoctorAgent: true,
+        processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_AUDIO,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -1052,6 +1108,7 @@ export function useDrAgentPanel({
         voicecall,
         sourceSurface: "doctor-agent",
         isDoctorAgent: true,
+        processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_AUDIO,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -1063,7 +1120,7 @@ export function useDrAgentPanel({
         previousContext: voiceRxLogPreviousContext,
         speechAnalysis: meta?.speechAnalysis,
       });
-      message.error(error?.message || "Voice edit failed.");
+      toast.error(error?.message || "Voice edit failed.");
       setMessagesByPatient((prev) => {
         const list = prev[selectedPatientId] || [];
         return { ...prev, [selectedPatientId]: list.filter((m) => m.id !== userMsg.id) };
@@ -1373,6 +1430,7 @@ export function useDrAgentPanel({
           voicecall,
           sourceSurface: "doctor-agent",
           isDoctorAgent: true,
+          processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_AUDIO,
           micBeingUsed: meta?.micBeingUsed || "",
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -1426,6 +1484,7 @@ export function useDrAgentPanel({
           voicecall,
           sourceSurface: "doctor-agent",
           isDoctorAgent: true,
+          processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_AUDIO,
           micBeingUsed: meta?.micBeingUsed || "",
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -1437,7 +1496,7 @@ export function useDrAgentPanel({
           previousContext: voiceRxLogPreviousContext,
           speechAnalysis: meta?.speechAnalysis,
         });
-        message.error(error?.message || "Voice consultation failed.");
+        toast.error(error?.message || "Voice consultation failed.");
         // Remove the optimistic user echo so the chat doesn't dangle.
         setMessagesByPatient((prev) => {
           const list = prev[selectedPatientId] || [];

@@ -40,6 +40,10 @@ import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateBanner from "./common/UpdateBanner";
 import { clearSentryContext } from "./utils/sentryContext";
 import { growthbook } from "./utils/growthbook";
+import {
+  clearReceptionistSession,
+  isReceptionistSession,
+} from "./utils/receptionistSession";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -206,9 +210,17 @@ const PatientDetails = React.lazy(() =>
 const MobilePatientDetails = React.lazy(() =>
   lazyRetry(() => import("./pages/mobile/PatientDetails/PatientDetails"))
 );
-
 const ConsultationLayout = React.lazy(() =>
   lazyRetry(() => import("./components/ConsultationLayout"))
+);
+const LimsPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/LimsPage"))
+);
+const LimsPrintPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/LimsPrintPage"))
+);
+const LimsPrintConfig = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/LimsPrintConfig"))
 );
 
 function PrescriptionRouteElement() {
@@ -255,8 +267,15 @@ function App() {
   const token = getToken();
   const isMobileOrPWA = isMobileDevice || isPWA;
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const isReceptionist = urlParams.has("receptionist");
+  // Persist ?receptionist for the tab so dropping the query on internal
+  // navigations does not re-enable doctor-only boot checks / logout.
+  const isReceptionist = isReceptionistSession(location.search);
+
+  useEffect(() => {
+    if (isLoginPage) {
+      clearReceptionistSession();
+    }
+  }, [isLoginPage]);
 
   useRouteTracking();
   const { updateAvailable } = useVersionCheck();
@@ -312,11 +331,13 @@ function App() {
 
       localStorage.clear();
       sessionStorage.clear();
+      clearReceptionistSession();
       window.location.href = "/login";
     } catch (error) {
       console.error("Error during logout:", error);
       localStorage.clear();
       sessionStorage.clear();
+      clearReceptionistSession();
       window.location.href = "/login";
     } finally {
       window.isLoggingOut = false;
@@ -362,7 +383,7 @@ function App() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [location.pathname]);
+  }, [location.pathname, isReceptionist, isLoginPage]);
 
   useEffect(() => {
     const isUserLocked = async () => {
@@ -801,6 +822,10 @@ function App() {
             element={<TabRxDigitization />}
           />
           <Route path="dental-rx-pad" element={<ConsultationLayout />} />
+
+          <Route path="lims" element={<LimsPage />} />
+          <Route path="lims/print/:patientId" element={<LimsPrintPage />} />
+          <Route path="lims/print-settings" element={<LimsPrintConfig />} />
           {/* <Route path="dental-rx-pad" element={<DentalModuleShell />} /> */}
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />

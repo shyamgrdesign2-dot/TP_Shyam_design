@@ -21,11 +21,12 @@ import {
 
 import TabInvestigationSearch from "../../components/tab_design/TabInvestigationSearch";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import DifferentialDiagnosis from "../DifferentialDiagnosis";
 import { setIsLabTestBox } from "../../redux/ddxSlice";
 import { INVESTIGATION_TITLE } from "../../utils/constants";
 import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
+import { shouldShowInvestigationVCBadge } from "../../utils/chikitsalayInventory";
 import { ASSETS } from "../../assets";
 const {
   alerticon: alertIcon,
@@ -354,7 +355,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
     // }, [investigationData]);
 
     const SortableItem = SortableElement(({ item }) => {
-        const showVC = item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable;
+        const showVC = shouldShowInvestigationVCBadge(item, isChikitsalayAccessable);
         return (
             <div
                 style={{
@@ -686,7 +687,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
                                 <div className="position-relative">
                                     <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{`${item.investigation_name}`}</Button>
                                     {(item?.hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
-                                    {(item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
+                                    {shouldShowInvestigationVCBadge(item, isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                                 </div>
                             )
                         })}

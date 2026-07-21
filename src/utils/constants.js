@@ -113,6 +113,7 @@ export const GB_CROSS_CONSULT = "cross-consult";
 export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
 export const GB_VOICE_RX_MAX_SESSION_MINUTES = "VOICE_RX_MAX_SESSION_MINUTES";
 export const GB_VOICE_OLD_UI_NEW_PIPELINE = "voice-old-ui-new-pipeline";
+export const GB_LIMS = "lims";
 export const CLINIC_TARGET_STATUS = {
   SERVING: "SERVING",
   COMPLETED: "COMPLETED",

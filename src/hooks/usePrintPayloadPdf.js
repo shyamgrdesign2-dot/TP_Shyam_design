@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { trackEvent } from "../utils/utils";
 import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 
@@ -54,6 +55,8 @@ export const usePrintPayloadPdf = ({
   payloadOverride,
   skipFetch = false,
   zydusSelectedLabParams = null,
+  /** Client-fetched lab rows (preferably already flattened via normalizeLabResultsResponse). */
+  labParamsData = null,
   dentalexaminationData = null,
   dentalExaminationData = null,
   oralExamination = null,
@@ -192,9 +195,17 @@ export const usePrintPayloadPdf = ({
           patientRecord ?? payload?.caseManagerData?.patient_data,
         );
 
+        // Prefer client lab rows; otherwise flatten whatever the print payload API sent
+        // (new multi-doctor bucket shape or legacy single-doc shape).
+        const clientLabParams = normalizeLabResultsResponse(labParamsData);
+        const payloadLabParams = normalizeLabResultsResponse(payload?.labParamsData);
+        const resolvedLabParams =
+          clientLabParams.length > 0 ? clientLabParams : payloadLabParams;
+
         const payloadWithExtras = {
           ...payload,
           crossConsultData,
+          labParamsData: resolvedLabParams,
           ...(zydusSelectedLabParams != null
             ? { zydusLabData: zydusSelectedLabParams }
             : {}),
@@ -267,6 +278,7 @@ export const usePrintPayloadPdf = ({
     onlyShowDental,
     showSnapRxImages,
     zydusSelectedLabParams,
+    labParamsData,
     allowFullApiFallback,
     isCvtExtHosAccessableFromGB,
     isDentalEnabled,

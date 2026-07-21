@@ -3644,6 +3644,14 @@ body {
   justify-content: center;
 }
 
+.drag-handle {
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
 .symptoms-table-cell .ant-select,
 .symptoms-table-cell .ant-input,
 .symptoms-table-cell .ant-input-textarea {
@@ -3659,6 +3667,120 @@ body {
   .ant-input-textarea {
     border: none !important;
     box-shadow: none !important;
+  }
+}
+
+.prescription-empty-line-ui {
+  overflow-anchor: none;
+
+  .prescription-empty-line-drag-handle {
+    align-items: center;
+    color: #a8adb7;
+    cursor: grab;
+    display: inline-flex;
+    height: 24px;
+    justify-content: center;
+    line-height: 0;
+    outline: none;
+    width: 24px;
+
+    .prescription-empty-line-drag-icon {
+      flex: 0 0 auto;
+    }
+  }
+
+  .prescription-empty-line-drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .prescription-empty-line-drag-handle:focus-visible {
+    box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.2);
+  }
+
+  .prescription-empty-line-row--animated {
+    max-height: 72px;
+    transform-origin: top center;
+    animation: prescription-empty-line-row-enter 180ms ease-out;
+  }
+
+  .prescription-empty-line-row--removing {
+    overflow: hidden;
+    pointer-events: none;
+    animation: prescription-empty-line-row-remove 180ms ease-in forwards;
+
+    > .ant-col {
+      min-height: 0;
+    }
+  }
+
+  .prescription-empty-line-draft-action-cell {
+    flex: 0 0 48px !important;
+    max-width: 48px !important;
+    min-width: 48px;
+    background: #ffffff;
+  }
+}
+
+.prescription-empty-line-row--draft {
+  .symptoms-table-cell,
+  .border-end {
+    background: #ffffff;
+  }
+
+  .symptoms-table-cell:not(.prescription-empty-line-cell--draft-active),
+  .border-end {
+    color: #8f95a3;
+  }
+
+  .ant-select-disabled.ant-select:not(.ant-select-customize-input) .ant-select-selector,
+  .ant-input-disabled {
+    background: #ffffff !important;
+    cursor: default !important;
+    border: none;
+  }
+
+  .ant-select-disabled .ant-select-selection-placeholder,
+  .ant-select-disabled .ant-select-arrow,
+  .ant-select-disabled .ant-select-selection-item,
+  .ant-input-disabled {
+    color: #8f95a3 !important;
+    -webkit-text-fill-color: #8f95a3;
+  }
+
+  .prescription-empty-line-draft-search .ant-select-selection-placeholder {
+    color: #7f8491;
+  }
+}
+
+.prescription-empty-line-draft-placeholder {
+  opacity: 0.6;
+}
+
+@keyframes prescription-empty-line-row-enter {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    max-height: 72px;
+    transform: translateY(0);
+  }
+}
+
+@keyframes prescription-empty-line-row-remove {
+  from {
+    opacity: 1;
+    max-height: 72px;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
   }
 }
 

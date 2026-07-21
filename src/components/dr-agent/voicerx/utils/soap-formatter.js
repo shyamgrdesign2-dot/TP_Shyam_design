@@ -114,6 +114,20 @@ function wrapAsRtf(text) {
 	return `{\\rtf1\\ansi\\deff0 ${withPars}\\par}`;
 }
 
+function getEditableSoapNodeText(node) {
+	if (!node) return "";
+	if (node.nodeType === 3) return node.textContent || "";
+	if (node.nodeType !== 1) return "";
+	if (/^(ul|ol)$/i.test(node.tagName)) {
+		return Array.from(node.querySelectorAll("li"))
+			.map((item) => (item.textContent || "").trim())
+			.filter(Boolean)
+			.join("\n");
+	}
+	if (/^br$/i.test(node.tagName)) return "\n";
+	return (node.textContent || "").trim();
+}
+
 // Parse edited SOAP HTML back into { subjective, objective, assessment, plan } RTF strings
 // for use as previous_context on regen. Splits by <h2> headings matched case-insensitively
 // against canonical section names. Missing sections omitted.
@@ -141,7 +155,7 @@ export function htmlToSoapSections(html) {
 			continue;
 		}
 		if (!currentKey) continue;
-		const txt = (node.textContent || "").trim();
+		const txt = getEditableSoapNodeText(node).trim();
 		if (txt) buffer.push(txt);
 	}
 	flush();

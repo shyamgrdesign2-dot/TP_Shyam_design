@@ -18,6 +18,7 @@ import { HoverTooltip } from "../atoms/Tooltip";
 import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import CashManagerContext from "../../../context/CashManagerContext";
 import { convertAgentMedicalHistoryRowsToSections } from "../../../utils/medicalHistoryConverters";
+import { parseMedicationFrequencySlots } from "../../../utils/medicationCopyNormalization";
 import { useRxPadSync } from "../rxpad/dr-agent/RxPadSyncContext";
 import {
   addVoiceHistoryEntry,
@@ -28,6 +29,7 @@ import {
   buildVoiceHistoryEntry,
   trackVoiceRx2DiscardEvent,
   trackVoiceRx2StartEvent,
+  VOICE_RX_PROCESSING_API,
   uploadAndLogVoiceRx2,
 } from "./voiceRx2Logging";
 import { transcribeAnyAudio } from "./api/agent-audio-service";
@@ -551,7 +553,7 @@ function normalizeDiagnosisStatus(status) {
 }
 
 function normalizeFrequencyText(frequency) {
-  const text = String(frequency || "").trim().toLowerCase();
+  const text = String(frequency || "").trim();
   if (!text) {
     return {
       label: "",
@@ -562,43 +564,15 @@ function normalizeFrequencyText(frequency) {
     };
   }
 
-  const numericMatch = text.match(/^(\d+)\s*[-x,]\s*(\d+)(?:\s*[-x,]\s*(\d+))?(?:\s*[-x,]\s*(\d+))?$/);
-  if (numericMatch) {
-    const [, morning, afternoon, eveningOrNight, night] = numericMatch;
-    if (night !== undefined) {
-      return {
-        label: `${morning} - ${afternoon} - ${eveningOrNight} - ${night}`,
-        morning: Number(morning) || 0,
-        afternoon: Number(afternoon) || 0,
-        evening: Number(eveningOrNight) || 0,
-        night: Number(night) || 0,
-      };
-    }
+  const frequencySlots = parseMedicationFrequencySlots(text);
+  if (frequencySlots) {
     return {
-      label: `${morning} - ${afternoon} - ${eveningOrNight || 0}`,
-      morning: Number(morning) || 0,
-      afternoon: Number(afternoon) || 0,
-      evening: 0,
-      night: Number(eveningOrNight) || 0,
+      label: frequencySlots.label,
+      morning: frequencySlots.morning,
+      afternoon: frequencySlots.afternoon,
+      evening: frequencySlots.evening,
+      night: frequencySlots.night,
     };
-  }
-
-  const once = /\b(once|one time|1 time|od|qd|daily)\b/.test(text);
-  const twice = /\b(twice|two times|2 times|bd|bid)\b/.test(text);
-  const thrice = /\b(thrice|three times|3 times|tds|tid)\b/.test(text);
-  const four = /\b(four times|4 times|qid)\b/.test(text);
-
-  if (four) {
-    return { label: "1 - 1 - 1 - 1", morning: 1, afternoon: 1, evening: 1, night: 1 };
-  }
-  if (thrice) {
-    return { label: "1 - 1 - 1", morning: 1, afternoon: 1, evening: 0, night: 1 };
-  }
-  if (twice) {
-    return { label: "1 - 0 - 1", morning: 1, afternoon: 0, evening: 0, night: 1 };
-  }
-  if (once) {
-    return { label: "1 - 0 - 0", morning: 1, afternoon: 0, evening: 0, night: 0 };
   }
 
   return {
@@ -787,6 +761,8 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
     ? [moduleApiName, artifactType, "medications", "medicine", "medicines", "items", "data"]
     : moduleApiName === "lab_investigations"
       ? [moduleApiName, artifactType, "lab_investigation", "lab_investigations", "items", "data"]
+      : moduleApiName === "surgery"
+        ? [moduleApiName, artifactType, "surgery", "surgeries", "procedure", "procedures", "items", "data"]
       : moduleApiName === "medical_history"
         ? [moduleApiName, artifactType, "medical_history", "medicalHistory", "pastMedicalHistory", "history", "response", "result", "results", "output", "items", "rows", "records", "data"]
       : [moduleApiName, artifactType, "items", "data"];
@@ -924,7 +900,7 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
         return {
           ...row,
           masterId: row?.masterId || row?.id || createModuleVoiceId(),
-          name: row?.name || row?.surgery_name || row?.procedure_name || "",
+          name: row?.name || row?.surgery_name || row?.procedure_name || name,
           notes,
         };
       default:
@@ -1377,6 +1353,9 @@ export function VoiceRxModuleCapture({
           moduleName,
           sourceSurface: "module",
           isDoctorAgent: false,
+          processingApiName: isTranscribeMode
+            ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+            : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
           micBeingUsed,
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -1424,6 +1403,9 @@ export function VoiceRxModuleCapture({
           moduleName,
           sourceSurface: "module",
           isDoctorAgent: false,
+          processingApiName: isTranscribeMode
+            ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+            : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
           micBeingUsed,
           voiceLogCreated: voiceDigitization?.voiceLogCreated,
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),

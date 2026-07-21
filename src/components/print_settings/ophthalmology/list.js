@@ -177,31 +177,35 @@ function OphthalmologyListView({
     </View>
   );
 
+  const formatFieldValue = (field, value) => {
+    const str = String(value);
+    if (field.format === "distance") {
+      if (str.includes("/") || /[a-zA-Z]/.test(str)) return str;
+      return `6/${str}`;
+    }
+    if (field.format === "near") {
+      if (/^[0-9.]+$/.test(str)) return `N${str}`;
+      return str;
+    }
+    if (field.format === "axis") {
+      if (str.includes("deg") || /[a-zA-Z]/.test(str)) return str;
+      return `${str} deg`;
+    }
+    if (field.format === "pressure" || field.format === "ciop") {
+      return str.includes("mmHg") ? str : `${str} mmHg`;
+    }
+    if (field.format === "cct") {
+      return str.includes("um") ? str : `${str} um`;
+    }
+    return str;
+  };
+
   const renderEyeDataInline = (eyeLabel, data, fields) => {
     const values = fields
       .map((field) => {
         const value = data[field.key];
         if (!value && value !== 0) return null;
-        
-        if (field.format === "distance") {
-          return `${field.label}: 6/${value}`;
-        }
-        if (field.format === "near") {
-          return `${field.label}: N${value}`;
-        }
-        if (field.format === "axis") {
-          return `${field.label}: ${value} deg`;
-        }
-        if (field.format === "pressure") {
-          return `${field.label}: ${value} mmHg`;
-        }
-        if (field.format === "cct") {
-          return `${field.label}: ${value} um`;
-        }
-        if (field.format === "ciop") {
-          return `${field.label}: ${value} mmHg`;
-        }
-        return `${field.label}: ${value}`;
+        return `${field.label}: ${formatFieldValue(field, value)}`;
       })
       .filter(Boolean);
     
