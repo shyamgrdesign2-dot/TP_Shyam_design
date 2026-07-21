@@ -16,7 +16,6 @@ const ZERO = {
   kpis: buildKpis(0, []),
   channelMix: [],
   sentVsScheduled: [],
-  reachByCampaign: null,
 };
 
 export default function useMessagesData({ startDate, endDate } = {}) {
@@ -86,7 +85,6 @@ export default function useMessagesData({ startDate, endDate } = {}) {
         { label: "Delivered", value: sent.length },
         { label: "Scheduled", value: scheduled.length },
       ],
-      reachByCampaign: buildReach(sent),
     });
   }, [startDate, endDate]);
 
@@ -115,19 +113,6 @@ function buildKpis(credits, period = [], sent = [], scheduled = [], prevSent = [
   ];
 }
 
-// Top campaigns by patients reached — chart series for a scrollable bar
-function buildReach(sent) {
-  const rows = [...sent]
-    .sort((a, b) => toNum(b.total_patient) - toNum(a.total_patient))
-    .slice(0, 12)
-    .map((r) => ({
-      x: truncate(r.message_text?.split("\n")[0] || r.campaign_status || "Campaign", 18),
-      Patients: toNum(r.total_patient),
-    }));
-  if (!rows.length) return null;
-  return { data: rows, series: [{ key: "Patients", label: "Patients" }], xKey: "x" };
-}
-
 // campaign_date arrives display-formatted ("06 Jan 2025"); normalise to
 // YYYY-MM-DD for the range guard, tolerating ISO already.
 function parseCampaignDate(v) {
@@ -136,8 +121,4 @@ function parseCampaignDate(v) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function truncate(s, max) {
-  const t = String(s || "");
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
-}
 

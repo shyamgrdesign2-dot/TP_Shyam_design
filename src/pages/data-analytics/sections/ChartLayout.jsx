@@ -16,11 +16,15 @@ export function ChartGrid({ children }) {
 // Shows a right-edge fade when content overflows.
 export function ScrollableChart({ minWidth = 500, children }) {
   return (
-    <div style={{ position: "relative", overflow: "hidden" }}>
+    <div style={{ position: "relative" }}>
       <div
         style={{
           overflowX: "auto",
           WebkitOverflowScrolling: "touch",
+          paddingTop: 80,
+          paddingBottom: 30,
+          marginTop: -80,
+          marginBottom: -30,
         }}
       >
         <div style={{ minWidth }}>
@@ -31,9 +35,9 @@ export function ScrollableChart({ minWidth = 500, children }) {
         aria-hidden="true"
         style={{
           position: "absolute",
-          top: 0,
+          top: 80,
           right: 0,
-          bottom: 0,
+          bottom: 30,
           width: 32,
           background: "linear-gradient(to right, transparent, color-mix(in srgb, var(--tesseract-bg-surface, #fff) 85%, transparent))",
           pointerEvents: "none",

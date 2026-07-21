@@ -5,6 +5,8 @@ import config from "../../../config";
 import ApiReporting from "../../../api/services/ApiReporting";
 import { toNum as num, pctDelta, safe, previousWindow } from "./deltaUtils";
 import { cached } from "./apiCache";
+import { getDoctorList } from "./doctorList";
+import { seriesToXY, compactXY, compactDoctorLabel } from "../charts/adapters";
 
 const ZERO_KPIS = [
   { key: "billed", label: "Total billed", kind: "money", value: 0 },
@@ -20,7 +22,7 @@ const ZERO_KPIS = [
 export default function useBillingLive({ startDate, endDate, department = "opd", doctorId, clinicId } = {}) {
   const doctorList = useSelector((s) => s.bulkMessages?.doctorList) || [];
   const userId = useSelector((s) => s.doctors?.userId);
-  const [state, setState] = useState({ loading: true, kpis: ZERO_KPIS, paymentModes: [], refundModes: [], advanceModes: [], advanceRefundModes: [] });
+  const [state, setState] = useState({ loading: true, kpis: ZERO_KPIS, paymentModes: [], refundModes: [], advanceModes: [], advanceRefundModes: [], revenueByDoctor: null });
 
   const doctorKey = doctorList.map((d) => d.um_id).join(",");
 
@@ -131,7 +133,13 @@ export default function useBillingLive({ startDate, endDate, department = "opd",
         advS.refundPaymentModeSummary || advS.refundPaymentModes,
         "refundedAmount"
       ),
+      revenueByDoctor: null,
     });
+
+    if (!doctorId || doctorId === "all") {
+      const revByDoc = await buildRevenueByDoctor(startDate, endDate, department, clinicId);
+      if (revByDoc) setState((prev) => ({ ...prev, revenueByDoctor: revByDoc }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, department, doctorKey, userId, doctorId, clinicId]);
 
@@ -163,5 +171,53 @@ function paymentModeDonut(modes, preferKey) {
       value: num(preferKey && m[preferKey] != null ? m[preferKey] : (m.receivedAmount ?? m.amount ?? m.total ?? m.paidAmount)),
     }))
     .filter((d) => d.value > 0);
+}
+
+const FANOUT_CAP = 20;
+const BATCH = 4;
+
+async function buildRevenueByDoctor(startDate, endDate, department, clinicId) {
+  let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
+  doctors = doctors.slice(0, FANOUT_CAP);
+  if (!doctors.length) return null;
+
+  const base = { customBaseUrl: config.lab_params_api_url };
+  const billPath = department === "ipd" ? "ipd-bill" : "bill";
+
+  const results = new Array(doctors.length);
+  for (let i = 0; i < doctors.length; i += BATCH) {
+    const batch = doctors.slice(i, i + BATCH);
+    const br = await Promise.all(
+      batch.map((d) => {
+        const qp = new URLSearchParams({ startDate, endDate, page: "1", limit: "1", sortBy: "date", sortOrder: "desc" });
+        qp.append("doctorIds", String(d.um_id));
+        if (clinicId && clinicId !== "all") String(clinicId).split(",").filter(Boolean).forEach((id) => qp.append("clinicId", id));
+        return cached(`bill-dr-${d.um_id}`, { startDate, endDate, department }, () =>
+          api.get(`/api/v1/billing/${billPath}/dashboard?${qp.toString()}`, base)
+        )
+          .then((r) => {
+            const s = r?.summary ?? r?.data?.summary ?? r ?? {};
+            return { billed: num(s.totalBillAmount), collected: num(s.totalPaidAmount) };
+          })
+          .catch(() => ({ billed: 0, collected: 0 }));
+      })
+    );
+    br.forEach((r, j) => { results[i + j] = r; });
+  }
+
+  const rows = doctors
+    .map((d, i) => ({ name: d.um_name || `Doctor ${d.um_id}`, ...results[i] }))
+    .sort((a, b) => b.billed - a.billed);
+
+  if (rows.every((r) => r.billed === 0 && r.collected === 0)) return null;
+
+  const stacked = {
+    labels: rows.map((r) => r.name),
+    datasets: [
+      { label: "Billed", data: rows.map((r) => r.billed) },
+      { label: "Collected", data: rows.map((r) => r.collected) },
+    ],
+  };
+  return compactXY(seriesToXY(stacked), compactDoctorLabel);
 }
 

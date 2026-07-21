@@ -2,20 +2,11 @@ import React, { useMemo } from "react";
 import { Skeleton } from "@dhspl-tatvacare/tesseract-ui";
 import SectionBlock from "./SectionBlock";
 import { ChartGrid, ChartTile } from "./ChartLayout";
-import TrendTile from "./TrendTile";
 import useOverviewData from "../data/useOverviewData";
 import useBillingLive from "../data/useBillingLive";
 import useAppointmentsLive from "../data/useAppointmentsLive";
-import { seriesToXY } from "../charts/adapters";
 import DonutWithLegend from "../charts/DonutWithLegend";
-import { WEEK_LABELS } from "../charts/scaffolds";
-import { isMonthScoped } from "../filters/periods";
 import KpiRow from "./KpiRow";
-
-const CONSULT_SERIES = [
-  { key: "last", label: "Last Month" },
-  { key: "current", label: "Current Month" },
-];
 
 // Money KPIs come from the SAME live billing source Billing uses, so Overview
 // never disagrees with the deep-dive sections. Insertion order below is the
@@ -31,7 +22,7 @@ const OVERVIEW_MONEY_KEYS = {
 const MONEY_ORDER = Object.keys(OVERVIEW_MONEY_KEYS);
 
 export default function OverviewSection({ filters }) {
-  const { loading, kpis, weekly, modeMix, topMedications, genderDistribution } = useOverviewData({
+  const { loading, kpis, modeMix, topMedications, genderDistribution } = useOverviewData({
     month: filters?.month,
     startDate: filters?.startDate,
     endDate: filters?.endDate,
@@ -54,8 +45,6 @@ export default function OverviewSection({ filters }) {
     clinicId: filters?.clinic,
   });
 
-  const weeklyXY = useMemo(() => seriesToXY(weekly), [weekly]);
-
   const moneyKpis = useMemo(
     () =>
       (billing.kpis || [])
@@ -74,11 +63,6 @@ export default function OverviewSection({ filters }) {
     [kpis, moneyKpis]
   );
 
-  const monthScoped = useMemo(
-    () => isMonthScoped(filters?.startDate, filters?.endDate),
-    [filters?.startDate, filters?.endDate]
-  );
-
   if (loading || billing.loading || appointments.loading) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -95,22 +79,8 @@ export default function OverviewSection({ filters }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <KpiRow title="Key metrics" kpis={merged} />
 
-      <SectionBlock title="More insights" count={(monthScoped ? 1 : 0) + 4}>
+      <SectionBlock title="More insights" count={4}>
         <ChartGrid>
-          {monthScoped && (
-            <TrendTile
-              title="Consultations by week"
-              subtitle="This calendar month vs last"
-              icon="activity"
-              titleTooltip="Weekly consultation volume for the current calendar month compared with the previous month"
-              data={weeklyXY.data}
-              series={weeklyXY.series}
-              fallbackLabels={WEEK_LABELS}
-              fallbackSeries={CONSULT_SERIES}
-              height={260}
-            />
-          )}
-
           <ChartTile
             title="Appointment status"
             subtitle="Current status, selected period"

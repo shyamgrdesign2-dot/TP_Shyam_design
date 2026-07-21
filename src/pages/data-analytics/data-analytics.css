@@ -82,7 +82,8 @@
   line-height: 1.25 !important;
 }
 
-/* Chart / insight card: liquid-glass style with gradient border */
+/* Chart / insight card: liquid-glass style with gradient border.
+   overflow:visible so Tesseract chart tooltips are never clipped. */
 .da-root .da-chart-card {
   border: 0.75px solid transparent !important;
   background:
@@ -96,12 +97,14 @@
     ) border-box !important;
   box-shadow: 0 1px 3px color-mix(in srgb, var(--tesseract-violet-500) 3%, transparent) !important;
   position: relative;
-  overflow: hidden;
+  overflow: visible !important;
+  min-width: 0;
 }
 .da-root .da-chart-card::before {
   content: "";
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background: radial-gradient(120% 60% at 0% 0%, color-mix(in srgb, var(--tesseract-violet-500) 3.5%, transparent), transparent 50%);
   pointer-events: none;
   z-index: 0;
@@ -278,4 +281,33 @@ button[data-variant="link"][data-theme="warning"] * {
   font-weight: 500 !important;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* Report download toast: white icons on dark surface, full-width single-line */
+.da-report-toast [role="alert"],
+.da-report-toast [role="status"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+}
+.da-report-toast [data-surface="dark"] [data-tp-icon] {
+  background-color: #fff !important;
+}
+.da-report-toast [data-surface="dark"] p,
+.da-report-toast [data-surface="dark"] div[class*="_message"] {
+  white-space: nowrap;
+}
+.da-report-toast [data-surface="dark"] button[aria-label="Dismiss"] {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.da-report-toast [data-surface="dark"] button[aria-label="Dismiss"] [data-tp-icon] {
+  background-color: #fff !important;
+}
+
+/* Report field error state: red border on the trigger/input inside */
+.da-field-error button[class*="_trigger"],
+.da-field-error div[class*="_root_"] button {
+  border-color: var(--tesseract-error-500, #ef4444) !important;
+  box-shadow: 0 0 0 1px var(--tesseract-error-500, #ef4444) !important;
 }

@@ -42,6 +42,7 @@ export default function FilterBar({
   singleClinic = false,
   hasActiveFilters = false,
   onClearAll,
+  hideDateFilter = false,
 }) {
   return (
     <div
@@ -109,17 +110,19 @@ export default function FilterBar({
       </div>
 
       {/* Date range pinned right; shrinks but stays wide enough for the label. */}
-      <div style={{ flex: "0 1 auto", minWidth: 160, maxWidth: 260, marginLeft: "auto" }}>
-        <DateRangePicker
-          mode="range"
-          months={2}
-          showPresets
-          presets={DA_PRESETS}
-          fullWidth
-          value={dateValue}
-          onChange={onDateChange}
-        />
-      </div>
+      {!hideDateFilter && (
+        <div style={{ flex: "0 1 auto", minWidth: 160, maxWidth: 260, marginLeft: "auto" }}>
+          <DateRangePicker
+            mode="range"
+            months={2}
+            showPresets
+            presets={DA_PRESETS}
+            fullWidth
+            value={dateValue}
+            onChange={onDateChange}
+          />
+        </div>
+      )}
 
       {/* Common reset — very right end, after the date filter */}
       {hasActiveFilters && onClearAll && (

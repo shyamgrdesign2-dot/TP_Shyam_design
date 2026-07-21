@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import { Skeleton } from "@dhspl-tatvacare/tesseract-ui";
 import SectionBlock from "./SectionBlock";
-import { ChartGrid, ChartTile } from "./ChartLayout";
+import { ChartGrid, ChartTile, MaybeScroll } from "./ChartLayout";
+import { StackedBarWithTotal } from "../charts/EmptyAware";
 import DonutWithLegend from "../charts/DonutWithLegend";
 import { formatINR } from "../charts/format";
 import useBillingLive from "../data/useBillingLive";
@@ -19,7 +20,7 @@ const BILLING_TOOLTIPS = {
 };
 
 export default function BillingSection({ filters, department = "opd" }) {
-  const { loading, kpis, paymentModes, refundModes } = useBillingLive({
+  const { loading, kpis, paymentModes, refundModes, advanceModes, revenueByDoctor } = useBillingLive({
     startDate: filters?.startDate,
     endDate: filters?.endDate,
     department,
@@ -32,10 +33,11 @@ export default function BillingSection({ filters, department = "opd" }) {
     [kpis]
   );
 
-  const billedStatusDonut = useMemo(
+  const revenueDonut = useMemo(
     () => [
       { label: "Collected", value: kpis.find((k) => k.key === "collected")?.value || 0 },
       { label: "Due", value: kpis.find((k) => k.key === "due")?.value || 0 },
+      { label: "Refunded", value: kpis.find((k) => k.key === "refunded")?.value || 0 },
     ],
     [kpis]
   );
@@ -48,6 +50,8 @@ export default function BillingSection({ filters, department = "opd" }) {
     ],
     [kpis]
   );
+
+  const chartCount = 4 + (revenueByDoctor ? 1 : 0) + (advanceModes.length > 0 ? 1 : 0);
 
   if (loading) {
     return (
@@ -66,26 +70,37 @@ export default function BillingSection({ filters, department = "opd" }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <KpiRow title="Key metrics" kpis={kpisWithTooltips} loading={false} />
 
-      <SectionBlock title="More insights" count={4}>
+      <SectionBlock title="More insights" count={chartCount}>
         <ChartGrid>
-          <ChartTile title="Billed amount status" subtitle="Collected vs due, selected period" icon="wallet-3" titleTooltip="How the amount billed in the selected period splits into already-collected and still-due">
-            <DonutWithLegend
-              data={billedStatusDonut}
-              centerLabel="Billed"
-              valueFormat={formatINR}
-              height={220}
-            />
+          <ChartTile title="Revenue breakdown" subtitle="Collected, due and refunded" icon="chart-square" titleTooltip="How the total billed amount splits into collected, due, and refunded in the selected period">
+            <DonutWithLegend data={revenueDonut} centerLabel="Billed" valueFormat={formatINR} height={220} />
           </ChartTile>
 
           <ChartTile title="Collection by mode" subtitle="Total collected, selected period" icon="wallet-check" titleTooltip="How money collected in the selected period splits across payment modes">
             <DonutWithLegend data={paymentModes} centerLabel="Collected" valueFormat={formatINR} height={220} />
           </ChartTile>
+
+          {revenueByDoctor && (
+            <ChartTile title="Revenue by doctor" subtitle="Billed and collected per doctor" icon="profile-2user" titleTooltip="Each doctor's billed and collected amounts in the selected period, sorted by highest billed">
+              <MaybeScroll count={revenueByDoctor?.data?.length}>
+                <StackedBarWithTotal data={revenueByDoctor?.data} series={revenueByDoctor?.series} xKey="x" height={260} />
+              </MaybeScroll>
+            </ChartTile>
+          )}
+
           <ChartTile title="Refund by mode" subtitle="Bill refunds, selected period" icon="wallet-remove" titleTooltip="How bill refunds paid in the selected period split across payment modes">
             <DonutWithLegend data={refundModes} centerLabel="Refunded" valueFormat={formatINR} height={220} />
           </ChartTile>
+
           <ChartTile title="Advance deposit status" subtitle="Where advance deposits went, selected period" icon="money-recive" titleTooltip="How advance deposits received in the selected period split: applied toward bills, refunded to patients, or still available as balance">
             <DonutWithLegend data={advanceStatusDonut} centerLabel="Advance" valueFormat={formatINR} height={220} />
           </ChartTile>
+
+          {advanceModes.length > 0 && (
+            <ChartTile title="Advance by mode" subtitle="How advances were paid, selected period" icon="money-recive" titleTooltip="How advance deposits received in the selected period split across payment modes">
+              <DonutWithLegend data={advanceModes} centerLabel="Advance" valueFormat={formatINR} height={220} />
+            </ChartTile>
+          )}
         </ChartGrid>
       </SectionBlock>
     </div>

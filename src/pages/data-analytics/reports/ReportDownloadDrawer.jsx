@@ -70,6 +70,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   // Tesseract Toast: { status, title, subtext } — the drawer's one feedback
   // surface for range violations, empty results and failed downloads.
   const [toast, setToast] = useState(null);
+  const [attempted, setAttempted] = useState(false);
 
   // Multi-selects (checkbox dropdowns): arrays of the backend's own tokens/
   // ids, empty = "all". Serialized to CSV at download time.
@@ -124,6 +125,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       setDeptIds([]);
       setExportedRows(null);
       setToast(null);
+      setAttempted(false);
     }
   }, [open, department]);
 
@@ -269,22 +271,27 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
 
   const canExport = typeof resolvedReport?.exportFetcher === "function";
 
+  const dateRequired = needsDate || needsDateRange;
+  const ownDates = resolveDates(range, {});
+  const hasDates = !!(ownDates.startDate && ownDates.endDate);
+
+  const dateError = attempted && dateRequired && !hasDates;
+  const rangeTooLong = dateRequired && hasDates && rangeDaysOf(ownDates.startDate, ownDates.endDate) > MAX_REPORT_RANGE_DAYS;
+
   const doDownload = async () => {
     if (!resolvedReport || !canExport) return;
-    // Server-enforced export window: every report endpoint 400s beyond 31
-    // days — surface the reason instead of a silent no-op.
-    if (needsDate || needsDateRange) {
-      const { startDate, endDate } = resolveDates(range, filters);
-      const days = rangeDaysOf(startDate, endDate);
-      if (days > MAX_REPORT_RANGE_DAYS) {
-        setToast({
-          status: "warning",
-          title: "Date range too long",
-          subtext: `Reports can be downloaded for up to ${MAX_REPORT_RANGE_DAYS} days at a time. Please pick a shorter period.`,
-        });
-        return;
-      }
+    if (dateRequired && !hasDates) {
+      setAttempted(true);
+      setToast({
+        status: "error",
+        title: needsDate ? "Date required" : "Period required",
+        subtext: needsDate
+          ? "Please select a date before downloading."
+          : "Please select a date range before downloading.",
+      });
+      return;
     }
+    if (rangeTooLong) return;
     setDownloading(true);
     setExportedRows(null);
     setToast(null);
@@ -503,20 +510,20 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
           )}
 
           {needsDate && (
-            <Field label="Date">
+            <Field label="Date" required error={dateError}>
               <DateRangePicker
                 mode="single"
                 size="sm"
                 showPresets
                 value={range}
-                onChange={setRange}
+                onChange={(v) => { setRange(v); setAttempted(false); }}
                 placeholder="Select date"
               />
             </Field>
           )}
 
           {needsDateRange && (
-            <Field label="Period">
+            <Field label="Period" required error={dateError}>
               <DateRangePicker
                 mode="range"
                 size="sm"
@@ -525,8 +532,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
                 value={range}
                 onChange={(v) => {
                   setRange(v);
-                  // Immediate feedback when a hand-picked range exceeds the
-                  // export window (presets can never exceed it).
+                  setAttempted(false);
                   const { startDate, endDate } = resolveDates(v, {});
                   if (rangeDaysOf(startDate, endDate) > MAX_REPORT_RANGE_DAYS) {
                     setToast({
@@ -686,27 +692,27 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         {toast &&
           createPortal(
             <div
+              className="da-report-toast"
               style={{
                 position: "fixed",
-                bottom: 24,
+                top: 24,
                 left: "50%",
                 transform: "translateX(-50%)",
                 zIndex: 10000,
-                width: "max-content",
+                minWidth: 420,
                 maxWidth: "90vw",
               }}
             >
               <Toast
                 status={toast.status}
                 title={toast.title}
-                subtext={toast.subtext}
-                withSubtext={!!toast.subtext}
-                withCTA={false}
                 dismissible
-                duration={5000}
+                duration={3000}
                 progress
                 onDismiss={() => setToast(null)}
-              />
+              >
+                {toast.subtext}
+              </Toast>
             </div>,
             document.body
           )}
@@ -715,7 +721,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, required, error, children }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <span
@@ -724,12 +730,19 @@ function Field({ label, children }) {
           fontWeight: 600,
           letterSpacing: "0.04em",
           textTransform: "uppercase",
-          color: "var(--tesseract-fg-secondary, var(--tesseract-slate-500))",
+          color: error
+            ? "var(--tesseract-error-500, #ef4444)"
+            : "var(--tesseract-fg-secondary, var(--tesseract-slate-500))",
         }}
       >
         {label}
+        {required && <span style={{ color: "var(--tesseract-error-500, #ef4444)", marginLeft: 2 }}>*</span>}
       </span>
-      {children}
+      {error ? (
+        <div className="da-field-error">{children}</div>
+      ) : (
+        children
+      )}
     </div>
   );
 }

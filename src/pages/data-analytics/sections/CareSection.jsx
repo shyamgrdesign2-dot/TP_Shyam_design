@@ -4,8 +4,6 @@ import SectionBlock from "./SectionBlock";
 import { ChartGrid, ChartTile, MaybeScroll } from "./ChartLayout";
 import { BarChartZ, StackedBarWithTotal } from "../charts/EmptyAware";
 import DonutWithLegend from "../charts/DonutWithLegend";
-import TrendTile from "./TrendTile";
-import { WEEK_LABELS } from "../charts/scaffolds";
 import useCareData from "../data/useCareData";
 import { pctDelta } from "../data/deltaUtils";
 import KpiRow from "./KpiRow";
@@ -14,18 +12,6 @@ const ICON_BASE = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/med
 const CERT_ICON = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/sports2/award-badge5.svg";
 // atom has no bulk build on the CDN — linear is the only variant
 const ATOM_ICON = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/social/atom.svg";
-
-// Per-tab "‹Topic› over time" trend meta (prototype parity). Data comes from
-// the `trend` field specced on each clinical endpoint (§3.6) — zero-fills
-// until deployed.
-const TREND_META = {
-  // diagnosis trend hidden: backend returns "test test test" stub labels.
-  // medications trend removed: user prefers by-doctor stacked bar instead.
-  "lab-tests": { label: "Investigations", series: "Suggested" },
-  vitals: { label: "Vitals recorded", series: "Recordings" },
-  advice: { label: "Advice given", series: "Given" },
-  vaccines: { label: "Doses administered", series: "Doses" },
-};
 
 // The one topic donut every tab (and the Overview mix) shows.
 const TOPIC_TILE = {
@@ -203,22 +189,6 @@ function buildTiles(subTab, data) {
     donut("brands", "Top vaccine brands", "Doses, selected period", "injection", "Vaccine brands administered most often in the selected period", data.vaccines.brandMix, "Doses");
     donut("schedule", "IAP schedule vs others", "Doses, selected period", "injection", "Doses given under the IAP immunisation schedule vs other/custom vaccines, classified on the given-vaccine names", data.vaccScheduleMix, "Doses");
   }
-
-  const trend = TREND_META[subTab];
-  if (trend && data.trends[subTab]) tiles.push(
-    <TrendTile
-      key="trend"
-      title={`${trend.label} over time`}
-      subtitle="Selected period"
-      icon="chart-3"
-      titleTooltip={`${trend.label} per bucket across the selected period.`}
-      data={data.trends[subTab]?.data}
-      series={data.trends[subTab]?.series}
-      fallbackLabels={WEEK_LABELS}
-      fallbackSeries={[{ key: "count", label: trend.series }]}
-      height={CHART_H}
-    />
-  );
 
   return tiles;
 }

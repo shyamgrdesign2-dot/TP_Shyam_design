@@ -48,11 +48,12 @@ async function buildMedsByDoctor(baseParams, doctorFilterCsv) {
   const globalTop = topNLabels(results, 5);
   if (!globalTop.length) return null;
 
+  const order = sortedIndices(doctors, results);
   return {
-    labels: doctors.map((d) => d.um_name || `Doctor ${d.um_id}`),
+    labels: order.map((i) => doctors[i].um_name || `Doctor ${doctors[i].um_id}`),
     datasets: globalTop.map((med) => ({
       label: med,
-      data: doctors.map((_, i) => {
+      data: order.map((i) => {
         const hit = (results[i] || []).find((d) => d.label === med);
         return hit?.value || 0;
       }),
@@ -87,11 +88,12 @@ async function buildDiagByDoctor(baseParams, doctorFilterCsv) {
   const globalTop = topNLabels(results, 5);
   if (!globalTop.length) return null;
 
+  const order = sortedIndices(doctors, results);
   return {
-    labels: doctors.map((d) => d.um_name || `Doctor ${d.um_id}`),
+    labels: order.map((i) => doctors[i].um_name || `Doctor ${doctors[i].um_id}`),
     datasets: globalTop.map((diag) => ({
       label: diag,
-      data: doctors.map((_, i) => {
+      data: order.map((i) => {
         const hit = (results[i] || []).find((d) => d.label === diag);
         return hit?.value || 0;
       }),
@@ -116,7 +118,7 @@ async function buildLabByDoctor(baseParams, doctorFilterCsv) {
         cached(`lab-dr-${d.um_id}`, baseParams, () =>
           ApiReporting.clinicalLabTest({ ...baseParams, doctorId: d.um_id })
         )
-          .then((r) => anyToDonut((r?.data ?? r)?.topInvestigations))
+          .then((r) => dropJunk(anyToDonut((r?.data ?? r)?.topInvestigations).map(cleanInvestigation)))
           .catch(() => [])
       )
     );
@@ -126,11 +128,12 @@ async function buildLabByDoctor(baseParams, doctorFilterCsv) {
   const globalTop = topNLabels(results, 5);
   if (!globalTop.length) return null;
 
+  const order = sortedIndices(doctors, results);
   return {
-    labels: doctors.map((d) => d.um_name || `Doctor ${d.um_id}`),
+    labels: order.map((i) => doctors[i].um_name || `Doctor ${doctors[i].um_id}`),
     datasets: globalTop.map((inv) => ({
       label: inv,
-      data: doctors.map((_, i) => {
+      data: order.map((i) => {
         const hit = (results[i] || []).find((d) => d.label === inv);
         return hit?.value || 0;
       }),
@@ -155,7 +158,7 @@ async function buildAdviceByDoctor(baseParams, doctorFilterCsv) {
         cached(`advice-dr-${d.um_id}`, baseParams, () =>
           ApiReporting.clinicalAdvice({ ...baseParams, doctorId: d.um_id })
         )
-          .then((r) => anyToDonut((r?.data ?? r)?.topAdvice))
+          .then((r) => dropJunk(anyToDonut((r?.data ?? r)?.topAdvice)))
           .catch(() => [])
       )
     );
@@ -165,16 +168,26 @@ async function buildAdviceByDoctor(baseParams, doctorFilterCsv) {
   const globalTop = topNLabels(results, 5);
   if (!globalTop.length) return null;
 
+  const order = sortedIndices(doctors, results);
   return {
-    labels: doctors.map((d) => d.um_name || `Doctor ${d.um_id}`),
+    labels: order.map((i) => doctors[i].um_name || `Doctor ${doctors[i].um_id}`),
     datasets: globalTop.map((adv) => ({
       label: adv,
-      data: doctors.map((_, i) => {
+      data: order.map((i) => {
         const hit = (results[i] || []).find((d) => d.label === adv);
         return hit?.value || 0;
       }),
     })),
   };
+}
+
+function sortedIndices(doctors, perDoctorDonuts) {
+  const indices = doctors.map((_, i) => i);
+  const totals = indices.map((i) =>
+    (perDoctorDonuts[i] || []).reduce((s, d) => s + (d.value || 0), 0)
+  );
+  indices.sort((a, b) => totals[b] - totals[a]);
+  return indices;
 }
 
 function topNLabels(perDoctorDonuts, n) {
@@ -442,6 +455,8 @@ function initialState() {
 
 function cleanInvestigation(item) {
   const label = String(item.label || "")
+    .replace(/^\/\/\s*/g, "")
+    .replace(/\s*\/\/\s*$/g, "")
     .replace(/\s*remark\s*:.*$/i, "")
     .replace(/[\s\-–—:;,/]+$/g, "")
     .trim();

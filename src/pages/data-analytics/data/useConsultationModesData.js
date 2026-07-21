@@ -132,10 +132,10 @@ export default function useConsultationModesData({ month, startDate, endDate, do
     const payload = await cached("modes", params, () => ApiReporting.clinicConsultationModes(params)).catch(() => null);
     const src = payload?.data ?? payload ?? {};
 
-    // Prefer the backend's byDoctor only once it is per-mode (multi-dataset);
-    // otherwise assemble the true stacked series via per-doctor calls.
-    let byDoctor = src.byDoctor ? compactXY(seriesToXY(src.byDoctor), compactDoctorLabel) : null;
-    if ((src.byDoctor?.datasets?.length || 0) <= 1) {
+    // Always fan-out per-doctor so every clinic doctor appears (even with
+    // zero data). The backend's byDoctor omits zero-data doctors.
+    let byDoctor = null;
+    {
       const baseParams = {};
       if (month) baseParams.month = month;
       if (startDate && endDate) {

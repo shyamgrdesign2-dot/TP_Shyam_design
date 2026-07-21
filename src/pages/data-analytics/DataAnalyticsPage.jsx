@@ -367,6 +367,7 @@ export default function DataAnalyticsPage() {
                         singleClinic={caps.singleClinic}
                         hasActiveFilters={hasActiveFilters}
                         onClearAll={clearAllFilters}
+                        hideDateFilter={section === "reports"}
                       />
                     </div>
 

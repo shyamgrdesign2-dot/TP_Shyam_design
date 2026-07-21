@@ -127,9 +127,9 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
       statusDonut: [
         { label: "Completed", value: finished },
         { label: "In queue", value: queue },
-        { label: "Cancelled", value: cancelled },
         { label: "Draft", value: draft },
-      ].filter((x) => x.value > 0),
+        { label: "Cancelled", value: cancelled },
+      ],
     });
   }, [startDate, endDate, doctorId, clinicId]);
 

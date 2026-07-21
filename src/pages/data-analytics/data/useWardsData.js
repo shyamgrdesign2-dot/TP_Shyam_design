@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { seriesToXY, compactXY, zeroFillXY, listToDonut } from "../charts/adapters";
+import { seriesToXY, compactXY, compactLabel, zeroFillXY, listToDonut } from "../charts/adapters";
 import { toNum, pctDelta, safe } from "./deltaUtils";
 
 export default function useWardsData({ startDate, endDate, clinicId } = {}) {
@@ -85,7 +85,7 @@ function buildBedsByWard(wards) {
     return zeroFillXY(null, KNOWN_WARDS, "Beds");
   }
   return {
-    data: wards.map((w) => ({ x: w.ward, Beds: w.beds, Occupied: w.occupied })),
+    data: wards.map((w) => ({ x: compactLabel(w.ward, 12), Beds: w.beds, Occupied: w.occupied })),
     series: [
       { key: "Occupied", label: "Occupied" },
       { key: "Beds", label: "Total beds" },
@@ -95,11 +95,12 @@ function buildBedsByWard(wards) {
 }
 
 function buildOccupancyByWard(wards) {
-  if (!wards.length) {
+  const active = wards.filter((w) => w.occupancy > 0);
+  if (!active.length) {
     return zeroFillXY(null, KNOWN_WARDS, "Occupancy %");
   }
   return {
-    data: wards.map((w) => ({ x: w.ward, "Occupancy %": w.occupancy })),
+    data: active.map((w) => ({ x: compactLabel(w.ward, 12), "Occupancy %": w.occupancy })),
     series: [{ key: "Occupancy %", label: "Occupancy %" }],
     xKey: "x",
   };

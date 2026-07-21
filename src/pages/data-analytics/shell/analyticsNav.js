@@ -38,23 +38,23 @@ export const NAV_BY_DEPARTMENT = { opd: OPD_NAV, ipd: IPD_NAV };
 // Per-section hero copy (title + subtitle). Falls back to a generic line.
 export const SECTION_HERO = {
   opd: {
-    overview: { title: "Overview", subtitle: "Your OPD practice at a glance" },
-    appointments: { title: "Appointments", subtitle: "Volume, status and case mix" },
-    "consultation-modes": { title: "Consultation Modes", subtitle: "In-person, video and walk-in split" },
-    billing: { title: "Billing", subtitle: "Collections, revenue and payment mix" },
-    patients: { title: "Patients", subtitle: "New vs returning and demographics" },
-    care: { title: "Care", subtitle: "Diagnoses, conditions and outcomes" },
-    messages: { title: "Messages", subtitle: "Bulk SMS and WhatsApp campaign reach" },
-    grow: { title: "Grow", subtitle: "Referrals, retention and reach" },
-    reports: { title: "Reports", subtitle: "Financial and clinical report exports" },
+    overview: { title: "Overview" },
+    appointments: { title: "Appointments" },
+    "consultation-modes": { title: "Consultation Modes" },
+    billing: { title: "Billing" },
+    patients: { title: "Patients" },
+    care: { title: "Care" },
+    messages: { title: "Messages" },
+    grow: { title: "Grow" },
+    reports: { title: "Reports" },
   },
   ipd: {
-    admissions: { title: "Admissions & Discharges", subtitle: "Patient flow, discharge mix and length of stay" },
-    overview: { title: "Overview", subtitle: "Your inpatient service at a glance" },
-    wards: { title: "Wards & Beds", subtitle: "Occupancy and bed utilisation" },
-    clinical: { title: "Clinical Activity", subtitle: "Procedures, LOS and case metrics" },
-    billing: { title: "Billing", subtitle: "IPD collections and revenue" },
-    reports: { title: "Reports", subtitle: "Inpatient report exports" },
+    admissions: { title: "Admissions & Discharges" },
+    overview: { title: "Overview" },
+    wards: { title: "Wards & Beds" },
+    clinical: { title: "Clinical Activity" },
+    billing: { title: "Billing" },
+    reports: { title: "Reports" },
   },
 };
 

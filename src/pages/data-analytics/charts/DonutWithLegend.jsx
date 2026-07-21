@@ -48,8 +48,6 @@ function DonutWithLegend({
       {items.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, marginLeft: "auto" }}>
           {items.map((d, i) => (
-            /* The VALUE must never be truncated away — only the label
-               ellipsizes (full text on hover via the native title). */
             <div key={i} title={`${d.label}: ${valueFormat ? valueFormat(d.value) : d.value}`} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               <span
                 style={{
@@ -89,6 +87,11 @@ function DonutWithLegend({
               </span>
             </div>
           ))}
+          {items.filter((d) => d.value > 0).length === 1 && (
+            <span style={{ fontSize: 11, color: "var(--tesseract-fg-tertiary)", fontStyle: "italic", marginTop: 4 }}>
+              Only 1 item recorded in this period
+            </span>
+          )}
         </div>
       )}
     </div>
