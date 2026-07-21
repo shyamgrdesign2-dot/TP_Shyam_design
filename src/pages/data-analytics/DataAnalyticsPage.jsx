@@ -380,7 +380,7 @@ export default function DataAnalyticsPage() {
                         flex: 1,
                         minHeight: 0,
                         overflowY: "auto",
-                        padding: "4px 20px 20px",
+                        padding: section === "reports" ? "18px 20px 20px" : "4px 20px 20px",
                         background: "var(--tesseract-bg-surface, #fff)",
                       }}
                     >
