@@ -83,6 +83,9 @@ import TabRxEditRxModal from "../tabRxEditRxModal/TabRxEditRxModal";
 
 import CvtKnowMore from "../../../smartSync/components/CvtKnowMore";
 import { ASSETS } from "../../../../assets";
+import { useChikitsalay } from "../../../chikitsalay/useChikitsalay";
+import { TreatmentPlanDrawer } from "../../../../components/dental/plan/TreatmentPlanDrawer";
+import { ToothIcon } from "../../../../components/dental/ToothIcon";
 const {
   wtsp,
   loading_3: loadingImg,
@@ -159,6 +162,7 @@ function TabRxPrescriptionPrintView() {
   );
   const isZydusWhatsappEnabled = useZydusWhatsapp();
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const isChikitsalayAccessable = useChikitsalay();
   const { servicesList } = useSelector((state) => state.doctors);
   const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
   const { isOpdBillChecked } = useSelector((state) => state.billing);
@@ -191,6 +195,8 @@ function TabRxPrescriptionPrintView() {
   const encodedData = btoa(selectedLang.toString());
   const [cvtDrawer, setCvtDrawer] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [dentalPlanDrawer, setDentalPlanDrawer] = useState(false);
+  const dentalPlanIconWrapperRef = useRef(null);
   const [smartRxFile, setSmartRxFile] = useState([]);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
@@ -1001,6 +1007,10 @@ function TabRxPrescriptionPrintView() {
     setIsSubModalOpen(!isSubModalOpen);
   }, [isSubModalOpen]);
 
+  const handleDentalPlanDrawer = useCallback(() => {
+    setDentalPlanDrawer(!dentalPlanDrawer);
+  }, [dentalPlanDrawer]);
+
   const handleDigitiseRx = async () => {
     if (RX_DIGITIZATION_planDetails?.plan_tier === FREE && RX_DIGITIZATION_planDetails?.credit_balance <= 0) {
       showHideSubModal()
@@ -1160,6 +1170,36 @@ function TabRxPrescriptionPrintView() {
                         : handleRecentBillDrawer
                     }
                   />
+                )}
+                {isChikitsalayAccessable && (
+                  <Button
+                    type="text"
+                    className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
+                    onClick={handleDentalPlanDrawer}
+                    onMouseEnter={() => {
+                      if (dentalPlanIconWrapperRef.current) {
+                        dentalPlanIconWrapperRef.current.style.color = "#FFFFFF";
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (dentalPlanIconWrapperRef.current) {
+                        dentalPlanIconWrapperRef.current.style.color = "#4b4ad5";
+                      }
+                    }}
+                    icon={
+                      <span ref={dentalPlanIconWrapperRef} style={{ color: "#4b4ad5" }}>
+                        <ToothIcon
+                          size={20}
+                          variant="Linear"
+                          className="ms-auto"
+                          color="currentColor"
+                        />
+                      </span>
+                    }
+                  >
+                    <span className="fw-semibold">Dental Plan</span>
+                    <i className="icon-right iconrotate180 ms-auto"></i>
+                  </Button>
                 )}
                 {!isCvtExtHosAccessableFromGB && (() => {
                   const decodedToken = getDecodedToken();
@@ -1429,6 +1469,23 @@ function TabRxPrescriptionPrintView() {
             onCancel={() => setIsEditRxModalOpen(false)}
             onConfirm={handleEditWrittenRxConfirm}
           />
+        )}
+        {dentalPlanDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            onClose={handleDentalPlanDrawer}
+            open={dentalPlanDrawer}
+            width="100%"
+            zIndex={1100}
+            styles={{ body: { padding: 0, height: "100vh", overflow: "hidden" } }}
+          >
+            <TreatmentPlanDrawer
+              patientId={patient_data?.patient_unique_id}
+              patientAge={patient_data?.ageYears}
+              onClose={handleDentalPlanDrawer}
+            />
+          </Drawer>
         )}
         <Drawer
           closeIcon={false}

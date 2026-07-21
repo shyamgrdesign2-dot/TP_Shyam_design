@@ -46,6 +46,7 @@ import {
 } from "./plan-shared";
 import dui from "../dental-ui.module.scss";
 import styles from "./PlanEstimatesTab.module.scss";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 
 // ─── Plan Sub-Card ────────────────────────────────────────────
 function PlanSubCard({ plan, index, isOpen, onToggle }) {
@@ -53,6 +54,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
   const total = computePlanTotal(plan.services);
+  const isChikitsalayAccessable = useChikitsalay();
   
   const handleActivateClick = () => {
     setStartOpen(true);
@@ -367,6 +369,7 @@ function showSnackbar(message, variant = "info") {
 export function PlanEstimatesTab() {
   const { estimatePlans, openDrawer } = usePlanContext();
   const [openIndex, setOpenIndex] = useState(0);
+  const isChikitsalayAccessable = useChikitsalay();
 
   if (estimatePlans.length === 0) {
     return (
@@ -380,7 +383,7 @@ export function PlanEstimatesTab() {
               <h3 className={styles.title}>Plan Estimates</h3>
             </div>
           </div>
-          <div className={`${dui.planClusterInnerSurface} ${styles.emptySurface}`}>
+          {!isChikitsalayAccessable && <div className={`${dui.planClusterInnerSurface} ${styles.emptySurface}`}>
             <EmptyState
               icon={<PlanEmptyIcon size={120} />}
               title="No treatment plans yet"
@@ -396,7 +399,7 @@ export function PlanEstimatesTab() {
                 </button>
               }
             />
-          </div>
+          </div>}
         </div>
       </SectionFrame>
     );
@@ -423,14 +426,14 @@ export function PlanEstimatesTab() {
             </div>
           </div>
           <div className={styles.btnGroup}>
-            <button
+            {!isChikitsalayAccessable && <button
               type="button"
               onClick={() => openDrawer({ type: "add-plan" })}
               className={styles.createBtn}
             >
               <Add size={20} variant="Linear" />
               Create Plan
-            </button>
+            </button>}
             <DropdownMenu>
               <DropdownMenuTrigger asChild={true}>
                 <button type="button" className={styles.moreBtn}>
