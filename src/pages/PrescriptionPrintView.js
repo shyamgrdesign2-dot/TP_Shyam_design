@@ -224,6 +224,7 @@ function PrescriptionPrintView() {
         patientUniqueId: patient_data?.patient_unique_id,
         patientId: patient_data?.patient_unique_id,
         tcmId: state?.tcm_id,
+        patientRecord: patient_data,
     });
 
     useEffect(() => {

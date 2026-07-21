@@ -3,6 +3,7 @@ import axios from "axios";
 import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
 import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { trackEvent } from "../utils/utils";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 
 function pickStableDentalInput(dentalExaminationData, dentalexaminationData) {
   const raw = dentalExaminationData || dentalexaminationData;
@@ -68,6 +69,7 @@ export const usePrintPayloadPdf = ({
   isDentalEnabled = false,
   caseManagerDataOverride = null,
   canvasFilename = null,
+  patientRecord = null,
 }) => {
   const [payload, setPayload] = useState(null);
   const [printBlob, setPrintBlob] = useState(null);
@@ -188,6 +190,11 @@ export const usePrintPayloadPdf = ({
       setError(null);
       const pdfStartTime = Date.now();
       try {
+        const crossConsultData = await fetchReferralDataForCaseManager(
+          payload?.caseManagerData,
+          patientRecord ?? payload?.caseManagerData?.patient_data,
+        );
+
         // Prefer client lab rows; otherwise flatten whatever the print payload API sent
         // (new multi-doctor bucket shape or legacy single-doc shape).
         const clientLabParams = normalizeLabResultsResponse(labParamsData);
@@ -195,8 +202,9 @@ export const usePrintPayloadPdf = ({
         const resolvedLabParams =
           clientLabParams.length > 0 ? clientLabParams : payloadLabParams;
 
-        const payloadWithLabs = {
+        const payloadWithExtras = {
           ...payload,
+          crossConsultData,
           labParamsData: resolvedLabParams,
           ...(zydusSelectedLabParams != null
             ? { zydusLabData: zydusSelectedLabParams }
@@ -204,7 +212,7 @@ export const usePrintPayloadPdf = ({
         };
 
         const { blob, drawingCanvases, corruptedCanvasSkipped } =
-          await buildPrintPdfBlobFromPayload(payloadWithLabs, {
+          await buildPrintPdfBlobFromPayload(payloadWithExtras, {
             selectedLang,
             isGynaecHistoryAccessable,
             showSnapRxImages,
@@ -276,6 +284,7 @@ export const usePrintPayloadPdf = ({
     isDentalEnabled,
     caseManagerDataOverride,
     canvasFilename,
+    patientRecord,
   ]);
 
   return { payload, printBlob, isGenerating, error };

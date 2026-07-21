@@ -50,6 +50,8 @@ export const TAB_ZYDUS_ENCOUNTER = 11;
 export const TAB_ZYDUS_APPOINTMENT = 12;
 export const TAB_CLINIC_APPOINTMENT = 0;
 export const TAB_CLINIC_QUEUE = 7;
+export const TAB_REFERRAL = 13;
+export const TAB_REFERRAL_AP_STATUS = 8;
 
 export const TAB_CAMPAIGN = 0;
 export const TAB_DRAFT = 1;
@@ -107,6 +109,7 @@ export const GB_VOICE_RX_FREE = "free-voice-rx";
 export const GB_ZYDUS_WHATSAPP = "zydus-doctor-whatsapp-enablement";
 export const GB_ZYDUS_ACCOUNT_USERS = "zydus-account-users";
 export const GB_CHIKITSALAY = "chikitsalay";
+export const GB_CROSS_CONSULT = "cross-consult";
 export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
 export const GB_VOICE_RX_MAX_SESSION_MINUTES = "VOICE_RX_MAX_SESSION_MINUTES";
 export const GB_VOICE_OLD_UI_NEW_PIPELINE = "voice-old-ui-new-pipeline";

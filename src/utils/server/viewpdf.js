@@ -66,6 +66,7 @@ import OphthalmologyTableView from "../../components/print_settings/ophthalmolog
 import ThenConnector from "../../components/print_settings/ThenConnector";
 import { getDecodedToken } from "../localStorage";
 import { ASSETS } from "../../assets";
+import { CrossConsult } from "../../components/print_settings/crossConsult/CrossConsult";
 import {
   getSmartSyncUploadedFileUri,
   normalizeSmartRxDataForPrint,
@@ -751,6 +752,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     examChart: examChartProp,
     isCvtExtHosAccessableFromGB,
     drawingCanvases,
+    crossConsultData,
   } = props;
   const smartRxData = normalizeSmartRxDataForPrint(rawSmartRxData);
   let dentalExaminationData = rawDentalData || props.dentalExaminationData;
@@ -14082,6 +14084,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 </View>
                               ))}
                           </>
+                        ) : option?.id === 26 &&
+                          option?.enable === "Y" &&
+                          option?.custom_status === "Y" ? (
+                          <CrossConsult
+                            option={option}
+                            crossConsultData={crossConsultData}
+                            PX_TO_PT={PX_TO_PT}
+                            styles={styles}
+                            printSettings={printSettings}
+                          />
                         ) : option?.id === 20 &&
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (

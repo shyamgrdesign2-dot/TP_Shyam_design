@@ -26,6 +26,10 @@ import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
 import InvestigationBox from "../components/InvestigationBox";
 import TabFollowUpBox from "../components/tab_design/TabFollowUpBox";
+import ReferralBox from "../components/ReferralBox";
+import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
+import { useCrossConsult } from "../hooks/useCrossConsult";
 
 import VitalsBox from "../components/VitalsBox";
 import VitalsList from "../components/VitalsList";
@@ -973,6 +977,8 @@ function PrescriptionNew() {
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
@@ -1123,6 +1129,8 @@ function PrescriptionNew() {
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     startTime,
     customModuleContents,
     setCustomModuleContents,
@@ -1776,6 +1784,34 @@ function PrescriptionNew() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    const isReferralModuleEnabled =
+      customizedPadRightList.findIndex(
+        (e) => e.tmdpm_id === 26 && e.tmdpm_status === 0
+      ) !== -1;
+    if (!isReferralModuleEnabled) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, customizedPadRightList, patient_data, isCrossConsultAccessable]);
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
@@ -3053,6 +3089,7 @@ function PrescriptionNew() {
                 growthRefreshKey={growthRefreshKey}
                 opthalRefreshKey={opthalRefreshKey}
                 customizedPadLeftList={customizedPadLeftList}
+                referralOnRightPad
                 isOpthalModuleAccessible={isOpthalModuleAccessible}
                 isVaccinationAccessable={isVaccinationAccessable}
                 isGrowthChartAccessable={isGrowthChartAccessable}
@@ -3196,6 +3233,10 @@ function PrescriptionNew() {
                   ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <TabFollowUpBox />
+                    </div>
+                  ) : e.tmdpm_id === 26 && e.tmdpm_status === 0 && isCrossConsultAccessable ? (
+                    <div key={i} className="prescription-box-sm">
+                      <ReferralBox />
                     </div>
                   ) : (
                     e.is_custom_module &&

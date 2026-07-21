@@ -99,7 +99,8 @@ export const renderPrintPayloadToBlob = async (
     tcmId,
     dentalChartPrintMode,
     isCvtExtHosAccessableFromGB,
-    drawingCanvases
+    drawingCanvases,
+    crossConsultData,
   } = payload;
 
   const examChart =
@@ -196,6 +197,7 @@ export const renderPrintPayloadToBlob = async (
       examChart={examChart}
       isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
       drawingCanvases={drawingCanvases}
+      crossConsultData={crossConsultData}
     />
   ).toBlob();
 };

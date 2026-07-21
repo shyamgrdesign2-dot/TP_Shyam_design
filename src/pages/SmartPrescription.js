@@ -43,6 +43,10 @@ import PrivateNotesBox from "../components/PrivateNotesBox";
 import PrivateNotesList from "../components/PrivateNotesList";
 
 import SmartRxFollowUpBox from "../components/SmartRxFollowUpBox";
+import ReferralBox from "../components/ReferralBox";
+import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
+import { useCrossConsult } from "../hooks/useCrossConsult";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 import CarePlanDropdown from "../components/CarePlanDropdown";
 import CarePlanList from "../components/CarePlanList";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
@@ -238,6 +242,8 @@ function SmartPrescription() {
   const [viewlabparamsDrawer, setViewlabparamsDrawer] = useState(false);
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   // const [token, setToken] = useState(null);
@@ -361,6 +367,8 @@ function SmartPrescription() {
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     customModuleContents,
     setCustomModuleContents,
     startTime,
@@ -908,6 +916,28 @@ function SmartPrescription() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, isCrossConsultAccessable, patient_data]);
 
   useEffect(() => {
     getSymptomsCollectorData();
@@ -3738,6 +3768,11 @@ function SmartPrescription() {
                   <SmartRxFollowUpBox />
                 </div>
               }
+              {!isCvtExtHosAccessableFromGB && isCrossConsultAccessable && (
+                <div className="prescription-box-sm p-14">
+                  <ReferralBox />
+                </div>
+              )}
             </div>
             <div
               className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3"

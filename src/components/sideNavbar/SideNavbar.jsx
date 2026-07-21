@@ -48,6 +48,7 @@ import {
 import growthChartStaticData from "../../pages/growthChart/GrowthChart.json";
 import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
+import { useCrossConsult } from "../../hooks/useCrossConsult";
 import { ASSETS } from "../../assets";
 import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
@@ -76,6 +77,8 @@ import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import { ToothIcon } from "../dental/ToothIcon";
 import { env } from "../../EnvironmentConfig";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
+import { ReferralIcon } from "../../pages/snapRx/components/ReferralIcon";
+import ReferralPanelForm from "../referral/ReferralPanelForm";
 import { getSideNavMedicalIconUrl } from "./sideNavbarMedicalIcons";
 import "./sideNavbar.css";
 
@@ -95,6 +98,7 @@ const NAV_ITEMS = [
   { id: "growth", label: "Growth", icon: { kind: "iconsax", Icon: Ruler } },
   { id: "optal", label: "Ophthal", icon: { kind: "iconsax", Icon: Eye } },
   { id: "personalNotes", label: "Private Notes", icon: { kind: "iconsax", Icon: DocumentText } },
+  { id: "referral", label: "Referral", icon: { kind: "custom", Component: ReferralIcon } },
   { id: "zydusLabReports", label: "Zydus Reports", icon: { kind: "medical", name: "lab" } },
   { id: "dentalPlan", label: "Dental Plan", icon: { kind: "custom", Component: ToothIcon } },
 ];
@@ -126,6 +130,9 @@ function getCustomizedPadNavId(item, access = {}) {
       return "medicalRecords";
     case 19:
       return "labResults";
+    case 25:
+      if (access.referralOnRightPad) return null;
+      return access.isCrossConsultAccessable ? "referral" : null;
     case 26:
       return access.isDentalAccessable ? "dentalPlan" : null;
     default:
@@ -145,6 +152,7 @@ const SECTION_TITLES = {
   growth: "Growth",
   optal: "Ophthal History",
   personalNotes: "Private Notes",
+  referral: "Referral",
   zydusLabReports: "Zydus Reports",
   dentalPlan: "Dental Plan",
 };
@@ -5222,6 +5230,14 @@ function GrowthContent({ data, emptyState }) {
   );
 }
 
+function ReferralContent({ value, onChange }) {
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      <ReferralPanelForm value={value} onChange={onChange} variant="sideNav" />
+    </div>
+  );
+}
+
 function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voiceDisabled }) {
   return (
     <div className="snv-content-scroll snv-private-notes-content" data-snv-scroll-root="true">
@@ -5259,7 +5275,7 @@ function HiddenScrollRoot() {
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, referralValue, onReferralChange, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
   const emptyState = EMPTY_SECTION_CONFIG[activeId] ? (
     <SideNavEmptyState
       sectionId={activeId}
@@ -5325,6 +5341,13 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           showVoiceRx={showVoiceRx}
           onVoiceClick={onPrivateNotesVoiceClick}
           voiceDisabled={privateNotesVoiceDisabled}
+        />
+      );
+    case "referral":
+      return (
+        <ReferralContent
+          value={referralValue}
+          onChange={onReferralChange}
         />
       );
     case "zydusLabReports":
@@ -5415,7 +5438,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, voiceAnalyticsContext, medicalRecordActions }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, referralValue, onReferralChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, voiceAnalyticsContext, medicalRecordActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -5472,6 +5495,8 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           onPrivateNotesChange={onPrivateNotesChange}
           onPrivateNotesVoiceClick={onVoiceClick}
           privateNotesVoiceDisabled={privateNotesVoiceDisabled}
+          referralValue={referralValue}
+          onReferralChange={onReferralChange}
           onCopyPayload={onCopyPayload}
           showVoiceRx={showVoiceRx}
           vitalsUpdating={vitalsUpdating}
@@ -5543,6 +5568,7 @@ export function SideNavbar({
   zydusSelectedLabParams = [],
   patientGender,
   showVoiceRx = true,
+  referralOnRightPad = false,
   initialActiveId = "pastVisits",
   handleDrawerUploadDoc = NOOP,
   setFilesData = NOOP,
@@ -5593,6 +5619,7 @@ export function SideNavbar({
   const { profile } = useSelector((state) => state.doctors);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
   const { isPediatricAccessable } = useAccess();
+  const isCrossConsultAccessable = useCrossConsult();
   const isDentalAccessable = useIsDentalEnabled();
   const {
     vitalsData = [],
@@ -5605,6 +5632,8 @@ export function SideNavbar({
     pamId,
     privateNotesData,
     setPrivateNotesData,
+    referralData,
+    setReferralData,
     setUpdatedGynecHistory,
   } = useContext(CashManagerContext) || {};
   const getSideNavVoiceSessionId = useCallback(() => {
@@ -5928,6 +5957,9 @@ export function SideNavbar({
       notes,
     });
   }, [privateNotesData, setPrivateNotesData]);
+  const handleReferralChange = useCallback((nextReferral) => {
+    setReferralData?.(nextReferral);
+  }, [setReferralData]);
   const savePrivateNotesFromVoice = useCallback(async (notes) => {
     const cleanNotes = String(notes || "").trim();
     if (!cleanNotes) {
@@ -6011,6 +6043,8 @@ export function SideNavbar({
       isVaccinationAccessable,
       isGrowthChartAccessable,
       isGynaecHistoryAccessable,
+      isCrossConsultAccessable,
+      referralOnRightPad,
       isDentalAccessable,
     };
 
@@ -6043,6 +6077,8 @@ export function SideNavbar({
     isOpthalModuleAccessible,
     isVaccinationAccessable,
     isZydusUserAccessable,
+    isCrossConsultAccessable,
+    referralOnRightPad,
     isDentalAccessable,
   ]);
 
@@ -6515,6 +6551,8 @@ export function SideNavbar({
           actionHidePlusIcons={actionHidePlusIcons}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={handlePrivateNotesChange}
+          referralValue={referralData}
+          onReferralChange={handleReferralChange}
           onCopyPayload={handlePastVisitCopyPayload}
           voiceEnabled={showVoiceRx && SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)}
           voiceLocked={!!activeVoiceModule || headerDictationBusy}

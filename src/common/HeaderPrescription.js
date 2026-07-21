@@ -55,6 +55,11 @@ import GenRxButton from '../components/GenRxButton';
 
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import { getDecodedToken } from '../utils/localStorage';
+import { appendStripped, stripEmptyRows } from '../utils/voiceRxRowStrip';
+import {
+  attachCrossConsultToCaseManagerPayload,
+  syncCrossConsultReferral,
+} from '../utils/crossConsultHelpers';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
@@ -352,7 +357,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isCompactHeader = useCompactPrescriptionHeader();
     const headerOverlayZIndex = isNewPrescriptionUi ? 1305 : undefined;
     const shouldUseMobileTemplateContent = isMobile && !isTablet;
-    const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft, rxDrawingCanvasIds } = useContext(CashManagerContext);
+    const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft, rxDrawingCanvasIds, referralData } = useContext(CashManagerContext);
     const { isAutofillSelected, selectedSymptomsCollector, symptomCollector } = useSelector(
         (state) => state.ddx
     );
@@ -2474,9 +2479,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const CUSTOMIZE_CONTENT_TAB = useMemo(() => {
         return (
-            <CustomizeSetting handleDrawerCustomize={handleDrawerCustomize} isVaccinationEnabled={isVaccinationEnabled} isGrowthChartEnabled={isGrowthChartEnabled} page="normal-rx-page"/>
+            <CustomizeSetting
+                handleDrawerCustomize={handleDrawerCustomize}
+                isVaccinationEnabled={isVaccinationEnabled}
+                isGrowthChartEnabled={isGrowthChartEnabled}
+                page="normal-rx-page"
+                isTabRx={Boolean(isTabPrescription)}
+            />
         );
-    }, [customizeDrawer]);
+    }, [customizeDrawer, isTabPrescription, isVaccinationEnabled, isGrowthChartEnabled, handleDrawerCustomize]);
     
     const hasOpthalValues = useCallback(() => {
         return (
@@ -3149,6 +3160,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
             }
 
+            attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+                referredBy: profile?.um_name,
+                pendingCrossConsult: patient_data,
+            });
+
             const clinic_name = getClinicName(profile?.hospital_data);
             const consultationEventPayload = {
                 clinic_name,
@@ -3332,6 +3348,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     console.error('Care plan sync after submit failed:', error);
                 }
 
+                try {
+                    await syncCrossConsultReferral({
+                        tcmId: generatedTcmId,
+                        pendingCrossConsult: patient_data,
+                    });
+                } catch (error) {
+                    console.error('Cross consult sync failed:', error);
+                }
+                
                 message.open({
                     key: MESSAGE_KEY,
                     type: '',

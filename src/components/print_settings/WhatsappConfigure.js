@@ -43,7 +43,7 @@ const FONTS_SIZE_LIST = [
 
 function WhatsappConfigure(props) {
 
-    const { handleDrawerOwnLetterHead, todayVaccines, growthChartDetails, obstetricDetails, patientBills, advanceReceipts, patientWalletBalance } = props
+    const { handleDrawerOwnLetterHead, todayVaccines, growthChartDetails, obstetricDetails, patientBills, advanceReceipts, patientWalletBalance, crossConsultData } = props
 
     const inputHeaderFile = React.createRef();
     const cropperHeaderRef = React.createRef();
@@ -706,6 +706,7 @@ function WhatsappConfigure(props) {
                                         patientBills={patientBills}
                                         advanceReceipts={advanceReceipts}
                                         patientWalletBalance={patientWalletBalance}
+                                        crossConsultData={crossConsultData}
                                     />
                                 </div>
                             </div>
