@@ -51,8 +51,9 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
               ...(isVoiceRxV2 !== undefined ? { isVoiceRxV2: Boolean(isVoiceRxV2) } : {}),
             };
 
+            if (!isChikitsalayAccessable) {
             const action = await dispatch(sendCashsheetWhatsapp(sendData));
-            if (isChikitsalayAccessable) {
+            } else if (isChikitsalayAccessable) {
                 clinicTargetStatus(pam_id, {
                     targetStatus: CLINIC_TARGET_STATUS.COMPLETED,
                 });
