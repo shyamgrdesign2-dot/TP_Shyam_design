@@ -341,35 +341,36 @@ export default function DataAnalyticsPage() {
                       </div>
                     )}
 
-                    {/* Filter header — fixed, shadow appears on scroll */}
-                    <div
-                      style={{
-                        flexShrink: 0,
-                        padding: "16px 20px",
-                        background: "var(--tesseract-slate-0)",
-                        position: "relative",
-                        zIndex: 2,
-                        boxShadow: filterShadow ? "var(--tesseract-shadow-md)" : "none",
-                        transition: "box-shadow 0.2s ease",
-                      }}
-                    >
-                      <FilterBar
-                        dateValue={dateValue}
-                        onDateChange={handleDateChange}
-                        doctors={doctors}
-                        onDoctorsChange={(v) => { setDoctors(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department, section, filter_type: "doctor", filter_count: v.length }); }}
-                        clinics={clinics}
-                        onClinicsChange={(v) => { setClinics(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department, section, filter_type: "clinic", filter_count: v.length }); }}
-                        doctorOptions={doctorOptions}
-                        clinicOptions={clinicOptions}
-                        doctorLocked={doctorLocked}
-                        lockedDoctorLabel={caps.selfName}
-                        singleClinic={caps.singleClinic}
-                        hasActiveFilters={hasActiveFilters}
-                        onClearAll={clearAllFilters}
-                        hideDateFilter={section === "reports"}
-                      />
-                    </div>
+                    {/* Filter header — fixed, shadow appears on scroll (hidden on Reports) */}
+                    {section !== "reports" && (
+                      <div
+                        style={{
+                          flexShrink: 0,
+                          padding: "16px 20px",
+                          background: "var(--tesseract-slate-0)",
+                          position: "relative",
+                          zIndex: 2,
+                          boxShadow: filterShadow ? "var(--tesseract-shadow-md)" : "none",
+                          transition: "box-shadow 0.2s ease",
+                        }}
+                      >
+                        <FilterBar
+                          dateValue={dateValue}
+                          onDateChange={handleDateChange}
+                          doctors={doctors}
+                          onDoctorsChange={(v) => { setDoctors(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department, section, filter_type: "doctor", filter_count: v.length }); }}
+                          clinics={clinics}
+                          onClinicsChange={(v) => { setClinics(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department, section, filter_type: "clinic", filter_count: v.length }); }}
+                          doctorOptions={doctorOptions}
+                          clinicOptions={clinicOptions}
+                          doctorLocked={doctorLocked}
+                          lockedDoctorLabel={caps.selfName}
+                          singleClinic={caps.singleClinic}
+                          hasActiveFilters={hasActiveFilters}
+                          onClearAll={clearAllFilters}
+                        />
+                      </div>
+                    )}
 
                     {/* Section body — scrolls */}
                     <div
