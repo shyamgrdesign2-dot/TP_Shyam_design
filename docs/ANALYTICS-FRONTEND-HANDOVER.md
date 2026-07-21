@@ -4,13 +4,13 @@
 **Branch:** `TPA-data-analytics`
 **Target branch:** `prod`
 **Route:** `/data-analytics-x` (lazy-loaded in `src/App.js:52,787`)
-**Date:** 2026-07-17
+**Date:** 2026-07-21
 
 ---
 
 ## 1. What this module is
 
-A full-page analytics dashboard built entirely on **Tesseract UI** (`@dhspl-tatvacare/tesseract-ui`), rendered inside a Drawer overlay. It replaces the legacy PHP analytics and covers two departments: **OPD** (9 sections) and **IPD** (4 sections).
+A full-page analytics dashboard built entirely on **Tesseract UI** (`@dhspl-tatvacare/tesseract-ui`), rendered inside a Drawer overlay. It replaces the legacy PHP analytics and covers two departments: **OPD** (8 sections) and **IPD** (5 sections).
 
 **Supported viewports: tablet and desktop only.** Mobile is not supported for this module as of now. The layout, sidebar, and chart grids are designed for wider screens. Do not add mobile-specific breakpoints or test on phone dimensions.
 
@@ -257,7 +257,7 @@ Section component
 
 - **`safe()` (deltaUtils.js):** Wraps promises so `Promise.all` never rejects. Returns `null` on failure, downstream code treats null as "no data".
 
-- **`singleIdOnly()` (deltaUtils.js):** The care/clinic endpoints choke on CSV multi-IDs (silently coerce to first ID). This helper passes through a single value or returns `undefined` (business-wide) for multi-select.
+- **`singleIdOnly()` (deltaUtils.js):** The `clinic/*` endpoints reject CSV multi-IDs with a 400 error. This helper passes through a single value or returns `undefined` (all-doctors/all-clinics) for multi-select. Hooks that call both `clinic/*` and `operational/*` endpoints split their params into `sp` (single-ID for clinic/*) and `csvParams` (CSV-ok for operational/analytics/*). See `useOverviewData.js` for the canonical split-params pattern.
 
 - **`previousWindow()` (deltaUtils.js):** Computes the equal-length window before the selected range. Used to double-fetch for delta pills ("+8% vs previous period") on billing endpoints that lack a server-side `previous` block.
 
@@ -283,17 +283,16 @@ All API calls go through `src/api/services/ApiReporting.js`, which uses the shar
 | Section | Primary endpoints | Notes |
 |---|---|---|
 | Overview | `clinic/dashboard/top-cards`, `clinic/consultations/weekly`, `operational/overview` | Overview also pulls from billing + appointment hooks |
-| Appointments | `clinical/appointment/summary` | channelMix, visitsByHour, newVsReturning |
+| Appointments | `clinical/appointment/summary`, `analytics/appointment` | channelMix, visitsByHour, newVsReturning; footfall from analytics/appointment |
 | Consult Modes | `clinic/consultation-modes` | per-doctor calls fan out in batches |
-| Billing | `analytics/opd-billing`, `analytics/ipd-billing` | paymentModeSummary for mode donuts |
+| Billing | Billing service (`/billing/bill/dashboard`, `/billing/advancedDeposit/dashboard`) + `financial/collection/summary` | paymentModeSummary for mode donuts; previous-period via double-fetch |
 | Patients | `analytics/patients` | demographics, gender, age, retention |
-| Care (12 tabs) | `clinical/symptoms`, `clinical/examination`, `clinical/diagnosis`, `clinical/lab-test`, `clinical/vitals`, `clinical/certificates`, `clinical/advice`, `clinical/vaccines`, `clinical/medical-history`, `clinical/custom-models`, `clinical/gynec`, `clinical/obstetric` | Sub-tab gated |
-| Grow | `clinic/followups`, `clinic/rx`, `operational/abha` | |
+| Care (7 tabs) | `clinical/diagnosis`, `clinical/lab-test`, `clinical/vitals`, `clinical/advice`, `clinical/vaccines`, `clinic/rx` | Sub-tab gated; 5 additional tabs built but hidden (see Known Limitations) |
 | Messages | `operational/overview` (messaging fields) | |
 | IPD Overview | `analytics/inpatient-summary` | BOR, ALOS, ADC |
 | IPD Admissions | `analytics/inpatient-summary` | census series, discharge types |
-| IPD Wards | `ipd/wards`, `analytics/inpatient-summary` | 5 KPIs (total wards, beds, occupied, available, occupancy rate) + 4 charts (beds per ward, occupancy by ward, bed distribution donut, ALOS by ward). Per-ward breakdown needs backend `wardBreakdown` array (fix #20) |
-| IPD Billing | `analytics/ipd-billing` | same shape as OPD billing |
+| IPD Wards | `ipd/wards`, `analytics/inpatient-summary` | 5 KPIs + 4 charts (beds per ward, occupancy by ward, bed distribution donut, ALOS by ward) |
+| IPD Billing | Billing service (`/billing/ipd-bill/dashboard`, `/billing/advancedDeposit/dashboard`) | same shape as OPD billing |
 | Reports (CSV) | `financial/*`, `clinical/appointment/*`, `clinical/prescription/*`, `reference/*` | Tab 3, CSV export via `?format=csv` |
 
 ---
@@ -329,41 +328,41 @@ Key overrides:
 
 ---
 
-## 10. Known backend issues
+## 10. Known limitations
 
-See `docs/ANALYTICS-BACKEND-FIXES.md` for the complete list (20 items, prioritized P0 to P3). The most impactful ones for the frontend:
+See `docs/ANALYTICS-KNOWN-LIMITATIONS.md` for the complete list.
 
-**Currently broken (P0):**
-- `operational/overview` crashes (500) for any date window. Overview uses fallback calls.
-- Care endpoints (`clinical/symptoms`, `clinical/examination`, `clinical/summary`) crash without `doctorId`. We always pass `doctorId` when available; "All doctors" mode shows "No data" for these.
-- `clinical/appointment/detailed` crashes. Appointment Detailed Report CSV export is broken.
+**Features removed from the UI (backend data gaps):**
+- OPD Grow section (follow-ups endpoint returns empty)
+- Care sub-tabs: Symptoms, Examination, Medical History, Certificates, Custom Modules
+- IPD Clinical Activity (returns all zeros)
 
-**Missing data (P1):**
-- Symptoms, examination, and medical history return zero rows for all doctors (free-text parse issue on the backend). The donuts show "No data".
-- Advance deposit has no per-mode breakdown. We show an "Advance deposit status" donut (Applied/Refunded/Balance) using existing KPI totals instead.
-- IPD `dischargeTypes` always returns empty array despite having discharge counts.
-- IPD Clinical Activity returns all zeros (disabled in nav, see `analyticsNav.js:27`).
+**Features limited by backend restrictions:**
+- `clinic/*` endpoints reject CSV doctorId/clinicId (multi-select falls back to "all")
+- `clinic/dashboard/top-cards` accepts doctorId but returns 0 for any doctor
+- IPD `dischargeTypes` always empty despite having discharge counts
+- 31-day date range cap enforced by the reporting service
 
 **What the frontend does when data is missing:**
-- `safe()` wrapper catches 500s; the section renders with "No data" placeholders
+- `safe()` wrapper catches errors; the section renders with "No data" placeholders
 - Zero-fill helpers (`withCategories`) ensure donut slices appear even when backend omits them
-- Fallback patterns: Overview tries `operational/overview` first, falls back to individual endpoint calls
+- `singleIdOnly()` helper passes single IDs to clinic/* endpoints, skips filter for multi-select
 
 ---
 
 ## 11. What is NOT connected yet
 
-These are frontend-ready features waiting on backend support:
+These are frontend-ready features waiting on backend support. See `docs/ANALYTICS-KNOWN-LIMITATIONS.md` for full details.
 
 | Feature | What's needed | Where in code |
 |---|---|---|
-| Report filter lookups (payment modes, accounts, departments) | `GET /reports/lookups` endpoint | `reportsCatalog.js` filter definitions |
-| Per-doctor bar charts for symptoms, examination, advice | `byDoctor` field on those endpoints | `CareSection.jsx` (would add bar chart tiles) |
-| Catalog vs custom split for symptoms/examination | `catalogVsCustom` field | Would add a donut showing structured vs free-text |
-| Follow-ups by doctor | `byDoctor` field on `clinic/followups` | `GrowSection.jsx` |
-| IPD Clinical Activity section | Fix `ipd/clinical` to return real data | `ClinicalActivitySection.jsx` exists but nav entry is commented out |
-| Till-date preset with real account creation date | `accountCreatedAt` from backend | `FilterBar.jsx` (currently uses 365 days as fallback) |
-| IPD per-ward breakdown (beds, occupancy, ALOS per ward) | `wardBreakdown` array on `ipd/wards` or `inpatient-summary` | `useWardsData.js` already parses it; charts zero-fill until data ships |
+| Grow section (follow-ups, ABHA) | Backend to populate follow-up records in reporting tables | `GrowSection.jsx`, nav entry commented in `analyticsNav.js:19` |
+| Symptoms/Examination/History sub-tabs | Fix data quality in `clinical/symptoms`, `clinical/examination`, `clinical/medical-history` | Tab triggers commented in `DataAnalyticsPage.jsx:74-80` |
+| Certificates/Custom Modules sub-tabs | Backend to populate data in reporting tables | Tab triggers commented in `DataAnalyticsPage.jsx:84-87` |
+| IPD Clinical Activity section | Fix `ipd/clinical` to return real data | `ClinicalActivitySection.jsx` exists, nav commented in `analyticsNav.js:28` |
+| CSV doctorId on clinic/* endpoints | Backend to accept comma-separated IDs | `singleIdOnly()` workaround in `deltaUtils.js` |
+| Report filter lookups | `GET /reports/lookups` endpoint | `reportsCatalog.js` filter definitions |
+| Till-date with account creation date | `accountCreatedAt` from backend | `FilterBar.jsx` (uses 365-day fallback, clamped to 31) |
 
 ---
 

@@ -18,8 +18,8 @@ A fully native React analytics dashboard that replaces the legacy PHP iframe ana
 - The iframe approach had load delays, auth mismatches, and inconsistent styling.
 
 **What it covers:**
-- **OPD:** 9 sections with 60+ KPIs, 40+ charts, 12 clinical sub-tabs
-- **IPD:** 4 sections with 17+ KPIs, 10+ charts
+- **OPD:** 8 sections with 50+ KPIs, 35+ charts, 7 clinical sub-tabs
+- **IPD:** 5 sections with 17+ KPIs, 10+ charts
 - **Reports:** 14 CSV-exportable reports across financial, clinical, and reference categories
 - **Tracking:** 12 MoEngage events covering the full user behavior funnel
 
@@ -35,7 +35,7 @@ This is the base analytics tier included in every subscription. For advanced nee
 | [ANALYTICS-FRONTEND-HANDOVER.md](ANALYTICS-FRONTEND-HANDOVER.md) | Developer handover: file structure, data flow, architecture, how to extend |
 | [ANALYTICS-PR-DOCUMENT.md](ANALYTICS-PR-DOCUMENT.md) | PR summary: what changed, architecture, product metrics, testing notes |
 | [ANALYTICS-MOENGAGE-EVENTS.md](ANALYTICS-MOENGAGE-EVENTS.md) | MoEngage event catalog: 12 events, attributes, PM questions, funnel analysis |
-| [ANALYTICS-BACKEND-FIXES.md](ANALYTICS-BACKEND-FIXES.md) | 20 backend items (P0-P3) blocking full feature parity |
+| [ANALYTICS-KNOWN-LIMITATIONS.md](ANALYTICS-KNOWN-LIMITATIONS.md) | Features removed or deferred due to backend API restrictions |
 
 ---
 
@@ -49,7 +49,7 @@ This is the base analytics tier included in every subscription. For advanced nee
 6. The active section renders KPI cards, charts, and donuts below
 
 **Filters:**
-- **Date range:** Preset options (Today, Past 7 days, Past 30 days, This month, Last month, This year, Custom range) with a 366-day cap
+- **Date range:** Preset options (Today, Past 7 days, Past 30 days, This month, Last month, This year, Custom range) with a 31-day cap
 - **Doctor:** Multi-select dropdown (admin doctors see all; sub-doctors are locked to themselves)
 - **Clinic:** Multi-select dropdown showing only clinics the logged-in doctor has access to
 
@@ -152,79 +152,43 @@ Total patients, One-time visitors, Returning patients, Top blood group, Top mari
 
 ---
 
-### 6. Care (12 sub-tabs)
+### 6. Care (7 sub-tabs)
 
-Diagnoses, conditions and outcomes. The most data-rich section with 12 clinical sub-tabs.
+Diagnoses, conditions and outcomes.
 
 #### Care Overview (default sub-tab)
-**KPIs (11):** Top diagnosis, Top symptom, Top examination, Top medication, Top investigation, Top vital, Top medical condition, Top allergy, Top family history, Top lifestyle factor, Top advice
-**Charts (11):** Top diagnoses (donut), Top symptoms (donut), Top examination findings (donut), Top medications (donut), Top investigations (donut), What's getting measured (donut), Top conditions (donut), Top advice given (donut), Top vaccines given (donut), Top certificates issued (donut), Models by type (donut)
+**KPIs (4):** Top medication, Top investigation, Top vital, Top advice
+**Charts (6):** Top medications (donut), Top investigations (donut), What's getting measured (donut), Top advice given (donut), Top vaccines given (donut), Top diagnoses (donut)
 
 #### Diagnoses
 **KPIs (2):** Top diagnosis, Patients with diagnosis
 **Charts (2):** Top diagnoses (donut), Diagnoses over time (line/trend)
 
-#### Symptoms
-**KPIs (3):** Top symptom, Symptom entries, Patients with symptoms
-**Charts (3):** Top symptoms (donut), Symptoms by doctor (bar), Symptoms over time (line/trend)
-
-#### Examination
-**KPIs (3):** Top examination, Total examinations, Patients examined
-**Charts (3):** Top examination findings (donut), Examinations by doctor (bar), Examinations over time (line/trend)
-
 #### Medications
 **KPIs (3):** Top medication, Total prescribed, Drugs per prescription
 **Charts (6):** Top medications (donut), Top generics (donut), Top manufacturers (donut), Catalog vs custom (donut), Custom medicines by doctor (bar), Medications over time (line/trend)
 
-#### Lab Tests
+#### Investigations
 **KPIs (3):** Top investigation, Suggested investigations, Consults with investigation (%)
-**Charts (3):** Top investigations (donut), Investigations by doctor (bar), Investigations over time (line/trend)
+**Charts (3):** Top investigations (donut), Investigations by doctor (stacked bar), Investigations over time (line/trend)
 
 #### Vitals
 **KPIs (2):** Top vital, Total recordings
 **Charts (6):** What's getting measured (donut), Blood pressure stages (donut), BMI distribution (bar), BMI coverage (donut), Repeat monitoring (donut), Vitals recorded over time (line/trend)
 
-#### Medical History
-**KPIs (5):** Top medical condition, Top allergy, Top family history, Top lifestyle factor, Patients with history
-**Charts (5):** Top conditions (donut), Top allergies (donut), Top family history (donut), Top lifestyle factors (donut), History entries over time (line/trend)
-
 #### Advice
 **KPIs (3):** Top advice, Total advice given, Patients advised
-**Charts (3):** Top advice given (donut), Advice by doctor (bar), Advice given over time (line/trend)
+**Charts (3):** Top advice given (donut), Advice by doctor (stacked bar), Advice given over time (line/trend)
 
 #### Vaccines
 **KPIs (3):** Top vaccine, Doses administered, Patients vaccinated
 **Charts (4):** Top vaccines given (donut), Top vaccine brands (donut), IAP schedule vs others (donut), Doses administered over time (line/trend)
 
-#### Certificates
-**KPIs (4):** Top certificate, Certificates issued, Top issuing doctor, Patients certified
-**Charts (3):** Top certificates issued (donut), Certificates by doctor (bar), Certificates issued over time (line/trend)
-
-#### Custom Modules
-**KPIs (3):** Top model type, Models created, Creating doctors
-**Charts (3):** Models by type (donut), Models by doctor (donut), Template usage over time (line/trend)
+> **Removed sub-tabs:** Symptoms, Examination, Medical History, Certificates, and Custom Modules are built but hidden due to backend data quality issues. See [ANALYTICS-KNOWN-LIMITATIONS.md](ANALYTICS-KNOWN-LIMITATIONS.md) for details.
 
 ---
 
-### 7. Grow
-
-Referrals, retention and reach.
-
-**KPIs (6):**
-Follow-ups advised, Follow-ups kept, Follow-up adherence (%), Follow-ups missed, Patients with ABHA linked (ABDM-gated), Patients without ABHA (ABDM-gated)
-
-**Charts (5):**
-| Chart | Type | Notes |
-|---|---|---|
-| Follow-ups over time | Line/trend | Only when month-scoped |
-| Kept vs missed | Donut | Follow-up completion split |
-| Follow-ups by doctor | Bar | Per-doctor breakdown |
-| ABHA linkage | Donut | Linked vs not linked (ABDM-gated) |
-| ABHA enrolments | Line/trend | ABDM-gated + month-scoped |
-
----
-
-### 8. Messages
+### 7. Messages
 
 Bulk SMS and WhatsApp campaign reach.
 
@@ -240,7 +204,7 @@ Credit balance, Campaigns sent, Patients reached, Scheduled campaigns, Avg reach
 
 ---
 
-### 9. Reports (CSV exports)
+### 8. Reports (CSV exports)
 
 14 downloadable reports across 3 categories, with filter controls and table preview before download.
 
@@ -404,14 +368,13 @@ See [ANALYTICS-MOENGAGE-EVENTS.md](ANALYTICS-MOENGAGE-EVENTS.md) for the complet
 
 ## Known limitations
 
-1. **Backend endpoints with issues:** 20 items documented in [ANALYTICS-BACKEND-FIXES.md](ANALYTICS-BACKEND-FIXES.md), prioritized P0-P3
-2. **`operational/overview` crashes (500):** Overview section uses fallback calls
-3. **Symptoms, examination, medical history return zero rows:** Backend free-text parse issue
-4. **IPD Clinical Activity disabled:** Backend returns all zeros (nav entry commented out)
-5. **IPD discharge types always empty:** Backend returns empty array despite having discharge counts
-6. **IPD per-ward breakdown not available yet:** Charts zero-fill until backend ships `wardBreakdown` array
-7. **Report filter lookups need new endpoint:** Payment modes, departments, accounts need `GET /reports/lookups`
-8. **366-day date range cap:** Backend enforced; "Till date" preset uses 365 days as fallback until `accountCreatedAt` is exposed
+See [ANALYTICS-KNOWN-LIMITATIONS.md](ANALYTICS-KNOWN-LIMITATIONS.md) for the full list with details.
+
+1. **7 features removed from UI:** Grow section (OPD), 5 Care sub-tabs (Symptoms, Examination, Medical History, Certificates, Custom Modules), Clinical Activity (IPD) -- all due to backend data gaps
+2. **Multi-filter limited on clinic/* endpoints:** Only single doctorId/clinicId accepted; multi-select falls back to "all"
+3. **31-day date range cap:** Custom ranges beyond 31 days are clamped to the most recent 31 days
+4. **IPD discharge types always empty:** Backend returns empty array despite having discharge counts
+5. **Top-cards doctorId returns 0:** Backend accepts the filter but does not apply it to the query
 
 ---
 
@@ -504,5 +467,5 @@ docs/
   ANALYTICS-FRONTEND-HANDOVER.md  # Developer handover
   ANALYTICS-PR-DOCUMENT.md        # PR summary
   ANALYTICS-MOENGAGE-EVENTS.md   # MoEngage event catalog
-  ANALYTICS-BACKEND-FIXES.md     # Backend fix requests (20 items)
+  ANALYTICS-KNOWN-LIMITATIONS.md  # Features removed/deferred due to backend restrictions
 ```

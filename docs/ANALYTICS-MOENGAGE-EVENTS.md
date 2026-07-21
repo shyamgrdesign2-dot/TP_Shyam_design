@@ -3,7 +3,7 @@
 **Module:** `data_analytics`
 **Implementation:** `src/pages/data-analytics/data/analyticsTracking.js`
 **Branch:** `TPA-data-analytics`
-**Date:** 2026-07-17
+**Date:** 2026-07-21
 
 ---
 
@@ -111,9 +111,9 @@ The events are designed around a user behavior funnel: Acquisition, Navigation, 
 
 #### 5. TP_Analytics_SubtabView
 
-**PM question:** Within Care's 12 sub-tabs, which clinical data do doctors look at most?
+**PM question:** Within Care's 7 sub-tabs, which clinical data do doctors look at most?
 
-**When:** User switches sub-tabs (Care has 12 sub-tabs, Grow has 3).
+**When:** User switches sub-tabs (Care has 7 sub-tabs).
 
 | Attribute | Type | Description |
 |---|---|---|

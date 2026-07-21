@@ -24,8 +24,8 @@ A fully native React analytics module built on tesseract-ui components. It runs 
 
 This is the **base analytics tier**: the standard set of dashboards that every Tatva Practice user gets as part of their subscription. It covers:
 
-- **OPD:** Overview, Appointments, Consultation Modes, Billing, Patients, Care (12 sub-tabs), Grow, Messages, Reports (CSV exports)
-- **IPD:** Overview, Admissions and Discharges, Wards and Beds, Billing, Reports
+- **OPD:** 8 sections: Overview, Appointments, Consultation Modes, Billing, Patients, Care (7 sub-tabs), Messages, Reports (CSV exports)
+- **IPD:** 5 sections: Overview, Admissions and Discharges, Wards and Beds, Billing, Reports
 
 **For advanced analytics needs:** If a user requires deeper analysis, custom dashboards, or cross-clinic aggregation beyond what this module provides, they can purchase a separate data link integration. This gives them direct access to their data via Power BI, Tableau, or similar tools. The base module here is designed to cover 90%+ of day-to-day analytics needs without requiring that upgrade.
 
@@ -37,8 +37,8 @@ This is the **base analytics tier**: the standard set of dashboards that every T
 - `src/pages/data-analytics/` - Complete module (40+ files): shell, sections, data hooks, charts, reports, CSS
 - `src/pages/data-analytics/data/analyticsTracking.js` - MoEngage event instrumentation
 - `docs/ANALYTICS-FRONTEND-HANDOVER.md` - Frontend developer handover document
-- `docs/ANALYTICS-BACKEND-FIXES.md` - 20 backend items for the reporting team (P0-P3)
 - `docs/ANALYTICS-MOENGAGE-EVENTS.md` - MoEngage event catalog and attribute reference
+- `docs/ANALYTICS-KNOWN-LIMITATIONS.md` - Features removed or deferred due to backend restrictions
 
 ### Modified Files
 - `src/App.js` - Added lazy-loaded route for `/data-analytics-x`
@@ -65,7 +65,7 @@ This is the **base analytics tier**: the standard set of dashboards that every T
 
 ## MoEngage Tracking
 
-9 events covering the full user journey. See `docs/ANALYTICS-MOENGAGE-EVENTS.md` for the complete catalog.
+12 events covering the full user journey. See `docs/ANALYTICS-MOENGAGE-EVENTS.md` for the complete catalog.
 
 All events carry the mandatory doctor/hospital base attribute set.
 
@@ -90,11 +90,13 @@ Track these to measure adoption and engagement:
 
 ## Known Limitations
 
-1. Some backend endpoints return incomplete data (see `docs/ANALYTICS-BACKEND-FIXES.md` for the full list)
-2. `operational/overview` endpoint crashes (500); Overview section uses fallback calls
-3. Care sub-tabs for symptoms, examination, and medical history return zero rows (backend free-text parsing issue)
-4. IPD Clinical Activity section is disabled (backend returns all zeros)
-5. Report filter lookups (payment modes, departments) need a new `/reports/lookups` endpoint
+See `docs/ANALYTICS-KNOWN-LIMITATIONS.md` for the complete list.
+
+1. 7 features removed from the UI (1 OPD section, 5 Care sub-tabs, 1 IPD section) due to backend data gaps
+2. Multi-doctor/clinic filter limited on `clinic/*` endpoints (single ID only; `operational/*` and `analytics/*` accept CSV)
+3. 31-day date range cap enforced by the reporting service
+4. IPD discharge types array always empty despite having discharge counts
+5. Top-cards doctorId filter returns 0 (backend bug, accepted but not applied)
 
 ---
 
