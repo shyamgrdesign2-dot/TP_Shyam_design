@@ -1,7 +1,8 @@
 import React, { useRef, useState } from "react";
 import { Trash, Eraser } from "iconsax-reactjs";
 import { TPConfirmDialog } from "../ui/tp-confirm-dialog";
-import { QUADRANT_LABELS, getDefaultTreatmentSurfaces } from "./types";
+import { QUADRANT_LABELS, getDefaultTreatmentSurfaces, findProcedureCatalogItem, resolveVisitProcedure } from "./types";
+import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { TPMedicalIcon } from "../tp-ui";
 import { AccordionWrap, SectionHeader } from "./examination-shared-ui";
 import ui from "./ExaminationTab.ui.module.scss";
@@ -25,6 +26,7 @@ const ARCH_SCOPE_BADGE = {
   LOWER_ARCH: "Mandibular"
 };
 export function SingleToothPanel({ state, onSave }) {
+  const { procedureItems } = useDentalMasters();
   const isGroupedScope =
     state.selectionScopeType === "quadrant" ||
     state.selectionScopeType === "full-mouth" ||
@@ -100,7 +102,12 @@ export function SingleToothPanel({ state, onSave }) {
   };
   const toProcedureRow = (e) => ({ ...toDentalRow(e), status: e.status || "PLANNED" });
   const applyDentalEntries = (kind, items = []) => {
-    items.forEach((f) =>
+    items.forEach((f) => {
+      const visitProcedure =
+        resolveVisitProcedure(f) ||
+        ((kind === "procedure" || kind === "planned")
+          ? resolveVisitProcedure(findProcedureCatalogItem(procedureItems, f.name))
+          : undefined);
       state.onAddEntry({
         kind,
         name: f.name,
@@ -108,8 +115,9 @@ export function SingleToothPanel({ state, onSave }) {
         since: f.since_date || "",
         notes: f.notes || "",
         ...(kind === "planned" ? { status: f.status || "PLANNED" } : {}),
-      })
-    );
+        ...(visitProcedure ? { visitProcedure } : {}),
+      });
+    });
   };
   // Dental charting sections — standard clinical workflow order
   const sections = [
@@ -200,11 +208,16 @@ export function SingleToothPanel({ state, onSave }) {
                 const histEntry = history.find((h) => h.name === name);
                 (state.onSetToothDiagnosis || state.onToggleToothDiagnosis)(name);
                 const existing = state.currentTreatmentHistoryDetails?.[name];
+                const visitProcedure =
+                  resolveVisitProcedure(histEntry) ||
+                  resolveVisitProcedure(findProcedureCatalogItem(procedureItems, name)) ||
+                  existing?.visitProcedure;
                 state.onUpdateTreatmentHistoryDetail?.(name, {
                   surfaces: histEntry?.surface_codes?.length ? histEntry.surface_codes :
                     existing?.surfaces?.length ? existing.surfaces : getDefaultTreatmentSurfaces(name),
                   since: histEntry?.since_date || existing?.since,
                   note: histEntry?.notes || existing?.note,
+                  ...(visitProcedure ? { visitProcedure } : {}),
                 });
               });
               

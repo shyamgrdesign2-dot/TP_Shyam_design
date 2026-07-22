@@ -53,6 +53,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
   const { activatePlan, duplicatePlan, deletePlan, openDrawer, navigateTab } = usePlanContext();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
+  const isSessionPendingPlan = Boolean(plan.isSessionPending);
   const total = computePlanTotal(plan.services);
   const isChikitsalayAccessable = useChikitsalay();
   
@@ -105,6 +106,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
           </div>
         </div>
         <div className={styles.actionRow}>
+          {!isSessionPendingPlan && (
           <button
             type="button"
             // onClick={handleActivateClick}
@@ -116,6 +118,8 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
           >
             Activate Plan
           </button>
+          )}
+          {!isSessionPendingPlan && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild={true}>
               <button
@@ -172,6 +176,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
           <button
             type="button"
             onClick={onToggle}

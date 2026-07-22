@@ -36,14 +36,23 @@ import ui from "./ExaminationTab.ui.module.scss";
 import { PanelShell } from "./PanelShell";
 import { ExaminationTemplateActions } from "./ExaminationTemplateActions";
 import { useExaminationTemplates } from "./hooks/useExaminationTemplates";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
+
+/** Chikitsalay: Tooth regions allowlist (API codes + mapped internal ids). */
+const CHIKITSALAY_TOOTH_REGION_IDS = new Set([
+  "full_mouth", "FULL",
+  "maxillary", "UPPER_ARCH",
+  "mandibular", "LOWER_ARCH",
+]);
 
 // ──────────────────────────────────────────────────────────────
 // OralPositionCell — multi-select dropdown for oral regions
 // ──────────────────────────────────────────────────────────────
 function OralPositionCell({ value = [], onChange, onHoverPreview, oralKind = "" }) {
   const { oralPositionGroups } = useDentalMasters();
+  const isChikitsalayAccessable = useChikitsalay();
   const positionLabelMap = useMemo(
-    () => Object.fromEntries(oralPositionGroups.flatMap((g) => g.items.map((i) => [i.id, i.label]))),
+    () => Object.fromEntries(oralPositionGroups?.flatMap((g) => g.items.map((i) => [i.id, i.label])) || []),
     [oralPositionGroups]
   );
   const [open, setOpen] = useState(false);
@@ -283,10 +292,17 @@ function OralPositionCell({ value = [], onChange, onHoverPreview, oralKind = "" 
             </div>
           );
 
-          const filtered = oralPositionGroups.map((g) => ({
-            group: g.group,
-            items: g.items.filter((it) => !q || it.label.toLowerCase().includes(q))
-          })).filter((g) => g.items.length);
+          const filtered = oralPositionGroups
+            .map((g) => ({
+              group: g.group,
+              items: g.items.filter((it) => {
+                if (isChikitsalayAccessable && g.group === "Tooth regions") {
+                  if (!CHIKITSALAY_TOOTH_REGION_IDS.has(it.id)) return false;
+                }
+                return !q || it.label.toLowerCase().includes(q);
+              }),
+            }))
+            .filter((g) => g.items.length);
 
           return (
             <div
@@ -402,6 +418,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview, oralKind = "" 
 function OralTable({ state, kind, catalog = [], list = [] }) {
   const hasStatus = kind === "procedure";
   const { wrapRef, showEdge } = useStickyActionEdge(list.length);
+  const isChikitsalayAccessable = useChikitsalay();
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [pos, setPos] = useState(null);
@@ -578,7 +595,7 @@ function OralTable({ state, kind, catalog = [], list = [] }) {
         />
       </div>
 
-      {showDropdown && pos && typeof document !== "undefined" && createPortal(
+      {showDropdown && pos && (!isChikitsalayAccessable || displayItems.length > 0) && typeof document !== "undefined" && createPortal(
         <div
           ref={popRef}
           style={{

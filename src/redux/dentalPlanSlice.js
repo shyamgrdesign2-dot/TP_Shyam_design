@@ -36,6 +36,7 @@ const initialState = {
   loading: false,
   error: null,
   currentPlan: null,
+  sessionPendingServices: [],
 };
 
 // ==========================================
@@ -287,6 +288,14 @@ const dentalPlanSlice = createSlice({
     clearPlanError: (state) => {
       state.error = null;
     },
+    setSessionPendingServices: (state, action) => {
+      state.sessionPendingServices = Array.isArray(action.payload)
+        ? action.payload
+        : [];
+    },
+    clearSessionPendingServices: (state) => {
+      state.sessionPendingServices = [];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -463,7 +472,12 @@ const dentalPlanSlice = createSlice({
   },
 });
 
-export const { setCurrentPlan, clearPlanError } = dentalPlanSlice.actions;
+export const {
+  setCurrentPlan,
+  clearPlanError,
+  setSessionPendingServices,
+  clearSessionPendingServices,
+} = dentalPlanSlice.actions;
 export default dentalPlanSlice.reducer;
 
 export const selectDentalPlan         = (state) => state.dentalPlan;
@@ -471,3 +485,5 @@ export const selectDentalPlans        = (state) => state.dentalPlan.plans;
 export const selectDentalPlansLoading = (state) => state.dentalPlan.loading;
 export const selectDentalPlansError   = (state) => state.dentalPlan.error;
 export const selectCurrentDentalPlan  = (state) => state.dentalPlan.currentPlan;
+export const selectSessionPendingServices = (state) =>
+  state.dentalPlan.sessionPendingServices;

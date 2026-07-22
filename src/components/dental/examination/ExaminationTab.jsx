@@ -31,6 +31,8 @@ import { DENTAL_RX_PAD_ROUTE } from "../../../utils/dentalRoutes";
 import { DentalCanvas } from "./DentalCanvas";
 import { saveDentalPreviewSnapshot } from "../tp-rxpad/rx-preview-store";
 import { useDentalExamination } from "../lib/useDentalExamination";
+import { useDentalMasters } from "../../../hooks/useDentalMasters";
+import { selectDentalExamination } from "../../../redux/dentalExaminationSlice";
 import { useOralExamination } from "../../../hooks/useOralExamination";
 import { useDispatch } from "react-redux";
 import ex from "./ExaminationTab.module.scss";
@@ -42,9 +44,11 @@ import { SingleToothPanel } from "./ExaminationFindingsPanel";
 import { useExaminationOrchestrator } from "./hooks/useExaminationOrchestrator";
 import { ASSETS } from "../../../assets";
 
-export function ExaminationTab({ patientId, patientAge = 30 }) {
+export function ExaminationTab({ patientId, patientAge = 30, appointmentId }) {
   const dispatch = useDispatch();
   const { profile, userId } = useSelector((state) => state.doctors);
+  const { baselineToothState } = useSelector(selectDentalExamination);
+  const { procedureItems } = useDentalMasters();
   const patientType = patientAge < 12 ? "pediatric" : patientAge < 18 ? "mixed" : "adult";
 
   const { syncState, toothState, dentitionType, loading, saveChart, error } = useDentalExamination(patientId);
@@ -135,6 +139,9 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
     canvasState,
     syncState,
     dispatch,
+    baselineToothState,
+    procedureItems,
+    appointmentId,
   });
 
   const handleSaveOralExam = useCallback(async () => {

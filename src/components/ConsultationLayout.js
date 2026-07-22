@@ -193,10 +193,18 @@ import {
   setActiveTeleconsultConsultationId,
   setJoinToken,
 } from "../redux/teleconsultNotificationSlice";
-import { saveDentalExamination, selectDentalExamination, fetchDentalExamination } from "../redux/dentalExaminationSlice";
+import { saveDentalExamination, selectDentalExamination, fetchDentalExamination, setBaselineToothState } from "../redux/dentalExaminationSlice";
+import {
+  createDentalPlan,
+  fetchDentalPlans,
+  clearSessionPendingServices,
+  selectSessionPendingServices,
+  selectDentalPlans,
+} from "../redux/dentalPlanSlice";
 import { saveOralExaminationThunk, patchOralExaminationThunk, fetchOralExamination } from "../redux/oralExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
 import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
+import { buildSessionPlanCreatePayloads } from "./dental/plan/exam-suggestions";
 import { buildConsultationPreviewPrintPayload } from "../utils/buildConsultationPreviewPrintPayload";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
@@ -328,6 +336,8 @@ function ConsultationLayout({ children, headerProps }) {
     (state) => state.customModules,
   );
   const dentalExamination = useSelector(selectDentalExamination);
+  const sessionPendingServices = useSelector(selectSessionPendingServices);
+  const dentalPlans = useSelector(selectDentalPlans);
   const oralExamination = useSelector((state) => state.oralExamination);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
@@ -2292,7 +2302,7 @@ function ConsultationLayout({ children, headerProps }) {
       if (isDentalRxPadPath(location.pathname) && patientId && dentalExamination?.toothState && Object.keys(dentalExamination.toothState).length > 0) {
         try {
           const tooth_states = transformToothStateToApi(dentalExamination.toothState);
-          await dispatch(saveDentalExamination({
+          const dentalExaminationResponse = await dispatch(saveDentalExamination({
             patientId,
             data: {
               dentition_type: dentalExamination.dentitionType || "adult",
@@ -2300,6 +2310,49 @@ function ConsultationLayout({ children, headerProps }) {
               version: dentalExamination.version || 0,
             },
           }));
+
+          if (dentalExaminationResponse.meta.requestStatus === "fulfilled") {
+            const plansFetch = await dispatch(fetchDentalPlans(patientId));
+            const currentPlans =
+              plansFetch.meta.requestStatus === "fulfilled"
+                ? plansFetch.payload
+                : dentalPlans;
+
+            const planCreatePayloads = buildSessionPlanCreatePayloads({
+              plans: currentPlans,
+              pendingServices: sessionPendingServices,
+            });
+
+            let anyPlanCreated = false;
+            for (const data of planCreatePayloads) {
+              const planResponse = await dispatch(
+                createDentalPlan({ patientId, data }),
+              );
+              if (planResponse.meta.requestStatus === "fulfilled") {
+                anyPlanCreated = true;
+              } else {
+                console.warn(
+                  "[Dental] Failed to create treatment plan:",
+                  planResponse.payload,
+                );
+              }
+            }
+
+            const shouldClearPending =
+              (planCreatePayloads.length === 0 &&
+                sessionPendingServices.length > 0) ||
+              (planCreatePayloads.length > 0 && anyPlanCreated);
+
+            if (shouldClearPending) {
+              dispatch(clearSessionPendingServices());
+              dispatch(fetchDentalPlans(patientId));
+              dispatch(
+                setBaselineToothState(
+                  JSON.parse(JSON.stringify(dentalExamination.toothState || {})),
+                ),
+              );
+            }
+          }
         } catch (dentalErr) {
           console.warn("[Dental] Save failed before end visit:", dentalErr);
           message.error("Failed to save dental examination. Please retry.");
@@ -2877,6 +2930,7 @@ function ConsultationLayout({ children, headerProps }) {
                         <ExaminationTab
                           patientId={patient_data?.patient_unique_id}
                           patientAge={patient_data?.ageYears}
+                          appointmentId={pamId || patient_data?.pam_id || state?.pam_id}
                         />
                       </Suspense>
                     </div>

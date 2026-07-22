@@ -1,5 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { syncOralCanvasState } from "../../../../redux/oralExaminationSlice";
+import { setSessionPendingServices, clearSessionPendingServices } from "../../../../redux/dentalPlanSlice";
+import { buildSessionPendingPlanServices } from "../../plan/exam-suggestions";
 import { normalizeOralSurfaceIds } from "../types";
 
 /**
@@ -20,7 +22,11 @@ export function useExaminationOrchestrator({
   canvasState,
   syncState,
   dispatch,
+  baselineToothState,
+  procedureItems,
+  appointmentId,
 }) {
+  const pendingSnapshotRef = useRef("");
   // Transform Redux state back to the structure DentalCanvas expects for initialization.
   // Only blocks on dental loading; oral entries are included once oral loading completes.
   const initialCanvasData = useMemo(() => {
@@ -113,6 +119,7 @@ export function useExaminationOrchestrator({
             status: p.status || "PLANNED",
             notes: p.notes || "",
             plannedDate: p.procedure_date || "",
+            visitProcedure: p.visitProcedure,
           });
         });
       });
@@ -123,7 +130,13 @@ export function useExaminationOrchestrator({
 
   // Sync canvas state to Redux for global "End Visit" access
   useEffect(() => {
-    if (!canvasState) return;
+    if (!canvasState) {
+      if (pendingSnapshotRef.current !== "[]") {
+        pendingSnapshotRef.current = "[]";
+        dispatch(clearSessionPendingServices());
+      }
+      return;
+    }
 
     const newToothState = {};
 
@@ -185,11 +198,29 @@ export function useExaminationOrchestrator({
 
     syncState({ toothState: newToothState, dentitionType: canvasState.patientType });
 
+    const pendingServices = buildSessionPendingPlanServices(
+      newToothState,
+      baselineToothState || {},
+      { appointmentId, procedureItems },
+    );
+    const pendingSnapshot = JSON.stringify(pendingServices);
+    if (pendingSnapshot !== pendingSnapshotRef.current) {
+      pendingSnapshotRef.current = pendingSnapshot;
+      dispatch(setSessionPendingServices(pendingServices));
+    }
+
     dispatch(syncOralCanvasState({
       canvasOralEntries: canvasState.oralEntries || [],
       canvasOralNotes: canvasState.oralNotes || "",
     }));
-  }, [canvasState, syncState, dispatch]);
+  }, [
+    canvasState,
+    syncState,
+    dispatch,
+    baselineToothState,
+    procedureItems,
+    appointmentId,
+  ]);
 
   return { initialCanvasData };
 }

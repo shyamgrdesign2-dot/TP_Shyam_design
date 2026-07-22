@@ -2,7 +2,12 @@
  * Builds treatment-plan quick picks from (1) seeded INITIAL_TOOTH_STATE,
  * (2) live examination chart rows persisted from DentalCanvas.
  */
-import { TREATMENT_NAMES } from "./treatments";
+import { TREATMENT_NAMES, getRate } from "./treatments";
+import { findProcedureCatalogItem, resolveVisitProcedure } from "../examination/types";
+import { transformToothStateToApi } from "../lib/examination-helpers";
+import { toDentalService } from "../../../utils/dentalApiMappers";
+
+export const SESSION_PENDING_PLAN_ID = "__session_pending__";
 
 export const EXAM_CHART_STORAGE_PREFIX = "dental.exam.chart.";
 
@@ -193,4 +198,221 @@ export function buildExamSuggestions(patientId) {
   }
 
   return Array.from(byKey.values());
+}
+
+/**
+ * Build treatment-plan services from examination tooth_states procedures.
+ * When baselineToothStates is provided, only procedures added since baseline are included.
+ */
+export function getExaminationProcedureKey(toothCode, proc = {}) {
+  const id = String(proc.id ?? "").trim();
+  if (id) return `id:${toothCode}::${id}`;
+
+  const name = String(proc.name ?? "").trim().toLowerCase();
+  const surfaces = [...(proc.surface_codes || proc.surfaces || [])]
+    .map(String)
+    .sort()
+    .join(",");
+  return `svc:${toothCode}::${name}::${surfaces}`;
+}
+
+export function collectExaminationProcedureKeys(toothStates = []) {
+  const keys = new Set();
+  for (const tooth of toothStates) {
+    const toothCode = String(tooth?.tooth_code ?? "").trim();
+    if (!toothCode) continue;
+    for (const proc of tooth.procedures || []) {
+      keys.add(getExaminationProcedureKey(toothCode, proc));
+    }
+  }
+  return keys;
+}
+
+export function filterNewExaminationProcedures(
+  currentToothStates = [],
+  baselineToothStates = [],
+) {
+  const baselineKeys = collectExaminationProcedureKeys(baselineToothStates);
+  const fresh = [];
+
+  for (const tooth of currentToothStates) {
+    const toothCode = String(tooth?.tooth_code ?? "").trim();
+    if (!toothCode) continue;
+    for (const proc of tooth.procedures || []) {
+      if (!baselineKeys.has(getExaminationProcedureKey(toothCode, proc))) {
+        fresh.push({ toothCode, proc });
+      }
+    }
+  }
+  return fresh;
+}
+
+export function toPlanServiceFromProcedure(toothCode, proc, options = {}) {
+  const { appointmentId, procedureItems } = options;
+  const rawName = String(proc.name ?? "").trim();
+  if (!rawName) return null;
+
+  const treatment = mapChartProcedureName(rawName) ?? rawName;
+  let visitProcedure = resolveVisitProcedure(proc);
+  if (!visitProcedure && procedureItems?.length) {
+    const match =
+      findProcedureCatalogItem(procedureItems, rawName) ||
+      findProcedureCatalogItem(procedureItems, treatment);
+    visitProcedure = resolveVisitProcedure(match);
+  }
+  const rate = visitProcedure?.price ?? getRate(treatment);
+  const discount =
+    visitProcedure?.discount != null ? visitProcedure.discount : 0;
+  const discountType =
+    visitProcedure?.discountType === "percentage" ? "percentage" : "flat";
+
+  return {
+    treatment: visitProcedure?.procedureName || treatment,
+    teeth: [toothCode],
+    surfaces: proc.surface_codes?.length ? proc.surface_codes : ["whole"],
+    rate,
+    discount,
+    discountType,
+    notes: proc.notes || undefined,
+    procedureDate: proc.procedure_date || undefined,
+    tatvaProcedureId: proc.id || undefined,
+    appointmentId: appointmentId || undefined,
+    visitProcedure: visitProcedure || undefined,
+    status: "planned",
+  };
+}
+
+export function buildPlanServicesFromToothStates(toothStates = [], options = {}) {
+  const { appointmentId, baselineToothStates, procedureItems } = options;
+  const procedureEntries =
+    baselineToothStates != null
+      ? filterNewExaminationProcedures(toothStates, baselineToothStates)
+      : toothStates.flatMap((tooth) => {
+          const toothCode = String(tooth?.tooth_code ?? "").trim();
+          if (!toothCode) return [];
+          return (tooth.procedures || []).map((proc) => ({ toothCode, proc }));
+        });
+
+  const services = [];
+  for (const { toothCode, proc } of procedureEntries) {
+    const service = toPlanServiceFromProcedure(toothCode, proc, {
+      appointmentId,
+      procedureItems,
+    });
+    if (service) services.push(service);
+  }
+  return services;
+}
+
+export function getPlanServiceDedupKey(service = {}) {
+  if (service.tatvaProcedureId) return `id:${service.tatvaProcedureId}`;
+  const teeth = (service.teeth || (service.toothFdi ? [service.toothFdi] : []))
+    .map(String)
+    .sort()
+    .join(",");
+  const surfaces = [...(service.surfaces || [])].map(String).sort().join(",");
+  return `svc:${teeth}::${String(service.treatment || "").toLowerCase()}::${surfaces}`;
+}
+
+function toDisplayPendingService(service) {
+  const normalized = toDentalService(service);
+  return {
+    ...normalized,
+    id:
+      service.tatvaProcedureId ||
+      normalized.id ||
+      `pending-${getPlanServiceDedupKey(service)}`,
+    isSessionPending: true,
+  };
+}
+
+function planServiceToRequest(service) {
+  const teeth = service.teeth?.length
+    ? service.teeth
+    : service.toothFdi
+      ? [String(service.toothFdi)]
+      : ["full-mouth"];
+  return {
+    treatment: service.treatment,
+    teeth,
+    surfaces: service.surfaces?.length ? service.surfaces : ["whole"],
+    rate: service.rate,
+    discount: service.discount,
+    discountType: service.discountType || "flat",
+    notes: service.notes,
+    procedureDate: service.procedureDate || service.procedure_date,
+    tatvaProcedureId: service.tatvaProcedureId,
+    appointmentId: service.appointmentId,
+    visitProcedure: service.visitProcedure,
+  };
+}
+
+export function buildSessionPendingPlanServices(
+  toothStateMap = {},
+  baselineToothStateMap = {},
+  options = {},
+) {
+  const toothStates = transformToothStateToApi(toothStateMap);
+  const baselineToothStates = transformToothStateToApi(baselineToothStateMap || {});
+  return buildPlanServicesFromToothStates(toothStates, {
+    ...options,
+    baselineToothStates,
+  });
+}
+
+export function buildPlanNameForService(service, planDateLabel) {
+  const dateLabel = planDateLabel || new Date().toISOString().slice(0, 10);
+  return `${service.treatment} ${dateLabel}`;
+}
+
+function getExistingPlanServiceKeys(plans = []) {
+  const keys = new Set();
+  for (const plan of plans) {
+    for (const service of plan.services || []) {
+      keys.add(getPlanServiceDedupKey(service));
+    }
+  }
+  return keys;
+}
+
+export function mergePendingIntoDraftPlans(
+  plans = [],
+  pendingServices = [],
+  { planDateLabel } = {},
+) {
+  if (!pendingServices.length) return plans;
+
+  const dateLabel = planDateLabel || new Date().toISOString().slice(0, 10);
+  const existingKeys = getExistingPlanServiceKeys(plans);
+
+  const virtualPlans = pendingServices
+    .filter((service) => !existingKeys.has(getPlanServiceDedupKey(service)))
+    .map((service, index) => ({
+      id: `${SESSION_PENDING_PLAN_ID}${service.tatvaProcedureId || index}`,
+      name: buildPlanNameForService(service, dateLabel),
+      status: "draft",
+      services: [toDisplayPendingService(service)],
+      isSessionPending: true,
+    }));
+
+  if (!virtualPlans.length) return plans;
+  return [...virtualPlans, ...plans];
+}
+
+export function buildSessionPlanCreatePayloads({
+  plans = [],
+  pendingServices = [],
+  planDateLabel,
+} = {}) {
+  if (!pendingServices.length) return [];
+
+  const dateLabel = planDateLabel || new Date().toISOString().slice(0, 10);
+  const existingKeys = getExistingPlanServiceKeys(plans);
+
+  return pendingServices
+    .filter((service) => !existingKeys.has(getPlanServiceDedupKey(service)))
+    .map((service) => ({
+      name: buildPlanNameForService(service, dateLabel),
+      services: [planServiceToRequest(service)],
+    }));
 }

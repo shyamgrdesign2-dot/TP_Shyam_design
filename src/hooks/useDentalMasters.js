@@ -32,6 +32,9 @@ export function useDentalMasters() {
     activeSurfaceFindings: masters.surfaceFindings.length > 0 ? masters.surfaceFindings : DIAGNOSES,
     activeToothDiagnoses: masters.diagnoses.length > 0 ? masters.diagnoses : TOOTH_DIAGNOSES,
     activeProcedures: masters.procedures,
+    procedureItems: masters.procedureItems?.length
+      ? masters.procedureItems
+      : masters.procedures.map((label) => ({ code: label, label })),
     activeSurfaces: masters.surfaces.length > 0 ? masters.surfaces : ALL_ZONES,
     activeOralDiagnoses: masters.oralDiagnoses || [],
     activeOralSurfaceFindings: masters.oralSurfaceFindings?.length > 0 ? masters.oralSurfaceFindings : (masters.oralDiagnoses?.length > 0 ? masters.oralDiagnoses : []),

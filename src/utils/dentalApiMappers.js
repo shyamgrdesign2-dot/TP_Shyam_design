@@ -16,6 +16,7 @@ const SERVICE_STATUS_FROM_API = {
   PATIENT_NO_SHOW: "no-show",
   NOT_INTERESTED: "not-interested",
   CANCELLED: "cancelled",
+  REFUND: "refund",
 };
 
 const STATUS_TO_API = {
@@ -27,6 +28,7 @@ const STATUS_TO_API = {
   "no-show": "PATIENT_NO_SHOW",
   "not-interested": "NOT_INTERESTED",
   cancelled: "CANCELLED",
+  refund: "REFUND",
 };
 
 const cleanUndefined = (value) =>
@@ -70,6 +72,7 @@ export const toDentalToothState = (payload = {}) => {
           since_date: h.since_date,
           notes: h.notes || "",
           version: h.version,
+          ...(h.visitProcedure ? { visitProcedure: h.visitProcedure } : {}),
         });
         diagnosisNamesSet.add(h.name);
       }
@@ -92,6 +95,7 @@ export const toDentalToothState = (payload = {}) => {
         status: procedure.status || "PLANNED",
         notes: procedure.notes || "",
         version: procedure.version,
+        ...(procedure.visitProcedure ? { visitProcedure: procedure.visitProcedure } : {}),
       })),
       treatmentHistory: historyRows,
       diagnoses: [...diagnosisNamesSet],
@@ -161,6 +165,13 @@ export const toDentalService = (service = {}) => {
     amount: Math.max(0, totalRate - computedDiscount),
     status: fromApiServiceStatus(service.status) || "planned",
     procedureDate: service.procedureDate || service.procedure_date || "",
+    tatvaProcedureId:
+      service.tatvaProcedureId || service.tatva_procedure_id || undefined,
+    appointmentId:
+      service.appointmentId ||
+      service.visitAppointmentId ||
+      service.visit_appointment_id ||
+      undefined,
     quickVisitRecords: normalizedQvrs,
     sittings: normalizedQvrs.map((qvr) => qvrToSitting(qvr)),
     appointmentIds: service.appointmentIds || service.appointment_ids || [],
@@ -420,6 +431,9 @@ export const toDentalServiceRequest = (service = {}) => {
     procedure_date: service.procedureDate || service.procedure_date || undefined,
     status: service.status === "planned" ? undefined : toApiStatus(service.status),
     version: service.version,
+    appointmentId: service.appointmentId,
+    tatvaProcedureId: service.tatvaProcedureId,
+    visitProcedure: service.visitProcedure,
   });
   const teethArr = Array.isArray(service.teeth) ? service.teeth : [];
   const normalTeeth = teethArr.filter((t) => t !== "full-mouth");

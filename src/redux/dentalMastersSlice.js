@@ -7,7 +7,7 @@ import {
   fetchDentalBillItems,
 } from "../api/services/ApiDental";
 import { getOralAreas } from "../api/services/ApiOral";
-import { DIAGNOSES, PROCEDURE_CATALOG, ALL_ZONES } from "../components/dental/examination/types";
+import { DIAGNOSES, PROCEDURE_CATALOG, ALL_ZONES, normalizeProcedureCatalogItems, getProcedureLabel } from "../components/dental/examination/types";
 import { mapApiBillItemToDentalCatalog } from "../components/dental/lib/billing-catalog";
 import { getDentalApiPayload } from "../utils/dentalApiMappers";
 import { buildVisualTypeMap } from "../utils/dentalVisualTypes";
@@ -17,6 +17,7 @@ const initialState = {
   diagnoses: [],
   surfaceFindings: [],
   procedures: [],
+  procedureItems: [],
   toothMapAdult: null,
   toothMapPediatric: null,
   oralAreaItems: [],
@@ -90,12 +91,17 @@ export const fetchAllDentalMasters = createAsyncThunk(
             ? oralDiagnosesPayload
             : [];
       const rawProcedures = getDentalApiPayload(proceduresRes)?.items || getDentalApiPayload(proceduresRes) || [];
+      const procedureItems = normalizeProcedureCatalogItems(
+        Array.isArray(rawProcedures) ? rawProcedures : [],
+        PROCEDURE_CATALOG,
+      );
       return {
         surfaces: normalize(getDentalApiPayload(surfacesRes)?.items || getDentalApiPayload(surfacesRes), ALL_ZONES),
         rawDiagnosesMeta: [...rawToothDiagnoses, ...(Array.isArray(rawProcedures) ? rawProcedures : [])],
         diagnoses: normalize(rawToothDiagnoses, []),
         surfaceFindings: normalize(rawSurfaceFindings, DIAGNOSES),
-        procedures: normalize(Array.isArray(rawProcedures) ? rawProcedures : [], PROCEDURE_CATALOG, 'label'),
+        procedures: procedureItems.map(getProcedureLabel),
+        procedureItems,
         toothMapAdult: getDentalApiPayload(toothMapAdultRes) || null,
         toothMapPediatric: getDentalApiPayload(toothMapPediatricRes) || null,
         oralAreaItems: getDentalApiPayload(oralAreasRes)?.items || [],
@@ -151,6 +157,7 @@ const dentalMastersSlice = createSlice({
         state.diagnoses = action.payload.diagnoses;
         state.surfaceFindings = action.payload.surfaceFindings;
         state.procedures = action.payload.procedures;
+        state.procedureItems = action.payload.procedureItems;
         state.toothMapAdult = action.payload.toothMapAdult;
         state.toothMapPediatric = action.payload.toothMapPediatric;
         state.oralAreaItems = action.payload.oralAreaItems;

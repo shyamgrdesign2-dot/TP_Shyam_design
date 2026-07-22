@@ -51,6 +51,7 @@ import {
 } from "./lib/planFormHelpers";
 import { useTreatmentPlanTemplates } from "./lib/useTreatmentPlanTemplates";
 import styles from "./AddEditPlanDrawer.module.scss";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 
 // Radix Sheet overlay sits at z-index 10000; antd popups default to ~1030.
 // Raise antd's base so template popovers render above the overlay.
@@ -61,6 +62,7 @@ const ABOVE_DRAWER_THEME = { token: { zIndexPopupBase: 10001 } };
 export function AddEditPlanDrawer() {
   const { items: billingItems, addItem: addBillingCatalogItem } =
     useBillingCatalog();
+  const isChikitsalayAccessable = useChikitsalay();
   const dentalBillItems = useMemo(
     () => getUniqueDentalBillItems(billingItems),
     [billingItems]
@@ -770,7 +772,7 @@ export function AddEditPlanDrawer() {
                 </div>
               )}
 
-              <div
+              {!isChikitsalayAccessable && <div
                 data-rx-module-root="true"
                 className={styles.searchBlock}
               >
@@ -822,14 +824,14 @@ export function AddEditPlanDrawer() {
                     )}
                   </div>
                 </div>
-              </div>
+              </div>}
             </div>
           </div>
 
           {rows.length > 0 && (
             <div className={styles.totalBar}>
               <div className={styles.totalBarRow}>
-                <label className={styles.additionalDiscountLabel}>
+                {!isChikitsalayAccessable && <label className={styles.additionalDiscountLabel}>
                   <span className={styles.additionalDiscountText}>
                     Additional discount
                   </span>
@@ -849,7 +851,7 @@ export function AddEditPlanDrawer() {
                       className={styles.additionalDiscountInput}
                     />
                   </div>
-                </label>
+                </label>}
                 <div className={styles.totalValuesWrap}>
                   {additionalDiscountAmount > 0 && (
                     <>
