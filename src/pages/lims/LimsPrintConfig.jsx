@@ -1,16 +1,12 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Col, Tabs, Row, Radio, Form, Button } from "antd";
 import { Navbar } from "react-bootstrap";
-import { useSelector, useDispatch } from "react-redux";
 
 import PrintSettingsContext from "../../context/PrintSettingsContext";
 import HeaderFooterLayout from "../../components/print_settings/HeaderFooterLayout";
 import PageFormatLayout from "../../components/print_settings/PageFormatLayout";
 import CommonModal from "../../common/CommonModal";
-import {
-  getDefaultPrintsettings,
-} from "../../redux/doctorsSlice";
 import {
   TAB_HEADER_FOOTER,
   TAB_PAGE_FORMAT,
@@ -26,8 +22,8 @@ import {
 } from "../../utils/labResultsUtils";
 import {
   LIMS_SETTINGS_KEY, LAB_RESULTS_CASE_ID,
-  fileToBase64, serializeFileState, saveLimsSettings, loadLimsSettings,
-  ensureLabOption, initFileStates, groupByReport, rangeText, arrowSymbol,
+  initFileStates, groupByReport, rangeText, arrowSymbol,
+  fetchLimsPrintSettings, saveLimsPrintSettingsToApi, resetLimsPrintSettingsToApiDefaults,
 } from "./limsPrintUtils";
 import { ASSETS } from "../../assets";
 
@@ -46,7 +42,6 @@ function LimsHeaderBar() {
   const location = useLocation();
   const { state } = location;
   const previousPage = state?.from;
-  const { defaultPrintSettings } = useSelector((s) => s.doctors);
 
   const {
     printSettings, setPrintSettings,
@@ -55,8 +50,10 @@ function LimsHeaderBar() {
   } = useContext(PrintSettingsContext);
 
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalFlag, setModalFlag] = useState(0);
+  const [initialSettingsSnapshot, setInitialSettingsSnapshot] = useState(null);
 
   const goBack = useCallback(() => {
     if (previousPage) {
@@ -69,10 +66,17 @@ function LimsHeaderBar() {
     }
   }, [navigate, previousPage, state, location.search]);
 
+  useEffect(() => {
+    if (printSettings && initialSettingsSnapshot == null) {
+      setInitialSettingsSnapshot(JSON.stringify(printSettings));
+    }
+  }, [printSettings, initialSettingsSnapshot]);
+
   const handleBack = () => {
-    const saved = loadLimsSettings();
-    const hasExisting = !!saved?.printSettings;
-    if (hasExisting && JSON.stringify(saved.printSettings) !== JSON.stringify(printSettings)) {
+    const hasChanges =
+      initialSettingsSnapshot != null &&
+      JSON.stringify(printSettings) !== initialSettingsSnapshot;
+    if (hasChanges) {
       setModalFlag(1);
       setModalOpen(true);
     } else {
@@ -96,16 +100,22 @@ function LimsHeaderBar() {
     }
 
     setSaving(true);
-    const files = {
-      logo: await serializeFileState(fileLogo),
-      header: await serializeFileState(fileHeader),
-      footer: await serializeFileState(fileFooter),
-      watermark: await serializeFileState(fileWatermark),
-      signature: await serializeFileState(fileSignature),
-    };
-    saveLimsSettings(printSettings, files);
-    setSaving(false);
-    goBack();
+    try {
+      await saveLimsPrintSettingsToApi(printSettings, {
+        fileLogo,
+        fileHeader,
+        fileFooter,
+        fileWatermark,
+        fileSignature,
+      });
+      localStorage.removeItem(LIMS_SETTINGS_KEY);
+      setInitialSettingsSnapshot(JSON.stringify(printSettings));
+      goBack();
+    } catch (e) {
+      errorMessage(e?.message || e || "Failed to save LIMS print settings");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleResetDefaults = () => {
@@ -113,11 +123,16 @@ function LimsHeaderBar() {
     setModalOpen(true);
   };
 
-  const onModalConfirm = () => {
+  const onModalConfirm = async () => {
     if (modalFlag === 1) {
       goBack();
-    } else if (modalFlag === 2 && defaultPrintSettings) {
-      const ps = ensureLabOption(JSON.parse(JSON.stringify(defaultPrintSettings)));
+      return;
+    }
+    if (modalFlag !== 2) return;
+
+    setResetting(true);
+    try {
+      const ps = await resetLimsPrintSettingsToApiDefaults();
       setPrintSettings(ps);
       setFileLogo(null);
       setFileHeader(null);
@@ -126,7 +141,12 @@ function LimsHeaderBar() {
       setFileSignature(null);
       initFileStates(ps, { setFileLogo, setFileWatermark, setFileSignature, setFileHeader, setFileFooter });
       localStorage.removeItem(LIMS_SETTINGS_KEY);
+      setInitialSettingsSnapshot(JSON.stringify(ps));
       setModalOpen(false);
+    } catch (e) {
+      errorMessage(e?.message || e || "Failed to reset LIMS print settings");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -182,6 +202,7 @@ function LimsHeaderBar() {
               <Button
                 onClick={onModalConfirm}
                 className="lh-lg btn btn-primary3 btn-41 px-4"
+                loading={resetting}
               >
                 {modalFlag === 1 ? "Yes, Leave" : "Yes, Reset"}
               </Button>
@@ -675,13 +696,10 @@ export function LabResultsPreview({ results, patient, emptyText }) {
 /* ── Main ─────────────────────────────────────────────────────────── */
 
 function LimsPrintConfigMain() {
-  const dispatch = useDispatch();
   const location = useLocation();
   const { state } = location;
   const patient = state?.patient || null;
   const patientId = state?.patientId || patient?.patient_unique_id;
-
-  const { defaultPrintSettings } = useSelector((s) => s.doctors);
 
   const [selectedTab, setSelectedTab] = useState(TAB_LAB_RESULTS);
   const [printSettings, setPrintSettings] = useState(null);
@@ -691,30 +709,37 @@ function LimsPrintConfigMain() {
   const [fileWatermark, setFileWatermark] = useState(null);
   const [fileSignature, setFileSignature] = useState(null);
   const [results, setResults] = useState([]);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const settingsHydratedRef = useRef(false);
 
   useEffect(() => {
-    dispatch(getDefaultPrintsettings());
-  }, [dispatch]);
+    if (settingsHydratedRef.current) return;
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!defaultPrintSettings || printSettings) return;
+    const loadSettings = async () => {
+      setSettingsLoading(true);
+      const limsSettings = await fetchLimsPrintSettings();
+      if (cancelled) return;
 
-    const saved = loadLimsSettings();
-    if (saved?.printSettings) {
-      setPrintSettings(saved.printSettings);
-      if (saved.files?.logo) setFileLogo(saved.files.logo);
-      if (saved.files?.watermark) setFileWatermark(saved.files.watermark);
-      if (saved.files?.signature) setFileSignature(saved.files.signature);
-      if (saved.files?.header) setFileHeader(saved.files.header);
-      if (saved.files?.footer) {
-        updateFooterImageHeight(saved.files.footer, setFileFooter, true);
+      if (limsSettings) {
+        settingsHydratedRef.current = true;
+        setPrintSettings(limsSettings);
+        initFileStates(limsSettings, {
+          setFileLogo,
+          setFileWatermark,
+          setFileSignature,
+          setFileHeader,
+          setFileFooter,
+        });
       }
-    } else {
-      const ps = ensureLabOption(JSON.parse(JSON.stringify(defaultPrintSettings)));
-      setPrintSettings(ps);
-      initFileStates(ps, { setFileLogo, setFileWatermark, setFileSignature, setFileHeader, setFileFooter });
-    }
-  }, [defaultPrintSettings, printSettings]);
+      setSettingsLoading(false);
+    };
+
+    loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!fileFooter?.showFile) return;
@@ -761,7 +786,7 @@ function LimsPrintConfigMain() {
     { key: TAB_PAGE_FORMAT, label: "Page Format" },
   ];
 
-  if (!printSettings) return null;
+  if (settingsLoading || !printSettings) return null;
 
   return (
     <PrintSettingsContext.Provider value={contextApi}>

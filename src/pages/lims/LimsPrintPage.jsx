@@ -1,19 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import { Button, Select, message } from "antd";
 import { PrinterOutlined, SettingOutlined, DownloadOutlined } from "@ant-design/icons";
 import { pdf } from "@react-pdf/renderer";
 import { browserName } from "react-device-detect";
 
 import PrintSettingsContext from "../../context/PrintSettingsContext";
-import { getDefaultPrintsettings } from "../../redux/doctorsSlice";
-import { updateFooterImageHeight, sendMessageToParent } from "../../utils/utils";
+import { sendMessageToParent } from "../../utils/utils";
 import { EVENTS } from "../../utils/events";
 import { uploadDocsToAzure } from "../medicalRecords/service";
 import { printBlobInNewTab } from "../opdBilling/utils/helper";
 import { fetchLimsPatients, fetchPatientLabResults } from "./limsApi";
-import { loadLimsSettings, ensureLabOption, initFileStates } from "./limsPrintUtils";
+import { fetchLimsPrintSettings, initFileStates } from "./limsPrintUtils";
 import { LabResultsPreview } from "./LimsPrintConfig";
 import LimsReportPdf from "./LimsReportPdf";
 import styles from "./LimsPrintPage.module.css";
@@ -32,7 +30,6 @@ function LimsPrintPageMain() {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const dispatch = useDispatch();
   const printRef = useRef(null);
 
   const [patient, setPatient] = useState(location.state?.patient || null);
@@ -41,7 +38,6 @@ function LimsPrintPageMain() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const { defaultPrintSettings } = useSelector((s) => s.doctors);
   const [printSettings, setPrintSettings] = useState(null);
   const [fileHeader, setFileHeader] = useState(null);
   const [fileFooter, setFileFooter] = useState(null);
@@ -50,25 +46,28 @@ function LimsPrintPageMain() {
   const [fileSignature, setFileSignature] = useState(null);
 
   useEffect(() => {
-    dispatch(getDefaultPrintsettings());
-  }, [dispatch]);
+    if (printSettings) return;
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!defaultPrintSettings || printSettings) return;
-    const saved = loadLimsSettings();
-    if (saved?.printSettings) {
-      setPrintSettings(saved.printSettings);
-      if (saved.files?.logo) setFileLogo(saved.files.logo);
-      if (saved.files?.watermark) setFileWatermark(saved.files.watermark);
-      if (saved.files?.signature) setFileSignature(saved.files.signature);
-      if (saved.files?.header) setFileHeader(saved.files.header);
-      if (saved.files?.footer) updateFooterImageHeight(saved.files.footer, setFileFooter, true);
-    } else {
-      const ps = ensureLabOption(JSON.parse(JSON.stringify(defaultPrintSettings)));
-      setPrintSettings(ps);
-      initFileStates(ps, { setFileLogo, setFileWatermark, setFileSignature, setFileHeader, setFileFooter });
-    }
-  }, [defaultPrintSettings, printSettings]);
+    const loadSettings = async () => {
+      const limsSettings = await fetchLimsPrintSettings();
+      if (cancelled || !limsSettings) return;
+
+      setPrintSettings(limsSettings);
+      initFileStates(limsSettings, {
+        setFileLogo,
+        setFileWatermark,
+        setFileSignature,
+        setFileHeader,
+        setFileFooter,
+      });
+    };
+
+    loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [printSettings]);
 
   useEffect(() => {
     if (!patientId) return;
@@ -316,7 +315,7 @@ function LimsPrintPageMain() {
             <div className={styles.meta}>{[patientInfo.gender, patientInfo.age].filter(Boolean).join(", ")}</div>
           </div>
         </div>
-        {/* <Button
+        <Button
           icon={<SettingOutlined />}
           onClick={() =>
             navigate("/lims/print-settings", {
@@ -329,7 +328,7 @@ function LimsPrintPageMain() {
           }
         >
           Print Settings
-        </Button> */}
+        </Button>
       </div>
 
       <div className={styles.body}>

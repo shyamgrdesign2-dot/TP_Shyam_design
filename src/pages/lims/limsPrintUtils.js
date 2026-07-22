@@ -1,4 +1,5 @@
 import { updateFooterImageHeight } from "../../utils/utils";
+import ApiPrintSettings from "../../api/services/ApiPrintSettings";
 
 export const LIMS_SETTINGS_KEY = "lims_print_settings";
 export const LAB_RESULTS_CASE_ID = 15;
@@ -33,6 +34,7 @@ export async function serializeFileState(fileState) {
   };
 }
 
+/** @deprecated Prefer fetchLimsPrintSettings / saveLimsPrintSettingsToApi */
 export function saveLimsSettings(ps, files) {
   try {
     localStorage.setItem(LIMS_SETTINGS_KEY, JSON.stringify({ printSettings: ps, files }));
@@ -42,6 +44,7 @@ export function saveLimsSettings(ps, files) {
   }
 }
 
+/** @deprecated Prefer fetchLimsPrintSettings */
 export function loadLimsSettings() {
   try {
     const raw = localStorage.getItem(LIMS_SETTINGS_KEY);
@@ -52,6 +55,7 @@ export function loadLimsSettings() {
 }
 
 export function ensureLabOption(ps) {
+  if (!ps) return ps;
   if (!ps.prescription?.case_option) {
     ps.prescription = { case_option: [] };
   }
@@ -60,7 +64,7 @@ export function ensureLabOption(ps) {
     ps.prescription.case_option.push({
       id: LAB_RESULTS_CASE_ID,
       title: "Lab Results",
-      format: "table",
+      format: "inline",
       enable: "Y",
       custom_status: "Y",
     });
@@ -80,6 +84,93 @@ export function initFileStates(ps, setters) {
   if (ps.signature_enable === "Y" && ps.signature_image) setFileSignature({ imageShow: true, showFile: ps.signature_image });
   if (ps.header_image) setFileHeader({ imageShow: true, showFile: ps.header_image });
   if (ps.footer_image) updateFooterImageHeight({ showFile: ps.footer_image }, setFileFooter, true);
+}
+
+/**
+ * GET /api/v1/printsettings/lims
+ * Returns normalized print-settings object (or null if none / error).
+ */
+export async function fetchLimsPrintSettings() {
+  try {
+    const result = await ApiPrintSettings.getLimsPrintsettings();
+    if (!result?.status) return null;
+    const data = result.data ?? result.result ?? null;
+    if (!data || typeof data !== "object") return null;
+    return ensureLabOption(JSON.parse(JSON.stringify(data)));
+  } catch (e) {
+    console.error("LIMS: failed to fetch print settings", e);
+    return null;
+  }
+}
+
+/**
+ * DELETE /api/v1/printsettings/lims then GET defaults from the same API.
+ */
+export async function resetLimsPrintSettingsToApiDefaults() {
+  try {
+    await ApiPrintSettings.deleteLimsPrintsettings();
+  } catch (e) {
+    // Continue to GET — service may already have no saved LIMS settings.
+    console.warn("LIMS: delete print settings failed (continuing to refetch)", e);
+  }
+  const settings = await fetchLimsPrintSettings();
+  if (!settings) {
+    throw new Error("Failed to load LIMS default print settings");
+  }
+  return settings;
+}
+
+/**
+ * Build multipart payload matching /api/v1/printsettings/lims form fields.
+ */
+export function buildLimsPrintSettingsPayload(printSettings, files = {}) {
+  const {
+    fileLogo,
+    fileHeader,
+    fileFooter,
+    fileWatermark,
+    fileSignature,
+  } = files;
+
+  return {
+    letterhead_format: printSettings?.letterhead_format,
+    whatsapp_letterhead_format: printSettings?.whatsapp_letterhead_format,
+    logo_enable: printSettings?.logo_enable,
+    signature_enable: printSettings?.signature_enable,
+    qrcode_enable: printSettings?.qrcode_enable,
+    water_mark_enable: printSettings?.water_mark_enable,
+    signature_image_delete:
+      printSettings?.signature_image_delete !== undefined
+        ? printSettings.signature_image_delete
+        : 0,
+    prescription: JSON.stringify(printSettings?.prescription ?? {}),
+    header_footer: JSON.stringify(printSettings?.header_footer ?? {}),
+    page_format: JSON.stringify(printSettings?.page_format ?? {}),
+    logo_image: fileLogo?.uploadFile || "",
+    header_image: fileHeader?.uploadFile || "",
+    footer_image: fileFooter?.uploadFile || "",
+    water_mark_image: fileWatermark?.uploadFile || "",
+    signature_image: fileSignature?.uploadFile || "",
+  };
+}
+
+/**
+ * POST /api/v1/printsettings/lims
+ */
+export async function saveLimsPrintSettingsToApi(printSettings, files = {}) {
+  const payload = buildLimsPrintSettingsPayload(printSettings, files);
+  const formData = new FormData();
+  Object.keys(payload).forEach((key) => {
+    const value = payload[key];
+    if (value === undefined || value === null) return;
+    formData.append(key, value);
+  });
+
+  const result = await ApiPrintSettings.saveLimsPrintsettings(formData);
+  if (result?.status) {
+    return result.data ?? result.result ?? true;
+  }
+  throw new Error(result?.error || result?.message || "Failed to save LIMS print settings");
 }
 
 export function groupByReport(inputs) {
