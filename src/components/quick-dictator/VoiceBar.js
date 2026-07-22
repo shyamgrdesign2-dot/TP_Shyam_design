@@ -84,6 +84,9 @@ export function VoiceBar() {
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const recorderOrderRef = useRef(0);
+  const isOpenRef = useRef(false);
+  const hasActiveCaptureSessionRef = useRef(false);
   const streamRef = useRef(null);
   const audioCtxRef = useRef(null);
   const analyserRef = useRef(null);
@@ -93,6 +96,7 @@ export function VoiceBar() {
   const controlledStatus = externalState?.status || "idle";
   const isControlled = externalControllerActive && controlledStatus !== "idle";
   const controlledStream = isControlled ? externalState?.stream : null;
+  isOpenRef.current = isOpen;
 
   const setWaveFromFrequencyBins = useCallback((bins, { muted: forceMuted = false } = {}) => {
     const bars = waveRef.current?.querySelectorAll?.(".qd-wave-bar");
@@ -209,6 +213,11 @@ export function VoiceBar() {
   // spun up on open / device change.
   useEffect(() => {
     if (!isOpen || isControlled) return;
+    if (!hasActiveCaptureSessionRef.current) {
+      audioChunksRef.current = [];
+      recorderOrderRef.current = 0;
+      hasActiveCaptureSessionRef.current = true;
+    }
     setRecordError(null);
     setMicDenied(false);
     setCancelPending(false);
@@ -247,12 +256,25 @@ export function VoiceBar() {
         const recorder = mimeType
           ? new MediaRecorder(stream, { mimeType })
           : new MediaRecorder(stream);
-        audioChunksRef.current = [];
+        const recorderOrder = recorderOrderRef.current;
+        recorderOrderRef.current += 1;
+        let chunkOrder = 0;
         recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+          if (e.data.size > 0) {
+            audioChunksRef.current.push({
+              data: e.data,
+              recorderOrder,
+              chunkOrder,
+            });
+            chunkOrder += 1;
+          }
         };
         mediaRecorderRef.current = recorder;
-        recorder.start();
+        try {
+          recorder.start(1000);
+        } catch (_) {
+          recorder.start();
+        }
         if (!cancelled) setRecording(true);
 
         // Waveform analyser (drives --qd-level on the bars).
@@ -297,9 +319,13 @@ export function VoiceBar() {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
       const rec = mediaRecorderRef.current;
+      const shouldPreserveChunks = isOpenRef.current;
       if (rec) {
-        rec.ondataavailable = null;
+        if (!shouldPreserveChunks) rec.ondataavailable = null;
         rec.onstop = null;
+        try {
+          if (shouldPreserveChunks && rec.state === "recording") rec.requestData();
+        } catch (_) {}
         try {
           if (rec.state !== "inactive") rec.stop();
         } catch (_) {}
@@ -310,7 +336,10 @@ export function VoiceBar() {
       audioCtxRef.current?.close().catch(() => {});
       audioCtxRef.current = null;
       analyserRef.current = null;
-      audioChunksRef.current = [];
+      if (!shouldPreserveChunks) {
+        audioChunksRef.current = [];
+        hasActiveCaptureSessionRef.current = false;
+      }
     };
   }, [activeDeviceId, isControlled, isOpen, muted, setWaveFromFrequencyBins]);
 
@@ -375,7 +404,10 @@ export function VoiceBar() {
     playSubmitSound();
     setProcessing(true);
     await new Promise((resolve) => {
-      recorder.onstop = resolve;
+      recorder.addEventListener?.("stop", resolve, { once: true });
+      try {
+        if (recorder.state === "recording") recorder.requestData();
+      } catch (_) {}
       try {
         recorder.stop();
       } catch (_) {
@@ -385,7 +417,10 @@ export function VoiceBar() {
     setRecording(false);
     streamRef.current?.getAudioTracks().forEach((t) => t.stop());
     const mimeType = recorder.mimeType || "audio/webm";
-    const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+    const orderedChunks = [...audioChunksRef.current]
+      .sort((a, b) => (a.recorderOrder - b.recorderOrder) || (a.chunkOrder - b.chunkOrder))
+      .map((chunk) => chunk.data);
+    const audioBlob = new Blob(orderedChunks, { type: mimeType });
     try {
       const { transcript } = await transcribeAnyAudio({ audioBlob });
       const kind = route(transcript);

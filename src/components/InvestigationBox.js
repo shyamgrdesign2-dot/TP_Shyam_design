@@ -52,6 +52,11 @@ import ApiInvestigation from "../api/services/ApiInvestigation";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
 import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
+import {
   hasInvalidChikitsalayInvestigation,
   INVESTIGATION_INVENTORY_WARNING,
   isChikitsalayInvestigationRow,
@@ -75,6 +80,7 @@ const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   padding: "12px 16px",
   textAlign: "center",
 };
+
 function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const isChikitsalayAccessable = useChikitsalay();
@@ -92,11 +98,64 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   // const [ investigationData, setInvestigationData] = useState([]);
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
 
+  const [searchParentQuery, setSearchParentQuery] = useState("");
+  const [parentSearchOptions, setParentSearchOptions] = useState([]);
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const decodedToken = getDecodedToken();
+  const tokenData = decodedToken?.result;
+  const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
+  const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
+  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
+  const canAddCustomInvestigation =
+    tokenData?.hospital_business_id != env.zydus_business_id &&
+    !isZydusUserAccessableFromGB &&
+    !isApolloHosBusinessIdAccessableFromGB &&
+    !isChikitsalayAccessable;
+
+  const createCustomInvestigationRow = useCallback((investigationName) => ({
+    unique_id: uuidv4(),
+    change: 1,
+    investigation_name: investigationName,
+  }), []);
+
+  const createCommittedInvestigationRow = useCallback((investigationRow, investigationName) => ({
+    ...investigationRow,
+    investigation_name: investigationName,
+    note: "",
+  }), []);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: investigationData,
+    setRows: setInvestigationData,
+    showVoiceRxModule,
+    nameField: "investigation_name",
+    rowKeyPrefix: "investigation",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomInvestigationRow,
+    createCommittedRow: createCommittedInvestigationRow,
+    canCreateCustomRow: canAddCustomInvestigation,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetDraft: resetEmptyLineDraft,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
+
   const applyVoiceInvestigation = useCallback((nextInvestigation) => {
-    if (nextInvestigation.length > 0) {
+    if (Array.isArray(nextInvestigation) && nextInvestigation.length > 0) {
       setInvestigationData(nextInvestigation);
+      resetEmptyLineDraft();
     }
-  }, [setInvestigationData]);
+  }, [resetEmptyLineDraft, setInvestigationData]);
 
   const investigationVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(investigationData, "lab_investigations"),
@@ -125,14 +184,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
           e.investigation_name
         )
     );
-
-  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
-  const decodedToken = getDecodedToken();
-  const tokenData = decodedToken?.result;
-  const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
-  const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
-
-  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
 
   useEffect(() => {
     if (diagnosisData?.length > 0 && generatedDDx?.length > 0) {
@@ -166,9 +217,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isModalOpen1, setIsModalOpen1] = useState(false);
   const [removeTemplateId, setRemoveTemplateId] = useState(null);
-
-  const [searchParentQuery, setSearchParentQuery] = useState("");
-  const [parentSearchOptions, setParentSearchOptions] = useState([]);
 
   const [searchChildQuery, setSearchChildQuery] = useState(null);
   const [childSearchOptions, setChildSearchOptions] = useState([]);
@@ -285,7 +333,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       });
     }
     else {
-      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB && !isChikitsalayAccessable &&
+      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && canAddCustomInvestigation &&
         data.push({
           key: JSON.stringify({
             unique_id: uuidv4(),
@@ -301,7 +349,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList, isChikitsalayAccessable]);
+  }, [parentOptionsList, isChikitsalayAccessable, searchParentQuery, canAddCustomInvestigation]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -562,6 +610,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     investigationData.splice(index, 1);
     setInvestigationData((prev) => [...prev]);
   };
@@ -804,152 +856,244 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   };
 
   const TABLE_INVESTIGATION = useMemo(() => {
+    const investigationRows = Array.isArray(investigationData) ? investigationData : [];
+    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled;
+
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="investigation" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
-              {investigationData.length > 0 &&
-                investigationData.map((item, index) => {
-                  const hasInvalidInventorySelection =
-                    isChikitsalayAccessable && hasInvalidChikitsalayInvestigation(item);
-                  let supplementaryIndicator = "";
-                  if (isChikitsalayAccessable) {
-                    const raw = getHmTypeIndicator(item, true);
-                    if (raw && raw !== "Z") supplementaryIndicator = raw;
-                  }
-                  const isWideSupplementary = supplementaryIndicator.length > 1;
-                  return (
-                  <Draggable key={index} draggableId={`investigation-${index}`} index={index}>
-                    {(provided) => (
-                      <Row
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        key={index}
-                        gutter={[0]}
-                        className={`${index === 0 && 'mt-14 border-top'
-                          } align-items-center border-bottom`}
-                      >
-                        <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: 'grab' }}
+      <div className={shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : undefined}>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="investigation" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={[
+                  isNewEmptyLineUiEnabled ? "mt-2 prescription-empty-line-ui" : "",
+                  shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableBody : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {investigationRows.map((item, index) => {
+                    const hasInvalidInventorySelection =
+                      isChikitsalayAccessable && hasInvalidChikitsalayInvestigation(item);
+                    let supplementaryIndicator = "";
+                    if (isChikitsalayAccessable) {
+                      const raw = getHmTypeIndicator(item, true);
+                      if (raw && raw !== "Z") supplementaryIndicator = raw;
+                    }
+                    const isWideSupplementary = supplementaryIndicator.length > 1;
+                    const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(item, index) : `investigation-${index}`;
+
+                    return (
+                      <Draggable key={rowKey} draggableId={rowKey} index={index}>
+                        {(provided) => (
+                          <Row
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            key={rowKey}
+                            gutter={[0]}
+                            className={isNewEmptyLineUiEnabled ? [
+                              "symptoms-table-row",
+                              emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                            ].filter(Boolean).join(" ") : `${index === 0 && 'mt-14 border-top'
+                            } align-items-center border-bottom`}
                           >
-                          </MenuOutlined>
-                        </Col>
-                        <Col
-                          lg={8}
-                          md={8}
-                          sm={8}
-                          xs={8}
-                          className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : undefined}
-                          onClick={() => {
-                            if (isVoiceRxModuleEnabled && (isVoiceRxModuleInvestigation(item) || hasInvalidInventorySelection) && activeVoiceInvestigationIndex !== index) {
-                              handleVoiceInvestigationClick(index);
-                            }
-                          }}
-                          style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && (isVoiceRxModuleInvestigation(item) || hasInvalidInventorySelection) ? { background: "#fff8ef" } : undefined}
-                        >
-                          <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
-                            <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                              {isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
-                                <button
-                                  type="button"
-                                  className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2 text-truncate w-100"
-                                  onClick={() => handleVoiceInvestigationClick(index)}
-                                >
-                                  {item.investigation_name}
-                                </button>
+                            <Col lg={1} md={1} sm={1} xs={1} className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                            ].filter(Boolean).join(" ")}>
+                              {isNewEmptyLineUiEnabled ? (
+                                <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
                               ) : (
-                                <AutoComplete
-                                  autoFocus={activeVoiceInvestigationIndex === index}
-                                  defaultValue={item.investigation_name}
-                                  value={item.investigation_name}
-                                  placeholder="Investigation Name"
-                                  bordered={false}
-                                  disabled={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? false : undefined}
-                                  defaultOpen={activeVoiceInvestigationIndex === index}
-                                  open={activeVoiceInvestigationIndex === index ? true : undefined}
-                                  onSearch={(query) => onSearchChild(query, index)}
-                                  onFocus={() => onFocusChid(index)}
-                                  onBlur={() => handleVoiceInvestigationBlur(index)}
-                                  options={childSearchOptions}
-                                  className="autocomplete-custom w-100 inputborder"
-                                  {...getPrescriptionNewPopupProps()}
-                                  defaultActiveFirstOption={true}
-                                  onSelect={(data, e) => onSelectChild(data, e, index)}
-                                />
+                                <MenuOutlined
+                                  {...provided.dragHandleProps}
+                                  className="drag-handle"
+                                >
+                                </MenuOutlined>
                               )}
-                            </div>
-                            {isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && hasInvalidInventorySelection && (
-                              <Tooltip
-                                placement="top"
-                                overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                title={INVESTIGATION_INVENTORY_WARNING}
-                              >
-                                <InfoCircleOutlined
-                                  className="fs-18 flex-shrink-0"
-                                  style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
-                                />
-                              </Tooltip>
-                            )}
-                            {supplementaryIndicator && (
-                              <span
-                                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${
-                                  isWideSupplementary ? "rounded-pill me-2" : "rounded-circle"
-                                }`}
-                                style={{
-                                  minWidth: isWideSupplementary ? 26 : 18,
-                                  height: 18,
-                                  padding: isWideSupplementary ? "0 6px" : "0 4px",
-                                  background: "#c44ea2",
-                                  lineHeight: "16px",
+                            </Col>
+                            <Col
+                              lg={8}
+                              md={8}
+                              sm={8}
+                              xs={8}
+                              className={[
+                                isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "",
+                                isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : "",
+                                shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                              ].filter(Boolean).join(" ")}
+                              onClick={() => {
+                                if (isVoiceRxModuleEnabled && (isVoiceRxModuleInvestigation(item) || hasInvalidInventorySelection) && activeVoiceInvestigationIndex !== index) {
+                                  handleVoiceInvestigationClick(index);
+                                }
+                              }}
+                              style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && (isVoiceRxModuleInvestigation(item) || hasInvalidInventorySelection) ? { background: "#fff8ef" } : undefined}
+                            >
+                              <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
+                                <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                                  {isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
+                                    <button
+                                      type="button"
+                                      className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2 text-truncate w-100"
+                                      onClick={() => handleVoiceInvestigationClick(index)}
+                                    >
+                                      {item.investigation_name}
+                                    </button>
+                                  ) : (
+                                    <AutoComplete
+                                      autoFocus={activeVoiceInvestigationIndex === index}
+                                      defaultValue={item.investigation_name}
+                                      value={item.investigation_name}
+                                      placeholder="Investigation Name"
+                                      bordered={false}
+                                      disabled={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? false : undefined}
+                                      defaultOpen={activeVoiceInvestigationIndex === index}
+                                      open={activeVoiceInvestigationIndex === index ? true : undefined}
+                                      onSearch={(query) => onSearchChild(query, index)}
+                                      onFocus={() => onFocusChid(index)}
+                                      onBlur={() => handleVoiceInvestigationBlur(index)}
+                                      options={childSearchOptions}
+                                      className="autocomplete-custom w-100 inputborder"
+                                      {...getPrescriptionNewPopupProps()}
+                                      defaultActiveFirstOption={true}
+                                      onSelect={(data, e) => onSelectChild(data, e, index)}
+                                    />
+                                  )}
+                                </div>
+                                {isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && hasInvalidInventorySelection && (
+                                  <Tooltip
+                                    placement="top"
+                                    overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
+                                    title={INVESTIGATION_INVENTORY_WARNING}
+                                  >
+                                    <InfoCircleOutlined
+                                      className="fs-18 flex-shrink-0"
+                                      style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
+                                    />
+                                  </Tooltip>
+                                )}
+                                {supplementaryIndicator && (
+                                  <span
+                                    className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${
+                                      isWideSupplementary ? "rounded-pill me-2" : "rounded-circle"
+                                    }`}
+                                    style={{
+                                      minWidth: isWideSupplementary ? 26 : 18,
+                                      height: 18,
+                                      padding: isWideSupplementary ? "0 6px" : "0 4px",
+                                      background: "#c44ea2",
+                                      lineHeight: "16px",
+                                    }}
+                                  >
+                                    {supplementaryIndicator}
+                                  </span>
+                                )}
+                              </div>
+                            </Col>
+                            <Col lg={14} md={14} sm={13} xs={13} className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-start border-end",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                            ].filter(Boolean).join(" ")}>
+                              <TextArea
+                                className="notesinput border-0"
+                                placeholder="Instruction"
+                                defaultValue={item.note}
+                                value={item.note}
+                                autoSize={{
+                                  minRows: 1,
+                                  maxRows: 2,
                                 }}
+                                onChange={(e) => onChangeNoteChild(e, index)}
+                              />
+                            </Col>
+                            <Col lg={1} md={1} sm={2} xs={2} className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                            ].filter(Boolean).join(" ")}>
+                              <Button
+                                className="btn py-0 btn-delete-prescription px-0"
+                                onClick={() => onRemoveRow(index)}
                               >
-                                {supplementaryIndicator}
-                              </span>
-                            )}
-                          </div>
-                        </Col>
-                        <Col lg={14} md={14} sm={13} xs={13} className="border-start border-end">
-                          <TextArea
-                            className="notesinput border-0"
-                            placeholder="Instruction"
-                            defaultValue={item.note}
-                            value={item.note}
-                            autoSize={{
-                              minRows: 1,
-                              maxRows: 2,
-                            }}
-                            onChange={(e) => onChangeNoteChild(e, index)}
-                          />
-                        </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="text-center">
-                          <Button
-                            className="btn py-0 btn-delete-prescription px-0"
-                            onClick={() => onRemoveRow(index)}
-                          >
-                            {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
-                          </Button>
-                        </Col>
-                      </Row>
-                    )}
-                  </Draggable>
-                  );
-                })}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                                {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                              </Button>
+                            </Col>
+                          </Row>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                {provided.placeholder}
+                {isNewEmptyLineUiEnabled && (
+                  <Row
+                    gutter={[0]}
+                    className={[
+                      "symptoms-table-row",
+                      "prescription-empty-line-row--animated",
+                      "prescription-empty-line-row--draft",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <Col lg={1} md={1} sm={1} xs={1} className={[
+                      "symptoms-table-cell center",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                    ].filter(Boolean).join(" ")} />
+                    <Col lg={8} md={8} sm={8} xs={8} className={[
+                      "symptoms-table-cell prescription-empty-line-cell--draft-active",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <PrescriptionEmptyLineDraftSearch
+                        inputRef={emptyLineDraftInputRef}
+                        inputClassName="fontroboto fw-medium w-100"
+                        value={emptyLineDraftName}
+                        options={parentSearchOptions}
+                        popupProps={getPrescriptionNewPopupProps()}
+                        onSearch={onEmptyLineDraftSearch}
+                        onSelect={onEmptyLineDraftSelect}
+                        onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                      />
+                    </Col>
+                    <Col lg={14} md={14} sm={13} xs={13} className={[
+                      "symptoms-table-cell",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <TextArea
+                        className="notesinput border-0 prescription-empty-line-draft-disabled-control"
+                        placeholder="Instruction"
+                        value=""
+                        disabled
+                        autoSize={{
+                          minRows: 1,
+                          maxRows: 2,
+                        }}
+                      />
+                    </Col>
+                    <Col lg={1} md={1} sm={2} xs={2} className={[
+                      "symptoms-table-cell center",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                    ].filter(Boolean).join(" ")} />
+                  </Row>
+                )}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
   }, [
     activeVoiceInvestigationIndex,
     childSearchOptions,
+    emptyLineDraftInputRef,
+    emptyLineDraftName,
+    emptyLineRemovingRowKeys,
+    getEmptyLineRowKey,
+    onEmptyLineDraftInputKeyDown,
+    onEmptyLineDraftSearch,
+    onEmptyLineDraftSelect,
     investigationData,
     isChikitsalayAccessable,
+    isNewEmptyLineUiEnabled,
     isVoiceRxModuleEnabled,
+    parentSearchOptions,
     shouldShowInventorySourceWarning,
   ]);
 
@@ -1124,6 +1268,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setInvestigationData([])
     showHideClearData()
   };
@@ -1260,15 +1405,17 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
           </div>
         )}
 
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+          <div className={voiceModuleStyles.moduleSlot}>
             <VoiceRxModuleCapture
               moduleName={INVESTIGATION_TITLE}
               previousContext={investigationVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.investigation}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : (
+          </div>
+        ) : !isNewEmptyLineUiEnabled ? (
+          <div className="p-14">
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1283,8 +1430,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </>
   );

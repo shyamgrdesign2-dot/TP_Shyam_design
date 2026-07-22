@@ -324,6 +324,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                     toothImageMap={toothImageMap}
                     examChart={resolvedOralChart}
                     drawingCanvases={drawingCanvases}
+                    crossConsultData={props.crossConsultData}
                 />).toBlob();
 
                 const setPdfUrlSafe = (url) => {
@@ -401,6 +402,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         props.patientWalletBalance,
         props.abhaDetails,
         props.dentalData,
+        props.crossConsultData,
         dentalExaminationData,
         oralExamination,
         drawingCanvases,

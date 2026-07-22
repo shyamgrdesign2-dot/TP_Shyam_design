@@ -18,6 +18,7 @@ import OphthalmologyInlineView from './ophthalmology/inline';
 import OphthalmologyListView from './ophthalmology/list';
 import OphthalmologyTableView from './ophthalmology/table';
 import ThenConnector from './ThenConnector';
+import { CrossConsult } from './crossConsult/CrossConsult';
 import { transformToothStateToApi } from '../dental/lib/examination-helpers';
 import {
     DENTAL_EXAM_CASE_OPTION_ID,
@@ -479,8 +480,7 @@ const getSmartSyncUploadedFileUri = (file) =>
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, isDentalEnabled: isDentalEnabledFromProps, drawingCanvases } = props
-    // const isDentalEnabledDoc = useIsDentalEnabled();
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, isDentalEnabled: isDentalEnabledFromProps, drawingCanvases, crossConsultData } = props
     const filteredDrawingCanvases = useMemo(() => {
         const canvasFilename = caseManagerData?.canvas_filename;
         const hasCanvasFilenameField =
@@ -7366,7 +7366,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             </View>
                                         )}
                                     </>
-                                ) : null}
+                                ) : option?.id === 26 && option?.enable === 'Y' && option?.custom_status === 'Y' ?
+                                    <CrossConsult
+                                        option={option}
+                                        crossConsultData={crossConsultData}
+                                        PX_TO_PT={PX_TO_PT}
+                                        styles={styles}
+                                        printSettings={printSettings}
+                                    />
+                                : null}
                                 </View>
                             )
                         

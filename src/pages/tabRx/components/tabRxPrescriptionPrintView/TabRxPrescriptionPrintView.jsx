@@ -488,6 +488,7 @@ function TabRxPrescriptionPrintView() {
     patientId: patient_data?.patient_unique_id,
     tcmId: state?.tcm_id,
     isCvtExtHosAccessableFromGB,
+    patientRecord: patient_data,
   });
 
 
