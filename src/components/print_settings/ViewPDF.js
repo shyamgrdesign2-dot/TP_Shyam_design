@@ -2538,20 +2538,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             : null}
                                     </>
                                 )}
-                                {hasBlankSmartSyncCanvas &&
-                                    smartRxData
-                                        ?.filter((item) => getSmartSyncUploadedFileUri(item))
-                                        ?.map((item, i) => (
-                                            <View key={`blank-smartsync-canvas-${i}`}>
-                                                <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: 800 }}>
-                                                    <Image
-                                                        style={{ width: '100%', height: '100%' }}
-                                                        src={getSmartSyncUploadedFileUri(item)}
-                                                        objectFit="contain"
-                                                    />
-                                                </View>
-                                            </View>
-                                        ))}
                                 {printSettings?.prescription?.case_option?.map((option, index) => {
                                     if (onlyShowDental) {
                                         return null;
@@ -4394,10 +4380,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     ((option?.enable === 'Y' && option?.custom_status === 'Y') ||
                                         hasBlankSmartSyncCanvas) ? (
                                     <>
+                                        {/* SmartRx files render at case_option id 11 position so print-config order is respected */}
                                         {isSmartSyncPrescription &&
                                             caseManagerData?.isCustomSSRX === "0" &&
                                             !isSnapRxWrittenPrescription &&
-                                            !hasBlankSmartSyncCanvas &&
                                             smartRxData?.map((item, i) => {
                                                 const writtenRxSrc = getSmartSyncUploadedFileUri(item);
                                                 if (!writtenRxSrc) {

@@ -4388,26 +4388,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       : null}
                   </>
                 )}
-                {hasBlankSmartSyncCanvas &&
-                  uploaded_files
-                    ?.filter((item) => getSmartSyncUploadedFileUri(item))
-                    ?.map((item, i) => (
-                      <View key={`blank-smartsync-canvas-${i}`}>
-                        <View
-                          style={{
-                            marginTop: PX_TO_PT * 15,
-                            width: "100%",
-                            height: 800,
-                          }}
-                        >
-                          <Image
-                            style={{ width: "100%", height: "100%" }}
-                            source={{ uri: getSmartSyncUploadedFileUri(item) }}
-                            resizeMode="contain"
-                          />
-                        </View>
-                      </View>
-                    ))}
                 {printSettings?.prescription?.case_option?.map(
                   (option, index) => {
                     if (onlyShowDental) {
@@ -14204,12 +14184,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             option?.custom_status === "Y") ||
                             hasBlankSmartSyncCanvas) ? (
                           <>
-                            {/* When SmartRx section is enabled, render SmartRx files inline at this position */}
+                            {/* SmartRx files render at case_option id 11 position so print-config order is respected */}
                             {isSmartSyncPrescription &&
                               caseManagerData.isCustomSSRX === "0" &&
                               !isSnapRx &&
                               !isDigitizedFlow() &&
-                              !hasBlankSmartSyncCanvas &&
                               uploaded_files
                                 ?.filter((item) => getSmartSyncUploadedFileUri(item))
                                 ?.map((item, i) => (
