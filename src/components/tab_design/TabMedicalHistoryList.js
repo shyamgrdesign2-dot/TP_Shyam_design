@@ -132,10 +132,10 @@ function TabMedicalHistoryList(props) {
                                                     <div className="text-history font-roboto fw-medium">Issue&nbsp;:&nbsp;</div>
                                                     <div className="fontroboto text-history fw-normal">{e1?.title}</div>
                                                 </div>
-                                                {e1?.since && e?.tmmhs_id != 5 && (
+                                                {e1?.oldSince && e?.tmmhs_id != 5 && (
                                                     <div key={Math.random()} className="d-flex my-2">
                                                         <div className="text-history fontroboto fw-medium">Since&nbsp;:&nbsp;</div>
-                                                        <div className="fontroboto text-history fw-normal">{e1?.since}</div>
+                                                        <div className="fontroboto text-history fw-normal">{e1?.oldSince}</div>
                                                     </div>
                                                 )}
                                                 {e1?.date && e?.tmmhs_id == 5 && (

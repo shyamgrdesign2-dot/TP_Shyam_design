@@ -1022,17 +1022,17 @@ export const PDF = ({ mode = NORMAL, ...props }) => {
                                                                     {item1.enable == 'Y' ? (
                                                                         <>
                                                                             <Text key={i1} style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{'\n'}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{String.fromCharCode(abcd++)}.&nbsp;{item1.title}&nbsp;</Text>
-                                                                            {(item1.since || item1.status || item1.medication || item1.relationship || item1.note) &&
+                                                                            {(item1.oldSince || item1.status || item1.medication || item1.relationship || item1.note) &&
                                                                                 <Text key={i1} style={{ lineHeight: 1.4, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
                                                                                     {`(${Object.values(Object.fromEntries(Object.entries((
                                                                                         ({
-                                                                                            since,
+                                                                                            oldSince,
                                                                                             status,
                                                                                             medication,
                                                                                             relationship,
                                                                                             note
                                                                                         }) => ({
-                                                                                            since: since && `Since : ${since}`,
+                                                                                            since: oldSince && `Since : ${oldSince}`,
                                                                                             status: status && `Status : ${status}`,
                                                                                             medication: medication && `Medication : ${medication}`,
                                                                                             relationship: relationship && `Relative : ${relationship}`,
@@ -1089,7 +1089,7 @@ export const PDF = ({ mode = NORMAL, ...props }) => {
                                                             return (
                                                                 <View style={styles.row} key={i1}>
                                                                     <Text style={[styles.cell, { color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item1.title}</Text>
-                                                                    <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item1.since ? item1.since : '-'}</Text>
+                                                                    <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item1.oldSince ? item1.oldSince : '-'}</Text>
                                                                     {item?.tmmhs_id != 3 && (
                                                                         <>
                                                                             <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item1.status ? item1.status : '-'}</Text>
