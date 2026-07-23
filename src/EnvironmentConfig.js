@@ -1,5 +1,5 @@
 const dev = {
-  reporting_api_url: "https://pm-reporting-uat.tatvacare.in",
+  reporting_api_url: "https://pm-core-uat.tatvacare.in",
   appointment_api_url: `https://node-doctor.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   symptoms_api_url: `https://strauss-symptoms.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   examination_api_url: `https://strauss-examination.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
@@ -287,7 +287,7 @@ const qa = {
 };
 
 const uat = {
-  reporting_api_url: "https://pm-reporting-uat.tatvacare.in",
+  reporting_api_url: "https://pm-core-uat.tatvacare.in",
   appointment_api_url: `https://pm-master-uat-webservice.tatvacare.in`,
   symptoms_api_url: `https://pm-symptoms-uat.tatvacare.in`,
   examination_api_url: `https://pm-examination-uat.tatvacare.in`,
