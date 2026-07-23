@@ -19,6 +19,10 @@ import { services } from "../redux/doctorsSlice";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import IPDKnowMore from "../pages/monetization/components/IPDKnowMore";
 import PharmacyKnowMore from "../pages/monetization/components/PharmacyKnowMore";
+import {
+  getPharmacyAccessState,
+  hasPharmacyInterestSubmittedToday,
+} from "../pages/monetization/utils/pharmacyInterest";
 import AskTatvaKnowMore from "../pages/monetization/components/AskTatvaKnowMore";
 import { EVENTS } from "../utils/events";
 import { ASSETS } from "../assets";
@@ -209,16 +213,26 @@ function SidebarDoctor() {
     // if (moment(planDetails?.plan_active_date).diff("2025-07-01", 'days') > 0) {
       if (tp_monetization_enable && (moduleName === S_PHARMACY || moduleName === S_IPD)) {
         setSubModalData({ service_name: moduleName })
-        if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier === TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) {
-          if (isFirstClickOfDay(moduleName)) {
+        if (moduleName === S_PHARMACY) {
+          const pharmacyAccess = getPharmacyAccessState(planDetails);
+          // Paid Pharmacy → SSO. Non-paid: Know More until interest form submitted today;
+          // then SSO only while trial is active. Expired/locked never SSO.
+          if (pharmacyAccess.segment === "paid") {
+            check_SSO(moduleName);
+          } else if (
+            pharmacyAccess.segment === "trial_active" &&
+            hasPharmacyInterestSubmittedToday()
+          ) {
+            check_SSO(moduleName);
+          } else if (
+            pharmacyAccess.segment === "trial_active" ||
+            pharmacyAccess.segment === "trial_expired" ||
+            pharmacyAccess.segment === "locked"
+          ) {
             handlePharmacyKnowMore();
           } else {
             check_SSO(moduleName);
           }
-        } else if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier !== TRIAL && PHARMACY_planDetails?.plan_tier !== TRIAL) {
-          check_SSO(moduleName);
-        } else if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier !== TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) {
-          handlePharmacyKnowMore();
         } else if (moduleName === S_IPD && EMR_planDetails?.plan_tier === TRIAL && IPD_planDetails?.plan_tier === TRIAL) {
           if (isFirstClickOfDay(moduleName)) {
             handleIPDKnowMore();
