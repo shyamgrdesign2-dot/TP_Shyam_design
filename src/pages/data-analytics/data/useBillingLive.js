@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import api from "../../../api/services/axiosService";
 import config from "../../../config";
 import ApiReporting from "../../../api/services/ApiReporting";
+import { getDecodedToken } from "../../../utils/localStorage";
 import { toNum as num, pctDelta, safe, previousWindow } from "./deltaUtils";
 import { cached } from "./apiCache";
 import { getDoctorList } from "./doctorList";
@@ -28,7 +29,21 @@ export default function useBillingLive({ startDate, endDate, department = "opd",
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true }));
-    const ids = doctorList.map((d) => d.um_id).filter(Boolean);
+    let ids = doctorList.map((d) => d.um_id).filter(Boolean);
+    // Cold open: Redux bulkMessages.doctorList is empty unless the user has
+    // already visited Bulk Messages / Billing. FilterOptions already fetches
+    // the same list for the dropdown — reuse getDoctorList() so KPI queries
+    // don't early-return ₹0 before the roster is ready.
+    const needsAllDoctors = !doctorId || doctorId === "all";
+    if (needsAllDoctors && !ids.length) {
+      const fetched = await getDoctorList();
+      ids = (Array.isArray(fetched) ? fetched : [])
+        .map((d) => d?.um_id)
+        .filter(Boolean);
+    }
+    // JWT self id is always available after login; Redux doctors.userId is
+    // only set on some pages (AppointmentList / BillingDashboard).
+    const selfId = userId || getDecodedToken()?.result?.user_id;
     // doctorId may be a CSV of ids (multi-select filter) — the dashboard API
     // natively takes repeated doctorIds params.
     const doctorIds =
@@ -36,11 +51,11 @@ export default function useBillingLive({ startDate, endDate, department = "opd",
         ? String(doctorId).split(",").filter(Boolean)
         : ids.length
         ? ids
-        : userId
-        ? [userId]
+        : selfId
+        ? [selfId]
         : [];
     if (!startDate || !endDate || !doctorIds.length) {
-      setState({ loading: false, kpis: ZERO_KPIS, paymentModes: [], refundModes: [], advanceModes: [], advanceRefundModes: [] });
+      setState({ loading: false, kpis: ZERO_KPIS, paymentModes: [], refundModes: [], advanceModes: [], advanceRefundModes: [], revenueByDoctor: null });
       return;
     }
     const base = { customBaseUrl: config.lab_params_api_url };

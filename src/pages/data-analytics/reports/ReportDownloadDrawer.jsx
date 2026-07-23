@@ -29,6 +29,7 @@ import {
   THREE_C_REPORT_TYPE_OPTIONS,
   IPD_REPORT_TYPE_OPTIONS,
 } from "./reportsCatalog";
+import { isoLocal } from "../filters/periods";
 
 // Every report endpoint rejects ranges longer than this ("Date range must
 // not exceed 30 days", 400) — 31 days inclusive passes, so full calendar
@@ -784,13 +785,15 @@ function singleId(csvStr) {
 function resolveDates(range, filters) {
   const start = range?.start || range?.from || (Array.isArray(range) ? range[0] : null);
   const end = range?.end || range?.to || (Array.isArray(range) ? range[1] : null);
-  const toISO = (d) => {
+  // Use local YYYY-MM-DD (same as dashboard periods.isoLocal) — toISOString
+  // shifts local midnight back one calendar day in +ve offsets like IST.
+  const toLocalDate = (d) => {
     const dt = new Date(d);
-    return Number.isNaN(dt.getTime()) ? null : dt.toISOString().slice(0, 10);
+    return Number.isNaN(dt.getTime()) ? null : isoLocal(dt);
   };
   return {
-    startDate: (start && toISO(start)) || filters?.startDate,
-    endDate: (end && toISO(end)) || filters?.endDate,
+    startDate: (start && toLocalDate(start)) || filters?.startDate,
+    endDate: (end && toLocalDate(end)) || filters?.endDate,
   };
 }
 
