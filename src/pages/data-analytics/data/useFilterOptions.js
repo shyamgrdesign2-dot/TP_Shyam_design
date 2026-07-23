@@ -14,13 +14,13 @@ import ApiBulkMessages from "../../../api/services/ApiBulkMessages";
 // switcher uses (src/common/Header.js). The old `state.profile.profile`
 // path never existed, which is why the clinic dropdown was empty.
 
-export default function useFilterOptions() {
+export default function useFilterOptions({ enabled = true } = {}) {
   const reduxDoctors = useSelector((s) => s.bulkMessages?.doctorList) || [];
   const hospitalData =
     useSelector((s) => s.doctors?.profile?.hospital_data || s.profile?.profile?.hospital_data) || [];
   const [fetchedDoctors, setFetchedDoctors] = useState([]);
 
-  const needFetch = reduxDoctors.length === 0;
+  const needFetch = enabled && reduxDoctors.length === 0;
   useEffect(() => {
     if (!needFetch) return;
     let alive = true;

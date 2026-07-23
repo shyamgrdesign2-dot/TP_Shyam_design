@@ -7,10 +7,11 @@ import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
 
 import config from "../config";
-import { useLocalStorage } from "../utils/localStorage";
+import { useLocalStorage, getDecodedToken } from "../utils/localStorage";
 import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, GB_CVT_EXT_HOS, GB_LIMS } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, sendMessageToParent, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
+import { canOpenNativeDataAnalytics } from "../pages/data-analytics/data/analyticsAccess";
 import FullPageLoader from "../pages/vaccination/components/Loader";
 import { useOpdBilling } from "../pages/opdBilling/useOpdBilling";
 import moment from "moment";
@@ -203,8 +204,14 @@ function SidebarDoctor() {
       setHoveredItem(null);
     }
 
+    // Native Data Analytics for allowlisted users / Mission Hospital;
+    // everyone else keeps the legacy PHP SSO redirect.
     if (moduleName === "data_analytics") {
-      return navigate("/data-analytics-x");
+      const tokenResult = tokenData || getDecodedToken()?.result;
+      if (canOpenNativeDataAnalytics(tokenResult)) {
+        return navigate("/data-analytics-x");
+      }
+      return check_SSO(moduleName);
     }
 
     if(moduleName === "ipd") {
@@ -503,6 +510,38 @@ function SidebarDoctor() {
             </div>
           </NavLink>
 
+          {/* Data Analytics stays outside the CVT/Mission Hospital gate so it
+              remains available when Ask Tatva + other modules are hidden. */}
+          {profile?.module_data
+            ?.filter((item) => item?.type === "data_analytics")
+            ?.map((item) => {
+              const hoverKey = "data_analytics";
+              const isHovered = hoveredItem === hoverKey;
+              return (
+                <div key={item.type} className="position-relative">
+                  <NavLink
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setHoveredItem(null);
+                      clickOldModule(item.type);
+                    }}
+                    replace={true}
+                    className={({ isPending }) =>
+                      isPending ? "pending" : isHovered ? "active" : ""
+                    }
+                    onMouseEnter={() => setHoveredItem(hoverKey)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                  >
+                    <img
+                      src={getIcon(item.type, isHovered, false)}
+                      alt={`${item.type}`}
+                    />
+                    <div className="mt-1 px-2">{item.title}</div>
+                  </NavLink>
+                </div>
+              );
+            })}
+
           {!isCvtExtHosAccessableFromGB && (
           <>
           
@@ -539,19 +578,20 @@ function SidebarDoctor() {
             profile?.module_data
               ?.filter(
                 (item) =>
-                  item?.type !== "MyT_patient" && item?.type !== "dis_patient"
+                  item?.type !== "MyT_patient" &&
+                  item?.type !== "dis_patient" &&
+                  item?.type !== "data_analytics"
               )
               ?.map((item, i) => {
                 const isHovered = hoveredItem === i;
                 const isRouteActive = isModuleRouteActive(item.type, location);
                 // Modules that redirect to external tabs should not stay active
-                // These include: Pharmacy, IPD, Follow Up, and Data Analytics
+                // These include: Pharmacy, IPD, Follow Up
                 const isExternalRedirect = 
                   item.type === S_PHARMACY || 
                   item.type === S_IPD || 
                   item.type === "ipd" ||
-                  item.type === "dr_followup_appointment" ||
-                  item.type === "data_analytics";
+                  item.type === "dr_followup_appointment";
                 // Only show active for this specific module when its route is active
                 const shouldShowActive = isRouteActive && !isExternalRedirect && !isHovered;
                 
@@ -559,12 +599,6 @@ function SidebarDoctor() {
                   <div key={i} className="position-relative">
                     <NavLink
                       onClick={(e) => {
-                        // Data analytics opens the in-app full-page drawer;
-                        // block the NavLink's default "/" replace navigation
-                        // so it doesn't clobber the route we push.
-                        if (item.type === "data_analytics") {
-                          e.preventDefault();
-                        }
                         // For external redirect modules, clear hover state immediately on click
                         if (isExternalRedirect) {
                           setHoveredItem(null);

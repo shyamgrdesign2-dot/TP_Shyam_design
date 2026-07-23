@@ -36,6 +36,12 @@ import ReportsTab from "./reports/ReportsTab";
 import useFilterOptions from "./data/useFilterOptions";
 import useCapabilities from "./data/useCapabilities";
 import { trackAnalytics, EVENTS } from "./data/analyticsTracking";
+import {
+  DA_ACCESS_CONSULT_MODES,
+  DA_ACCESS_SSO,
+  getDataAnalyticsAccessMode,
+} from "./data/analyticsAccess";
+import { getDecodedToken } from "../../utils/localStorage";
 
 const MED_ICON_BASE = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded";
 // `icon` is a folder-qualified path ("medical/diagnosis"). Tesseract's
@@ -93,9 +99,17 @@ const CARE_SUB_TABS = [
 // legacy opd-analytics / ipd-analytics modules.
 export default function DataAnalyticsPage() {
   const navigate = useNavigate();
+  const accessMode = useMemo(
+    () => getDataAnalyticsAccessMode(getDecodedToken()?.result),
+    []
+  );
+  const isConsultModesOnly = accessMode === DA_ACCESS_CONSULT_MODES;
+
   const [open, setOpen] = useState(true);
   const [department, setDepartment] = useState("opd");
-  const [section, setSection] = useState("overview");
+  const [section, setSection] = useState(
+    isConsultModesOnly ? "consultation-modes" : "overview"
+  );
   const [subTab, setSubTab] = useState("all");
 
   // What this account is configured for (role, clinics, modules, modes) —
@@ -103,7 +117,15 @@ export default function DataAnalyticsPage() {
   const caps = useCapabilities();
   const openedAtRef = useRef(Date.now());
 
+  // Direct URL access: SSO-only accounts should not land on the native page.
   useEffect(() => {
+    if (accessMode === DA_ACCESS_SSO) {
+      navigate("/", { replace: true });
+    }
+  }, [accessMode, navigate]);
+
+  useEffect(() => {
+    if (accessMode === DA_ACCESS_SSO) return undefined;
     trackAnalytics(EVENTS.OPENED, { department });
     return () => {
       const seconds = Math.round((Date.now() - openedAtRef.current) / 1000);
@@ -141,13 +163,22 @@ export default function DataAnalyticsPage() {
     setRefreshKey((k) => k + 1);
   }, [department, section]);
 
-  const navItems = NAV_BY_DEPARTMENT[department];
+  const navItems = useMemo(() => {
+    const items = NAV_BY_DEPARTMENT[department] || [];
+    if (isConsultModesOnly) {
+      return items.filter((item) => item.id === "consultation-modes");
+    }
+    return items;
+  }, [department, isConsultModesOnly]);
   const hero = heroFor(department, section);
   const deptLabel = department === "ipd" ? "IPD" : "OPD";
 
   // Real doctor + clinic lists (live API fallback when Redux is cold), so the
   // filter dropdowns always have options. Clearing a field means "all".
-  const { doctorOptions, clinicOptions } = useFilterOptions();
+  // Skip for SSO-blocked renders; Consultation Modes still needs filter options.
+  const { doctorOptions, clinicOptions } = useFilterOptions({
+    enabled: accessMode !== DA_ACCESS_SSO,
+  });
 
   // The DateRangePicker emits { presetId, start, end, ... }. Keep the preset id
   // as the display value when a preset is picked (so the trigger reads its
@@ -188,13 +219,15 @@ export default function DataAnalyticsPage() {
   };
 
   const onDepartmentChange = (value) => {
+    if (isConsultModesOnly && value !== "opd") return;
     trackAnalytics(EVENTS.DEPT_SWITCH, { from_department: department, to_department: value });
     setDepartment(value);
-    setSection("overview");
+    setSection(isConsultModesOnly ? "consultation-modes" : "overview");
     setSubTab("all");
   };
 
   const onSectionChange = (value) => {
+    if (isConsultModesOnly && value !== "consultation-modes") return;
     trackAnalytics(EVENTS.SECTION_VIEW, { department, section: value });
     setSection(value);
     setSubTab("all");
@@ -217,13 +250,17 @@ export default function DataAnalyticsPage() {
   };
 
   // The IPD department only exists for accounts with the IPD module enabled.
+  // Mission Hospital restricted access: OPD Analytics only (no IPD toggle).
   const deptOptions = useMemo(
     () =>
-      DEPARTMENTS.filter((d) => d.value !== "ipd" || caps.ipd).map((d) => ({
+      DEPARTMENTS.filter((d) => {
+        if (isConsultModesOnly) return d.value === "opd";
+        return d.value !== "ipd" || caps.ipd;
+      }).map((d) => ({
         value: d.value,
         label: d.label,
       })),
-    [caps.ipd]
+    [caps.ipd, isConsultModesOnly]
   );
 
   const [filterShadow, setFilterShadow] = useState(false);
@@ -231,6 +268,10 @@ export default function DataAnalyticsPage() {
   const onContentScroll = useCallback((e) => {
     setFilterShadow(e.target.scrollTop > 2);
   }, []);
+
+  if (accessMode === DA_ACCESS_SSO) {
+    return null;
+  }
 
   return (
     <TesseractThemeProvider colorScheme="light">
@@ -398,6 +439,7 @@ export default function DataAnalyticsPage() {
                         filters={filters}
                         hero={hero}
                         subTab={subTab}
+                        isConsultModesOnly={isConsultModesOnly}
                       />
                     </div>
                   </div>
@@ -419,7 +461,12 @@ function isComparable(range) {
   return days <= 90;
 }
 
-function SectionContent({ department, section, filters, hero, subTab }) {
+function SectionContent({ department, section, filters, hero, subTab, isConsultModesOnly }) {
+  // Mission Hospital: mount only Consultation Modes so other section hooks never fire.
+  if (isConsultModesOnly) {
+    return <ConsultationModesSection filters={filters} />;
+  }
+
   if (department === "opd") {
     switch (section) {
       case "overview":
