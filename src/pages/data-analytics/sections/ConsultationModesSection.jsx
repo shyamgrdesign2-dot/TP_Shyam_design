@@ -46,7 +46,7 @@ export default function ConsultationModesSection({ filters }) {
 
       <SectionBlock title="More insights" count={2}>
         <ChartGrid>
-          <ChartTile title="Consultation mode mix" subtitle="Share of consultations, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/ecology/atom.svg" titleTooltip="How consultations in the selected period split across Rx modes">
+          <ChartTile title="Consultation mode mix" subtitle="Share of consultations, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/clipboard-activity.svg" titleTooltip="How consultations in the selected period split across Rx modes">
             <DonutWithLegend data={modeMix} centerLabel="Consultations" height={240} />
           </ChartTile>
 

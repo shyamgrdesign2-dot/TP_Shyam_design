@@ -16,8 +16,6 @@ const OVERVIEW_MONEY_KEYS = {
   due: { label: "Total due", tooltip: "Amount still outstanding on bills raised in the selected period" },
   refunded: { label: "Total refunded", tooltip: "Bill amounts refunded to patients in the selected period" },
   advance: { label: "Advance received", tooltip: "Advance deposits collected in the selected period" },
-  advRefunded: { label: "Advance refunded", tooltip: "Advance deposits returned to patients in the selected period" },
-  advDebited: { label: "Advance debited", tooltip: "Advance amounts applied toward bills in the selected period" },
 };
 const MONEY_ORDER = Object.keys(OVERVIEW_MONEY_KEYS);
 
@@ -59,7 +57,7 @@ export default function OverviewSection({ filters }) {
       ...kpis.filter((k) => k.key === "consultations"),
       ...moneyKpis,
       ...kpis.filter((k) => k.key !== "consultations"),
-    ],
+    ].map(({ delta, invert, ...rest }) => rest),
     [kpis, moneyKpis]
   );
 
@@ -84,16 +82,16 @@ export default function OverviewSection({ filters }) {
           <ChartTile
             title="Appointment status"
             subtitle="Current status, selected period"
-            iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/clipboard-activity.svg"
+            iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/business/activity.svg"
             titleTooltip="Current status of every appointment in the selected period (same source as Appointments)"
           >
-            <DonutWithLegend data={appointments.statusDonut} centerLabel="Appointments" height={240} />
+            <DonutWithLegend data={appointments.statusDonut} centerLabel="Appointments" height={240} colors={["var(--tesseract-blue-400)", "var(--tesseract-violet-400)", "var(--tesseract-error-400)"]} />
           </ChartTile>
 
           <ChartTile
             title="Consultation mode mix"
             subtitle="Share of consultations, selected period"
-            iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/ecology/atom.svg"
+            iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/clipboard-activity.svg"
             titleTooltip="How consultations split across Rx modes (same source as Consult Modes)"
           >
             <DonutWithLegend data={modeMix} centerLabel="Consultations" height={240} />

@@ -94,7 +94,7 @@ export default function AppointmentsSection({ filters }) {
       <SectionBlock title="More insights" count={chartCount}>
         <ChartGrid>
           <ChartTile title="Appointment status" subtitle="Current status, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/clipboard-activity.svg" titleTooltip="Current status of every appointment that falls in the selected period. In-queue and draft are live states, so they appear here rather than as headline metrics.">
-            <DonutWithLegend data={statusDonut} centerLabel="Appointments" height={240} />
+            <DonutWithLegend data={statusDonut} centerLabel="Appointments" height={240} colors={["var(--tesseract-blue-400)", "var(--tesseract-violet-400)", "var(--tesseract-error-400)"]} />
           </ChartTile>
 
           <ChartTile title="New vs returning" subtitle="Share of visits, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/health-care.svg" titleTooltip="Split of first-time vs repeat patients among visits in the selected period">

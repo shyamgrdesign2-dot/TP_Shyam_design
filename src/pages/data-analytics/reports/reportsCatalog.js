@@ -204,7 +204,7 @@ export const REPORTS = [
   },
   {
     id: "prescription-analytics", group: "Clinical", dept: "opd",
-    icon: `${IC}medical/tablets.svg`,
+    icon: `${IC}content-edit/document-sketch.svg`,
     label: "Prescription Analytics",
     desc: "Brand, generic and company prescription volumes.",
     filters: ["dateRange"],
