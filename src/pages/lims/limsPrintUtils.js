@@ -198,3 +198,37 @@ export function arrowSymbol(dir) {
   if (dir === "DOWN") return "▼";
   return "";
 }
+
+/** Same margin mapping used by bill/Rx print PDFs (values in cm → points). */
+const CM_TO_PT = 25;
+const DEFAULT_MARGIN_PT = 0.75 * 30;
+
+function getLimsMarginKey(letterheadFormat) {
+  const format = Number(letterheadFormat);
+  if (format === 0) return "custom_letterhead_margin";
+  if (format === 1) return "uploaded_letterhead_margin";
+  if (format === 2) return "margin";
+  return null;
+}
+
+export function getLimsMarginByFormat(letterheadFormat, headerFooter, position, defaultCm = 0.5) {
+  const marginType = getLimsMarginKey(letterheadFormat);
+  const raw = headerFooter?.[marginType]?.[position];
+  const value = raw === "" || raw == null ? NaN : Number(raw);
+  if (marginType && Number.isFinite(value) && value >= 0) {
+    return value * CM_TO_PT;
+  }
+  return Number.isFinite(defaultCm) ? defaultCm * CM_TO_PT : DEFAULT_MARGIN_PT;
+}
+
+/** CSS preview uses ~28px per cm to match the on-screen A4 card scale. */
+export function getLimsMarginCssPx(letterheadFormat, headerFooter, position, defaultCm = 0.5) {
+  const marginType = getLimsMarginKey(letterheadFormat);
+  const raw = headerFooter?.[marginType]?.[position];
+  const value = raw === "" || raw == null ? NaN : Number(raw);
+  if (marginType && Number.isFinite(value) && value >= 0) {
+    return value * 28;
+  }
+  return (Number.isFinite(defaultCm) ? defaultCm : 0.5) * 28;
+}
+

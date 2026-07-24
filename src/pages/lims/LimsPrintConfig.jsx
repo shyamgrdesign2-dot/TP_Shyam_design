@@ -24,6 +24,7 @@ import {
   LIMS_SETTINGS_KEY, LAB_RESULTS_CASE_ID,
   initFileStates, groupByReport, rangeText, arrowSymbol,
   fetchLimsPrintSettings, saveLimsPrintSettingsToApi, resetLimsPrintSettingsToApiDefaults,
+  getLimsMarginCssPx,
 } from "./limsPrintUtils";
 import { ASSETS } from "../../assets";
 
@@ -313,10 +314,11 @@ export function LabResultsPreview({ results, patient, emptyText }) {
 
   const hf = printSettings?.header_footer;
   const pf = printSettings?.page_format;
-  const letterhead = printSettings?.letterhead_format;
-  const fontFamily = pf?.font_family || "Inter";
+  const letterhead = Number(printSettings?.letterhead_format);
+  const fontFamily = pf?.font_family || "Roboto";
   const fontSize = pf?.font_size || 10;
   const patientFontSize = pf?.patient_info_font_size || fontSize;
+  const showPagination = !!pf?.pagination;
 
   const doctorInfo = hf?.header?.doctor_info;
   const clinicInfo = hf?.header?.clinic_info;
@@ -362,9 +364,19 @@ export function LabResultsPreview({ results, patient, emptyText }) {
     10: { label: "Blood Group", value: "" },
   };
 
-  const ownMargin = letterhead === 2
-    ? hf?.custom_letterhead_margin || hf?.margin || {}
-    : {};
+  const marginTop = getLimsMarginCssPx(letterhead, hf, "top", 0.5);
+  const marginBottom = getLimsMarginCssPx(letterhead, hf, "bottom", 0.5);
+  const marginLeft = getLimsMarginCssPx(letterhead, hf, "left", 0.5);
+  const marginRight = getLimsMarginCssPx(letterhead, hf, "right", 0.5);
+  const footerTitle = footerCfg?.title || footerCfg?.text || "";
+  const showUploadedFooter = letterhead === 1 && !!fileFooter?.showFile;
+  const showTextFooter = letterhead === 0 && !!footerTitle;
+  const footerReservePx = showUploadedFooter
+    ? Math.max(40, Number(fileFooter?.renderedFooterImageHeight) || 56)
+    : showTextFooter
+      ? 36
+      : 0;
+  const paginationReservePx = showPagination ? 18 : 0;
 
   const renderTableClusterRows = (reportName, filledTests) => (
     <React.Fragment key={reportName}>
@@ -458,9 +470,14 @@ export function LabResultsPreview({ results, patient, emptyText }) {
       className={styles.previewCard}
       style={{
         fontFamily,
-        paddingTop: letterhead === 2 ? `${(ownMargin.top || 2) * 28}px` : undefined,
-        paddingBottom: letterhead === 2 ? `${(ownMargin.bottom || 2) * 28}px` : undefined,
+        fontSize: `${fontSize}px`,
+        paddingTop: `${marginTop}px`,
+        paddingBottom: `${marginBottom + footerReservePx + paginationReservePx}px`,
+        paddingLeft: `${marginLeft}px`,
+        paddingRight: `${marginRight}px`,
         position: "relative",
+        minHeight: 1122,
+        boxSizing: "border-box",
       }}
     >
       {/* Watermark */}
@@ -470,7 +487,7 @@ export function LabResultsPreview({ results, patient, emptyText }) {
         </div>
       )}
 
-      {/* Letterhead: Upload (1) */}
+      {/* Letterhead: Upload (1) — top of page */}
       {letterhead === 1 && fileHeader?.showFile && (
         <img src={fileHeader.showFile} alt="" className={styles.uploadedHeaderImg} />
       )}
@@ -537,30 +554,19 @@ export function LabResultsPreview({ results, patient, emptyText }) {
       )}
 
       {/* Patient info */}
-      <div className={styles.previewPatientBlock}>
-        <div className={styles.previewPatientRow}>
-          {enabledFields.length > 0
-            ? enabledFields.map((f) => {
-                const mapped = fieldMap[f.id];
-                if (!mapped || !mapped.value) return null;
-                return (
-                  <span key={f.id}>
-                    <strong>{mapped.label}:</strong> {mapped.value}
-                  </span>
-                );
-              })
-            : (
-              <>
-                <span><strong>Patient:</strong> {name}</span>
-                {pid && <span><strong>ID:</strong> {pid}</span>}
-                {gender && <span><strong>Gender:</strong> {gender}</span>}
-                {age && <span><strong>Age:</strong> {age}</span>}
-                {contact && <span><strong>Mobile:</strong> {contact}</span>}
-              </>
-            )}
+      <div className={styles.previewPatientBlock} style={{ fontSize: `${patientFontSize}px` }}>
+        <div className={styles.previewPatientRow} style={{ fontSize: `${patientFontSize}px` }}>
+          {(enabledFields.length
+            ? enabledFields.map((f) => fieldMap[f.id]).filter((f) => f?.value)
+            : [fieldMap[1], fieldMap[2], fieldMap[5], fieldMap[4], fieldMap[9]].filter((f) => f?.value)
+          ).map((field) => (
+            <span key={field.label}>
+              <strong>{field.label}: </strong>
+              {field.value}
+            </span>
+          ))}
         </div>
       </div>
-
       <div className={styles.previewDivider} />
 
       {/* Lab results */}
@@ -672,22 +678,30 @@ export function LabResultsPreview({ results, patient, emptyText }) {
         </div>
       )}
 
-      {/* Footer: uploaded image (letterhead 1) */}
-      {letterhead === 1 && fileFooter?.showFile && (
-        <img src={fileFooter.showFile} alt="" className={styles.uploadedFooterImg} />
+      {/* Fixed footer at bottom of page (matches PDF / bill print) */}
+      {(showUploadedFooter || showTextFooter) && (
+        <div
+          className={styles.previewFixedFooter}
+          style={{ left: `${marginLeft}px`, right: `${marginRight}px`, bottom: `${marginBottom}px` }}
+        >
+          {showUploadedFooter ? (
+            <img src={fileFooter.showFile} alt="" className={styles.uploadedFooterImg} />
+          ) : (
+            <>
+              <div className={styles.previewFooterBar} />
+              <div
+                className={styles.previewFooterText}
+                style={{ fontSize: footerCfg?.font_size || 10 }}
+              >
+                {footerTitle}
+              </div>
+            </>
+          )}
+        </div>
       )}
 
-      {/* Footer: text */}
-      {footerCfg?.enable === "Y" && footerCfg?.text && (
-        <>
-          <div className={styles.previewDivider} style={{ marginTop: 24 }} />
-          <div
-            className={styles.previewFooterText}
-            style={{ fontSize: footerCfg.font_size || 10 }}
-          >
-            {footerCfg.text}
-          </div>
-        </>
+      {showPagination && (
+        <div className={styles.previewPageNumber}>Page 1/1</div>
       )}
     </div>
   );
@@ -810,7 +824,7 @@ function LimsPrintConfigMain() {
                 ) : selectedTab === TAB_HEADER_FOOTER ? (
                   <HeaderFooterLayout />
                 ) : (
-                  selectedTab === TAB_PAGE_FORMAT && <PageFormatLayout />
+                  selectedTab === TAB_PAGE_FORMAT && <PageFormatLayout hideDefaultLanguage />
                 )}
               </div>
             </Col>

@@ -6,7 +6,7 @@ import { pdf } from "@react-pdf/renderer";
 import { browserName } from "react-device-detect";
 
 import PrintSettingsContext from "../../context/PrintSettingsContext";
-import { sendMessageToParent } from "../../utils/utils";
+import { sendMessageToParent, updateFooterImageHeight } from "../../utils/utils";
 import { EVENTS } from "../../utils/events";
 import { uploadDocsToAzure } from "../medicalRecords/service";
 import { printBlobInNewTab } from "../opdBilling/utils/helper";
@@ -68,6 +68,11 @@ function LimsPrintPageMain() {
       cancelled = true;
     };
   }, [printSettings]);
+
+  useEffect(() => {
+    if (!fileFooter?.showFile) return;
+    updateFooterImageHeight(fileFooter, setFileFooter);
+  }, [fileFooter?.showFile]);
 
   useEffect(() => {
     if (!patientId) return;
