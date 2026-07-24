@@ -3,7 +3,12 @@ import ApiReporting from "../../../api/services/ApiReporting";
 import { anyToDonut, sumDatasetByLabel, seriesToXY } from "../charts/adapters";
 import { cached } from "./apiCache";
 
-export default function useAppointmentsData({ days, doctorId, clinicId } = {}) {
+// Appointment charts (case type, new vs returning, weekday, hour).
+// Prefer startDate/endDate so chart windows match live KPIs
+// (useAppointmentsLive). Sending the snapped filters.days (7/15/30) made
+// "Today" KPIs disagree with "last 7 days" charts. `days` is only a
+// fallback for legacy callers without a concrete range.
+export default function useAppointmentsData({ days, startDate, endDate, doctorId, clinicId } = {}) {
   const [state, setState] = useState({
     loading: true,
     error: null,
@@ -19,7 +24,12 @@ export default function useAppointmentsData({ days, doctorId, clinicId } = {}) {
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     const params = {};
-    if (days) params.days = Math.min(days, 90);
+    if (startDate && endDate) {
+      params.startDate = startDate;
+      params.endDate = endDate;
+    } else {
+      params.days = Math.min(Number(days) || 7, 90);
+    }
     if (doctorId && doctorId !== "all") params.doctorId = doctorId;
     if (clinicId && clinicId !== "all") params.clinicId = clinicId;
 
@@ -37,7 +47,7 @@ export default function useAppointmentsData({ days, doctorId, clinicId } = {}) {
       visitsByHour: src?.visitsByHour ? seriesToXY(src.visitsByHour) : null,
       newVsReturningTrend: src?.newVsReturningTrend ? seriesToXY(src.newVsReturningTrend) : null,
     });
-  }, [days, doctorId, clinicId]);
+  }, [days, startDate, endDate, doctorId, clinicId]);
 
   useEffect(() => {
     load();

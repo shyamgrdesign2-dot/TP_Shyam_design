@@ -28,7 +28,13 @@ export default function AppointmentsSection({ filters }) {
     clinicId: filters?.clinic,
   });
 
-  const analytics = useAppointmentsData({ days: filters?.days || 7, doctorId: filters?.doctor, clinicId: filters?.clinic });
+  const analytics = useAppointmentsData({
+    startDate: filters?.startDate,
+    endDate: filters?.endDate,
+    days: filters?.days || 7,
+    doctorId: filters?.doctor,
+    clinicId: filters?.clinic,
+  });
 
   const isLoading = loading || analytics.loading;
 

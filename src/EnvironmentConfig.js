@@ -391,7 +391,8 @@ const uat = {
 };
 
 const prod = {
-  reporting_api_url: "https://pm-reporting-prod.tatvacare.in",
+  // reporting_api_url: "https://pm-core-prod.tatvacare.in",
+  reporting_api_url: "https://pm-core-prod.nicerock-72127a04.centralindia.azurecontainerapps.io/",
   appointment_api_url: `https://pm-master-prod-webservice.tatvacare.in`,
   symptoms_api_url: `https://pm-symptoms-prod.tatvacare.in`,
   examination_api_url: `https://pm-examination-prod.tatvacare.in`,
