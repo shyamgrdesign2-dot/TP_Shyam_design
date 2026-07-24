@@ -10,21 +10,21 @@ export const DEPARTMENTS = [
 
 export const OPD_NAV = [
   { id: "overview", label: "Overview", icon: "grids" },
-  { id: "appointments", label: "Appointments", icon: "calendar-2" },
+  { id: "appointments", label: "Appointments", icon: "calendar-2", iconLinearUrl: "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/time/calendar.svg", iconBulkUrl: "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/time/calendar-2.svg" },
   { id: "consultation-modes", label: "Consult Modes", icon: "stethoscope" },
   { id: "billing", label: "Billing", icon: "wallet-3" },
   { id: "patients", label: "Patients", icon: "profile-2user" },
   { id: "care", label: "Care", icon: "health" },
   // grow hidden: backend follow-ups endpoint returns empty data (no records in reporting tables).
   // { id: "grow", label: "Grow", icon: "chart-2" },
-  { id: "messages", label: "Messages", icon: "message" },
+  { id: "messages", label: "Messages", icon: "message", iconLinearUrl: "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/emails-messages/messages.svg", iconBulkUrl: "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/emails-messages/messages-2.svg" },
   { id: "reports", label: "Reports", icon: "document-download" },
 ];
 
 export const IPD_NAV = [
   { id: "overview", label: "Overview", icon: "grids" },
   { id: "admissions", label: "Admissions", icon: "login" },
-  { id: "wards", label: "Wards", icon: "building" },
+  { id: "wards", label: "Wards", icon: "building", iconLinearUrl: "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/building/building.svg", iconBulkUrl: "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/building/building-4.svg" },
   // "Clinical Activity" removed (user ruling 2026-07-15): ipd/clinical returns
   // zeros for every KPI/chart even over a 365-day window (notes/OT untracked;
   // labResults reads the wrong table — Pm-Core BUG-5). Restore this entry when

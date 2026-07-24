@@ -108,6 +108,7 @@ export default function AppointmentsSection({ filters }) {
               fallbackLabels={["New", "Follow-up", "Urgent"]}
               fallbackSeries={[{ key: "count", label: "Count" }]}
               height={240}
+              showAverage={false}
             />
           </ChartTile>
 
@@ -128,6 +129,7 @@ export default function AppointmentsSection({ filters }) {
                 fallbackLabels={["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]}
                 fallbackSeries={[{ key: "Visits", label: "Visits" }]}
                 height={240}
+                showAverage={false}
               />
             </ChartTile>
           )}

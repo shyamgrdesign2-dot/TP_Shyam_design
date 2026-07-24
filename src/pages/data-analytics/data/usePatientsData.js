@@ -80,7 +80,6 @@ function buildKpis(raw) {
     { key: "onetime", label: "One-time visitors", kind: "number", value: toNum(raw.oneTime), tooltip: "Patients who visited only once", ...(hasPrev ? { delta: pctDelta(toNum(raw.oneTime), toNum(prev.oneTime)) } : {}) },
     { key: "returning", label: "Returning patients", kind: "number", value: toNum(raw.returning), tooltip: "Patients with more than one visit", ...(hasPrev ? { delta: pctDelta(toNum(raw.returning), toNum(prev.returning)) } : {}) },
     { key: "topBloodGroup", label: "Top blood group", kind: "text", value: raw.topBloodGroup || "No data", tooltip: "Most common blood group among patients" },
-    { key: "avgAge", label: "Avg patient age", kind: "number", value: toNum(raw.avgAge), approx: true, tooltip: "Mean age of patients seen during the period" },
   ];
 }
 
@@ -90,7 +89,6 @@ function defaultKpis() {
     { key: "onetime", label: "One-time visitors", kind: "number", value: 0, tooltip: "Patients who visited only once" },
     { key: "returning", label: "Returning patients", kind: "number", value: 0, tooltip: "Patients with more than one visit" },
     { key: "topBloodGroup", label: "Top blood group", kind: "text", value: "No data", tooltip: "Most common blood group among patients" },
-    { key: "avgAge", label: "Avg patient age", kind: "number", value: 0, approx: true, tooltip: "Mean age of patients seen during the period" },
   ];
 }
 

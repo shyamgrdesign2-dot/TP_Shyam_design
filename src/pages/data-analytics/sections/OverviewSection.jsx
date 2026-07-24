@@ -15,7 +15,7 @@ const OVERVIEW_MONEY_KEYS = {
   collected: { label: "Total collected", tooltip: "Payments received in the selected period (same source as Billing)" },
   due: { label: "Total due", tooltip: "Amount still outstanding on bills raised in the selected period" },
   refunded: { label: "Total refunded", tooltip: "Bill amounts refunded to patients in the selected period" },
-  advance: { label: "Advance received", tooltip: "Advance deposits collected in the selected period" },
+  advance: { label: "Advance deposited", tooltip: "Advance deposits collected in the selected period" },
 };
 const MONEY_ORDER = Object.keys(OVERVIEW_MONEY_KEYS);
 

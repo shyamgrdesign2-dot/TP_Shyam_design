@@ -53,6 +53,7 @@ export default function PatientsSection({ filters }) {
               fallbackLabels={["<18", "18-30", "30-45", "45-60", ">60"]}
               fallbackSeries={[{ key: "Patients", label: "Patients" }]}
               height={240}
+              showAverage={false}
             />
           </ChartTile>
 
@@ -63,6 +64,7 @@ export default function PatientsSection({ filters }) {
               fallbackLabels={["1", "2", "3", "4-5", "6-10", "10+"]}
               fallbackSeries={[{ key: "Patients", label: "Patients" }]}
               height={240}
+              showAverage={false}
             />
           </ChartTile>
         </ChartGrid>

@@ -108,7 +108,6 @@ function buildKpis(credits, period = [], sent = [], scheduled = [], prevSent = [
     { key: "msgCredits", label: "Credit balance", kind: "number", value: Math.round(credits), tooltip: "Message credits currently available, a live balance, not filtered by the date range" },
     { key: "msgCampaigns", label: "Campaigns sent", kind: "number", value: sent.length, tooltip: "Campaigns delivered in the selected period", ...d(sent.length, prevSent.length) },
     { key: "msgReach", label: "Patients reached", kind: "number", value: reached, tooltip: "Total patients targeted by delivered campaigns in the selected period", ...d(reached, prevReached) },
-    { key: "msgScheduled", label: "Scheduled campaigns", kind: "number", value: scheduled.length, tooltip: "Campaigns scheduled but not yet sent" },
     { key: "msgAvgReach", label: "Avg reach per campaign", kind: "number", value: avgReach, approx: true, tooltip: "Patients reached divided by campaigns sent in the selected period", ...d(avgReach, prevAvgReach) },
   ];
 }

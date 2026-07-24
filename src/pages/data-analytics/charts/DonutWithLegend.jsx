@@ -10,6 +10,7 @@ export const DONUT_PALETTE = [
   "var(--tesseract-error-400)",
   "var(--tesseract-amber-300)",
   "var(--tesseract-blue-200)",
+  "var(--tesseract-violet-200)",
 ];
 
 function DonutWithLegend({

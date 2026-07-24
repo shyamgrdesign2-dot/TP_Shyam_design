@@ -181,12 +181,38 @@ export default function DataAnalyticsPage() {
   }, [department, section]);
 
   const navItems = useMemo(() => {
-    const items = NAV_BY_DEPARTMENT[department] || [];
+    let raw = NAV_BY_DEPARTMENT[department] || [];
     if (isConsultModesOnly) {
-      return items.filter((item) => item.id === "consultation-modes");
+      raw = raw.filter((item) => item.id === "consultation-modes");
     }
-    return items;
-  }, [department, isConsultModesOnly]);
+    return raw.map((item) => {
+      if (!item.iconBulkUrl) return item;
+      const url = item.id === section ? item.iconBulkUrl : item.iconLinearUrl;
+      return {
+        ...item,
+        icon: React.createElement("span", {
+          "aria-hidden": true,
+          "data-tp-icon": "custom",
+          style: {
+            display: "inline-block",
+            width: 20,
+            height: 20,
+            flexShrink: 0,
+            backgroundColor: "currentcolor",
+            WebkitMaskImage: `url(${url})`,
+            WebkitMaskSize: "contain",
+            WebkitMaskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskImage: `url(${url})`,
+            maskSize: "contain",
+            maskRepeat: "no-repeat",
+            maskPosition: "center",
+          },
+        }),
+      };
+    });
+  }, [department, section, isConsultModesOnly]);
+
   const handleDoctorsChange = useCallback(
     (v) => {
       const { value, blocked } = clampToSingle(doctors, v);
@@ -229,7 +255,6 @@ export default function DataAnalyticsPage() {
     [clinics, department, section]
   );
 
-  // const navItems = NAV_BY_DEPARTMENT[department];
   const hero = heroFor(department, section);
   const deptLabel = department === "ipd" ? "IPD" : "OPD";
 

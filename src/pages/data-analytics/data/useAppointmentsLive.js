@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import ApiAppointments from "../../../api/services/ApiAppointments";
 import ApiReporting from "../../../api/services/ApiReporting";
 import { toNum as num, pctDelta } from "./deltaUtils";
 import { cached } from "./apiCache";
@@ -8,11 +7,9 @@ const ZERO_KPIS = [
   { key: "total", label: "Total footfall", kind: "number", value: 0, tooltip: "All appointments in the selected period" },
   { key: "completed", label: "Completed visits", kind: "number", value: 0, tooltip: "Appointments completed in the selected period" },
   { key: "inQueue", label: "In queue", kind: "number", value: 0, tooltip: "Appointments still waiting in the queue" },
-  { key: "pendingDecisions", label: "Pending digitization", kind: "number", value: 0, tooltip: "Finished SnapRx visits awaiting digitization" },
   { key: "cancelled", label: "Cancelled", kind: "number", value: 0, tooltip: "Appointments cancelled in the selected period" },
   { key: "bookedClinic", label: "In-clinic visits", kind: "number", value: 0, tooltip: "In-person clinic visits in the selected period" },
   { key: "bookedVideo", label: "Video consultations", kind: "number", value: 0, tooltip: "Teleconsultation visits in the selected period" },
-  { key: "cancelRate", label: "Cancellation rate", kind: "percent", value: 0, tooltip: "Cancelled as a share of total footfall in the selected period" },
 ];
 
 export default function useAppointmentsLive({ startDate, endDate, doctorId, clinicId } = {}) {
@@ -29,14 +26,9 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
     if (clinicId && clinicId !== "all") params.clinicId = clinicId;
     if (doctorId && doctorId !== "all") params.doctorId = doctorId;
 
-    const [summary, undigitised] = await Promise.all([
-      cached("apptSummary", params, () =>
-        ApiReporting.clinicalAppointmentSummary(params).catch(() => null)
-      ),
-      cached("undigitised", {}, () =>
-        ApiAppointments.getAllUnDigitisedAppointmentsList().catch(() => null)
-      ),
-    ]);
+    const summary = await cached("apptSummary", params, () =>
+      ApiReporting.clinicalAppointmentSummary(params).catch(() => null)
+    );
 
     const src = summary?.data ?? summary ?? {};
     const kpis = src.kpis ?? {};
@@ -59,22 +51,15 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
     const bookedClinic = channelOf("clinic");
     const bookedVideo = channelOf("video");
 
-    const undigitisedList = Array.isArray(undigitised)
-      ? undigitised
-      : undigitised?.undigitizedAppointments ?? undigitised?.data?.undigitizedAppointments ?? [];
-    const pendingDecisions = Array.isArray(undigitisedList) ? undigitisedList.length : 0;
-
     setState({
       loading: false,
       kpis: [
         { key: "total", label: "Total footfall", kind: "number", value: total, tooltip: "All appointments in the selected period", ...(hasPrev ? { delta: pctDelta(total, prevTotal) } : {}) },
         { key: "completed", label: "Completed visits", kind: "number", value: completed, tooltip: "Appointments completed in the selected period", ...(hasPrev ? { delta: pctDelta(completed, prevCompleted) } : {}) },
         { key: "inQueue", label: "In queue", kind: "number", value: inQueue, tooltip: "Appointments still waiting in the queue" },
-        { key: "pendingDecisions", label: "Pending digitization", kind: "number", value: pendingDecisions, tooltip: "Finished SnapRx visits awaiting digitization, a live backlog" },
         { key: "cancelled", label: "Cancelled", kind: "number", value: cancelled, invert: true, tooltip: "Appointments cancelled in the selected period" },
         { key: "bookedClinic", label: "In-clinic visits", kind: "number", value: bookedClinic, tooltip: "In-person clinic visits in the selected period" },
         { key: "bookedVideo", label: "Video consultations", kind: "number", value: bookedVideo, tooltip: "Teleconsultation visits in the selected period" },
-        { key: "cancelRate", label: "Cancellation rate", kind: "percent", value: total ? (cancelled / total) * 100 : 0, invert: true, tooltip: "Cancelled as a share of total footfall in the selected period" },
       ],
       statusDonut: [
         { label: "Completed", value: completed },
