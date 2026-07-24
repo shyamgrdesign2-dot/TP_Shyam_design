@@ -167,6 +167,11 @@ export default function useConsultationModesData({ month, startDate, endDate, do
           (byDoctor.data || []).some((row) => toNum(row[se.key]) > 0)
         )
       );
+      kept.sort((a, b) => {
+        const tA = (byDoctor.data || []).reduce((s, r) => s + (Number(r[a.key]) || 0), 0);
+        const tB = (byDoctor.data || []).reduce((s, r) => s + (Number(r[b.key]) || 0), 0);
+        return tB - tA;
+      });
       byDoctor = { ...byDoctor, series: kept };
     }
 
@@ -223,7 +228,7 @@ function buildKpis(raw) {
 
   return [
     { key: "total", label: "Total consultations", kind: "number", value: total, tooltip: "Consultations across all Rx modes in the selected period", ...(hasPrev ? { delta: pctDelta(total, toNum(prev.total)) } : {}) },
-    { key: "topMode", label: "Top mode", kind: "text", value: topMode || "No data", tooltip: "The Rx mode used most often in the selected period" },
+    { key: "topMode", label: "Top consultation mode", kind: "text", value: topMode || "No data", tooltip: "The Rx mode used most often in the selected period" },
   ];
 }
 
@@ -246,7 +251,7 @@ function mostActiveDoctor(byDoctor) {
 function defaultKpis() {
   return [
     { key: "total", label: "Total consultations", kind: "number", value: 0, tooltip: "Consultations across all Rx modes in the selected period" },
-    { key: "topMode", label: "Top mode", kind: "text", value: "No data", tooltip: "The Rx mode used most often in the selected period" },
+    { key: "topMode", label: "Top consultation mode", kind: "text", value: "No data", tooltip: "The Rx mode used most often in the selected period" },
   ];
 }
 

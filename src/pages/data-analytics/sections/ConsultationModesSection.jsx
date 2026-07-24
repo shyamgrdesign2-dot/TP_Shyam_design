@@ -46,11 +46,11 @@ export default function ConsultationModesSection({ filters }) {
 
       <SectionBlock title="More insights" count={2}>
         <ChartGrid>
-          <ChartTile title="Consultation mode mix" subtitle="Share of consultations, selected period" icon="activity" titleTooltip="How consultations in the selected period split across Rx modes">
+          <ChartTile title="Consultation mode mix" subtitle="Share of consultations, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/ecology/atom.svg" titleTooltip="How consultations in the selected period split across Rx modes">
             <DonutWithLegend data={modeMix} centerLabel="Consultations" height={240} />
           </ChartTile>
 
-          <ChartTile title="Usage by doctor" subtitle="Mode split per doctor, selected period" icon="profile-2user" titleTooltip="Each doctor's consultations in the selected period, stacked by the Rx mode used">
+          <ChartTile title="Usage by doctor" subtitle="Mode split per doctor, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/content-edit/document-favorite.svg" titleTooltip="Each doctor's consultations in the selected period, stacked by the Rx mode used">
             <MaybeScroll count={byDoctor?.data?.length}>
             <StackedBarWithTotal
               data={byDoctor?.data}

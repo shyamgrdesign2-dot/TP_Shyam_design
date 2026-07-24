@@ -1,5 +1,6 @@
 import ApiReporting from "../../../api/services/ApiReporting";
 
+const IC = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/";
 const dates = (f) => ({ startDate: f?.startDate, endDate: f?.endDate });
 
 // Bill/document types — the EXACT tokens the Pm-Core schemas accept
@@ -80,6 +81,7 @@ export const REPORTS = [
   // --- Financial ---
   {
     id: "daily-collection", group: "Financial", dept: "both",
+    icon: `${IC}money/receipt.svg`,
     label: "Daily Collection",
     desc: "Cash memo, receipt, advance and refund for a single day.",
     live: true,
@@ -90,6 +92,7 @@ export const REPORTS = [
   },
   {
     id: "collection-report", group: "Financial", dept: "both",
+    icon: `${IC}money/money-recive.svg`,
     label: "Collection Report",
     desc: "Day-wise or detailed collection by date, bill type and payment mode.",
     live: true,
@@ -105,6 +108,7 @@ export const REPORTS = [
   },
   {
     id: "incentive-report", group: "Financial", dept: "opd",
+    icon: `${IC}money/money-add.svg`,
     label: "Incentive Reports",
     desc: "Per-user and service-level incentive payouts.",
     // incentive.schema.ts: detailed takes `user` = CSV of incentive-user ids
@@ -121,6 +125,7 @@ export const REPORTS = [
   },
   {
     id: "3c-report", group: "Financial", dept: "opd",
+    icon: `${IC}content-edit/bill.svg`,
     label: "3C Report",
     desc: "Cash, invoice and credit-note breakdown by account.",
     // threeC.schema.ts: summary takes REQUIRED `account` (tban_id; "all"
@@ -136,6 +141,7 @@ export const REPORTS = [
   },
   {
     id: "billing-overall", group: "Financial", dept: "both",
+    icon: `${IC}essential/chart.svg`,
     label: "Billing Overall Reports",
     desc: "Revenue and cash-flow reports across the whole practice.",
     filters: ["billingOverallType", "dateRange", "billType", "issuedBy", "paymentMode", "account"],
@@ -149,6 +155,7 @@ export const REPORTS = [
   },
   {
     id: "ipd-reports", group: "Financial", dept: "ipd",
+    icon: `${IC}buildings/building-4.svg`,
     label: "IPD Reports",
     desc: "Admitting and discharged patient reports with financials.",
     live: true,
@@ -160,6 +167,7 @@ export const REPORTS = [
   // --- Clinical ---
   {
     id: "appointment-analytics", group: "Clinical", dept: "opd",
+    icon: `${IC}medical/clipboard-activity.svg`,
     label: "Appointment Analytics",
     desc: "Appointment status and doctor-wise breakdown.",
     // appointment.schema.ts — overall takes ONLY startDate+endDate; detailed
@@ -186,6 +194,7 @@ export const REPORTS = [
   },
   {
     id: "ipd-analytics", group: "Clinical", dept: "ipd",
+    icon: `${IC}medical/clipboard-activity.svg`,
     label: "IPD Analytics",
     desc: "Inpatient clinical activity and department-wise breakdown.",
     filters: ["dateRange", "clinic", "ipdFilterBy"],
@@ -195,6 +204,7 @@ export const REPORTS = [
   },
   {
     id: "prescription-analytics", group: "Clinical", dept: "opd",
+    icon: `${IC}medical/tablets.svg`,
     label: "Prescription Analytics",
     desc: "Brand, generic and company prescription volumes.",
     filters: ["dateRange"],
@@ -204,6 +214,7 @@ export const REPORTS = [
   },
   {
     id: "prescription-medicine", group: "Clinical", dept: "opd",
+    icon: `${IC}medical/tablets.svg`,
     label: "Prescription Medicine Detailed",
     desc: "Medicine-level prescription detail for OPD.",
     filters: ["dateRange"],
@@ -214,6 +225,7 @@ export const REPORTS = [
   // --- Reference ---
   {
     id: "ref-patients", group: "Reference", dept: "opd",
+    icon: `${IC}users/profile-2user.svg`,
     label: "Referred by Patients",
     desc: "Patients who referred others, with referred-case counts.",
     live: true,
@@ -223,6 +235,7 @@ export const REPORTS = [
   },
   {
     id: "ref-others", group: "Reference", dept: "opd",
+    icon: `${IC}users/profile-2user.svg`,
     label: "Referred by Others",
     desc: "External referrers with their referred-case counts.",
     live: true,
@@ -232,6 +245,7 @@ export const REPORTS = [
   },
   {
     id: "ref-inpatient", group: "Reference", dept: "ipd",
+    icon: `${IC}users/profile-2user.svg`,
     label: "Inpatient References",
     desc: "Inpatient referrers with their referred cases.",
     filters: [],

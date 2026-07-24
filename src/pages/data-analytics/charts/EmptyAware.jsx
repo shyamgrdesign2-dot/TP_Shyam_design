@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useRef, useEffect, useCallback, useMemo } from "react";
 import { LineChart, BarChart, DonutChart } from "@dhspl-tatvacare/tesseract-ui";
 import {
   xyOrZero,
@@ -49,6 +49,7 @@ export function BarChartZ({
   xKey = "x",
   fallbackLabels,
   fallbackSeries,
+  showAverage,
   ...rest
 }) {
   const z = xyOrZero(
@@ -60,6 +61,14 @@ export function BarChartZ({
   // default — long labels ("Hypertension") get cropped. Size the gutter to the
   // longest label so text is always fully visible (capped so bars keep room).
   const margin = rest.margin ?? (rest.horizontal ? { left: categoryGutter(z.data, z.xKey) } : undefined);
+
+  const autoAvg = showAverage !== false && z.series?.length === 1 && !rest.horizontal && !rest.stacked;
+  if (autoAvg) {
+    return (
+      <BarChartWithAvg data={z.data} series={z.series} xKey={z.xKey} rest={rest} margin={margin} />
+    );
+  }
+
   return (
     <BarChart
       data={z.data}
@@ -69,6 +78,94 @@ export function BarChartZ({
       {...rest}
       {...(margin ? { margin } : {})}
     />
+  );
+}
+
+function BarChartWithAvg({ data, series, xKey, rest, margin }) {
+  const wrapRef = useRef(null);
+  const key = series[0]?.key;
+  const avg = useMemo(() => {
+    const vals = (data || []).map((d) => Number(d[key]) || 0);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  }, [data, key]);
+  const fmtAvg = Math.round(avg * 10) / 10;
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || !avg) return;
+    const inject = () => {
+      const svg = el.querySelector("svg");
+      if (!svg || svg.querySelector("[data-avg-line]")) return;
+      const ticks = svg.querySelectorAll("g[pointer-events='none'] line");
+      if (ticks.length < 2) return;
+      const tickVals = [];
+      const tickYs = [];
+      svg.querySelectorAll("text").forEach((t) => {
+        const n = Number(t.textContent);
+        if (!isNaN(n) && t.getAttribute("text-anchor") === "end") {
+          tickVals.push(n);
+          tickYs.push(Number(t.getAttribute("y")));
+        }
+      });
+      if (tickVals.length < 2) return;
+      const [v0, v1] = [tickVals[0], tickVals[tickVals.length - 1]];
+      const [y0, y1] = [tickYs[0], tickYs[tickYs.length - 1]];
+      const yAvg = y0 + ((avg - v0) / (v1 - v0)) * (y1 - y0);
+      const x1 = Number(ticks[0].getAttribute("x1"));
+      const x2 = Number(ticks[0].getAttribute("x2"));
+      const ns = "http://www.w3.org/2000/svg";
+      const line = document.createElementNS(ns, "line");
+      line.setAttribute("data-avg-line", "1");
+      line.setAttribute("x1", x1);
+      line.setAttribute("x2", x2);
+      line.setAttribute("y1", yAvg);
+      line.setAttribute("y2", yAvg);
+      line.setAttribute("stroke", "var(--tesseract-slate-500)");
+      line.setAttribute("stroke-width", "1.5");
+      line.setAttribute("stroke-dasharray", "6 4");
+      line.setAttribute("opacity", "0.7");
+      svg.appendChild(line);
+      const label = document.createElementNS(ns, "text");
+      label.setAttribute("data-avg-line", "1");
+      label.setAttribute("x", x2);
+      label.setAttribute("y", yAvg - 6);
+      label.setAttribute("text-anchor", "end");
+      label.setAttribute("fill", "var(--tesseract-slate-500)");
+      label.setAttribute("font-size", "11");
+      label.setAttribute("font-weight", "500");
+      label.textContent = `Avg: ${fmtAvg}`;
+      svg.appendChild(label);
+    };
+    const tipInject = () => {
+      const tip = el.querySelector("[style*='position: absolute'][style*='z-index']");
+      if (!tip || tip.querySelector("[data-avg-row]")) return;
+      const row = document.createElement("div");
+      row.setAttribute("data-avg-row", "1");
+      row.style.cssText =
+        "display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;" +
+        "border-top:1px solid var(--tesseract-border-neutral);margin-top:4px;padding-top:4px";
+      row.innerHTML =
+        '<span style="width:9px;height:9px;flex-shrink:0;border:1.5px dashed var(--tesseract-slate-400);border-radius:2px"></span>' +
+        '<span style="color:var(--tesseract-fg-secondary);margin-right:auto">Avg</span>' +
+        `<strong style="color:var(--tesseract-fg-primary);font-weight:600">${fmtAvg}</strong>`;
+      tip.appendChild(row);
+    };
+    const raf = requestAnimationFrame(inject);
+    const obs = new MutationObserver(() => { inject(); tipInject(); });
+    obs.observe(el, { childList: true, subtree: true });
+    return () => { cancelAnimationFrame(raf); obs.disconnect(); };
+  }, [avg, fmtAvg]);
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <BarChart
+        data={data}
+        series={series}
+        xKey={xKey}
+        {...rest}
+        {...(margin ? { margin } : {})}
+      />
+    </div>
   );
 }
 

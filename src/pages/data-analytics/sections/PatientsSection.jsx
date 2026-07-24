@@ -8,7 +8,7 @@ import usePatientsData from "../data/usePatientsData";
 import KpiRow from "./KpiRow";
 
 export default function PatientsSection({ filters }) {
-  const { loading, kpis, gender, maritalStatus, bloodGroups, age, visitFrequency, topCities, rfm } = usePatientsData({
+  const { loading, kpis, gender, maritalStatus, bloodGroups, age, visitFrequency } = usePatientsData({
     startDate: filters?.startDate,
     endDate: filters?.endDate,
     doctorId: filters?.doctor,
@@ -32,21 +32,21 @@ export default function PatientsSection({ filters }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <KpiRow title="Key metrics" kpis={kpis} loading={false} columns={3} />
 
-      <SectionBlock title="More insights" count={7}>
+      <SectionBlock title="More insights" count={5}>
         <ChartGrid>
-          <ChartTile title="Gender distribution" subtitle="Patients seen in selected period" icon="cards-heart" titleTooltip="Gender split of patients who visited in the selected period">
+          <ChartTile title="Gender distribution" subtitle="Patients seen in selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/users/profile-2user.svg" titleTooltip="Gender split of patients who visited in the selected period">
             <DonutWithLegend data={gender} centerLabel="Patients" height={240} />
           </ChartTile>
 
-          <ChartTile title="Marital status" subtitle="Patients seen in selected period" icon="cards-heart" titleTooltip="Marital status split of patients who visited in the selected period. Zero until the backend serves this field.">
+          <ChartTile title="Marital status" subtitle="Patients seen in selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/ai/ai-assist.svg" titleTooltip="Marital status split of patients who visited in the selected period. Zero until the backend serves this field.">
             <DonutWithLegend data={maritalStatus} centerLabel="Patients" height={240} />
           </ChartTile>
 
-          <ChartTile title="Blood group distribution" subtitle="Patients seen in selected period" icon="cards-heart" titleTooltip="Blood group split of patients who visited in the selected period. Zero until the backend serves this field.">
-            <DonutWithLegend data={bloodGroups} centerLabel="Patients" height={240} />
+          <ChartTile title="Blood group distribution" subtitle="Patients seen in selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/give-blood.svg" titleTooltip="Blood group split of patients who visited in the selected period. Zero until the backend serves this field.">
+            <DonutWithLegend data={bloodGroups} centerLabel="Patients" height={240} max={8} />
           </ChartTile>
 
-          <ChartTile title="Age distribution" subtitle="Patients seen in selected period" icon="chart-2" titleTooltip="Count of patients who visited in the selected period, grouped by age band">
+          <ChartTile title="Age distribution" subtitle="Patients seen in selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/chart/left-chart.svg" titleTooltip="Count of patients who visited in the selected period, grouped by age band">
             <BarChartZ
               data={age?.data}
               series={age?.series}
@@ -56,7 +56,7 @@ export default function PatientsSection({ filters }) {
             />
           </ChartTile>
 
-          <ChartTile title="Visit frequency" subtitle="Visits per patient, selected period" icon="activity" titleTooltip="How many patients visited once, twice, three times and so on within the selected period">
+          <ChartTile title="Visit frequency" subtitle="Visits per patient, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/business/activity.svg" titleTooltip="How many patients visited once, twice, three times and so on within the selected period">
             <BarChartZ
               data={visitFrequency?.data}
               series={visitFrequency?.series}
@@ -64,14 +64,6 @@ export default function PatientsSection({ filters }) {
               fallbackSeries={[{ key: "Patients", label: "Patients" }]}
               height={240}
             />
-          </ChartTile>
-
-          <ChartTile title="Top cities" subtitle="Patients seen in selected period" icon="building" titleTooltip="Where the patients seen in the selected period come from, top cities by patient count">
-            <DonutWithLegend data={topCities} centerLabel="Patients" height={240} />
-          </ChartTile>
-
-          <ChartTile title="Patient segments" subtitle="Recency-frequency mix, selected period" icon="profile-2user" titleTooltip="RFM segmentation: how patients split into champions, loyal, at-risk and other segments based on how recently and how often they visit">
-            <DonutWithLegend data={rfm} centerLabel="Patients" height={240} />
           </ChartTile>
         </ChartGrid>
       </SectionBlock>

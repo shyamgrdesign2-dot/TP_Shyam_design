@@ -10,7 +10,7 @@ export const DEPARTMENTS = [
 
 export const OPD_NAV = [
   { id: "overview", label: "Overview", icon: "grids" },
-  { id: "appointments", label: "Appointments", icon: "calendar" },
+  { id: "appointments", label: "Appointments", icon: "calendar-2" },
   { id: "consultation-modes", label: "Consult Modes", icon: "stethoscope" },
   { id: "billing", label: "Billing", icon: "wallet-3" },
   { id: "patients", label: "Patients", icon: "profile-2user" },

@@ -84,7 +84,7 @@ export default function OverviewSection({ filters }) {
           <ChartTile
             title="Appointment status"
             subtitle="Current status, selected period"
-            icon="calendar"
+            iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/clipboard-activity.svg"
             titleTooltip="Current status of every appointment in the selected period (same source as Appointments)"
           >
             <DonutWithLegend data={appointments.statusDonut} centerLabel="Appointments" height={240} />
@@ -93,7 +93,7 @@ export default function OverviewSection({ filters }) {
           <ChartTile
             title="Consultation mode mix"
             subtitle="Share of consultations, selected period"
-            icon="flash"
+            iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/ecology/atom.svg"
             titleTooltip="How consultations split across Rx modes (same source as Consult Modes)"
           >
             <DonutWithLegend data={modeMix} centerLabel="Consultations" height={240} />
@@ -102,7 +102,7 @@ export default function OverviewSection({ filters }) {
           <ChartTile
             title="Top medications"
             subtitle="Most prescribed, selected period"
-            icon="capsule"
+            iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/tablets.svg"
             titleTooltip="Top 5 most prescribed medications in the selected period (same source as Care)"
           >
             <DonutWithLegend data={topMedications} centerLabel="Medications" height={240} />
@@ -111,7 +111,7 @@ export default function OverviewSection({ filters }) {
           <ChartTile
             title="Gender distribution"
             subtitle="Patients seen, selected period"
-            icon="profile-2user"
+            iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/users/profile-2user.svg"
             titleTooltip="Gender split of patients seen in the selected period (same source as Patients)"
           >
             <DonutWithLegend data={genderDistribution} centerLabel="Patients" height={240} />

@@ -8,8 +8,9 @@ import useCareData from "../data/useCareData";
 import { pctDelta } from "../data/deltaUtils";
 import KpiRow from "./KpiRow";
 
-const ICON_BASE = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/";
-const CERT_ICON = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/sports2/award-badge5.svg";
+const CDN = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/";
+const ICON_BASE = `${CDN}medical/`;
+const CERT_ICON = `${CDN}sports2/award-badge5.svg`;
 // atom has no bulk build on the CDN — linear is the only variant
 const ATOM_ICON = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/social/atom.svg";
 
@@ -20,9 +21,9 @@ const TOPIC_TILE = {
   examination: { title: "Top examination findings", icon: `${ICON_BASE}medical-service.svg`, center: "Findings", data: (d) => d.examination, tooltip: "Most frequently documented exam findings" },
   medications: { title: "Top medications", icon: `${ICON_BASE}tablets.svg`, center: "Prescribed", data: (d) => d.medications, tooltip: "Most frequently prescribed medications" },
   "lab-tests": { title: "Top investigations", icon: `${ICON_BASE}lab.svg`, center: "Suggested", data: (d) => d.investigations, tooltip: "Lab investigations suggested most often in the selected period" },
-  vitals: { title: "What\u2019s getting measured", icon: `${ICON_BASE}heart-rate.svg`, center: "Recordings", data: (d) => d.vitals || [], tooltip: "Which vital signs are captured most often in the selected period" },
+  vitals: { title: "What\u2019s getting measured", icon: `${CDN}health/checked-list.svg`, center: "Recordings", data: (d) => d.vitals || [], tooltip: "Which vital signs are captured most often in the selected period" },
   "medical-history": { title: "Top conditions", icon: `${ICON_BASE}health-care.svg`, center: "Patients", data: (d) => d.conditions, tooltip: "Most common chronic and past conditions" },
-  advice: { title: "Top advice given", icon: `${ICON_BASE}medical-service.svg`, center: "Given", data: (d) => d.advice, tooltip: "Most frequently given patient advice" },
+  advice: { title: "Top advice given", icon: `${ICON_BASE}health-care.svg`, center: "Given", data: (d) => d.advice, tooltip: "Most frequently given patient advice" },
   vaccines: { title: "Top vaccines given", icon: `${ICON_BASE}injection.svg`, center: "Doses", data: (d) => d.vaccines.given, tooltip: "Vaccines administered most often in the selected period" },
   certificates: { title: "Top certificates issued", icon: CERT_ICON, center: "Issued", data: (d) => d.certificates.top, tooltip: "Certificate types issued most often in the selected period" },
   "custom-modules": { title: "Models by type", icon: ATOM_ICON, center: "Models", data: (d) => d.customModels.modelsByType, tooltip: "Custom clinical models split by type — an all-time snapshot (template usage is not tracked)" },
@@ -90,15 +91,15 @@ function buildTiles(subTab, data) {
 
   const tiles = [donutTile(subTab, TOPIC_TILE[subTab], data)];
 
-  const donut = (key, title, subtitle, iconFile, tooltip, list, center) =>
+  const donut = (key, title, subtitle, iconUrl, tooltip, list, center) =>
     tiles.push(
-      <ChartTile key={key} title={title} subtitle={subtitle} iconUrl={`${ICON_BASE}${iconFile}.svg`} titleTooltip={tooltip}>
+      <ChartTile key={key} title={title} subtitle={subtitle} iconUrl={iconUrl} titleTooltip={tooltip}>
         <DonutWithLegend data={list} centerLabel={center} height={CHART_H} />
       </ChartTile>
     );
-  const bar = (key, title, subtitle, iconFile, tooltip, xy, seriesLabel, fallbackLabels) =>
+  const bar = (key, title, subtitle, iconUrl, tooltip, xy, seriesLabel, fallbackLabels) =>
     tiles.push(
-      <ChartTile key={key} title={title} subtitle={subtitle} iconUrl={`${ICON_BASE}${iconFile}.svg`} titleTooltip={tooltip}>
+      <ChartTile key={key} title={title} subtitle={subtitle} iconUrl={iconUrl} titleTooltip={tooltip}>
         <MaybeScroll count={xy?.data?.length}>
           <BarChartZ
             data={xy?.data}
@@ -113,7 +114,7 @@ function buildTiles(subTab, data) {
 
   if (subTab === "diagnosis") {
     if (data.diagByDoctor) tiles.push(
-      <ChartTile key="diagByDoctor" title="Top diagnoses by doctor" subtitle="Top 5 diagnoses, selected period" iconUrl={`${ICON_BASE}diagnosis.svg`} titleTooltip="Top 5 most recorded diagnoses broken down by doctor">
+      <ChartTile key="diagByDoctor" title="Top diagnoses by doctor" subtitle="Top 5 diagnoses, selected period" iconUrl={`${CDN}health/stethoscope.svg`} titleTooltip="Top 5 most recorded diagnoses broken down by doctor">
         <MaybeScroll count={data.diagByDoctor?.data?.length}>
           <StackedBarWithTotal data={data.diagByDoctor?.data} series={data.diagByDoctor?.series} xKey="x" height={CHART_H} />
         </MaybeScroll>
@@ -122,10 +123,10 @@ function buildTiles(subTab, data) {
   }
 
   if (subTab === "medications") {
-    donut("salts", "Top generics", "Molecule-level, selected period", "tablets", "Most prescribed generics (salts) across all brands in the selected period", data.salts, "Prescribed");
-    donut("company", "Top manufacturers", "Brand manufacturer split, selected period", "tablets", "How prescriptions split across pharmaceutical companies in the selected period", data.companyShare, "Rx");
+    donut("salts", "Top generics", "Molecule-level, selected period", `${ICON_BASE}clipboard-activity.svg`, "Most prescribed generics (salts) across all brands in the selected period", data.salts, "Prescribed");
+    donut("company", "Top manufacturers", "Brand manufacturer split, selected period", `${CDN}ecology/factory.svg`, "How prescriptions split across pharmaceutical companies in the selected period", data.companyShare, "Rx");
     if (data.medsByDoctor) tiles.push(
-      <ChartTile key="medsByDoctor" title="Top medications by doctor" subtitle="Top 5 medications, selected period" iconUrl={`${ICON_BASE}tablets.svg`} titleTooltip="Top 5 most prescribed medications broken down by doctor">
+      <ChartTile key="medsByDoctor" title="Top medications by doctor" subtitle="Top 5 medications, selected period" iconUrl={`${CDN}health/stethoscope.svg`} titleTooltip="Top 5 most prescribed medications broken down by doctor">
         <MaybeScroll count={data.medsByDoctor?.data?.length}>
           <StackedBarWithTotal data={data.medsByDoctor?.data} series={data.medsByDoctor?.series} xKey="x" height={CHART_H} />
         </MaybeScroll>
@@ -134,16 +135,16 @@ function buildTiles(subTab, data) {
   }
 
   if (subTab === "symptoms") {
-    bar("sympByDoctor", "Symptoms by doctor", "Selected period", "virus", "Which doctors record the most symptoms per patient", data.sympByDoctor, "Patients", ["Dr A", "Dr B", "Dr C"]);
+    bar("sympByDoctor", "Symptoms by doctor", "Selected period", `${ICON_BASE}virus.svg`, "Which doctors record the most symptoms per patient", data.sympByDoctor, "Patients", ["Dr A", "Dr B", "Dr C"]);
   }
 
   if (subTab === "examination") {
-    bar("examByDoctor", "Examinations by doctor", "Selected period", "medical-service", "Which doctors document the most examination findings", data.examByDoctor, "Patients", ["Dr A", "Dr B", "Dr C"]);
+    bar("examByDoctor", "Examinations by doctor", "Selected period", `${ICON_BASE}medical-service.svg`, "Which doctors document the most examination findings", data.examByDoctor, "Patients", ["Dr A", "Dr B", "Dr C"]);
   }
 
   if (subTab === "lab-tests") {
     if (data.labByDoctor) tiles.push(
-      <ChartTile key="labByDoctor" title="Top investigations by doctor" subtitle="Top 5 investigations, selected period" iconUrl={`${ICON_BASE}lab.svg`} titleTooltip="Top 5 most suggested investigations broken down by doctor">
+      <ChartTile key="labByDoctor" title="Top investigations by doctor" subtitle="Top 5 investigations, selected period" iconUrl={`${CDN}health/stethoscope.svg`} titleTooltip="Top 5 most suggested investigations broken down by doctor">
         <MaybeScroll count={data.labByDoctor?.data?.length}>
           <StackedBarWithTotal data={data.labByDoctor?.data} series={data.labByDoctor?.series} xKey="x" height={CHART_H} />
         </MaybeScroll>
@@ -153,7 +154,7 @@ function buildTiles(subTab, data) {
 
   if (subTab === "advice") {
     if (data.adviceByDoctor) tiles.push(
-      <ChartTile key="adviceByDoctor" title="Top advice by doctor" subtitle="Top 5 advice, selected period" iconUrl={`${ICON_BASE}medical-service.svg`} titleTooltip="Top 5 most given advice broken down by doctor">
+      <ChartTile key="adviceByDoctor" title="Top advice by doctor" subtitle="Top 5 advice, selected period" iconUrl={`${CDN}health/stethoscope.svg`} titleTooltip="Top 5 most given advice broken down by doctor">
         <MaybeScroll count={data.adviceByDoctor?.data?.length}>
           <StackedBarWithTotal data={data.adviceByDoctor?.data} series={data.adviceByDoctor?.series} xKey="x" height={CHART_H} />
         </MaybeScroll>
@@ -162,32 +163,32 @@ function buildTiles(subTab, data) {
   }
 
   if (subTab === "vitals") {
-    donut("bpStages", "Blood pressure stages", "Selected period", "heart-rate", "Readings by BP stage, parsed from the recorded blood pressures", data.bpStages, "Readings");
-    bar("bmiBands", "BMI distribution", "Selected period", "heart-rate", "Patients by BMI band, where height and weight were recorded", data.bmiBands, "Patients", ["<18.5", "18.5-25", "25-30", "30+"]);
-    donut("bmiCoverage", "BMI coverage", "% of visits, selected period", "heart-rate", "Share of visits where BMI could be computed (height + weight recorded) vs not", data.bmiCoverage, "%");
-    donut("repeatMonitoring", "Repeat monitoring", "Selected period", "heart-rate", "Patients with a single vitals entry vs repeat entries in the selected period", data.repeatMonitoring, "Patients");
+    donut("bpStages", "Blood pressure stages", "Selected period", `${ICON_BASE}health-condition.svg`, "Readings by BP stage, parsed from the recorded blood pressures", data.bpStages, "Readings");
+    bar("bmiBands", "BMI distribution", "Selected period", `${CDN}health/liked-list.svg`, "Patients by BMI band, where height and weight were recorded", data.bmiBands, "Patients", ["<18.5", "18.5-25", "25-30", "30+"]);
+    donut("bmiCoverage", "BMI coverage", "% of visits, selected period", `${ICON_BASE}medical-document.svg`, "Share of visits where BMI could be computed (height + weight recorded) vs not", data.bmiCoverage, "%");
+    donut("repeatMonitoring", "Repeat monitoring", "Selected period", `${ICON_BASE}heart.svg`, "Patients with a single vitals entry vs repeat entries in the selected period", data.repeatMonitoring, "Patients");
   }
 
   if (subTab === "medical-history") {
     // Surgical history + additional-notes tiles were REMOVED: the EMR has
     // only 3 medical-history sections (lifestyle/conditions/family) and no
     // surgical or notes source (NO-SOURCE, API-CONTRACTS-CURRENT \u00a74/\u00a77).
-    donut("allergies", "Top allergies", "Reported allergies", "health-care", "Most commonly reported patient allergies", data.allergies, "Patients");
-    donut("familyHistory", "Top family history", "Reported family conditions", "health-care", "Most common conditions in patients\u2019 family history", data.familyHistory, "Patients");
-    donut("lifestyle", "Top lifestyle factors", "Reported habits", "health-care", "Most common lifestyle habits reported", data.lifestyle, "Patients");
+    donut("allergies", "Top allergies", "Reported allergies", `${ICON_BASE}health-care.svg`, "Most commonly reported patient allergies", data.allergies, "Patients");
+    donut("familyHistory", "Top family history", "Reported family conditions", `${ICON_BASE}health-care.svg`, "Most common conditions in patients\u2019 family history", data.familyHistory, "Patients");
+    donut("lifestyle", "Top lifestyle factors", "Reported habits", `${ICON_BASE}health-care.svg`, "Most common lifestyle habits reported", data.lifestyle, "Patients");
   }
 
   if (subTab === "certificates") {
-    bar("certByDoctor", "Certificates by doctor", "Selected period", "medical-service", "Which doctors issue the most certificates. Zero until the backend serves the split.", data.certificates.byDoctor, "Issued", ["Dr A", "Dr B", "Dr C"]);
+    bar("certByDoctor", "Certificates by doctor", "Selected period", `${ICON_BASE}medical-service.svg`, "Which doctors issue the most certificates. Zero until the backend serves the split.", data.certificates.byDoctor, "Issued", ["Dr A", "Dr B", "Dr C"]);
   }
 
   if (subTab === "custom-modules") {
-    donut("modelsByDoctor", "Models by doctor", "All-time snapshot", "medical-service", "Which doctors created the most custom clinical models — an all-time snapshot, not filtered by the date range", data.customModels.modelsByDoctor, "Models");
+    donut("modelsByDoctor", "Models by doctor", "All-time snapshot", `${ICON_BASE}medical-service.svg`, "Which doctors created the most custom clinical models — an all-time snapshot, not filtered by the date range", data.customModels.modelsByDoctor, "Models");
   }
 
   if (subTab === "vaccines") {
-    donut("brands", "Top vaccine brands", "Doses, selected period", "injection", "Vaccine brands administered most often in the selected period", data.vaccines.brandMix, "Doses");
-    donut("schedule", "IAP schedule vs others", "Doses, selected period", "injection", "Doses given under the IAP immunisation schedule vs other/custom vaccines, classified on the given-vaccine names", data.vaccScheduleMix, "Doses");
+    donut("brands", "Top vaccine brands", "Doses, selected period", `${CDN}chart/chart-2.svg`, "Vaccine brands administered most often in the selected period", data.vaccines.brandMix, "Doses");
+    donut("schedule", "IAP schedule vs others", "Doses, selected period", `${CDN}christmas/calendar3.svg`, "Doses given under the IAP immunisation schedule vs other/custom vaccines, classified on the given-vaccine names", data.vaccScheduleMix, "Doses");
   }
 
   return tiles;

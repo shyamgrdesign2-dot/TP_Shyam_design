@@ -93,15 +93,15 @@ export default function AppointmentsSection({ filters }) {
 
       <SectionBlock title="More insights" count={chartCount}>
         <ChartGrid>
-          <ChartTile title="Appointment status" subtitle="Current status, selected period" icon="calendar" titleTooltip="Current status of every appointment that falls in the selected period. In-queue and draft are live states, so they appear here rather than as headline metrics.">
+          <ChartTile title="Appointment status" subtitle="Current status, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/clipboard-activity.svg" titleTooltip="Current status of every appointment that falls in the selected period. In-queue and draft are live states, so they appear here rather than as headline metrics.">
             <DonutWithLegend data={statusDonut} centerLabel="Appointments" height={240} />
           </ChartTile>
 
-          <ChartTile title="New vs returning" subtitle="Share of visits, selected period" icon="cards-heart" titleTooltip="Split of first-time vs repeat patients among visits in the selected period">
+          <ChartTile title="New vs returning" subtitle="Share of visits, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/health-care.svg" titleTooltip="Split of first-time vs repeat patients among visits in the selected period">
             <DonutWithLegend data={analytics.newVsReturning} centerLabel="Patients" height={240} />
           </ChartTile>
 
-          <ChartTile title="Case-type mix" subtitle="Total visits, selected period" icon="activity" titleTooltip="Count of new, follow-up and urgent visits in the selected period">
+          <ChartTile title="Case-type mix" subtitle="Total visits, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/health/health-sign.svg" titleTooltip="Count of new, follow-up and urgent visits in the selected period">
             <BarChartZ
               data={caseTypeDonut.map((d) => ({ x: d.label, count: d.value }))}
               series={[{ key: "count", label: "Count" }]}
@@ -115,7 +115,7 @@ export default function AppointmentsSection({ filters }) {
             <ChartTile
               title="Visits by day of week"
               subtitle={weekdayAveraged ? "Avg per weekday, selected period" : "Total per weekday, selected period"}
-              icon="calendar-2"
+              iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/time/calendar-2.svg"
               titleTooltip={
                 weekdayAveraged
                   ? "Approximate average visits per weekday: each weekday's total divided by how many times that weekday occurs in the selected period"
@@ -133,7 +133,7 @@ export default function AppointmentsSection({ filters }) {
           )}
 
           {singleDay && (
-            <ChartTile title="Visits by hour" subtitle="Selected day" icon="clock" titleTooltip="Visits in each hour slot of the selected day, spot the peak hours">
+            <ChartTile title="Visits by hour" subtitle="Selected day" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/time/clock.svg" titleTooltip="Visits in each hour slot of the selected day, spot the peak hours">
               <ScrollableChart minWidth={800}>
                 <BarChartZ
                   data={analytics.visitsByHour?.data}

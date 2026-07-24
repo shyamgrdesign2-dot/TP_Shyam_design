@@ -311,3 +311,18 @@ button[data-variant="link"][data-theme="warning"] * {
   border-color: var(--tesseract-error-500, #ef4444) !important;
   box-shadow: 0 0 0 1px var(--tesseract-error-500, #ef4444) !important;
 }
+
+/* ── Chart colour palette ────────────────────────────────────────────────
+   Remaps Tesseract chart-series tokens inside SVGs so bar / line colours
+   follow the donut order: blue, violet, subtle-green, warning, error.
+   Only targets SVG elements — icon badges, text and card chrome keep
+   their design-system tokens untouched. */
+.da-root .da-chart-card svg {
+  --tesseract-blue-500: #6C6BDE;
+  --tesseract-violet-500: #BA7DE9;
+  --tesseract-amber-500: #6EE7B7;
+  --tesseract-success-500: #F59E0B;
+  --tesseract-error-500: #FB7185;
+  --tesseract-blue-300: #FEDC85;
+  --tesseract-violet-300: #B5B4F2;
+}

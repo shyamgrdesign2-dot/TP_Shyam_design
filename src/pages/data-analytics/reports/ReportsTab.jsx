@@ -83,7 +83,28 @@ export default function ReportsTab({ filters, department = "opd" }) {
                         color: "var(--tesseract-violet-600)",
                       }}
                     >
-                      <TPLibraryIcon name={GROUP_ICON[group] || "document"} size={22} variant="bulk" color="var(--tesseract-violet-600)" />
+                      {r.icon ? (
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            display: "inline-block",
+                            width: 22,
+                            height: 22,
+                            flexShrink: 0,
+                            backgroundColor: "var(--tesseract-violet-600)",
+                            WebkitMaskImage: `url(${r.icon})`,
+                            WebkitMaskSize: "contain",
+                            WebkitMaskRepeat: "no-repeat",
+                            WebkitMaskPosition: "center",
+                            maskImage: `url(${r.icon})`,
+                            maskSize: "contain",
+                            maskRepeat: "no-repeat",
+                            maskPosition: "center",
+                          }}
+                        />
+                      ) : (
+                        <TPLibraryIcon name={GROUP_ICON[group] || "document"} size={22} variant="bulk" color="var(--tesseract-violet-600)" />
+                      )}
                     </span>
                   </div>
                   {/* CTA at bottom */}

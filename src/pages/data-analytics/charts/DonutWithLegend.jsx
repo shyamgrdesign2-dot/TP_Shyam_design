@@ -3,13 +3,13 @@ import { DonutChartZ } from "./EmptyAware";
 import { capDonut } from "./adapters";
 
 export const DONUT_PALETTE = [
-  "var(--tesseract-blue-500)",
-  "var(--tesseract-violet-500)",
-  "var(--tesseract-amber-500)",
-  "var(--tesseract-success-500)",
-  "var(--tesseract-error-500)",
-  "var(--tesseract-blue-300)",
-  "var(--tesseract-violet-300)",
+  "var(--tesseract-blue-400)",
+  "var(--tesseract-violet-400)",
+  "var(--tesseract-success-300)",
+  "var(--tesseract-warning-500)",
+  "var(--tesseract-error-400)",
+  "var(--tesseract-amber-300)",
+  "var(--tesseract-blue-200)",
 ];
 
 function DonutWithLegend({

@@ -42,16 +42,7 @@ export default function BillingSection({ filters, department = "opd" }) {
     [kpis]
   );
 
-  const advanceStatusDonut = useMemo(
-    () => [
-      { label: "Applied to bills", value: kpis.find((k) => k.key === "advDebited")?.value || 0 },
-      { label: "Refunded", value: kpis.find((k) => k.key === "advRefunded")?.value || 0 },
-      { label: "Available balance", value: Math.max((kpis.find((k) => k.key === "advance")?.value || 0) - (kpis.find((k) => k.key === "advDebited")?.value || 0) - (kpis.find((k) => k.key === "advRefunded")?.value || 0), 0) },
-    ],
-    [kpis]
-  );
-
-  const chartCount = 4 + (revenueByDoctor ? 1 : 0) + (advanceModes.length > 0 ? 1 : 0);
+  const chartCount = 3 + (revenueByDoctor ? 1 : 0) + (advanceModes.length > 0 ? 1 : 0);
 
   if (loading) {
     return (
@@ -72,32 +63,28 @@ export default function BillingSection({ filters, department = "opd" }) {
 
       <SectionBlock title="More insights" count={chartCount}>
         <ChartGrid>
-          <ChartTile title="Revenue breakdown" subtitle="Collected, due and refunded" icon="chart-square" titleTooltip="How the total billed amount splits into collected, due, and refunded in the selected period">
+          <ChartTile title="Revenue breakdown" subtitle="Collected, due and refunded" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/chart.svg" titleTooltip="How the total billed amount splits into collected, due, and refunded in the selected period">
             <DonutWithLegend data={revenueDonut} centerLabel="Billed" valueFormat={formatINR} height={220} />
           </ChartTile>
 
-          <ChartTile title="Collection by mode" subtitle="Total collected, selected period" icon="wallet-check" titleTooltip="How money collected in the selected period splits across payment modes">
+          <ChartTile title="Collection by mode" subtitle="Total collected, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/money/money-recive.svg" titleTooltip="How money collected in the selected period splits across payment modes">
             <DonutWithLegend data={paymentModes} centerLabel="Collected" valueFormat={formatINR} height={220} />
           </ChartTile>
 
           {revenueByDoctor && (
-            <ChartTile title="Revenue by doctor" subtitle="Billed and collected per doctor" icon="profile-2user" titleTooltip="Each doctor's billed and collected amounts in the selected period, sorted by highest billed">
+            <ChartTile title="Revenue by doctor" subtitle="Billed and collected per doctor" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/users/profile-2user.svg" titleTooltip="Each doctor's billed and collected amounts in the selected period, sorted by highest billed">
               <MaybeScroll count={revenueByDoctor?.data?.length}>
                 <StackedBarWithTotal data={revenueByDoctor?.data} series={revenueByDoctor?.series} xKey="x" height={260} />
               </MaybeScroll>
             </ChartTile>
           )}
 
-          <ChartTile title="Refund by mode" subtitle="Bill refunds, selected period" icon="wallet-remove" titleTooltip="How bill refunds paid in the selected period split across payment modes">
+          <ChartTile title="Refund by mode" subtitle="Bill refunds, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/money/money-send.svg" titleTooltip="How bill refunds paid in the selected period split across payment modes">
             <DonutWithLegend data={refundModes} centerLabel="Refunded" valueFormat={formatINR} height={220} />
           </ChartTile>
 
-          <ChartTile title="Advance deposit status" subtitle="Where advance deposits went, selected period" icon="money-recive" titleTooltip="How advance deposits received in the selected period split: applied toward bills, refunded to patients, or still available as balance">
-            <DonutWithLegend data={advanceStatusDonut} centerLabel="Advance" valueFormat={formatINR} height={220} />
-          </ChartTile>
-
           {advanceModes.length > 0 && (
-            <ChartTile title="Advance by mode" subtitle="How advances were paid, selected period" icon="money-recive" titleTooltip="How advance deposits received in the selected period split across payment modes">
+            <ChartTile title="Advance by mode" subtitle="How advances were paid, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/money/money-recive.svg" titleTooltip="How advance deposits received in the selected period split across payment modes">
               <DonutWithLegend data={advanceModes} centerLabel="Advance" valueFormat={formatINR} height={220} />
             </ChartTile>
           )}
