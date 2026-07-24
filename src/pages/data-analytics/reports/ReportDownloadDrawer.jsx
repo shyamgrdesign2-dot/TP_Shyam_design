@@ -515,9 +515,22 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
               <DateRangePicker
                 mode="single"
                 size="sm"
-                showPresets
-                value={range}
-                onChange={(v) => { setRange(v); setAttempted(false); }}
+                // Single mode expects a Date as value; onChange emits
+                // { mode: "single", date, label } — normalize to {start,end}
+                // so resolveDates / download params stay consistent with range mode.
+                value={range?.start instanceof Date ? range.start : null}
+                onChange={(v) => {
+                  const date =
+                    v instanceof Date
+                      ? v
+                      : v?.date instanceof Date
+                        ? v.date
+                        : v?.start instanceof Date
+                          ? v.start
+                          : null;
+                  setRange(date ? { start: date, end: date } : null);
+                  setAttempted(false);
+                }}
                 placeholder="Select date"
               />
             </Field>
@@ -783,14 +796,20 @@ function singleId(csvStr) {
 }
 
 function resolveDates(range, filters) {
-  const start = range?.start || range?.from || (Array.isArray(range) ? range[0] : null);
-  const end = range?.end || range?.to || (Array.isArray(range) ? range[1] : null);
   // Use local YYYY-MM-DD (same as dashboard periods.isoLocal) — toISOString
   // shifts local midnight back one calendar day in +ve offsets like IST.
   const toLocalDate = (d) => {
     const dt = new Date(d);
     return Number.isNaN(dt.getTime()) ? null : isoLocal(dt);
   };
+  // Bare Date (single-mode value) or picker payloads:
+  // range → { start, end }; single → { date } (also accept from/to / arrays).
+  if (range instanceof Date) {
+    const d = toLocalDate(range);
+    return { startDate: d || filters?.startDate, endDate: d || filters?.endDate };
+  }
+  const start = range?.start || range?.from || range?.date || (Array.isArray(range) ? range[0] : null);
+  const end = range?.end || range?.to || range?.date || (Array.isArray(range) ? range[1] : null) || start;
   return {
     startDate: (start && toLocalDate(start)) || filters?.startDate,
     endDate: (end && toLocalDate(end)) || filters?.endDate,

@@ -497,9 +497,10 @@ export const HIDE_ROUTES = {
 export const CUSTOM_CANVAS_DOCTORS_USER_ID = [
   524,25734,30098,123
 ];
+
 // Custom Canvas Size Increased upto 20 
 export const Data_ANALYTICS_ENABLED = [
-  524
+  524,123
 ];
 
 
