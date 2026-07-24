@@ -1,8 +1,14 @@
-import { Input, Drawer } from "antd";
+import { Input, Drawer, AutoComplete } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 import { ASSETS } from "../../../../assets";
 import { Button } from "react-bootstrap";
-import { useEffect, useState } from "react";
-import { upsertBillItem } from "../../service";
+import { useEffect, useMemo, useState } from "react";
+import {
+  upsertBillItem,
+  getBillItemTypes,
+  createBillItemType,
+  deleteBillItemType,
+} from "../../service";
 import { useSelector } from "react-redux";
 import { calculateTotalAmount } from "../../utils/helper";
 import {
@@ -40,6 +46,11 @@ const ServiceItemPopup = ({
     discountType: item?.discountType || advancedSettings?.defaultDiscountType || "flat",
     gst: item?.gst,
   });
+  const [billItemTypes, setBillItemTypes] = useState([]);
+  const [typeSearch, setTypeSearch] = useState("");
+  const [typesLoading, setTypesLoading] = useState(false);
+  const [creatingType, setCreatingType] = useState(false);
+  const [deletingTypeId, setDeletingTypeId] = useState(null);
 
   useEffect(() => {
     if (!dentalOnly) return;
@@ -47,6 +58,38 @@ const ServiceItemPopup = ({
       prev.type === DENTAL_ONLY_TYPE ? prev : { ...prev, type: DENTAL_ONLY_TYPE }
     );
   }, [dentalOnly]);
+
+  useEffect(() => {
+    if (dentalOnly) return;
+    let cancelled = false;
+    const loadTypes = async () => {
+      setTypesLoading(true);
+      const types = await getBillItemTypes();
+      if (!cancelled) {
+        const nextTypes = Array.isArray(types) ? types : [];
+        setBillItemTypes(nextTypes);
+        setServiceItem((prev) => {
+          if (nextTypes.length === 0 && editIndex === -1) {
+            setTypeSearch("");
+            return { ...prev, type: undefined };
+          }
+          if (prev.type) {
+            const selected = nextTypes.find((t) => t?.name === prev.type);
+            if (selected) {
+              setTypeSearch(selected.displayName || selected.name);
+            }
+          }
+          return prev;
+        });
+        setTypesLoading(false);
+      }
+    };
+    loadTypes();
+    return () => {
+      cancelled = true;
+    };
+  }, [dentalOnly, editIndex]);
+
   const { profile } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
   const {
@@ -61,6 +104,121 @@ const ServiceItemPopup = ({
         ...(key === "discountType" && { discount: undefined }),
       };
     });
+  };
+
+  const trimmedTypeSearch = typeSearch.trim();
+  const canAddCustomType =
+    !!trimmedTypeSearch &&
+    !(billItemTypes || []).some((type) => {
+      const displayName = String(type?.displayName || "").toLowerCase();
+      const name = String(type?.name || "").toLowerCase();
+      const query = trimmedTypeSearch.toLowerCase();
+      return displayName === query || name === query;
+    });
+
+  const typeAutoCompleteOptions = useMemo(() => {
+    const query = trimmedTypeSearch.toLowerCase();
+    const options = (billItemTypes || [])
+      .filter((type) => {
+        if (!query) return true;
+        const displayName = String(type?.displayName || "").toLowerCase();
+        const name = String(type?.name || "").toLowerCase();
+        return displayName.includes(query) || name.includes(query);
+      })
+      .map((type) => ({
+        value: type?.name,
+        label: type?.displayName || type?.name,
+        id: type?.id,
+        clinicId: type?.clinicId,
+      }));
+
+    if (canAddCustomType) {
+      options.push({
+        value: `__add_custom__:${trimmedTypeSearch}`,
+        label: `Add custom "${trimmedTypeSearch}"`,
+        isCustom: true,
+      });
+    }
+
+    return options;
+  }, [billItemTypes, trimmedTypeSearch, canAddCustomType]);
+
+  const handleTypeSearch = (value) => {
+    setTypeSearch(value);
+    setServiceItem((prev) => {
+      const matched = (billItemTypes || []).find(
+        (type) =>
+          type?.name === prev.type &&
+          (String(type?.displayName || type?.name).toLowerCase() ===
+            value.trim().toLowerCase() ||
+            type?.name?.toLowerCase() === value.trim().toLowerCase())
+      );
+      if (matched) return prev;
+      return { ...prev, type: undefined };
+    });
+  };
+
+  const handleAddCustomType = async (customName) => {
+    const nameToCreate = String(customName || trimmedTypeSearch).trim();
+    if (!nameToCreate || creatingType) return;
+    const alreadyExists = (billItemTypes || []).some((type) => {
+      const displayName = String(type?.displayName || "").toLowerCase();
+      const name = String(type?.name || "").toLowerCase();
+      const query = nameToCreate.toLowerCase();
+      return displayName === query || name === query;
+    });
+    if (alreadyExists) return;
+
+    setCreatingType(true);
+    const created = await createBillItemType({ name: nameToCreate });
+    const createdName = created?.name || nameToCreate;
+    const createdDisplayName = created?.displayName || createdName;
+    const refreshed = await getBillItemTypes();
+    const nextTypes = Array.isArray(refreshed) ? refreshed : [];
+    if (created?.id || created?.name) {
+      const exists = nextTypes.some(
+        (type) => type?.name === createdName || type?.id === created?.id
+      );
+      if (!exists) {
+        nextTypes.push({
+          ...created,
+          name: createdName,
+          displayName: createdDisplayName,
+        });
+      }
+    }
+    setBillItemTypes(nextTypes);
+    handleServiceItem("type", createdName);
+    setTypeSearch(createdDisplayName);
+    setCreatingType(false);
+  };
+
+  const handleTypeSelect = (value, option) => {
+    if (option?.isCustom) {
+      const customName = String(value).replace(/^__add_custom__:/, "");
+      handleAddCustomType(customName);
+      return;
+    }
+    handleServiceItem("type", value);
+    setTypeSearch(option?.label || value);
+  };
+
+  const handleDeleteBillItemType = async (typeId, typeName) => {
+    if (!typeId || deletingTypeId) return;
+    setDeletingTypeId(typeId);
+    try {
+      await deleteBillItemType(typeId);
+      setBillItemTypes((prev) => prev.filter((type) => type?.id !== typeId));
+      setServiceItem((prev) => {
+        if (prev.type === typeName) {
+          setTypeSearch("");
+          return { ...prev, type: undefined };
+        }
+        return prev;
+      });
+    } finally {
+      setDeletingTypeId(null);
+    }
   };
 
   const addOrEditServieItem = async () => {
@@ -161,7 +319,27 @@ const ServiceItemPopup = ({
         ? "Clinical service name"
         : serviceItem.type === "Consumables"
           ? "Consumable name"
-          : "Dental service name";
+          : "Service name";
+
+  const isTypeSelected = dentalOnly
+    ? serviceItem.type === DENTAL_ONLY_TYPE
+    : !!serviceItem.type &&
+      (billItemTypes || []).some((type) => type?.name === serviceItem.type);
+
+  const showTypeError =
+    !dentalOnly &&
+    !typesLoading &&
+    !creatingType &&
+    !!trimmedTypeSearch &&
+    !isTypeSelected;
+
+  const canSave =
+    isTypeSelected &&
+    !!String(serviceItem.name || "").trim() &&
+    !!serviceItem.price &&
+    !creatingType &&
+    !typesLoading &&
+    !deletingTypeId;
 
   return (
     <Drawer
@@ -190,7 +368,7 @@ const ServiceItemPopup = ({
           onClick={addOrEditServieItem}
           className="btn btn-primary3 px-4"
           style={{ height: '36px', borderRadius: '6px', background: '#5452F6', border: 'none' }}
-          disabled={!serviceItem.type || !serviceItem.name || !serviceItem.price}
+          disabled={!canSave}
         >
           <span>Save</span>
         </Button>
@@ -199,62 +377,126 @@ const ServiceItemPopup = ({
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '24px', overflowX: 'hidden' }}>
         <div className="d-flex flex-column gap-4" style={{ flex: 1 }}>
 
-          {/* Type selection */}
-          <div className="d-flex flex-column gap-2">
-            <label className="d-flex align-items-center gap-2 text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500 }}>
-              Type <i className="fi fi-rr-info" style={{ fontSize: '12px' }}></i>
-            </label>
-            <div
-              style={{
-                background: '#F2F4F7',
-                borderRadius: '8px',
-                padding: '4px',
-                display: 'inline-flex',
-                alignSelf: dentalOnly ? 'flex-start' : 'stretch',
-                width: dentalOnly ? 'fit-content' : '100%',
-              }}
-            >
-              {typeOptions.map((typeOption) => (
-                <div
-                  key={typeOption.value}
-                  onClick={
-                    dentalOnly
-                      ? undefined
-                      : () => handleServiceItem("type", typeOption.value)
-                  }
-                  style={{
-                    flex: dentalOnly ? '0 0 auto' : 1,
-                    textAlign: 'center',
-                    padding: dentalOnly ? '8px 12px' : '8px 4px',
-                    whiteSpace: dentalOnly ? 'nowrap' : undefined,
-                    fontSize: '13px',
-                    fontWeight: serviceItem.type === typeOption.value ? 600 : 500,
-                    color: serviceItem.type === typeOption.value ? '#1A1A1A' : '#667085',
-                    background: serviceItem.type === typeOption.value ? '#FFFFFF' : 'transparent',
-                    borderRadius: '6px',
-                    cursor: dentalOnly ? 'default' : 'pointer',
-                    boxShadow: serviceItem.type === typeOption.value ? '0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06)' : 'none',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {typeOption.label}
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Clinical service name */}
           <div className="d-flex flex-column gap-2">
             <label className="text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500, color: '#475467' }}>
               {serviceNameLabel} <span className="text-danger">*</span>
             </label>
             <Input
-              autoFocus={dentalOnly && editIndex === -1}
+              autoFocus={editIndex === -1}
               value={serviceItem.name}
               placeholder="Search or type a name"
               style={{ height: 44, borderRadius: '8px' }}
               onChange={(e) => handleServiceItem("name", e.target.value)}
             />
+          </div>
+
+          {/* Type selection */}
+          <div className="d-flex flex-column gap-2">
+            <label className="d-flex align-items-center gap-2 text-muted mb-0" style={{ fontSize: '13px', fontWeight: 500 }}>
+              Type <span className="text-danger">*</span>
+              <i className="fi fi-rr-info" style={{ fontSize: '12px' }}></i>
+            </label>
+            {dentalOnly ? (
+              <div
+                style={{
+                  background: '#F2F4F7',
+                  borderRadius: '8px',
+                  padding: '4px',
+                  display: 'inline-flex',
+                  alignSelf: 'flex-start',
+                  width: 'fit-content',
+                }}
+              >
+                {typeOptions.map((typeOption) => (
+                  <div
+                    key={typeOption.value}
+                    style={{
+                      flex: '0 0 auto',
+                      textAlign: 'center',
+                      padding: '8px 12px',
+                      whiteSpace: 'nowrap',
+                      fontSize: '13px',
+                      fontWeight: serviceItem.type === typeOption.value ? 600 : 500,
+                      color: serviceItem.type === typeOption.value ? '#1A1A1A' : '#667085',
+                      background: serviceItem.type === typeOption.value ? '#FFFFFF' : 'transparent',
+                      borderRadius: '6px',
+                      cursor: 'default',
+                      boxShadow: serviceItem.type === typeOption.value ? '0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06)' : 'none',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {typeOption.label}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <AutoComplete
+                value={typeSearch}
+                options={typeAutoCompleteOptions}
+                onSearch={handleTypeSearch}
+                onSelect={handleTypeSelect}
+                defaultActiveFirstOption={false}
+                className="w-100"
+                notFoundContent={null}
+                dropdownMatchSelectWidth
+                optionRender={(option) => {
+                  if (option.data?.isCustom) {
+                    return (
+                      <span style={{ color: "#5452F6", fontWeight: 600 }}>
+                        {option.label}
+                      </span>
+                    );
+                  }
+
+                  const isDeletable = Number(option.data?.clinicId) !== 0;
+
+                  return (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                        gap: 8,
+                      }}
+                    >
+                      <span>{option.label}</span>
+                      {isDeletable && (
+                        <DeleteOutlined
+                          style={{
+                            color: deletingTypeId === option.data?.id ? "#98A2B3" : "#667085",
+                            fontSize: 14,
+                            flexShrink: 0,
+                          }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteBillItemType(option.data?.id, option.value);
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                }}
+              >
+                <Input
+                  placeholder="Search type"
+                  status={showTypeError ? "error" : undefined}
+                  style={{ height: 44, borderRadius: "8px" }}
+                  disabled={typesLoading || creatingType || !!deletingTypeId}
+                />
+              </AutoComplete>
+            )}
+            {showTypeError && (
+              <span style={{ color: "#ff4d4f", fontSize: 12, marginTop: 2 }}>
+                Please select a type from the list or add a custom type
+              </span>
+            )}
           </div>
 
           {/* Price */}

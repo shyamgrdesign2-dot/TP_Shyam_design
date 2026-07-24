@@ -278,6 +278,36 @@ export const upsertBillItem = async function (payload) {
   return res;
 };
 
+export const getBillItemTypes = async function () {
+  let res = [];
+  try {
+    res = await api.get(`/api/v1/billing/billItemType`, baseUrl);
+  } catch (e) {
+    console.error("Error while fetching bill item types: ", e);
+  }
+  return Array.isArray(res) ? res : res?.data || [];
+};
+
+export const createBillItemType = async function (payload) {
+  let res = {};
+  try {
+    res = await api.post(`/api/v1/billing/billItemType`, payload, baseUrl);
+  } catch (e) {
+    console.error("Error while creating bill item type: ", e);
+  }
+  return res;
+};
+
+export const deleteBillItemType = async function (typeId) {
+  let res = {};
+  try {
+    res = await api.delete(`/api/v1/billing/billItemType/${typeId}`, baseUrl);
+  } catch (e) {
+    console.error("Error while deleting bill item type: ", e);
+  }
+  return res;
+};
+
 // Function to add bills to Form 3C
 export const addBillsToForm3C = async function (payload, billType = "opd") {
   let res = {};
