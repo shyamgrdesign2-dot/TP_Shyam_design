@@ -110,7 +110,7 @@ export default function ReportsTab({ filters, department = "opd" }) {
                   {/* CTA at bottom */}
                   <div style={{ marginTop: "auto", paddingTop: 8 }}>
                     <Button
-                      variant="outlined"
+                      variant="outline"
                       theme="primary"
                       size="sm"
                       fullWidth
