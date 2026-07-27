@@ -24,10 +24,9 @@ import {
   LIMS_SETTINGS_KEY, LAB_RESULTS_CASE_ID,
   initFileStates, groupByReport, rangeText, arrowSymbol,
   fetchLimsPrintSettings, saveLimsPrintSettingsToApi, resetLimsPrintSettingsToApiDefaults,
-  getLimsMarginCssPx, resolveLimsQrCodeDataUrl, LIMS_PREVIEW_FONT_CLASS,
+  getLimsMarginCssPx, LIMS_PREVIEW_FONT_CLASS,
 } from "./limsPrintUtils";
 import { ASSETS } from "../../assets";
-import { useSelector } from "react-redux";
 
 import "cropperjs/dist/cropper.css";
 import styles from "./LimsPrintConfig.module.css";
@@ -726,7 +725,6 @@ function LimsPrintConfigMain() {
   const { state } = location;
   const patient = state?.patient || null;
   const patientId = state?.patientId || patient?.patient_unique_id;
-  const { profile } = useSelector((state) => state.doctors);
 
   const [selectedTab, setSelectedTab] = useState(TAB_LAB_RESULTS);
   const [printSettings, setPrintSettings] = useState(null);
@@ -773,25 +771,9 @@ function LimsPrintConfigMain() {
     updateFooterImageHeight(fileFooter, setFileFooter);
   }, [fileFooter?.showFile]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const attachQr = async () => {
-      if (printSettings?.qrcode_enable !== "Y") {
-        if (printSettings?.qrcode) {
-          setPrintSettings((prev) => (prev ? { ...prev, qrcode: null } : prev));
-        }
-        return;
-      }
-      if (printSettings?.qrcode) return;
-      const qrcode = await resolveLimsQrCodeDataUrl(profile);
-      if (cancelled || !qrcode) return;
-      setPrintSettings((prev) => (prev ? { ...prev, qrcode } : prev));
-    };
-    attachQr();
-    return () => {
-      cancelled = true;
-    };
-  }, [printSettings?.qrcode_enable, printSettings?.qrcode, profile]);
+  // QR code generation is temporarily disabled.
+  // It was calling an external “receptionist-agents” API which can trigger auth redirects
+  // when this LIMS page is opened inside an iframe.
 
   useEffect(() => {
     if (patientId) {

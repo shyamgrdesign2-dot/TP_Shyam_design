@@ -1,8 +1,6 @@
 import { updateFooterImageHeight } from "../../utils/utils";
 import ApiPrintSettings from "../../api/services/ApiPrintSettings";
 import QRCode from "qrcode";
-import { fetchAgents } from "../appointmentAgent/service";
-import { getDecodedToken } from "../../utils/localStorage";
 
 export const LIMS_SETTINGS_KEY = "lims_print_settings";
 export const LAB_RESULTS_CASE_ID = 15;
@@ -238,18 +236,10 @@ export function getLimsMarginCssPx(letterheadFormat, headerFooter, position, def
 /** Same QR source as ConfigurePrintSetting / ViewPDF (doctor website or appointment link). */
 export async function resolveLimsQrCodeDataUrl(profile) {
   try {
-    const publishUrl = profile?.website_publish ? profile?.publish_url : null;
-    let appointmentLinkShared = null;
-    if (!publishUrl) {
-      const clinicId = getDecodedToken()?.result?.clinic_id;
-      if (clinicId) {
-        const res = await fetchAgents(clinicId);
-        appointmentLinkShared = Array.isArray(res?.data)
-          ? res.data[0]?.appointmentLinkShared
-          : null;
-      }
-    }
-    const qrCodeUrl = publishUrl || appointmentLinkShared;
+    // QR generation temporarily disabled for appointment-link fallback.
+    // The fallback used an external “receptionist-agents” API call which can
+    // trigger auth redirects when this LIMS flow is opened inside an iframe.
+    const qrCodeUrl = profile?.website_publish ? profile?.publish_url : null;
     if (!qrCodeUrl) return null;
     return await QRCode.toDataURL(qrCodeUrl);
   } catch (error) {
