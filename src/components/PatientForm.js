@@ -30,7 +30,7 @@ import ApiAbha from "../api/services/ApiAbha";
 import '../components/PatientForm.mobile.scss';
 import PrimaryActionButton from "./PrimaryActionButton";
 import { ASSETS } from "../assets";
-import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 const {
   save: saveIcon,
   greenTick: GreenTick,
@@ -379,14 +379,12 @@ function PatientForm({ mode = ADD, patient_data }) {
             clinic_name: clinic?.hm_name,
             source: "Add New Patient",
         });
-        navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-            state: { 
-                patient_data: patient,
-                ...(isVoiceRxNewFromGB && {
-                    isVoiceRxNewUiFlow: true,
-                    voiceRxEntryPoint: "add_new_patient",
-                }),
-            },
+        navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+            state: getVoiceRxNavigationState(
+                isVoiceRxNewFromGB,
+                { patient_data: patient },
+                "add_new_patient"
+            ),
         });
     };
 

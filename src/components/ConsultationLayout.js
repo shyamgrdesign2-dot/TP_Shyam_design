@@ -149,7 +149,7 @@ import { RxPadSyncProvider } from "./dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import drAgentStyles from "./dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import OphthalmologyExamDrawer from "./ophthalmology/OphthalmologyExamDrawer";
 import ZydusLabParams from "./ZydusLabParams";
-import { useVoiceRxNavigation, useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+import { useVoiceRxNavigation, useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 import useTabletViewport from "../hooks/useTabletViewport";
 import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { getGenRx } from "../api/services/ApiGenRx";
@@ -2037,12 +2037,16 @@ function ConsultationLayout({ children, headerProps }) {
     }
 
     setIsGenRxDrawerVisible(true);
-    navigate("/voice-rx-consult", {
-      state: {
-        patient_data,
-        autoOpenModal: false,
-        fromPrescription: true,
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        {
+          patient_data,
+          autoOpenModal: false,
+          fromPrescription: true,
+        },
+        "consultation_layout_header"
+      ),
     });
   };
 

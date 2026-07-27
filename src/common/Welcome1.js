@@ -31,7 +31,7 @@ import PrimaryActionButton from '../components/PrimaryActionButton';
 import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
 import { clinicTargetStatus } from '../pages/chikitsalay/service';
-import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 const {
   tubeIcon: playIcons,
   tutorialIcon: tutorial,
@@ -205,14 +205,12 @@ function Welcome1(props) {
           clinic_name: clinic?.hm_name,
           source: "Patient Details Rx",
         });
-        navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-            state: { 
-                patient_data: patient,
-                ...(isVoiceRxNewFromGB && {
-                    isVoiceRxNewUiFlow: true,
-                    voiceRxEntryPoint: "patient_details_rx",
-                }),
-            },
+        navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+            state: getVoiceRxNavigationState(
+                isVoiceRxNewFromGB,
+                { patient_data: patient },
+                "patient_details_rx"
+            ),
         });
     };
 

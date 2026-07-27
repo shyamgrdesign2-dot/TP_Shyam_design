@@ -143,7 +143,7 @@ import {
 } from "../utils/symptomCollectorVitalsMerge";
 import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
 import { useChikitsalay } from "./chikitsalay/useChikitsalay";
-import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState, shouldUseVoiceRxNewUiNavigation } from "../utils/voiceRxNavigation";
 
 function Prescription() {
   const {
@@ -2207,17 +2207,19 @@ function Prescription() {
     }
     
 
-    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-      state: {
-        patient_data,
-        autoOpenModal: false,
-        fromPrescription: true,
-        ...(isVoiceRxNewFromGB && {
-          isVoiceRxNewUiFlow: true,
-          voiceRxEntryPoint: "prescription_header",
-          caseManagerData: caseManagerData,
-        }),
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        {
+          patient_data,
+          autoOpenModal: false,
+          fromPrescription: true,
+          ...(shouldUseVoiceRxNewUiNavigation(isVoiceRxNewFromGB) && {
+            caseManagerData: caseManagerData,
+          }),
+        },
+        "prescription_header"
+      ),
     });
   }
   // Auto-fetch Zydus lab params when labReportID is available (for ZydusLabParametersList display)

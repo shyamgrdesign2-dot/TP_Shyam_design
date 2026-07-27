@@ -25,7 +25,7 @@ import moment from "moment";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
 import { resetDDxState } from "../redux/ddxSlice";
 import PrimaryActionButton from "../components/PrimaryActionButton";
-import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 
 function WalkInConsultationZydus() {
     const navigate = useNavigate();
@@ -189,15 +189,12 @@ function WalkInConsultationZydus() {
         const action = await dispatch(synczyduspatient(record));
         if (action.meta.requestStatus === "fulfilled") {
             const result = action.payload;
-            navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-                state: {
-                    patient_data: { ...result, mrno: record.mrno },
-                    isFromTabView: isMobile,
-                    ...(isVoiceRxNewFromGB && {
-                        isVoiceRxNewUiFlow: true,
-                        voiceRxEntryPoint: "zydus_walk_in_patient_selected",
-                    }),
-                },
+            navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+                state: getVoiceRxNavigationState(
+                    isVoiceRxNewFromGB,
+                    { patient_data: { ...result, mrno: record.mrno }, isFromTabView: isMobile },
+                    "zydus_walk_in_patient_selected"
+                ),
             });
         } else {
             errorMessage(action.error);

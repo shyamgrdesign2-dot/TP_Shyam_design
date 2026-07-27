@@ -196,7 +196,7 @@ import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { ASSETS } from "../assets";
 import { useCrossConsult } from "../hooks/useCrossConsult";
-import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 const {
   endVisit: visitEnd,
   cancelVisit: ImgcancelEnd,
@@ -3806,15 +3806,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       source: selectedTab === TAB_ZYDUS_ENCOUNTER ? "Encounter" : "Appt Landing",
     });
     
-    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-      state: { 
-        patient_data: record,
-        isFromTabView: isMobile,
-        ...(isVoiceRxNewFromGB && {
-          isVoiceRxNewUiFlow: true,
-          voiceRxEntryPoint: selectedTab === TAB_ZYDUS_ENCOUNTER ? "zydus_encounter" : "appointment_landing",
-        }),
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        { patient_data: record, isFromTabView: isMobile },
+        selectedTab === TAB_ZYDUS_ENCOUNTER ? "zydus_encounter" : "appointment_landing"
+      ),
     });
   };
 

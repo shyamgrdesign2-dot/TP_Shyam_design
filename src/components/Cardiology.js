@@ -92,7 +92,7 @@ import { ASSETS } from "../assets";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import ApiMedication from "../api/services/ApiMedication";
 import { clinicTargetStatus } from "../pages/chikitsalay/service";
-import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 const {
   symptoms: Symptomsicon,
   surgery: surgeryIcon,
@@ -3887,14 +3887,12 @@ function Cardiology(props) {
       doctor_unique_id: profile?.doctor_unique_id,
       clinic_name,
     });
-    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-      state: {
-        patient_data: patient_data,
-        ...(isVoiceRxNewFromGB && {
-          isVoiceRxNewUiFlow: true,
-          voiceRxEntryPoint: "patient_details_no_visit",
-        }),
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        { patient_data: patient_data },
+        "patient_details_no_visit"
+      ),
     });
   };
 
@@ -4978,14 +4976,12 @@ function Cardiology(props) {
                           doctor_unique_id: profile?.doctor_unique_id,
                           clinic_name,
                         });
-                        navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-                          state: {
-                            patient_data: patient_data,
-                            ...(isVoiceRxNewFromGB && {
-                              isVoiceRxNewUiFlow: true,
-                              voiceRxEntryPoint: "patient_details_no_visit_fallback",
-                            }),
-                          },
+                        navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+                          state: getVoiceRxNavigationState(
+                            isVoiceRxNewFromGB,
+                            { patient_data: patient_data },
+                            "patient_details_no_visit_fallback"
+                          ),
                         });
                       } else {
                         window.Moengage.track_event("start_new_visit_click", {
