@@ -98,7 +98,7 @@ import {
 } from "../redux/ddxSlice";
 import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
-import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
+import { useVoiceRxNavigation, useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
 import {
   getMedicineFrequencyDisplay,
@@ -1261,7 +1261,7 @@ function PrescriptionNew() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isVoiceRxAccessible = isFreeVoiceRxUser || tp_monetization_enable;
   const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible;
@@ -1282,18 +1282,39 @@ function PrescriptionNew() {
   }, []);
 
   const guardVoiceRxUsage = useCallback(
-    async ({ phase = "start" } = {}) => {
+    async ({ phase = "start", silent = false, surface = "", moduleName = "", sectionId = "" } = {}) => {
+      const trackVoiceRxBlocked = (reason, extra = {}) => {
+        trackEvent("TP_VoiceRx_Credit_Blocked", {
+          reason,
+          phase,
+          surface,
+          module_name: moduleName,
+          section_id: sectionId,
+          silent,
+          plan_tier: VOICE_RX_planDetails?.plan_tier || "",
+          credit_balance: VOICE_RX_planDetails?.credit_balance ?? "",
+          doctor_unique_id: profile?.doctor_unique_id,
+          doctor_name: profile?.um_name,
+          ...extra,
+        });
+      };
       if (phase === "mark-used") {
         setUseVoiceRx(true);
         return true;
       }
       if (!canUseVoiceRxModuleUi) {
-        openVoiceRxSubModal();
+        trackVoiceRxBlocked("voice_rx_not_accessible");
+        if (!silent) openVoiceRxSubModal();
         return false;
       }
       if (isFreeVoiceRxUser) return true;
       if (isVoiceRxCreditExpired) {
-        openVoiceRxSubModal();
+        trackVoiceRxBlocked(
+          VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION
+            ? "payment_failed"
+            : "credits_exhausted"
+        );
+        if (!silent) openVoiceRxSubModal();
         return false;
       }
       if (phase !== "submit") return true;
@@ -1304,10 +1325,12 @@ function PrescriptionNew() {
       };
       const action = await dispatch(checkCredits(sendData));
       if (action.meta.requestStatus !== "fulfilled") {
+        trackVoiceRxBlocked("credit_check_failed");
         errorMessage(action?.payload?.message || action?.error || "An error occurred");
         return false;
       }
       if (!action?.payload?.hasOwnProperty("service_name")) {
+        trackVoiceRxBlocked("credit_check_invalid_response");
         typeof action?.payload?.data?.error === "object"
           ? errorMessage(action?.payload?.data?.error?.description)
           : errorMessage(action?.payload?.data?.message);
@@ -1317,6 +1340,15 @@ function PrescriptionNew() {
         action?.payload?.plan_tier === FAILED_VERIFICATION ||
         (action?.payload?.plan_tier === FREE && action?.payload?.credit_balance <= 0)
       ) {
+        trackVoiceRxBlocked(
+          action?.payload?.plan_tier === FAILED_VERIFICATION
+            ? "payment_failed"
+            : "credits_exhausted",
+          {
+            plan_tier: action?.payload?.plan_tier || "",
+            credit_balance: action?.payload?.credit_balance ?? "",
+          }
+        );
         if (action?.payload?.credit_balance !== VOICE_RX_planDetails?.credit_balance) {
           await dispatch(services(sendData.b2c_id));
         }
@@ -1332,6 +1364,8 @@ function PrescriptionNew() {
       openVoiceRxSubModal,
       planDetails?.profile_b2c,
       profile?.b2c,
+      profile?.doctor_unique_id,
+      profile?.um_name,
       setUseVoiceRx,
       VOICE_RX_planDetails?.credit_balance,
       VOICE_RX_planDetails?.plan_tier,
@@ -3709,7 +3743,7 @@ function PrescriptionNew() {
     </CashManagerContext.Provider>
     {canUseVoiceRxModuleUi && (
       <>
-        <VoiceBar />
+        <VoiceBar guardVoiceRxUsage={guardVoiceRxUsage} />
         <QuickDictateCoachMark />
         <TutorialDrawer />
       </>

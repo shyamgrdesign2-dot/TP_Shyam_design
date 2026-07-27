@@ -64,6 +64,7 @@ import {
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   alerticon: alertIcon,
   customModule: ModuleIcon,
@@ -96,7 +97,7 @@ function insertTranscriptIntoFieldValue(value, transcript, selectionStart, selec
 }
 
 function CustomModule({ module, showVoiceRxModule }) {
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
   const { customModules, searchModuleResults, loading, hospitalSearchResults } = useSelector(
     (state) => state.customModules

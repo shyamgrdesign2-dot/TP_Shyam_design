@@ -143,6 +143,7 @@ import {
 } from "../utils/symptomCollectorVitalsMerge";
 import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
 import { useChikitsalay } from "./chikitsalay/useChikitsalay";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 
 function Prescription() {
   const {
@@ -710,7 +711,7 @@ function Prescription() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);

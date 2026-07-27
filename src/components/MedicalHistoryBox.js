@@ -42,6 +42,7 @@ import {
     useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   noRecordRound: noRecordFound,
   verticleUpDown,
@@ -290,7 +291,7 @@ function MedicalHistoryBox(props) {
     const [surgicalDateType, setSurgicalDateType] = useState('year');
     const [surgicalDate, setSurgicalDate] = useState(null);
     const selectedHistoryNoteVoiceTargetRef = useRef(null);
-    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB && !gynecOnly;
 
     const applyVoiceMedicalHistory = useCallback((nextMedicalHistory) => {

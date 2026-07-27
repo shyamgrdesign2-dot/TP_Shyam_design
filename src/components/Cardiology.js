@@ -92,6 +92,7 @@ import { ASSETS } from "../assets";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import ApiMedication from "../api/services/ApiMedication";
 import { clinicTargetStatus } from "../pages/chikitsalay/service";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   symptoms: Symptomsicon,
   surgery: surgeryIcon,
@@ -606,7 +607,7 @@ function Cardiology(props) {
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const isVideoConsultAccessibleFromGB = isVideoConsultOn || isTeleConsultOn;
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();

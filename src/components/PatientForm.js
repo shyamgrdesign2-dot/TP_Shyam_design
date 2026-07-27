@@ -30,6 +30,7 @@ import ApiAbha from "../api/services/ApiAbha";
 import '../components/PatientForm.mobile.scss';
 import PrimaryActionButton from "./PrimaryActionButton";
 import { ASSETS } from "../assets";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   save: saveIcon,
   greenTick: GreenTick,
@@ -52,7 +53,7 @@ function PatientForm({ mode = ADD, patient_data }) {
     } = abhaDetails || {};
     const { isMobile: isMobileDevice, isTablet } = useDeviceType();
     const isMobileOnly = isMobileDevice && !isTablet;
-    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isMobile = isMobileDevice;
 
     const [form] = Form.useForm();

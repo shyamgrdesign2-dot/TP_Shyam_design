@@ -25,6 +25,7 @@ import moment from "moment";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
 import { resetDDxState } from "../redux/ddxSlice";
 import PrimaryActionButton from "../components/PrimaryActionButton";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 
 function WalkInConsultationZydus() {
     const navigate = useNavigate();
@@ -53,7 +54,7 @@ function WalkInConsultationZydus() {
     );
     const isSnapRxAccessable = useFeatureIsOn(GB_SNAP_RX);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tp_monetization_enable = !shouldMonetizationDisabled();
 

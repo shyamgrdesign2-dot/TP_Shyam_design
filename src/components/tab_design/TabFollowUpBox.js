@@ -27,6 +27,7 @@ import {
     useVoiceRxModuleCapture,
 } from "../dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { useVoiceRxNewUiFlag } from "../../utils/voiceRxNavigation";
 const {
   notes: Notes,
   followup: followUp,
@@ -37,7 +38,7 @@ const dateFormat = 'YYYY-MM-DD'
 
 function TabFollowUpBox() {
 
-    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
 
     // const [messageApi, ] = message.useMessage();
     const {

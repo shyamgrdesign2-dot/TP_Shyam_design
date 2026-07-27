@@ -30,6 +30,7 @@ import {
 import AbhaDrawer from "../components/abha/AbhaDrawer";
 import PrimaryActionButton from "../components/PrimaryActionButton";
 import { ASSETS } from "../assets";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   smartpad: smartPad,
   abhaSvg: AbhaIcon,
@@ -65,7 +66,7 @@ function WalkInConsultation() {
     GB_SNAP_RX
   );
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const tp_monetization_enable = !shouldMonetizationDisabled();

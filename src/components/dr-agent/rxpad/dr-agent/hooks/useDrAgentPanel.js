@@ -2258,6 +2258,8 @@ export function useDrAgentPanel({
   const retryVoiceRxSoap = useCallback(async () => {
     if (!voiceRxResult) return;
     if (soapRetryInFlightRef.current || voiceRxResult.soapStatus === "pending") return;
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "agent-soap-retry" });
+    if (!canUseVoiceRx) return;
     soapRetryInFlightRef.current = true;
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
       ...buildVoiceRxContextParams({
@@ -2295,7 +2297,7 @@ export function useDrAgentPanel({
     } finally {
       soapRetryInFlightRef.current = false;
     }
-  }, [dispatch, doctorId, patientData, patientId, profile, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
+  }, [dispatch, doctorId, guardVoiceRxUsage, patientData, patientId, profile, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
 
   // Flip only while actively recording — submit flips back immediately so the chat loader
   // (VoiceRxLoaderCard) + RxPad processing overlay become visible.

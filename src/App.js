@@ -44,6 +44,7 @@ import {
   clearReceptionistSession,
   isReceptionistSession,
 } from "./utils/receptionistSession";
+import { useVoiceRxNewUiFlag } from "./utils/voiceRxNavigation";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -224,7 +225,7 @@ const LimsPrintConfig = React.lazy(() =>
 );
 
 function PrescriptionRouteElement() {
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const location = useLocation();
   const isVoiceRxNewUiFlow = Boolean(location.state?.isVoiceRxNewUiFlow);
 

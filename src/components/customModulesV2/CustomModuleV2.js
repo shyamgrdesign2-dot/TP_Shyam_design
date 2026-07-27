@@ -55,6 +55,7 @@ import {
 } from "../dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { Grid5, Trash } from "iconsax-reactjs";
+import { useVoiceRxNewUiFlag } from "../../utils/voiceRxNavigation";
 const {
   customModule: ModuleIcon,
   editIconBlue: editIcon,
@@ -91,7 +92,7 @@ function insertTranscriptIntoFieldValue(value, transcript, selectionStart, selec
  * @param {Array} module.namedFields - Array of field configurations
  */
 const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
   const dispatch = useDispatch();
   const {

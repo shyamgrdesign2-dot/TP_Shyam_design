@@ -33,7 +33,7 @@ import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncCon
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType, trackEvent, medicationsHaveFrequencyAndDuration } from "../utils/utils";
 import { transcribeAnyAudio } from '../components/dr-agent/voicerx/api/agent-audio-service';
 
-import { EXTRA_OPTIONS, FREE, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, MEDICINE_STOCK_STATUS } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, MEDICINE_STOCK_STATUS } from "../utils/constants";
 import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -99,6 +99,7 @@ import {
     parseMedicationFrequencySlots,
     resolveCopiedDoseFields,
 } from "../utils/medicationCopyNormalization";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   alerticon: alertIcon,
   tutorial2,
@@ -331,7 +332,7 @@ function getVoiceSoapDraftForStore(voiceDigitization) {
 
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false, onEndVisit, isEndVisitLoading = false, hasDentalData = false, onPreviewClick, showPreviewButton = false, onSelectLetterHead, isDentalConsultation = false, showVoiceRxTrialChip = false, onVoiceRxTrialChipClick }) {
 
-    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded, servicesList, userId } = useSelector((state) => state.doctors);
+    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded, userId } = useSelector((state) => state.doctors);
 
     const { frequencyList, timingList, videoList, medicineTypeList } = useSelector((state) => state.doctors);
     const vaccines = useSelector((state) => state.vaccines);
@@ -399,7 +400,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
     const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isHeaderVoiceDictationEnabled = Boolean(isNewPrescriptionUi && showVoiceRxModule && isVoiceRxNewFromGB);
     const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
     const headerVoiceVadEnabled = isVadEnabled(tpConfigData);
@@ -455,13 +456,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         };
     }, [isHeaderVoiceDictationEnabled]);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
-    const VOICE_RX_planDetails = servicesList?.find((service) => service.service_name === S_VOICE_RX);
-    const shouldDecreaseVoiceRxCredits =
-        useVoiceRx &&
-        (
-            (VOICE_RX_planDetails?.plan_tier === FREE && Number(VOICE_RX_planDetails?.credit_balance) > 0) ||
-            (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier !== FREE)
-        );
     const tokenData = getDecodedToken()?.result;
     const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
     const shouldUseChikitsalayInventoryValidation =
@@ -3388,20 +3382,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     duration: 5,
                 });
 
-	                console.log("[VoiceRx credits] End Visit", {
-	                    useVoiceRx,
-	                    isFreeVoiceRxUser,
-	                    shouldDecreaseVoiceRxCredits,
-	                    plan_tier: VOICE_RX_planDetails?.plan_tier,
-	                    credit_balance: VOICE_RX_planDetails?.credit_balance,
-	                    service_name: VOICE_RX_planDetails?.service_name,
-	                });
-
-	                if (shouldDecreaseVoiceRxCredits) {
-	                    let sendData = {
-	                        b2c_id: profile?.b2c ?? planDetails?.profile_b2c,
-	                        service_name: S_VOICE_RX
-	                    }
+                if (!isFreeVoiceRxUser && useVoiceRx) {
+                    let sendData = {
+                        b2c_id: profile?.b2c ?? planDetails?.profile_b2c,
+                        service_name: S_VOICE_RX
+                    }
                     dispatch(updateCredits(sendData))
                 }
                 if (useDDX) {

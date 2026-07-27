@@ -22,6 +22,7 @@ import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import ViewLabParam from "./ViewLabParams";
 import LabParams from "./LabParams";
 import { ASSETS } from "../assets";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   ddx: ddxIcon,
   scBannerStrip: scStrip,
@@ -37,7 +38,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   const dispatch = useDispatch();
   const { viewCaseManagerData } = useSelector((state) => state.caseManager);
   const { frequencyList, timingList, profile, userId } = useSelector((state) => state.doctors);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const { symptomCollector } = useSelector((state) => state.ddx);
   
   const [showDetailedSummary, setShowDetailedSummary] = useState(false);
