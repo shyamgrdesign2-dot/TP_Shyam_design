@@ -78,13 +78,23 @@ export default function AppointmentsSection({ filters }) {
   // Derived depth KPIs — computed live from data already on screen
   const totalKpi = kpis.find((k) => k.key === "total");
   const total = totalKpi?.value || 0;
-  const busiest = busiestDay(analytics.visitsByWeekday);
+  const busiestKpi = singleDay
+    ? busiestHour(analytics.visitsByHour)
+    : busiestDay(analytics.visitsByWeekday);
   const enrichedKpis = [
     ...kpis,
     // Whole number — "visits in a day" is not a fraction. Same relative change
     // as footfall (identical denominator in both windows).
     { key: "avgVisitsPerDay", label: "Avg visits per day", kind: "number", value: rangeDays ? Math.round(total / rangeDays) : 0, approx: true, tooltip: "Total footfall divided by the number of days in the selected period, rounded", ...(typeof totalKpi?.delta === "number" ? { delta: totalKpi.delta } : {}) },
-    ...(busiest ? [{ key: "busyDay", label: "Busiest day", kind: "text", value: busiest, tooltip: "Weekday with the most visits, summed across the selected period" }] : []),
+    ...(busiestKpi ? [{
+      key: singleDay ? "busyHour" : "busyDay",
+      label: singleDay ? "Busiest hour" : "Busiest day",
+      kind: "text",
+      value: busiestKpi,
+      tooltip: singleDay
+        ? "Hour slot with the most visits on the selected day"
+        : "Weekday with the most visits, summed across the selected period",
+    }] : []),
   ];
 
   return (
@@ -156,6 +166,14 @@ export default function AppointmentsSection({ filters }) {
 function busiestDay(weekday) {
   const rows = weekday?.data;
   const key = weekday?.series?.[0]?.key;
+  if (!Array.isArray(rows) || !rows.length || !key) return null;
+  const top = rows.reduce((a, b) => ((b[key] || 0) > (a[key] || 0) ? b : a));
+  return (top[key] || 0) > 0 ? top.x : null;
+}
+
+function busiestHour(hourly) {
+  const rows = hourly?.data;
+  const key = hourly?.series?.[0]?.key;
   if (!Array.isArray(rows) || !rows.length || !key) return null;
   const top = rows.reduce((a, b) => ((b[key] || 0) > (a[key] || 0) ? b : a));
   return (top[key] || 0) > 0 ? top.x : null;

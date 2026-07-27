@@ -30,6 +30,15 @@
   background-color: var(--tesseract-fg-inverse) !important;
 }
 
+/* Outline primary buttons — text + icon should be primary blue, not neutral */
+.da-root button[data-variant="outline"][data-theme="primary"],
+.da-root button[data-variant="outline"][data-theme="primary"] * {
+  color: var(--tesseract-blue-500) !important;
+}
+.da-root button[data-variant="outline"][data-theme="primary"] [data-tp-icon] {
+  background-color: var(--tesseract-blue-500) !important;
+}
+
 /* Tonal primary buttons — text + icon should be primary blue, not neutral */
 .da-root button[data-variant="tonal"][data-theme="primary"],
 .da-root button[data-variant="tonal"][data-theme="primary"] * {
@@ -148,6 +157,17 @@
 [role="tooltip"][data-variant="light"],
 [role="tooltip"][data-variant="light"] * {
   color: var(--tesseract-slate-900) !important;
+}
+
+/* ── DatePicker preset pills ─────────────────────────────────────────── */
+
+/* The DatePicker portals to <body>, outside .da-root. The DS default paints
+   the selected preset with a solid blue fill + white text. Override to a
+   soft tonal look: light blue background, blue text. */
+button[class*="_preset_"][data-selected="true"] {
+  background: var(--tesseract-blue-50) !important;
+  color: var(--tesseract-blue-600) !important;
+  font-weight: 600 !important;
 }
 
 /* ── Care sub-tabs ────────────────────────────────────────────────────── */

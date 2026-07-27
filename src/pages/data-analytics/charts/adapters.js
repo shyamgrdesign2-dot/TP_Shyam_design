@@ -67,7 +67,9 @@ export function listToDonut(list, { labelKey = "name", valueKey = "count" } = {}
     const value = toNum(it[valueKey] ?? it.value ?? it.count);
     agg[label] = (agg[label] || 0) + value;
   }
-  return Object.entries(agg).map(([label, value]) => ({ label, value }));
+  return Object.entries(agg)
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => (b.value || 0) - (a.value || 0));
 }
 
 // { buckets|labels:[...], series:{ current:[...], last:[...] } } → Line/Bar XY.

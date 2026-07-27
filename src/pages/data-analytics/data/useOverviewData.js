@@ -66,13 +66,12 @@ export default function useOverviewData({ month, startDate, endDate, doctorId, c
     // --- Fallback batch: Rx endpoint for the top-medications donut ---
     // Symptoms and medical-history fallbacks removed: those sections are hidden
     // due to backend data-quality issues (see SYMPTOMS-EXAM-HISTORY-DATA-QUALITY.md).
-    const needRx = !ov.topMedication;
     const fallbacks = { topMedication: null };
 
     const rxFresh = await safe(cached("clinicRx", sp, () => ApiReporting.clinicRx(sp)));
     const rxData = rxFresh?.data ?? rxFresh ?? {};
     const medDonut = anyToDonut(rxData.topBrands);
-    if (needRx) fallbacks.topMedication = firstLabel(medDonut);
+    fallbacks.topMedication = firstLabel(medDonut);
 
     setState({
       loading: false,
@@ -150,7 +149,7 @@ function buildKpis(payload, modesSrc, ov = {}, fallbacks = {}) {
       key: "topMedication",
       label: "Top medication",
       kind: "text",
-      value: ov.topMedication || fallbacks.topMedication || "No data",
+      value: fallbacks.topMedication || topMedicationName(ov) || "No data",
       tooltip: "Most prescribed medicine in the selected period",
     },
   ];
@@ -159,6 +158,18 @@ function buildKpis(payload, modesSrc, ov = {}, fallbacks = {}) {
 function firstLabel(donut) {
   const best = (donut || []).find((d) => (d?.value || 0) > 0);
   return best?.label || null;
+}
+
+function topMedicationName(ov) {
+  const tm = ov?.topMedication;
+  if (Array.isArray(tm) && tm.length) {
+    const f = tm[0];
+    return f?.name ?? f?.label ?? (typeof f === "string" ? f : null);
+  }
+  if (typeof tm === "string" && tm.trim()) {
+    return tm.split(",")[0].trim() || null;
+  }
+  return null;
 }
 
 function topDiagnosisName(src) {
