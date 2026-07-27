@@ -7,6 +7,11 @@ ARG REACT_APP_ENV
 ARG SENTRY_AUTH_TOKEN
 ARG GENERATE_SOURCEMAP
 ARG PUBLIC_URL
+# GitHub Packages PAT (read:packages) for @dhspl-tatvacare/* — passed from CI as a build-arg:
+#   buildArguments: NODE_AUTH_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
+# Consumed only for the install; .npmrc references it via ${NODE_AUTH_TOKEN} and is removed after
+# so the token never lingers in an image layer.
+ARG NODE_AUTH_TOKEN
 
 ENV REACT_APP_ENV=$REACT_APP_ENV
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
@@ -19,11 +24,15 @@ ENV CI=false
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package*.json .npmrc ./
 
-RUN npm install --legacy-peer-deps
+RUN NODE_AUTH_TOKEN="$NODE_AUTH_TOKEN" npm install --legacy-peer-deps \
+  && rm -f .npmrc
 
 COPY . .
+
+# COPY . . re-adds .npmrc — drop it again so npm run build never needs the token env
+RUN rm -f .npmrc
 
 RUN npm run build
 

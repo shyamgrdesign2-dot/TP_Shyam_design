@@ -56,6 +56,13 @@ import {
 import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { Grid5, Trash } from "iconsax-reactjs";
 import { useVoiceRxNewUiFlag } from "../../utils/voiceRxNavigation";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "../tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "../tesseractCt";
 const {
   customModule: ModuleIcon,
   editIconBlue: editIcon,
@@ -91,7 +98,7 @@ function insertTranscriptIntoFieldValue(value, transcript, selectionStart, selec
  * @param {String} module.name - Module name
  * @param {Array} module.namedFields - Array of field configurations
  */
-const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
+const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) => {
   const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
   const dispatch = useDispatch();
@@ -414,6 +421,24 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
     updateCustomModuleContents(updatedData);
     setHasChanges(true);
   };
+
+  // Tesseract shell drops the "Add New Line" CTA — the table keeps a trailing
+  // empty row instead (ClinicalTable auto-row affordance): once the last row
+  // has content, a fresh empty row is appended automatically.
+  useEffect(() => {
+    if (!useTesseractUi || isMobile) return;
+    const rows = Array.isArray(moduleData) ? moduleData : [];
+    const last = rows[rows.length - 1];
+    const lastHasContent = last && module?.namedFields?.some(
+      (field) => String(last[field.fieldName] || "").trim()
+    );
+    if (lastHasContent) {
+      const updatedData = [...rows, createEmptyRow()];
+      setModuleData(updatedData);
+      updateCustomModuleContents(updatedData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleData, useTesseractUi, isMobile]);
 
   // Handle deleting a row
   const handleDeleteRow = (rowId) => {
@@ -1255,7 +1280,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -1293,7 +1318,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                         }
                       />
                     ) : (
-                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -1417,7 +1442,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
                   <div className="round-box">
-                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
@@ -1553,21 +1578,8 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
   const voiceDictationTargetId = `custom-module-${module?.module_id || module?.name || "v2"}`;
   const activeDropdownFieldId = focusedFieldId;
 
-  return (
-    <div
-      ref={sectionRef}
-      data-voice-rx-dictation-target={voiceDictationTargetId}
-      className={[
-        "prescription-box-sm",
-        isVoiceRxModuleEnabled ? "custom-module-v2--voice-rx-scroll" : "",
-        activeDropdownFieldId ? "custom-module-v2--dropdown-open" : "",
-        voiceModuleStyles.moduleRoot,
-        isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
-        voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
-      ].filter(Boolean).join(" ")}
-      data-module-id={module?.module_id}
-    >
-      {/* Header */}
+  // Classic shell header (kept verbatim; the Tesseract shell renders its own).
+  const CLASSIC_HEADER = (
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
           <div className="d-flex w-100">
@@ -1773,12 +1785,19 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
           </>
         )}
       </div>
+  );
 
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
       {/* Delete Template Modal */}
       {DELETE_MODAL}
 
       {/* Table */}
-      <div className={isVoiceRxModuleEnabled ? "custom-module-v2__table-scroll-wrap" : undefined}>
+      <div
+        className={[isVoiceRxModuleEnabled ? "custom-module-v2__table-scroll-wrap" : "", useTesseractUi ? "tesseract-ct" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
         <table className={`custom-module-v2__table ${columnClass} mt-14`}>
           {/* Table Header */}
           <thead>
@@ -1791,7 +1810,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                   {field.fieldLabel ?? field.fieldName}
                 </th>
               ))}
-              <th className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">
+              <th className={["custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action", useTesseractUi ? "tesseract-ct-sticky-action" : ""].filter(Boolean).join(" ")}>
                 {/* Action column header */}
               </th>
             </tr>
@@ -1804,6 +1823,10 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
               const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
               const isActiveDropdownRow = module.namedFields?.some(
                 (field) => activeDropdownFieldId === `${row.id}-${field.fieldName}`
+              );
+              // Tesseract: the trailing empty row is the add affordance — no delete CTA on it.
+              const rowIsEmpty = !module.namedFields?.some(
+                (field) => String(row[field.fieldName] || "").trim()
               );
               return (
               <tr
@@ -1869,7 +1892,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                     )}
                   </td>
                 ))}
-                <td className="custom-module-v2__table-cell custom-module-v2__table-cell--action text-center">
+                <td className={["custom-module-v2__table-cell custom-module-v2__table-cell--action text-center", useTesseractUi ? "tesseract-ct-sticky-action" : ""].filter(Boolean).join(" ")}>
                   {isMobile && (
                     <Button
                       className="btn py-0 btn-delete-prescription px-0"
@@ -1878,12 +1901,14 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                       <i className="icon-Edit"></i>
                     </Button>
                   )}
-                  <Button
-                    className="btn py-0 btn-delete-prescription px-0"
-                    onClick={() => handleDeleteRow(row.id)}
-                  >
-                    {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
-                  </Button>
+                  {!(useTesseractUi && rowIsEmpty) && (
+                    <Button
+                      className="btn py-0 btn-delete-prescription px-0"
+                      onClick={() => handleDeleteRow(row.id)}
+                    >
+                      {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                    </Button>
+                  )}
                 </td>
               </tr>
             );
@@ -1892,31 +1917,33 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
         </table>
       </div>
 
-      {/* Add New Line Button */}
-      <div
-        className={
-          isVoiceRxModuleEnabled && voiceCaptureOpen
-            ? [voiceModuleStyles.moduleSlot, voiceModuleStyles.moduleCaptureActiveSlot].filter(Boolean).join(" ")
-            : "p-14"
-        }
-      >
-        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
-          <VoiceRxModuleCapture
-            mode="transcribe"
-            moduleName={module?.name || "Custom Module"}
-            onCancel={() => setVoiceCaptureOpen(false)}
-            onComplete={handleVoiceCaptureComplete} />
-        ) : (
-          <Button
-            type="link"
-            icon={<PlusOutlined />}
-            className="add-custom-module-link"
-            onClick={handleAddRow}
-          >
-            Add New Line
-          </Button>
-        )}
-      </div>
+      {/* Add New Line Button (hidden in the Tesseract shell — trailing empty row is the add affordance) */}
+      {((isVoiceRxModuleEnabled && voiceCaptureOpen) || !useTesseractUi) && (
+        <div
+          className={
+            isVoiceRxModuleEnabled && voiceCaptureOpen
+              ? [voiceModuleStyles.moduleSlot, voiceModuleStyles.moduleCaptureActiveSlot].filter(Boolean).join(" ")
+              : "p-14"
+          }
+        >
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              mode="transcribe"
+              moduleName={module?.name || "Custom Module"}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : (
+            <Button
+              type="link"
+              icon={<PlusOutlined />}
+              className="add-custom-module-link"
+              onClick={handleAddRow}
+            >
+              Add New Line
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Template Drawer for Tablet/Mobile */}
       {isMobile && (
@@ -1966,6 +1993,163 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
 
       {/* Delete Confirmation Modal */}
       {DELETE_CONFIRMATION_MODAL}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target={voiceDictationTargetId}
+        data-module-id={module?.module_id}
+        title={module?.name}
+        icon="bulk/note-2"
+        className={[
+          "tesseract-rxpad",
+          "prescription-box-sm",
+          isVoiceRxModuleEnabled ? "custom-module-v2--voice-rx-scroll" : "",
+          activeDropdownFieldId ? "custom-module-v2--dropdown-open" : "",
+          voiceModuleStyles.moduleRoot,
+          isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
+          voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+        ].filter(Boolean).join(" ")}
+        headerActions={
+          canEditName ? (
+            <div className="d-flex w-100">
+              <Input
+                placeholder="Enter custom module name"
+                value={newModuleName}
+                onChange={(e) => setNewModuleName(e.target.value)}
+                className="custom-module-input"
+              />
+              <CheckOutlined
+                className="input-action-icon tick-icon"
+                onClick={handleEditModuleName}
+              />
+              <CloseOutlined
+                className="input-action-icon cross-icon"
+                onClick={handleCancel}
+              />
+            </div>
+          ) : (
+            <>
+              <DisabledModuleTooltip
+                module={module}
+                hospitalSearchResults={hospitalSearchResults}
+                placement="bottom"
+                type="title"
+              >
+                <InfoCircleOutlined
+                  style={{ color: "#a1a1aa", fontSize: 16 }}
+                />
+              </DisabledModuleTooltip>
+              <Tooltip placement="bottom" title="Load previous data">
+                <span>
+                  {tesseractActionButton({ icon: "refresh", label: "Load previous data", onClick: loadPreviousClick })}
+                </span>
+              </Tooltip>
+              {isMobile ? (
+                <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                  <span>
+                    {tesseractActionButton({ icon: "grid-5", label: `Browse ${module?.name || "module"} templates`, onClick: handleDrawerTemplate })}
+                  </span>
+                </Tooltip>
+              ) : (
+                <Popover
+                  open={popOver1}
+                  onOpenChange={showHideTemplatesListPopover}
+                  content={TEMPLATE_CONTENT}
+                  trigger="click"
+                  overlayClassName="pop-350 pp-0"
+                  placement="bottomRight"
+                >
+                  <span>
+                    <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                      {tesseractActionButton({ icon: "grid-5", label: `Browse ${module?.name || "module"} templates` })}
+                    </Tooltip>
+                  </span>
+                </Popover>
+              )}
+              <Tooltip
+                placement="bottom"
+                title={
+                  hasDataToSave
+                    ? ""
+                    : `Please enter some ${module?.name} to save a template`
+                }
+              >
+                {isMobile ? (
+                  <span>
+                    {tesseractActionButton({ icon: "ram", label: `Save ${module?.name || "module"} as template`, onClick: () => hasDataToSave && handleSaveTemplateDrawer(), disabled: !hasDataToSave })}
+                  </span>
+                ) : (
+                  <Popover
+                    open={popOver2}
+                    onOpenChange={() =>
+                      hasDataToSave && showHideSaveTemplatePopOver()
+                    }
+                    content={SAVE_CONTENT}
+                    trigger="click"
+                    overlayClassName="pop-450 pp-0"
+                    placement="bottomRight"
+                  >
+                    <span>
+                      {tesseractActionButton({ icon: "ram", label: `Save ${module?.name || "module"} as template`, disabled: !hasDataToSave })}
+                    </span>
+                  </Popover>
+                )}
+              </Tooltip>
+              <Tooltip placement="bottom" title="Clear this section">
+                <span>
+                  {tesseractActionButton({ icon: "eraser", label: `Clear ${module?.name || "module"}`, onClick: handleClear, disabled: !hasDataToSave })}
+                </span>
+              </Tooltip>
+              <Dropdown
+                overlay={moreMenu}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <span>
+                  {tesseractActionButton({ icon: "more", label: "More module options" })}
+                </span>
+              </Dropdown>
+            </>
+          )
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
+
+  return (
+    <div
+      ref={sectionRef}
+      data-voice-rx-dictation-target={voiceDictationTargetId}
+      className={[
+        "prescription-box-sm",
+        isVoiceRxModuleEnabled ? "custom-module-v2--voice-rx-scroll" : "",
+        activeDropdownFieldId ? "custom-module-v2--dropdown-open" : "",
+        voiceModuleStyles.moduleRoot,
+        isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
+        voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+      ].filter(Boolean).join(" ")}
+      data-module-id={module?.module_id}
+    >
+      {CLASSIC_HEADER}
+      {BODY_CONTENT}
     </div>
   );
 };

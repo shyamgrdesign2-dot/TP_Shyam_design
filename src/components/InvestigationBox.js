@@ -61,6 +61,13 @@ import {
   INVESTIGATION_INVENTORY_WARNING,
   isChikitsalayInvestigationRow,
 } from "../utils/chikitsalayInventory";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "./tesseractCt";
 const {
   alerticon: alertIcon,
   lab: Investigationicon,
@@ -81,7 +88,7 @@ const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   textAlign: "center",
 };
 
-function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
+function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule, useTesseractUi = false}) {
   const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const isChikitsalayAccessable = useChikitsalay();
   const {
@@ -97,6 +104,9 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     useContext(CashManagerContext);
   // const [ investigationData, setInvestigationData] = useState([]);
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  // Voice-mode table layout classes are legacy-only; the Tesseract shell uses
+  // the plain antd grid so header and body columns always align.
+  const useVoiceTableLayout = isVoiceRxModuleEnabled && !useTesseractUi;
 
   const [searchParentQuery, setSearchParentQuery] = useState("");
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
@@ -128,6 +138,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     rows: investigationData,
     setRows: setInvestigationData,
     showVoiceRxModule,
+    useTesseractUi,
     nameField: "investigation_name",
     rowKeyPrefix: "investigation",
     searchOptions: parentSearchOptions,
@@ -357,6 +368,37 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     },
     [searchParentQuery]
   );
+
+  // Frequently-used chips (Tesseract shell only) — captured from the
+  // frequently-searched list; not overwritten by typed-search results.
+  const [frequentInvestigationChips, setFrequentInvestigationChips] = useState([]);
+  useEffect(() => {
+    if (!searchParentQuery && Array.isArray(parentOptionsList) && parentOptionsList.length > 0) {
+      setFrequentInvestigationChips(parentOptionsList.map((e) => e.investigation_name).filter(Boolean));
+    }
+  }, [parentOptionsList, searchParentQuery]);
+  const availableInvestigationChips = useTesseractUi
+    ? frequentInvestigationChips.filter(
+        (name) => !investigationData.some(
+          (row) => String(row.investigation_name || "").toLowerCase() === name.toLowerCase()
+        )
+      )
+    : [];
+  const onChipAdd = useCallback((name) => {
+    window.Moengage.track_event("investigation_select", {
+      "value": name
+    });
+    setInvestigationData((prev) => [
+      ...prev,
+      {
+        unique_id: uuidv4(),
+        change: 1,
+        pms_default: 0,
+        investigation_name: name,
+        note: "",
+      },
+    ]);
+  }, [setInvestigationData]);
 
   const onSelectParent = useCallback(
     (data, e) => {
@@ -857,10 +899,21 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   const TABLE_INVESTIGATION = useMemo(() => {
     const investigationRows = Array.isArray(investigationData) ? investigationData : [];
-    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled;
+    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled && !useTesseractUi;
 
     return (
-      <div className={shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : undefined}>
+      <div
+        className={[shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : "", useTesseractUi ? "tesseract-ct" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
+        {useTesseractUi && (
+          <Row gutter={0} className="tesseract-ct-head">
+            <Col lg={1} md={1} sm={1} xs={1} className="tesseract-ct-th" />
+            <Col lg={8} md={8} sm={8} xs={8} className="tesseract-ct-th">Name</Col>
+            <Col lg={14} md={14} sm={13} xs={13} className="tesseract-ct-th">Notes</Col>
+            <Col lg={1} md={1} sm={2} xs={2} className="tesseract-ct-th tesseract-ct-sticky-action" />
+          </Row>
+        )}
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="investigation" direction="vertical">
             {(provided) => (
@@ -868,7 +921,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                 {...provided.droppableProps}
                 ref={provided.innerRef}
                 className={[
-                  isNewEmptyLineUiEnabled ? "mt-2 prescription-empty-line-ui" : "",
+                  isNewEmptyLineUiEnabled ? "prescription-empty-line-ui" : "mt-2",
                   shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableBody : "",
                 ].filter(Boolean).join(" ")}
               >
@@ -1008,13 +1061,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                             </Col>
                             <Col lg={1} md={1} sm={2} xs={2} className={[
                               isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                              useTesseractUi ? "tesseract-ct-sticky-action" : "",
                               shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
                             ].filter(Boolean).join(" ")}>
                               <Button
                                 className="btn py-0 btn-delete-prescription px-0"
                                 onClick={() => onRemoveRow(index)}
                               >
-                                {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                                {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                               </Button>
                             </Col>
                           </Row>
@@ -1069,6 +1123,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                     </Col>
                     <Col lg={1} md={1} sm={2} xs={2} className={[
                       "symptoms-table-cell center",
+                      useTesseractUi ? "tesseract-ct-sticky-action" : "",
                       shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
                     ].filter(Boolean).join(" ")} />
                   </Row>
@@ -1095,6 +1150,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     isVoiceRxModuleEnabled,
     parentSearchOptions,
     shouldShowInventorySourceWarning,
+    useTesseractUi,
   ]);
 
   //Template Componet
@@ -1133,7 +1189,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -1163,7 +1219,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                         }
                       />
                     ) : (
-                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -1234,7 +1290,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box">{isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
+                  <div className="round-box">{useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -1307,6 +1363,138 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       />
     );
   }, [isModalOpen1]);
+
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_INVESTIGATION}
+      {filteredDdxInvestigationOptionsList?.length > 0 && (
+        <div style={{ padding: "0 14px" }}>
+          <DifferentialDiagnosis
+            handleDDxDrawer={handleDDxDrawer}
+            ddxOptionsList={filteredDdxInvestigationOptionsList}
+            onSelectParent={onSelectDDx}
+          />
+        </div>
+      )}
+      {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        <div className={voiceModuleStyles.moduleSlot}>
+          <VoiceRxModuleCapture
+            moduleName={INVESTIGATION_TITLE}
+            previousContext={investigationVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.investigation}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        </div>
+      ) : !isNewEmptyLineUiEnabled ? (
+        <div className="p-14">
+          <AutoComplete
+            value={searchParentQuery}
+            onSearch={onSearchParent}
+            options={parentSearchOptions}
+            className="autocomplete-custom w-100"
+            onSelect={onSelectParent}
+            defaultActiveFirstOption={true}
+            {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
+          >
+            <Input
+              placeholder={`Search ${INVESTIGATION_TITLE}`}
+              prefix={<i className="icon-search"></i>}
+            />
+          </AutoComplete>
+        </div>
+      ) : null}
+      {useTesseractUi && availableInvestigationChips.length > 0 && (
+        <div className="tesseract-rxpad-chips">
+          {availableInvestigationChips.map((name) => (
+            <TesseractButton
+              key={name}
+              variant="tonal"
+              theme="neutral"
+              size="sm"
+              className="tesseract-rxpad-chip"
+              title={name}
+              onClick={() => onChipAdd(name)}
+            >
+              {name}
+            </TesseractButton>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target="investigation"
+        title={INVESTIGATION_TITLE}
+        icon="bulk/microscope"
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="investigation"
+                label={`Start ${INVESTIGATION_TITLE} voice input`}
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: `Browse ${INVESTIGATION_TITLE} templates` })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (investigationData.length > 0) && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Save as template">
+                  {tesseractActionButton({ icon: "ram", label: `Save ${INVESTIGATION_TITLE} as template`, disabled: investigationData.length === 0 })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: `Clear ${INVESTIGATION_TITLE}`, onClick: showHideClearData, disabled: investigationData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
 
   return (
     <>
@@ -1392,46 +1580,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
           </div>
         </div>
 
-        {DELETE_MODAL}
-        {REMOVE_ALL_ROWS}
-        {TABLE_INVESTIGATION}
-        {filteredDdxInvestigationOptionsList?.length > 0 && (
-          <div style={{ padding: "0 14px" }}>
-            <DifferentialDiagnosis
-              handleDDxDrawer={handleDDxDrawer}
-              ddxOptionsList={filteredDdxInvestigationOptionsList}
-              onSelectParent={onSelectDDx}
-            />
-          </div>
-        )}
-
-        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
-          <div className={voiceModuleStyles.moduleSlot}>
-            <VoiceRxModuleCapture
-              moduleName={INVESTIGATION_TITLE}
-              previousContext={investigationVoicePreviousContext}
-              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.investigation}
-              onCancel={() => setVoiceCaptureOpen(false)}
-              onComplete={handleVoiceCaptureComplete} />
-          </div>
-        ) : !isNewEmptyLineUiEnabled ? (
-          <div className="p-14">
-            <AutoComplete
-              value={searchParentQuery}
-              onSearch={onSearchParent}
-              options={parentSearchOptions}
-              className="autocomplete-custom w-100"
-              onSelect={onSelectParent}
-              defaultActiveFirstOption={true}
-              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
-            >
-              <Input
-                placeholder={`Search ${INVESTIGATION_TITLE}`}
-                prefix={<i className="icon-search"></i>}
-              />
-            </AutoComplete>
-          </div>
-        ) : null}
+        {BODY_CONTENT}
       </div>
     </>
   );

@@ -22,6 +22,7 @@ import CommonModal from './CommonModal';
 import VideoModal from './VideoModal';
 import SaveDraft from './SaveDraft';
 import FreeTrialButton from '../pages/monetization/components/FreeTrialButton';
+import { TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 import {
     VoiceRxModuleActionButton,
@@ -3760,7 +3761,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     >
                                         <button className="btn d-flex align-items-center btn-text">
                                             {" "}
-                                            <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
+                                            {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                         </button>
                                     </Popover>
                                     <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
@@ -3776,7 +3777,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             <span>
                                                 <button className="btn d-flex align-items-center btn-text" disabled={hasUngroundedMedications}>
                                                     {" "}
-                                                    <i className="icon-save me-2"></i> <span>Save</span>
+                                                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span>
                                                 </button>
                                             </span>
                                         </Popover>
@@ -3785,11 +3786,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             ) : (
                                 <div className="d-flex align-items-center">
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
-                                        <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
+                                        {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                     </button>
                                     <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <span>
-                                            <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> <i className="icon-save me-2"></i> <span>Save</span></button>
+                                            <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span></button>
                                         </span>
                                     </Tooltip>
                                 </div>
@@ -3800,7 +3801,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
                             {!showVoiceRxModule && (
                                 <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
-                                    {isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
+                                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="setting-2" variant="linear" size={18} /></span> : isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
                                 </button>
                             )}
 
@@ -3874,9 +3875,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     loading={isVideoConsultLoading}
                                 />
                             )}
-                            {/* Legacy VoiceRx CTA belongs only to the old prescription UI. */}
+                            {/* VoiceRx CTA — the new UI always uses the prod GenRxButton (animated
+                                gradient-video border); the compact icon-only variant is old-UI only. */}
                             {shouldShowLegacyVoiceRxCta ? (
-                                isCompactHeader ?
+                                isNewPrescriptionUi ? (
+                                    <GenRxButton onClick={handleGenRx} className="tesseract-genrx-cta" />
+                                ) : isCompactHeader ?
                                     <TabVoiceRxButton onClick={handleGenRx} />
                                     :
                                     <GenRxButton onClick={handleGenRx} />

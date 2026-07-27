@@ -3315,15 +3315,16 @@ function PrescriptionNew() {
                         handleDDxDrawer={handleDDxDrawer}
                         generatedDDx={generatedDDx?.results}
                         showVoiceRxModule={canUseVoiceRxModuleUi}
+                        useTesseractUi
                       />
                     </div>
                   ) : e.tmdpm_id === 10 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <ExaminationBox showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <ExaminationBox showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     </div>
                   ) : e.tmdpm_id === 21 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <SurgicalBox showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <SurgicalBox showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     </div>
                   ) : e.tmdpm_id === 11 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
@@ -3335,11 +3336,12 @@ function PrescriptionNew() {
                         handleDDxKnowMore={handleDDxKnowMore}
                         isDDxGenerated={isDDxGenerated}
                         showVoiceRxModule={canUseVoiceRxModuleUi}
+                        useTesseractUi
                       />
                     </div>
                   ) : e.tmdpm_id === 12 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <MedicationsBox showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <MedicationsBox showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     </div>
                   ) : isOpthalModuleAccessible && e.tmdpm_id === OPTHAL_PAD_MODULE_ID && e.tmdpm_status === 0 ? (
                     <div key={i} className="opthal-panel-wrapper">
@@ -3353,7 +3355,7 @@ function PrescriptionNew() {
                     </div>
                   ) : e.tmdpm_id === 13 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <AdviceBox showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <AdviceBox showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     </div>
                   ) : e.tmdpm_id === 14 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
@@ -3362,6 +3364,7 @@ function PrescriptionNew() {
                         handleDDxDrawer={handleDDxDrawer}
                         generatedDDx={generatedDDx?.results}
                         showVoiceRxModule={canUseVoiceRxModuleUi}
+                        useTesseractUi
                       />
                     </div>
                   ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
@@ -3377,9 +3380,9 @@ function PrescriptionNew() {
                     e.tmdpm_status === 0 &&
                     customModule &&
                     (customModule.version === "v2" ? (
-                      <CustomModuleV2 module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <CustomModuleV2 module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     ) : (
-                      <CustomModule module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <CustomModule module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     ))
                   );
                 })}

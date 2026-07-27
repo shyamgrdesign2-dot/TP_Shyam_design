@@ -1,0 +1,290 @@
+/* Tesseract RxPadSection skin for PrescriptionNew section boxes.
+   Matches the design system's ClinicalTable visuals (header row, borders,
+   colors) while the body keeps the portal's antd behavior components.
+   Fonts: per product decision the section title AND table headers use the
+   portal's Poppins (not tesseract Mulish). */
+
+/* Voice Rx CTA (new UI): the white inner face sits inset 2px inside the 10px
+   outer radius — concentric corners need the inner radius to follow suit. */
+.tesseract-genrx-cta::before {
+  border-radius: 10px !important;
+}
+
+/* The design-system stylesheet ships `[data-tp-theme] :is(*) { corner-shape:
+   squircle }`, which reshapes EVERY rounded corner in the app (all portal
+   CTAs included). Neutralize it globally — standard rounding everywhere. */
+[data-tp-theme] :is(*) {
+  corner-shape: round !important;
+}
+
+.tesseract-rxpad {
+  /* Section title — portal font/color, overriding tesseract heading font */
+  h3 {
+    font-family: 'Poppins' !important;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500 !important;
+    line-height: normal;
+    letter-spacing: 0.1px;
+    color: #454551;
+  }
+
+  /* ── Table shell (mirror of ClinicalTable .wrap/.table) ── */
+  .tesseract-ct {
+    border: 1px solid var(--tesseract-slate-100, #e2e8f0);
+    border-radius: var(--tesseract-radius-10, 10px);
+    background: var(--tesseract-slate-0, #fff);
+    overflow: hidden;
+    overflow-x: auto;
+
+    /* Horizontal scroll: rows keep a min width; below it the wrap scrolls
+       and the action column stays pinned right (mirror of ClinicalTable
+       .actionCol/.sticky). */
+    .tesseract-ct-head,
+    .symptoms-table-row {
+      min-width: 700px;
+      flex-wrap: nowrap;
+    }
+
+    .tesseract-ct-sticky-action {
+      position: sticky;
+      right: 0;
+      z-index: 5;
+      background: var(--tesseract-slate-0, #fff);
+    }
+
+    /* Column sizing (non-medication tables): the notes column soaks up all
+       leftover width and the action column is a fixed 48px in BOTH header and
+       body rows — so header/body always align and the delete CTA sits at the
+       far right with no dead gap. */
+    .tesseract-ct-head > .ant-col:nth-last-child(2),
+    .symptoms-table-row > .ant-col:nth-last-child(2) {
+      flex: 1 1 auto !important;
+      max-width: none !important;
+    }
+    .tesseract-ct-head > .tesseract-ct-sticky-action,
+    .symptoms-table-row > .tesseract-ct-sticky-action {
+      flex: 0 0 48px !important;
+      width: 48px !important;
+      min-width: 48px !important;
+      max-width: 48px !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tesseract-ct-head .tesseract-ct-sticky-action {
+      background: var(--tesseract-slate-50, #f8fafc);
+      z-index: 6;
+    }
+
+    /* Left fade shadow on the pinned column — ONLY while content is
+       scrolled behind it (mirror of [data-behind] .sticky[data-shadow]). */
+    &[data-behind] .tesseract-ct-sticky-action::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 18px;
+      transform: translateX(-100%);
+      pointer-events: none;
+      background: linear-gradient(
+        to left,
+        color-mix(in srgb, var(--tesseract-slate-900, #0f172a) 12%, transparent),
+        transparent
+      );
+    }
+
+    /* header row (mirror of .headRow/.th) */
+    .tesseract-ct-head {
+      min-height: 38px;
+      background: var(--tesseract-slate-50, #f8fafc);
+
+      .tesseract-ct-th {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        font-family: 'Poppins';
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--tesseract-slate-500, #64748b);
+        border-right: 1px solid var(--tesseract-slate-100, #e2e8f0);
+        background: var(--tesseract-slate-50, #f8fafc);
+
+        &:last-child {
+          border-right: none;
+        }
+      }
+    }
+
+    /* body rows (mirror of .row/.td) */
+    .symptoms-table-row {
+      min-height: 52px;
+      border-top: 1px solid var(--tesseract-slate-100, #e2e8f0);
+      transition: background-color 150ms ease;
+
+      &:hover {
+        background: color-mix(in srgb, var(--tesseract-slate-50, #f8fafc) 60%, transparent);
+      }
+
+      > .ant-col {
+        border-right: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+        display: flex;
+        align-items: center;
+
+        &:last-child {
+          border-right: none !important;
+        }
+      }
+
+      &.prescription-empty-line-row--draft {
+        border-top: 1px solid var(--tesseract-slate-100, #e2e8f0);
+      }
+    }
+
+    /* neutralize the portal's own row border/background utilities inside */
+    .symptoms-table-row .border-end {
+      border-right: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+    }
+
+    /* ── Medication header (existing nested header row, restyled in place) ── */
+    .tesseract-ct-med-head {
+      background: var(--tesseract-slate-50, #f8fafc) !important;
+      border-top: none !important;
+      border-bottom: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+      min-height: 38px;
+
+      label {
+        font-family: 'Poppins';
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--tesseract-slate-500, #64748b);
+      }
+
+      .border-end,
+      .border-start {
+        border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+      }
+    }
+
+    /* medication body rows */
+    .taper-dose {
+      border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+
+      .border-end,
+      .border-start {
+        border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+      }
+    }
+  }
+
+  /* wide tables (medication) need a larger scroll floor */
+  .tesseract-ct.tesseract-ct-wide {
+    .tesseract-ct-med-head,
+    .taper-dose {
+      min-width: 900px;
+      flex-wrap: nowrap;
+    }
+  }
+
+  /* Voice mode: medication cells carry their own px min-widths and overflow
+     the 900px floor — size each row box to its CONTENT so the header
+     background and row borders paint across the entire scrollable width
+     (min-width 100% keeps them filling the container when content is
+     narrower). */
+  .tesseract-ct.tesseract-ct-wide.tesseract-ct-voice {
+    .tesseract-ct-med-head,
+    .taper-dose {
+      width: max-content;
+      min-width: 100%;
+    }
+  }
+
+  /* ── Custom modules (V1 antd rows / V2 real <table>) ── */
+  .tesseract-ct {
+    /* no gap inside the table's top border */
+    .mt-14 {
+      margin-top: 0 !important;
+    }
+
+    /* V2 dynamic-fields header — same skin as .tesseract-ct-th */
+    .custom-module-v2__table {
+      border-collapse: collapse;
+      /* the wrap owns the single outer border — kill the table's own */
+      border: none !important;
+
+      thead tr {
+        background: var(--tesseract-slate-50, #f8fafc);
+        border-top: none !important;
+        border-bottom: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+      }
+
+      .custom-module-v2__table-header-cell {
+        padding: 8px 12px;
+        min-height: 38px;
+        font-family: 'Poppins';
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--tesseract-slate-500, #64748b);
+        background: var(--tesseract-slate-50, #f8fafc);
+        border-right: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+        border-bottom: none !important;
+
+        &:last-child {
+          border-right: none !important;
+        }
+      }
+
+      tbody tr {
+        border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+      }
+
+      .custom-module-v2__table-cell {
+        border-bottom-color: var(--tesseract-slate-100, #e2e8f0) !important;
+        border-right-color: var(--tesseract-slate-100, #e2e8f0) !important;
+      }
+
+      /* last row: the wrap's bottom border is the closing line */
+      tbody tr:last-child,
+      tbody tr:last-child .custom-module-v2__table-cell {
+        border-bottom: none !important;
+      }
+    }
+
+    /* V1 antd rows — normalize bootstrap borders to the tesseract palette */
+    .ant-row.border-bottom,
+    .ant-row .border-end,
+    .ant-row .border-start {
+      border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+    }
+  }
+
+  /* ── Frequently-used chips (mirror of RxPadSection .chips) ── */
+  .tesseract-rxpad-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tesseract-space-2, 8px);
+    padding: 12px 0 2px;
+
+    .tesseract-rxpad-chip {
+      max-width: 180px;
+      font-weight: 500 !important;
+
+      /* ellipsis for long symptom names */
+      span {
+        display: block;
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+    }
+  }
+}

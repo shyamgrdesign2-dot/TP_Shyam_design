@@ -54,6 +54,13 @@ import {
 import ApiMedication from "../api/services/ApiMedication";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "./tesseractCt";
+import {
   hasInvalidChikitsalayMedication,
   MEDICATION_INVENTORY_WARNING,
 } from "../utils/chikitsalayInventory";
@@ -258,7 +265,7 @@ const getDoseUnitOptions = (medicine) => {
   });
 };
 
-function MedicationsBox({ showVoiceRxModule }) {
+function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
   const isChikitsalayAccessable = useChikitsalay();
   const isPrescriptionNewContext = showVoiceRxModule !== undefined;
   const renderLowStockBadge = useCallback((med) => {
@@ -718,6 +725,34 @@ function MedicationsBox({ showVoiceRxModule }) {
     [doseCalculatorDrawer, searchMLQuery, searchParentQuery]
   );
 
+  // Frequently-used chips (Tesseract shell only) — full medicine objects from
+  // the frequently-searched list; a chip click goes through onSelectParent so
+  // every column the medicine carries (dose/unit/frequency/when/duration) is
+  // prefilled exactly like a dropdown selection.
+  const [frequentMedicineChips, setFrequentMedicineChips] = useState([]);
+  useEffect(() => {
+    if (
+      !searchParentQuery &&
+      !doseCalculatorDrawer &&
+      Array.isArray(parentOptionsList) &&
+      parentOptionsList.length > 0
+    ) {
+      setFrequentMedicineChips(parentOptionsList.filter((e) => e?.tmm_medicine_name));
+    }
+  }, [parentOptionsList, searchParentQuery, doseCalculatorDrawer]);
+  const availableMedicineChips = useTesseractUi
+    ? frequentMedicineChips.filter(
+        (med) => !medicationData.some(
+          (row) => String(row.tmm_medicine_name || "").toLowerCase() === String(med.tmm_medicine_name).toLowerCase()
+        )
+      )
+    : [];
+  const onChipAdd = (med) => {
+    onSelectParent(med.tmm_medicine_name, {
+      key: JSON.stringify({ ...med, unique_id: uuidv4() }),
+    });
+  };
+
   const handleParentSearch = (value) => {
     onSearchParent(value);
     // Reset dropdown scroll to top whenever the search query changes
@@ -955,6 +990,7 @@ function MedicationsBox({ showVoiceRxModule }) {
     rows: medicationData,
     setRows: setMedicationData,
     showVoiceRxModule,
+    useTesseractUi,
     nameField: "tmm_medicine_name",
     rowKeyPrefix: "medication",
     searchOptions: parentSearchOptions,
@@ -1671,11 +1707,14 @@ function MedicationsBox({ showVoiceRxModule }) {
     const groupedMedicationRows = getMedicationRowGroups(medicationRows);
 
     return (
-      <div className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationScrollWrap : undefined}>
+      <div
+        className={[isVoiceRxModuleEnabled ? voiceModuleStyles.medicationScrollWrap : "", useTesseractUi ? "tesseract-ct tesseract-ct-wide" : "", useTesseractUi && isVoiceRxModuleEnabled ? "tesseract-ct-voice" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
         {(medicationRows.length > 0 || isNewEmptyLineUiEnabled) &&
           <Row
             gutter={[0]}
-            className={`mt-14 border-top border-bottom align-items-center ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationTableRow : ""}`}
+            className={`border-top border-bottom align-items-center ${useTesseractUi ? "tesseract-ct-med-head" : "mt-14"} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationTableRow : ""}`}
           >
             <Col lg={1} md={1} sm={1} xs={1} className={[
               isNewEmptyLineUiEnabled ? "border-end" : "",
@@ -1731,7 +1770,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                     <label>NOTE</label>
                   </div>
                 </Col>
-                <Col lg={1} md={1} sm={2} xs={2} className={`text-center ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`}>
+                <Col lg={1} md={1} sm={2} xs={2} className={`text-center ${useTesseractUi ? "tesseract-ct-sticky-action" : ""} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label></label>
                   </div>
@@ -1995,12 +2034,12 @@ function MedicationsBox({ showVoiceRxModule }) {
                                       onChange={(e) => onChangeNoteChild(e, item?.index)}
                                     />
                                   </Col>
-                                  <Col lg={1} md={1} sm={2} xs={2} className={`d-flex align-items-center justify-content-center ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`}>
+                                  <Col lg={1} md={1} sm={2} xs={2} className={`d-flex align-items-center justify-content-center ${useTesseractUi ? "tesseract-ct-sticky-action" : ""} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`}>
                                     <Button
                                       className="btn py-0 btn-delete-prescription px-0"
                                       onClick={() => onRemoveRow(item?.index)}
                                     >
-                                      {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                                      {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                                     </Button>
                                   </Col>
                                   {ii != 0 && (<div className="badge-then">Then</div>)}
@@ -2099,7 +2138,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                             }}
                           />
                         </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className={`d-flex align-items-center justify-content-center ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`} />
+                        <Col lg={1} md={1} sm={2} xs={2} className={`d-flex align-items-center justify-content-center ${useTesseractUi ? "tesseract-ct-sticky-action" : ""} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`} />
                       </Row>
                     </Col>
                   </Row>
@@ -2363,7 +2402,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template.tmtd_id)}
                   >
-                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -2386,7 +2425,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                         }
                       />
                     ) : (
-                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -2457,7 +2496,7 @@ function MedicationsBox({ showVoiceRxModule }) {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box">{isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
+                  <div className="round-box">{useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">{JSON.parse(option.data.key).medicine_name}</div>
@@ -2927,6 +2966,208 @@ function MedicationsBox({ showVoiceRxModule }) {
     setPillupSwitch(checked)
   };
 
+  // PillUp / eaZY Dose badge + toggle block (pillup flag only) — reused by
+  // both shells; sits next to the title classically, in headerMeta on Tesseract.
+  const PILLUP_META = isPillUpAccessableFromGB ? (
+    <div ref={tourRef} className="ms-2 border rounded-20px px-2 py-1 d-flex align-items-center" style={{ backgroundColor: 'rgb(226, 226, 234, 0.2)' }}>
+      {(() => {
+        const decodedToken = getDecodedToken();
+        const tokenData = decodedToken?.result;
+        const isZydusUser = tokenData?.hospital_business_id == env.zydus_business_id;
+        return isZydusUser ? <img src={EazyDoseLogo} alt="eaZY Dose" style={{ height: '20px' }} /> : <img src={Pillup} />;
+      })()}
+      <Popover
+        open={popOver3}
+        onOpenChange={showHidePillUpPopover}
+        content={profile?.userSettingFlag?.find(e => e?.type === 'pillup')?.status === 1 ? PILLUP_CONTENT() : null}
+        trigger="hover"
+        placement="bottom"
+      >
+        <i className="icon-info opacity-50 fs-18 mx-1"></i>
+      </Popover>
+      <Switch className="switch-custom" value={pillupSwitch} onChange={pillUpChange} />
+      <Tour placement="bottom" closeIcon={false} open={tourOpen} steps={steps} onClose={onTourHandle} />
+    </div>
+  ) : null;
+
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_MEDICATION}
+      {isAddMedicineOpen && ADD_MEDICINE_DATA}
+
+      {doseCalculatorDrawer &&
+        <Drawer
+          closeIcon={false}
+          className="modalWidth-800"
+          placement="right"
+          open={doseCalculatorDrawer}
+          onClose={showHideModal2}
+          width="auto"
+          zIndex={prescriptionNewTabletOverlayZIndex}
+          styles={{
+            body: {
+              backgroundColor: "white",
+            }
+          }}
+        >
+          <DoseCalculator
+            handleViewDoseCalcDrawer={handleViewDoseCalcDrawer}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            searchMLQuery={searchMLQuery}
+            setSearchMLQuery={setSearchMLQuery}
+            medicationLibrary={medicationLibrary}
+            setMedicationLibrary={setMedicationLibrary}
+            parentSearchOptions={parentSearchOptions}
+            onSearchParent={onSearchParent}
+            onSelectParent={onSelectParent}
+            showHideAddMedicineModal={showHideAddMedicineModal}
+            setAddCustom={setAddCustom}
+            editDoseId={editDoseId}
+            isModalOpen2={isModalOpen2}
+            showHideModal2={showHideModal2}
+          />
+        </Drawer>
+      }
+
+      {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        <div className={voiceModuleStyles.moduleSlot}>
+          <VoiceRxModuleCapture
+            moduleName="Medication (Rx)"
+            previousContext={medicationVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.medicine}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        </div>
+      ) : !isNewEmptyLineUiEnabled ? (
+        <div className="p-14">
+          <AutoComplete
+            value={searchParentQuery}
+            data-testid="medicine-parent-search"
+            onSearch={handleParentSearch}
+            options={parentSearchOptions}
+            className="autocomplete-custom w-100"
+            onSelect={onSelectParent}
+            defaultActiveFirstOption={true}
+            {...getMedicationPopupProps(`medicine-parent-autocomplete-dropdown ${
+              !searchParentQuery ? "boxpopup" : ""
+            }`)}
+          >
+            <Input
+              data-testid="medicine-parent-search-input"
+              placeholder="Search Medicines by Name"
+              prefix={<i className="icon-search"></i>}
+            />
+          </AutoComplete>
+        </div>
+      ) : null}
+      {useTesseractUi && availableMedicineChips.length > 0 && (
+        <div className="tesseract-rxpad-chips">
+          {availableMedicineChips.map((med) => (
+            <TesseractButton
+              key={med.tmm_id ?? med.tmm_medicine_name}
+              variant="tonal"
+              theme="neutral"
+              size="sm"
+              className="tesseract-rxpad-chip"
+              title={med.tmm_medicine_name}
+              onClick={() => onChipAdd(med)}
+            >
+              {med.tmm_medicine_name}
+            </TesseractButton>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-testid="medications-rx-section"
+        data-voice-rx-dictation-target="medications"
+        title={`${isPillUpAccessableFromGB ? 'Meds' : 'Medications'} (Rx)`}
+        icon="bulk/pills"
+        headerMeta={PILLUP_META}
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="medications"
+                label="Start Medication Rx voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            {(profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
+              <Tooltip placement="bottom" title="Dose calculator">
+                <span>
+                  {tesseractActionButton({ icon: "calculator", label: "Dose calculator", onClick: handleViewDoseCalcDrawer })}
+                </span>
+              </Tooltip>
+            )}
+            <Tooltip placement="bottom" title="Load previous Rx">
+              <span>
+                {tesseractActionButton({ icon: "refresh-arrow", label: "Load previous Rx", onClick: loadPreviousRxClick })}
+              </span>
+            </Tooltip>
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: "Browse medication templates" })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (medicationData.length > 0) && !hasUngroundedMedications && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : "Save as template"}>
+                  {tesseractActionButton({ icon: "ram", label: "Save medications as template", disabled: medicationData.length === 0 || hasUngroundedMedications })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: "Clear medications", onClick: showHideClearData, disabled: medicationData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
+
   return (
     <>
       <div ref={sectionRef} data-testid="medications-rx-section" data-voice-rx-dictation-target="medications" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
@@ -2934,27 +3175,7 @@ function MedicationsBox({ showVoiceRxModule }) {
           <div className="d-flex align-items-center">
             <img className="me-2" src={Medicationicon} alt="Medication" />
             <div className="title-common">{isPillUpAccessableFromGB ? 'Meds' : 'Medications'} (Rx)</div>
-            {isPillUpAccessableFromGB &&
-              <div ref={tourRef} className="ms-2 border rounded-20px px-2 py-1 d-flex align-items-center" style={{ backgroundColor: 'rgb(226, 226, 234, 0.2)' }}>
-                {(() => {
-                  const decodedToken = getDecodedToken();
-                  const tokenData = decodedToken?.result;
-                  const isZydusUser = tokenData?.hospital_business_id == env.zydus_business_id;
-                  return isZydusUser ? <img src={EazyDoseLogo} alt="eaZY Dose" style={{ height: '20px' }} /> : <img src={Pillup} />;
-                })()}
-                <Popover
-                  open={popOver3}
-                  onOpenChange={showHidePillUpPopover}
-                  content={profile?.userSettingFlag?.find(e => e?.type === 'pillup')?.status === 1 ? PILLUP_CONTENT() : null}
-                  trigger="hover"
-                  placement="bottom"
-                >
-                  <i className="icon-info opacity-50 fs-18 mx-1"></i>
-                </Popover>
-                <Switch className="switch-custom" value={pillupSwitch} onChange={pillUpChange} />
-                <Tour placement="bottom" closeIcon={false} open={tourOpen} steps={steps} onClose={onTourHandle} />
-              </div>
-            }
+            {PILLUP_META}
           </div>
           <div className="d-flex align-items-center">
             {isVoiceRxModuleEnabled && (
@@ -3042,78 +3263,7 @@ function MedicationsBox({ showVoiceRxModule }) {
           </div>
         </div>
 
-        {DELETE_MODAL}
-        {REMOVE_ALL_ROWS}
-        {TABLE_MEDICATION}
-        {isAddMedicineOpen && ADD_MEDICINE_DATA}
-
-        {doseCalculatorDrawer &&
-          <Drawer
-            closeIcon={false}
-            className="modalWidth-800"
-            placement="right"
-            open={doseCalculatorDrawer}
-            onClose={showHideModal2}
-            width="auto"
-            zIndex={prescriptionNewTabletOverlayZIndex}
-            styles={{
-              body: {
-                backgroundColor: "white",
-              }
-            }}
-          >
-            <DoseCalculator
-              handleViewDoseCalcDrawer={handleViewDoseCalcDrawer}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              searchMLQuery={searchMLQuery}
-              setSearchMLQuery={setSearchMLQuery}
-              medicationLibrary={medicationLibrary}
-              setMedicationLibrary={setMedicationLibrary}
-              parentSearchOptions={parentSearchOptions}
-              onSearchParent={onSearchParent}
-              onSelectParent={onSelectParent}
-              showHideAddMedicineModal={showHideAddMedicineModal}
-              setAddCustom={setAddCustom}
-              editDoseId={editDoseId}
-              isModalOpen2={isModalOpen2}
-              showHideModal2={showHideModal2}
-            />
-          </Drawer>
-        }
-
-        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
-          <div className={voiceModuleStyles.moduleSlot}>
-            <VoiceRxModuleCapture
-              moduleName="Medication (Rx)"
-              previousContext={medicationVoicePreviousContext}
-              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.medicine}
-              onCancel={() => setVoiceCaptureOpen(false)}
-              onComplete={handleVoiceCaptureComplete} />
-          </div>
-        ) : !isNewEmptyLineUiEnabled ? (
-          <div className="p-14">
-            <AutoComplete
-              // defaultValue={searchParentQuery}
-              value={searchParentQuery}
-              data-testid="medicine-parent-search"
-              onSearch={handleParentSearch}
-              options={parentSearchOptions}
-              className="autocomplete-custom w-100"
-              onSelect={onSelectParent}
-              defaultActiveFirstOption={true}
-              {...getMedicationPopupProps(`medicine-parent-autocomplete-dropdown ${
-                !searchParentQuery ? "boxpopup" : ""
-              }`)}
-            >
-              <Input
-                data-testid="medicine-parent-search-input"
-                placeholder="Search Medicines by Name"
-                prefix={<i className="icon-search"></i>}
-              />
-            </AutoComplete>
-          </div>
-        ) : null}
+        {BODY_CONTENT}
       </div>
     </>
   );
