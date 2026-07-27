@@ -367,19 +367,21 @@ export function LabResultsPreview({ results, patient, emptyText }) {
     10: { label: "Blood Group", value: "" },
   };
 
-  const marginTop = getLimsMarginCssPx(letterhead, hf, "top", 0.5);
-  const marginBottom = getLimsMarginCssPx(letterhead, hf, "bottom", 0.5);
-  const marginLeft = getLimsMarginCssPx(letterhead, hf, "left", 0.5);
-  const marginRight = getLimsMarginCssPx(letterhead, hf, "right", 0.5);
   const footerTitle = footerCfg?.title || footerCfg?.text || "";
   const showUploadedFooter = letterhead === 1 && !!fileFooter?.showFile;
   const showTextFooter = letterhead === 0 && !!footerTitle;
-  const footerReservePx = showUploadedFooter
-    ? Math.max(40, Number(fileFooter?.renderedFooterImageHeight) || 56)
-    : showTextFooter
-      ? 36
-      : 0;
-  const paginationReservePx = showPagination ? 18 : 0;
+
+  // Screen preview: letterhead 0/1 use CSS base padding (24px/28px).
+  // Only own-letterhead (2) applies configured margins as inline padding.
+  const previewPaddingStyle =
+    letterhead === 2
+      ? {
+          paddingTop: `${getLimsMarginCssPx(letterhead, hf, "top", 2)}px`,
+          paddingBottom: `${getLimsMarginCssPx(letterhead, hf, "bottom", 2)}px`,
+          paddingLeft: `${getLimsMarginCssPx(letterhead, hf, "left", 0.5)}px`,
+          paddingRight: `${getLimsMarginCssPx(letterhead, hf, "right", 0.5)}px`,
+        }
+      : {};
 
   const renderTableClusterRows = (reportName, filledTests) => (
     <React.Fragment key={reportName}>
@@ -474,13 +476,7 @@ export function LabResultsPreview({ results, patient, emptyText }) {
       style={{
         fontFamily,
         fontSize: `${fontSize}px`,
-        paddingTop: `${marginTop}px`,
-        paddingBottom: `${marginBottom + footerReservePx + paginationReservePx}px`,
-        paddingLeft: `${marginLeft}px`,
-        paddingRight: `${marginRight}px`,
-        position: "relative",
-        minHeight: 1122,
-        boxSizing: "border-box",
+        ...previewPaddingStyle,
       }}
     >
       {/* Watermark */}
@@ -690,30 +686,24 @@ export function LabResultsPreview({ results, patient, emptyText }) {
         </div>
       )}
 
-      {/* Fixed footer at bottom of page (matches PDF / bill print) */}
-      {(showUploadedFooter || showTextFooter) && (
-        <div
-          className={styles.previewFixedFooter}
-          style={{ left: `${marginLeft}px`, right: `${marginRight}px`, bottom: `${marginBottom}px` }}
-        >
-          {showUploadedFooter ? (
-            <img src={fileFooter.showFile} alt="" className={styles.uploadedFooterImg} />
-          ) : (
-            <>
-              <div className={styles.previewFooterBar} />
-              <div
-                className={styles.previewFooterText}
-                style={{ fontSize: footerCfg?.font_size || 10 }}
-              >
-                {footerTitle}
-              </div>
-            </>
-          )}
-        </div>
+      {/* Footer — in document flow for screen preview (PDF uses fixed positioning) */}
+      {showUploadedFooter && (
+        <img src={fileFooter.showFile} alt="" className={styles.uploadedFooterImg} />
+      )}
+      {showTextFooter && (
+        <>
+          <div className={styles.previewFooterBar} style={{ marginTop: 16 }} />
+          <div
+            className={styles.previewFooterText}
+            style={{ fontSize: footerCfg?.font_size || 10 }}
+          >
+            {footerTitle}
+          </div>
+        </>
       )}
 
       {showPagination && (
-        <div className={styles.previewPageNumber}>Page 1/1</div>
+        <div className={styles.previewPageNumberInFlow}>Page 1/1</div>
       )}
     </div>
   );
@@ -851,19 +841,21 @@ function LimsPrintConfigMain() {
         <LimsHeaderBar />
         <div className={styles.configBody}>
           <aside className={styles.configSidebar}>
-            <Tabs
-              defaultActiveKey={TAB_LAB_RESULTS}
-              items={tabs}
-              onChange={onTabChange}
-              className="print-tabs"
-            />
-            {selectedTab === TAB_LAB_RESULTS ? (
-              <LabResultsFormatLayout />
-            ) : selectedTab === TAB_HEADER_FOOTER ? (
-              <HeaderFooterLayout />
-            ) : (
-              selectedTab === TAB_PAGE_FORMAT && <PageFormatLayout hideDefaultLanguage />
-            )}
+            <div className={styles.configSidebarPanel}>
+              <Tabs
+                defaultActiveKey={TAB_LAB_RESULTS}
+                items={tabs}
+                onChange={onTabChange}
+                className="print-tabs"
+              />
+              {selectedTab === TAB_LAB_RESULTS ? (
+                <LabResultsFormatLayout />
+              ) : selectedTab === TAB_HEADER_FOOTER ? (
+                <HeaderFooterLayout />
+              ) : (
+                selectedTab === TAB_PAGE_FORMAT && <PageFormatLayout hideDefaultLanguage />
+              )}
+            </div>
           </aside>
 
           <main className={styles.configPreview}>

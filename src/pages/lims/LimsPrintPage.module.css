@@ -1,11 +1,11 @@
 .page {
-  position: fixed;
-  inset: 0;
   display: flex;
   flex-direction: column;
+  height: 100vh;
   background: #f1f1f5;
   font-family: "Inter", sans-serif;
   animation: limsSlideIn 0.3s ease-out;
+  overflow: hidden;
 }
 .header {
   display: flex;
@@ -236,15 +236,17 @@
 /* ── Preview ───────────────────────────────────────────────────────── */
 .preview {
   flex: 1;
+  min-width: 0;
   overflow: auto;
-  padding: 24px;
+  padding: 16px;
   display: flex;
   justify-content: center;
 }
 
 .printCard {
-  width: 794px;
-  min-height: 1123px;
+  width: 100%;
+  max-width: 794px;
+  min-height: 0;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);

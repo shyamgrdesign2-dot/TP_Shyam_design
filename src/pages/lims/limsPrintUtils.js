@@ -214,23 +214,46 @@ function getLimsMarginKey(letterheadFormat) {
 
 export function getLimsMarginByFormat(letterheadFormat, headerFooter, position, defaultCm = 0.5) {
   const marginType = getLimsMarginKey(letterheadFormat);
-  const raw = headerFooter?.[marginType]?.[position];
-  const value = raw === "" || raw == null ? NaN : Number(raw);
-  if (marginType && Number.isFinite(value) && value >= 0) {
-    return value * CM_TO_PT;
+  if (!marginType) {
+    return Number.isFinite(defaultCm) ? defaultCm * CM_TO_PT : DEFAULT_MARGIN_PT;
   }
-  return Number.isFinite(defaultCm) ? defaultCm * CM_TO_PT : DEFAULT_MARGIN_PT;
+
+  const raw = headerFooter?.[marginType]?.[position];
+  if (raw === "" || raw == null) {
+    return (Number.isFinite(defaultCm) ? defaultCm : 0.5) * CM_TO_PT;
+  }
+
+  const value = Number(raw);
+  // Match bill print: explicit 0 means "unset" → fall back to default margin.
+  const effectiveCm =
+    Number.isFinite(value) && value > 0
+      ? value
+      : Number.isFinite(defaultCm)
+        ? defaultCm
+        : 0.5;
+  return effectiveCm * CM_TO_PT;
 }
 
 /** CSS preview uses ~28px per cm to match the on-screen A4 card scale. */
 export function getLimsMarginCssPx(letterheadFormat, headerFooter, position, defaultCm = 0.5) {
   const marginType = getLimsMarginKey(letterheadFormat);
-  const raw = headerFooter?.[marginType]?.[position];
-  const value = raw === "" || raw == null ? NaN : Number(raw);
-  if (marginType && Number.isFinite(value) && value >= 0) {
-    return value * 28;
+  if (!marginType) {
+    return (Number.isFinite(defaultCm) ? defaultCm : 0.5) * 28;
   }
-  return (Number.isFinite(defaultCm) ? defaultCm : 0.5) * 28;
+
+  const raw = headerFooter?.[marginType]?.[position];
+  if (raw === "" || raw == null) {
+    return (Number.isFinite(defaultCm) ? defaultCm : 0.5) * 28;
+  }
+
+  const value = Number(raw);
+  const effectiveCm =
+    Number.isFinite(value) && value > 0
+      ? value
+      : Number.isFinite(defaultCm)
+        ? defaultCm
+        : 0.5;
+  return effectiveCm * 28;
 }
 
 /** Same QR source as ConfigurePrintSetting / ViewPDF (doctor website or appointment link). */
