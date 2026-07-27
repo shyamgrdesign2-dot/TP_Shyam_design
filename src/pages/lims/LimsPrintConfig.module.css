@@ -1,6 +1,8 @@
 /* ── Preview card ─────────────────────────────────────────────────────── */
 .previewCard {
-  padding: 0;
+  /* Default padding as a fallback; margin-driven letterhead padding is applied
+     via inline style on the element, which takes precedence over this. */
+  padding: 24px 28px;
   font-size: 10px;
   color: #171725;
   line-height: 1.45;

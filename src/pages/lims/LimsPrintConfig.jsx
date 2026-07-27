@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
+import React, { useState, useEffect, useCallback, useContext, useRef, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Col, Tabs, Row, Radio, Form, Button } from "antd";
+import { Col, Tabs, Row, Radio, Form, Button, Select } from "antd";
 import { Navbar } from "react-bootstrap";
 
 import PrintSettingsContext from "../../context/PrintSettingsContext";
@@ -33,6 +33,7 @@ import styles from "./LimsPrintConfig.module.css";
 import LimsAccessBoundary from "./LimsAccessBoundary";
 
 const TAB_LAB_RESULTS = "lab_results";
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const { alerticon: alertIcon } = ASSETS.images;
 
@@ -734,8 +735,35 @@ function LimsPrintConfigMain() {
   const [fileWatermark, setFileWatermark] = useState(null);
   const [fileSignature, setFileSignature] = useState(null);
   const [results, setResults] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const settingsHydratedRef = useRef(false);
+
+  const availableDates = useMemo(() => {
+    const dateSet = new Set();
+    (results || []).forEach((entry) => {
+      if (entry.date) dateSet.add(entry.date.slice(0, 10));
+    });
+    const sorted = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
+    return sorted.map((iso) => {
+      const d = new Date(iso + "T00:00:00");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mmm = MONTH_ABBR[d.getMonth()];
+      const yyyy = d.getFullYear();
+      return { value: iso, label: `${dd} ${mmm} ${yyyy}` };
+    });
+  }, [results]);
+
+  useEffect(() => {
+    if (availableDates.length > 0 && !selectedDate) {
+      setSelectedDate(availableDates[0].value);
+    }
+  }, [availableDates, selectedDate]);
+
+  const filteredResults = useMemo(() => {
+    if (!selectedDate) return results;
+    return results.filter((entry) => entry.date && entry.date.startsWith(selectedDate));
+  }, [results, selectedDate]);
 
   useEffect(() => {
     if (settingsHydratedRef.current) return;
@@ -845,10 +873,25 @@ function LimsPrintConfigMain() {
             </Col>
             <Col xl={16} sm={14}>
               <div className="mx-auto overflow-y-auto" style={{ width: 900 }}>
-                <div className="titleprint mt-20">Preview</div>
+                <div className="d-flex align-items-center justify-content-between mt-20">
+                  <div className="titleprint">Preview</div>
+                  {availableDates.length > 0 && (
+                    <div className="d-flex align-items-center gap-2">
+                      <span className="text-muted" style={{ fontSize: 13 }}>Print results for</span>
+                      <Select
+                        options={availableDates}
+                        value={selectedDate || undefined}
+                        onChange={(val) => setSelectedDate(val)}
+                        placeholder="Select date"
+                        style={{ width: 160 }}
+                        size="small"
+                      />
+                    </div>
+                  )}
+                </div>
                 <div className="rounded-20px bg-white mt-20 overflow-hidden">
                   <div className="position-relative printheight">
-                    <LabResultsPreview results={results} patient={patient} />
+                    <LabResultsPreview results={filteredResults} patient={patient} />
                   </div>
                 </div>
               </div>
