@@ -121,13 +121,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 10px;
+  font-size: 1em;
   color: #44444f;
 }
 
 /* ── Lab results heading ──────────────────────────────────────────── */
 .previewTitle {
-  font-size: 12px;
+  font-size: 1.2em;
   font-weight: 700;
   color: #171725;
   margin-bottom: 10px;
@@ -137,13 +137,13 @@
   text-align: center;
   padding: 32px 0;
   color: #92929d;
-  font-size: 11px;
+  font-size: 1.1em;
 }
 
 /* ── Date heading above table ─────────────────────────────────────── */
 .previewDateHeading {
   font-weight: 600;
-  font-size: 10px;
+  font-size: 1em;
   color: #171725;
   margin-bottom: 4px;
 }
@@ -165,12 +165,12 @@
 
 .previewReportName {
   font-weight: 700;
-  font-size: 10px;
+  font-size: 1em;
   color: #171725;
 }
 
 .previewReportMeta {
-  font-size: 9px;
+  font-size: 0.9em;
   color: #696974;
 }
 
@@ -179,7 +179,7 @@
   width: 100%;
   border-collapse: collapse;
   border: 1px solid #d5d5dc;
-  font-size: 9px;
+  font-size: 1em;
 }
 
 .previewTable th {
@@ -187,7 +187,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  font-size: 8px;
+  font-size: 0.85em;
   color: #696974;
   padding: 3px 6px;
   background: #f1f1f5;
@@ -198,7 +198,7 @@
   padding: 2px 6px;
   border: 1px solid #e2e2ea;
   color: #171725;
-  font-size: 9px;
+  font-size: 1em;
 }
 
 .reportSubHeader td {
@@ -206,7 +206,7 @@
   font-weight: 700;
   color: #171725;
   padding: 3px 6px;
-  font-size: 9px;
+  font-size: 1em;
   border: 1px solid #d5d5dc;
 }
 
@@ -217,7 +217,7 @@
 /* ── List View format ─────────────────────────────────────────────── */
 .listViewWrap {
   padding: 2px 0;
-  font-size: 9px;
+  font-size: 1em;
 }
 
 .listViewItem {
@@ -239,7 +239,7 @@
 .listViewName {
   font-weight: 600;
   color: #171725;
-  font-size: 9px;
+  font-size: 1em;
   white-space: nowrap;
 }
 
@@ -247,12 +247,12 @@
   flex-shrink: 0;
   text-align: right;
   color: #171725;
-  font-size: 9px;
+  font-size: 1em;
 }
 
 .listViewRange {
   color: #92929d;
-  font-size: 8px;
+  font-size: 0.85em;
   white-space: nowrap;
 }
 
@@ -260,7 +260,7 @@
 .inlineWrap {
   padding: 4px 6px;
   line-height: 1.6;
-  font-size: 9px;
+  font-size: 1em;
   color: #171725;
 }
 
@@ -295,8 +295,29 @@
 
 /* ── Footer ───────────────────────────────────────────────────────── */
 .previewFooterText {
-  font-size: 8px;
-  color: #92929d;
-  text-align: center;
+  font-size: 1em;
+  color: #171725;
+  text-align: left;
   padding: 4px 0;
+}
+
+.previewQrBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+  max-width: 220px;
+}
+
+.previewQrImg {
+  width: 61px;
+  height: 61px;
+  object-fit: contain;
+}
+
+.previewQrCaption {
+  font-size: 0.9em;
+  color: #171725;
+  white-space: pre-line;
+  line-height: 1.35;
 }

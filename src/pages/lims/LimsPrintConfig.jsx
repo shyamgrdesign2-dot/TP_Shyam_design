@@ -24,9 +24,10 @@ import {
   LIMS_SETTINGS_KEY, LAB_RESULTS_CASE_ID,
   initFileStates, groupByReport, rangeText, arrowSymbol,
   fetchLimsPrintSettings, saveLimsPrintSettingsToApi, resetLimsPrintSettingsToApiDefaults,
-  getLimsMarginCssPx,
+  getLimsMarginCssPx, resolveLimsQrCodeDataUrl, LIMS_PREVIEW_FONT_CLASS,
 } from "./limsPrintUtils";
 import { ASSETS } from "../../assets";
+import { useSelector } from "react-redux";
 
 import "cropperjs/dist/cropper.css";
 import styles from "./LimsPrintConfig.module.css";
@@ -316,8 +317,9 @@ export function LabResultsPreview({ results, patient, emptyText }) {
   const pf = printSettings?.page_format;
   const letterhead = Number(printSettings?.letterhead_format);
   const fontFamily = pf?.font_family || "Roboto";
-  const fontSize = pf?.font_size || 10;
-  const patientFontSize = pf?.patient_info_font_size || fontSize;
+  const fontClass = LIMS_PREVIEW_FONT_CLASS[fontFamily] || "fontroboto";
+  const fontSize = Number(pf?.font_size) || 10;
+  const patientFontSize = Number(pf?.patient_info_font_size) || fontSize;
   const showPagination = !!pf?.pagination;
 
   const doctorInfo = hf?.header?.doctor_info;
@@ -331,6 +333,7 @@ export function LabResultsPreview({ results, patient, emptyText }) {
   const showLogo = printSettings?.logo_enable === "Y" && fileLogo?.showFile;
   const showWatermark = printSettings?.water_mark_enable === "Y" && fileWatermark?.showFile;
   const showSignature = printSettings?.signature_enable === "Y" && fileSignature?.showFile;
+  const showQr = printSettings?.qrcode_enable === "Y" && !!printSettings?.qrcode;
 
   const labOption = printSettings?.prescription?.case_option?.find(
     (o) => o.id === LAB_RESULTS_CASE_ID,
@@ -467,7 +470,7 @@ export function LabResultsPreview({ results, patient, emptyText }) {
 
   return (
     <div
-      className={styles.previewCard}
+      className={`${styles.previewCard} ${fontClass}`}
       style={{
         fontFamily,
         fontSize: `${fontSize}px`,
@@ -678,6 +681,15 @@ export function LabResultsPreview({ results, patient, emptyText }) {
         </div>
       )}
 
+      {showQr && (
+        <div className={styles.previewQrBlock}>
+          <img src={printSettings.qrcode} alt="" className={styles.previewQrImg} />
+          <div className={styles.previewQrCaption}>
+            {"Scan QR code to book an appointment\nwith your doctor"}
+          </div>
+        </div>
+      )}
+
       {/* Fixed footer at bottom of page (matches PDF / bill print) */}
       {(showUploadedFooter || showTextFooter) && (
         <div
@@ -714,6 +726,7 @@ function LimsPrintConfigMain() {
   const { state } = location;
   const patient = state?.patient || null;
   const patientId = state?.patientId || patient?.patient_unique_id;
+  const { profile } = useSelector((state) => state.doctors);
 
   const [selectedTab, setSelectedTab] = useState(TAB_LAB_RESULTS);
   const [printSettings, setPrintSettings] = useState(null);
@@ -759,6 +772,26 @@ function LimsPrintConfigMain() {
     if (!fileFooter?.showFile) return;
     updateFooterImageHeight(fileFooter, setFileFooter);
   }, [fileFooter?.showFile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const attachQr = async () => {
+      if (printSettings?.qrcode_enable !== "Y") {
+        if (printSettings?.qrcode) {
+          setPrintSettings((prev) => (prev ? { ...prev, qrcode: null } : prev));
+        }
+        return;
+      }
+      if (printSettings?.qrcode) return;
+      const qrcode = await resolveLimsQrCodeDataUrl(profile);
+      if (cancelled || !qrcode) return;
+      setPrintSettings((prev) => (prev ? { ...prev, qrcode } : prev));
+    };
+    attachQr();
+    return () => {
+      cancelled = true;
+    };
+  }, [printSettings?.qrcode_enable, printSettings?.qrcode, profile]);
 
   useEffect(() => {
     if (patientId) {

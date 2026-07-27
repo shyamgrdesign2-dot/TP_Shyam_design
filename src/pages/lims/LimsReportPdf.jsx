@@ -117,7 +117,6 @@ const styles = StyleSheet.create({
   reportBlock: { marginBottom: px(14) },
   dateHeading: {
     fontWeight: 600,
-    fontSize: px(10),
     color: "#171725",
     marginBottom: px(4),
   },
@@ -130,15 +129,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: px(8),
     borderRadius: px(2),
   },
-  reportName: { fontWeight: 700, fontSize: px(10), color: "#171725" },
-  reportMeta: { fontSize: px(9), color: "#696974" },
+  reportName: { fontWeight: 700, color: "#171725" },
+  reportMeta: { color: "#696974" },
   table: { borderWidth: px(1), borderColor: "#d5d5dc" },
   tableHeadRow: { flexDirection: "row", backgroundColor: "#f1f1f5" },
   tableHeadCell: {
     fontWeight: 600,
     textTransform: "uppercase",
     letterSpacing: 0.3,
-    fontSize: px(8),
     color: "#696974",
     paddingVertical: px(3),
     paddingHorizontal: px(6),
@@ -150,7 +148,6 @@ const styles = StyleSheet.create({
   tableSubHeadRow: { flexDirection: "row", backgroundColor: "#f1f1f5" },
   tableSubHeadCell: {
     fontWeight: 700,
-    fontSize: px(9),
     color: "#171725",
     paddingVertical: px(3),
     paddingHorizontal: px(6),
@@ -159,7 +156,6 @@ const styles = StyleSheet.create({
   },
   tableRow: { flexDirection: "row" },
   tableCell: {
-    fontSize: px(9),
     color: "#171725",
     paddingVertical: px(2),
     paddingHorizontal: px(6),
@@ -182,14 +178,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: px(1),
     borderBottomColor: "#f1f1f5",
   },
-  listName: { fontWeight: 600, fontSize: px(9), color: "#171725" },
-  listRange: { fontSize: px(8), color: "#92929d" },
-  listResult: { fontSize: px(9), color: "#171725", textAlign: "right" },
+  listName: { fontWeight: 600, color: "#171725" },
+  listRange: { color: "#92929d" },
+  listResult: { color: "#171725", textAlign: "right" },
   inline: {
     paddingVertical: px(4),
     paddingHorizontal: px(6),
     lineHeight: 1.6,
-    fontSize: px(9),
     color: "#171725",
   },
   signatureBlock: { marginTop: px(24), paddingTop: px(8) },
@@ -197,17 +192,20 @@ const styles = StyleSheet.create({
   signatureImg: { maxWidth: px(160), maxHeight: px(60), objectFit: "contain" },
   signatureName: {
     fontWeight: 600,
-    fontSize: px(10),
     color: "#171725",
     marginTop: px(2),
   },
-  signatureQual: { fontSize: px(9), color: "#44444f" },
+  signatureQual: { color: "#44444f" },
   footerBar: { backgroundColor: "#171725", height: px(2), width: "100%" },
   footerText: {
     marginTop: px(6),
     color: "#171725",
     fontWeight: 400,
+    textAlign: "left",
   },
+  qrBlock: { marginTop: px(16), maxWidth: px(220) },
+  qrImg: { width: 61, height: 61, objectFit: "contain" },
+  qrCaption: { marginTop: px(4), color: "#171725", lineHeight: 1.35 },
   pageNumber: {
     position: "absolute",
     bottom: px(8),
@@ -442,8 +440,10 @@ export default function LimsReportPdf({
   const fontFamily = REGISTERED_FONTS.includes(pf.font_family)
     ? pf.font_family
     : "Roboto";
-  const baseFontSize = px(pf.font_size || 10);
-  const patientFontSize = px(pf.patient_info_font_size || pf.font_size || 10);
+  const baseFontSize = px(Number(pf.font_size) || 10);
+  const patientFontSize = px(
+    Number(pf.patient_info_font_size) || Number(pf.font_size) || 10,
+  );
   const showPagination = !!pf.pagination;
 
   const paddingTop = getLimsMarginByFormat(letterhead, hf, "top", 0.5);
@@ -494,6 +494,11 @@ export default function LimsReportPdf({
     printSettings?.water_mark_enable === "Y" && watermarkSrc;
   const showSignature =
     printSettings?.signature_enable === "Y" && signatureSrc;
+  const qrSrc =
+    typeof printSettings?.qrcode === "string" && printSettings.qrcode
+      ? printSettings.qrcode
+      : null;
+  const showQr = printSettings?.qrcode_enable === "Y" && !!qrSrc;
   const hasResults = results.some((entry) =>
     (entry.inputs || []).some(
       (input) =>
@@ -666,6 +671,15 @@ export default function LimsReportPdf({
                   {otherSettings.qualification}
                 </Text>
               )}
+          </View>
+        )}
+
+        {showQr && (
+          <View style={styles.qrBlock} wrap={false}>
+            <Image src={qrSrc} style={styles.qrImg} />
+            <Text style={styles.qrCaption}>
+              {`Scan QR code to book an appointment\nwith your doctor`}
+            </Text>
           </View>
         )}
 

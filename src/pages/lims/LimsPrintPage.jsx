@@ -11,7 +11,7 @@ import { EVENTS } from "../../utils/events";
 import { uploadDocsToAzure } from "../medicalRecords/service";
 import { printBlobInNewTab } from "../opdBilling/utils/helper";
 import { fetchLimsPatients, fetchPatientLabResults } from "./limsApi";
-import { fetchLimsPrintSettings, initFileStates } from "./limsPrintUtils";
+import { fetchLimsPrintSettings, initFileStates, resolveLimsQrCodeDataUrl } from "./limsPrintUtils";
 import { LabResultsPreview } from "./LimsPrintConfig";
 import LimsReportPdf from "./LimsReportPdf";
 import styles from "./LimsPrintPage.module.css";
@@ -21,6 +21,7 @@ import {
   getPatientLastVisitDoctorUmId,
   isLabResultsReceptionistSession,
 } from "../../utils/labResultsUtils";
+import { useSelector } from "react-redux";
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DOWNLOAD_MESSAGE_KEY = "lims-download-report";
@@ -31,6 +32,7 @@ function LimsPrintPageMain() {
   const navigate = useNavigate();
   const location = useLocation();
   const printRef = useRef(null);
+  const { profile } = useSelector((state) => state.doctors);
 
   const [patient, setPatient] = useState(location.state?.patient || null);
   const [results, setResults] = useState([]);
@@ -73,6 +75,26 @@ function LimsPrintPageMain() {
     if (!fileFooter?.showFile) return;
     updateFooterImageHeight(fileFooter, setFileFooter);
   }, [fileFooter?.showFile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const attachQr = async () => {
+      if (printSettings?.qrcode_enable !== "Y") {
+        if (printSettings?.qrcode) {
+          setPrintSettings((prev) => (prev ? { ...prev, qrcode: null } : prev));
+        }
+        return;
+      }
+      if (printSettings?.qrcode) return;
+      const qrcode = await resolveLimsQrCodeDataUrl(profile);
+      if (cancelled || !qrcode) return;
+      setPrintSettings((prev) => (prev ? { ...prev, qrcode } : prev));
+    };
+    attachQr();
+    return () => {
+      cancelled = true;
+    };
+  }, [printSettings?.qrcode_enable, printSettings?.qrcode, profile]);
 
   useEffect(() => {
     if (!patientId) return;
