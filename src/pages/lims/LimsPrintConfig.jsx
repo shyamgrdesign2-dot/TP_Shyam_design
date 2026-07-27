@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useContext, useRef, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Col, Tabs, Row, Radio, Form, Button, Select } from "antd";
+import { Tabs, Radio, Form, Button, Select } from "antd";
 import { Navbar } from "react-bootstrap";
 
 import PrintSettingsContext from "../../context/PrintSettingsContext";
@@ -847,58 +847,50 @@ function LimsPrintConfigMain() {
 
   return (
     <PrintSettingsContext.Provider value={contextApi}>
-      <>
+      <div className={styles.configPage}>
         <LimsHeaderBar />
-        <div className="w-100 bg-body wrapper2">
-          <Row justify="space-between">
-            <Col xl={8} sm={10} className="pe-3">
-              <div
-                className="bg-white overflow-y-auto"
-                style={{ height: "calc(100vh - 60px)" }}
-              >
-                <Tabs
-                  defaultActiveKey={TAB_LAB_RESULTS}
-                  items={tabs}
-                  onChange={onTabChange}
-                  className="print-tabs"
-                />
-                {selectedTab === TAB_LAB_RESULTS ? (
-                  <LabResultsFormatLayout />
-                ) : selectedTab === TAB_HEADER_FOOTER ? (
-                  <HeaderFooterLayout />
-                ) : (
-                  selectedTab === TAB_PAGE_FORMAT && <PageFormatLayout hideDefaultLanguage />
+        <div className={styles.configBody}>
+          <aside className={styles.configSidebar}>
+            <Tabs
+              defaultActiveKey={TAB_LAB_RESULTS}
+              items={tabs}
+              onChange={onTabChange}
+              className="print-tabs"
+            />
+            {selectedTab === TAB_LAB_RESULTS ? (
+              <LabResultsFormatLayout />
+            ) : selectedTab === TAB_HEADER_FOOTER ? (
+              <HeaderFooterLayout />
+            ) : (
+              selectedTab === TAB_PAGE_FORMAT && <PageFormatLayout hideDefaultLanguage />
+            )}
+          </aside>
+
+          <main className={styles.configPreview}>
+            <div className={styles.configPreviewInner}>
+              <div className={styles.configPreviewHeader}>
+                <div className="titleprint mb-0">Preview</div>
+                {availableDates.length > 0 && (
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="text-muted" style={{ fontSize: 13 }}>Print results for</span>
+                    <Select
+                      options={availableDates}
+                      value={selectedDate || undefined}
+                      onChange={(val) => setSelectedDate(val)}
+                      placeholder="Select date"
+                      style={{ width: 160 }}
+                      size="small"
+                    />
+                  </div>
                 )}
               </div>
-            </Col>
-            <Col xl={16} sm={14}>
-              <div className="mx-auto overflow-y-auto" style={{ width: 900 }}>
-                <div className="d-flex align-items-center justify-content-between mt-20">
-                  <div className="titleprint">Preview</div>
-                  {availableDates.length > 0 && (
-                    <div className="d-flex align-items-center gap-2">
-                      <span className="text-muted" style={{ fontSize: 13 }}>Print results for</span>
-                      <Select
-                        options={availableDates}
-                        value={selectedDate || undefined}
-                        onChange={(val) => setSelectedDate(val)}
-                        placeholder="Select date"
-                        style={{ width: 160 }}
-                        size="small"
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="rounded-20px bg-white mt-20 overflow-hidden">
-                  <div className="position-relative printheight">
-                    <LabResultsPreview results={filteredResults} patient={patient} />
-                  </div>
-                </div>
+              <div className={styles.configPreviewCard}>
+                <LabResultsPreview results={filteredResults} patient={patient} />
               </div>
-            </Col>
-          </Row>
+            </div>
+          </main>
         </div>
-      </>
+      </div>
     </PrintSettingsContext.Provider>
   );
 }

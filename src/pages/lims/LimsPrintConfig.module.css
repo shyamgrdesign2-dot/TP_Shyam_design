@@ -8,6 +8,10 @@
   line-height: 1.45;
   position: relative;
   background: #fff;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
 }
 
 /* ── Watermark ─────────────────────────────────────────────────────── */
@@ -322,4 +326,77 @@
   color: #171725;
   white-space: pre-line;
   line-height: 1.35;
+}
+
+/* ── Config page layout (iframe-safe, mirrors LimsPrintPage) ──────── */
+.configPage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f1f1f5;
+  overflow: hidden;
+}
+
+.configBody {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.configSidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #e2e2ea;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.configPreview {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 20px 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.configPreviewInner {
+  width: 100%;
+  max-width: 794px;
+}
+
+.configPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.configPreviewCard {
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  width: 100%;
+}
+
+.configPreviewCard :global(.previewCard),
+.configPreviewCard > div {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+  .configSidebar {
+    width: 280px;
+  }
+
+  .configPreview {
+    padding: 16px;
+  }
 }
