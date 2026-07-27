@@ -14,7 +14,7 @@ const TP_CONFIG_DATA_FEATURE_KEY = "tp-config-data";
 // Buckets every REACT_APP_ENV into "prod" or "uat" for env-keyed tp-config
 // values. NODE_ENV is NOT usable here — CRA sets it to "production" for
 // every build, including UAT builds.
-const TP_CONFIG_ENV_BUCKET = ["prod", "zy-prod"].includes(process.env.REACT_APP_ENV)
+const TP_CONFIG_ENV_BUCKET = ["prod", "zy-prod", "zy-preprod"].includes(process.env.REACT_APP_ENV)
   ? "prod"
   : "uat";
 
@@ -130,6 +130,32 @@ export function getVoiceRxNavigationState(isVoiceRxNewFromGB, state = {}, voiceR
         }
       : {}),
   };
+}
+
+/**
+ * "New point-n-click UI" rollout flag: when tp-config-data.newPointClickUi is
+ * enabled for this env, /prescription renders PrescriptionNew (voice-less
+ * mode) for ALL entries instead of the old Prescription.js — desktop and
+ * tablet only, phones keep the old mobile flow.
+ * Doctors listed (by JWT user_id) in tp-config-data.oldPointClickUiOnlyDoctors
+ * are opted out and keep the old point-n-click UI.
+ * Both values may be env-keyed ({ uat, prod }).
+ */
+export function useNewPointClickUiFlag() {
+  const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
+  const enabled = resolveTpConfigEnvValue(tpConfigData?.newPointClickUi) === true;
+  if (!enabled) return false;
+  if (isMobile && !isTablet) return false;
+  const doctorId = getDecodedToken()?.result?.user_id;
+  const optOutDoctors = resolveTpConfigEnvValue(tpConfigData?.oldPointClickUiOnlyDoctors);
+  if (
+    Array.isArray(optOutDoctors) &&
+    doctorId != null &&
+    optOutDoctors.some((id) => Number(id) === Number(doctorId))
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function useVoiceRxNavigation() {

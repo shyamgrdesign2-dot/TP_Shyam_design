@@ -1264,7 +1264,12 @@ function PrescriptionNew() {
   const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isVoiceRxAccessible = isFreeVoiceRxUser || tp_monetization_enable;
-  const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible;
+  // Voice surfaces (dr agent, module/sidenav voice, double-Shift, trial chip,
+  // landing credits modal) light up only when the page was entered through a
+  // VoiceRx flow. Point-n-click entries (newPointClickUi rollout) render the
+  // same page voice-less; the header Voice Rx CTA re-enters with voice on.
+  const isVoiceRxFlowEntry = Boolean(state?.isVoiceRxNewUiFlow);
+  const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible && isVoiceRxFlowEntry;
   const VOICE_RX_planDetails = servicesList?.find((service) => service.service_name === S_VOICE_RX);
   const isVoiceRxCreditExpired =
     !isFreeVoiceRxUser &&

@@ -473,7 +473,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false, isVoiceRxNewUiFlow = false} = location.state || {};
     const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx && !isVoiceRxNewUiFlow;
-    const shouldHideLegacyVoiceRxCta = isNewPrescriptionUi;
+    // Hidden while the new-UI voice module is active; shown on the old page
+    // AND on the new page in voice-less point-n-click mode (where clicking it
+    // re-enters the same page with the VoiceRx flow enabled).
+    const shouldHideLegacyVoiceRxCta = isNewPrescriptionUi && showVoiceRxModule;
     const shouldShowLegacyVoiceRxCta =
         !shouldHideLegacyVoiceRxCta &&
         (isFreeVoiceRxUser || tp_monetization_enable) &&
