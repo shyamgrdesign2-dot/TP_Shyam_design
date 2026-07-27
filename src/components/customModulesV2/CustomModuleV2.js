@@ -50,7 +50,6 @@ import EditCustomModuleDrawer from "./EditCustomModuleDrawer";
 import { ASSETS } from "../../assets";
 import {
   VoiceRxModuleActionButton,
-  VoiceRxModuleButton,
   VoiceRxModuleCapture,
   useVoiceRxModuleCapture,
 } from "../dr-agent/voicerx/VoiceRxModuleCapture";
@@ -1559,6 +1558,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
       data-voice-rx-dictation-target={voiceDictationTargetId}
       className={[
         "prescription-box-sm",
+        isVoiceRxModuleEnabled ? "custom-module-v2--voice-rx-scroll" : "",
         activeDropdownFieldId ? "custom-module-v2--dropdown-open" : "",
         voiceModuleStyles.moduleRoot,
         isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
@@ -1608,13 +1608,6 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
             </div>
 
             <div className="d-flex align-items-center">
-              {isVoiceRxModuleEnabled && (
-                <VoiceRxModuleButton
-                  active={voiceCaptureOpen}
-                  dictationTargetId={voiceDictationTargetId}
-                  label={`Start ${module?.name || "Custom Module"} voice input`}
-                  onClick={() => setVoiceCaptureOpen(true)} />
-              )}
               {isVoiceRxModuleEnabled ? (
                 <Tooltip placement="bottom" title="Load previous data">
                   <VoiceRxModuleActionButton type="reload" label="Load previous data" onClick={loadPreviousClick} />
@@ -1784,117 +1777,119 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
       {DELETE_MODAL}
 
       {/* Table */}
-      <table className={`custom-module-v2__table ${columnClass} mt-14`}>
-        {/* Table Header */}
-        <thead>
-          <tr className="border-top border-bottom">
-            {module.namedFields?.map((field, index) => (
-              <th
-                key={field.fieldName}
-                className="custom-module-v2__table-header-cell"
-              >
-                {field.fieldLabel ?? field.fieldName}
-              </th>
-            ))}
-            <th className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">
-              {/* Action column header */}
-            </th>
-          </tr>
-        </thead>
-
-        {/* Table Body */}
-        <tbody>
-          {moduleData.map((row, rowIndex) => {
-            // Ensure row has an id - fallback to index if missing (shouldn't happen but safety check)
-            const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
-            const isActiveDropdownRow = module.namedFields?.some(
-              (field) => activeDropdownFieldId === `${row.id}-${field.fieldName}`
-            );
-            return (
-            <tr
-              key={rowKey}
-              className={[
-                "border-bottom",
-                isActiveDropdownRow ? "custom-module-v2__table-row--dropdown-open" : "",
-              ].filter(Boolean).join(" ")}
-            >
-              {module.namedFields?.map((field, fieldIndex) => (
-                <td
+      <div className={isVoiceRxModuleEnabled ? "custom-module-v2__table-scroll-wrap" : undefined}>
+        <table className={`custom-module-v2__table ${columnClass} mt-14`}>
+          {/* Table Header */}
+          <thead>
+            <tr className="border-top border-bottom">
+              {module.namedFields?.map((field, index) => (
+                <th
                   key={field.fieldName}
-                  className={[
-                    "custom-module-v2__table-cell",
-                    activeDropdownFieldId === `${row.id}-${field.fieldName}` ? "custom-module-v2__table-cell--dropdown-open" : "",
-                    isVoiceTargetHighlighted(row.id, field.fieldName) ? "custom-module-v2__voice-target-cell" : "",
-                  ].filter(Boolean).join(" ")}
+                  className="custom-module-v2__table-header-cell"
                 >
-                  {isMobile ? (
-                    <div
-                      onClick={() => {
-                        rememberVoiceTarget(row.id, field.fieldName);
-                        handleEditRow(row.id);
-                      }}
-                      style={{ cursor: "pointer", width: "100%", padding: "4px 12px" }}
-                    >
-                      <TextArea
-                        placeholder={`Enter ${field.fieldLabel}`}
-                        value={row[field.fieldName] || ""}
-                        className="custom-module-v2__input"
-                        bordered={false}
-                        disabled={true}
-                        autoSize={{ minRows: 1, maxRows: 10 }}
-                        style={{ 
-                          pointerEvents: "none",
-                          color: "#000000",
-                          WebkitTextFillColor: "#000000",
-                          opacity: 1
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <CustomModuleFieldTextAreaAutoComplete
-                      fieldName={field.fieldName}
-                      fieldLabel={field.fieldLabel}
-                      value={row[field.fieldName] || ""}
-                      onChange={(value) =>
-                        handleFieldChange(row.id, field.fieldName, value)
-                      }
-                      moduleId={module.module_id}
-                      templates={templates || []}
-                      className="custom-module-v2__input w-100"
-                      fieldId={`${row.id}-${field.fieldName}`}
-                      focusedFieldId={focusedFieldId}
-                      onFocusChange={(nextFocusedFieldId) => {
-                        setFocusedFieldId(nextFocusedFieldId);
-                        if (nextFocusedFieldId) {
-                          rememberVoiceTarget(row.id, field.fieldName);
-                        }
-                      }}
-                      onCursorChange={(selection) => rememberVoiceTarget(row.id, field.fieldName, selection)}
-                    />
-                  )}
-                </td>
+                  {field.fieldLabel ?? field.fieldName}
+                </th>
               ))}
-              <td className="custom-module-v2__table-cell custom-module-v2__table-cell--action text-center">
-                {isMobile && (
+              <th className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">
+                {/* Action column header */}
+              </th>
+            </tr>
+          </thead>
+
+          {/* Table Body */}
+          <tbody>
+            {moduleData.map((row, rowIndex) => {
+              // Ensure row has an id - fallback to index if missing (shouldn't happen but safety check)
+              const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
+              const isActiveDropdownRow = module.namedFields?.some(
+                (field) => activeDropdownFieldId === `${row.id}-${field.fieldName}`
+              );
+              return (
+              <tr
+                key={rowKey}
+                className={[
+                  "border-bottom",
+                  isActiveDropdownRow ? "custom-module-v2__table-row--dropdown-open" : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {module.namedFields?.map((field, fieldIndex) => (
+                  <td
+                    key={field.fieldName}
+                    className={[
+                      "custom-module-v2__table-cell",
+                      activeDropdownFieldId === `${row.id}-${field.fieldName}` ? "custom-module-v2__table-cell--dropdown-open" : "",
+                      isVoiceTargetHighlighted(row.id, field.fieldName) ? "custom-module-v2__voice-target-cell" : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    {isMobile ? (
+                      <div
+                        onClick={() => {
+                          rememberVoiceTarget(row.id, field.fieldName);
+                          handleEditRow(row.id);
+                        }}
+                        style={{ cursor: "pointer", width: "100%", padding: "4px 12px" }}
+                      >
+                        <TextArea
+                          placeholder={`Enter ${field.fieldLabel}`}
+                          value={row[field.fieldName] || ""}
+                          className="custom-module-v2__input"
+                          bordered={false}
+                          disabled={true}
+                          autoSize={{ minRows: 1, maxRows: 10 }}
+                          style={{ 
+                            pointerEvents: "none",
+                            color: "#000000",
+                            WebkitTextFillColor: "#000000",
+                            opacity: 1
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <CustomModuleFieldTextAreaAutoComplete
+                        fieldName={field.fieldName}
+                        fieldLabel={field.fieldLabel}
+                        value={row[field.fieldName] || ""}
+                        onChange={(value) =>
+                          handleFieldChange(row.id, field.fieldName, value)
+                        }
+                        moduleId={module.module_id}
+                        templates={templates || []}
+                        className="custom-module-v2__input w-100"
+                        fieldId={`${row.id}-${field.fieldName}`}
+                        focusedFieldId={focusedFieldId}
+                        onFocusChange={(nextFocusedFieldId) => {
+                          setFocusedFieldId(nextFocusedFieldId);
+                          if (nextFocusedFieldId) {
+                            rememberVoiceTarget(row.id, field.fieldName);
+                          }
+                        }}
+                        onCursorChange={(selection) => rememberVoiceTarget(row.id, field.fieldName, selection)}
+                      />
+                    )}
+                  </td>
+                ))}
+                <td className="custom-module-v2__table-cell custom-module-v2__table-cell--action text-center">
+                  {isMobile && (
+                    <Button
+                      className="btn py-0 btn-delete-prescription px-0"
+                      onClick={() => handleEditRow(row.id)}
+                    >
+                      <i className="icon-Edit"></i>
+                    </Button>
+                  )}
                   <Button
                     className="btn py-0 btn-delete-prescription px-0"
-                    onClick={() => handleEditRow(row.id)}
+                    onClick={() => handleDeleteRow(row.id)}
                   >
-                    <i className="icon-Edit"></i>
+                    {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                   </Button>
-                )}
-                <Button
-                  className="btn py-0 btn-delete-prescription px-0"
-                  onClick={() => handleDeleteRow(row.id)}
-                >
-                  {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
-                </Button>
-              </td>
-            </tr>
-          );
-          })}
-        </tbody>
-      </table>
+                </td>
+              </tr>
+            );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {/* Add New Line Button */}
       <div

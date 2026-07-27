@@ -39,6 +39,7 @@ import {
   MESSAGE_KEY,
 } from "../utils/constants";
 import { FETCH_SMART_RX } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 
 import {
   getPatientBirthWeight,
@@ -69,7 +70,7 @@ import Vaccination from "../pages/vaccination/Vaccination";
 import GrowthChart from "../pages/growthChart/GrowthChart";
 import { viewPatient } from "../redux/appointmentsSlice";
 import { useAccess } from "../pages/vaccination/useAccess";
-import { getGynecDetails } from "../api/services/ApiGynec";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import Obstetric from "../pages/obstetric/Obstetric";
 import TabObstetricList from "../pages/obstetric/components/obstetricList/TabObstetricList";
 import { fetchObstetricDetails } from "../pages/obstetric/service";
@@ -140,6 +141,7 @@ import {
 } from "../utils/dentalRoutes";
 
 import { SideNavbar } from "./sideNavbar";
+import { TreatmentPlanDrawer } from "./dental/plan/TreatmentPlanDrawer";
 import ConsultationRxPadCopyListener from "./ConsultationRxPadCopyListener";
 import "../components/dr-agent/dr-agent-globals.css";
 import { DrAgentRuntime } from "./dr-agent/rxpad/dr-agent/shell/DrAgentRuntime";
@@ -151,6 +153,7 @@ import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
 import useTabletViewport from "../hooks/useTabletViewport";
 import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { getGenRx } from "../api/services/ApiGenRx";
+import { hasMeaningfulVoicePayloadData } from "../utils/voiceSoapPayload";
 import TabRxCanvas from "../pages/tabRx/components/TabRxCanvas";
 import { uploadTabRxFiles, upsertTabRxRx } from "../pages/tabRx/services/tabRxService";
 import { getMetadata, getTemplates } from "../pages/tabRx/services/templateService";
@@ -193,11 +196,18 @@ import {
 import { saveDentalExamination, selectDentalExamination, fetchDentalExamination } from "../redux/dentalExaminationSlice";
 import { saveOralExaminationThunk, patchOralExaminationThunk, fetchOralExamination } from "../redux/oralExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
-import { renderPrintPayloadToBlob } from "../utils/printPayload";
+import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
 import { buildConsultationPreviewPrintPayload } from "../utils/buildConsultationPreviewPrintPayload";
-import { resolveDentalOralForPrint } from "../utils/resolveDentalOralPrintData";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
+import { syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
+import { EMPTY_REFERRAL_DATA } from "./referral/ReferralPanelForm";
+import {
+  attachCrossConsultToCaseManagerPayload,
+  fetchReferralDataForCaseManager,
+  syncCrossConsultReferral,
+} from "../utils/crossConsultHelpers";
+import { useCrossConsult } from "../hooks/useCrossConsult";
 
 const ExaminationTab = React.lazy(() =>
   import("./dental/examination/ExaminationTab").then((m) => ({ default: m.ExaminationTab }))
@@ -609,6 +619,8 @@ function ConsultationLayout({ children, headerProps }) {
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [isGrowthChart, setIsGrowthChart] = useState(false);
@@ -670,7 +682,6 @@ function ConsultationLayout({ children, headerProps }) {
   const [symptomCollectorStatus, setSymptomCollectorStatus] = useState("idle");
   const symptomCollectorRequestRef = useRef(0);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
-  const handleCollapsed = useCallback(() => {}, []);
 
   const prescriptionWrapperStyle = {
     flex: "1 1 auto",
@@ -876,12 +887,16 @@ function ConsultationLayout({ children, headerProps }) {
     setVitalsData,
     medicalHistoryData,
     setMedicalHistoryData,
+    updatedGynecHistory,
+    setUpdatedGynecHistory,
     privateNotesData,
     setPrivateNotesData,
     followUpDate,
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     startTime,
     customModuleContents,
     setCustomModuleContents,
@@ -920,6 +935,7 @@ function ConsultationLayout({ children, headerProps }) {
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
   const [selectPrivateNotes, setSelectPrivateNotes] = useState(null);
   const [vaccinationDrawer, setVaccinationDrawer] = useState(false);
+  const [dentalPlanDrawer, setDentalPlanDrawer] = useState(false);
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
@@ -1330,6 +1346,34 @@ function ConsultationLayout({ children, headerProps }) {
     }
   }, [caseManagerData?.moduleContents, allAvailableModules]);
 
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    const isReferralModuleEnabled =
+      customizedPadRightList.findIndex(
+        (e) => e.tmdpm_id === 26 && e.tmdpm_status === 0,
+      ) !== -1;
+    if (!isReferralModuleEnabled) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data,
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, customizedPadRightList, patient_data, isCrossConsultAccessable]);
+
   const hasDisplayableSymptomCollectorPayload = (payload) => {
     if (!payload || typeof payload !== "object") return false;
     return Boolean(
@@ -1430,6 +1474,10 @@ function ConsultationLayout({ children, headerProps }) {
     setOpthalRefreshKey((prev) => prev + 1);
   }, []);
 
+  const handleDentalPlanDrawer = useCallback(() => {
+    setDentalPlanDrawer((prev) => !prev);
+  }, []);
+
   // Drawer Vaccination
   const handleDrawerVaccination = useCallback((chartType) => {
     setVaccinationDrawer((prev) => {
@@ -1482,6 +1530,26 @@ function ConsultationLayout({ children, headerProps }) {
     );
   };
 
+  const handleCollapsed = useCallback(
+    (flag) => {
+      if (flag === 1) {
+        handleDrawerVital();
+      } else if (flag === 2) {
+        handleDrawerMedicalHistory();
+      } else if (flag === 3) {
+        handleDrawerVaccination();
+      } else if (flag === 4) {
+        handleDrawerPrivateNotes();
+      }
+    },
+    [
+      handleDrawerVital,
+      handleDrawerMedicalHistory,
+      handleDrawerPrivateNotes,
+      handleDrawerVaccination,
+    ],
+  );
+
   const getLabParams = async () => {
     try {
       const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -1494,7 +1562,7 @@ function ConsultationLayout({ children, headerProps }) {
           },
         },
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }
@@ -2023,12 +2091,17 @@ function ConsultationLayout({ children, headerProps }) {
       case "zydusLabReports":
         handleZydusTestReportDrawer();
         break;
+      case "dentalPlan":
+        setDrAgentOpen(false);
+        handleDentalPlanDrawer();
+        break;
       default:
         break;
     }
   }, [
     allUploadedDocs.length,
     handleAddLabParamsDrawer,
+    handleDentalPlanDrawer,
     handleDrawerGrowth,
     handleDrawerMedicalHistory,
     handleDrawerMedicalReport,
@@ -2052,19 +2125,6 @@ function ConsultationLayout({ children, headerProps }) {
       setDrAgentOpen(false);
     }
   }, [canUseVoiceRxModuleUi, drAgentOpen]);
-
-  const hasMeaningfulVoicePayload = (payload) => {
-    if (!payload || typeof payload !== "object") return false;
-    const hasHistory = Array.isArray(payload.history) && payload.history.length > 0;
-    const hasObjectData = (value) =>
-      value && typeof value === "object" && Object.keys(value).length > 0;
-    return (
-      hasHistory ||
-      hasObjectData(payload.digitizeData) ||
-      hasObjectData(payload.editedData) ||
-      hasObjectData(payload.clinicNotes)
-    );
-  };
 
   useEffect(() => {
     const voiceSessionId = voiceDigitization?.sessionId;
@@ -2096,7 +2156,7 @@ function ConsultationLayout({ children, headerProps }) {
         const response = await getGenRx(recordId);
         if (cancelled) return;
         const payload = response?.data?.data || response?.data || response;
-        if (hasMeaningfulVoicePayload(payload)) {
+        if (hasMeaningfulVoicePayloadData(payload)) {
           dispatch(hydrateVoiceDigitization(payload));
           setVoiceHydrationStatus("hydrated");
         } else {
@@ -2309,6 +2369,11 @@ function ConsultationLayout({ children, headerProps }) {
         moduleContents: customModuleContents,
       };
 
+      attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+        referredBy: profile?.um_name,
+        pendingCrossConsult: patient_data,
+      });
+
       const action = await (currentTcmId === 0
         ? dispatch(addCaseManager(sendData))
         : dispatch(editCaseManager(sendData)));
@@ -2360,6 +2425,17 @@ function ConsultationLayout({ children, headerProps }) {
           const generatedTcmId = action?.payload?.tcm_id ?? currentTcmId;
           setCurrentTcmId(generatedTcmId);
 
+          try {
+            await syncGynecHistoryAfterEndVisit(
+              patient_data?.patient_unique_id,
+              userId,
+              updatedGynecHistory,
+              { getGynecDetails, postGynecDetails, updateGynecDetails },
+            );
+          } catch (error) {
+            console.error("[GynecHistory][EndVisit] sync failed", error);
+          }
+
           const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
             patient_data?.patient_unique_id,
             generatedTcmId,
@@ -2384,6 +2460,15 @@ function ConsultationLayout({ children, headerProps }) {
                 tcm_id: parseInt(generatedTcmId),
               });
             }
+          }
+
+          try {
+            await syncCrossConsultReferral({
+              tcmId: generatedTcmId,
+              pendingCrossConsult: patient_data,
+            });
+          } catch (error) {
+            console.error('Cross consult sync failed:', error);
           }
         } catch (error) {
           console.error('Care plan sync after submit failed:', error);
@@ -2541,38 +2626,37 @@ function ConsultationLayout({ children, headerProps }) {
         activeDentalData,
         oralExamination,
         isDentalEnabled,
+        dentitionType: dentalExamination?.dentitionType || "adult",
       });
 
       if (!payload) {
         throw new Error("Print settings are not loaded yet. Please try again.");
       }
 
-      const { dentalExaminationData: resolvedDental, examChart: resolvedOralChart } =
-        await resolveDentalOralForPrint({
-          patientId: patient_data?.patient_unique_id,
-          tcmId: currentTcmId,
-          consultationDate,
-          printSettings: payload.printSettings,
-          inMemoryDental: { tooth_states: activeDentalData },
-          inMemoryOral: oralExamination,
-          caseManagerData: payload.caseManagerData,
-          allowFullApiFallback: false,
-        });
+      const inMemoryDental = {
+        tooth_states: activeDentalData,
+        dentition_type: dentalExamination?.dentitionType || "adult",
+      };
 
-      const pdfBlob = await renderPrintPayloadToBlob(
+      const { blob: pdfBlob } = await buildPrintPdfBlobFromPayload(
         {
           ...payload,
-          dentalExaminationData: resolvedDental,
-          examChart: resolvedOralChart,
-          oralExamination,
-          patientUniqueId: patient_data?.patient_unique_id,
-          tcmId: currentTcmId,
+          crossConsultData: referralData,
         },
         {
-        selectedLang: "English",
-        isGynaecHistoryAccessable,
-        onlyShowDental: false,
-      });
+          selectedLang: "English",
+          isGynaecHistoryAccessable,
+          onlyShowDental: false,
+          dentalExaminationData: inMemoryDental,
+          dentalexaminationData: inMemoryDental,
+          oralExamination,
+          patientUniqueId: patient_data?.patient_unique_id,
+          patientId: patient_data?.patient_unique_id,
+          tcmId: currentTcmId,
+          isDentalEnabled,
+          allowFullApiFallback: false,
+        },
+      );
 
       if (pdfBlob) {
         setPreviewPdfFile(pdfBlob);
@@ -2692,6 +2776,7 @@ function ConsultationLayout({ children, headerProps }) {
               growthRefreshKey={growthRefreshKey}
               opthalRefreshKey={opthalRefreshKey}
               customizedPadLeftList={customizedPadLeftList}
+              referralOnRightPad
               isOpthalModuleAccessible={isOpthalModuleAccessible}
               isVaccinationAccessable={isVaccinationAccessable}
               isGrowthChartAccessable={isGrowthChartAccessable}
@@ -2860,6 +2945,23 @@ function ConsultationLayout({ children, headerProps }) {
             selectPrivateNotes={selectPrivateNotes}
           />
         </Drawer>
+        {dentalPlanDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            onClose={handleDentalPlanDrawer}
+            open={dentalPlanDrawer}
+            width="100%"
+            zIndex={1100}
+            styles={{ body: { padding: 0, height: "100vh", overflow: "hidden" } }}
+          >
+            <TreatmentPlanDrawer
+              patientId={patient_data?.patient_unique_id}
+              patientAge={patient_data?.ageYears}
+              onClose={handleDentalPlanDrawer}
+            />
+          </Drawer>
+        )}
         {vaccinationDrawer && (
           <Drawer
             closeIcon={false}

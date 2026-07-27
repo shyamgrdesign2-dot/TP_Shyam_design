@@ -6,24 +6,31 @@
  */
 import React from "react";
 import { View, Text, Image, Svg, Path, Circle, G } from "@react-pdf/renderer";
+import {
+  ADULT_UPPER_ROW,
+  ADULT_LOWER_ROW,
+  PEDIATRIC_UPPER_ROW,
+  PEDIATRIC_LOWER_ROW,
+  CHART_TITLES,
+  getFdiListForPrefetch,
+  getFdiRowsForDentitionType,
+  getImageSourceFdi,
+  getMaxHalfAspectSum,
+  PEDIATRIC_MIXED_BAND_WIDTH_RATIO,
+  resolveChartsToRender,
+  toothAspect,
+} from "./dentalChartConstants";
 import { getToothImageCandidates } from "../../../assets";
 import {
   grayscaleToothPngDataUrl,
   outlineToothPngDataUrl,
 } from "./toothImageOutline";
 
-export const UPPER_ROW = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
-export const LOWER_ROW = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
-export const ALL_FDI = [...UPPER_ROW, ...LOWER_ROW];
-
-export const TOOTH_ASPECT = {
-  "11": 0.371, "12": 0.371, "13": 0.341, "14": 0.354, "15": 0.373, "16": 0.505, "17": 0.513, "18": 0.515,
-  "21": 0.371, "22": 0.371, "23": 0.341, "24": 0.354, "25": 0.373, "26": 0.505, "27": 0.513, "28": 0.515,
-  "31": 0.3, "32": 0.287, "33": 0.307, "34": 0.334, "35": 0.342, "36": 0.668, "37": 0.55, "38": 0.658,
-  "41": 0.3, "42": 0.287, "43": 0.307, "44": 0.334, "45": 0.342, "46": 0.668, "47": 0.55, "48": 0.658,
-};
-
-const MAX_HALF_ASPECT_SUM = 3.45;
+export {
+  ADULT_UPPER_ROW as UPPER_ROW,
+  ADULT_LOWER_ROW as LOWER_ROW,
+  ADULT_FDI as ALL_FDI,
+} from "./dentalChartConstants";
 
 const PATH_ROOT =
   "M36.8867 202.706H77.1133C79.7678 202.706 81.0969 206.024 79.0986 207.876L58.9854 226.513C57.8617 227.554 56.1384 227.554 55.0146 226.513L34.9004 207.876C32.9023 206.024 34.2321 202.706 36.8867 202.706Z";
@@ -51,16 +58,54 @@ const ZONE_COLORS = {
   whole: "#8a9098",
 };
 
-function toothAspect(fdi) {
-  return TOOTH_ASPECT[fdi] || 0.45;
-}
-
-/** Same height formula as FlatDentitionChart (A4 content width ~ 520pt). */
-export function pdfToothHeight(pageContentWidth = 520) {
+/** Tooth image height for odontogram rows (A4 content width ~ 520pt). */
+export function pdfToothHeight(pageContentWidth = 520, dentitionType = "adult") {
   const CENTRE_RESERVE = 9;
   const half = (pageContentWidth - CENTRE_RESERVE) / 2;
-  return Math.max(40, Math.min(80, (half / MAX_HALF_ASPECT_SUM) * 0.65));
+  const maxHalfAspectSum = getMaxHalfAspectSum(dentitionType === "mixed" ? "adult" : dentitionType);
+  if (dentitionType === "mixed") {
+    return pdfMixedChartDimensions(pageContentWidth).toothH;
+  }
+  return Math.max(40, Math.min(80, (half / maxHalfAspectSum) * 0.65));
 }
+
+const MIXED_SURFACE_ASPECT = 58 / 30;
+const MIXED_SURFACE_TO_TOOTH_RATIO = 1.35;
+
+/**
+ * Compact dimensions so the 8-band mixed chart fits on one PDF page without splitting.
+ * Scales tooth images and surface selectors proportionally.
+ */
+export function pdfMixedChartDimensions(pageContentWidth = 520) {
+  const TARGET_BODY_HEIGHT = 300;
+  const FIXED_OVERHEAD = 88;
+  const BAND_DIVIDER = 3;
+  const IMAGE_BAND_EXTRA = 14;
+  const SURFACE_BAND_EXTRA = 4;
+  const DIVIDER_COUNT = 7;
+
+  const available = TARGET_BODY_HEIGHT - FIXED_OVERHEAD - DIVIDER_COUNT * BAND_DIVIDER;
+  const heightBasedToothH = available / (4 + 4 * MIXED_SURFACE_TO_TOOTH_RATIO);
+
+  const CENTRE_RESERVE = 9;
+  const half = (pageContentWidth - CENTRE_RESERVE) / 2;
+  const maxHalfAspectSum = getMaxHalfAspectSum("mixed");
+  const widthBasedToothH = (half / maxHalfAspectSum) * 0.52;
+
+  const toothH = Math.max(18, Math.min(28, Math.min(heightBasedToothH, widthBasedToothH)));
+  const surfaceH = Math.round(toothH * MIXED_SURFACE_TO_TOOTH_RATIO);
+  const surfaceW = Math.round(surfaceH / MIXED_SURFACE_ASPECT);
+
+  return {
+    toothH,
+    surfaceSize: { width: surfaceW, height: surfaceH },
+    bandMargin: 2,
+    dividerMargin: 3,
+    jawMargin: 5,
+  };
+}
+
+export const PDF_MIXED_SURFACE_SIZE = pdfMixedChartDimensions(520).surfaceSize;
 
 async function blobToPngDataUrl(blob) {
   if (typeof window === "undefined" || typeof document === "undefined") return null;
@@ -78,73 +123,92 @@ async function blobToPngDataUrl(blob) {
   }
 }
 
-function toothAssetUrls(fdi) {
-  return getToothImageCandidates(fdi);
-}
+const TOOTH_OUTLINE_STROKE_PX = 4;
 
-/** In-memory cache so PDF rebuilds (e.g. consultation prev/next) do not re-fetch 32 teeth. */
-let cachedToothImageMap = null;
-let cachedToothImageMapPromise = null;
+/** In-memory cache keyed by dentition type so PDF rebuilds do not re-fetch teeth. */
+const TOOTH_IMAGE_CACHE_VERSION = 2;
+const cachedToothImageMaps = {};
+const cachedToothImageMapPromises = {};
 
 export function clearDentalToothImageMapCache() {
-  cachedToothImageMap = null;
-  cachedToothImageMapPromise = null;
+  Object.keys(cachedToothImageMaps).forEach((k) => delete cachedToothImageMaps[k]);
+  Object.keys(cachedToothImageMapPromises).forEach((k) => delete cachedToothImageMapPromises[k]);
 }
 
-async function loadDentalToothImageMap() {
+async function loadImageEntry(imageFdi) {
+  for (const url of getToothImageCandidates(imageFdi)) {
+    try {
+      const res = await fetch(url, { cache: "force-cache" });
+      if (!res.ok) continue;
+      const plainGray = await grayscaleToothPngDataUrl(
+        await blobToPngDataUrl(await res.blob()),
+      );
+      if (!plainGray) continue;
+      const outlined = await outlineToothPngDataUrl(plainGray, {
+        strokeColor: "#1f2937",
+        strokePx: TOOTH_OUTLINE_STROKE_PX,
+        grayscale: true,
+      });
+      return { plain: plainGray, outlined: outlined || plainGray };
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
+async function loadDentalToothImageMap(fdiList) {
   if (typeof window === "undefined") return {};
-  const map = {};
+  const imageFdiByDisplayFdi = {};
+  fdiList.forEach((fdi) => {
+    imageFdiByDisplayFdi[fdi] = getImageSourceFdi(fdi);
+  });
+  const uniqueSources = [...new Set(Object.values(imageFdiByDisplayFdi))];
+  const sourceCache = {};
   await Promise.all(
-    ALL_FDI.map(async (fdi) => {
-      for (const url of toothAssetUrls(fdi)) {
-        try {
-          const res = await fetch(url, { cache: "force-cache" });
-          if (!res.ok) continue;
-          const plainGray = await grayscaleToothPngDataUrl(
-            await blobToPngDataUrl(await res.blob()),
-          );
-          if (!plainGray) continue;
-          const outlined = await outlineToothPngDataUrl(plainGray, {
-            strokeColor: "#1f2937",
-            strokePx: 2,
-            grayscale: true,
-          });
-          map[fdi] = { plain: plainGray, outlined: outlined || plainGray };
-          break;
-        } catch {
-          // try next candidate
-        }
-      }
-    })
+    uniqueSources.map(async (imageFdi) => {
+      const entry = await loadImageEntry(imageFdi);
+      if (entry) sourceCache[imageFdi] = entry;
+    }),
   );
+  const map = {};
+  fdiList.forEach((fdi) => {
+    const source = imageFdiByDisplayFdi[fdi];
+    if (sourceCache[source]) map[fdi] = sourceCache[source];
+  });
   return map;
 }
 
-/** Prefetch all odontogram images as PNG data URLs for react-pdf (cached per tab session). */
-export async function prefetchDentalToothImageMap({ force = false } = {}) {
+/** Prefetch odontogram images as PNG data URLs for react-pdf (cached per dentition type). */
+export async function prefetchDentalToothImageMap({ dentitionType = "adult", force = false } = {}) {
+  const type = dentitionType;
+  const cacheKey = `${type}_v${TOOTH_IMAGE_CACHE_VERSION}`;
+
   if (
     !force &&
-    cachedToothImageMap &&
-    Object.values(cachedToothImageMap).some((entry) => typeof entry === "string")
+    cachedToothImageMaps[cacheKey] &&
+    Object.values(cachedToothImageMaps[cacheKey]).some((entry) => typeof entry === "string")
   ) {
     clearDentalToothImageMapCache();
   }
-  if (!force && cachedToothImageMap) {
-    return cachedToothImageMap;
+  if (!force && cachedToothImageMaps[cacheKey]) {
+    return cachedToothImageMaps[cacheKey];
   }
-  if (!force && cachedToothImageMapPromise) {
-    return cachedToothImageMapPromise;
+  if (!force && cachedToothImageMapPromises[cacheKey]) {
+    return cachedToothImageMapPromises[cacheKey];
   }
-  cachedToothImageMapPromise = loadDentalToothImageMap()
+
+  const fdiList = getFdiListForPrefetch(type);
+  cachedToothImageMapPromises[cacheKey] = loadDentalToothImageMap(fdiList)
     .then((map) => {
-      cachedToothImageMap = map;
+      cachedToothImageMaps[cacheKey] = map;
       return map;
     })
     .catch((err) => {
-      cachedToothImageMapPromise = null;
+      delete cachedToothImageMapPromises[cacheKey];
       throw err;
     });
-  return cachedToothImageMapPromise;
+  return cachedToothImageMapPromises[cacheKey];
 }
 
 const VALID_ZONE_IDS = new Set(["whole", "buccal", "lingual", "mesial", "distal", "occlusal", "cervical", "root"]);
@@ -158,7 +222,7 @@ const normalizeZoneId = (zone) => {
   return VALID_ZONE_IDS.has(value) ? value : null;
 };
 
-const PdfQuickSurfaceSelector = ({ selectedZones, arch = "mandibular" }) => {
+const PdfQuickSurfaceSelector = ({ selectedZones, arch = "mandibular", width = 36, height = 72 }) => {
   const NEUTRAL_STROKE = "#c4c9d1";
   const zoneProps = (id) => {
     const isSel = selectedZones.has(id);
@@ -185,7 +249,7 @@ const PdfQuickSurfaceSelector = ({ selectedZones, arch = "mandibular" }) => {
   );
 
   return (
-    <Svg width={36} height={72} viewBox="0 0 114 229">
+    <Svg width={width} height={height} viewBox="0 0 114 229">
       <Path d={PATH_WHOLE} {...zoneProps("whole")} />
       {arch === "maxillary" ? (
         <G transform="matrix(1 0 0 -1 0 265)">{crown}</G>
@@ -196,7 +260,17 @@ const PdfQuickSurfaceSelector = ({ selectedZones, arch = "mandibular" }) => {
   );
 };
 
-const PdfToothCell = ({ fdi, arch, toothState, toothH, toothImageMap, printSettings, PX_TO_PT }) => {
+const PdfToothCell = ({
+  fdi,
+  arch,
+  toothState,
+  toothH,
+  toothImageMap,
+  printSettings,
+  PX_TO_PT,
+  variant = "full",
+  surfaceSize,
+}) => {
   const selectedZones = new Set();
   const toothDiagnoses = [];
   const findings = [];
@@ -282,29 +356,219 @@ const PdfToothCell = ({ fdi, arch, toothState, toothH, toothImageMap, printSetti
     </Text>
   );
 
+  const surfW = surfaceSize?.width ?? 36;
+  const surfH = surfaceSize?.height ?? 72;
+
   const selectorNode = (
-    <View style={{ width: 36, height: 72, alignItems: "center", justifyContent: "center" }}>
-      <PdfQuickSurfaceSelector selectedZones={selectedZones} arch={arch} />
+    <View style={{ width: surfW, height: surfH, alignItems: "center", justifyContent: "center" }}>
+      <PdfQuickSurfaceSelector selectedZones={selectedZones} arch={arch} width={surfW} height={surfH} />
     </View>
   );
 
-  const cellW = Math.max(34, imgW + 6);
+  const showImage = variant === "full" || variant === "images";
+  const showLabel = variant === "full" || variant === "images";
+  const showSurfaces = variant === "full" || variant === "surfaces";
+
+  const cellW = showImage ? Math.max(34, imgW + 6) : Math.max(34, surfW + 4);
+
+  const nodes = [];
+  if (showImage) nodes.push({ key: "img", node: imgNode });
+  if (showLabel) nodes.push({ key: "fdi", node: fdiNode });
+  if (showSurfaces) nodes.push({ key: "sel", node: selectorNode });
+
+  const ordered =
+    arch === "maxillary"
+      ? nodes
+      : [...nodes].sort((a, b) => {
+          const order = { sel: 0, fdi: 1, img: 2 };
+          return (order[a.key] ?? 1) - (order[b.key] ?? 1);
+        });
 
   return (
     <View style={{ alignItems: "center", width: cellW }}>
-      {arch === "maxillary" ? (
-        <>
-          {imgNode}
-          {fdiNode}
-          {selectorNode}
-        </>
-      ) : (
-        <>
-          {selectorNode}
-          {fdiNode}
-          {imgNode}
-        </>
-      )}
+      {ordered.map(({ key, node }) => (
+        <View key={key}>{node}</View>
+      ))}
+    </View>
+  );
+};
+
+const chartDividerStyle = { width: 1, backgroundColor: "#e2e8f0", marginHorizontal: 4 };
+const jawDividerStyle = (PX_TO_PT) => ({
+  height: 1,
+  backgroundColor: "#e2e8f0",
+  marginVertical: PX_TO_PT * 6,
+});
+
+const renderToothBand = ({
+  fdiList,
+  teethPerQuadrant,
+  arch,
+  variant,
+  toothStateMap,
+  toothH,
+  toothImageMap,
+  printSettings,
+  PX_TO_PT,
+  surfaceSize,
+  bandMargin,
+  bandWidthRatio = 1,
+}) => {
+  const leftPart = fdiList.slice(0, teethPerQuadrant);
+  const rightPart = fdiList.slice(teethPerQuadrant);
+  const cell = (fdi) => (
+    <PdfToothCell
+      key={fdi}
+      fdi={fdi}
+      arch={arch}
+      variant={variant}
+      surfaceSize={surfaceSize}
+      toothState={toothStateMap[fdi]}
+      toothH={toothH}
+      toothImageMap={toothImageMap}
+      PX_TO_PT={PX_TO_PT}
+      printSettings={printSettings}
+    />
+  );
+  const marginBottom = bandMargin ?? PX_TO_PT * 2;
+  const bandRow = (
+    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", width: "100%" }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-around", flex: 1 }}>
+        {leftPart.map(cell)}
+      </View>
+      <View style={chartDividerStyle} />
+      <View style={{ flexDirection: "row", justifyContent: "space-around", flex: 1 }}>
+        {rightPart.map(cell)}
+      </View>
+    </View>
+  );
+
+  if (bandWidthRatio < 1) {
+    return (
+      <View style={{ width: `${bandWidthRatio * 100}%`, alignSelf: "center", marginBottom }}>
+        {bandRow}
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ marginBottom }}>
+      {bandRow}
+    </View>
+  );
+};
+
+const chartShellStyle = (PX_TO_PT, { compact = false } = {}) => ({
+  marginTop: PX_TO_PT * (compact ? 6 : 10),
+  marginBottom: PX_TO_PT * (compact ? 6 : 10),
+  padding: PX_TO_PT * (compact ? 4 : 8),
+  breakInside: "avoid",
+});
+
+const chartTitleStyle = (printSettings, PX_TO_PT) => ({
+  fontSize: PX_TO_PT * 10,
+  fontWeight: "bold",
+  color: "#334155",
+  marginBottom: PX_TO_PT * 8,
+  fontFamily: printSettings?.page_format?.font_family || "Roboto",
+});
+
+const PdfDentitionChart = ({
+  PX_TO_PT,
+  printSettings,
+  toothStateMap,
+  toothImageMap,
+  upperRow,
+  lowerRow,
+  teethPerQuadrant,
+  title,
+  dentitionType = "adult",
+}) => {
+  const toothH = pdfToothHeight(520, dentitionType);
+  const bandProps = {
+    toothStateMap,
+    toothH,
+    toothImageMap,
+    printSettings,
+    PX_TO_PT,
+  };
+
+  return (
+    <View style={chartShellStyle(PX_TO_PT)} wrap={false}>
+      <Text style={chartTitleStyle(printSettings, PX_TO_PT)}>{title}</Text>
+      <View style={{ flexDirection: "column" }}>
+        {renderToothBand({ ...bandProps, fdiList: upperRow, teethPerQuadrant, arch: "maxillary", variant: "full" })}
+        <View style={jawDividerStyle(PX_TO_PT)} />
+        {renderToothBand({ ...bandProps, fdiList: lowerRow, teethPerQuadrant, arch: "mandibular", variant: "full" })}
+      </View>
+    </View>
+  );
+};
+
+const PdfMixedDentitionChart = ({
+  PX_TO_PT,
+  printSettings,
+  toothStateMap,
+  toothImageMap,
+}) => {
+  const mixedDims = pdfMixedChartDimensions(520);
+  const bandProps = {
+    toothStateMap,
+    toothH: mixedDims.toothH,
+    toothImageMap,
+    printSettings,
+    PX_TO_PT,
+    surfaceSize: mixedDims.surfaceSize,
+    bandMargin: mixedDims.bandMargin,
+  };
+  const band = (props) => renderToothBand({ ...bandProps, ...props });
+  const bandDivider = { height: 1, backgroundColor: "#e2e8f0", marginVertical: mixedDims.dividerMargin };
+  const jawDivider = { height: 1, backgroundColor: "#e2e8f0", marginVertical: mixedDims.jawMargin };
+
+  return (
+    <View style={chartShellStyle(PX_TO_PT, { compact: true })} wrap={false}>
+      <Text style={chartTitleStyle(printSettings, PX_TO_PT)}>{CHART_TITLES.mixed}</Text>
+      <View style={{ flexDirection: "column" }}>
+        {band({ fdiList: ADULT_UPPER_ROW, teethPerQuadrant: 8, arch: "maxillary", variant: "images" })}
+        <View style={bandDivider} />
+        {band({ fdiList: ADULT_UPPER_ROW, teethPerQuadrant: 8, arch: "maxillary", variant: "surfaces" })}
+        <View style={bandDivider} />
+        {band({
+          fdiList: PEDIATRIC_UPPER_ROW,
+          teethPerQuadrant: 5,
+          arch: "maxillary",
+          variant: "images",
+          bandWidthRatio: PEDIATRIC_MIXED_BAND_WIDTH_RATIO,
+        })}
+        <View style={bandDivider} />
+        {band({
+          fdiList: PEDIATRIC_UPPER_ROW,
+          teethPerQuadrant: 5,
+          arch: "maxillary",
+          variant: "surfaces",
+          bandWidthRatio: PEDIATRIC_MIXED_BAND_WIDTH_RATIO,
+        })}
+        <View style={jawDivider} />
+        {band({
+          fdiList: PEDIATRIC_LOWER_ROW,
+          teethPerQuadrant: 5,
+          arch: "mandibular",
+          variant: "surfaces",
+          bandWidthRatio: PEDIATRIC_MIXED_BAND_WIDTH_RATIO,
+        })}
+        <View style={bandDivider} />
+        {band({
+          fdiList: PEDIATRIC_LOWER_ROW,
+          teethPerQuadrant: 5,
+          arch: "mandibular",
+          variant: "images",
+          bandWidthRatio: PEDIATRIC_MIXED_BAND_WIDTH_RATIO,
+        })}
+        <View style={bandDivider} />
+        {band({ fdiList: ADULT_LOWER_ROW, teethPerQuadrant: 8, arch: "mandibular", variant: "surfaces" })}
+        <View style={bandDivider} />
+        {band({ fdiList: ADULT_LOWER_ROW, teethPerQuadrant: 8, arch: "mandibular", variant: "images" })}
+      </View>
     </View>
   );
 };
@@ -316,72 +580,31 @@ export const PdfDentalChart = ({ PX_TO_PT, printSettings, dentalExaminationData,
     if (ts.tooth_code) toothStateMap[String(ts.tooth_code)] = ts;
   });
 
-  const toothH = pdfToothHeight(520);
+  const { isMixed, showAdult, showPediatric } = resolveChartsToRender(dentalExaminationData);
 
-  const renderRow = (fdiList, arch) => {
-    const leftPart = fdiList.slice(0, 8);
-    const rightPart = fdiList.slice(8);
+  if (isMixed) {
     return (
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "stretch", width: "100%" }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-around", flex: 1 }}>
-          {leftPart.map((fdi) => (
-            <PdfToothCell
-              key={fdi}
-              fdi={fdi}
-              arch={arch}
-              toothState={toothStateMap[fdi]}
-              toothH={toothH}
-              toothImageMap={toothImageMap}
-              PX_TO_PT={PX_TO_PT}
-              printSettings={printSettings}
-            />
-          ))}
-        </View>
-        <View style={{ width: 1, backgroundColor: "#e2e8f0", marginHorizontal: 4 }} />
-        <View style={{ flexDirection: "row", justifyContent: "space-around", flex: 1 }}>
-          {rightPart.map((fdi) => (
-            <PdfToothCell
-              key={fdi}
-              fdi={fdi}
-              arch={arch}
-              toothState={toothStateMap[fdi]}
-              toothH={toothH}
-              toothImageMap={toothImageMap}
-              PX_TO_PT={PX_TO_PT}
-              printSettings={printSettings}
-            />
-          ))}
-        </View>
-      </View>
+      <PdfMixedDentitionChart
+        PX_TO_PT={PX_TO_PT}
+        printSettings={printSettings}
+        toothStateMap={toothStateMap}
+        toothImageMap={toothImageMap}
+      />
     );
-  };
+  }
 
+  const rows = getFdiRowsForDentitionType(showPediatric ? "pediatric" : "adult");
   return (
-    <View
-      style={{
-        marginTop: PX_TO_PT * 10,
-        marginBottom: PX_TO_PT * 10,
-        padding: PX_TO_PT * 8,
-        breakInside: "avoid",
-      }}
-      wrap={false}
-    >
-      <Text
-        style={{
-          fontSize: PX_TO_PT * 10,
-          fontWeight: "bold",
-          color: "#334155",
-          marginBottom: PX_TO_PT * 8,
-          fontFamily: printSettings?.page_format?.font_family || "Roboto",
-        }}
-      >
-        Dental Chart
-      </Text>
-      <View style={{ flexDirection: "column" }}>
-        {renderRow(UPPER_ROW, "maxillary")}
-        <View style={{ height: 1, backgroundColor: "#e2e8f0", marginVertical: PX_TO_PT * 4 }} />
-        {renderRow(LOWER_ROW, "mandibular")}
-      </View>
-    </View>
+    <PdfDentitionChart
+      PX_TO_PT={PX_TO_PT}
+      printSettings={printSettings}
+      toothStateMap={toothStateMap}
+      toothImageMap={toothImageMap}
+      upperRow={rows.upperRow}
+      lowerRow={rows.lowerRow}
+      teethPerQuadrant={rows.teethPerQuadrant}
+      title={rows.title}
+      dentitionType={showPediatric ? "pediatric" : "adult"}
+    />
   );
 };

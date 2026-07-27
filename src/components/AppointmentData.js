@@ -92,11 +92,14 @@ import {
   GB_VOICE_RX_NEW_UI,
   TAB_CLINIC_QUEUE,
   TAB_CLINIC_APPOINTMENT,
+  TAB_REFERRAL,
+  TAB_REFERRAL_AP_STATUS,
   CLINIC_TARGET_STATUS,
   GB_CVT_EXT_HOS,
   GB_MANYA_DENTAL,
 } from "../utils/constants";
 import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
+import { getCrossConsultFromRecord } from "../utils/crossConsultHelpers";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import config from "../config";
@@ -189,7 +192,10 @@ import {
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { clinicTargetStatus, generateClinicToken } from "../pages/chikitsalay/service";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { ASSETS } from "../assets";
+import { useCrossConsult } from "../hooks/useCrossConsult";
 const {
   endVisit: visitEnd,
   cancelVisit: ImgcancelEnd,
@@ -218,6 +224,44 @@ const dateFormat = "YYYY-MM-DD";
 const showDateFormat = "DD-MM-YYYY";
 const FINISHED_PRINT_MESSAGE_KEY = "finished-print-rx-generate";
 
+const getListAppointmentStatus = ({
+  selectedTab,
+  isDigitisationTab,
+  allUnDigitisedIds,
+}) => {
+  if (isDigitisationTab && allUnDigitisedIds?.length > 0) return 3;
+  if (selectedTab === TAB_REFERRAL) return TAB_REFERRAL_AP_STATUS;
+  return selectedTab;
+};
+
+const renderReferralNotesCell = (record) => {
+  const crossConsult = getCrossConsultFromRecord(record);
+  const notes = String(
+    crossConsult?.reason_for_cross_consult ||
+      record?.reason_for_cross_consult ||
+      record?.referralNotes ||
+      ""
+  ).trim();
+  if (!notes) {
+    return <span>—</span>;
+  }
+  return (
+    <Tooltip
+      title={notes}
+      placement="top"
+      color="#2d2d3a"
+      overlayInnerStyle={{
+        maxWidth: 360,
+        fontSize: 13,
+        lineHeight: 1.45,
+        padding: "8px 12px",
+      }}
+    >
+      <span className="referral-notes-clamp">{notes}</span>
+    </Tooltip>
+  );
+};
+
 function AppointmentData({ locationPath, appointmentAgentsData }) {
   const navigate = useNavigate();
 
@@ -229,6 +273,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const { isLoading } = useSelector((state) => state.uploadDoc);
   const { advancedSettings } = useSelector((state) => state.billing);
   const { isOpdBillingAccessable } = useOpdBilling();
+  const isCrossConsultEnabled = useCrossConsult();
   const isChikitsalayAccessable = useChikitsalay();
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
@@ -257,6 +302,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     finishedData,
     zydusAappointmentData,
     draftRxCount,
+    referralCount,
     allUnDigitisedAppointmentsList
   } = useSelector((state) => state.records);
   const { appointmentStatusByAppointmentId, activeTeleconsultAppointmentId, activeTeleconsultConsultationId } = useSelector(
@@ -504,8 +550,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   );
   const isAppointmentSequenceFromGB = useFeatureIsOn(GB_APPT_SEQUENCE);
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const isDentalEnabled = useIsDentalEnabled();
   const [pendingFinishedPrint, setPendingFinishedPrint] = useState(null);
-  const [hasFinishedPrintGenerationStarted, setHasFinishedPrintGenerationStarted] = useState(false);
 
   const baseUrl = env.casemanager_api_url;
   const snapRxDigitizationUrl = env.snap_rx_api_url;
@@ -531,28 +577,30 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     isGynaecHistoryAccessable: false,
     payloadOverride: null,
     skipFetch: !pendingFinishedPrint?.printUrl || pendingFinishedPrint?.printChannel === "in_app",
+    labParamsData: pendingFinishedPrint?.labParamsData ?? null,
     isCvtExtHosAccessableFromGB,
-    patientId: pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    patientId:
+      pendingFinishedPrint?.record?.patient_unique_id ||
+      pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    patientUniqueId:
+      pendingFinishedPrint?.record?.patient_unique_id ||
+      pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
     tcmId: pendingFinishedPrint?.caseManagerData?.tcm_id,
+    patientRecord: pendingFinishedPrint?.caseManagerData?.patient_data,
+    canvasFilename: pendingFinishedPrint?.caseManagerData?.canvas_filename,
+    isDentalEnabled,
+    caseManagerDataOverride: pendingFinishedPrint?.caseManagerData ?? null,
   });
 
   useEffect(() => {
-    if (pendingFinishedPrint?.printChannel !== "browser") return;
-    if (isFinishedPrintGenerating) {
-      setHasFinishedPrintGenerationStarted(true);
-    }
-  }, [pendingFinishedPrint?.printChannel, isFinishedPrintGenerating]);
-
-  useEffect(() => {
     if (!pendingFinishedPrint || pendingFinishedPrint.printChannel !== "browser") return;
-    if (!hasFinishedPrintGenerationStarted || isFinishedPrintGenerating) return;
+    if (isFinishedPrintGenerating) return;
 
     if (finishedPrintBlob instanceof Blob) {
       message.destroy(FINISHED_PRINT_MESSAGE_KEY);
       const blobURL = URL.createObjectURL(finishedPrintBlob);
       window.open(blobURL, "_blank");
       setPendingFinishedPrint(null);
-      setHasFinishedPrintGenerationStarted(false);
       return;
     }
 
@@ -560,15 +608,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       message.open({
         key: FINISHED_PRINT_MESSAGE_KEY,
         type: "error",
-        content: "Failed to generate PDF.",
+        content: finishedPrintError?.message || "Failed to generate PDF.",
         duration: 2,
       });
       setPendingFinishedPrint(null);
-      setHasFinishedPrintGenerationStarted(false);
     }
   }, [
     pendingFinishedPrint,
-    hasFinishedPrintGenerationStarted,
     isFinishedPrintGenerating,
     finishedPrintBlob,
     finishedPrintError,
@@ -795,6 +841,18 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
 
+    if (isCrossConsultEnabled) {
+      updatedItems.push({
+        key: TAB_REFERRAL,
+        label: (
+          <div className="d-flex align-items-center">
+            <i className="icon-Report"></i>
+            Referral ({referralCount})
+          </div>
+        ),
+      });
+    }
+
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
 
@@ -842,6 +900,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     draftRxCount,
     selectedTab,
     zydusAppointmentVisibleCount,
+    referralCount,
   ]);
 
   const [isDigitisationTab, setIsDigitisationTab] = useState(false);
@@ -900,7 +959,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   useEffect(() => {
     if (
       selectedTab !== TAB_ZYDUS_ENCOUNTER &&
-      selectedTab !== TAB_ZYDUS_APPOINTMENT
+      selectedTab !== TAB_ZYDUS_APPOINTMENT &&
+      selectedTab !== TAB_REFERRAL
     ) {
       const firstIndex = appointmentsData?.findIndex(
         (record) => record.symptomsGathered
@@ -960,10 +1020,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           var sendData = {
             startDate: date.startDate,
             endDate: date.endDate,
-            apStatue:
-              isDigitisationTab && allUnDigitisedIds?.length > 0
-                ? 3
-                : selectedTab,
+            apStatue: getListAppointmentStatus({
+              selectedTab,
+              isDigitisationTab,
+              allUnDigitisedIds,
+            }),
             filterVisitType: visitTypeFilters,
             page: pageNo,
             search: searchQuery,
@@ -1032,10 +1093,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         var sendData = {
           startDate: date.startDate,
           endDate: date.endDate,
-          apStatue:
-            isDigitisationTab && allUnDigitisedIds?.length > 0
-              ? 3
-              : selectedTab,
+          apStatue: getListAppointmentStatus({
+            selectedTab,
+            isDigitisationTab,
+            allUnDigitisedIds,
+          }),
           filterVisitType: visitTypeFilters,
           page: pageNo,
           search: searchQuery,
@@ -1186,6 +1248,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           endDate: moment().format(dateFormat),
         });
         dispatch(changeSortOrder("descend"));
+      } else if (key === TAB_REFERRAL) {
+        dispatch(changeSortOrder("descend"));
+        setIsDigitisationTab(false);
+        setSelectedCalanderOptions(6);
+        setDate({
+          startDate: moment("2000-01-01").format(dateFormat),
+          endDate: moment().format(dateFormat),
+        });
       } else {
         dispatch(changeSortOrder("ascend"));
         setIsDigitisationTab(false);
@@ -1615,6 +1685,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         (item) => item.key !== "endvisit" && item.key !== "cancelappt"
       );
     } else if (selectedTab === TAB_CANCELLED) {
+      return items.filter(
+        (item) =>
+          item.key !== "endvisitreason" &&
+          item.key !== "endvisit" &&
+          item.key !== "cancelappt"
+      );
+    } else if (selectedTab === TAB_REFERRAL) {
       return items.filter(
         (item) =>
           item.key !== "endvisitreason" &&
@@ -2265,10 +2342,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     shouldUseVoiceRxPrintPayload = false,
     isAmbientVoiceRx = false,
   }) => {
-    const basePrintUrl =
-      caseManagerData?.print_url ||
-      caseManagerData?.print_rx_url ||
-      record?.print_rx_url;
+    // Full prescription print uses print_url; print_rx_url is medicines-only.
+    const basePrintUrl = caseManagerData?.print_url;
 
     if (!basePrintUrl) return null;
 
@@ -2306,21 +2381,33 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       throw new Error("Patient unique ID is missing.");
     }
 
-    const consultationsResponse = await ApiCaseManager.listConsultations({
-      patient_unique_id: patientUniqueId,
-      limit: 10,
-      page: 1,
-    });
-    const consultations = getConsultationsFromResponse(consultationsResponse);
-    const latestConsultation = consultations?.[0];
-    const latestTcmId = latestConsultation?.tcm_id;
-    if (!latestTcmId) {
-      throw new Error("Latest consultation not found.");
+    let tcmId = record?.tcm_id;
+    let latestConsultation = null;
+
+    if (!tcmId) {
+      const consultationsResponse = await ApiCaseManager.listConsultations({
+        patient_unique_id: patientUniqueId,
+        limit: 10,
+        page: 1,
+      });
+      const consultations = getConsultationsFromResponse(consultationsResponse);
+      latestConsultation = consultations?.[0];
+      tcmId = latestConsultation?.tcm_id;
+    } else {
+      latestConsultation = {
+        tcm_id: tcmId,
+        pam_id: record?.pam_id,
+        appointmentId: record?.appointmentId,
+      };
+    }
+
+    if (!tcmId) {
+      throw new Error("Consultation not found.");
     }
 
     const caseManagerResponse = await ApiCaseManager.viewCaseManager({
       patient_unique_id: patientUniqueId,
-      tcm_id: latestTcmId,
+      tcm_id: tcmId,
     });
     if (caseManagerResponse?.status === false) {
       throw new Error(caseManagerResponse?.error || "Failed to fetch prescription.");
@@ -2384,7 +2471,27 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           content: "Preparing PDF...",
           duration: 0,
         });
-        setHasFinishedPrintGenerationStarted(false);
+
+        // Fetch + flatten labs client-side so finished-tab print works with multi-doctor bucket API.
+        let labParamsData = [];
+        try {
+          const patientUniqueId =
+            record?.patient_unique_id ||
+            caseManagerData?.patient_data?.patient_unique_id;
+          const labParamsBaseUrl = env.lab_params_api_url;
+          if (patientUniqueId && labParamsBaseUrl) {
+            const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+            const cleanedToken = token ? token.replace(/['"]+/g, "") : "";
+            const labResponse = await axios.get(
+              `${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientUniqueId}?today=true`,
+              { headers: { Authorization: `Bearer ${cleanedToken}` } },
+            );
+            labParamsData = normalizeLabResultsResponse(labResponse);
+          }
+        } catch (labError) {
+          console.error("Error fetching lab params for finished print:", labError);
+        }
+
         setPendingFinishedPrint({
           printUrl,
           selectedLang: encodedData,
@@ -2392,6 +2499,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           record,
           caseManagerData,
           latestConsultation,
+          labParamsData,
         });
       } catch (error) {
         message.open({
@@ -2545,6 +2653,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   };
 
+  const isQueueOrReferralTab =
+    selectedTab === TAB_QUEUE || selectedTab === TAB_REFERRAL;
+
   const columns = [
     {
       title: "#",
@@ -2605,7 +2716,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       title:
         selectedTab != TAB_ZYDUS_ENCOUNTER &&
         selectedTab != TAB_ZYDUS_APPOINTMENT &&
-        selectedTab != TAB_FINISHED
+        selectedTab != TAB_FINISHED &&
+        selectedTab !== TAB_REFERRAL
+          ? "Contact"
+          : selectedTab === TAB_REFERRAL
           ? "Contact"
           : "Contact & Mrn",
       dataIndex: "pm_contact_no",
@@ -2630,17 +2744,72 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         </div>
       ),
     },
-    ...(isMunshiHospital() ? [{
-      title: "Referred By",
-      dataIndex: "dr_reference_name",
-      key: "dr_reference_name",
-      ellipsis: true,
-      render: (text, record) => (
-        <div>
-          <span>{record.dr_reference_name || "-"}</span>
-        </div>
-      ),
-    }] : []),
+    ...(selectedTab === TAB_REFERRAL
+      ? [
+          {
+            title: "Referred By",
+            dataIndex: "referredBy",
+            key: "referredBy",
+            ellipsis: true,
+            render: (text, record) => {
+              const crossConsult = getCrossConsultFromRecord(record);
+              return (
+                <span>
+                  {crossConsult?.referred_by ||
+                    record.referred_by ||
+                    record.referredBy ||
+                    record.dr_reference_name ||
+                    "-"}
+                </span>
+              );
+            },
+          },
+          {
+            title: "Referral Date",
+            dataIndex: "date_of_referral",
+            key: "date_of_referral",
+            ellipsis: true,
+            render: (text, record) => {
+              const crossConsult = getCrossConsultFromRecord(record);
+              const referralDate =
+                crossConsult?.date_of_referral ||
+                record.date_of_referral ||
+                record.referralDate;
+              return (
+                <span>
+                  {referralDate
+                    ? moment(referralDate).format("DD MMM YYYY")
+                    : "-"}
+                </span>
+              );
+            },
+          },
+          {
+            title: "Referral Notes",
+            dataIndex: "reason_for_cross_consult",
+            key: "reason_for_cross_consult",
+            width: 280,
+            render: (text, record) => renderReferralNotesCell(record),
+          },
+        ]
+      : []),
+    ...(isMunshiHospital() && selectedTab !== TAB_REFERRAL
+      ? [
+          {
+            title: "Referred By",
+            dataIndex: "dr_reference_name",
+            key: "dr_reference_name",
+            ellipsis: true,
+            render: (text, record) => (
+              <div>
+                <span>{record.dr_reference_name || "-"}</span>
+              </div>
+            ),
+          },
+        ]
+      : []),
+    ...(selectedTab !== TAB_REFERRAL
+      ? [
     {
       title: selectedTab !== TAB_ZYDUS_APPOINTMENT ? "Visit Type" : "Status",
       dataIndex:
@@ -2826,6 +2995,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         );
       },
     },
+      ]
+      : []),
     ...(!(isChikitsalayAccessable && selectedTab === TAB_CLINIC_APPOINTMENT) ? [{
       title: selectedTab != TAB_ZYDUS_APPOINTMENT ? "Action" : "",
       key: "action",
@@ -2871,7 +3042,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </>
                 )
               ) : (
-                (selectedTab === TAB_QUEUE || selectedTab === TAB_CLINIC_QUEUE ||
+                (isQueueOrReferralTab ||
+                  selectedTab === TAB_CLINIC_QUEUE ||
                   (selectedTab === TAB_ZYDUS_ENCOUNTER &&
                     !finishedData.some(
                       (x) => x.pam_ref_id == record.encounterId
@@ -2903,11 +3075,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                             : "btn-smart-rx"
                         }`}
                         onClick={() =>
-                          (selectedTab === TAB_QUEUE && isSmartSyncAccessableFromGB)
+                          (isQueueOrReferralTab && isSmartSyncAccessableFromGB)
                             ? onSmartRxClick(record)
-                            : (selectedTab === TAB_QUEUE && isSnapRxAccessable)
+                            : (isQueueOrReferralTab && isSnapRxAccessable)
                               ? handleSnapRxClick(record)
-                              : (selectedTab === TAB_QUEUE && (isFreeVoiceRxUser || tp_monetization_enable))
+                              : (isQueueOrReferralTab && (isFreeVoiceRxUser || tp_monetization_enable))
                                 ? (isVoiceRxPaid ? onVoiceRxClick(record) : onConsultClick(record))
                                 : onPrintRxUrlClick(record)
                         }
@@ -2940,7 +3112,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               //   </>
               // ) :
                (
-                (selectedTab === TAB_QUEUE ||
+                (isQueueOrReferralTab ||
+                  selectedTab === TAB_CLINIC_QUEUE ||
                   (selectedTab === TAB_ZYDUS_ENCOUNTER &&
                     !finishedData.some(
                       (x) => x.pam_ref_id == record.encounterId
@@ -2973,7 +3146,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                             : "btn-smart-rx"
                         }`}
                         onClick={() =>
-                          selectedTab === TAB_QUEUE
+                          isQueueOrReferralTab
                             ? (isSmartSyncAccessableFromGB
                                 ? onSmartRxClick(record)
                                 : isSnapRxAccessable
@@ -3007,7 +3180,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     <button
                       className="btn btn-outline-primary"
                       onClick={() =>
-                        selectedTab === TAB_QUEUE
+                        isQueueOrReferralTab
                           ? onConsultClick(record)
                           : selectedTab === TAB_ZYDUS_ENCOUNTER
                           ? onZydus_Consult_PatientDetails_Click(record, 1)
@@ -3101,6 +3274,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           ? "You haven't finished any consultations or ended the visit yet."
           : selectedTab === TAB_DRAFT_RX
           ? "You haven't saved any drafts yet."
+          : selectedTab === TAB_REFERRAL
+          ? "No referral patients found."
           : "Nothing here! You haven’t cancelled any appointments here."}
       </div>
     </div>
@@ -3689,7 +3864,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                 selectedTab != TAB_ZYDUS_APPOINTMENT ? (
                   <Input
                     value={searchQuery}
-                    placeholder="Search patient by name and mobile number"
+                    placeholder={
+                      selectedTab === TAB_REFERRAL
+                        ? "Search by patient name / ID / mobile number"
+                        : "Search patient by name and mobile number"
+                    }
                     className="inputheight38"
                     prefix={<i className="icon-search" />}
                     suffix={
@@ -3748,6 +3927,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           selectedTab !== TAB_QUEUE &&
                           selectedTab !== TAB_ZYDUS_ENCOUNTER &&
                           selectedTab !== TAB_ZYDUS_APPOINTMENT &&
+                          selectedTab !== TAB_REFERRAL &&
                           disabledDate
                         }
                         defaultValue={dayjs(
@@ -3779,13 +3959,17 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       <Select
                         placeholder="Select Period"
                         className="ms-3 appointmentselect"
-                        value={isDigitisationTab ? 6 : selectedCalanderOptions}
+                        value={
+                          isDigitisationTab || selectedTab === TAB_REFERRAL
+                            ? 6
+                            : selectedCalanderOptions
+                        }
                         options={
                           selectedTab === TAB_QUEUE
                             ? calanderOptions.filter((e) =>
                                 [1, 2, 3].includes(e.value)
                               )
-                            : isDigitisationTab
+                            : isDigitisationTab || selectedTab === TAB_REFERRAL
                             ? calanderOptions.filter((e) => e.value === 6)
                             : calanderOptions.filter((e) =>
                                 [1, 4, 5].includes(e.value)

@@ -43,6 +43,8 @@
   min-height: 0;
   flex: 0 0 auto;
   overflow: visible;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   position: relative;
   z-index: 2;
 }
@@ -52,7 +54,11 @@
   width: 80px;
   height: 100%;
   flex: 0 0 80px;
+  min-width: 80px;
+  max-width: 80px;
   overflow: visible;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   background-color: #161558;
   background-image:
     url("data:image/svg+xml;utf8,<svg viewBox='0 0 80 1133' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23snvgrad)' opacity='1'/><defs><radialGradient id='snvgrad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(64.518 65.21 -19.503 89.302 -155.96 413.08)'><stop stop-color='rgba(22,21,88,1)' offset='0'/><stop stop-color='rgba(35,34,119,1)' offset='0.25'/><stop stop-color='rgba(49,48,151,1)' offset='0.5'/><stop stop-color='rgba(75,74,213,1)' offset='1'/></radialGradient></defs></svg>");
@@ -62,13 +68,17 @@
 
 .snv-rail-scroll {
   width: 80px;
+  min-width: 80px;
+  max-width: 80px;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  overflow-x: visible;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -777,6 +787,8 @@
   padding: 14px 12px 18px;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   background: #ffffff;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -1152,6 +1164,10 @@
 .snv-bullet-label {
   color: var(--tp-slate-700) !important;
   font-weight: 400;
+}
+
+.snv-bullet-label-pre-line {
+  white-space: pre-line;
 }
 
 .snv-bullet-detail {

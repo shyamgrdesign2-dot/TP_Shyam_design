@@ -90,6 +90,185 @@ function firstMedicalHistoryTextValue(...values) {
   return '';
 }
 
+const OTHER_HISTORY_EXCLUDED_KEYS = new Set([
+  'type',
+  'enable',
+  'pms_default',
+  'tmmhs_id',
+  'tmmhst_id',
+  'section',
+  'section_name',
+  'title',
+  'tags',
+  'no_know_history',
+  'medical_history_remarks',
+  'id',
+  '_id',
+  'uuid',
+  'unique_id',
+  'created_at',
+  'updated_at',
+  'createdAt',
+  'updatedAt'
+]);
+
+const OTHER_HISTORY_FIELD_LABELS = {
+  notes: 'Notes',
+  note: 'Notes',
+  duration: 'Duration',
+  since: 'Duration',
+  relation: 'Relation',
+  relationship: 'Relation',
+  medication: 'Medication',
+  status: 'Status',
+  date: 'Date',
+  dateType: 'Date Type',
+  lineItem: 'Details',
+  line_item: 'Details',
+  name: 'Name'
+};
+
+function isEmptyMedicalHistoryValue(value) {
+  if (value === undefined || value === null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+}
+
+function stringifyMedicalHistoryValue(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => stringifyMedicalHistoryValue(entry))
+      .filter(Boolean)
+      .join(', ');
+  }
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .filter(([, entryValue]) => !isEmptyMedicalHistoryValue(entryValue))
+      .map(([entryKey, entryValue]) => `${formatOtherHistoryFieldLabel(entryKey)}: ${stringifyMedicalHistoryValue(entryValue)}`)
+      .join(', ');
+  }
+  return String(value ?? '').trim();
+}
+
+function formatOtherHistoryFieldLabel(key) {
+  if (OTHER_HISTORY_FIELD_LABELS[key]) return OTHER_HISTORY_FIELD_LABELS[key];
+  return String(key || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function isPastMedicationUseHeading(value) {
+  return String(value || '')
+    .replace(/\*/g, '')
+    .trim()
+    .toLowerCase() === 'past medication use';
+}
+
+export function formatOtherMedicalHistoryLineItem(item = {}) {
+  if (!item || typeof item !== 'object') return '';
+
+  const heading = firstMedicalHistoryTextValue(item.name, item.title);
+  const noteValue = firstMedicalHistoryTextValue(item.notes, item.note);
+  const parts = [];
+
+  if (heading && noteValue && !isPastMedicationUseHeading(heading)) {
+    parts.push(`${heading}: ${noteValue}`);
+  } else if (heading) {
+    if (noteValue) {
+      parts.push(noteValue);
+    } else if (!isPastMedicationUseHeading(heading)) {
+      parts.push(heading);
+    }
+  } else if (noteValue) {
+    parts.push(noteValue);
+  }
+
+  const handledKeys = new Set(['name', 'title', 'notes', 'note']);
+  if (heading && !noteValue && item.lineItem && String(item.lineItem).trim() !== heading) {
+    parts.push(`Details: ${String(item.lineItem).trim()}`);
+    handledKeys.add('lineItem');
+  }
+
+  Object.entries(item).forEach(([key, value]) => {
+    if (handledKeys.has(key) || OTHER_HISTORY_EXCLUDED_KEYS.has(key) || isEmptyMedicalHistoryValue(value)) return;
+    const text = stringifyMedicalHistoryValue(value);
+    if (!text || text.toLowerCase() === 'others') return;
+    parts.push(`${formatOtherHistoryFieldLabel(key)}: ${text}`);
+  });
+
+  return parts.join(', ').replace(/^others[, ]+/i, '').trim();
+}
+
+function mergeMedicalHistoryRemarks(existingRemarks, incomingRemarks) {
+  const lines = [];
+  const seen = new Set();
+  const searchParts = [];
+  const normalizeForSearch = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[.,;:!?]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const splitRemarkChunks = (value) => String(value || '')
+    .split('\n')
+    .flatMap((line) => {
+      const text = line.trim();
+      if (!text) return [];
+      return text.match(/[^.!?]+[.!?]?/g) || [text];
+    })
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const addExistingLine = (line) => {
+    const text = String(line ?? '').trim();
+    const normalized = normalizeForSearch(text);
+    if (!text || seen.has(normalized)) return;
+    seen.add(normalized);
+    searchParts.push(normalized);
+    lines.push(text);
+  };
+  const addIncomingChunk = (chunk) => {
+    const text = String(chunk ?? '').trim();
+    const normalized = normalizeForSearch(text);
+    if (!text || !normalized || seen.has(normalized)) return;
+    const existingSearch = searchParts.join(' ');
+    if (normalized.length >= 3 && existingSearch.includes(normalized)) return;
+    seen.add(normalized);
+    searchParts.push(normalized);
+    lines.push(text);
+  };
+
+  String(existingRemarks || '')
+    .split('\n')
+    .forEach(addExistingLine);
+  splitRemarkChunks(incomingRemarks)
+    .forEach(addIncomingChunk);
+
+  return lines.join('\n');
+}
+
+function mergeMedicalHistoryTagText(existingText, incomingText) {
+  const existing = String(existingText ?? '').trim();
+  const incoming = String(incomingText ?? '').trim();
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+
+  const normalize = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
+  const normalizedIncoming = normalize(incoming);
+  if (!normalizedIncoming || normalize(existing).includes(normalizedIncoming)) {
+    return existing;
+  }
+
+  return `${existing}, ${incoming}`;
+}
+
 function normalizeAgentMedicalHistoryTag(row = {}) {
   let title = firstMedicalHistoryTextValue(row.title, row.name, row.lineItem);
   if (!title) return null;
@@ -147,6 +326,21 @@ export function convertAgentMedicalHistoryRowsToSections(rows = []) {
           section_name: sectionName,
           no_know_history: Boolean(row.no_know_history),
           tags
+        });
+      }
+      return;
+    }
+
+    if (normalizeMedicalHistoryTypeKey(row.type) === 'others') {
+      const remarks = formatOtherMedicalHistoryLineItem(row);
+      if (remarks) {
+        normalizedSections.push({
+          tmmhs_id: 1,
+          title: 'Lifestyle',
+          section_name: 'Lifestyle',
+          no_know_history: false,
+          medical_history_remarks: remarks,
+          tags: []
         });
       }
       return;
@@ -251,9 +445,11 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
   apiMedicalHistory.forEach((item) => {
     const type = item.type || 'Lifestyle';
     const normalizedType = normalizeMedicalHistoryTypeKey(type);
-    if (normalizedType === 'others' || type === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
+    if (normalizedType === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
       let noteText = '';
-      if (item.lineItem && item.lineItem.trim()) {
+      if (normalizedType === 'others') {
+        noteText = formatOtherMedicalHistoryLineItem(item);
+      } else if (item.lineItem && item.lineItem.trim()) {
         noteText = item.lineItem.trim();
       } else if (item.notes && item.notes.trim()) {
         const namePart = item.name ? `${item.name}` : '';
@@ -315,8 +511,8 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
       const incomingDuration = item.duration || item.since;
       const incomingStatus = item.status || statusFromMedicalHistoryEnable(item.enable);
       const incomingRelationship = item.relation || item.relationship;
-      if (incomingNote && !existingTag.note) {
-        existingTag.note = incomingNote;
+      if (incomingNote) {
+        existingTag.note = mergeMedicalHistoryTagText(existingTag.note || existingTag.notes, incomingNote);
       }
       if (incomingDuration && !existingTag.since) {
         existingTag.since = incomingDuration;
@@ -376,8 +572,18 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
     ? filteredAdditionalNotes.join('\n') 
     : null;
 
-  if (medicalHistoryDataArray.length > 0 && medicalHistoryRemarks) {
-    medicalHistoryDataArray[0].medical_history_remarks = medicalHistoryRemarks;
+  if (medicalHistoryRemarks) {
+    if (medicalHistoryDataArray.length > 0) {
+      medicalHistoryDataArray[0].medical_history_remarks = medicalHistoryRemarks;
+    } else if (!existingContextData || existingContextData.length === 0) {
+      medicalHistoryDataArray.push({
+        tmmhs_id: 1,
+        section_name: 'Lifestyle',
+        title: 'Lifestyle',
+        tags: [],
+        medical_history_remarks: medicalHistoryRemarks
+      });
+    }
   }
 
   if (existingContextData && existingContextData.length > 0) {
@@ -410,8 +616,11 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
               } else if (newTag.enable !== existingTag.enable) {
                 updatedTags[existingIndex].enable = newTag.enable;
               }
-              if (newTag.note && !updatedTags[existingIndex].note) {
-                updatedTags[existingIndex].note = newTag.note;
+              if (newTag.note) {
+                updatedTags[existingIndex].note = mergeMedicalHistoryTagText(
+                  updatedTags[existingIndex].note || updatedTags[existingIndex].notes,
+                  newTag.note
+                );
               }
               // Surgical History (tmmhs_id 5) uses 'date' instead of 'since'
               // Update date/dateType if Rx pad has explicit values (preserve existing if Rx pad doesn't have them)
@@ -459,7 +668,10 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
 
     if (merged.length > 0) {
       if (medicalHistoryRemarks) {
-        merged[0].medical_history_remarks = medicalHistoryRemarks;
+        merged[0].medical_history_remarks = mergeMedicalHistoryRemarks(
+          existingContextData[0]?.medical_history_remarks,
+          medicalHistoryRemarks
+        );
       } else if (existingContextData[0]?.medical_history_remarks) {
         merged[0].medical_history_remarks = existingContextData[0].medical_history_remarks;
       }

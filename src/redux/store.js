@@ -46,6 +46,7 @@ import dentalPlanSlice from "./dentalPlanSlice";
 import dentalQvrSlice from "./dentalQvrSlice";
 import dentalBillingSlice from "./dentalBillingSlice";
 import dentalTemplateSlice from "./dentalTemplateSlice";
+import dentalPlanTemplateSlice from "./dentalPlanTemplateSlice";
 import oralTemplateSlice from "./oralTemplateSlice";
 import oralExaminationSlice from "./oralExaminationSlice";
 import voiceDigitizationReducer from "./voiceDigitizationSlice";
@@ -101,6 +102,7 @@ const rootReducer = combineReducers({
   dentalQvr: dentalQvrSlice,
   dentalBilling: dentalBillingSlice,
   dentalTemplate: dentalTemplateSlice,
+  dentalPlanTemplate: dentalPlanTemplateSlice,
   oralTemplate: oralTemplateSlice,
   oralExamination: oralExaminationSlice,
   voiceDigitization: voiceDigitizationReducer,
@@ -119,5 +121,9 @@ const store = configureStore({
 });
 
 const persistor = persistStore(store);
+
+if (process.env.NODE_ENV !== "production") {
+  window.__REDUX_STORE__ = store;
+}
 
 export { store, persistor };

@@ -153,13 +153,13 @@ function Header({ locationPath }) {
   useEffect(() => {
     if (!isReceptionist) {
       dispatch(getProfile());
-      dispatch(customizedPad(CUSTOMIZED_PAD_SENDDATA));
-      // dispatch(customizedPad(CUSTOMIZED_PAD_SENDDATA)).then(() => {
-      //   const userId = decodedToken?.result?.user_id;
-      //   if (userId) {
-      //     dispatch(verifyAndAddDentalModule(userId, isDentalEnabled));
-      //   }
-      // });
+      // dispatch(customizedPad(CUSTOMIZED_PAD_SENDDATA));
+      dispatch(customizedPad(CUSTOMIZED_PAD_SENDDATA)).then(() => {
+        const userId = decodedToken?.result?.user_id;
+        if (userId) {
+          dispatch(verifyAndAddDentalModule(userId, isDentalEnabled));
+        }
+      });
       dispatch(showMedicineTime());
       dispatch(showMedicineFrequency());
       dispatch(getMedicineType());

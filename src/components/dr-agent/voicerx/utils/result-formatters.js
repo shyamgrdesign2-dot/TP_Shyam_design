@@ -1,3 +1,5 @@
+import { getGynecClinicalNoteItems } from '../../../../utils/gynecHistoryUtils';
+
 function humanize(key) {
 	return key
 		.replace(/_/g, ' ')
@@ -47,6 +49,20 @@ function asArray(value) {
 
 function field(data, camelKey, snakeKey) {
 	return data?.[camelKey] ?? data?.[snakeKey];
+}
+
+function hasSectionValue(value) {
+	if (Array.isArray(value)) return value.length > 0;
+	if (value && typeof value === 'object') return Object.keys(value).length > 0;
+	return Boolean(cleanValue(value));
+}
+
+function firstSectionValue(data, keys) {
+	for (const key of keys) {
+		const value = data?.[key];
+		if (hasSectionValue(value)) return value;
+	}
+	return undefined;
 }
 
 function kvSectionItems(obj, keyOrder) {
@@ -151,14 +167,33 @@ export function digitizationToSections(data) {
 	});
 	if (items6.length) sections.push({ id: 'medical-history', title: 'Medical History', tpIconName: 'medicalHistory', items: items6 });
 
+	const gynecItems = getGynecClinicalNoteItems(data.gynaec_history);
+	if (gynecItems.length) {
+		sections.push({
+			id: 'gynaec-history',
+			title: 'Gynec History',
+			tpIconName: 'gynec',
+			items: gynecItems,
+		});
+	}
+
+	const surgeries = firstSectionValue(data, ['surgeries', 'surgery', 'procedures']);
+	const items7 = arraySectionItems(surgeries, (s) => {
+		if (typeof s === 'string') return sectionItem(s);
+		const name = displayNameForEntry(s, ['name', 'surgery_name', 'procedure_name', 'lineItem']);
+		const detail = detailFrom([s.notes, s.note]);
+		return sectionItem(name, detail);
+	});
+	if (items7.length) sections.push({ id: 'surgeries', title: 'Surgeries/Procedures', tpIconName: 'lab', items: items7 });
+
 	const labInvestigation = field(data, 'labInvestigation', 'lab_investigation');
-	const items7 = arraySectionItems(labInvestigation, (l) => {
+	const items8 = arraySectionItems(labInvestigation, (l) => {
 		if (typeof l === 'string') return sectionItem(l);
 		const name = displayNameForEntry(l, ['name', 'investigation_name', 'testname', 'testName', 'lineItem']);
 		const detail = detailFrom([l.instruction, l.notes, l.note]);
 		return sectionItem(name, detail);
 	});
-	if (items7.length) sections.push({ id: 'lab-investigation', title: 'Lab Investigation', tpIconName: 'lab', items: items7 });
+	if (items8.length) sections.push({ id: 'lab-investigation', title: 'Lab Investigation', tpIconName: 'lab', items: items8 });
 
 	const advice = asArray(data.advice).filter((a) => a != null && String(a).trim());
 	if (advice.length) {

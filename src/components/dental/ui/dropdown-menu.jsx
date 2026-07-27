@@ -26,7 +26,7 @@ function DropdownMenuContent({ className, sideOffset = 4, ...props }) {
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
-        className={cx(styles.content, className)}
+        className={cx("treatment-plan", styles.content, className)}
         {...props} />
 
     </DropdownMenuPrimitive.Portal>);

@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../
 import { AgentActionButton } from "../../../../atoms/AgentActionButton";
 import { DocumentText } from "iconsax-reactjs";
 import { pickVitalsRowForLabel } from "../../../../../../utils/vitalsHelpers";
+import { getGynecClinicalNoteItems } from "../../../../../../utils/gynecHistoryUtils";
 import { buildClinicalNotesCopyMeta } from "../../../../utils/copyTracking";
 import styles from "./VoiceStructuredRxCard.module.scss";
 
@@ -20,6 +21,16 @@ function formatVoiceItem(item) {
 
 function field(data, camelKey, snakeKey) {
   return data?.[camelKey] ?? data?.[snakeKey];
+}
+
+function hasRows(value) {
+  if (Array.isArray(value)) return value.length > 0;
+  if (value && typeof value === "object") return Object.keys(value).length > 0;
+  return value != null && String(value).trim() !== "";
+}
+
+function firstRows(...values) {
+  return values.find(hasRows) ?? null;
 }
 
 function sectionDigitizationKey(sectionId) {
@@ -43,6 +54,19 @@ function sectionDigitizationKey(sectionId) {
     case "medical_history":
     case "medical-history":
       return "medical_history";
+    case "gynec":
+    case "gynaec":
+    case "gynecHistory":
+    case "gynec_history":
+    case "gynaec_history":
+    case "gynaec-history":
+      return "gynaec_history";
+    case "surgery":
+    case "surgeries":
+    case "procedure":
+    case "procedures":
+    case "surgeries-procedures":
+      return "surgery";
     case "investigation":
     case "investigations":
     case "lab":
@@ -62,6 +86,10 @@ function sectionDigitizationKey(sectionId) {
 
 function isMedicalHistorySection(sectionId) {
   return ["medicalHistory", "medical_history", "medical-history"].includes(sectionId);
+}
+
+function isGynecHistorySection(sectionId) {
+  return ["gynec", "gynaec", "gynecHistory", "gynec_history", "gynaec_history", "gynaec-history"].includes(sectionId);
 }
 
 function isVitalsSection(sectionId) {
@@ -90,6 +118,13 @@ function getSectionDigitizationRows(digitization, sectionId) {
   if (key === "medical_history") {
     return field(digitization, "medicalHistory", "medical_history") ?? null;
   }
+  if (key === "gynaec_history") {
+    const rows = getGynecClinicalNoteItems(digitization.gynaec_history).map((item) => item.payload).filter(Boolean);
+    return rows.length ? rows : null;
+  }
+  if (key === "surgery") {
+    return firstRows(digitization.surgeries, digitization.surgery, digitization.procedures);
+  }
   return digitization[key] ?? null;
 }
 
@@ -101,6 +136,8 @@ function buildSectionPayload(sectionId, items, rawRows, options = {}) {
   const digitizationKey = sectionDigitizationKey(sectionId);
   const sideNavSignal = isMedicalHistorySection(sectionId)
     ? { sideNavSignalTarget: "history", sideNavSignalMode: "focused" }
+    : isGynecHistorySection(sectionId)
+      ? { sideNavSignalTarget: "gynec", sideNavSignalMode: "focused" }
     : isVitalsSection(sectionId)
       ? { sideNavSignalTarget: "vitals", sideNavSignalMode: "focused" }
       : {};
@@ -113,7 +150,9 @@ function buildSectionPayload(sectionId, items, rawRows, options = {}) {
         ? { vitalsCopyMode: options.vitalsCopyMode }
         : {}),
       digitization: {
-        [digitizationKey]: digitizationKey === "vitals_and_body_composition" ? rawRows[0] : rawRows,
+        [digitizationKey]: digitizationKey === "vitals_and_body_composition" || digitizationKey === "gynaec_history"
+          ? Object.assign({}, ...rawRows)
+          : rawRows,
       },
     };
   }
@@ -140,6 +179,12 @@ function buildSectionPayload(sectionId, items, rawRows, options = {}) {
     case "labInvestigations":
     case "lab-investigation":
       return { ...base, labInvestigations: labels };
+    case "surgery":
+    case "surgeries":
+    case "procedure":
+    case "procedures":
+    case "surgeries-procedures":
+      return { ...base, surgeries: labels };
     case "followUp":
     case "follow_up":
     case "follow-up":
@@ -155,6 +200,19 @@ function buildSectionPayload(sectionId, items, rawRows, options = {}) {
           name: label,
           lineItem: label,
         })),
+      };
+    case "gynec":
+    case "gynaec":
+    case "gynecHistory":
+    case "gynec_history":
+    case "gynaec_history":
+    case "gynaec-history":
+      return {
+        ...base,
+        ...sideNavSignal,
+        digitization: {
+          gynaec_history: Object.assign({}, ...items.map((item) => item.payload).filter(Boolean)),
+        },
       };
     case "history":
     case "historyChangeSummaries":

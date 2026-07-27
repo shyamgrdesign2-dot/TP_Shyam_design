@@ -47,6 +47,12 @@ import {
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
+
 const {
   alerticon: alertIcon,
   symptoms: Symptomsicon,
@@ -131,11 +137,70 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
   const [showShimmer, setShowShimmer] = useState(false);
-  const applyVoiceSymptoms = useCallback((nextSymptoms) => {
+
+  const createCustomSymptomRow = useCallback((symptomName) => ({
+    unique_id: uuidv4(),
+    change: 1,
+    pms_default: 0,
+    symptom_name: symptomName,
+  }), []);
+
+  const createCommittedSymptomRow = useCallback((symptomRow, symptomName) => ({
+    ...symptomRow,
+    symptom_name: symptomName,
+    since: "",
+    severity: "",
+    note: "",
+  }), []);
+
+  const onEmptyLineSymptomCommit = useCallback((symptomName) => {
+    window.Moengage?.track_event("symptom_select", {
+      value: symptomName,
+    });
+    dispatch(setIsDDxReadyToGenerate(true));
+  }, [dispatch]);
+
+  const onEmptyLineSymptomRemove = useCallback((nextSymptoms) => {
     if (nextSymptoms.length > 0) {
-      setSymptomsData(nextSymptoms);
+      dispatch(setIsDDxReadyToGenerate(true));
+    } else if ((Array.isArray(examinationData) ? examinationData : []).length === 0) {
+      dispatch(setIsDDxReadyToGenerate(false));
     }
-  }, [setSymptomsData]);
+  }, [dispatch, examinationData]);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: symptomsData,
+    setRows: setSymptomsData,
+    showVoiceRxModule,
+    nameField: "symptom_name",
+    rowKeyPrefix: "symptom",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomSymptomRow,
+    createCommittedRow: createCommittedSymptomRow,
+    onAfterCommit: onEmptyLineSymptomCommit,
+    onAfterRemove: onEmptyLineSymptomRemove,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetDraft: resetEmptyLineDraft,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
+
+  const applyVoiceSymptoms = useCallback((nextSymptoms) => {
+    if (Array.isArray(nextSymptoms) && nextSymptoms.length > 0) {
+      setSymptomsData(nextSymptoms);
+      resetEmptyLineDraft();
+    }
+  }, [resetEmptyLineDraft, setSymptomsData]);
 
   const symptomsVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(symptomsData, "symptoms"),
@@ -235,7 +300,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, searchParentQuery]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -442,6 +507,10 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     symptomsData.splice(index, 1);
     setSymptomsData((prev) => [...prev]);
     if (symptomsData?.length > 0) {
@@ -702,112 +771,196 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   };
 
   const TABLE_SYMPTOMS = useMemo(() => {
+    const symptomRows = Array.isArray(symptomsData) ? symptomsData : [];
+
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="symptoms" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef} className="mt-2">
-              {symptomsData.length > 0 &&
-                symptomsData.map((item, index) => (
-                  <Draggable key={index} draggableId={`symptom-${index}`} index={index}>
-                    {(provided) => (
-                      <Row
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        key={index}
-                        gutter={0}
-                        className="symptoms-table-row"
-                      >
-                        <Col lg={1} md={1} sm={1} xs={1} className="symptoms-table-cell center">
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: "grab" }}
-                          />
-                        </Col>
-                        <Col lg={6} md={6} sm={6} xs={6} className="symptoms-table-cell">
-                          <AutoComplete
-                            defaultValue={item.symptom_name}
-                            value={item.symptom_name}
-                            placeholder="Symptom Name"
-                            bordered={false}
-                            defaultOpen={false}
-                            disabled={item?.pms_default ? true : false}
-                            onSearch={(query) => onSearchChild(query, index)}
-                            onFocus={() => onFocusChid(index)}
-                            options={childSearchOptions}
-                            className="autocomplete-custom w-100"
-                            {...getPrescriptionNewPopupProps()}
-                            defaultActiveFirstOption={true}
-                            onSelect={(data, e) => onSelectChild(data, e, index)}
-                          />
-                        </Col>
-                        <Col lg={3} md={3} sm={3} xs={3} className="border-end">
-                          <AutoComplete
-                            defaultValue={item.since}
-                            value={item.since}
-                            placeholder={isChikitsalayAccessable ? <div><span style={{ opacity: 0.6}}>Since</span> <span className="text-danger">*</span></div> : "Since"}
-                            bordered={false}
-                            defaultOpen={false}
-                            onSearch={(query) => onSearchSinceChid(query, index)}
-                            onBlur={() => onBlurSinceChid(index)}
-                            options={sinceOptions}
-                            className="autocomplete-custom w-100"
-                            {...getPrescriptionNewPopupProps()}
-                            defaultActiveFirstOption={true}
-                            onSelect={(data) => onSelectSinceChild(data, index)}
-                          />
-                        </Col>
-                        <Col lg={3} md={3} sm={3} xs={3} className="border-end">
-                          <Select
-                            className="autocomplete-custom w-100 symptoms-select-box"
-                            placeholder="Severity"
-                            defaultValue={item.severity !== "" ? item.severity : null}
-                            value={item.severity !== "" ? item.severity : null}
-                            onSelect={(data) => onSelectSeverityChild(data, index)}
-                            options={SEVERITY_LIST}
-                            {...getPrescriptionNewPopupProps()}
-                            onClear={() => onSelectSeverityChild("", index)}
-                            allowClear
-                          />
-                        </Col>
-                        <Col lg={10} md={10} sm={9} xs={9} className="border-end">
-                          <Input
-                            className="notesinput border-0"
-                            placeholder="Notes"
-                            defaultValue={item.note}
-                            value={item.note}
-                            onChange={(e) => onChangeNoteChild(e, index)}
-                            autoSize={{
-                              minRows: 1,
-                              maxRows: 3,
-                            }}
-                            style={{
-                              border: "none",
-                              boxShadow: "none",
-                              padding: "11px 12px",
-                            }}
-                          />
-                        </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="symptoms-table-cell center">
-                          <Button
-                            className="btn py-0 btn-delete-prescription px-0"
-                            onClick={() => onRemoveRow(index)}
-                          >
-                            {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
-                          </Button>
-                        </Col>
-                      </Row>
-                    )}
-                  </Draggable>
-                ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+      <div className={isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsTableScrollWrap : undefined}>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="symptoms" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={["mt-2", isNewEmptyLineUiEnabled ? "prescription-empty-line-ui" : "", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsTableBody : ""].filter(Boolean).join(" ")}
+              >
+                {symptomRows.map((item, index) => {
+                  const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(item, index) : `symptoms-${index}`;
+
+                  return (
+                    <Draggable key={rowKey} draggableId={rowKey} index={index}>
+                      {(provided) => (
+                        <Row
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          key={rowKey}
+                          gutter={0}
+                          className={[
+                            "symptoms-table-row",
+                            emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                            isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsTableRow : ""
+                          ].filter(Boolean).join(" ")}
+                        >
+                          <Col lg={1} md={1} sm={1} xs={1} className={["symptoms-table-cell center", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsDragCell : ""].filter(Boolean).join(" ")}>
+                            {isNewEmptyLineUiEnabled ? (
+                              <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                            ) : (
+                              <MenuOutlined
+                                {...provided.dragHandleProps}
+                                className="drag-handle"
+                              />
+                            )}
+                          </Col>
+                          <Col lg={6} md={6} sm={6} xs={6} className={["symptoms-table-cell", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsNameCell : ""].filter(Boolean).join(" ")}>
+                            <AutoComplete
+                              defaultValue={item.symptom_name}
+                              value={item.symptom_name}
+                              placeholder="Symptom Name"
+                              bordered={false}
+                              defaultOpen={false}
+                              disabled={item?.pms_default ? true : false}
+                              onSearch={(query) => onSearchChild(query, index)}
+                              onFocus={() => onFocusChid(index)}
+                              options={childSearchOptions}
+                              className="autocomplete-custom w-100"
+                              {...getPrescriptionNewPopupProps()}
+                              defaultActiveFirstOption={true}
+                              onSelect={(data, e) => onSelectChild(data, e, index)}
+                            />
+                          </Col>
+                          <Col lg={3} md={3} sm={3} xs={3} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
+                            <AutoComplete
+                              defaultValue={item.since}
+                              value={item.since}
+                              placeholder={isChikitsalayAccessable ? <div><span style={{ opacity: 0.6}}>Since</span> <span className="text-danger">*</span></div> : "Since"}
+                              bordered={false}
+                              defaultOpen={false}
+                              onSearch={(query) => onSearchSinceChid(query, index)}
+                              onBlur={() => onBlurSinceChid(index)}
+                              options={sinceOptions}
+                              className="autocomplete-custom w-100"
+                              {...getPrescriptionNewPopupProps()}
+                              defaultActiveFirstOption={true}
+                              onSelect={(data) => onSelectSinceChild(data, index)}
+                            />
+                          </Col>
+                          <Col lg={3} md={3} sm={3} xs={3} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
+                            <Select
+                              className="autocomplete-custom w-100 symptoms-select-box"
+                              placeholder="Severity"
+                              defaultValue={item.severity !== "" ? item.severity : null}
+                              value={item.severity !== "" ? item.severity : null}
+                              onSelect={(data) => onSelectSeverityChild(data, index)}
+                              options={SEVERITY_LIST}
+                              {...getPrescriptionNewPopupProps()}
+                              onClear={() => onSelectSeverityChild("", index)}
+                              allowClear
+                            />
+                          </Col>
+                          <Col lg={10} md={10} sm={9} xs={9} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsNotesCell : ""].filter(Boolean).join(" ")}>
+                            <Input
+                              className="notesinput border-0"
+                              placeholder="Notes"
+                              defaultValue={item.note}
+                              value={item.note}
+                              onChange={(e) => onChangeNoteChild(e, index)}
+                              autoSize={{
+                                minRows: 1,
+                                maxRows: 3,
+                              }}
+                              style={{
+                                border: "none",
+                                boxShadow: "none",
+                                padding: "11px 12px",
+                              }}
+                            />
+                          </Col>
+                          <Col lg={1} md={1} sm={2} xs={2} className={["symptoms-table-cell center", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsActionCell : ""].filter(Boolean).join(" ")}>
+                            <Button
+                              className="btn py-0 btn-delete-prescription px-0"
+                              onClick={() => onRemoveRow(index)}
+                            >
+                              {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                            </Button>
+                          </Col>
+                        </Row>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
+                {isNewEmptyLineUiEnabled && (
+                  <Row
+                    gutter={0}
+                    className={[
+                      "symptoms-table-row",
+                      "prescription-empty-line-row--animated",
+                      "prescription-empty-line-row--draft",
+                      isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsTableRow : ""
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <Col lg={1} md={1} sm={1} xs={1} className={["symptoms-table-cell center", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsDragCell : ""].filter(Boolean).join(" ")} />
+                    <Col lg={6} md={6} sm={6} xs={6} className={["symptoms-table-cell prescription-empty-line-cell--draft-active", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsNameCell : ""].filter(Boolean).join(" ")}>
+                      <PrescriptionEmptyLineDraftSearch
+                        inputRef={emptyLineDraftInputRef}
+                        value={emptyLineDraftName}
+                        options={parentSearchOptions}
+                        popupProps={getPrescriptionNewPopupProps()}
+                        onSearch={onEmptyLineDraftSearch}
+                        onSelect={onEmptyLineDraftSelect}
+                        onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                      />
+                    </Col>
+                    <Col lg={3} md={3} sm={3} xs={3} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
+                      <AutoComplete
+                        value=""
+                        placeholder={isChikitsalayAccessable ? <div><span className="prescription-empty-line-draft-placeholder">Since</span> <span className="text-danger">*</span></div> : "Since"}
+                        bordered={false}
+                        defaultOpen={false}
+                        disabled
+                        className="autocomplete-custom w-100 prescription-empty-line-draft-disabled-control"
+                      />
+                    </Col>
+                    <Col lg={3} md={3} sm={3} xs={3} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
+                      <Select
+                        className="autocomplete-custom w-100 symptoms-select-box prescription-empty-line-draft-disabled-control"
+                        placeholder="Severity"
+                        value={null}
+                        options={SEVERITY_LIST}
+                        disabled
+                      />
+                    </Col>
+                    <Col lg={10} md={10} sm={9} xs={9} className={["border-end", isVoiceRxModuleEnabled ? voiceModuleStyles.symptomsNotesCell : ""].filter(Boolean).join(" ")}>
+                      <Input
+                        className="notesinput border-0 prescription-empty-line-draft-disabled-control"
+                        placeholder="Notes"
+                        value=""
+                        disabled
+                      />
+                    </Col>
+                    <Col lg={1} md={1} sm={2} xs={2} className={["symptoms-table-cell center", isVoiceRxModuleEnabled ? "prescription-empty-line-draft-action-cell" : ""].filter(Boolean).join(" ")} />
+                  </Row>
+                )}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [symptomsData, childSearchOptions]);
+  }, [
+    symptomsData,
+    childSearchOptions,
+    isVoiceRxModuleEnabled,
+    isNewEmptyLineUiEnabled,
+    emptyLineDraftInputRef,
+    emptyLineDraftName,
+    emptyLineRemovingRowKeys,
+    getEmptyLineRowKey,
+    onEmptyLineDraftInputKeyDown,
+    onEmptyLineDraftSearch,
+    onEmptyLineDraftSelect,
+    parentSearchOptions,
+    isChikitsalayAccessable,
+  ]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -970,6 +1123,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setSymptomsData([])
     showHideClearData()
   };
@@ -1126,15 +1280,17 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
             />
           </div>
         )} */}
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+          <div className={voiceModuleStyles.moduleSlot}>
             <VoiceRxModuleCapture
               moduleName="Symptoms"
               previousContext={symptomsVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.symptoms}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : (
+          </div>
+        ) : !isNewEmptyLineUiEnabled ? (
+          <div className="p-14">
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1149,8 +1305,8 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          )}
-        </div>
+          </div>
+        ) : null}
         </>
         )}
       </div>

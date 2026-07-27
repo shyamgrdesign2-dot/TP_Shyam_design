@@ -1,6 +1,6 @@
 {
   "name": "react-thyrocare",
-  "version": "4.7.2",
+  "version": "4.7.4",
   "apiCompatibilityVersion": 1.1,
   "private": true,
   "homepage": "/",
@@ -31,9 +31,8 @@
     "@sentry/cli": "^2.53.0",
     "@sentry/react": "^10.9.0",
     "@tanstack/react-virtual": "^3.13.24",
-    "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
+    "ajv": "^8.20.0",
+    "ajv-keywords": "^5.1.0",
     "antd": "^5.16.4",
     "axios": "^1.6.0",
     "bootstrap": "^5.3.2",
@@ -41,7 +40,6 @@
     "chart.js": "^4.4.3",
     "crypto-js": "^4.1.1",
     "dayjs": "^1.11.10",
-    "env-cmd": "^10.1.0",
     "file-saver": "^2.0.5",
     "firebase": "^10.12.2",
     "framer-motion": "^12.23.0",
@@ -86,7 +84,6 @@
     "react-zoom-pan-pinch": "^3.6.1",
     "reactjs-pdf-reader": "^1.0.12",
     "reconnectingwebsocket": "^1.0.0",
-    "redux-devtools-extension": "^2.13.9",
     "redux-persist": "^6.0.0",
     "redux-thunk": "^2.4.2",
     "sass": "^1.69.5",
@@ -111,6 +108,9 @@
     "lint:errors": "eslint \"src/**/*.{js,jsx}\" --quiet --format unix",
     "prepare": "husky",
     "test": "craco test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "PLAYWRIGHT_HTML_OPEN=never playwright test --debug=cli",
     "eject": "react-scripts eject",
     "compress:models": "node scripts/compress-models.js",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org digicare-health-solutions-priv --project tatvapractice ./build && sentry-cli sourcemaps upload --org digicare-health-solutions-priv --project tatvapractice ./build"
@@ -124,7 +124,9 @@
       "import"
     ],
     "rules": {
-      "import/no-unresolved": "error"
+      "import/no-unresolved": ["error", {
+        "ignore": ["three", "@react-three/fiber", "@react-three/drei", "lucide-react", "@radix-ui/react-alert-dialog", "@radix-ui/react-dialog", "@radix-ui/react-select", "@radix-ui/react-popover", "@radix-ui/react-tabs", "@ricky0123/vad-react"]
+      }]
     },
     "settings": {
       "import/resolver": {
@@ -158,9 +160,16 @@
   "devDependencies": {
     "@craco/craco": "^7.1.0",
     "ajv": "^8.20.0",
+    "@playwright/test": "^1.61.0",
+    "@sentry/cli": "^2.53.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "env-cmd": "^10.1.0",
     "eslint": "^8.57.0",
     "eslint-import-resolver-node": "^0.3.9",
     "eslint-plugin-import": "^2.29.1",
-    "husky": "^9.0.11"
+    "husky": "^9.0.11",
+    "redux-devtools-extension": "^2.13.9"
   }
 }

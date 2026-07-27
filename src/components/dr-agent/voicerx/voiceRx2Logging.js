@@ -7,6 +7,11 @@ import { getClinic, trackEvent } from "../../../utils/utils";
 
 export const VOICE_RX_2_VERSION = "2.0";
 export const VOICE_RX_MODEL = "zyvelor";
+export const VOICE_RX_PROCESSING_API = {
+  TRANSCRIBE_ANY_AUDIO: "agents/transcribe-any-audio",
+  AGENTS_MODULE: "agents/module",
+  TRANSCRIBE_AUDIO: "agents/transcribe-audio",
+};
 
 export function getBrowserNameForVoiceRx2() {
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
@@ -42,6 +47,12 @@ function getErrorMessage(error) {
   return error?.response?.data?.error || error?.response?.data?.message || error?.message || String(error);
 }
 
+function formatVoiceRx2TranscriptForLogging(transcript) {
+  if (typeof transcript === "string") return transcript;
+  if (Array.isArray(transcript)) return JSON.stringify(transcript);
+  return transcript ?? "";
+}
+
 export function buildVoiceRx2EventPayload({
   patientData,
   profile,
@@ -56,6 +67,7 @@ export function buildVoiceRx2EventPayload({
   sourceSurface = "",
   voiceInputLocation = "",
   isDoctorAgent = false,
+  processingApiName = "",
   micBeingUsed = "",
   extra = {},
 } = {}) {
@@ -94,6 +106,7 @@ export function buildVoiceRx2EventPayload({
     sourceSurface,
     voiceInputLocation,
     isDoctorAgent,
+    processingApiName,
     voiceRxVersion: VOICE_RX_2_VERSION,
     timestamp: new Date().toISOString(),
     ...extra,
@@ -105,6 +118,136 @@ export function trackVoiceRx2RecorderEvent(eventName, payload = {}) {
     trackEvent(eventName, buildVoiceRx2EventPayload(payload));
   } catch (error) {
     console.error("[voice-rx-2/event] Failed", error?.message || error);
+  }
+}
+
+const VOICE_RX_2_SUBMIT_ONLY_EVENT_KEYS = [
+  "audioMimeType",
+  "audioSizeBytes",
+  "durationOfAudioInSeconds",
+  "error_message",
+  "failedPhase",
+  "prescriptionUrl",
+  "prescriptionUrls",
+  "requestId",
+  "retry_attempts",
+  "submitId",
+  "upload_error_message",
+  "upload_failed",
+  "upload_latency_ms",
+  "voiceApiCalled",
+  "voice_failed",
+];
+
+function sanitizeVoiceRx2LifecycleExtra(extra = {}) {
+  const lifecycleExtra = { ...(extra || {}) };
+  VOICE_RX_2_SUBMIT_ONLY_EVENT_KEYS.forEach((key) => {
+    delete lifecycleExtra[key];
+  });
+  return lifecycleExtra;
+}
+
+export function trackVoiceRx2StartEvent({
+  triggerType = "manual_click",
+  triggeredByDoubleShift = false,
+  patientData,
+  profile,
+  sessionId = "",
+  mode = "dictation",
+  fromVoiceRecording = false,
+  voicecall = 0,
+  moduleName = "",
+  sourceSurface = "",
+  voiceInputLocation = "",
+  isDoctorAgent = false,
+  micBeingUsed = "",
+  extra = {},
+} = {}) {
+  try {
+    const clinic = getClinic(profile?.hospital_data);
+    const startExtra = sanitizeVoiceRx2LifecycleExtra(extra);
+    trackEvent("TP_VoiceRx_V2_Start", {
+      doctorId: profile?.doctor_unique_id || extra.doctorId || "",
+      doctorName: profile?.um_name || "",
+      patientId: patientData?.patient_unique_id || extra.patientId || "",
+      patientName: patientData?.pm_fullname || patientData?.pm_first_name || "",
+      hospitalId: clinic?.hm_id || "",
+      hospitalName: clinic?.hm_name || "",
+      network: extra.network || "stable",
+      micBeingUsed,
+      browser: getBrowserNameForVoiceRx2(),
+      url: typeof window !== "undefined" ? window.location.href : "",
+      sessionId,
+      mode,
+      fromVoiceRecording,
+      voicecall,
+      status: extra.status || "started",
+      moduleName,
+      sourceSurface,
+      voiceInputLocation,
+      isDoctorAgent,
+      voiceRxVersion: VOICE_RX_2_VERSION,
+      timestamp: new Date().toISOString(),
+      trigger_type: triggerType,
+      triggered_by_double_shift: Boolean(triggeredByDoubleShift),
+      startedAt: new Date().toISOString(),
+      ...startExtra,
+    });
+  } catch (error) {
+    console.error("[voice-rx-2/start-event] Failed", error?.message || error);
+  }
+}
+
+export function trackVoiceRx2DiscardEvent({
+  patientData,
+  profile,
+  sessionId = "",
+  durationMs = 0,
+  mode = "dictation",
+  fromVoiceRecording = false,
+  voicecall = 0,
+  moduleName = "",
+  sourceSurface = "",
+  voiceInputLocation = "",
+  isDoctorAgent = false,
+  micBeingUsed = "",
+  discardSource = "discard_modal",
+  discardAction = "discard_confirm",
+  extra = {},
+} = {}) {
+  try {
+    const clinic = getClinic(profile?.hospital_data);
+    const discardExtra = sanitizeVoiceRx2LifecycleExtra(extra);
+    trackEvent("TP_VoiceRx_V2_Discard", {
+      doctorId: profile?.doctor_unique_id || extra.doctorId || "",
+      doctorName: profile?.um_name || "",
+      patientId: patientData?.patient_unique_id || extra.patientId || "",
+      patientName: patientData?.pm_fullname || patientData?.pm_first_name || "",
+      hospitalId: clinic?.hm_id || "",
+      hospitalName: clinic?.hm_name || "",
+      network: extra.network || "stable",
+      micBeingUsed,
+      browser: getBrowserNameForVoiceRx2(),
+      url: typeof window !== "undefined" ? window.location.href : "",
+      sessionId,
+      durationOfAudioInSeconds: Math.round((durationMs || 0) / 1000),
+      mode,
+      fromVoiceRecording,
+      voicecall,
+      status: extra.status || "discarded",
+      moduleName,
+      sourceSurface,
+      voiceInputLocation,
+      isDoctorAgent,
+      voiceRxVersion: VOICE_RX_2_VERSION,
+      timestamp: new Date().toISOString(),
+      discard_source: discardSource,
+      discard_action: discardAction,
+      discardedAt: new Date().toISOString(),
+      ...discardExtra,
+    });
+  } catch (error) {
+    console.error("[voice-rx-2/discard-event] Failed", error?.message || error);
   }
 }
 
@@ -125,6 +268,7 @@ export async function uploadAndTrackVoiceRx2LowSpeechBlock({
   sourceSurface = "",
   voiceInputLocation = "",
   isDoctorAgent = false,
+  processingApiName = "",
   micBeingUsed = "",
   extra = {},
   speechAnalysis = {},
@@ -161,6 +305,7 @@ export async function uploadAndTrackVoiceRx2LowSpeechBlock({
     sourceSurface,
     voiceInputLocation,
     isDoctorAgent,
+    processingApiName,
     micBeingUsed,
     extra: {
       ...extra,
@@ -246,6 +391,7 @@ export async function uploadAndLogVoiceRx2({
   sourceSurface = "",
   voiceInputLocation = "",
   isDoctorAgent = false,
+  processingApiName = "",
   micBeingUsed = "",
   voiceLogCreated = false,
   markVoiceLogCreated,
@@ -296,6 +442,7 @@ export async function uploadAndLogVoiceRx2({
     sourceSurface,
     voiceInputLocation,
     isDoctorAgent,
+    processingApiName,
     micBeingUsed,
     extra: {
       prescriptionUrl: source,
@@ -320,7 +467,7 @@ export async function uploadAndLogVoiceRx2({
       timeFromSubmitToUploadMs: uploadCompletedAtMs - startedAtMs,
       timeFromSubmitToClinicalCompleteMs: clinicalCompletedAtMs ? clinicalCompletedAtMs - startedAtMs : null,
       timeFromSubmitToLogMs: Date.now() - startedAtMs,
-      transcript: transcript ?? "",
+      transcript: formatVoiceRx2TranscriptForLogging(transcript),
       digitizeData: digitizeData != null ? JSON.stringify(digitizeData) : null,
       previousContext: previousContext != null ? JSON.stringify(previousContext) : null,
       ...speechAnalysis,

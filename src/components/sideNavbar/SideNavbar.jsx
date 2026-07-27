@@ -30,6 +30,7 @@ import {
 } from "iconsax-reactjs";
 import { VoiceRxIcon } from "../dr-agent/voicerx/voice-consult-icons";
 import { AgentActionButton } from "../dr-agent/atoms/AgentActionButton";
+import { ConfirmDialog as TPConfirmDialog } from "../dr-agent/molecules/ConfirmDialog";
 import ZydusLabParametersList from "../ZydusLabParametersList";
 import { VoiceRecorderCore } from "../dr-agent/voicerx/VoiceRecorderCore";
 import RecordCard from "../../pages/medicalRecords/components/recordCard/RecordCard";
@@ -47,11 +48,12 @@ import {
 import growthChartStaticData from "../../pages/growthChart/GrowthChart.json";
 import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
+import { useCrossConsult } from "../../hooks/useCrossConsult";
 import { ASSETS } from "../../assets";
 import { appendVoiceApiMetadata, buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { decorateVoiceV2ApiError, trackVoiceV2ApiResponse } from "../dr-agent/voicerx/api/stacks-api-tracking";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
-import { uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
+import { trackVoiceRx2DiscardEvent, trackVoiceRx2StartEvent, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2 } from "../dr-agent/voicerx/voiceRx2Logging";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
 import { toast } from "../dr-agent/voicerx/toast";
@@ -63,13 +65,20 @@ import {
 } from "../../utils/medicalHistoryUtils";
 import { convertAgentMedicalHistoryRowsToSections } from "../../utils/medicalHistoryConverters";
 import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers";
+import { mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, normalizeGynecHistoryFromApi } from "../../utils/gynecHistoryUtils";
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitizationSlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
 import { getDecodedToken } from "../../utils/localStorage";
+import { trackEvent } from "../../utils/utils";
 import { GB_ZYDUS_USER } from "../../utils/constants";
+import { buildMedicineDoseDisplayText } from "../../utils/medicationCopyNormalization";
+import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
+import { ToothIcon } from "../dental/ToothIcon";
 import { env } from "../../EnvironmentConfig";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
+import { ReferralIcon } from "../../pages/snapRx/components/ReferralIcon";
+import ReferralPanelForm from "../referral/ReferralPanelForm";
 import { getSideNavMedicalIconUrl } from "./sideNavbarMedicalIcons";
 import "./sideNavbar.css";
 
@@ -89,7 +98,9 @@ const NAV_ITEMS = [
   { id: "growth", label: "Growth", icon: { kind: "iconsax", Icon: Ruler } },
   { id: "optal", label: "Ophthal", icon: { kind: "iconsax", Icon: Eye } },
   { id: "personalNotes", label: "Private Notes", icon: { kind: "iconsax", Icon: DocumentText } },
+  { id: "referral", label: "Referral", icon: { kind: "custom", Component: ReferralIcon } },
   { id: "zydusLabReports", label: "Zydus Reports", icon: { kind: "medical", name: "lab" } },
+  { id: "dentalPlan", label: "Dental Plan", icon: { kind: "custom", Component: ToothIcon } },
 ];
 
 const NAV_ITEM_BY_ID = NAV_ITEMS.reduce((acc, item) => {
@@ -119,6 +130,11 @@ function getCustomizedPadNavId(item, access = {}) {
       return "medicalRecords";
     case 19:
       return "labResults";
+    case 25:
+      if (access.referralOnRightPad) return null;
+      return access.isCrossConsultAccessable ? "referral" : null;
+    case 26:
+      return access.isDentalAccessable ? "dentalPlan" : null;
     default:
       return null;
   }
@@ -136,21 +152,26 @@ const SECTION_TITLES = {
   growth: "Growth",
   optal: "Ophthal History",
   personalNotes: "Private Notes",
+  referral: "Referral",
   zydusLabReports: "Zydus Reports",
+  dentalPlan: "Dental Plan",
 };
 
 const SIDE_NAV_MODULE_NAMES = {
   // vitals: "vitals_body",
   history: "medical_history",
+  gynec: "gynaec_history",
   // labResults: "lab_investigations",
 };
 
 const SIDE_NAV_SUPPORTED_VOICE_SECTIONS = new Set(Object.keys(SIDE_NAV_MODULE_NAMES));
 const SIDE_NAV_SIGNAL_SECTIONS = new Set(["vitals", "history", "gynec", "obstetric"]);
 const SIDE_NAV_PRIVATE_NOTES_SECTION = "personalNotes";
+export const SIDE_NAV_FULL_PAGE_SECTIONS = new Set(["dentalPlan"]);
 const SIDE_NAV_MODULE_ENDPOINT = "/agents/module";
 const SIDE_NAV_SHINER_DELAY_MS = 5000;
 const SIDE_NAV_MODULE_TIMEOUT_MS = 120000;
+const SIDE_NAV_RECORDING_WARNING_SECTIONS = new Set(["history", "gynec"]);
 
 function isSideNavVoiceSupported(sectionId) {
   return sectionId === SIDE_NAV_PRIVATE_NOTES_SECTION || SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(sectionId);
@@ -616,6 +637,8 @@ function legacyDetail(item, keys) {
 function legacyVisitRows(items, labelKeys, detailKeys) {
   return legacyArray(items)
     .map((item) => ({
+      ...(typeof item === "object" && item ? item : {}),
+      payload: item,
       label: firstLegacyText(item, labelKeys),
       detail: legacyDetail(item, detailKeys),
     }))
@@ -1143,6 +1166,8 @@ function buildPastVisitEntry(consultation, detail) {
 function pastVisitRowText(item) {
   if (typeof item === "string") return { label: item, detail: "" };
   return {
+    ...item,
+    payload: item?.payload || item,
     label: String(item?.label || item?.name || item?.title || "").trim(),
     detail: String(item?.detail || item?.notes || item?.note || "").trim(),
   };
@@ -1190,17 +1215,8 @@ function pastVisitMedicationName(item) {
   );
 }
 
-function findMedicineUnitTitle(item) {
-  const unitId = firstTextValue(item?.tmm_unit, item?.tmu_id);
-  const units = legacyArray(item?.medicineUnit);
-  const matchedUnit = units.find((unit) => String(unit?.tmu_id) === String(unitId));
-  return firstTextValue(item?.tmm_unit_name, matchedUnit?.tmu_title);
-}
-
 function buildPastVisitDoseText(item) {
-  const dosage = firstTextValue(item?.dosage, item?.tmm_dosage);
-  if (!dosage) return firstTextValue(item?.tmm_dosage_unit_name);
-  return [dosage, findMedicineUnitTitle(item)].filter(Boolean).join(" ");
+  return buildMedicineDoseDisplayText(item) || firstTextValue(item?.tmm_dosage_unit_name);
 }
 
 function hasFrequencySlotValue(item) {
@@ -1217,24 +1233,35 @@ function frequencySlotText(value) {
   return String(value).trim();
 }
 
+function hasNonZeroFrequencySlot(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "" && String(value).trim() !== "0";
+}
+
+function buildPastVisitFrequencySlotText(item) {
+  const morning = frequencySlotText(item?.tcm_tmm_freq_morning);
+  const afternoon = frequencySlotText(item?.tcm_tmm_freq_afternoon);
+  const evening = frequencySlotText(item?.tcm_tmm_freq_evening);
+  const night = frequencySlotText(item?.tcm_tmm_freq_night);
+
+  return hasNonZeroFrequencySlot(item?.tcm_tmm_freq_evening)
+    ? [morning, afternoon, evening, night].join(" - ")
+    : [morning, afternoon, night].join(" - ");
+}
+
 function buildPastVisitFrequencyText(item, frequencyList = []) {
   if (firstTextValue(item?.frequency, item?.freq, item?.frequencyText, item?.frequency_text)) {
     return firstTextValue(item?.frequency, item?.freq, item?.frequencyText, item?.frequency_text);
   }
+  if (firstTextValue(item?.tmm_freq_type_name)) {
+    return firstTextValue(item?.tmm_freq_type_name);
+  }
 
   if (String(item?.tmf_block ?? "").trim() === "0") {
-    return hasFrequencySlotValue(item)
-      ? [
-          frequencySlotText(item?.tcm_tmm_freq_morning),
-          frequencySlotText(item?.tcm_tmm_freq_afternoon),
-          frequencySlotText(item?.tcm_tmm_freq_evening),
-          frequencySlotText(item?.tcm_tmm_freq_night),
-        ].join(" - ")
-      : "";
+    return hasFrequencySlotValue(item) ? buildPastVisitFrequencySlotText(item) : "";
   }
 
   const frequency = frequencyList.find((entry) => String(entry?.tmf_id) === String(item?.tmm_freq_type));
-  return firstTextValue(item?.tmm_freq_type_name, frequency?.tmf_title);
+  return firstTextValue(frequency?.tmf_title);
 }
 
 function buildPastVisitScheduleText(item, timingList = []) {
@@ -1336,8 +1363,9 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
     }
     case "diagnosis": {
       const rows = pastVisitRows(rx.diagnoses).map((item) => ({
-        tds_name: item.label,
-        note: item.detail,
+        ...(item.payload || {}),
+        tds_name: item.payload?.tds_name || item.label,
+        note: item.payload?.note || item.payload?.notes || item.detail,
       }));
       return rows.length ? { ...base, digitization: { diagnosis: rows } } : null;
     }
@@ -1368,8 +1396,9 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
     }
     case "investigations": {
       const rows = pastVisitRows(rx.labInvestigations).map((item) => ({
-        investigation_name: item.label,
-        note: item.detail,
+        ...(item.payload || {}),
+        investigation_name: item.payload?.investigation_name || item.payload?.test_name || item.label,
+        note: item.payload?.note || item.payload?.notes || item.detail,
       }));
       return rows.length ? { ...base, digitization: { lab_investigation: rows } } : null;
     }
@@ -1392,9 +1421,7 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
         ? { ...base, digitization: { vitalsAndBodyComposition: rx.vitalsPayload } }
         : null;
     case "gynec":
-      return objectHasRenderableValue(rx.gynecPayload)
-        ? { ...base, digitization: { gyneacHistory: rx.gynecPayload } }
-        : null;
+      return null;
     case "obstetric":
       return objectHasRenderableValue(rx.obstetricPayload)
         ? { ...base, digitization: { obstetricHistory: rx.obstetricPayload } }
@@ -1509,7 +1536,6 @@ async function fetchPastVisitPrintPayload(printUrl, detail) {
   const fetchUrl = buildPastVisitPrintPayloadUrl(printUrl, detail);
   if (!fetchUrl) return null;
   try {
-    console.log("[SideNavbar][PastVisits] print payload URL:", fetchUrl);
     const response = await axios.get(fetchUrl);
     return response?.data?.data || response?.data || null;
   } catch (error) {
@@ -1706,13 +1732,22 @@ function copyPayloadHasVitals(payload = {}) {
   return hasVitalsSignalContext(digitization.vitals_and_body_composition);
 }
 
+function copyPayloadHasGynec(payload = {}) {
+  const digitization = payload?.digitization || {};
+  return sideNavObjectHasContent(digitization.gynaec_history);
+}
+
 function getSideNavSignalTargetsFromCopyRequest(copyRequest) {
   const payload = copyRequest?.payload || {};
   const explicitTarget = payload.sideNavSignalTarget;
   const hasVitals = copyPayloadHasVitals(payload);
   const hasMedicalHistory = copyPayloadHasMedicalHistory(payload);
+  const hasGynec = copyPayloadHasGynec(payload);
 
   if (explicitTarget === "vitals" && hasVitals) {
+    return [explicitTarget];
+  }
+  if (explicitTarget === "gynec" && hasGynec) {
     return [explicitTarget];
   }
   if (SIDE_NAV_SIGNAL_SECTIONS.has(explicitTarget) && hasMedicalHistory) {
@@ -1722,6 +1757,7 @@ function getSideNavSignalTargetsFromCopyRequest(copyRequest) {
   const targets = [];
   if (hasMedicalHistory) targets.push("history");
   if (hasVitals) targets.push("vitals");
+  if (hasGynec) targets.push("gynec");
   return targets;
 }
 
@@ -1908,6 +1944,8 @@ function buildDigitalRx(payload) {
       fresh: true,
     })),
     diagnoses: toArray(p.diagnosis || p.diagnoses).map((item) => ({
+      ...(typeof item === "object" && item ? item : {}),
+      payload: item,
       label: item?.name || item?.tds_name || item?.diagnosis_name || item?.lineItem || item?.label || String(item || ""),
       detail: valueText([item?.since, item?.status, item?.notes, item?.note, item?.detail]),
       fresh: true,
@@ -1924,7 +1962,18 @@ function buildDigitalRx(payload) {
     }),
     medicationsPayload: medicationPayload,
     advice: adviceRows.map((item) => ({ ...item, fresh: true })),
-    labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations).map((item) => (typeof item === "string" ? item : item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label)).filter(Boolean),
+    labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations)
+      .map((item) => {
+        if (typeof item === "string") return item;
+        const label = item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label;
+        return label ? {
+          ...item,
+          payload: item,
+          label,
+          detail: valueText([item?.note, item?.notes, item?.detail]),
+        } : null;
+      })
+      .filter(Boolean),
     medicalHistory: buildPastVisitMedicalHistoryRows(p.medicalHistory || p.medical_history),
     medicalHistorySections: buildPastVisitMedicalHistorySections(p.medicalHistory || p.medical_history),
     surgeries: legacyVisitRows(
@@ -2064,49 +2113,50 @@ function joinParts(parts) {
 
 function buildLegacyGynecSections(gynecHistory) {
   if (!gynecHistory || Object.keys(gynecHistory).length === 0) return [];
+  const normalizedGynecHistory = normalizeGynecHistoryFromApi(gynecHistory);
   const cards = [];
 
-  if (gynecHistory.lmp) {
-    cards.push({ id: "gynec-lmp", title: "LMP", lines: [`LMP: ${moment(gynecHistory.lmp).format("DD MMM'YY")}`] });
+  if (normalizedGynecHistory.lmp) {
+    cards.push({ id: "gynec-lmp", title: "LMP", lines: [`LMP: ${moment(normalizedGynecHistory.lmp).format("DD MMM'YY")}`] });
   }
 
   const menarcheLines = joinParts([
-    gynecHistory.ageAtMenarche && `Age at: ${gynecHistory.ageAtMenarche} years`,
-    gynecHistory.menarcheNotes && `Notes: ${gynecHistory.menarcheNotes}`,
+    normalizedGynecHistory.ageAtMenarche && `Age at: ${normalizedGynecHistory.ageAtMenarche} years`,
+    normalizedGynecHistory.menarcheNotes && `Notes: ${normalizedGynecHistory.menarcheNotes}`,
   ]);
   if (menarcheLines) cards.push({ id: "gynec-menarche", title: "Menarche", lines: [menarcheLines] });
 
   const cycleLine = joinParts([
-    gynecHistory.cycle && `Type: ${gynecHistory.cycle}`,
-    gynecHistory.intervalOfCycle && `Interval: ${gynecHistory.intervalOfCycle} days`,
-    gynecHistory.cycleNotes && `Note: ${gynecHistory.cycleNotes}`,
+    normalizedGynecHistory.cycle && `Type: ${normalizedGynecHistory.cycle}`,
+    normalizedGynecHistory.intervalOfCycle && `Interval: ${normalizedGynecHistory.intervalOfCycle} days`,
+    normalizedGynecHistory.cycleNotes && `Note: ${normalizedGynecHistory.cycleNotes}`,
   ]);
   if (cycleLine) cards.push({ id: "gynec-cycle", title: "Cycle", lines: [cycleLine] });
 
   const flowLine = joinParts([
-    gynecHistory.flow && `Volume: ${gynecHistory.flow}`,
-    gynecHistory.durationOfMenstrualFlow && `Duration: ${gynecHistory.durationOfMenstrualFlow} days`,
-    gynecHistory.clots !== undefined && gynecHistory.clots !== "" && `Clots: ${gynecHistory.clots ? "Yes" : "No"}`,
-    gynecHistory.numberOfPadsPerDay && `Pads/day: ${gynecHistory.numberOfPadsPerDay}`,
-    gynecHistory.flowNotes && `Notes: ${gynecHistory.flowNotes}`,
+    normalizedGynecHistory.flow && `Volume: ${normalizedGynecHistory.flow}`,
+    normalizedGynecHistory.durationOfMenstrualFlow && `Duration: ${normalizedGynecHistory.durationOfMenstrualFlow} days`,
+    normalizedGynecHistory.clots !== undefined && normalizedGynecHistory.clots !== "" && `Clots: ${normalizedGynecHistory.clots ? "Yes" : "No"}`,
+    normalizedGynecHistory.numberOfPadsPerDay && `Pads/day: ${normalizedGynecHistory.numberOfPadsPerDay}`,
+    normalizedGynecHistory.flowNotes && `Notes: ${normalizedGynecHistory.flowNotes}`,
   ]);
   if (flowLine) cards.push({ id: "gynec-flow", title: "Flow", lines: [flowLine] });
 
   const painLine = joinParts([
-    gynecHistory.pain && `Severity: ${gynecHistory.pain}`,
-    gynecHistory.occurrenceOfPain && `Occurrence: ${gynecHistory.occurrenceOfPain}`,
-    gynecHistory.painNotes && `Notes: ${gynecHistory.painNotes}`,
+    normalizedGynecHistory.pain && `Severity: ${normalizedGynecHistory.pain}`,
+    normalizedGynecHistory.occurrenceOfPain && `Occurrence: ${normalizedGynecHistory.occurrenceOfPain}`,
+    normalizedGynecHistory.painNotes && `Notes: ${normalizedGynecHistory.painNotes}`,
   ]);
   if (painLine) cards.push({ id: "gynec-pain", title: "Pain", lines: [painLine] });
 
   const hormLines = [];
-  if (gynecHistory.reproductiveLifeStages) hormLines.push(`Stage: ${gynecHistory.reproductiveLifeStages}`);
-  if (gynecHistory.ageAtMenopause) hormLines.push(`Age at: ${gynecHistory.ageAtMenopause} years`);
-  if (gynecHistory.typeOfMenopause) hormLines.push(`Type: ${gynecHistory.typeOfMenopause}`);
-  if (gynecHistory.reproductiveNotes) hormLines.push(`Notes: ${gynecHistory.reproductiveNotes}`);
+  if (normalizedGynecHistory.reproductiveLifeStages) hormLines.push(`Stage: ${normalizedGynecHistory.reproductiveLifeStages}`);
+  if (normalizedGynecHistory.ageAtMenopause) hormLines.push(`Age at: ${normalizedGynecHistory.ageAtMenopause} years`);
+  if (normalizedGynecHistory.typeOfMenopause) hormLines.push(`Type: ${normalizedGynecHistory.typeOfMenopause}`);
+  if (normalizedGynecHistory.reproductiveNotes) hormLines.push(`Notes: ${normalizedGynecHistory.reproductiveNotes}`);
   if (hormLines.length) cards.push({ id: "gynec-hormonal", title: "Lifecycle Hormonal Changes", lines: hormLines });
 
-  if (gynecHistory.notes) cards.push({ id: "gynec-notes", title: "Notes", lines: [gynecHistory.notes] });
+  if (normalizedGynecHistory.notes) cards.push({ id: "gynec-notes", title: "Notes", lines: [normalizedGynecHistory.notes] });
 
   return cards;
 }
@@ -2540,6 +2590,8 @@ function normalizeSideNavModuleResponse(responseJson, sectionId) {
       return { vitals: normalizeSideNavVitals(payload) };
     case "history":
       return { history: normalizeSideNavHistorySections(payload) };
+    case "gynec":
+      return { gynaec_history: normalizeGynaecHistoryFromDigitiseData(payload) };
     case "labResults":
       return { labResults: normalizeSideNavLabItems(payload) };
     default:
@@ -2691,12 +2743,20 @@ function MedicalMaskIcon({ name, active }) {
 
 function IconPill({ item, active, signalUnread = false }) {
   const isMedical = item.icon.kind === "medical";
+  const isCustom = item.icon.kind === "custom";
   const Icon = item.icon.Icon;
+  const CustomIcon = item.icon.Component;
 
   return (
     <span className={`snv-icon-pill ${active ? "snv-icon-pill-active" : ""}`}>
       {isMedical ? (
         <MedicalMaskIcon name={item.icon.name} active={active} />
+      ) : isCustom ? (
+        <CustomIcon
+          size={20}
+          variant={active ? "bulk" : "linear"}
+          color={active ? "var(--tp-blue-500)" : "#ffffff"}
+        />
       ) : (
         <Icon
           size={20}
@@ -2809,9 +2869,10 @@ function BulletList({ items }) {
       {items.map((item, index) => {
         const label = typeof item === "string" ? item : item.label;
         const detail = typeof item === "string" ? "" : item.detail;
+        const preLine = typeof item !== "string" && item.preLine;
         return (
           <li key={`${label}-${index}`} className={item?.fresh ? "snv-fresh-row" : ""}>
-            <span className="snv-bullet-label">{label}</span>
+            <span className={`snv-bullet-label ${preLine ? "snv-bullet-label-pre-line" : ""}`}>{label}</span>
             {detail ? <span className="snv-bullet-detail"> ({detail})</span> : null}
           </li>
         );
@@ -3119,7 +3180,7 @@ function PastVisitNativeSections({ rx }) {
   );
 }
 
-function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onCopyPayload }) {
+function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onCopyPayload, copyTrackingContext }) {
   const pendingLoadMoreRef = useRef(false);
   const firstVisitId = visits[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstVisitId));
@@ -3167,13 +3228,16 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
   const handleCopyPayload = useCallback((payload, successMessage, opts, copyTracking) => {
     if (!payload) return;
     if (copyTracking) {
-      trackDrAgentCopyUsed(copyTracking);
+      trackDrAgentCopyUsed({
+        ...(copyTrackingContext || {}),
+        ...copyTracking,
+      });
     }
     onCopyPayload?.(payload, {
       ...opts,
       onAfterCopy: () => toast.success(successMessage),
     });
-  }, [onCopyPayload]);
+  }, [copyTrackingContext, onCopyPayload]);
 
   const handleCopyVisit = useCallback((visitItem) => {
     handleCopyPayload(
@@ -3517,7 +3581,7 @@ const EMPTY_SECTION_CONFIG = {
   gynec: {
     message: "No gynec history has been recorded for this patient yet.",
     addLabel: "Add Gynec History",
-    showVoice: false,
+    showVoice: true,
   },
   obstetric: {
     message: "No obstetric history has been recorded for this patient yet.",
@@ -3711,7 +3775,12 @@ function HistoryContent({ sections = [], emptyState }) {
           <div className="snv-info-card-title">{section.title}</div>
           {section.items.length ? (
             <div className="snv-bullet-list-wrapper">
-              <BulletList items={section.items.map((item) => ({ label: item.name, detail: formatMedicalHistoryDetail(item.detail), fresh: item.fresh }))} />
+              <BulletList items={section.items.map((item) => ({
+                label: item.name,
+                detail: formatMedicalHistoryDetail(item.detail),
+                fresh: item.fresh,
+                preLine: section.id === "legacy-history-additional",
+              }))} />
             </div>
           )
            : <div className="snv-empty-state">No data recorded.</div>}
@@ -5161,6 +5230,14 @@ function GrowthContent({ data, emptyState }) {
   );
 }
 
+function ReferralContent({ value, onChange }) {
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      <ReferralPanelForm value={value} onChange={onChange} variant="sideNav" />
+    </div>
+  );
+}
+
 function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voiceDisabled }) {
   return (
     <div className="snv-content-scroll snv-private-notes-content" data-snv-scroll-root="true">
@@ -5198,7 +5275,7 @@ function HiddenScrollRoot() {
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, referralValue, onReferralChange, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
   const emptyState = EMPTY_SECTION_CONFIG[activeId] ? (
     <SideNavEmptyState
       sectionId={activeId}
@@ -5219,6 +5296,12 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           onLoadMore={pastVisitsState.onLoadMore}
           onExpand={pastVisitsState.onExpand}
           onCopyPayload={onCopyPayload}
+          copyTrackingContext={{
+            doctorId,
+            patientId,
+            voiceRxVersion: "2.0",
+            sourceSurface: "side-navbar",
+          }}
         />
       );
     case "vitals":
@@ -5258,6 +5341,13 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           showVoiceRx={showVoiceRx}
           onVoiceClick={onPrivateNotesVoiceClick}
           voiceDisabled={privateNotesVoiceDisabled}
+        />
+      );
+    case "referral":
+      return (
+        <ReferralContent
+          value={referralValue}
+          onChange={onReferralChange}
         />
       );
     case "zydusLabReports":
@@ -5316,7 +5406,7 @@ function sectionVoiceLabel(activeId) {
 }
 
 function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, actionCounts, hidePlusIcon, voiceEnabled, voiceLocked }) {
-  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal") return null;
+  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal" || activeId === "dentalPlan") return null;
   const status = voiceState?.status || "idle";
   const busy = status === "recording" || status === "transcribing" || status === "digitizing";
   const disabled = busy || voiceLocked;
@@ -5348,7 +5438,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, medicalRecordActions }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, referralValue, onReferralChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, voiceAnalyticsContext, medicalRecordActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -5405,6 +5495,8 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           onPrivateNotesChange={onPrivateNotesChange}
           onPrivateNotesVoiceClick={onVoiceClick}
           privateNotesVoiceDisabled={privateNotesVoiceDisabled}
+          referralValue={referralValue}
+          onReferralChange={onReferralChange}
           onCopyPayload={onCopyPayload}
           showVoiceRx={showVoiceRx}
           vitalsUpdating={vitalsUpdating}
@@ -5426,6 +5518,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
             fillHeight
             sectionLabel={sectionVoiceLabel(activeId)}
             showSectionInStatus
+            hideMicControlsWhenSubmitProcessing
             isAwaitingResponse={isAwaitingResponse}
             processingLabel={processingLabel}
             error={voiceStatus === "error" ? (voiceState?.error || "Voice processing failed.") : null}
@@ -5436,6 +5529,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
               doctorName,
               patientName,
             }}
+            analyticsContext={voiceAnalyticsContext}
             onClose={onVoiceOverlayClose}
             onCancel={onVoiceCancel}
             onSubmit={onVoiceRecorderSubmit}
@@ -5474,6 +5568,7 @@ export function SideNavbar({
   zydusSelectedLabParams = [],
   patientGender,
   showVoiceRx = true,
+  referralOnRightPad = false,
   initialActiveId = "pastVisits",
   handleDrawerUploadDoc = NOOP,
   setFilesData = NOOP,
@@ -5484,6 +5579,7 @@ export function SideNavbar({
   const [activeId, setActiveId] = useState(() => initialActiveId);
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
+  const [pendingSectionChange, setPendingSectionChange] = useState(null);
   const { activeVoiceModule, headerDictation, claimActiveVoiceModule, releaseActiveVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal, guardVoiceRxUsage } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const sideNavVoiceLockIdRef = useRef(`side-nav-voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -5523,6 +5619,8 @@ export function SideNavbar({
   const { profile } = useSelector((state) => state.doctors);
   const voiceDigitization = useSelector((state) => state.voiceDigitization);
   const { isPediatricAccessable } = useAccess();
+  const isCrossConsultAccessable = useCrossConsult();
+  const isDentalAccessable = useIsDentalEnabled();
   const {
     vitalsData = [],
     setVitalsData,
@@ -5534,6 +5632,9 @@ export function SideNavbar({
     pamId,
     privateNotesData,
     setPrivateNotesData,
+    referralData,
+    setReferralData,
+    setUpdatedGynecHistory,
   } = useContext(CashManagerContext) || {};
   const getSideNavVoiceSessionId = useCallback(() => {
     if (tcmId && Number(tcmId) !== 0) return tcmId;
@@ -5823,9 +5924,6 @@ export function SideNavbar({
   const legacyGynecSections = useMemo(
     () => {
       const sections = buildLegacyGynecSections(gynecHistoryProp);
-      console.log("[SideNavbar][Gynec] active patient:", patientId);
-      console.log("[SideNavbar][Gynec] incoming gynecHistory prop:", gynecHistoryProp);
-      console.log("[SideNavbar][Gynec] mapped gynec sections:", sections);
       return sections;
     },
     [gynecHistoryProp, patientId]
@@ -5859,6 +5957,9 @@ export function SideNavbar({
       notes,
     });
   }, [privateNotesData, setPrivateNotesData]);
+  const handleReferralChange = useCallback((nextReferral) => {
+    setReferralData?.(nextReferral);
+  }, [setReferralData]);
   const savePrivateNotesFromVoice = useCallback(async (notes) => {
     const cleanNotes = String(notes || "").trim();
     if (!cleanNotes) {
@@ -5942,6 +6043,9 @@ export function SideNavbar({
       isVaccinationAccessable,
       isGrowthChartAccessable,
       isGynaecHistoryAccessable,
+      isCrossConsultAccessable,
+      referralOnRightPad,
+      isDentalAccessable,
     };
 
     (customizedPadLeftList || []).forEach((item) => {
@@ -5973,6 +6077,9 @@ export function SideNavbar({
     isOpthalModuleAccessible,
     isVaccinationAccessable,
     isZydusUserAccessable,
+    isCrossConsultAccessable,
+    referralOnRightPad,
+    isDentalAccessable,
   ]);
 
   const navSequence = useMemo(() => navItems.map((item) => item.id), [navItems]);
@@ -5986,7 +6093,6 @@ export function SideNavbar({
       onSectionAction(sectionId);
       return;
     }
-    console.log("[sideNavbar] add/edit details clicked", { sectionId });
   }, [onSectionAction]);
 
   const setActiveSection = useCallback((id, dir = null) => {
@@ -6069,14 +6175,56 @@ export function SideNavbar({
     setActiveSection,
   ]);
 
+  const updateVoiceState = useCallback((sectionId, patch) => {
+    setVoiceBySection((prev) => ({
+      ...prev,
+      [sectionId]: { ...(prev[sectionId] || {}), ...patch },
+    }));
+  }, []);
+
+  const activeRecordingVoiceSection = useMemo(() => {
+    if (!SIDE_NAV_RECORDING_WARNING_SECTIONS.has(activeId)) return null;
+    return voiceBySection[activeId]?.status === "recording" ? activeId : null;
+  }, [activeId, voiceBySection]);
+
+  const requestSectionChange = useCallback((next, dir = null) => {
+    if (activeRecordingVoiceSection && next !== activeId) {
+      setPendingSectionChange({ next, dir, recordingSection: activeRecordingVoiceSection });
+      return;
+    }
+    setActiveSection(next, dir);
+  }, [activeId, activeRecordingVoiceSection, setActiveSection]);
+
+  const trackSideNavVoiceDiscard = useCallback((discardSource, sectionId = activeId, extra = {}) => {
+    const effectivePatientId = patientId || patientData?.patient_unique_id || "";
+    const effectiveDoctorId = doctorId || profile?.doctor_unique_id || "";
+    trackEvent("TP_VoiceRx_SideNav_Discard", {
+      source_surface: "side-navbar",
+      action: "discard",
+      discard_source: discardSource,
+      section_id: sectionId || "",
+      section_label: sectionVoiceLabel(sectionId),
+      patient_id: effectivePatientId,
+      doctor_id: effectiveDoctorId,
+      doctor_name: profile?.um_name || "",
+      ...extra,
+    });
+  }, [activeId, doctorId, patientData?.patient_unique_id, patientId, profile?.doctor_unique_id, profile?.um_name]);
+
   const handleSelect = (id) => {
     clearSideNavSignal(id);
+    if (SIDE_NAV_FULL_PAGE_SECTIONS.has(id)) {
+      const next = activeId === id ? null : id;
+      setActiveSection(next, null);
+      onSectionAction?.(id);
+      return;
+    }
     const next = activeId === id ? null : id;
-    setActiveSection(next, null);
+    requestSectionChange(next, null);
   };
 
   const handleClose = () => {
-    setActiveSection(null, null);
+    requestSectionChange(null, null);
   };
 
   const handleNavigate = useCallback((dir) => {
@@ -6085,15 +6233,8 @@ export function SideNavbar({
     const nextIndex = dir === "next" ? currentIndex + 1 : currentIndex - 1;
     const next = navSequence[nextIndex];
     if (!next) return;
-    setActiveSection(next, dir);
-  }, [activeId, navSequence, setActiveSection]);
-
-  const updateVoiceState = useCallback((sectionId, patch) => {
-    setVoiceBySection((prev) => ({
-      ...prev,
-      [sectionId]: { ...(prev[sectionId] || {}), ...patch },
-    }));
-  }, []);
+    requestSectionChange(next, dir);
+  }, [activeId, navSequence, requestSectionChange]);
 
   const applySideNavVoiceResult = useCallback((sectionId, result) => {
     if (sectionId === "vitals" && result?.vitals && sideNavObjectHasContent(result.vitals, ["date"])) {
@@ -6107,14 +6248,15 @@ export function SideNavbar({
         const defaultSource = medicalHistoryDefaultList?.length ? medicalHistoryDefaultList : prev;
         const mappedHistory = mapSideNavMedicalHistoryIdsFromDefaultList(result.history, defaultSource);
         const finalMedicalHistoryData = mergeSideNavMedicalHistorySections(prev, mappedHistory);
-        console.groupCollapsed("[SideNav MedicalHistory] agents/module mapped result");
-        console.log("raw normalized result.history", result.history);
-        console.log("default source used for id mapping", defaultSource);
-        console.log("mapped history after default-list conversion", mappedHistory);
-        console.log("final data passed to setMedicalHistoryData", finalMedicalHistoryData);
-        console.groupEnd();
         return finalMedicalHistoryData;
       });
+      return;
+    }
+
+    if (sectionId === "gynec" && result?.gynaec_history && sideNavObjectHasContent(result.gynaec_history)) {
+      setUpdatedGynecHistory?.((prev) => ({
+        ...mergeGynecHistory(prev, result.gynaec_history),
+      }));
       return;
     }
 
@@ -6131,7 +6273,7 @@ export function SideNavbar({
       setLabParamsData?.((prev = []) => [entry, ...prev]);
       setDigitizedOverrides((prev) => ({ ...prev, labResults: { lab_investigations: result.labResults } }));
     }
-  }, [medicalHistoryDefaultList, setLabParamsData, setMedicalHistoryData, setVitalsData]);
+  }, [medicalHistoryDefaultList, setLabParamsData, setMedicalHistoryData, setUpdatedGynecHistory, setVitalsData]);
 
   const transcribeSectionAudio = useCallback(async (sectionId, meta = {}) => {
     if (!isSideNavVoiceSupported(sectionId)) {
@@ -6231,6 +6373,9 @@ export function SideNavbar({
         moduleName: isPrivateNotesVoice ? "Private Notes" : SIDE_NAV_MODULE_NAMES[sectionId],
         sourceSurface: "side-navbar",
         isDoctorAgent: false,
+        processingApiName: isPrivateNotesVoice
+          ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+          : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -6266,6 +6411,9 @@ export function SideNavbar({
         moduleName: isPrivateNotesVoice ? "Private Notes" : SIDE_NAV_MODULE_NAMES[sectionId],
         sourceSurface: "side-navbar",
         isDoctorAgent: false,
+        processingApiName: isPrivateNotesVoice
+          ? VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO
+          : VOICE_RX_PROCESSING_API.AGENTS_MODULE,
         micBeingUsed: meta?.micBeingUsed || "",
         voiceLogCreated: voiceDigitization?.voiceLogCreated,
         markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
@@ -6287,11 +6435,33 @@ export function SideNavbar({
     if (activeVoiceModule || headerDictationBusy) return;
     const existing = voiceBySection[activeId]?.status;
     if (existing === "recording" || existing === "transcribing" || existing === "digitizing") return;
+    const sessionId = getSideNavVoiceSessionId();
+    const moduleName = activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "Private Notes" : SIDE_NAV_MODULE_NAMES[activeId];
     const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "side-navbar", sectionId: activeId });
+
+    trackVoiceRx2StartEvent({
+      patientData,
+      profile,
+      sessionId,
+      mode: activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "transcribe" : "module",
+      fromVoiceRecording: true,
+      voicecall: voiceDigitization?.voiceCallCount || 0,
+      moduleName,
+      sourceSurface: "side-navbar",
+      voiceInputLocation: sectionVoiceLabel(activeId),
+      isDoctorAgent: false,
+      extra: {
+        doctorId: doctorId || profile?.doctor_unique_id || "",
+        patientId: patientId || patientData?.patient_unique_id || "",
+        section_id: activeId,
+        trigger_location: "side_nav_voice_cta",
+        canUseVoiceRx
+      },
+    });
     if (!canUseVoiceRx) return;
     getSideNavVoiceSessionId();
     updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
-  }, [activeId, activeVoiceModule, getSideNavVoiceSessionId, guardVoiceRxUsage, headerDictationBusy, voiceBySection, updateVoiceState]);
+  }, [activeId, activeVoiceModule, doctorId, getSideNavVoiceSessionId, guardVoiceRxUsage, headerDictationBusy, patientData, patientId, profile, voiceBySection, updateVoiceState, voiceDigitization?.voiceCallCount]);
 
   const handleVoiceRecorderSubmit = useCallback(async (meta = {}) => {
   const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "side-navbar", sectionId: activeId });
@@ -6302,12 +6472,13 @@ export function SideNavbar({
 
   const handleVoiceCancel = useCallback(() => {
     if (!activeId) return;
+    trackSideNavVoiceDiscard("cross_icon", activeId);
     if (voiceDelayTimerRef.current) {
       window.clearTimeout(voiceDelayTimerRef.current);
       voiceDelayTimerRef.current = null;
     }
     updateVoiceState(activeId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
-  }, [activeId, updateVoiceState]);
+  }, [activeId, trackSideNavVoiceDiscard, updateVoiceState]);
 
   const handleVoiceOverlayClose = useCallback(() => {
     if (!activeId) return;
@@ -6318,10 +6489,58 @@ export function SideNavbar({
     updateVoiceState(activeId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
   }, [activeId, updateVoiceState]);
 
+  const handleKeepSideNavRecording = useCallback(() => {
+    setPendingSectionChange(null);
+  }, []);
+
+  const handleDiscardSideNavRecordingAndNavigate = useCallback(() => {
+    if (!pendingSectionChange) return;
+    trackSideNavVoiceDiscard("section_navigation_warning", pendingSectionChange.recordingSection, {
+      target_section_id: pendingSectionChange.next || "collapsed",
+      target_section_label: pendingSectionChange.next ? sectionVoiceLabel(pendingSectionChange.next) : "Collapsed",
+      navigation_direction: pendingSectionChange.dir || "",
+    });
+    trackVoiceRx2DiscardEvent({
+      patientData,
+      profile,
+      sessionId: voiceDigitization?.sessionId || "",
+      mode: "module",
+      fromVoiceRecording: true,
+      voicecall: voiceDigitization?.voiceCallCount || 0,
+      moduleName: sectionVoiceLabel(pendingSectionChange.recordingSection),
+      sourceSurface: "side-navbar",
+      voiceInputLocation: sectionVoiceLabel(pendingSectionChange.recordingSection),
+      isDoctorAgent: false,
+      discardSource: "side_nav_section_navigation_warning",
+      discardAction: "discard_confirm",
+      extra: {
+        doctorId: doctorId || profile?.doctor_unique_id || "",
+        patientId: patientId || patientData?.patient_unique_id || "",
+        section_id: pendingSectionChange.recordingSection || "",
+        target_section_id: pendingSectionChange.next || "collapsed",
+        target_section_label: pendingSectionChange.next ? sectionVoiceLabel(pendingSectionChange.next) : "Collapsed",
+        navigation_direction: pendingSectionChange.dir || "",
+      },
+    });
+    if (voiceDelayTimerRef.current) {
+      window.clearTimeout(voiceDelayTimerRef.current);
+      voiceDelayTimerRef.current = null;
+    }
+    updateVoiceState(pendingSectionChange.recordingSection, {
+      status: "idle",
+      error: "",
+      transcript: "",
+      digitizedSummary: "",
+    });
+    const { next, dir } = pendingSectionChange;
+    setPendingSectionChange(null);
+    setActiveSection(next, dir);
+  }, [doctorId, patientData, patientId, pendingSectionChange, profile, setActiveSection, trackSideNavVoiceDiscard, updateVoiceState, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
+
   return (
     <aside className="snv-root" data-side-navbar="true">
       <NavPanel activeId={activeId} onSelect={handleSelect} items={navItems} signals={sideNavSignals} />
-      {activeId ? (
+      {activeId && !SIDE_NAV_FULL_PAGE_SECTIONS.has(activeId) ? (
         <SectionPanel
           activeId={activeId}
           onClose={handleClose}
@@ -6340,6 +6559,8 @@ export function SideNavbar({
           actionHidePlusIcons={actionHidePlusIcons}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={handlePrivateNotesChange}
+          referralValue={referralData}
+          onReferralChange={handleReferralChange}
           onCopyPayload={handlePastVisitCopyPayload}
           voiceEnabled={showVoiceRx && SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)}
           voiceLocked={!!activeVoiceModule || headerDictationBusy}
@@ -6352,6 +6573,19 @@ export function SideNavbar({
           patientName={getSideNavPatientName(patientData)}
           patientGender={patientGender}
           voiceSessionId={getSideNavVoiceSessionId()}
+          voiceAnalyticsContext={{
+            patientData,
+            profile,
+            sessionId: getSideNavVoiceSessionId(),
+            mode: activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "transcribe" : "module",
+            voicecall: voiceDigitization?.voiceCallCount || 0,
+            moduleName: activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "Private Notes" : SIDE_NAV_MODULE_NAMES[activeId],
+            sourceSurface: "side-navbar",
+            voiceInputLocation: sectionVoiceLabel(activeId),
+            isDoctorAgent: false,
+            doctorId: doctorId || profile?.doctor_unique_id || "",
+            patientId: patientId || patientData?.patient_unique_id || "",
+          }}
           medicalRecordActions={{
             handleDrawerUploadDoc,
             setFilesData,
@@ -6360,6 +6594,19 @@ export function SideNavbar({
           }}
         />
       ) : null}
+      <TPConfirmDialog
+        open={Boolean(pendingSectionChange)}
+        onOpenChange={(open) => {
+          if (!open) handleKeepSideNavRecording();
+        }}
+        title="Close this voice consultation?"
+        warning="Are you sure you want to close this voice Rx? If you close it, no data will be stored."
+        primaryLabel="Keep recording"
+        onPrimary={handleKeepSideNavRecording}
+        secondaryLabel="Discard & Go Back"
+        secondaryTone="destructive"
+        onSecondary={handleDiscardSideNavRecordingAndNavigate}
+      />
     </aside>
   );
 }

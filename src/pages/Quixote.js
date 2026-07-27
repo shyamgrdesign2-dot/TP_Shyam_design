@@ -9,6 +9,7 @@ import { useSelector } from "react-redux";
 import { NORMAL } from "../utils/constants";
 import ViewPDF from '../components/print_settings/ViewPDF';
 import { prefetchDentalToothImageMap } from '../components/dental/examination/dentalChartPdf';
+import { resolveDentitionType } from '../components/dental/examination/dentalChartConstants';
 import { resolveDentalOralForPrint } from '../utils/resolveDentalOralPrintData';
 import { renderPDF } from '../components/print_settings/renderPDF';
 import { PDF } from '../components/print_settings/PDF';
@@ -266,7 +267,6 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         const renderId = ++renderIdRef.current;
         const timer = setTimeout(() => {
             const makePDFUrl = async () => {
-                const toothImageMap = await prefetchDentalToothImageMap();
                 const activePrintSettings = mode == NORMAL ? printSettings : props.printSettingsCopy;
                 const patientId = caseManagerData?.patient_data?.patient_unique_id;
                 const consultationDate =
@@ -284,6 +284,10 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                         caseManagerData,
                         allowFullApiFallback: false,
                     });
+
+                const toothImageMap = await prefetchDentalToothImageMap({
+                    dentitionType: resolveDentitionType(resolvedDental || dentalExaminationData),
+                });
 
                 const renderPdfWithSmartRx = (smartRxData) => pdf(<ViewPDF
                     mode={mode}
@@ -320,6 +324,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                     toothImageMap={toothImageMap}
                     examChart={resolvedOralChart}
                     drawingCanvases={drawingCanvases}
+                    crossConsultData={props.crossConsultData}
                 />).toBlob();
 
                 const setPdfUrlSafe = (url) => {
@@ -397,6 +402,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         props.patientWalletBalance,
         props.abhaDetails,
         props.dentalData,
+        props.crossConsultData,
         dentalExaminationData,
         oralExamination,
         drawingCanvases,

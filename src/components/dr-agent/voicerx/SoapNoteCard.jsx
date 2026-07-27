@@ -66,7 +66,7 @@ export function SoapNoteCard({ status, html: htmlProp, onRetry, onChange }) {
 	}
 
 	return (
-		<div className={styles.root}>
+		<div className={styles.root} data-voice-rx-dictation-target="dr-agent-soap-editor">
 			<RichEditor html={html} onChange={handleChange} placeholder="SOAP note will appear here…" />
 		</div>
 	);

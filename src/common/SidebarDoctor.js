@@ -8,7 +8,7 @@ import axios from "axios";
 
 import config from "../config";
 import { useLocalStorage } from "../utils/localStorage";
-import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, GB_CVT_EXT_HOS } from "../utils/constants";
+import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, GB_CVT_EXT_HOS, GB_LIMS } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, sendMessageToParent, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import FullPageLoader from "../pages/vaccination/components/Loader";
@@ -77,6 +77,8 @@ function SidebarDoctor() {
     GB_NEW_IPD_HOS_BUSINESS_ID
   );
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const isLimsAccessableFromGB = useFeatureIsOn(GB_LIMS);
+
   const dispatch = useDispatch();
   const { servicesList } = useSelector((state) => state.doctors);
   const ASK_TATVA_planDetails = servicesList?.find(e => e.service_name === S_ASK_TATVA)
@@ -690,6 +692,23 @@ function SidebarDoctor() {
               </div>
             </NavLink>
           )}
+          {/* {isLimsAccessableFromGB && ( */}
+            {/* <NavLink
+              to="/lims"
+              replace={true}
+              className={({ isActive, isPending }) =>
+                isPending ? "pending" : isActive || location.pathname.startsWith("/lims") ? "active" : ""
+              }
+              onMouseEnter={() => setHoveredItem("lims")}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9.5 2v6.4L4.7 18.2A2 2 0 006.5 21h11a2 2 0 001.8-2.8L14.5 8.4V2" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 2h6M7.5 15h9" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <div className="mt-1 px-2">LIMS</div>
+            </NavLink> */}
+          {/* )} */}
           </>
           )}
         {/* </div> */}

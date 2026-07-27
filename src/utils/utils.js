@@ -834,7 +834,12 @@ export const getHmTypeIndicator = (item, isChikitsalayAccessable = false) => {
   const umId = item.um_id ?? item.metadata?.um_id;
   if (hmType == 1 && Number(umId) === 0) return 'Z';
   if (hmType == 2 ) return 'A';
-  if (hmType == 15 && Number(umId) === 0 && isChikitsalayAccessable) return 'VC';
+  if (hmType == 15 && isChikitsalayAccessable && Number(umId) === 0) {
+    const hasMedicineHmType =
+      item.tmm_hm_type != null || item.metadata?.tmm_hm_type != null;
+    if (hasMedicineHmType) return 'VC';
+    if (Number(item?.is_available ?? item.metadata?.is_available) === 1) return 'VC';
+  }
   return '';
 };
 
@@ -964,7 +969,11 @@ export const isValidMongoId = (id) => {
 
 export const trackEvent = (eventName, attributes) => {
   if (typeof window !== "undefined" && window.Moengage?.track_event) {
-    window.Moengage.track_event(eventName, attributes);
+    window.Moengage.track_event(eventName, {
+      appEnv: process.env.REACT_APP_ENV || "prod",
+      hostname: window.location?.hostname || "",
+      ...attributes,
+    });
   }
 };
 
@@ -1876,6 +1885,50 @@ export const getImageDimensions = (url) => {
   });
 };
 
+const FOOTER_A4_WIDTH_IN_PTS = 595;
+const FOOTER_PAGE_X_PADDING = 0.75 * 60;
+
+export const computeFooterImageDimensions = (width, height) => ({
+  footerHeight: height || 0,
+  footerWidth: width || 0,
+  renderedFooterImageHeight:
+    width > 0
+      ? (height / width) * (FOOTER_A4_WIDTH_IN_PTS - FOOTER_PAGE_X_PADDING)
+      : 0,
+});
+
+export const resolveFooterImageDimensions = async (fileFooter) => {
+  if (!fileFooter?.imageShow || !fileFooter?.showFile) {
+    return fileFooter;
+  }
+
+  const footerWidth = Number(fileFooter.footerWidth);
+  const footerHeight = Number(fileFooter.footerHeight);
+  if (
+    footerWidth > 0 &&
+    footerHeight > 0 &&
+    Number.isFinite(fileFooter.renderedFooterImageHeight)
+  ) {
+    return fileFooter;
+  }
+
+  try {
+    const { width, height } = await getImageDimensions(fileFooter.showFile);
+    return {
+      ...fileFooter,
+      ...computeFooterImageDimensions(width, height),
+    };
+  } catch (err) {
+    console.error("Failed to resolve footer image dimensions:", err);
+    return {
+      ...fileFooter,
+      footerHeight: 0,
+      footerWidth: 0,
+      renderedFooterImageHeight: 0,
+    };
+  }
+};
+
 export const updateFooterImageHeight = (
   footerFile,
   setFileFooter,
@@ -1883,15 +1936,7 @@ export const updateFooterImageHeight = (
 ) => {
   getImageDimensions(footerFile?.showFile)
     .then(({ height, width }) => {
-      const widthOfA4PageInPts = 595;
-      const PX_TO_PT = 0.75;
-      const pageXPadding = PX_TO_PT * 60;
-      const footerImgDimensions = {
-        footerHeight: height || 0,
-        footerWidth: width || 0,
-        renderedFooterImageHeight:
-          (height / width) * (widthOfA4PageInPts - pageXPadding) || 0,
-      };
+      const footerImgDimensions = computeFooterImageDimensions(width, height);
       if (initialUpdate) {
         setFileFooter({
           imageShow: true,

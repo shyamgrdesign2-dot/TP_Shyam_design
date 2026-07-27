@@ -52,7 +52,7 @@ import {
   getMedicineStockLabel
 } from "../../utils/utils";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import {

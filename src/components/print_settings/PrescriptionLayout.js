@@ -214,7 +214,7 @@ const diagnosisCheckboxOptions = [
   },
 ];
 
-function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
+function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills, crossConsultData }) {
   const contextValue = useContext(PrintSettingsContext);
   const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile, isDigitisedPrintConfig, dentalExaminationData, isDentalEnabled: isDentalEnabledContext, drawingCanvases } = contextValue || {};
   const isDentalEnabledFromHook = useIsDentalEnabled();
@@ -224,7 +224,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
   if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {
     dentalExamData = {
       ...dentalExamData,
-      tooth_states: transformToothStateToApi(dentalExamData.toothState)
+      tooth_states: transformToothStateToApi(dentalExamData.toothState),
+      dentition_type: dentalExamData.dentition_type || dentalExamData.dentitionType,
     };
   }
   const hasDentalExaminationData = Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.some((toothState) =>
@@ -1550,6 +1551,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     (patientBills?.length > 0 && option.id === 17) ||
                     ((option.id === 19) && (Array.isArray(carePlanAssignments) ? carePlanAssignments.length > 0 : false)) ||
                     (option.id === 20 && ophthalModuleData && Object.keys(ophthalModuleData).length > 0) ||
+                    (crossConsultData && option.id === 26) ||
                     (option.id === DENTAL_EXAM_CASE_OPTION_ID && showDentalExamRow) ||
                     (option.id === ORAL_EXAM_CASE_OPTION_ID && showOralExamRow) ||
                     (option.id === 25 &&
@@ -1672,6 +1674,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                   (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
                   (patientBills?.length > 0 && option.id === 17) ||
                   (option.id === 20 && ((ophthalModuleData && Object.keys(ophthalModuleData).length > 0) || true)) ||
+                  (crossConsultData && option.id === 26) ||
                   (option.id === DENTAL_EXAM_CASE_OPTION_ID && showDentalExamRow) ||
                   (option.id === ORAL_EXAM_CASE_OPTION_ID && showOralExamRow) ||
                   (option.id === 25 &&

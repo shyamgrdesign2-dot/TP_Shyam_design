@@ -28,6 +28,7 @@ const ServiceItemPopup = ({
   setSearchQuery,
   onSaved,
   dentalOnly = false,
+  zIndex,
 }) => {
   const { advancedSettings } = useSelector((state) => state.billing);
   const [serviceItem, setServiceItem] = useState({
@@ -164,6 +165,7 @@ const ServiceItemPopup = ({
 
   return (
     <Drawer
+      zIndex={zIndex}
       title={
         <div className="d-flex align-items-center gap-2">
           <span style={{ fontWeight: 600, fontSize: '16px', color: '#1A1A1A' }}>
@@ -247,6 +249,7 @@ const ServiceItemPopup = ({
               {serviceNameLabel} <span className="text-danger">*</span>
             </label>
             <Input
+              autoFocus={dentalOnly && editIndex === -1}
               value={serviceItem.name}
               placeholder="Search or type a name"
               style={{ height: 44, borderRadius: '8px' }}

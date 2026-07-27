@@ -43,6 +43,10 @@ import PrivateNotesBox from "../components/PrivateNotesBox";
 import PrivateNotesList from "../components/PrivateNotesList";
 
 import SmartRxFollowUpBox from "../components/SmartRxFollowUpBox";
+import ReferralBox from "../components/ReferralBox";
+import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
+import { useCrossConsult } from "../hooks/useCrossConsult";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 import CarePlanDropdown from "../components/CarePlanDropdown";
 import CarePlanList from "../components/CarePlanList";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
@@ -63,6 +67,7 @@ import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import { errorMessage } from "../utils/utils";
 import { MESSAGE_KEY } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import CommonModal from "../common/CommonModal";
 
 import LoopingVideo from "../components/common/LoopingVideo";
@@ -237,6 +242,8 @@ function SmartPrescription() {
   const [viewlabparamsDrawer, setViewlabparamsDrawer] = useState(false);
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   // const [token, setToken] = useState(null);
@@ -360,6 +367,8 @@ function SmartPrescription() {
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     customModuleContents,
     setCustomModuleContents,
     startTime,
@@ -907,6 +916,28 @@ function SmartPrescription() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, isCrossConsultAccessable, patient_data]);
 
   useEffect(() => {
     getSymptomsCollectorData();
@@ -1655,7 +1686,7 @@ function SmartPrescription() {
           },
         }
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }
@@ -3737,6 +3768,11 @@ function SmartPrescription() {
                   <SmartRxFollowUpBox />
                 </div>
               }
+              {!isCvtExtHosAccessableFromGB && isCrossConsultAccessable && (
+                <div className="prescription-box-sm p-14">
+                  <ReferralBox />
+                </div>
+              )}
             </div>
             <div
               className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3"
@@ -4088,6 +4124,8 @@ function SmartPrescription() {
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
+            initialActiveKey={isGynaecHistoryAccessable ? "gynec" : "medical"}
+            hideMenstrualHistoryTab={!isGynaecHistoryAccessable}
           />
         </Drawer>
         <Drawer

@@ -35,6 +35,7 @@ import {
   GB_VOICE_RX_FREE,
 } from "../../utils/constants";
 import { FETCH_SMART_RX } from "../../utils/constants";
+import { normalizeLabResultsResponse } from "../../utils/labResultsUtils";
 
 import {
   getPatientBirthWeight,
@@ -56,6 +57,10 @@ import MedicalHistoryBox from "../../components/MedicalHistoryBox";
 import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
+import TabReferralPanel from "../../components/tab_design/TabReferralPanel";
+import { EMPTY_REFERRAL_DATA } from "../../components/referral/ReferralPanelForm";
+import { fetchReferralDataForCaseManager } from "../../utils/crossConsultHelpers";
+import { useCrossConsult } from "../../hooks/useCrossConsult";
 
 // 
 // 
@@ -228,6 +233,7 @@ function TabRx() {
   const { examinationHistory = [] } = obstetricDetails || [];
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
+  const isCrossConsultAccessable = useCrossConsult();
   const shouldShowAncHistory = obstetricDetails?.ancHistory?.find(
     (item) =>
       !item?.deleted &&
@@ -532,6 +538,7 @@ function TabRx() {
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [isGrowthChart, setIsGrowthChart] = useState(false);
@@ -973,6 +980,8 @@ function TabRx() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
+    referralData,
+    setReferralData,
   };
 
   const [collapsed, setCollapsed] = useState(false);
@@ -1314,6 +1323,34 @@ function TabRx() {
     }
   }, []);
 
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    const isReferralModuleEnabled =
+      customizedPadLeftList.findIndex(
+        (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0,
+      ) !== -1;
+    if (!isReferralModuleEnabled) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, customizedPadLeftList, patient_data, isCrossConsultAccessable]);
+
   // Separate useEffect to handle customModuleContents after customModules are loaded
   useEffect(() => {
     if (caseManagerData?.moduleContents?.length) {
@@ -1476,7 +1513,7 @@ function TabRx() {
           },
         },
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }
@@ -2294,6 +2331,13 @@ function TabRx() {
                     userId={userId}
                     clinicId={decodedToken?.result?.clinic_id}
                     carePlanPlaceholder={carePlanPlaceholder}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 13 && isCrossConsultAccessable ? (
+                  <TabReferralPanel
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    referralData={referralData}
+                    onReferralChange={setReferralData}
                     isTabRx={true}
                   />
                 ) : (

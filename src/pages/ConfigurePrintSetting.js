@@ -39,11 +39,13 @@ import { getGenRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "./snapRx/services/snapRxService";
 import { env } from "../EnvironmentConfig";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
 import { transformToothStateToApi } from "../components/dental/lib/examination-helpers";
 import { toothHasDentalPrintData } from "../components/print_settings/dental/dentalPrintHelpers";
@@ -64,7 +66,7 @@ function ConfigurePrintSetting() {
     const isDentalEnabled = useIsDentalEnabled();
 
     const { state } = useLocation();
-    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, dentalExaminationData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
+    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, dentalExaminationData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt, patient_data } = state;
     const isAfterDigitization = page === "digitise";
     const snapRxSessionId = stateSessionId ?? stateSessionIdAlt ?? caseManagerData?.session_id;
 
@@ -96,6 +98,7 @@ function ConfigurePrintSetting() {
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
     const [abhaDetails, setAbhaDetails] = useState(null);
+    const [crossConsultData, setCrossConsultData] = useState(null);
 
     const [drawingCanvases, setDrawingCanvases] = useState([]);
     const [isDrawingCanvasesLoading, setIsDrawingCanvasesLoading] = useState(false);
@@ -176,6 +179,27 @@ function ConfigurePrintSetting() {
         fetchAbhaDetails();
     }, []);
 
+    useEffect(() => {
+        if (!caseManagerData) return;
+
+        let cancelled = false;
+
+        const loadCrossConsultData = async () => {
+            const referral = await fetchReferralDataForCaseManager(
+                caseManagerData,
+                patient_data
+            );
+            if (!cancelled && referral) {
+                setCrossConsultData(referral);
+            }
+        };
+
+        loadCrossConsultData();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [caseManagerData, patient_data]);
 
     useEffect(() => {
         const fetchVoiceAmbientData = async () => {
@@ -510,7 +534,7 @@ function ConfigurePrintSetting() {
                         `${baseUrl}/api/v1/lab-parameters/results/${patientId}`,
                         { headers: { Authorization: `Bearer ${cleanedToken}` } }
                     );
-                    const labResults = response?.data?.data?.results ?? response?.data?.results ?? [];
+                    const labResults = normalizeLabResultsResponse(response);
                     const labArray = getTodayLabParams(labResults);
                     setLabParamsData(labArray);
                 } catch (error) {
@@ -944,7 +968,8 @@ function ConfigurePrintSetting() {
             if (dentalExamData && dentalExamData.toothState && typeof dentalExamData.toothState === "object") {
                 dentalExamData = {
                     ...dentalExamData,
-                    tooth_states: transformToothStateToApi(dentalExamData.toothState)
+                    tooth_states: transformToothStateToApi(dentalExamData.toothState),
+                    dentition_type: dentalExamData.dentition_type || dentalExamData.dentitionType,
                 };
             }
             if (Array.isArray(dentalExamData?.tooth_states) && dentalExamData.tooth_states.length > 0) {
@@ -1028,6 +1053,7 @@ function ConfigurePrintSetting() {
         }
     };
 
+
     return (
         <PrintSettingsContext.Provider value={contextApi}>
             <>
@@ -1045,9 +1071,9 @@ function ConfigurePrintSetting() {
                                     className="print-tabs" 
                                 />
                                 {selectedTab === TAB_PRESCRIPTION ? (
-                                    <PrescriptionLayout todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={[...patientBills, ...advanceReceipts]} />
+                                    <PrescriptionLayout todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={[...patientBills, ...advanceReceipts]} crossConsultData={crossConsultData} />
                                 ) : selectedTab === TAB_HEADER_FOOTER ? (
-                                    <HeaderFooterLayout todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} />
+                                    <HeaderFooterLayout todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} crossConsultData={crossConsultData} />
                                 ) : selectedTab === TAB_PAGE_FORMAT && (
                                     <PageFormatLayout />
                                 )}
@@ -1058,7 +1084,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetailsForPdf} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetailsForPdf} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} crossConsultData={crossConsultData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>

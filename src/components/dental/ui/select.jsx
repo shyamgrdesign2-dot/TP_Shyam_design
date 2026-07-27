@@ -33,7 +33,7 @@ function SelectContent({ className, children, position = "popper", ...props }) {
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         data-slot="select-content"
-        className={cx(styles.content, position === "popper" ? styles.contentPopper : "", className)}
+        className={cx("treatment-plan", styles.content, position === "popper" ? styles.contentPopper : "", className)}
         position={position}
         {...props}>
 

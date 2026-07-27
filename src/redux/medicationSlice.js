@@ -132,7 +132,9 @@ export const getFrequentlySearchedMedication = createAsyncThunk(
   "medication/getFrequentlySearchedMedication",
   async (data) => {
     let result = {};
-    result = await ApiMedication.getFrequentlySearchedMedication();
+    result = await ApiMedication.getFrequentlySearchedMedication({
+      isChikitsalayAccessable: data?.isChikitsalayAccessable,
+    });
     if (result.status) {
       const searchResults = Array.isArray(result.data) ? result.data : [];
 
@@ -173,7 +175,9 @@ export const searchMedication = createAsyncThunk(
   "medication/searchMedication",
   async (data) => {
     let result = {};
-    result = await ApiMedication.searchMedication(data.searchQuery);
+    result = await ApiMedication.searchMedication(data.searchQuery, {
+      isChikitsalayAccessable: data?.isChikitsalayAccessable,
+    });
     if (result.status) {
       const searchResults = Array.isArray(result.data) ? result.data : [];
 

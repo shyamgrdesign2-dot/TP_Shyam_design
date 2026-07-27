@@ -45,6 +45,11 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
 const {
   alerticon: alertIcon,
   examination: Examinationicon,
@@ -89,11 +94,65 @@ function ExaminationBox({ showVoiceRxModule }) {
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
-  const applyVoiceExaminations = useCallback((nextExaminations) => {
+
+  const createCustomExaminationRow = useCallback((examinationName) => ({
+    unique_id: uuidv4(),
+    change: 1,
+    pms_default: 0,
+    examination_name: examinationName,
+  }), []);
+
+  const createCommittedExaminationRow = useCallback((examinationRow, examinationName) => ({
+    ...examinationRow,
+    examination_name: examinationName,
+    note: "",
+  }), []);
+
+  const onEmptyLineExaminationCommit = useCallback(() => {
+    dispatch(setIsDDxReadyToGenerate(true));
+  }, [dispatch]);
+
+  const onEmptyLineExaminationRemove = useCallback((nextExaminations) => {
     if (nextExaminations.length > 0) {
-      setExaminationData(nextExaminations);
+      dispatch(setIsDDxReadyToGenerate(true));
+    } else if ((Array.isArray(symptomsData) ? symptomsData : []).length === 0) {
+      dispatch(setIsDDxReadyToGenerate(false));
     }
-  }, [setExaminationData]);
+  }, [dispatch, symptomsData]);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: examinationData,
+    setRows: setExaminationData,
+    showVoiceRxModule,
+    nameField: "examination_name",
+    rowKeyPrefix: "examination",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomExaminationRow,
+    createCommittedRow: createCommittedExaminationRow,
+    onAfterCommit: onEmptyLineExaminationCommit,
+    onAfterRemove: onEmptyLineExaminationRemove,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetDraft: resetEmptyLineDraft,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
+
+  const applyVoiceExaminations = useCallback((nextExaminations) => {
+    if (Array.isArray(nextExaminations) && nextExaminations.length > 0) {
+      setExaminationData(nextExaminations);
+      resetEmptyLineDraft();
+    }
+  }, [resetEmptyLineDraft, setExaminationData]);
 
   const examinationsVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(examinationData, "examinations"),
@@ -182,7 +241,7 @@ function ExaminationBox({ showVoiceRxModule }) {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, searchParentQuery]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -294,6 +353,10 @@ function ExaminationBox({ showVoiceRxModule }) {
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     examinationData.splice(index, 1);
     setExaminationData((prev) => [...prev]);
     if (examinationData?.length > 0) {
@@ -473,78 +536,171 @@ function ExaminationBox({ showVoiceRxModule }) {
   };
 
   const TABLE_EXAMINATION = useMemo(() => {
+    const examinationRows = Array.isArray(examinationData) ? examinationData : [];
+    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled;
+
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="examination" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
-              {examinationData.length > 0 &&
-                examinationData.map((item, index) => (
-                  <Draggable key={index} draggableId={`examination-${index}`} index={index}>
-                    {(provided) => (
-                      <Row
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        key={index}
-                        gutter={[0]}
-                        className={`${index === 0 && 'mt-14 border-top'
+      <div className={shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : undefined}>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="examination" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={[
+                  isNewEmptyLineUiEnabled ? "mt-2 prescription-empty-line-ui" : "",
+                  shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableBody : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {examinationRows.map((item, index) => {
+                  const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(item, index) : `examination-${index}`;
+
+                  return (
+                    <Draggable key={rowKey} draggableId={rowKey} index={index}>
+                      {(provided) => (
+                        <Row
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          key={rowKey}
+                          gutter={[0]}
+                          className={isNewEmptyLineUiEnabled ? [
+                            "symptoms-table-row",
+                            emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                          ].filter(Boolean).join(" ") : `${index === 0 && 'mt-14 border-top'
                           } align-items-center border-bottom`}
-                      >
-                        <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: 'grab' }}
-                          >
-                          </MenuOutlined>
-                        </Col>
-                        <Col lg={8} md={8} sm={8} xs={8} className="border-end">
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.examination_name}
-                              value={item.examination_name}
-                              placeholder="Examination Name"
-                              bordered={false}
-                              defaultOpen={false}
-                              disabled={item?.pms_default ? true : false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              {...getPrescriptionNewPopupProps()}
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) => onSelectChild(data, e, index)}
+                        >
+                          <Col lg={1} md={1} sm={1} xs={1} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            {isNewEmptyLineUiEnabled ? (
+                              <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                            ) : (
+                              <MenuOutlined
+                                {...provided.dragHandleProps}
+                                className="drag-handle"
+                              >
+                              </MenuOutlined>
+                            )}
+                          </Col>
+                          <Col lg={8} md={8} sm={8} xs={8} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            <div className="fontroboto fw-medium w-100">
+                              <AutoComplete
+                                defaultValue={item.examination_name}
+                                value={item.examination_name}
+                                placeholder="Examination Name"
+                                bordered={false}
+                                defaultOpen={false}
+                                disabled={item?.pms_default ? true : false}
+                                onSearch={(query) => onSearchChild(query, index)}
+                                onFocus={() => onFocusChid(index)}
+                                options={childSearchOptions}
+                                className="autocomplete-custom w-100 inputborder"
+                                {...getPrescriptionNewPopupProps()}
+                                defaultActiveFirstOption={true}
+                                onSelect={(data, e) => onSelectChild(data, e, index)}
+                              />
+                            </div>
+                          </Col>
+                          <Col lg={14} md={14} sm={13} xs={13} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            <Input
+                              className="notesinput border-0"
+                              placeholder="Notes"
+                              defaultValue={item.note}
+                              value={item.note}
+                              onChange={(e) => onChangeNoteChild(e, index)}
                             />
-                          </div>
-                        </Col>
-                        <Col lg={14} md={14} sm={13} xs={13} className="border-end">
-                          <Input
-                            className="notesinput border-0"
-                            placeholder="Notes"
-                            defaultValue={item.note}
-                            value={item.note}
-                            onChange={(e) => onChangeNoteChild(e, index)}
-                          />
-                        </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="text-center">
-                          <Button
-                            className="btn py-0 btn-delete-prescription px-0"
-                            onClick={() => onRemoveRow(index)}
-                          >
-                            {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
-                          </Button>
-                        </Col>
-                      </Row>
-                    )}
-                  </Draggable>
-                ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                          </Col>
+                          <Col lg={1} md={1} sm={2} xs={2} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            <Button
+                              className="btn py-0 btn-delete-prescription px-0"
+                              onClick={() => onRemoveRow(index)}
+                            >
+                              {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                            </Button>
+                          </Col>
+                        </Row>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
+                {isNewEmptyLineUiEnabled && (
+                  <Row
+                    gutter={[0]}
+                    className={[
+                      "symptoms-table-row",
+                      "prescription-empty-line-row--animated",
+                      "prescription-empty-line-row--draft",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <Col lg={1} md={1} sm={1} xs={1} className={[
+                      "symptoms-table-cell center",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                    ].filter(Boolean).join(" ")} />
+                    <Col lg={8} md={8} sm={8} xs={8} className={[
+                      "symptoms-table-cell prescription-empty-line-cell--draft-active",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <PrescriptionEmptyLineDraftSearch
+                        inputRef={emptyLineDraftInputRef}
+                        inputClassName="fontroboto fw-medium w-100"
+                        value={emptyLineDraftName}
+                        options={parentSearchOptions}
+                        popupProps={getPrescriptionNewPopupProps()}
+                        onSearch={onEmptyLineDraftSearch}
+                        onSelect={onEmptyLineDraftSelect}
+                        onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                      />
+                    </Col>
+                    <Col lg={14} md={14} sm={13} xs={13} className={[
+                      "symptoms-table-cell",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <Input
+                        className="notesinput border-0 prescription-empty-line-draft-disabled-control"
+                        placeholder="Notes"
+                        value=""
+                        disabled
+                      />
+                    </Col>
+                    <Col lg={1} md={1} sm={2} xs={2} className={[
+                      "symptoms-table-cell center",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                    ].filter(Boolean).join(" ")} />
+                  </Row>
+                )}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [examinationData, childSearchOptions]);
+  }, [
+    examinationData,
+    childSearchOptions,
+    isNewEmptyLineUiEnabled,
+    isVoiceRxModuleEnabled,
+    emptyLineDraftInputRef,
+    emptyLineDraftName,
+    emptyLineRemovingRowKeys,
+    getEmptyLineRowKey,
+    onEmptyLineDraftInputKeyDown,
+    onEmptyLineDraftSearch,
+    onEmptyLineDraftSelect,
+    parentSearchOptions,
+  ]);
 
   //Child Componet
   // const TABLE_EXAMINATION = useMemo(() => {
@@ -758,6 +914,7 @@ function ExaminationBox({ showVoiceRxModule }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setExaminationData([])
     showHideClearData()
   };
@@ -881,15 +1038,17 @@ function ExaminationBox({ showVoiceRxModule }) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+          <div className={voiceModuleStyles.moduleSlot}>
             <VoiceRxModuleCapture
               moduleName="Examinations"
               previousContext={examinationsVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.examination}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : (
+          </div>
+        ) : !isNewEmptyLineUiEnabled ? (
+          <div className="p-14">
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -904,8 +1063,8 @@ function ExaminationBox({ showVoiceRxModule }) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </>
   );

@@ -99,6 +99,10 @@ import { useChikitsalay } from "../../../../pages/chikitsalay/useChikitsalay";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { getTabRxFiles, upsertTabRxRx } from "../../services/tabRxService";
 import {
+    attachCrossConsultToCaseManagerPayload,
+    syncCrossConsultReferral,
+} from "../../../../utils/crossConsultHelpers";
+import {
     getMetadata,
     setMetadata,
     getTemplates,
@@ -204,6 +208,7 @@ function TabRxHeaderV2({
         setFollowUpDate,
         additionalNote,
         setAdditionalNote,
+        referralData,
         startTime,
         customModuleContents,
         setCustomModuleContents,
@@ -1827,6 +1832,11 @@ function TabRxHeaderV2({
                 };
             }
 
+            attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+                referredBy: profile?.um_name,
+                pendingCrossConsult: patient_data,
+            });
+
             const clinic_name = getClinicName(profile?.hospital_data);
             tcmId == 0
                 ? window.Moengage.track_event("TP_Consultation_ended", {
@@ -1876,6 +1886,15 @@ function TabRxHeaderV2({
                     }
                 } catch (error) {
                     console.error('Care plan sync after submit failed:', error);
+                }
+
+                try {
+                    await syncCrossConsultReferral({
+                        tcmId: parseInt(action?.payload?.tcm_id ?? tcmId),
+                        pendingCrossConsult: patient_data,
+                    });
+                } catch (error) {
+                    console.error('Cross consult sync failed:', error);
                 }
 
                 message.open({

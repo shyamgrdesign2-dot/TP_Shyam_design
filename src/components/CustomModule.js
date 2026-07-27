@@ -60,7 +60,6 @@ import { ASSETS } from "../assets";
 import { Grid5, Trash } from "iconsax-reactjs";
 import {
   VoiceRxModuleActionButton,
-  VoiceRxModuleButton,
   VoiceRxModuleCapture,
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
@@ -934,10 +933,15 @@ function CustomModule({ module, showVoiceRxModule }) {
 
   const TABLE_CUSTOM_MODULE = useMemo(() => {
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId={`${module?.name}`} direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
+      <div className={isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableScrollWrap : undefined}>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId={`${module?.name}`} direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableBody : undefined}
+              >
               {moduleData.map((item, index) => (
                 <Draggable
                   key={index}
@@ -950,11 +954,13 @@ function CustomModule({ module, showVoiceRxModule }) {
                       {...provided.draggableProps}
                       key={index}
                       gutter={[0]}
-                      className={`${
-                        index === 0 && "mt-14 border-top"
-                      } align-items-center border-bottom`}
+                      className={[
+                        index === 0 && "mt-14 border-top",
+                        "align-items-center border-bottom",
+                        isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableRow : "",
+                      ].filter(Boolean).join(" ")}
                     >
-                      <Col lg={1} md={1} sm={1} xs={1} className="text-center">
+                      <Col lg={1} md={1} sm={1} xs={1} className={["text-center", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleDragCell : ""].filter(Boolean).join(" ")}>
                         <MenuOutlined
                           {...provided.dragHandleProps}
                           className="drag-handle"
@@ -966,7 +972,10 @@ function CustomModule({ module, showVoiceRxModule }) {
                         md={8}
                         sm={8}
                         xs={8}
-                        className={isVoiceTargetHighlighted(index, "title") ? "custom-module-voice-target-cell" : ""}
+                        className={[
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.modulePrimaryCell : "",
+                          isVoiceTargetHighlighted(index, "title") ? "custom-module-voice-target-cell" : "",
+                        ].filter(Boolean).join(" ")}
                       >
                         <div className="fontroboto fw-medium">
                           <AutoComplete
@@ -1005,6 +1014,7 @@ function CustomModule({ module, showVoiceRxModule }) {
                         xs={13}
                         className={[
                           "border-end",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleWideNotesCell : "",
                           isVoiceTargetHighlighted(index, "notes") ? "custom-module-voice-target-cell" : "",
                         ].filter(Boolean).join(" ")}
                       >
@@ -1021,7 +1031,7 @@ function CustomModule({ module, showVoiceRxModule }) {
                           autoSize={{ minRows: 1, maxRows: 10 }} // Dynamically resizes between 1 and 10 rows
                         />
                       </Col>
-                      <Col lg={1} md={1} sm={2} xs={2} className="text-center">
+                      <Col lg={1} md={1} sm={2} xs={2} className={["text-center", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleActionCell : ""].filter(Boolean).join(" ")}>
                         <Button
                           className="btn py-0 btn-delete-prescription px-0"
                           onClick={() => onRemoveRow(index)}
@@ -1034,12 +1044,13 @@ function CustomModule({ module, showVoiceRxModule }) {
                 </Draggable>
               ))}
               {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [moduleData, childSearchOptions]);
+  }, [moduleData, childSearchOptions, isVoiceRxModuleEnabled]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -1503,13 +1514,6 @@ function CustomModule({ module, showVoiceRxModule }) {
             </div>
 
             <div className="d-flex align-items-center">
-              {isVoiceRxModuleEnabled && (
-                <VoiceRxModuleButton
-                  active={voiceCaptureOpen}
-                  dictationTargetId={voiceDictationTargetId}
-                  label={`Start ${module?.name || "Custom Module"} voice input`}
-                  onClick={() => setVoiceCaptureOpen(true)} />
-              )}
               {isVoiceRxModuleEnabled ? (
                 <Tooltip placement="bottom" title="Load previous data">
                   <VoiceRxModuleActionButton type="reload" label="Load previous data" onClick={loadPreviousClick} />

@@ -14,6 +14,7 @@ import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { GB_HEALTH_CHECKUP_REPORT, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
@@ -84,6 +85,7 @@ function PrescriptionPrintView() {
 
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID, isVoiceRxNewUiFlow } = state;
+    const isVoiceRxV2 = Boolean(isVoiceRxNewUiFlow);
     const isDentalEnabled = useIsDentalEnabled(); // this isDentalEnabled is not required here(will remove it)
     const isDental = state?.from === DENTAL_RX_PAD_ROUTE ;
 
@@ -120,7 +122,9 @@ function PrescriptionPrintView() {
     const [printBlob, setPrintBlob] = useState(null);
 
     const [gynecHistoryData, setGynecHistoryData] = useState(null);
-    const [labParamsData, setLabParamsData] = useState([]);
+    const [labParamsData, setLabParamsData] = useState(() =>
+        Array.isArray(passedLabParamsData) ? passedLabParamsData : []
+    );
     const [createBillDrawer, setCreateBillDrawer] = useState(false);
     const [recentBillDrawer, setRecentBillDrawer] = useState(false);
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
@@ -165,7 +169,7 @@ function PrescriptionPrintView() {
                     'Authorization': `Bearer ${cleanedToken}`,
                 },
             });
-            setLabParamsData(response.data?.data?.results || []);
+            setLabParamsData(normalizeLabResultsResponse(response));
         } catch (error) {
             console.error("Error fetching lab params:", error);
         }
@@ -214,11 +218,13 @@ function PrescriptionPrintView() {
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
         zydusSelectedLabParams,
+        labParamsData,
         dentalExaminationData,
         oralExamination,
         patientUniqueId: patient_data?.patient_unique_id,
         patientId: patient_data?.patient_unique_id,
         tcmId: state?.tcm_id,
+        patientRecord: patient_data,
     });
 
     useEffect(() => {
@@ -503,7 +509,10 @@ function PrescriptionPrintView() {
             if (isDental) {
                 navigate(DENTAL_RX_PAD_ROUTE, { replace: true, state: { patient_data: patient_data, caseManagerData } })
             } else {
-                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
+                const shouldReturnToNewPrescriptionUi =
+                    Boolean(isVoiceRxNewUiFlow) ||
+                    shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB);
+                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldReturnToNewPrescriptionUi ? { isVoiceRxNewUiFlow: true } : {}) } })
             }
         } else {
             errorMessage(action.error)
@@ -567,7 +576,8 @@ function PrescriptionPrintView() {
         const body = {
             patient_unique_id: parseInt(patient_data.patient_unique_id),
             pm_pid: String(pm_pid),
-            tcm_id: parseInt(state.tcm_id)
+            tcm_id: parseInt(state.tcm_id),
+            isVoiceRxV2
         };
         setIsWhatsAppLoading(true);
         setWhatsAppButtonText("Sending...");
@@ -669,7 +679,7 @@ function PrescriptionPrintView() {
 
     return (
         <>
-            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={pam_id} selectedLang={selectedLang} />
+            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={pam_id} selectedLang={selectedLang} isVoiceRxV2={isVoiceRxV2} />
             <div className={`${isMobile ? 'p-0' : ''} w-100 bg-body wrapper2 prescription-wrapper`}>
                 {/* <img src={hey} alt="Hey" className='me-3 hey' /> */}
                 <Row gutter={{ xl: 40, lg: 0 }} justify="center">

@@ -17,7 +17,7 @@ import {
   Spin,
   Tooltip,
 } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 
@@ -54,6 +54,15 @@ import {
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
+import {
+  DIAGNOSIS_INVENTORY_WARNING,
+  hasInvalidChikitsalayDiagnosis,
+} from "../utils/chikitsalayInventory";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
@@ -128,11 +137,55 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
+
+  const createCustomDiagnosisRow = useCallback((diagnosisName) => ({
+    unique_id: uuidv4(),
+    change: 1,
+    tds_id: 0,
+    tds_name: diagnosisName,
+    pms_default: 0,
+  }), []);
+
+  const createCommittedDiagnosisRow = useCallback((diagnosisRow, diagnosisName) => ({
+    ...diagnosisRow,
+    tds_name: diagnosisName,
+    since: "",
+    status: "",
+    note: "",
+  }), []);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: diagnosisData,
+    setRows: setDiagnosisData,
+    showVoiceRxModule,
+    nameField: "tds_name",
+    rowKeyPrefix: "diagnosis",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomDiagnosisRow,
+    createCommittedRow: createCommittedDiagnosisRow,
+    canCreateCustomRow: !isChikitsalayAccessable,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetDraft: resetEmptyLineDraft,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
+
   const applyVoiceDiagnosis = useCallback((nextDiagnosis) => {
-    if (nextDiagnosis.length > 0) {
+    if (Array.isArray(nextDiagnosis) && nextDiagnosis.length > 0) {
       setDiagnosisData(nextDiagnosis);
+      resetEmptyLineDraft();
     }
-  }, [setDiagnosisData]);
+  }, [resetEmptyLineDraft, setDiagnosisData]);
 
   const diagnosisVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(diagnosisData, "diagnosis"),
@@ -225,7 +278,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, isChikitsalayAccessable, searchParentQuery]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -329,7 +382,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const onSelectChild = useCallback(
     (data, e, i) => {
-      diagnosisData[i] = { ...diagnosisData[i], ...JSON.parse(e.key) };
+      diagnosisData[i] = { ...diagnosisData[i], ...JSON.parse(e.key), voice_rx_from_module: false };
       setDiagnosisData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).tds_name, index: i });
     },
@@ -393,6 +446,10 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     diagnosisData.splice(index, 1);
     setDiagnosisData((prev) => [...prev]);
   };
@@ -479,6 +536,8 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       errorMessage('At least 1 diagnosis added')
     } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup diagnosis name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateDiagnosis.some(hasInvalidChikitsalayDiagnosis)) {
+      errorMessage(DIAGNOSIS_INVENTORY_WARNING)
     } else {
       var sendData = {
         tdt_template_name: inputTemplateName,
@@ -509,6 +568,8 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       errorMessage('At least 1 diagnosis added')
     } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup diagnosis name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateDiagnosis.some(hasInvalidChikitsalayDiagnosis)) {
+      errorMessage(DIAGNOSIS_INVENTORY_WARNING)
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
@@ -663,51 +724,116 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   };
 
   const TABLE_DIAGNOSIS = useMemo(() => {
+    const diagnosisRows = Array.isArray(diagnosisData) ? diagnosisData : [];
+
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="diagnosis" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
-              {diagnosisData.length > 0 &&
-                diagnosisData.map((item, index) => (
-                  <Draggable key={index} draggableId={`diagnosis-${index}`} index={index}>
+      <div className={isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableScrollWrap : undefined}>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="diagnosis" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={[
+                  isNewEmptyLineUiEnabled ? "mt-2 prescription-empty-line-ui" : "",
+                  isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableBody : "",
+                ].filter(Boolean).join(" ")}
+              >
+              {diagnosisRows.map((item, index) => {
+                const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(item, index) : `diagnosis-${index}`;
+
+                return (
+                  <Draggable key={rowKey} draggableId={rowKey} index={index}>
                     {(provided) => (
                       <Row
                         ref={provided.innerRef}
                         {...provided.draggableProps}
-                        key={index}
+                        key={rowKey}
                         gutter={[0]}
-                        className={`${index === 0 && 'mt-14 border-top'
-                          } align-items-center border-bottom`}
+                        className={isNewEmptyLineUiEnabled ? [
+                          "symptoms-table-row",
+                          emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableRow : "",
+                        ].filter(Boolean).join(" ") : [
+                          index === 0 && "mt-14 border-top",
+                          "align-items-center border-bottom",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableRow : "",
+                        ].filter(Boolean).join(" ")}
                       >
-                        <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: 'grab' }}
-                          >
-                          </MenuOutlined>
+                        <Col lg={1} md={1} sm={1} xs={1} className={[
+                          isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleDragCell : "",
+                        ].filter(Boolean).join(" ")}>
+                          {isNewEmptyLineUiEnabled ? (
+                            <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                          ) : (
+                            <MenuOutlined
+                              {...provided.dragHandleProps}
+                              className="drag-handle"
+                            >
+                            </MenuOutlined>
+                          )}
                         </Col>
-                        <Col lg={6} md={6} sm={6} xs={6} className="border-end">
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.tds_name}
-                              value={`${item.tds_name}${item?.icd_code ? ` (${item?.icd_code})` : ''}`}
-                              placeholder="Diagnosis Name"
-                              bordered={false}
-                              defaultOpen={false}
-                              disabled={item?.pms_default ? true : false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              {...getPrescriptionNewPopupProps()}
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) => onSelectChild(data, e, index)}
-                            />
+                        <Col
+                          lg={6}
+                          md={6}
+                          sm={6}
+                          xs={6}
+                          className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                            isVoiceRxModuleEnabled ? voiceModuleStyles.modulePrimaryCell : "",
+                            isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? "align-self-stretch" : "",
+                          ].filter(Boolean).join(" ")}
+                          style={isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? { background: "#fff8ef" } : undefined}
+                        >
+                          <div className={isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 w-100"}>
+                            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                              <AutoComplete
+                                defaultValue={item.tds_name}
+                                value={`${item.tds_name}${item?.icd_code ? ` (${item?.icd_code})` : ''}`}
+                                placeholder="Diagnosis Name"
+                                bordered={false}
+                                defaultOpen={false}
+                                disabled={item?.pms_default && !(isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item)) ? true : false}
+                                onSearch={(query) => onSearchChild(query, index)}
+                                onFocus={() => onFocusChid(index)}
+                                options={childSearchOptions}
+                                className="autocomplete-custom w-100 inputborder"
+                                {...getPrescriptionNewPopupProps()}
+                                defaultActiveFirstOption={true}
+                                onSelect={(data, e) => onSelectChild(data, e, index)}
+                              />
+                            </div>
+                            {isVoiceRxModuleEnabled && isChikitsalayAccessable && hasInvalidChikitsalayDiagnosis(item) && (
+                              <Tooltip
+                                placement="top"
+                                trigger={["hover", "click"]}
+                                overlayInnerStyle={{
+                                  background: "#2f2e39",
+                                  borderRadius: 8,
+                                  color: "#fff",
+                                  fontSize: 14,
+                                  lineHeight: 1.35,
+                                  maxWidth: 360,
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                }}
+                                title={DIAGNOSIS_INVENTORY_WARNING}
+                              >
+                                <span className="d-inline-flex flex-shrink-0 me-2" style={{ cursor: "pointer", lineHeight: 1 }}>
+                                  <InfoCircleOutlined
+                                    className="fs-18"
+                                    style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
+                                  />
+                                </span>
+                              </Tooltip>
+                            )}
                           </div>
                         </Col>
-                        <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                        <Col lg={4} md={4} sm={4} xs={4} className={[
+                          isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleShortCell : "",
+                        ].filter(Boolean).join(" ")}>
                           <AutoComplete
                             defaultValue={item.since}
                             value={item.since}
@@ -723,7 +849,10 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onSelect={(data) => onSelectSinceChild(data, index)}
                           />
                         </Col>
-                        <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                        <Col lg={4} md={4} sm={4} xs={4} className={[
+                          isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleShortCell : "",
+                        ].filter(Boolean).join(" ")}>
                           <Select
                             className="autocomplete-custom w-100 inputborder"
                             placeholder="Status"
@@ -736,7 +865,10 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             allowClear
                           />
                         </Col>
-                        <Col lg={8} md={8} sm={7} xs={7} className="border-end">
+                        <Col lg={8} md={8} sm={7} xs={7} className={[
+                          isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleNotesCell : "",
+                        ].filter(Boolean).join(" ")}>
                           <Input
                             className="notesinput border-0"
                             placeholder="Notes"
@@ -745,7 +877,10 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                             onChange={(e) => onChangeNoteChild(e, index)}
                           />
                         </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="text-center">
+                        <Col lg={1} md={1} sm={2} xs={2} className={[
+                          isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleActionCell : "",
+                        ].filter(Boolean).join(" ")}>
                           <Button
                             className="btn py-0 btn-delete-prescription px-0"
                             onClick={() => onRemoveRow(index)}
@@ -756,14 +891,101 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                       </Row>
                     )}
                   </Draggable>
-                ))}
+                );
+              })}
               {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+              {isNewEmptyLineUiEnabled && (
+                <Row
+                  gutter={[0]}
+                  className={[
+                    "symptoms-table-row",
+                    "prescription-empty-line-row--animated",
+                    "prescription-empty-line-row--draft",
+                    isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableRow : "",
+                  ].filter(Boolean).join(" ")}
+                >
+                  <Col lg={1} md={1} sm={1} xs={1} className={[
+                    "symptoms-table-cell center",
+                    isVoiceRxModuleEnabled ? voiceModuleStyles.moduleDragCell : "",
+                  ].filter(Boolean).join(" ")} />
+                  <Col lg={6} md={6} sm={6} xs={6} className={[
+                    "symptoms-table-cell prescription-empty-line-cell--draft-active",
+                    isVoiceRxModuleEnabled ? voiceModuleStyles.modulePrimaryCell : "",
+                  ].filter(Boolean).join(" ")}>
+                    <PrescriptionEmptyLineDraftSearch
+                      inputRef={emptyLineDraftInputRef}
+                      inputClassName="fontroboto fw-medium w-100"
+                      value={emptyLineDraftName}
+                      options={parentSearchOptions}
+                      popupProps={getPrescriptionNewPopupProps()}
+                      onSearch={onEmptyLineDraftSearch}
+                      onSelect={onEmptyLineDraftSelect}
+                      onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                    />
+                  </Col>
+                  <Col lg={4} md={4} sm={4} xs={4} className={[
+                    "symptoms-table-cell",
+                    isVoiceRxModuleEnabled ? voiceModuleStyles.moduleShortCell : "",
+                  ].filter(Boolean).join(" ")}>
+                    <AutoComplete
+                      value=""
+                      placeholder="Since"
+                      bordered={false}
+                      defaultOpen={false}
+                      disabled
+                      className="autocomplete-custom w-100 prescription-empty-line-draft-disabled-control"
+                    />
+                  </Col>
+                  <Col lg={4} md={4} sm={4} xs={4} className={[
+                    "symptoms-table-cell",
+                    isVoiceRxModuleEnabled ? voiceModuleStyles.moduleShortCell : "",
+                  ].filter(Boolean).join(" ")}>
+                    <Select
+                      className="autocomplete-custom w-100 prescription-empty-line-draft-disabled-control"
+                      placeholder="Status"
+                      value={null}
+                      options={STATUS_LIST}
+                      disabled
+                    />
+                  </Col>
+                  <Col lg={8} md={8} sm={7} xs={7} className={[
+                    "symptoms-table-cell",
+                    isVoiceRxModuleEnabled ? voiceModuleStyles.moduleNotesCell : "",
+                  ].filter(Boolean).join(" ")}>
+                    <Input
+                      className="notesinput border-0 prescription-empty-line-draft-disabled-control"
+                      placeholder="Notes"
+                      value=""
+                      disabled
+                    />
+                  </Col>
+                  <Col lg={1} md={1} sm={2} xs={2} className={[
+                    "symptoms-table-cell center",
+                    isVoiceRxModuleEnabled ? voiceModuleStyles.moduleActionCell : "",
+                  ].filter(Boolean).join(" ")} />
+                </Row>
+              )}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [diagnosisData, childSearchOptions]);
+  }, [
+    diagnosisData,
+    childSearchOptions,
+    isVoiceRxModuleEnabled,
+    isChikitsalayAccessable,
+    isNewEmptyLineUiEnabled,
+    emptyLineDraftInputRef,
+    emptyLineDraftName,
+    emptyLineRemovingRowKeys,
+    getEmptyLineRowKey,
+    onEmptyLineDraftInputKeyDown,
+    onEmptyLineDraftSearch,
+    onEmptyLineDraftSelect,
+    parentSearchOptions,
+  ]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -926,6 +1148,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setDiagnosisData([])
     showHideClearData()
   };
@@ -974,6 +1197,9 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
             <div className="title-common">Diagnosis {isChikitsalayAccessable ? <span className="text-danger">*</span> : ""}</div>
           </div>
           <div className="d-flex align-items-center">
+            {isChikitsalayAccessable && (<a href="https://icdcodes.ai/results" target="_blank" rel="noopener noreferrer" className="text-decoration-underline text-primary fs-14">
+              Find ICD codes
+            </a>)}
             {isVoiceRxModuleEnabled && (
               <VoiceRxModuleButton
                 active={voiceCaptureOpen}
@@ -1081,15 +1307,17 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
             />
           </div>
         )}
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+          <div className={voiceModuleStyles.moduleSlot}>
             <VoiceRxModuleCapture
               moduleName="Diagnosis"
               previousContext={diagnosisVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.diagnosis}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : (
+          </div>
+        ) : !isNewEmptyLineUiEnabled ? (
+          <div className="p-14">
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1104,8 +1332,8 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                 prefix={<i className="icon-search" />}
               />
             </AutoComplete>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </>
   );

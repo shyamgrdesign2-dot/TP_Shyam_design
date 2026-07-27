@@ -5,7 +5,18 @@ import axios from 'axios';
 import moment from "moment";
 import { jwtDecode } from 'jwt-decode';
 import { LAB_PARAMS_RESULTS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
-import { extractUnitsFromValue, valueWithoutUnitsForApi } from '../utils/labResultsUtils';
+import {
+  extractUnitsFromValue,
+  valueWithoutUnitsForApi,
+  normalizeLabResultsResponse,
+  filterLabResultsByDoctor,
+  buildLabResultsSavePayload,
+  getLabResultsOwnerDoctorId,
+  getAttendingDoctorUmIdFromUrl,
+  normalizeAttendingDoctorUmId,
+  isLabResultsReceptionistSession,
+  mergeLabResultRowMeta,
+} from '../utils/labResultsUtils';
 import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
@@ -33,6 +44,14 @@ const LabResultsTable = ({
     onResultsChange,
     /** When false (e.g. consult flow), prefill is never applied. Only voice/snap/ambient/smart should pass true. */
     applyRawPrefill = false,
+    /** Receptionist LIMS: last-visit doctor's um_id — filter + save against this doctor. */
+    attendingDoctorUmId,
+    /**
+     * Explicit receptionist flag from LIMS (URL ?receptionist). Prefer this over
+     * re-reading window.location so save does not fall through to the doctor path
+     * when lastVisitDoctor um_id is available.
+     */
+    isReceptionistSession,
 }) => {
 
     const [token, setToken] = useState(null);
@@ -191,17 +210,25 @@ const LabResultsTable = ({
                     'Authorization': `Bearer ${cleanedToken}`,
                 },
             });
-            setExistingResults(response.data?.data?.results || []);
+            const allResults = normalizeLabResultsResponse(response);
+            const isReceptionist =
+              isReceptionistSession === true || isLabResultsReceptionistSession();
+            const ownerDoctorId = isReceptionist
+              ? (normalizeAttendingDoctorUmId(attendingDoctorUmId) ??
+                getAttendingDoctorUmIdFromUrl())
+              : getLabResultsOwnerDoctorId(tokenData?.user_id, attendingDoctorUmId);
+            // Edit drawer must only hydrate the owning doctor's rows so save cannot re-post other doctors' data.
+            setExistingResults(filterLabResultsByDoctor(allResults, ownerDoctorId));
         } catch (error) {
             console.error("Error fetching lab params:", error);
         }
     };
 
     useEffect(() => {
-        if (token) {
+        if (token && tokenData) {
             getLabParams();
         }
-    }, [token]);
+    }, [token, tokenData?.user_id, patient_unique_id, attendingDoctorUmId, isReceptionistSession]);
 
     const onSearch = useCallback((query) => {
         setSearchQuery(query);
@@ -872,11 +899,36 @@ const LabResultsTable = ({
 
         setFilledData([]);
 
-        const payload = {
+        // Prefer parent-provided receptionist flag (LIMS) so we do not treat a
+        // kea/receptionist token as a doctor just because location.search was lost.
+        const isReceptionist =
+          isReceptionistSession === true || isLabResultsReceptionistSession();
+        const attendingForSave = isReceptionist
+          ? (normalizeAttendingDoctorUmId(attendingDoctorUmId) ??
+            getAttendingDoctorUmIdFromUrl())
+          : undefined;
+        const ownerDoctorId = isReceptionist
+          ? attendingForSave
+          : tokenData?.user_id;
+
+        // Extra safety: never POST another doctor's dated rows if they leaked into state.
+        // Also restore documentsUrls / isExternalPatient / attendingDoctorId from the GET rows.
+        const ownedResults = mergeLabResultRowMeta(
+          filterLabResultsByDoctor(data, ownerDoctorId).map((entry) => {
+            const { doctorId, receptionistId, ...rest } = entry || {};
+            return rest;
+          }),
+          existingResults,
+        );
+
+        const payload = buildLabResultsSavePayload({
             patientId: patient_unique_id,
-            doctorId: tokenData?.user_id,
-            results: data,
-        };
+            results: ownedResults,
+            tokenUserId: tokenData?.user_id,
+            // Always the last-visit doctor when receptionist — never the kea user_id.
+            attendingDoctorUmId: attendingForSave,
+            isReceptionist,
+        });
 
         try {
             const response = await api.post(

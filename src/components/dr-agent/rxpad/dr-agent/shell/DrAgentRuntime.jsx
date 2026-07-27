@@ -13,7 +13,8 @@ export function DrAgentRuntime({
   doctorId,
   patientData,
   voiceHydrationStatus,
-  symptomCollectorStatus
+  symptomCollectorStatus,
+  onPrintSoap,
 }) {
   const {
     collapsedVoiceSession,
@@ -61,6 +62,7 @@ export function DrAgentRuntime({
           patientData={patientData}
           voiceHydrationStatus={voiceHydrationStatus}
           symptomCollectorStatus={symptomCollectorStatus}
+          onPrintSoap={onPrintSoap}
           onClose={onClose}
           onOpen={onOpen}
         />

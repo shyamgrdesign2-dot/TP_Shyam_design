@@ -30,7 +30,7 @@ function SheetContent({
 
       <SheetPrimitive.Content
         data-slot="sheet-content"
-        className={cx(styles.contentBase, styles[`side${side[0].toUpperCase()}${side.slice(1)}`], className)}
+        className={cx("treatment-plan", styles.contentBase, styles[`side${side[0].toUpperCase()}${side.slice(1)}`], className)}
         {...props}>
         
         {/* Visually hidden title for Radix UI accessibility requirements */}

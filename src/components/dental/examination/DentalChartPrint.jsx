@@ -208,6 +208,7 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
         isDentalEnabled,
         dentalChartPrintMode: mode,
         includePatientInfo: includePatient,
+        dentitionType: dentalExamination?.dentitionType || patientType,
       });
 
       if (!payload) {
@@ -223,7 +224,10 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
             tcmId,
             consultationDate,
             printSettings: payload.printSettings,
-            inMemoryDental: { tooth_states: activeDentalData },
+            inMemoryDental: {
+              tooth_states: activeDentalData,
+              dentition_type: dentalExamination?.dentitionType || patientType,
+            },
             inMemoryOral: oralExamination,
             caseManagerData: payload.caseManagerData,
             allowFullApiFallback: false,

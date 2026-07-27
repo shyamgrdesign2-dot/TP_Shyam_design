@@ -53,14 +53,22 @@ export function useDentalPlan(patientId) {
     return dispatch(deleteDentalPlan({ patientId, planId }));
   }, [patientId, dispatch]);
 
-  const duplicatePlan = useCallback((planId) => {
+  const duplicatePlan = useCallback(async (planId) => {
     if (!patientId) return;
-    return dispatch(duplicateDentalPlan({ patientId, planId }));
+    const result = await dispatch(duplicateDentalPlan({ patientId, planId }));
+    if (!result.error) {
+      dispatch(fetchDentalPlans(patientId));
+    }
+    return result;
   }, [patientId, dispatch]);
 
-  const activatePlan = useCallback((planId, data) => {
+  const activatePlan = useCallback(async (planId, data) => {
     if (!patientId) return;
-    return dispatch(activateDentalPlan({ patientId, planId, data }));
+    const result = await dispatch(activateDentalPlan({ patientId, planId, data }));
+    if (!result.error) {
+      dispatch(fetchDentalPlans(patientId));
+    }
+    return result;
   }, [patientId, dispatch]);
 
   const startTreatment = useCallback((planId, data) => {
@@ -116,6 +124,11 @@ export function useDentalPlan(patientId) {
     dispatch(clearPlanError());
   }, [dispatch]);
 
+  const refetchPlans = useCallback(() => {
+    if (!patientId) return Promise.resolve();
+    return dispatch(fetchDentalPlans(patientId));
+  }, [patientId, dispatch]);
+
   return {
     plans,
     loading,
@@ -136,6 +149,7 @@ export function useDentalPlan(patientId) {
     markServiceDone,
     revertServiceToProgress,
     selectPlan,
-    clearError
+    clearError,
+    refetchPlans,
   };
 }
