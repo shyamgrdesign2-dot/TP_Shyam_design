@@ -469,7 +469,7 @@ function FilterContent({ value, onChange, onClear, onDone }) {
   );
 }
 
-function buildBillingPatientData(patient, billResponse) {
+function buildBillingPatientData(patient, billResponse, searchParams) {
   const apiPatient = billResponse?.patient;
   return {
     patient_unique_id: patient?.patient_unique_id,
@@ -484,8 +484,18 @@ function buildBillingPatientData(patient, billResponse) {
     ageMonths: apiPatient?.ageMonths ?? patient?.ageMonths,
     ageDays: apiPatient?.ageDays ?? patient?.ageDays,
     pam_id: patient?.pam_id,
+    source: patient?.source ?? searchParams?.get("source"),
+    receptionistId: patient?.receptionistId ?? searchParams?.get("receptionistId"),
+    receptionistName: patient?.receptionistName ?? searchParams?.get("receptionistName"),
     lastVisitDoctor: patient?.lastVisitDoctor,
   };
+}
+
+function getBillingDoctorIds(record, isReceptionist, userId, searchParams) {
+  if (!isReceptionist) return [userId];
+  const rowDoctorId = record?.lastVisitDoctor?.um_id;
+  if (rowDoctorId != null && rowDoctorId !== "") return [rowDoctorId];
+  return searchParams.get("um_id")?.split(",")?.filter(Boolean) || [];
 }
 
 function LimsPageMain() {
@@ -494,6 +504,7 @@ function LimsPageMain() {
   const [searchParams] = useSearchParams();
   const isReceptionist = isReceptionistSession(location.search);
   const { isOpdBillingAccessable } = useOpdBilling();
+  const showBilling = isReceptionist || isOpdBillingAccessable;
   const { profile, userId } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
   const serviceMappings = planDetails?.service_mappings || [];
@@ -562,7 +573,7 @@ function LimsPageMain() {
 
   const getPatientBills = useCallback(async (record, sortParams = {}) => {
     const queryParams = {
-      doctorIds: isReceptionist ? searchParams.get("um_id")?.split(",") : [userId],
+      doctorIds: getBillingDoctorIds(record, isReceptionist, userId, searchParams),
       sortBy: sortParams.field || "date",
       sortOrder: sortParams.order || "asc",
       page: 1,
@@ -578,7 +589,7 @@ function LimsPageMain() {
     }
 
     const response = await fetchBillsByPatient(queryParams);
-    const patientData = buildBillingPatientData(record, response);
+    const patientData = buildBillingPatientData(record, response, searchParams);
     setBillingPatient(patientData);
     const bills = (response?.bills || []).map((bill) => ({
       ...bill,
@@ -887,16 +898,19 @@ function LimsPageMain() {
       if (!isPurchased) return;
       const bills = await getPatientBills(patient);
       const clinic = getClinic();
+      const rowDoctor = patient?.lastVisitDoctor;
       trackEvent("TP_Billing_CreateBill", {
         patientName: patient.pm_fullname,
         patientId: patient?.patient_unique_id,
-        doctorSpeciality: profile?.dp_name,
-        doctorId: profile?.doctor_unique_id,
-        doctorContact: profile?.um_contact,
-        source: "lims",
+        doctorSpeciality: isReceptionist ? rowDoctor?.dp_name : profile?.dp_name,
+        doctorId: isReceptionist ? rowDoctor?.um_id : profile?.doctor_unique_id,
+        doctorContact: isReceptionist ? rowDoctor?.um_contact : profile?.um_contact,
+        source: isReceptionist ? (patient?.source || searchParams.get("source") || "lims") : "lims",
         city: clinic?.hm_city,
         pincode: clinic?.hm_pincode,
         subscriptionStatus: planDetails?.currentPlanStatus,
+        receptionistId: searchParams.get("receptionistId"),
+        receptionistName: searchParams.get("receptionistName"),
       });
       if (!bills?.length) {
         setCreateBillDrawer(true);
@@ -904,7 +918,7 @@ function LimsPageMain() {
         setRecentBillDrawer(true);
       }
     }
-  }, [navigate, location.search, checkBillingPurchased, getPatientBills, profile, planDetails]);
+  }, [navigate, location.search, checkBillingPurchased, getPatientBills, profile, planDetails, isReceptionist, searchParams]);
 
   const columns = useMemo(
     () => [
@@ -965,12 +979,12 @@ function LimsPageMain() {
           <ActionMenu
             onAction={(action) => handleAction(action, r)}
             isFilled={r._summary?.status === "filled"}
-            showBilling={isOpdBillingAccessable}
+            showBilling={showBilling}
           />
         ),
       },
     ],
-    [handleAction, isOpdBillingAccessable]
+    [handleAction, showBilling]
   );
 
   const hasActiveFilter = Boolean(dateRange || statusFilter?.status?.length || statusFilter?.tests?.length);
@@ -1221,6 +1235,7 @@ function LimsPageMain() {
           push={false}
         >
           <RecentBills
+            fromLims
             handleRecentBillDrawer={handleRecentBillDrawer}
             handleCreateBillDrawer={handleCreateBillDrawer}
             patientBills={patientBills}
