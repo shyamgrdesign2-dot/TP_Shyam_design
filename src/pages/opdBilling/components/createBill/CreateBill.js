@@ -339,7 +339,28 @@ const CreateBill = ({
   }, [isEditingName]);
 
   useEffect(() => {
-    if (!isReceptionist || editBillData?.doctorId || selectedDoctor) return;
+    if (selectedDoctor) return;
+
+    if (editBillData?.doctorId) {
+      if (editDoctorFromList) {
+        setSelectedDoctor(editDoctorFromList);
+        return;
+      }
+      const doctorId = editBillData.doctorId;
+      const lastVisitDoctor = patientData?.lastVisitDoctor;
+      if (
+        lastVisitDoctor?.um_name &&
+        String(lastVisitDoctor.um_id) === String(doctorId)
+      ) {
+        setSelectedDoctor({
+          value: parseInt(doctorId, 10),
+          label: lastVisitDoctor.um_name,
+        });
+      }
+      return;
+    }
+
+    if (!isReceptionist) return;
     const doctorId = patientData?.lastVisitDoctor?.um_id;
     const doctorName = patientData?.lastVisitDoctor?.um_name;
     if (doctorId == null || doctorId === "") return;
@@ -349,11 +370,22 @@ const CreateBill = ({
     } else if (doctorName) {
       setSelectedDoctor({ value: parseInt(doctorId, 10), label: doctorName });
     }
-  }, [isReceptionist, patientData, doctorsList, editBillData, selectedDoctor]);
+  }, [
+    isReceptionist,
+    patientData,
+    doctorsList,
+    editBillData,
+    selectedDoctor,
+    editDoctorFromList,
+  ]);
 
   const getBillPrintSettings = async () => {
+    const receptionistDoctorId =
+      patientData?.lastVisitDoctor?.um_id ??
+      editBillData?.doctorId ??
+      urlParams.get("um_id")?.split(",")?.[0];
     const printSettingsResponse = await fetchPrintSetting(
-      isReceptionist ? urlParams.get("um_id") : userId
+      isReceptionist ? receptionistDoctorId : userId
     );
     if (printSettingsResponse) {
       dispatch(setBillPrintSettings(printSettingsResponse));

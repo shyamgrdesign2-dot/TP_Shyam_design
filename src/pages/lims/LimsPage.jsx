@@ -498,6 +498,11 @@ function getBillingDoctorIds(record, isReceptionist, userId, searchParams) {
   return searchParams.get("um_id")?.split(",")?.filter(Boolean) || [];
 }
 
+function withCurrentSearch(path, search) {
+  const query = search?.startsWith("?") ? search : search ? `?${search}` : "";
+  return `${path}${query}`;
+}
+
 function LimsPageMain() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -540,6 +545,7 @@ function LimsPageMain() {
   const tableWrapRef = useRef(null);
   const observer = useRef();
   const listMetaRef = useRef(listMeta);
+  const billingSourcePatientRef = useRef(null);
   const [tableMaxH, setTableMaxH] = useState(600);
 
   const PAGE_SIZE = 25;
@@ -560,26 +566,24 @@ function LimsPageMain() {
     setIsBackModalOpen((open) => !open);
   }, []);
 
-  const handleCreateBillDrawer = useCallback(() => {
-    setCreateBillDrawer((open) => !open);
-    if (createBillDrawer) {
-      setBillData(null);
-    }
-  }, [createBillDrawer]);
-
-  const handleRecentBillDrawer = useCallback(() => {
-    setRecentBillDrawer((open) => !open);
-  }, []);
-
   const getPatientBills = useCallback(async (record, sortParams = {}) => {
+    const sourcePatient = record || billingSourcePatientRef.current;
+    if (!sourcePatient?.patient_unique_id) {
+      return [];
+    }
+
+    if (record) {
+      billingSourcePatientRef.current = record;
+    }
+
     const queryParams = {
-      doctorIds: getBillingDoctorIds(record, isReceptionist, userId, searchParams),
+      doctorIds: getBillingDoctorIds(sourcePatient, isReceptionist, userId, searchParams),
       sortBy: sortParams.field || "date",
       sortOrder: sortParams.order || "asc",
       page: 1,
       limit: 25,
-      patientId: record?.patient_unique_id,
-      appointmentId: isReceptionist ? undefined : record?.pam_id,
+      patientId: sourcePatient.patient_unique_id,
+      appointmentId: isReceptionist ? undefined : sourcePatient?.pam_id,
       type: "new",
     };
 
@@ -589,7 +593,8 @@ function LimsPageMain() {
     }
 
     const response = await fetchBillsByPatient(queryParams);
-    const patientData = buildBillingPatientData(record, response, searchParams);
+    const patientData = buildBillingPatientData(sourcePatient, response, searchParams);
+    billingSourcePatientRef.current = patientData;
     setBillingPatient(patientData);
     const bills = (response?.bills || []).map((bill) => ({
       ...bill,
@@ -597,10 +602,30 @@ function LimsPageMain() {
     }));
     setPatientBills(bills);
 
-    const walletRes = await fetchPatientWalletBalance(record?.patient_unique_id);
+    const walletRes = await fetchPatientWalletBalance(sourcePatient.patient_unique_id);
     setPatientWalletBalance(walletRes?.advanceDepositBalance);
     return bills;
   }, [isReceptionist, searchParams, userId]);
+
+  const handleCreateBillDrawer = useCallback(() => {
+    setCreateBillDrawer((open) => {
+      const nextOpen = !open;
+      if (recentBillDrawer && !nextOpen && billingSourcePatientRef.current) {
+        getPatientBills(billingSourcePatientRef.current);
+      }
+      return nextOpen;
+    });
+    if (createBillDrawer) {
+      setBillData(null);
+    }
+  }, [createBillDrawer, recentBillDrawer, getPatientBills]);
+
+  const handleRecentBillDrawer = useCallback(() => {
+    setRecentBillDrawer((open) => !open);
+    if (recentBillDrawer) {
+      setBillData(null);
+    }
+  }, [recentBillDrawer]);
 
   const doctorNameById = useMemo(() => {
     const map = { ...getReceptionistDoctorNameMapFromUrl() };
@@ -887,13 +912,11 @@ function LimsPageMain() {
       }
     } else if (action === "print") {
       navigate(
-        {
-          pathname: `/lims/print/${patient.patient_unique_id}`,
-          search: location.search,
-        },
+        withCurrentSearch(`/lims/print/${patient.patient_unique_id}`, searchParams.toString()),
         { state: { patient } },
       );
     } else if (action === "createBill") {
+      billingSourcePatientRef.current = patient;
       const isPurchased = await checkBillingPurchased();
       if (!isPurchased) return;
       const bills = await getPatientBills(patient);
@@ -918,7 +941,7 @@ function LimsPageMain() {
         setRecentBillDrawer(true);
       }
     }
-  }, [navigate, location.search, checkBillingPurchased, getPatientBills, profile, planDetails, isReceptionist, searchParams]);
+  }, [navigate, checkBillingPurchased, getPatientBills, profile, planDetails, isReceptionist, searchParams]);
 
   const columns = useMemo(
     () => [

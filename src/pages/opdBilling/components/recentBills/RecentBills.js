@@ -23,10 +23,9 @@ const RecentBills = ({
   const handleSortChange = useCallback(
     (field, order) => {
       setSortConfig({ field, order });
-      // Call getPatientBills with new sort parameters
-      getPatientBills(undefined, { field, order });
+      getPatientBills(patientData, { field, order });
     },
-    [getPatientBills]
+    [getPatientBills, patientData]
   );
 
   return (

@@ -42,8 +42,9 @@ const { alerticon: alertIcon } = ASSETS.images;
 function LimsHeaderBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state } = location;
+  const { state, search } = location;
   const previousPage = state?.from;
+  const limsListPath = `/lims${search || ""}`;
 
   const {
     printSettings, setPrintSettings,
@@ -64,9 +65,9 @@ function LimsHeaderBar() {
         { replace: true, state },
       );
     } else {
-      navigate({ pathname: "/lims", search: location.search }, { replace: true });
+      navigate(limsListPath, { replace: true });
     }
-  }, [navigate, previousPage, state, location.search]);
+  }, [navigate, previousPage, state, location.search, limsListPath]);
 
   useEffect(() => {
     if (printSettings && initialSettingsSnapshot == null) {

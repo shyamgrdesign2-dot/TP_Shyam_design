@@ -31,6 +31,7 @@ function LimsPrintPageMain() {
   const navigate = useNavigate();
   const location = useLocation();
   const printRef = useRef(null);
+  const limsListPath = `/lims${location.search || ""}`;
 
   const [patient, setPatient] = useState(location.state?.patient || null);
   const [results, setResults] = useState([]);
@@ -307,13 +308,7 @@ function LimsPrintPageMain() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <button
-            type="button"
-            className={styles.backBtn}
-            onClick={() =>
-              navigate({ pathname: "/lims", search: location.search })
-            }
-          >
+          <button type="button" className={styles.backBtn} onClick={() => navigate(limsListPath)}>
             <i className="icon-right" />
           </button>
           <div className={styles.headerDivider} />
@@ -325,9 +320,9 @@ function LimsPrintPageMain() {
         <Button
           icon={<SettingOutlined />}
           onClick={() =>
-            navigate("/lims/print-settings", {
+            navigate(`/lims/print-settings${location.search || ""}`, {
               state: {
-                from: `/lims/print/${patientId}`,
+                from: `/lims/print/${patientId}${location.search || ""}`,
                 patient,
                 patientId,
               },
