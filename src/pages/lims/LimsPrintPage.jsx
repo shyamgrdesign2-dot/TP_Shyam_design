@@ -338,7 +338,8 @@ function LimsPrintPageMain() {
           onClick={() =>
             navigate(`/lims/print-settings${location.search || ""}`, {
               state: {
-                from: `/lims/print/${patientId}${location.search || ""}`,
+                // pathname only — query is carried via location.search on print-settings
+                from: `/lims/print/${patientId}`,
                 patient,
                 patientId,
               },
