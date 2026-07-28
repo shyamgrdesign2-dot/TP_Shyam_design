@@ -39,17 +39,20 @@ const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep
 
 const { alerticon: alertIcon } = ASSETS.images;
 
-/** Split a path that may incorrectly include `?query` (React Router rejects `?` in pathname). */
-function splitPathAndSearch(path, fallbackSearch = "") {
-  if (!path) return { pathname: "/lims", search: fallbackSearch || "" };
-  const q = path.indexOf("?");
-  if (q === -1) {
-    return { pathname: path, search: fallbackSearch || "" };
+/**
+ * Build a React Router `to` string. Never put `?` inside a pathname object —
+ * RR throws if you pass { pathname: "/path?query" }.
+ */
+function toPathWithSearch(pathOrPathname, search = "") {
+  if (!pathOrPathname) {
+    return `/lims${search || ""}`;
   }
-  return {
-    pathname: path.slice(0, q),
-    search: fallbackSearch || path.slice(q),
-  };
+  const raw = String(pathOrPathname);
+  const q = raw.indexOf("?");
+  const pathname = q === -1 ? raw : raw.slice(0, q);
+  const fromPathSearch = q === -1 ? "" : raw.slice(q);
+  const nextSearch = search || fromPathSearch || "";
+  return `${pathname}${nextSearch}`;
 }
 
 /* ── LimsHeaderBar ───────────────────────────────────────────────── */
@@ -74,18 +77,18 @@ function LimsHeaderBar() {
   const [initialSettingsSnapshot, setInitialSettingsSnapshot] = useState(null);
 
   const goBack = useCallback(() => {
-    if (previousPage) {
-      const { pathname, search: backSearch } = splitPathAndSearch(
-        previousPage,
-        location.search,
-      );
-      navigate(
-        { pathname, search: backSearch },
-        { replace: true, state },
-      );
-    } else {
-      navigate(limsListPath, { replace: true });
-    }
+    // Prefer string `to` so RR parses path vs search. Object form with a
+    // pathname that still contains `?` (legacy state.from) throws.
+    const to = previousPage
+      ? toPathWithSearch(previousPage, location.search)
+      : limsListPath;
+    navigate(to, {
+      replace: true,
+      state: {
+        patient: state?.patient,
+        patientId: state?.patientId,
+      },
+    });
   }, [navigate, previousPage, state, location.search, limsListPath]);
 
   useEffect(() => {
