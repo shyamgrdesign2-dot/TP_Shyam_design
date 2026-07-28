@@ -10,13 +10,6 @@
   border-radius: 10px !important;
 }
 
-/* The design-system stylesheet ships `[data-tp-theme] :is(*) { corner-shape:
-   squircle }`, which reshapes EVERY rounded corner in the app (all portal
-   CTAs included). Neutralize it globally — standard rounding everywhere. */
-[data-tp-theme] :is(*) {
-  corner-shape: round !important;
-}
-
 .tesseract-rxpad {
   /* Section title — portal font/color, overriding tesseract heading font */
   h3 {
@@ -36,6 +29,16 @@
     background: var(--tesseract-slate-0, #fff);
     overflow: hidden;
     overflow-x: auto;
+
+    /* ClinicalTable scrolls without a visible scrollbar — the pinned action
+       column + its fade are the overflow affordance. (The portal's own
+       scrollbars stay untouched; only these table shells hide theirs.) */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
 
     /* Horizontal scroll: rows keep a min width; below it the wrap scrolls
        and the action column stays pinned right (mirror of ClinicalTable
