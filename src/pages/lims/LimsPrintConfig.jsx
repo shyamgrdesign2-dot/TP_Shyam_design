@@ -14,19 +14,21 @@ import {
 import { errorMessage, updateFooterImageHeight } from "../../utils/utils";
 
 import { fetchPatientLabResults } from "./limsApi";
-import { specimenForReport, formatDateLabel } from "./limsHelpers";
 import {
   filterLabResultsByDoctor,
+  getAttendingDoctorUmIdFromUrl,
   getPatientLastVisitDoctorUmId,
   isLabResultsReceptionistSession,
 } from "../../utils/labResultsUtils";
 import {
   LIMS_SETTINGS_KEY, LAB_RESULTS_CASE_ID,
-  initFileStates, groupByReport, rangeText, arrowSymbol,
+  initFileStates,
   fetchLimsPrintSettings, saveLimsPrintSettingsToApi, resetLimsPrintSettingsToApiDefaults,
-  getLimsMarginCssPx, LIMS_PREVIEW_FONT_CLASS,
+  resolveLimsQrCodeDataUrl,
 } from "./limsPrintUtils";
 import { ASSETS } from "../../assets";
+import { useSelector } from "react-redux";
+import LimsReportPdfPreview from "./LimsReportPdfPreview";
 
 import "cropperjs/dist/cropper.css";
 import styles from "./LimsPrintConfig.module.css";
@@ -294,421 +296,6 @@ function LabResultsFormatLayout() {
   );
 }
 
-/* ── LabResultsPreview ───────────────────────────────────────────── */
-
-export function LabResultsPreview({ results, patient, emptyText }) {
-  const {
-    printSettings, fileLogo, fileHeader, fileFooter, fileWatermark, fileSignature,
-  } = useContext(PrintSettingsContext);
-
-  const patientInfo = patient || {};
-  const age = patientInfo.ageYears
-    ? `${patientInfo.ageYears}y`
-    : patientInfo.ageMonths
-      ? `${patientInfo.ageMonths}m`
-      : patientInfo.pm_age
-        ? `${patientInfo.pm_age}y`
-        : "";
-  const name = patientInfo.pm_fullname || "Patient Name";
-  const gender = patientInfo.pm_gender || "";
-  const pid = patientInfo.tpml_refrence_id || patientInfo.pm_pid || "";
-  const contact = patientInfo.pm_contact_no || "";
-
-  const hf = printSettings?.header_footer;
-  const pf = printSettings?.page_format;
-  const letterhead = Number(printSettings?.letterhead_format);
-  const fontFamily = pf?.font_family || "Roboto";
-  const fontClass = LIMS_PREVIEW_FONT_CLASS[fontFamily] || "fontroboto";
-  const fontSize = Number(pf?.font_size) || 10;
-  const patientFontSize = Number(pf?.patient_info_font_size) || fontSize;
-  const showPagination = !!pf?.pagination;
-
-  const doctorInfo = hf?.header?.doctor_info;
-  const clinicInfo = hf?.header?.clinic_info;
-  const cleanSubheader = (text) =>
-    text ? text.replace(/^null\s*/i, "").trim() || "" : "";
-  const footerCfg = hf?.footer;
-  const otherSettings = hf?.other_settings;
-  const patientInfoFields = hf?.patient_info || [];
-
-  const showLogo = printSettings?.logo_enable === "Y" && fileLogo?.showFile;
-  const showWatermark = printSettings?.water_mark_enable === "Y" && fileWatermark?.showFile;
-  const showSignature = printSettings?.signature_enable === "Y" && fileSignature?.showFile;
-  const showQr = printSettings?.qrcode_enable === "Y" && !!printSettings?.qrcode;
-
-  const labOption = printSettings?.prescription?.case_option?.find(
-    (o) => o.id === LAB_RESULTS_CASE_ID,
-  );
-  const labFormat = labOption?.format || "table";
-  const labEnabled = labOption?.enable !== "N";
-
-  const hasResults =
-    results.length > 0 &&
-    results.some((e) =>
-      (e.inputs || []).some(
-        (inp) =>
-          inp?.testName &&
-          inp.testName !== "Remarks" &&
-          inp.value != null &&
-          String(inp.value).trim() !== "",
-      ),
-    );
-
-  const enabledFields = patientInfoFields.filter((f) => f.enable === "Y");
-  const fieldMap = {
-    1: { label: "Name", value: name },
-    2: { label: "ID", value: pid },
-    3: { label: "Date", value: new Date().toLocaleDateString("en-IN") },
-    4: { label: "Age", value: age },
-    5: { label: "Gender", value: gender },
-    6: { label: "Weight", value: "" },
-    7: { label: "Height", value: "" },
-    8: { label: "Address", value: "" },
-    9: { label: "Mobile", value: contact },
-    10: { label: "Blood Group", value: "" },
-  };
-
-  const footerTitle = footerCfg?.title || footerCfg?.text || "";
-  const showUploadedFooter = letterhead === 1 && !!fileFooter?.showFile;
-  const showTextFooter = letterhead === 0 && !!footerTitle;
-
-  // Screen preview: letterhead 0/1 use CSS base padding (24px/28px).
-  // Only own-letterhead (2) applies configured margins as inline padding.
-  const previewPaddingStyle =
-    letterhead === 2
-      ? {
-          paddingTop: `${getLimsMarginCssPx(letterhead, hf, "top", 2)}px`,
-          paddingBottom: `${getLimsMarginCssPx(letterhead, hf, "bottom", 2)}px`,
-          paddingLeft: `${getLimsMarginCssPx(letterhead, hf, "left", 0.5)}px`,
-          paddingRight: `${getLimsMarginCssPx(letterhead, hf, "right", 0.5)}px`,
-        }
-      : {};
-
-  const renderTableClusterRows = (reportName, filledTests) => (
-    <React.Fragment key={reportName}>
-      <tr className={styles.reportSubHeader}>
-        <td colSpan={3}>{reportName}</td>
-      </tr>
-      {filledTests.map((t, ti) => {
-        const isAbnormal = t.arrowDirection === "UP" || t.arrowDirection === "DOWN";
-        const resultText = [
-          String(t.value),
-          t.units || "",
-        ].filter(Boolean).join(" ");
-        return (
-          <tr key={ti} className={isAbnormal ? styles.abnormalRow : undefined}>
-            <td>{t.testName || ""}</td>
-            <td style={{ fontWeight: 600 }}>
-              {resultText}
-              {arrowSymbol(t.arrowDirection) && (
-                <span style={{ fontSize: "10px", marginLeft: "2px" }}>
-                  {arrowSymbol(t.arrowDirection)}
-                </span>
-              )}
-            </td>
-            <td>{rangeText(t)}</td>
-          </tr>
-        );
-      })}
-    </React.Fragment>
-  );
-
-  const renderListFormat = (filledTests) => (
-    <div className={styles.listViewWrap}>
-      {filledTests.map((t, ti) => {
-        const isAbnormal = t.arrowDirection === "UP" || t.arrowDirection === "DOWN";
-        const resultText = [
-          String(t.value),
-          t.units || "",
-        ].filter(Boolean).join(" ");
-        return (
-          <div key={ti} className={`${styles.listViewItem} ${isAbnormal ? styles.abnormalText : ""}`}>
-            <div className={styles.listViewLeft}>
-              <span className={styles.listViewName}>{t.testName || ""}</span>
-              {rangeText(t) && <span className={styles.listViewRange}> (Ref: {rangeText(t)})</span>}
-            </div>
-            <div className={styles.listViewResult}>
-              <span style={{ fontWeight: 600 }}>
-                {resultText}
-                {arrowSymbol(t.arrowDirection) && (
-                  <span style={{ fontSize: "8px", marginLeft: "2px" }}>
-                    {arrowSymbol(t.arrowDirection)}
-                  </span>
-                )}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  const renderInlineFormat = (filledTests) => (
-    <div className={styles.inlineWrap}>
-      {filledTests.map((t, ti) => {
-        const isAbnormal = t.arrowDirection === "UP" || t.arrowDirection === "DOWN";
-        const valueWithUnit = [
-          t.value != null ? String(t.value) : "",
-          t.units || "",
-        ]
-          .filter(Boolean)
-          .join(" ");
-        const arrow = arrowSymbol(t.arrowDirection);
-        return (
-          <span key={ti} className={isAbnormal ? styles.abnormalText : undefined}>
-            {t.testName || ""}
-            {valueWithUnit ? `: ${valueWithUnit}` : ""}
-            {arrow ? ` ${arrow}` : ""}
-            {ti < filledTests.length - 1 ? "; " : ""}
-          </span>
-        );
-      })}
-    </div>
-  );
-
-  const renderNonTableResults = (tests, format) => {
-    if (format === "listview") return renderListFormat(tests);
-    return renderInlineFormat(tests);
-  };
-
-  return (
-    <div
-      className={`${styles.previewCard} ${fontClass}`}
-      style={{
-        fontFamily,
-        fontSize: `${fontSize}px`,
-        ...previewPaddingStyle,
-      }}
-    >
-      {/* Watermark */}
-      {showWatermark && (
-        <div className={styles.watermarkOverlay}>
-          <img src={fileWatermark.showFile} alt="" className={styles.watermarkImg} />
-        </div>
-      )}
-
-      {/* Letterhead: Upload (1) — top of page */}
-      {letterhead === 1 && fileHeader?.showFile && (
-        <img src={fileHeader.showFile} alt="" className={styles.uploadedHeaderImg} />
-      )}
-
-      {/* Letterhead: Custom (0) */}
-      {letterhead === 0 && (
-        <div className={styles.previewHeaderBlock}>
-          <div className={styles.previewHeaderRow}>
-            {/* Left side */}
-            <div className={styles.previewHeaderInfo}>
-              {showLogo && doctorInfo?.place !== "R" && (
-                <img src={fileLogo.showFile} alt="" className={styles.previewLogo} />
-              )}
-              {doctorInfo?.enable === "Y" && doctorInfo?.place !== "R" && (
-                <>
-                  <div className={styles.previewDoctorName}>
-                    {doctorInfo.header || "Dr. Name"}
-                  </div>
-                  {cleanSubheader(doctorInfo.subheader) && (
-                    <div className={styles.previewSubheader}>{cleanSubheader(doctorInfo.subheader)}</div>
-                  )}
-                </>
-              )}
-              {clinicInfo?.enable === "Y" && clinicInfo?.place !== "R" && (
-                <>
-                  <div className={styles.previewClinicName}>
-                    {clinicInfo.header || ""}
-                  </div>
-                  {clinicInfo.subheader && (
-                    <div className={styles.previewSubheader}>{clinicInfo.subheader}</div>
-                  )}
-                </>
-              )}
-            </div>
-            {/* Right side */}
-            <div className={styles.previewClinicInfo}>
-              {showLogo && doctorInfo?.place === "R" && (
-                <img src={fileLogo.showFile} alt="" className={styles.previewLogo} />
-              )}
-              {doctorInfo?.enable === "Y" && doctorInfo?.place === "R" && (
-                <>
-                  <div className={styles.previewDoctorName}>
-                    {doctorInfo.header || "Dr. Name"}
-                  </div>
-                  {cleanSubheader(doctorInfo.subheader) && (
-                    <div className={styles.previewSubheader}>{cleanSubheader(doctorInfo.subheader)}</div>
-                  )}
-                </>
-              )}
-              {clinicInfo?.enable === "Y" && clinicInfo?.place === "R" && (
-                <>
-                  <div className={styles.previewClinicName}>
-                    {clinicInfo.header || ""}
-                  </div>
-                  {clinicInfo.subheader && (
-                    <div className={styles.previewSubheader}>{clinicInfo.subheader}</div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-          <div className={styles.previewDivider} />
-        </div>
-      )}
-
-      {/* Patient info */}
-      <div className={styles.previewPatientBlock} style={{ fontSize: `${patientFontSize}px` }}>
-        <div className={styles.previewPatientRow} style={{ fontSize: `${patientFontSize}px` }}>
-          {(enabledFields.length
-            ? enabledFields.map((f) => fieldMap[f.id]).filter((f) => f?.value)
-            : [fieldMap[1], fieldMap[2], fieldMap[5], fieldMap[4], fieldMap[9]].filter((f) => f?.value)
-          ).map((field) => (
-            <span key={field.label}>
-              <strong>{field.label}: </strong>
-              {field.value}
-            </span>
-          ))}
-        </div>
-      </div>
-      <div className={styles.previewDivider} />
-
-      {/* Lab results */}
-      {labEnabled && (
-        <>
-          {!hasResults ? (
-            <div className={styles.previewEmpty}>
-              {emptyText || "Lab results will appear here as a preview."}
-            </div>
-          ) : labFormat === "table" ? (
-            /* Table format: one table per date, all clusters inside */
-            (() => {
-              const dateGroups = new Map();
-              results.forEach((entry) => {
-                const dateKey = entry.date || "unknown";
-                if (!dateGroups.has(dateKey)) dateGroups.set(dateKey, []);
-                dateGroups.get(dateKey).push(entry);
-              });
-              return Array.from(dateGroups.entries()).map(([dateKey, entries]) => {
-                const dateLabel = formatDateLabel(dateKey) || dateKey;
-                const allClusters = [];
-                entries.forEach((entry) => {
-                  const grouped = groupByReport(entry.inputs);
-                  Array.from(grouped.entries()).forEach(([reportName, tests]) => {
-                    const filledTests = tests.filter(
-                      (t) => t.value != null && String(t.value).trim() !== "",
-                    );
-                    if (filledTests.length > 0) {
-                      allClusters.push({ reportName, filledTests });
-                    }
-                  });
-                });
-                if (allClusters.length === 0) return null;
-                return (
-                  <div key={dateKey} className={styles.previewReportBlock}>
-                    <div className={styles.previewDateHeading}>
-                      Test Results: {dateLabel}
-                    </div>
-                    <table className={styles.previewTable}>
-                      <thead>
-                        <tr>
-                          <th>Test</th>
-                          <th>Result</th>
-                          <th>Ref. Range</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {allClusters.map(({ reportName, filledTests }) =>
-                          renderTableClusterRows(reportName, filledTests)
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              });
-            })()
-          ) : (
-            /* Non-table formats: list/inline - per-report blocks */
-            results.map((entry, ei) => {
-              const grouped = groupByReport(entry.inputs);
-              const dateLabel = formatDateLabel(entry.date) || entry.date || "";
-              return Array.from(grouped.entries()).map(([reportName, tests]) => {
-                const filledTests = tests.filter(
-                  (t) => t.value != null && String(t.value).trim() !== "",
-                );
-                if (filledTests.length === 0) return null;
-                return (
-                  <div key={`${ei}-${reportName}`} className={styles.previewReportBlock}>
-                    <div className={styles.previewReportHeader}>
-                      <span className={styles.previewReportName}>
-                        {reportName}
-                      </span>
-                      <span className={styles.previewReportMeta}>
-                        {[
-                          dateLabel,
-                          // entry.doctorId != null && entry.doctorId !== ""
-                          //   ? `Dr ID ${entry.doctorId}`
-                          //   : null,
-                          // entry.receptionistId != null && entry.receptionistId !== ""
-                          //   ? `Entered by ${entry.receptionistId}`
-                          //   : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </div>
-                    {renderNonTableResults(filledTests, labFormat)}
-                  </div>
-                );
-              });
-            })
-          )}
-        </>
-      )}
-
-      {/* Signature */}
-      {showSignature && (
-        <div
-          className={styles.signatureBlock}
-          style={{ textAlign: otherSettings?.signature_place === "R" ? "right" : "left" }}
-        >
-          <img src={fileSignature.showFile} alt="" className={styles.signatureImg} />
-          {otherSettings?.name_of_doctor_enable === "Y" && doctorInfo?.header && (
-            <div className={styles.signatureName}>{doctorInfo.header}</div>
-          )}
-          {otherSettings?.qualification_enable === "Y" && otherSettings?.qualification && (
-            <div className={styles.signatureQual}>{otherSettings.qualification}</div>
-          )}
-        </div>
-      )}
-
-      {showQr && (
-        <div className={styles.previewQrBlock}>
-          <img src={printSettings.qrcode} alt="" className={styles.previewQrImg} />
-          <div className={styles.previewQrCaption}>
-            {"Scan QR code to book an appointment\nwith your doctor"}
-          </div>
-        </div>
-      )}
-
-      {/* Footer — in document flow for screen preview (PDF uses fixed positioning) */}
-      {showUploadedFooter && (
-        <img src={fileFooter.showFile} alt="" className={styles.uploadedFooterImg} />
-      )}
-      {showTextFooter && (
-        <>
-          <div className={styles.previewFooterBar} style={{ marginTop: 16 }} />
-          <div
-            className={styles.previewFooterText}
-            style={{ fontSize: footerCfg?.font_size || 10 }}
-          >
-            {footerTitle}
-          </div>
-        </>
-      )}
-
-      {showPagination && (
-        <div className={styles.previewPageNumberInFlow}>Page 1/1</div>
-      )}
-    </div>
-  );
-}
 
 /* ── Main ─────────────────────────────────────────────────────────── */
 
@@ -717,6 +304,7 @@ function LimsPrintConfigMain() {
   const { state } = location;
   const patient = state?.patient || null;
   const patientId = state?.patientId || patient?.patient_unique_id;
+  const { profile } = useSelector((state) => state.doctors);
 
   const [selectedTab, setSelectedTab] = useState(TAB_LAB_RESULTS);
   const [printSettings, setPrintSettings] = useState(null);
@@ -790,9 +378,32 @@ function LimsPrintConfigMain() {
     updateFooterImageHeight(fileFooter, setFileFooter);
   }, [fileFooter?.showFile]);
 
-  // QR code generation is temporarily disabled.
-  // It was calling an external “receptionist-agents” API which can trigger auth redirects
-  // when this LIMS page is opened inside an iframe.
+  useEffect(() => {
+    let cancelled = false;
+    const attachQr = async () => {
+      if (!printSettings) return;
+      if (printSettings.qrcode_enable !== "Y") {
+        if (printSettings.qrcode) {
+          setPrintSettings((prev) => (prev ? { ...prev, qrcode: null } : prev));
+        }
+        return;
+      }
+      if (printSettings.qrcode) return;
+      const doctorUmId =
+        getPatientLastVisitDoctorUmId(patient) ?? getAttendingDoctorUmIdFromUrl();
+      const qrcode = await resolveLimsQrCodeDataUrl({
+        printSettings,
+        profile,
+        doctorUmId,
+      });
+      if (cancelled || !qrcode) return;
+      setPrintSettings((prev) => (prev ? { ...prev, qrcode } : prev));
+    };
+    attachQr();
+    return () => {
+      cancelled = true;
+    };
+  }, [printSettings?.qrcode_enable, printSettings?.qrcode, profile, patient]);
 
   useEffect(() => {
     if (patientId) {
@@ -878,7 +489,16 @@ function LimsPrintConfigMain() {
                 )}
               </div>
               <div className={styles.configPreviewCard}>
-                <LabResultsPreview results={filteredResults} patient={patient} />
+                <LimsReportPdfPreview
+                  results={filteredResults}
+                  patient={patient}
+                  printSettings={printSettings}
+                  fileHeader={fileHeader}
+                  fileFooter={fileFooter}
+                  fileLogo={fileLogo}
+                  fileWatermark={fileWatermark}
+                  fileSignature={fileSignature}
+                />
               </div>
             </div>
           </main>

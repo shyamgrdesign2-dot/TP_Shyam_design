@@ -13,7 +13,9 @@ import {
   LAB_RESULTS_CASE_ID,
   arrowSymbol,
   getLimsMarginByFormat,
-  groupByReport,
+  formatLabResultValue,
+  groupByReportForPrint,
+  isRemarksTest,
   rangeText,
 } from "./limsPrintUtils";
 import { formatDateLabel } from "./limsHelpers";
@@ -224,16 +226,17 @@ const imageUrl = (state, cacheBust) => {
   return `${url}${url.includes("?") ? "&" : "?"}pdfcb=${cacheBust}`;
 };
 
-const resultText = (test) =>
-  [String(test.value), test.units || ""].filter(Boolean).join(" ");
+const resultText = (test) => formatLabResultValue(test);
 
 const withArrow = (test) => {
+  if (isRemarksTest(test)) return resultText(test);
   const arrow = arrowSymbol(test.arrowDirection);
   return `${resultText(test)}${arrow ? ` ${arrow}` : ""}`;
 };
 
 const isAbnormal = (test) =>
-  test.arrowDirection === "UP" || test.arrowDirection === "DOWN";
+  !isRemarksTest(test) &&
+  (test.arrowDirection === "UP" || test.arrowDirection === "DOWN");
 
 function PatientFields({ patient, fields, fontSize }) {
   const age = patient.ageYears
@@ -283,7 +286,7 @@ function TableResults({ results }) {
   return Array.from(dateGroups.entries()).map(([dateKey, entries]) => {
     const clusters = [];
     entries.forEach((entry) => {
-      groupByReport(entry.inputs).forEach((tests, reportName) => {
+      groupByReportForPrint(entry.inputs).forEach((tests, reportName) => {
         const filled = tests.filter(
           (test) => test.value != null && String(test.value).trim() !== "",
         );
@@ -359,7 +362,7 @@ function TableResults({ results }) {
 
 function NonTableResults({ results, format }) {
   return results.flatMap((entry, entryIndex) =>
-    Array.from(groupByReport(entry.inputs).entries()).map(
+    Array.from(groupByReportForPrint(entry.inputs).entries()).map(
       ([reportName, tests]) => {
         const filled = tests.filter(
           (test) => test.value != null && String(test.value).trim() !== "",
@@ -405,6 +408,9 @@ function NonTableResults({ results, format }) {
                     style={isAbnormal(test) ? styles.abnormal : undefined}
                   >
                     {test.testName || ""}
+                    {!isRemarksTest(test) && rangeText(test) ? (
+                      <Text style={styles.listRange}> (Ref: {rangeText(test)})</Text>
+                    ) : null}
                     {resultText(test) ? `: ${withArrow(test)}` : ""}
                     {index < filled.length - 1 ? "; " : ""}
                   </Text>
@@ -503,7 +509,6 @@ export default function LimsReportPdf({
     (entry.inputs || []).some(
       (input) =>
         input?.testName &&
-        input.testName !== "Remarks" &&
         input.value != null &&
         String(input.value).trim() !== "",
     ),

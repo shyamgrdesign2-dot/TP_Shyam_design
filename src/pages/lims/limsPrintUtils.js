@@ -1,6 +1,8 @@
 import { updateFooterImageHeight } from "../../utils/utils";
 import ApiPrintSettings from "../../api/services/ApiPrintSettings";
+import config from "../../config";
 import QRCode from "qrcode";
+import { fetchPrintSetting } from "../opdBilling/service";
 
 export const LIMS_SETTINGS_KEY = "lims_print_settings";
 export const LAB_RESULTS_CASE_ID = 15;
@@ -185,6 +187,28 @@ export function groupByReport(inputs) {
   return map;
 }
 
+/** ViewPDF groups all inputs per report, including Remarks, for print/PDF output. */
+export function groupByReportForPrint(inputs) {
+  const map = new Map();
+  (inputs || []).forEach((inp) => {
+    if (!inp?.testName) return;
+    const key = (inp.reportName || "General").trim();
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(inp);
+  });
+  return map;
+}
+
+export function isRemarksTest(test) {
+  return test?.testName === "Remarks";
+}
+
+/** Match ViewPDF: Remarks show value only, other tests include units. */
+export function formatLabResultValue(test) {
+  if (isRemarksTest(test)) return String(test?.value ?? "");
+  return [String(test?.value ?? ""), test?.units || ""].filter(Boolean).join(" ");
+}
+
 export function rangeText(inp) {
   const rr = inp.refRange;
   if (!rr || !Array.isArray(rr.ranges) || rr.ranges.length === 0) return "";
@@ -256,13 +280,44 @@ export function getLimsMarginCssPx(letterheadFormat, headerFooter, position, def
   return effectiveCm * 28;
 }
 
-/** Same QR source as ConfigurePrintSetting / ViewPDF (doctor website or appointment link). */
-export async function resolveLimsQrCodeDataUrl(profile) {
+/** Same target URL as OPD bill PDF QR (BillOtherSettings). */
+export function buildBillingStyleQrTargetUrl(um_contact, hm_refer_code) {
+  if (um_contact == null || um_contact === "" || hm_refer_code == null || hm_refer_code === "") {
+    return null;
+  }
+  const contactNum = parseInt(um_contact, 10);
+  if (!Number.isFinite(contactNum)) return null;
+  return `${config.doctor_website_url}${contactNum.toString(36)}_${hm_refer_code}`;
+}
+
+async function resolveQrContactFields(printSettings, profile, doctorUmId) {
+  let um_contact = printSettings?.um_contact ?? profile?.um_contact;
+  let hm_refer_code = printSettings?.hm_refer_code;
+
+  if ((!um_contact || !hm_refer_code) && doctorUmId) {
+    try {
+      const billingSettings = await fetchPrintSetting(doctorUmId);
+      um_contact = um_contact ?? billingSettings?.um_contact;
+      hm_refer_code = hm_refer_code ?? billingSettings?.hm_refer_code;
+    } catch (error) {
+      console.warn("LIMS: billing print settings fallback for QR failed", error);
+    }
+  }
+
+  return { um_contact, hm_refer_code };
+}
+
+/** Client-side QR — same sources as billing print settings, no agents API. */
+export async function resolveLimsQrCodeDataUrl({ printSettings, profile, doctorUmId } = {}) {
   try {
-    // QR generation temporarily disabled for appointment-link fallback.
-    // The fallback used an external “receptionist-agents” API call which can
-    // trigger auth redirects when this LIMS flow is opened inside an iframe.
-    const qrCodeUrl = profile?.website_publish ? profile?.publish_url : null;
+    const publishUrl = profile?.website_publish ? profile?.publish_url : null;
+    const { um_contact, hm_refer_code } = await resolveQrContactFields(
+      printSettings,
+      profile,
+      doctorUmId,
+    );
+    const billingUrl = buildBillingStyleQrTargetUrl(um_contact, hm_refer_code);
+    const qrCodeUrl = billingUrl || publishUrl;
     if (!qrCodeUrl) return null;
     return await QRCode.toDataURL(qrCodeUrl);
   } catch (error) {
