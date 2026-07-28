@@ -14,6 +14,7 @@ import {
 } from "./plan-types";
 import { ToothPicker } from "./ToothPicker";
 import { computeDiscount } from "./lib/planFormHelpers";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import styles from "./AddEditPlanDrawer.module.scss";
 import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 
@@ -240,9 +241,24 @@ function PlanServiceTableInner({
                 <tr key={row.id} className={styles.tableBodyRow}>
                   <td className={styles.rowIndexCellStickyLeft}>{idx + 1}</td>
                   <td className={styles.tableCell}>
-                    <div className={styles.serviceNameWrap}>
-                      <p className={styles.serviceNameText}>{row.treatment}</p>
-                    </div>
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild={true}>
+                        <div
+                          className={styles.serviceNameWrap}
+                          tabIndex={0}
+                          aria-label={row.treatment}
+                        >
+                          <p className={styles.serviceNameText}>{row.treatment}</p>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        sideOffset={6}
+                        className={styles.serviceNameTooltip}
+                      >
+                        {row.treatment}
+                      </TooltipContent>
+                    </Tooltip>
                   </td>
                   <td className={styles.tableCell}>
                     <ToothPicker
