@@ -4,7 +4,7 @@ import { Form, Radio, Select, Tooltip } from "antd";
 import PrintSettingsContext from '../../context/PrintSettingsContext';
 import { FONTS_FAMILY_LIST, FONTS_SIZE_LIST, LANGUAGE_LIST } from "../../utils/constants";
 
-function PageFormatLayout() {
+function PageFormatLayout({ hideDefaultLanguage = false }) {
 
     const { printSettings, setPrintSettings } = useContext(PrintSettingsContext);
 
@@ -123,6 +123,7 @@ function PageFormatLayout() {
                 </Radio.Group>
             </Form.Item>
 
+            {!hideDefaultLanguage && (
             <Form.Item>
                 <div className="d-flex align-items-center mb-1">
                     <label>Default Language</label>
@@ -141,6 +142,7 @@ function PageFormatLayout() {
                     onSelect={onSelectDefaultLanguage}
                 />
             </Form.Item>
+            )}
         </div>
     );
 }

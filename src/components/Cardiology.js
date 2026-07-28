@@ -3869,7 +3869,10 @@ function Cardiology(props) {
         targetStatus: CLINIC_TARGET_STATUS.SERVING,
       });
     }
-    navigate("/prescription", {
+    const consultRoute = isDentalEnabled
+      ? DENTAL_RX_PAD_ROUTE
+      : "/prescription";
+    navigate(consultRoute, {
       state: {
         patient_data: patient_data,
         send_path: "patient_details",
@@ -4994,12 +4997,17 @@ function Cardiology(props) {
                               ? patient_data.patient_unique_id
                               : 0,
                         });
-                        navigate("/prescription", {
+                        navigate(
+                          isDentalEnabled
+                            ? DENTAL_RX_PAD_ROUTE
+                            : "/prescription",
+                          {
                           state: {
                             patient_data: patient_data,
                             send_path: "patient_details",
                           },
-                        });
+                        }
+                        );
                       }
                     }}
                   >

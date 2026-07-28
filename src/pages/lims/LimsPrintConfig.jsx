@@ -1,16 +1,12 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useCallback, useContext, useRef, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Col, Tabs, Row, Radio, Form, Button } from "antd";
+import { Tabs, Radio, Form, Button, Select } from "antd";
 import { Navbar } from "react-bootstrap";
-import { useSelector, useDispatch } from "react-redux";
 
 import PrintSettingsContext from "../../context/PrintSettingsContext";
 import HeaderFooterLayout from "../../components/print_settings/HeaderFooterLayout";
 import PageFormatLayout from "../../components/print_settings/PageFormatLayout";
 import CommonModal from "../../common/CommonModal";
-import {
-  getDefaultPrintsettings,
-} from "../../redux/doctorsSlice";
 import {
   TAB_HEADER_FOOTER,
   TAB_PAGE_FORMAT,
@@ -18,24 +14,28 @@ import {
 import { errorMessage, updateFooterImageHeight } from "../../utils/utils";
 
 import { fetchPatientLabResults } from "./limsApi";
-import { specimenForReport, formatDateLabel } from "./limsHelpers";
 import {
   filterLabResultsByDoctor,
+  getAttendingDoctorUmIdFromUrl,
   getPatientLastVisitDoctorUmId,
   isLabResultsReceptionistSession,
 } from "../../utils/labResultsUtils";
 import {
   LIMS_SETTINGS_KEY, LAB_RESULTS_CASE_ID,
-  fileToBase64, serializeFileState, saveLimsSettings, loadLimsSettings,
-  ensureLabOption, initFileStates, groupByReport, rangeText, arrowSymbol,
+  initFileStates,
+  fetchLimsPrintSettings, saveLimsPrintSettingsToApi, resetLimsPrintSettingsToApiDefaults,
+  resolveLimsQrCodeDataUrl,
 } from "./limsPrintUtils";
 import { ASSETS } from "../../assets";
+import { useSelector } from "react-redux";
+import LimsReportPdfPreview from "./LimsReportPdfPreview";
 
 import "cropperjs/dist/cropper.css";
 import styles from "./LimsPrintConfig.module.css";
 import LimsAccessBoundary from "./LimsAccessBoundary";
 
 const TAB_LAB_RESULTS = "lab_results";
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const { alerticon: alertIcon } = ASSETS.images;
 
@@ -44,9 +44,9 @@ const { alerticon: alertIcon } = ASSETS.images;
 function LimsHeaderBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state } = location;
+  const { state, search } = location;
   const previousPage = state?.from;
-  const { defaultPrintSettings } = useSelector((s) => s.doctors);
+  const limsListPath = `/lims${search || ""}`;
 
   const {
     printSettings, setPrintSettings,
@@ -55,8 +55,10 @@ function LimsHeaderBar() {
   } = useContext(PrintSettingsContext);
 
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalFlag, setModalFlag] = useState(0);
+  const [initialSettingsSnapshot, setInitialSettingsSnapshot] = useState(null);
 
   const goBack = useCallback(() => {
     if (previousPage) {
@@ -65,14 +67,21 @@ function LimsHeaderBar() {
         { replace: true, state },
       );
     } else {
-      navigate({ pathname: "/lims", search: location.search }, { replace: true });
+      navigate(limsListPath, { replace: true });
     }
-  }, [navigate, previousPage, state, location.search]);
+  }, [navigate, previousPage, state, location.search, limsListPath]);
+
+  useEffect(() => {
+    if (printSettings && initialSettingsSnapshot == null) {
+      setInitialSettingsSnapshot(JSON.stringify(printSettings));
+    }
+  }, [printSettings, initialSettingsSnapshot]);
 
   const handleBack = () => {
-    const saved = loadLimsSettings();
-    const hasExisting = !!saved?.printSettings;
-    if (hasExisting && JSON.stringify(saved.printSettings) !== JSON.stringify(printSettings)) {
+    const hasChanges =
+      initialSettingsSnapshot != null &&
+      JSON.stringify(printSettings) !== initialSettingsSnapshot;
+    if (hasChanges) {
       setModalFlag(1);
       setModalOpen(true);
     } else {
@@ -96,16 +105,22 @@ function LimsHeaderBar() {
     }
 
     setSaving(true);
-    const files = {
-      logo: await serializeFileState(fileLogo),
-      header: await serializeFileState(fileHeader),
-      footer: await serializeFileState(fileFooter),
-      watermark: await serializeFileState(fileWatermark),
-      signature: await serializeFileState(fileSignature),
-    };
-    saveLimsSettings(printSettings, files);
-    setSaving(false);
-    goBack();
+    try {
+      await saveLimsPrintSettingsToApi(printSettings, {
+        fileLogo,
+        fileHeader,
+        fileFooter,
+        fileWatermark,
+        fileSignature,
+      });
+      localStorage.removeItem(LIMS_SETTINGS_KEY);
+      setInitialSettingsSnapshot(JSON.stringify(printSettings));
+      goBack();
+    } catch (e) {
+      errorMessage(e?.message || e || "Failed to save LIMS print settings");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleResetDefaults = () => {
@@ -113,11 +128,16 @@ function LimsHeaderBar() {
     setModalOpen(true);
   };
 
-  const onModalConfirm = () => {
+  const onModalConfirm = async () => {
     if (modalFlag === 1) {
       goBack();
-    } else if (modalFlag === 2 && defaultPrintSettings) {
-      const ps = ensureLabOption(JSON.parse(JSON.stringify(defaultPrintSettings)));
+      return;
+    }
+    if (modalFlag !== 2) return;
+
+    setResetting(true);
+    try {
+      const ps = await resetLimsPrintSettingsToApiDefaults();
       setPrintSettings(ps);
       setFileLogo(null);
       setFileHeader(null);
@@ -126,7 +146,12 @@ function LimsHeaderBar() {
       setFileSignature(null);
       initFileStates(ps, { setFileLogo, setFileWatermark, setFileSignature, setFileHeader, setFileFooter });
       localStorage.removeItem(LIMS_SETTINGS_KEY);
+      setInitialSettingsSnapshot(JSON.stringify(ps));
       setModalOpen(false);
+    } catch (e) {
+      errorMessage(e?.message || e || "Failed to reset LIMS print settings");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -182,6 +207,7 @@ function LimsHeaderBar() {
               <Button
                 onClick={onModalConfirm}
                 className="lh-lg btn btn-primary3 btn-41 px-4"
+                loading={resetting}
               >
                 {modalFlag === 1 ? "Yes, Leave" : "Yes, Reset"}
               </Button>
@@ -270,418 +296,15 @@ function LabResultsFormatLayout() {
   );
 }
 
-/* ── LabResultsPreview ───────────────────────────────────────────── */
-
-export function LabResultsPreview({ results, patient, emptyText }) {
-  const {
-    printSettings, fileLogo, fileHeader, fileFooter, fileWatermark, fileSignature,
-  } = useContext(PrintSettingsContext);
-
-  const patientInfo = patient || {};
-  const age = patientInfo.ageYears
-    ? `${patientInfo.ageYears}y`
-    : patientInfo.ageMonths
-      ? `${patientInfo.ageMonths}m`
-      : patientInfo.pm_age
-        ? `${patientInfo.pm_age}y`
-        : "";
-  const name = patientInfo.pm_fullname || "Patient Name";
-  const gender = patientInfo.pm_gender || "";
-  const pid = patientInfo.tpml_refrence_id || patientInfo.pm_pid || "";
-  const contact = patientInfo.pm_contact_no || "";
-
-  const hf = printSettings?.header_footer;
-  const pf = printSettings?.page_format;
-  const letterhead = printSettings?.letterhead_format;
-  const fontFamily = pf?.font_family || "Inter";
-  const fontSize = pf?.font_size || 10;
-  const patientFontSize = pf?.patient_info_font_size || fontSize;
-
-  const doctorInfo = hf?.header?.doctor_info;
-  const clinicInfo = hf?.header?.clinic_info;
-  const cleanSubheader = (text) =>
-    text ? text.replace(/^null\s*/i, "").trim() || "" : "";
-  const footerCfg = hf?.footer;
-  const otherSettings = hf?.other_settings;
-  const patientInfoFields = hf?.patient_info || [];
-
-  const showLogo = printSettings?.logo_enable === "Y" && fileLogo?.showFile;
-  const showWatermark = printSettings?.water_mark_enable === "Y" && fileWatermark?.showFile;
-  const showSignature = printSettings?.signature_enable === "Y" && fileSignature?.showFile;
-
-  const labOption = printSettings?.prescription?.case_option?.find(
-    (o) => o.id === LAB_RESULTS_CASE_ID,
-  );
-  const labFormat = labOption?.format || "table";
-  const labEnabled = labOption?.enable !== "N";
-
-  const hasResults =
-    results.length > 0 &&
-    results.some((e) =>
-      (e.inputs || []).some(
-        (inp) =>
-          inp?.testName &&
-          inp.testName !== "Remarks" &&
-          inp.value != null &&
-          String(inp.value).trim() !== "",
-      ),
-    );
-
-  const enabledFields = patientInfoFields.filter((f) => f.enable === "Y");
-  const fieldMap = {
-    1: { label: "Name", value: name },
-    2: { label: "ID", value: pid },
-    3: { label: "Date", value: new Date().toLocaleDateString("en-IN") },
-    4: { label: "Age", value: age },
-    5: { label: "Gender", value: gender },
-    6: { label: "Weight", value: "" },
-    7: { label: "Height", value: "" },
-    8: { label: "Address", value: "" },
-    9: { label: "Mobile", value: contact },
-    10: { label: "Blood Group", value: "" },
-  };
-
-  const ownMargin = letterhead === 2
-    ? hf?.custom_letterhead_margin || hf?.margin || {}
-    : {};
-
-  const renderTableClusterRows = (reportName, filledTests) => (
-    <React.Fragment key={reportName}>
-      <tr className={styles.reportSubHeader}>
-        <td colSpan={3}>{reportName}</td>
-      </tr>
-      {filledTests.map((t, ti) => {
-        const isAbnormal = t.arrowDirection === "UP" || t.arrowDirection === "DOWN";
-        const resultText = [
-          String(t.value),
-          t.units || "",
-        ].filter(Boolean).join(" ");
-        return (
-          <tr key={ti} className={isAbnormal ? styles.abnormalRow : undefined}>
-            <td>{t.testName || ""}</td>
-            <td style={{ fontWeight: 600 }}>
-              {resultText}
-              {arrowSymbol(t.arrowDirection) && (
-                <span style={{ fontSize: "10px", marginLeft: "2px" }}>
-                  {arrowSymbol(t.arrowDirection)}
-                </span>
-              )}
-            </td>
-            <td>{rangeText(t)}</td>
-          </tr>
-        );
-      })}
-    </React.Fragment>
-  );
-
-  const renderListFormat = (filledTests) => (
-    <div className={styles.listViewWrap}>
-      {filledTests.map((t, ti) => {
-        const isAbnormal = t.arrowDirection === "UP" || t.arrowDirection === "DOWN";
-        const resultText = [
-          String(t.value),
-          t.units || "",
-        ].filter(Boolean).join(" ");
-        return (
-          <div key={ti} className={`${styles.listViewItem} ${isAbnormal ? styles.abnormalText : ""}`}>
-            <div className={styles.listViewLeft}>
-              <span className={styles.listViewName}>{t.testName || ""}</span>
-              {rangeText(t) && <span className={styles.listViewRange}> (Ref: {rangeText(t)})</span>}
-            </div>
-            <div className={styles.listViewResult}>
-              <span style={{ fontWeight: 600 }}>
-                {resultText}
-                {arrowSymbol(t.arrowDirection) && (
-                  <span style={{ fontSize: "8px", marginLeft: "2px" }}>
-                    {arrowSymbol(t.arrowDirection)}
-                  </span>
-                )}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  const renderInlineFormat = (filledTests) => (
-    <div className={styles.inlineWrap}>
-      {filledTests.map((t, ti) => {
-        const isAbnormal = t.arrowDirection === "UP" || t.arrowDirection === "DOWN";
-        const valueWithUnit = [
-          t.value != null ? String(t.value) : "",
-          t.units || "",
-        ]
-          .filter(Boolean)
-          .join(" ");
-        const arrow = arrowSymbol(t.arrowDirection);
-        return (
-          <span key={ti} className={isAbnormal ? styles.abnormalText : undefined}>
-            {t.testName || ""}
-            {valueWithUnit ? `: ${valueWithUnit}` : ""}
-            {arrow ? ` ${arrow}` : ""}
-            {ti < filledTests.length - 1 ? "; " : ""}
-          </span>
-        );
-      })}
-    </div>
-  );
-
-  const renderNonTableResults = (tests, format) => {
-    if (format === "listview") return renderListFormat(tests);
-    return renderInlineFormat(tests);
-  };
-
-  return (
-    <div
-      className={styles.previewCard}
-      style={{
-        fontFamily,
-        paddingTop: letterhead === 2 ? `${(ownMargin.top || 2) * 28}px` : undefined,
-        paddingBottom: letterhead === 2 ? `${(ownMargin.bottom || 2) * 28}px` : undefined,
-        position: "relative",
-      }}
-    >
-      {/* Watermark */}
-      {showWatermark && (
-        <div className={styles.watermarkOverlay}>
-          <img src={fileWatermark.showFile} alt="" className={styles.watermarkImg} />
-        </div>
-      )}
-
-      {/* Letterhead: Upload (1) */}
-      {letterhead === 1 && fileHeader?.showFile && (
-        <img src={fileHeader.showFile} alt="" className={styles.uploadedHeaderImg} />
-      )}
-
-      {/* Letterhead: Custom (0) */}
-      {letterhead === 0 && (
-        <div className={styles.previewHeaderBlock}>
-          <div className={styles.previewHeaderRow}>
-            {/* Left side */}
-            <div className={styles.previewHeaderInfo}>
-              {showLogo && doctorInfo?.place !== "R" && (
-                <img src={fileLogo.showFile} alt="" className={styles.previewLogo} />
-              )}
-              {doctorInfo?.enable === "Y" && doctorInfo?.place !== "R" && (
-                <>
-                  <div className={styles.previewDoctorName}>
-                    {doctorInfo.header || "Dr. Name"}
-                  </div>
-                  {cleanSubheader(doctorInfo.subheader) && (
-                    <div className={styles.previewSubheader}>{cleanSubheader(doctorInfo.subheader)}</div>
-                  )}
-                </>
-              )}
-              {clinicInfo?.enable === "Y" && clinicInfo?.place !== "R" && (
-                <>
-                  <div className={styles.previewClinicName}>
-                    {clinicInfo.header || ""}
-                  </div>
-                  {clinicInfo.subheader && (
-                    <div className={styles.previewSubheader}>{clinicInfo.subheader}</div>
-                  )}
-                </>
-              )}
-            </div>
-            {/* Right side */}
-            <div className={styles.previewClinicInfo}>
-              {showLogo && doctorInfo?.place === "R" && (
-                <img src={fileLogo.showFile} alt="" className={styles.previewLogo} />
-              )}
-              {doctorInfo?.enable === "Y" && doctorInfo?.place === "R" && (
-                <>
-                  <div className={styles.previewDoctorName}>
-                    {doctorInfo.header || "Dr. Name"}
-                  </div>
-                  {cleanSubheader(doctorInfo.subheader) && (
-                    <div className={styles.previewSubheader}>{cleanSubheader(doctorInfo.subheader)}</div>
-                  )}
-                </>
-              )}
-              {clinicInfo?.enable === "Y" && clinicInfo?.place === "R" && (
-                <>
-                  <div className={styles.previewClinicName}>
-                    {clinicInfo.header || ""}
-                  </div>
-                  {clinicInfo.subheader && (
-                    <div className={styles.previewSubheader}>{clinicInfo.subheader}</div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-          <div className={styles.previewDivider} />
-        </div>
-      )}
-
-      {/* Patient info */}
-      <div className={styles.previewPatientBlock}>
-        <div className={styles.previewPatientRow}>
-          {enabledFields.length > 0
-            ? enabledFields.map((f) => {
-                const mapped = fieldMap[f.id];
-                if (!mapped || !mapped.value) return null;
-                return (
-                  <span key={f.id}>
-                    <strong>{mapped.label}:</strong> {mapped.value}
-                  </span>
-                );
-              })
-            : (
-              <>
-                <span><strong>Patient:</strong> {name}</span>
-                {pid && <span><strong>ID:</strong> {pid}</span>}
-                {gender && <span><strong>Gender:</strong> {gender}</span>}
-                {age && <span><strong>Age:</strong> {age}</span>}
-                {contact && <span><strong>Mobile:</strong> {contact}</span>}
-              </>
-            )}
-        </div>
-      </div>
-
-      <div className={styles.previewDivider} />
-
-      {/* Lab results */}
-      {labEnabled && (
-        <>
-          {!hasResults ? (
-            <div className={styles.previewEmpty}>
-              {emptyText || "Lab results will appear here as a preview."}
-            </div>
-          ) : labFormat === "table" ? (
-            /* Table format: one table per date, all clusters inside */
-            (() => {
-              const dateGroups = new Map();
-              results.forEach((entry) => {
-                const dateKey = entry.date || "unknown";
-                if (!dateGroups.has(dateKey)) dateGroups.set(dateKey, []);
-                dateGroups.get(dateKey).push(entry);
-              });
-              return Array.from(dateGroups.entries()).map(([dateKey, entries]) => {
-                const dateLabel = formatDateLabel(dateKey) || dateKey;
-                const allClusters = [];
-                entries.forEach((entry) => {
-                  const grouped = groupByReport(entry.inputs);
-                  Array.from(grouped.entries()).forEach(([reportName, tests]) => {
-                    const filledTests = tests.filter(
-                      (t) => t.value != null && String(t.value).trim() !== "",
-                    );
-                    if (filledTests.length > 0) {
-                      allClusters.push({ reportName, filledTests });
-                    }
-                  });
-                });
-                if (allClusters.length === 0) return null;
-                return (
-                  <div key={dateKey} className={styles.previewReportBlock}>
-                    <div className={styles.previewDateHeading}>
-                      Test Results: {dateLabel}
-                    </div>
-                    <table className={styles.previewTable}>
-                      <thead>
-                        <tr>
-                          <th>Test</th>
-                          <th>Result</th>
-                          <th>Ref. Range</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {allClusters.map(({ reportName, filledTests }) =>
-                          renderTableClusterRows(reportName, filledTests)
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              });
-            })()
-          ) : (
-            /* Non-table formats: list/inline - per-report blocks */
-            results.map((entry, ei) => {
-              const grouped = groupByReport(entry.inputs);
-              const dateLabel = formatDateLabel(entry.date) || entry.date || "";
-              return Array.from(grouped.entries()).map(([reportName, tests]) => {
-                const filledTests = tests.filter(
-                  (t) => t.value != null && String(t.value).trim() !== "",
-                );
-                if (filledTests.length === 0) return null;
-                return (
-                  <div key={`${ei}-${reportName}`} className={styles.previewReportBlock}>
-                    <div className={styles.previewReportHeader}>
-                      <span className={styles.previewReportName}>
-                        {reportName}
-                      </span>
-                      <span className={styles.previewReportMeta}>
-                        {[
-                          dateLabel,
-                          // entry.doctorId != null && entry.doctorId !== ""
-                          //   ? `Dr ID ${entry.doctorId}`
-                          //   : null,
-                          // entry.receptionistId != null && entry.receptionistId !== ""
-                          //   ? `Entered by ${entry.receptionistId}`
-                          //   : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </div>
-                    {renderNonTableResults(filledTests, labFormat)}
-                  </div>
-                );
-              });
-            })
-          )}
-        </>
-      )}
-
-      {/* Signature */}
-      {showSignature && (
-        <div
-          className={styles.signatureBlock}
-          style={{ textAlign: otherSettings?.signature_place === "R" ? "right" : "left" }}
-        >
-          <img src={fileSignature.showFile} alt="" className={styles.signatureImg} />
-          {otherSettings?.name_of_doctor_enable === "Y" && doctorInfo?.header && (
-            <div className={styles.signatureName}>{doctorInfo.header}</div>
-          )}
-          {otherSettings?.qualification_enable === "Y" && otherSettings?.qualification && (
-            <div className={styles.signatureQual}>{otherSettings.qualification}</div>
-          )}
-        </div>
-      )}
-
-      {/* Footer: uploaded image (letterhead 1) */}
-      {letterhead === 1 && fileFooter?.showFile && (
-        <img src={fileFooter.showFile} alt="" className={styles.uploadedFooterImg} />
-      )}
-
-      {/* Footer: text */}
-      {footerCfg?.enable === "Y" && footerCfg?.text && (
-        <>
-          <div className={styles.previewDivider} style={{ marginTop: 24 }} />
-          <div
-            className={styles.previewFooterText}
-            style={{ fontSize: footerCfg.font_size || 10 }}
-          >
-            {footerCfg.text}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 /* ── Main ─────────────────────────────────────────────────────────── */
 
 function LimsPrintConfigMain() {
-  const dispatch = useDispatch();
   const location = useLocation();
   const { state } = location;
   const patient = state?.patient || null;
   const patientId = state?.patientId || patient?.patient_unique_id;
-
-  const { defaultPrintSettings } = useSelector((s) => s.doctors);
+  const { profile } = useSelector((state) => state.doctors);
 
   const [selectedTab, setSelectedTab] = useState(TAB_LAB_RESULTS);
   const [printSettings, setPrintSettings] = useState(null);
@@ -691,35 +314,96 @@ function LimsPrintConfigMain() {
   const [fileWatermark, setFileWatermark] = useState(null);
   const [fileSignature, setFileSignature] = useState(null);
   const [results, setResults] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const settingsHydratedRef = useRef(false);
+
+  const availableDates = useMemo(() => {
+    const dateSet = new Set();
+    (results || []).forEach((entry) => {
+      if (entry.date) dateSet.add(entry.date.slice(0, 10));
+    });
+    const sorted = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
+    return sorted.map((iso) => {
+      const d = new Date(iso + "T00:00:00");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mmm = MONTH_ABBR[d.getMonth()];
+      const yyyy = d.getFullYear();
+      return { value: iso, label: `${dd} ${mmm} ${yyyy}` };
+    });
+  }, [results]);
 
   useEffect(() => {
-    dispatch(getDefaultPrintsettings());
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (!defaultPrintSettings || printSettings) return;
-
-    const saved = loadLimsSettings();
-    if (saved?.printSettings) {
-      setPrintSettings(saved.printSettings);
-      if (saved.files?.logo) setFileLogo(saved.files.logo);
-      if (saved.files?.watermark) setFileWatermark(saved.files.watermark);
-      if (saved.files?.signature) setFileSignature(saved.files.signature);
-      if (saved.files?.header) setFileHeader(saved.files.header);
-      if (saved.files?.footer) {
-        updateFooterImageHeight(saved.files.footer, setFileFooter, true);
-      }
-    } else {
-      const ps = ensureLabOption(JSON.parse(JSON.stringify(defaultPrintSettings)));
-      setPrintSettings(ps);
-      initFileStates(ps, { setFileLogo, setFileWatermark, setFileSignature, setFileHeader, setFileFooter });
+    if (availableDates.length > 0 && !selectedDate) {
+      setSelectedDate(availableDates[0].value);
     }
-  }, [defaultPrintSettings, printSettings]);
+  }, [availableDates, selectedDate]);
+
+  const filteredResults = useMemo(() => {
+    if (!selectedDate) return results;
+    return results.filter((entry) => entry.date && entry.date.startsWith(selectedDate));
+  }, [results, selectedDate]);
+
+  useEffect(() => {
+    if (settingsHydratedRef.current) return;
+    let cancelled = false;
+
+    const loadSettings = async () => {
+      setSettingsLoading(true);
+      const limsSettings = await fetchLimsPrintSettings();
+      if (cancelled) return;
+
+      if (limsSettings) {
+        settingsHydratedRef.current = true;
+        setPrintSettings(limsSettings);
+        initFileStates(limsSettings, {
+          setFileLogo,
+          setFileWatermark,
+          setFileSignature,
+          setFileHeader,
+          setFileFooter,
+        });
+      }
+      setSettingsLoading(false);
+    };
+
+    loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!fileFooter?.showFile) return;
     updateFooterImageHeight(fileFooter, setFileFooter);
   }, [fileFooter?.showFile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const attachQr = async () => {
+      if (!printSettings) return;
+      if (printSettings.qrcode_enable !== "Y") {
+        if (printSettings.qrcode) {
+          setPrintSettings((prev) => (prev ? { ...prev, qrcode: null } : prev));
+        }
+        return;
+      }
+      if (printSettings.qrcode) return;
+      const doctorUmId =
+        getPatientLastVisitDoctorUmId(patient) ?? getAttendingDoctorUmIdFromUrl();
+      const qrcode = await resolveLimsQrCodeDataUrl({
+        printSettings,
+        profile,
+        doctorUmId,
+      });
+      if (cancelled || !qrcode) return;
+      setPrintSettings((prev) => (prev ? { ...prev, qrcode } : prev));
+    };
+    attachQr();
+    return () => {
+      cancelled = true;
+    };
+  }, [printSettings?.qrcode_enable, printSettings?.qrcode, profile, patient]);
 
   useEffect(() => {
     if (patientId) {
@@ -761,47 +445,65 @@ function LimsPrintConfigMain() {
     { key: TAB_PAGE_FORMAT, label: "Page Format" },
   ];
 
-  if (!printSettings) return null;
+  if (settingsLoading || !printSettings) return null;
 
   return (
     <PrintSettingsContext.Provider value={contextApi}>
-      <>
+      <div className={styles.configPage}>
         <LimsHeaderBar />
-        <div className="w-100 bg-body wrapper2">
-          <Row justify="space-between">
-            <Col xl={8} sm={10} className="pe-3">
-              <div
-                className="bg-white overflow-y-auto"
-                style={{ height: "calc(100vh - 60px)" }}
-              >
-                <Tabs
-                  defaultActiveKey={TAB_LAB_RESULTS}
-                  items={tabs}
-                  onChange={onTabChange}
-                  className="print-tabs"
-                />
-                {selectedTab === TAB_LAB_RESULTS ? (
-                  <LabResultsFormatLayout />
-                ) : selectedTab === TAB_HEADER_FOOTER ? (
-                  <HeaderFooterLayout />
-                ) : (
-                  selectedTab === TAB_PAGE_FORMAT && <PageFormatLayout />
+        <div className={styles.configBody}>
+          <aside className={styles.configSidebar}>
+            <div className={styles.configSidebarPanel}>
+              <Tabs
+                defaultActiveKey={TAB_LAB_RESULTS}
+                items={tabs}
+                onChange={onTabChange}
+                className="print-tabs"
+              />
+              {selectedTab === TAB_LAB_RESULTS ? (
+                <LabResultsFormatLayout />
+              ) : selectedTab === TAB_HEADER_FOOTER ? (
+                <HeaderFooterLayout />
+              ) : (
+                selectedTab === TAB_PAGE_FORMAT && <PageFormatLayout hideDefaultLanguage />
+              )}
+            </div>
+          </aside>
+
+          <main className={styles.configPreview}>
+            <div className={styles.configPreviewInner}>
+              <div className={styles.configPreviewHeader}>
+                <div className="titleprint mb-0">Preview</div>
+                {availableDates.length > 0 && (
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="text-muted" style={{ fontSize: 13 }}>Print results for</span>
+                    <Select
+                      options={availableDates}
+                      value={selectedDate || undefined}
+                      onChange={(val) => setSelectedDate(val)}
+                      placeholder="Select date"
+                      style={{ width: 160 }}
+                      size="small"
+                    />
+                  </div>
                 )}
               </div>
-            </Col>
-            <Col xl={16} sm={14}>
-              <div className="mx-auto overflow-y-auto" style={{ width: 900 }}>
-                <div className="titleprint mt-20">Preview</div>
-                <div className="rounded-20px bg-white mt-20 overflow-hidden">
-                  <div className="position-relative printheight">
-                    <LabResultsPreview results={results} patient={patient} />
-                  </div>
-                </div>
+              <div className={styles.configPreviewCard}>
+                <LimsReportPdfPreview
+                  results={filteredResults}
+                  patient={patient}
+                  printSettings={printSettings}
+                  fileHeader={fileHeader}
+                  fileFooter={fileFooter}
+                  fileLogo={fileLogo}
+                  fileWatermark={fileWatermark}
+                  fileSignature={fileSignature}
+                />
               </div>
-            </Col>
-          </Row>
+            </div>
+          </main>
         </div>
-      </>
+      </div>
     </PrintSettingsContext.Provider>
   );
 }
