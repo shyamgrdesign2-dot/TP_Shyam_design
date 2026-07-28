@@ -1632,7 +1632,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       doctor_id: profile?.doctor_unique_id,
       patient_id: record?.patient_unique_id,
     });
-    goToPatientDetails(record, "/prescription");
+    goToPatientDetails(
+      record,
+      isDentalEnabled ? DENTAL_RX_PAD_ROUTE : "/prescription"
+    );
     if (isChikitsalayAccessable) {
       clinicTargetStatus(record?.pam_id, {
         targetStatus: CLINIC_TARGET_STATUS.SERVING,

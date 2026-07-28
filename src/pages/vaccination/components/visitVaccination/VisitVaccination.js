@@ -16,6 +16,8 @@ import {
 } from "../../VaccinationHelper";
 import moment from "moment";
 import { ASSETS } from "../../../../assets";
+import { useIsDentalEnabled } from "../../../../hooks/useIsDentalEnabled";
+import { DENTAL_RX_PAD_ROUTE } from "../../../../utils/dentalRoutes";
 const Vaccination = ASSETS.images.vaccination;
 
 function VisitVaccination() {
@@ -23,6 +25,8 @@ function VisitVaccination() {
   const location = useLocation();
   const locationState = location.state || {};
   const { patient_data } = locationState;
+  const isDentalEnabled = useIsDentalEnabled();
+  const consultRoute = isDentalEnabled ? DENTAL_RX_PAD_ROUTE : "/prescription";
 
   const [upcomingVaccines, setUpcomingVaccines] = useState([]);
   const [pendingVaccines, setPendingVaccines] = useState([]);
@@ -172,7 +176,7 @@ function VisitVaccination() {
                 <Button
                   className="btn btn-input d-flex align-items-center gap-1"
                   onClick={() =>
-                    navigate("/prescription", {
+                    navigate(consultRoute, {
                       state: {
                         patient_data: patient_data,
                         chartType: "vaccination",
