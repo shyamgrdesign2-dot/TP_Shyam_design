@@ -520,9 +520,22 @@ export default function BillingTable({
   const exportPatientLevelExcel = (bills = []) => {
     const isDoctorDashboard = !patientData;
 
-    const getDoctorNameByIdForExport = (um_id) => {
-      const doctor = doctorList.find((doc) => doc.um_id === um_id);
-      return doctor ? doctor.um_name : "";
+    const getDoctorNameByIdForExport = (um_id, bill) => {
+      if (bill?.doctorName) return bill.doctorName;
+      if (bill?.doctor?.name) return bill.doctor.name;
+      if (um_id == null || um_id === "") return "";
+      const doctor = (Array.isArray(finalDoctorList) ? finalDoctorList : []).find(
+        (doc) => String(doc?.um_id) === String(um_id)
+      );
+      if (doctor?.um_name) return doctor.um_name;
+      if (
+        String(profile?.um_id) === String(um_id) ||
+        String(profile?.doctor_unique_id) === String(um_id) ||
+        String(profile?.user_id) === String(um_id)
+      ) {
+        return profile?.um_name || "";
+      }
+      return "";
     };
 
     const billRows = bills.map((bill, index) => {
@@ -555,7 +568,7 @@ export default function BillingTable({
       return {
         ...base,
         "Patient Name": bill?.patient?.name || "",
-        "Doctor Name": getDoctorNameByIdForExport(bill?.doctorId) || "",
+        "Doctor Name": getDoctorNameByIdForExport(bill?.doctorId, bill) || "",
         "Mobile Number": bill?.patient?.phone || "",
       };
     });
@@ -2020,6 +2033,7 @@ export default function BillingTable({
                 omitPaymentSummary={patientPdfUi.omitPaymentSummary}
                 omitBillsTable={patientPdfUi.omitBillsTable}
                 hidePrintHeader={patientPdfUi.hidePrintHeader}
+                doctors={finalDoctorList}
               />
             </div>
           </div>
