@@ -204,9 +204,12 @@ function SidebarDoctor() {
       setHoveredItem(null);
     }
 
-    // Native Data Analytics for allowlisted users / Mission Hospital;
-    // everyone else keeps the legacy PHP SSO redirect.
+    // Native Data Analytics for allowlisted users; Mission/CVT ext hospitals
+    // get the standalone mission page; everyone else keeps the legacy PHP SSO.
     if (moduleName === "data_analytics") {
+      if (isCvtExtHosAccessableFromGB) {
+        return navigate("/mission-analytics");
+      }
       const tokenResult = tokenData || getDecodedToken()?.result;
       if (canOpenNativeDataAnalytics(tokenResult)) {
         return navigate("/data-analytics-x");
@@ -510,41 +513,67 @@ function SidebarDoctor() {
             </div>
           </NavLink>
 
-          {/* Data Analytics stays outside the CVT/Mission Hospital gate so it
-              remains available when Ask Tatva + other modules are hidden. */}
-          {profile?.module_data
-            ?.filter((item) => item?.type === "data_analytics")
-            ?.map((item) => {
-              const hoverKey = "data_analytics";
-              const isHovered = hoveredItem === hoverKey;
-              return (
-                <div key={item.type} className="position-relative">
-                  <NavLink
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setHoveredItem(null);
-                      clickOldModule(item.type);
-                    }}
-                    replace={true}
-                    className={({ isPending }) =>
-                      isPending ? "pending" : isHovered ? "active" : ""
-                    }
-                    onMouseEnter={() => setHoveredItem(hoverKey)}
-                    onMouseLeave={() => setHoveredItem(null)}
-                  >
-                    <img
-                      src={getIcon(item.type, isHovered, false)}
-                      alt={`${item.type}`}
-                    />
-                    <div className="mt-1 px-2">{item.title}</div>
-                  </NavLink>
-                </div>
-              );
-            })}
+          {/* CVT/Mission Hospital: dedicated mission analytics page.
+              Everyone else: module_data Data Analytics stays outside the CVT
+              gate so it remains available when Ask Tatva is hidden. */}
+          {isCvtExtHosAccessableFromGB ? (
+            <NavLink
+              replace={true}
+              className={({ isPending }) =>
+                isPending ? "pending" : hoveredItem === "mission_analytics" ? "active" : ""
+              }
+              onClick={(e) => {
+                e.preventDefault();
+                scrollToTop();
+                setHoveredItem(null);
+                navigate("/mission-analytics");
+              }}
+              onMouseEnter={() => setHoveredItem("mission_analytics")}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              <img
+                src={getIcon("data_analytics", hoveredItem === "mission_analytics", false)}
+                alt="data_analytics"
+              />
+              <div className="mt-1 px-2">
+                <div className="text-truncate">Data Analytics</div>
+              </div>
+            </NavLink>
+          ) : (
+            profile?.module_data
+              ?.filter((item) => item?.type === "data_analytics")
+              ?.map((item) => {
+                const hoverKey = "data_analytics";
+                const isHovered = hoveredItem === hoverKey;
+                return (
+                  <div key={item.type} className="position-relative">
+                    <NavLink
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setHoveredItem(null);
+                        clickOldModule(item.type);
+                      }}
+                      replace={true}
+                      className={({ isPending }) =>
+                        isPending ? "pending" : isHovered ? "active" : ""
+                      }
+                      onMouseEnter={() => setHoveredItem(hoverKey)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                    >
+                      <img
+                        src={getIcon(item.type, isHovered, false)}
+                        alt={`${item.type}`}
+                      />
+                      <div className="mt-1 px-2">{item.title}</div>
+                    </NavLink>
+                  </div>
+                );
+              })
+          )}
 
           {!isCvtExtHosAccessableFromGB && (
           <>
-          
+
           <NavLink
             replace={true}
             className={({ isActive, isPending }) =>
