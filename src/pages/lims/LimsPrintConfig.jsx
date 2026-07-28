@@ -39,6 +39,19 @@ const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep
 
 const { alerticon: alertIcon } = ASSETS.images;
 
+/** Split a path that may incorrectly include `?query` (React Router rejects `?` in pathname). */
+function splitPathAndSearch(path, fallbackSearch = "") {
+  if (!path) return { pathname: "/lims", search: fallbackSearch || "" };
+  const q = path.indexOf("?");
+  if (q === -1) {
+    return { pathname: path, search: fallbackSearch || "" };
+  }
+  return {
+    pathname: path.slice(0, q),
+    search: fallbackSearch || path.slice(q),
+  };
+}
+
 /* ── LimsHeaderBar ───────────────────────────────────────────────── */
 
 function LimsHeaderBar() {
@@ -62,8 +75,12 @@ function LimsHeaderBar() {
 
   const goBack = useCallback(() => {
     if (previousPage) {
+      const { pathname, search: backSearch } = splitPathAndSearch(
+        previousPage,
+        location.search,
+      );
       navigate(
-        { pathname: previousPage, search: location.search },
+        { pathname, search: backSearch },
         { replace: true, state },
       );
     } else {
