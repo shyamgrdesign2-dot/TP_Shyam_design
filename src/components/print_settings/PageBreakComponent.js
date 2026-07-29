@@ -22,7 +22,7 @@ const PageBreakComponent = ({ onRemove, isDragging = false }) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ 
           fontWeight: '500', 
-          color: '#1890ff',
+          color: '#4B4AD5',
           fontSize: '14px'
         }}>
           -------- Page Breaker ----------
