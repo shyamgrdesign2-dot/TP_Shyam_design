@@ -3,10 +3,8 @@ import ApiReporting from "../../../api/services/ApiReporting";
 import { anyToDonut, seriesToXY } from "../charts/adapters";
 import { toNum, pctDelta, withCategories } from "./deltaUtils";
 
-// Patients section. clinicId/doctorId are expected to be a single id or
-// omitted (all) — the shell clamps multi-select because most reporting
-// endpoints cannot honour CSV filters. This endpoint accepts startDate/endDate
-// like Overview's gender call (analytics/*).
+// Patients section. doctorId/clinicId may be a CSV from the filter bar
+// (empty = all). This analytics/* endpoint accepts CSV filters.
 export default function usePatientsData({ startDate, endDate, doctorId, clinicId } = {}) {
   const [state, setState] = useState({
     loading: true,

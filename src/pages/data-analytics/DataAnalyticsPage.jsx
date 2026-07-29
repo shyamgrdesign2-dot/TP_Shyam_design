@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   TesseractThemeProvider,
@@ -13,7 +12,6 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-  Toast,
 } from "@dhspl-tatvacare/tesseract-ui";
 // eslint-disable-next-line import/no-unresolved -- exports-map alias ("./styles.css" → dist css); webpack resolves it, eslint-plugin-import cannot
 import "@dhspl-tatvacare/tesseract-ui/styles.css";
@@ -44,19 +42,6 @@ import {
   getDataAnalyticsAccessMode,
 } from "./data/analyticsAccess";
 import { getDecodedToken } from "../../utils/localStorage";
-
-// Most clinic/* reporting endpoints reject CSV doctorId/clinicId (400) or
-// silently coerce MySQL string→number to the FIRST id. Multi-select was
-// therefore lying: UI showed 2 doctors while KPIs queried all (or one).
-// Cap at one selection until the backend supports true multi-ID filters.
-function clampToSingle(prev, next) {
-  if (!Array.isArray(next) || next.length <= 1) {
-    return { value: Array.isArray(next) ? next : [], blocked: false };
-  }
-  const prevSet = new Set((prev || []).map(String));
-  const added = next.find((id) => !prevSet.has(String(id)));
-  return { value: [added ?? next[next.length - 1]], blocked: true };
-}
 
 const MED_ICON_BASE = "https://pmdoctorportal.tatvacare.in/tp-icons/rounded";
 // `icon` is a folder-qualified path ("medical/diagnosis"). Tesseract's
@@ -165,15 +150,13 @@ export default function DataAnalyticsPage() {
   const [clinics, setClinics] = useState([]);
 
   // Role scoping: a sub-doctor only ever sees their own metrics — their name
-  // stays selected and the doctor filter is locked. Admin may pick one doctor
-  // or leave empty (= all). Multi-select is clamped (see clampToSingle) because
-  // most reporting endpoints do not support CSV doctor/clinic filters yet.
+  // stays selected and the doctor filter is locked. Admin keeps the full
+  // multi-select (empty = all doctors).
   const doctorLocked = !caps.isAdmin && !!caps.selfId;
   useEffect(() => {
     if (doctorLocked) setDoctors([caps.selfId]);
   }, [doctorLocked, caps.selfId]);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [filterToast, setFilterToast] = useState(null);
   const handleRefresh = useCallback(() => {
     trackAnalytics(EVENTS.REFRESH, { department, section });
     import("./data/apiCache").then((m) => m.clearApiCache());
@@ -215,15 +198,8 @@ export default function DataAnalyticsPage() {
 
   const handleDoctorsChange = useCallback(
     (v) => {
-      const { value, blocked } = clampToSingle(doctors, v);
+      const value = Array.isArray(v) ? v : [];
       setDoctors(value);
-      if (blocked) {
-        setFilterToast({
-          status: "warning",
-          title: "One doctor at a time",
-          subtext: "Multi-doctor filter is not supported yet — showing the doctor you just selected.",
-        });
-      }
       trackAnalytics(EVENTS.FILTER_APPLIED, {
         department,
         section,
@@ -231,20 +207,13 @@ export default function DataAnalyticsPage() {
         filter_count: value.length,
       });
     },
-    [doctors, department, section]
+    [department, section]
   );
 
   const handleClinicsChange = useCallback(
     (v) => {
-      const { value, blocked } = clampToSingle(clinics, v);
+      const value = Array.isArray(v) ? v : [];
       setClinics(value);
-      if (blocked) {
-        setFilterToast({
-          status: "warning",
-          title: "One clinic at a time",
-          subtext: "Multi-clinic filter is not supported yet — showing the clinic you just selected.",
-        });
-      }
       trackAnalytics(EVENTS.FILTER_APPLIED, {
         department,
         section,
@@ -252,7 +221,7 @@ export default function DataAnalyticsPage() {
         filter_count: value.length,
       });
     },
-    [clinics, department, section]
+    [department, section]
   );
 
   const hero = heroFor(department, section);
@@ -284,8 +253,8 @@ export default function DataAnalyticsPage() {
     trackAnalytics(EVENTS.FILTER_APPLIED, { department, section, filter_type: "period", filter_value: v?.presetId || "custom_range" });
   };
 
-  // Hooks consume `doctor`/`clinic` as a single id string (empty = all).
-  // Multi-id CSV is clamped upstream — clinic/* endpoints do not support it.
+  // Hooks consume `doctor`/`clinic` as a CSV id string (empty = all).
+  // clinic/* hooks may still narrow via singleIdOnly(); analytics/* accept CSV.
   const filters = useMemo(
     () => ({
       ...dateRange,
@@ -534,34 +503,6 @@ export default function DataAnalyticsPage() {
           </div>
         </DrawerContent>
       </Drawer>
-      {/* Portal to body: DrawerContent uses CSS transform, which breaks
-          position:fixed descendants (same pattern as ReportDownloadDrawer). */}
-      {filterToast &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              top: 24,
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 10000,
-              minWidth: 360,
-              maxWidth: "90vw",
-            }}
-          >
-            <Toast
-              status={filterToast.status}
-              title={filterToast.title}
-              dismissible
-              duration={3500}
-              progress
-              onDismiss={() => setFilterToast(null)}
-            >
-              {filterToast.subtext}
-            </Toast>
-          </div>,
-          document.body
-        )}
     </TesseractThemeProvider>
   );
 }

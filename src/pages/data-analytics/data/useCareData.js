@@ -243,7 +243,12 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
     if (sc) trendParams.clinicId = sc;
 
     const all = subTab === "all";
-    const on = (tab) => all || subTab === tab;
+    // Care Overview only renders medications / lab / vitals / advice / vaccines
+    // donuts (+ matching KPIs). Detail tabs own the rest — and the ≤20-doctor
+    // stacked charts — so "all" must not fan out or prefetch hidden topics.
+    const OVERVIEW_TOPICS = new Set(["medications", "lab-tests", "vitals", "advice", "vaccines"]);
+    const on = (tab) => (all ? OVERVIEW_TOPICS.has(tab) : subTab === tab);
+    const wantByDoctor = !all;
 
     const [
       diagPayload, sympPayload, labPayload, condPayload, rxPayload,
@@ -262,11 +267,11 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
       on("vaccines") ? safe(cached("vacc", noDoctor, () => ApiReporting.clinicalVaccines(noDoctor))) : null,
       on("custom-modules") ? safe(cached("custom", params, () => ApiReporting.clinicalCustomModels(params))) : null,
       on("certificates") ? safe(cached("cert", params, () => ApiReporting.clinicalCertificates(params))) : null,
-      on("symptoms") && monthScoped ? safe(cached("trSymp", trendParams, () => ApiReporting.clinicalTrends({ ...trendParams, topic: "symptoms" }))) : null,
-      on("lab-tests") && monthScoped ? safe(cached("trInv", trendParams, () => ApiReporting.clinicalTrends({ ...trendParams, topic: "investigations" }))) : null,
-      on("medical-history") && monthScoped ? safe(cached("trCond", trendParams, () => ApiReporting.clinicalTrends({ ...trendParams, topic: "conditions" }))) : null,
-      on("medications") && monthScoped ? safe(cached("trMed", trendParams, () => ApiReporting.clinicalTrends({ ...trendParams, topic: "medications" }))) : null,
-      on("diagnosis") && monthScoped ? safe(cached("trDiag", trendParams, () => ApiReporting.clinicalDiagnosisTrends(trendParams))) : null,
+      on("symptoms") && !all && monthScoped ? safe(cached("trSymp", trendParams, () => ApiReporting.clinicalTrends({ ...trendParams, topic: "symptoms" }))) : null,
+      on("lab-tests") && !all && monthScoped ? safe(cached("trInv", trendParams, () => ApiReporting.clinicalTrends({ ...trendParams, topic: "investigations" }))) : null,
+      on("medical-history") && !all && monthScoped ? safe(cached("trCond", trendParams, () => ApiReporting.clinicalTrends({ ...trendParams, topic: "conditions" }))) : null,
+      on("medications") && !all && monthScoped ? safe(cached("trMed", trendParams, () => ApiReporting.clinicalTrends({ ...trendParams, topic: "medications" }))) : null,
+      on("diagnosis") && !all && monthScoped ? safe(cached("trDiag", trendParams, () => ApiReporting.clinicalDiagnosisTrends(trendParams))) : null,
     ]);
 
     const diag = diagPayload?.data ?? diagPayload;
@@ -290,9 +295,11 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
     if (on("diagnosis")) {
       patch.diagnosis = listToDonut(diag?.topDiagnosis, { labelKey: "name", valueKey: "count" });
       patch.diagPrev = diag?.previous ?? null;
-      const diagBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
-      const diagStacked = await buildDiagByDoctor(diagBase, doctorId && doctorId !== "all" ? doctorId : null);
-      patch.diagByDoctor = diagStacked ? compactXY(seriesToXY(diagStacked), compactDoctorLabel) : null;
+      if (wantByDoctor) {
+        const diagBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
+        const diagStacked = await buildDiagByDoctor(diagBase, doctorId && doctorId !== "all" ? doctorId : null);
+        patch.diagByDoctor = diagStacked ? compactXY(seriesToXY(diagStacked), compactDoctorLabel) : null;
+      }
     }
     if (on("symptoms")) {
       patch.symptoms = anyToDonut(symp?.topSymptoms);
@@ -304,9 +311,11 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
       patch.investigations = dropJunk(anyToDonut(lab?.topInvestigations).map(cleanInvestigation));
       patch.labPrev = lab?.previous ?? null;
       patch.labCoveragePct = num(lab?.coveragePct);
-      const labBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
-      const labStacked = await buildLabByDoctor(labBase, doctorId && doctorId !== "all" ? doctorId : null);
-      patch.labByDoctor = labStacked ? compactXY(seriesToXY(labStacked), compactDoctorLabel) : null;
+      if (wantByDoctor) {
+        const labBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
+        const labStacked = await buildLabByDoctor(labBase, doctorId && doctorId !== "all" ? doctorId : null);
+        patch.labByDoctor = labStacked ? compactXY(seriesToXY(labStacked), compactDoctorLabel) : null;
+      }
     }
     if (on("medical-history")) {
       patch.conditions = anyToDonut(cond?.topConditions);
@@ -324,9 +333,11 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
       patch.catalogVsCustom = withCategories(anyToDonut(rx?.catalogVsCustom), ["Catalog", "Custom"]);
       patch.customByDoctor = rx?.customByDoctor ? compactXY(seriesToXY(rx.customByDoctor), compactDoctorLabel) : null;
       patch.drugsPerRx = num(rx?.drugsPerRx);
-      const medsBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
-      const medsStacked = await buildMedsByDoctor(medsBase, doctorId && doctorId !== "all" ? doctorId : null);
-      patch.medsByDoctor = medsStacked ? compactXY(seriesToXY(medsStacked), compactDoctorLabel) : null;
+      if (wantByDoctor) {
+        const medsBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
+        const medsStacked = await buildMedsByDoctor(medsBase, doctorId && doctorId !== "all" ? doctorId : null);
+        patch.medsByDoctor = medsStacked ? compactXY(seriesToXY(medsStacked), compactDoctorLabel) : null;
+      }
     }
     if (on("vitals")) {
       patch.bpStages = anyToDonut(vit?.bpStages);
@@ -349,9 +360,11 @@ export default function useCareData({ month, startDate, endDate, doctorId, clini
       patch.advicePatients = num(adv?.patientsAdvised);
       patch.adviceEntries = num(adv?.entries);
       patch.advicePrev = adv?.previous ?? null;
-      const advBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
-      const advStacked = await buildAdviceByDoctor(advBase, doctorId && doctorId !== "all" ? doctorId : null);
-      patch.adviceByDoctor = advStacked ? compactXY(seriesToXY(advStacked), compactDoctorLabel) : null;
+      if (wantByDoctor) {
+        const advBase = { ...(month ? { month } : {}), ...(startDate && endDate ? { startDate, endDate } : {}), ...(singleClinic ? { clinicId: singleClinic } : {}) };
+        const advStacked = await buildAdviceByDoctor(advBase, doctorId && doctorId !== "all" ? doctorId : null);
+        patch.adviceByDoctor = advStacked ? compactXY(seriesToXY(advStacked), compactDoctorLabel) : null;
+      }
     }
     if (on("vaccines")) {
       patch.vaccines = {

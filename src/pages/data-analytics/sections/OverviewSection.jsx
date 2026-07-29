@@ -34,6 +34,10 @@ export default function OverviewSection({ filters }) {
     department: "opd",
     doctorId: filters?.doctor,
     clinicId: filters?.clinic,
+    // Overview only renders money KPIs — do not fan out ≤20 doctor bill calls
+    // or fetch collection-summary (Billing chart tiles only).
+    includeRevenueByDoctor: false,
+    includeCollectionSummary: false,
   });
 
   const appointments = useAppointmentsLive({

@@ -20,7 +20,17 @@ const ZERO_KPIS = [
   { key: "avgBill", label: "Avg bill value", kind: "money", value: 0, approx: true },
 ];
 
-export default function useBillingLive({ startDate, endDate, department = "opd", doctorId, clinicId } = {}) {
+export default function useBillingLive({
+  startDate,
+  endDate,
+  department = "opd",
+  doctorId,
+  clinicId,
+  // Overview only needs money KPIs — skip the ≤20 per-doctor fan-out and
+  // collection-summary call used solely for Billing chart tiles.
+  includeRevenueByDoctor = true,
+  includeCollectionSummary = true,
+} = {}) {
   const doctorList = useSelector((s) => s.bulkMessages?.doctorList) || [];
   const userId = useSelector((s) => s.doctors?.userId);
   const [state, setState] = useState({ loading: true, kpis: ZERO_KPIS, paymentModes: [], refundModes: [], advanceModes: [], advanceRefundModes: [], revenueByDoctor: null });
@@ -94,7 +104,9 @@ export default function useBillingLive({ startDate, endDate, department = "opd",
       safe(cached("advDeposit", { q: qp.toString() }, () => api.get(advUrl, base))),
       prevWin ? safe(cached(`bill-${billPath}-prev`, { q: prevQp.toString() }, () => api.get(`/api/v1/billing/${billPath}/dashboard?${prevQp.toString()}`, base))) : Promise.resolve(null),
       prevWin ? safe(cached("advDeposit-prev", { q: prevQp.toString() }, () => api.get(`/api/v1/billing/advancedDeposit/dashboard?${prevQp.toString()}`, base))) : Promise.resolve(null),
-      safe(cached("collSummary", collParams, () => ApiReporting.financialCollectionSummary(collParams))),
+      includeCollectionSummary
+        ? safe(cached("collSummary", collParams, () => ApiReporting.financialCollectionSummary(collParams)))
+        : Promise.resolve(null),
     ]);
 
     const s = bill?.summary ?? bill?.data?.summary ?? bill ?? {};
@@ -151,12 +163,12 @@ export default function useBillingLive({ startDate, endDate, department = "opd",
       revenueByDoctor: null,
     });
 
-    if (!doctorId || doctorId === "all") {
+    if (includeRevenueByDoctor && (!doctorId || doctorId === "all")) {
       const revByDoc = await buildRevenueByDoctor(startDate, endDate, department, clinicId);
       if (revByDoc) setState((prev) => ({ ...prev, revenueByDoctor: revByDoc }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, department, doctorKey, userId, doctorId, clinicId]);
+  }, [startDate, endDate, department, doctorKey, userId, doctorId, clinicId, includeRevenueByDoctor, includeCollectionSummary]);
 
   useEffect(() => {
     load();

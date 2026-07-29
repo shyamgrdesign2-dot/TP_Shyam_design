@@ -14,15 +14,13 @@ const DA_PRESETS = [
   { id: "last-month", label: "Last month", getRange: () => ({ start: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1), end: new Date(new Date().getFullYear(), new Date().getMonth(), 0) }) },
 ];
 
-// The sticky filter row: Doctor + Clinic selects on the left, the date
+// The sticky filter row: Doctor + Clinic multi-selects on the left, the date
 // range picker on the right, and — when anything deviates from default — a
 // red underlined "Clear all" at the very right end.
 //
-// Doctor and Clinic use Tesseract Dropdowns in mode="multi" with checkbox
-// option rows for search/clear UX, but the page clamps selection to **one**
-// id (empty = all). Most clinic/* reporting endpoints reject CSV filters;
-// allowing multi would silently show all-doctor numbers while the UI listed
-// two names.
+// Doctor and Clinic are Tesseract Dropdowns in mode="multi" with checkbox
+// option rows; empty selection means "all". Each dropdown also carries its own
+// footer "Clear" action to reset just that filter.
 //
 // Role scoping (spec §1.7): a sub-doctor's doctor filter is locked to their
 // own name (disabled, no menu); an account with a single clinic gets a
