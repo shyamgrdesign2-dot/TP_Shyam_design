@@ -102,6 +102,7 @@ import {
     attachCrossConsultToCaseManagerPayload,
     syncCrossConsultReferral,
 } from "../../../../utils/crossConsultHelpers";
+import { normalizeLabResultsResponse } from "../../../../utils/labResultsUtils";
 import {
     getMetadata,
     setMetadata,
@@ -1943,6 +1944,7 @@ function TabRxHeaderV2({
                         ...action.payload,
                         patient_data: patient_data,
                         page: "tabrx",
+                        labParamsData: normalizeLabResultsResponse(labParamsData),
                         // smartRxFilesData: canvasFiles.length > 0 ? canvasFiles : smartRxFiles,
                     },
                 });

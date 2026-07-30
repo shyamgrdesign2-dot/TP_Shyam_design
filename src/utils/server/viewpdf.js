@@ -737,7 +737,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     growthChartDetails,
     gynecHistoryData,
     obsHistoryData,
-    labParamsData,
+    labParamsData: labParamsDataFromProps,
     ophthalModuleData,
     patientBills,
     advanceReceipts,
@@ -898,6 +898,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const onCalFollowUp = (start_date, end_date) => {
     return calculateFollowUpText(start_date, end_date);
   };
+
+  // Prefer print-payload labs; fall back to case-manager when prop is missing.
+  const labParamsData =
+    labParamsDataFromProps ?? caseManagerData?.labParamsData ?? [];
 
   const groupByReportNameForAll = (data) => {
     return data?.map((item) => {
@@ -1563,7 +1567,23 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     );
   };
 
+  // Keep legacy truthiness for existing consult-section gates (symptoms, MH, etc.).
   const showConsultSectionsWhenRx = !rx || (rx && isSnapRx) || caseManagerData?.isCustomSSRX === "1";
+
+  // Only treat explicit medicines-only flags as rx-only. String "0" from print URLs must NOT hide labs.
+  const isMedicinesOnlyRxPrint = rx === true || rx === 1 || rx === "1";
+  const hasLabResultsPrintData = Array.isArray(labParamsData) && labParamsData.length > 0;
+
+  // Lab-only gate (does not change showConsultSectionsWhenRx used by other modules):
+  // - WhatsApp PDFs are full Rx; always show labs when data exists
+  // - full Rx / rx="0" / rx=0 → show when data exists
+  // - medicines-only → keep hidden, except Snap Rx / custom SSRX / blank SmartSync with data (vitals pattern)
+  const shouldShowLabResultsInPrint =
+    (mode === WHATSAPP && hasLabResultsPrintData) ||
+    !isMedicinesOnlyRxPrint ||
+    (isMedicinesOnlyRxPrint && isSnapRx) ||
+    caseManagerData?.isCustomSSRX === "1" ||
+    (caseManagerData?.isCustomSSRX === "0" && hasLabResultsPrintData);
 
   const hasVitalsOrBirthWeight =
     caseManagerData?.vitals?.length > 0 || caseManagerData?.patient_birth_weight;
@@ -14163,7 +14183,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (
                           <>
-                            {hasDentalExaminationData ? renderDentalExamPdf({
+                            {!rx && hasDentalExaminationData ? renderDentalExamPdf({
                               dentalExaminationData,
                               dentalOption: option,
                               printSettings,
@@ -14179,7 +14199,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (
                           <>
-                            {hasOralExaminationData
+                            {!rx && hasOralExaminationData
                               ? renderOralExamPdf({
                                   examChart,
                                   oralOption: option,
@@ -14730,7 +14750,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (
                           <>
-                            {showConsultSectionsWhenRx &&
+                            {!rx && shouldShowLabResultsInPrint &&
                               labParamsPatchData &&
                               labParamsPatchData?.length &&
                               (option?.format === "inline" ? (

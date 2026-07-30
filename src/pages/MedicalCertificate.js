@@ -456,7 +456,8 @@ function MedicalCertificate() {
             pam_id: patient_data?.pam_id !== undefined ? patient_data?.pam_id : 0,
             tcu_content_id: certificate_data !== undefined ? certificate_data?.id : 0,
             tcu_title: title,
-            tcu_content: editor.current?.value
+            tcu_content: editor.current?.value,
+            source: "opd"
         }
         if (certificate_data?.tcu_id !== undefined) {
             sendData['tcu_id'] = certificate_data?.tcu_id

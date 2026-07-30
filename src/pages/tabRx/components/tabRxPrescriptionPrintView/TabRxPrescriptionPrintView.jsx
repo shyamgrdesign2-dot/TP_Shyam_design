@@ -149,6 +149,21 @@ const progressStyle = {
 };
 
 let tabRxMountCount = 0;
+
+const filterTodayLabParams = (labResults = []) => {
+  const now = new Date();
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  return (Array.isArray(labResults) ? labResults : []).filter((labResult) => {
+    const raw = labResult?.date || labResult?.createdAt;
+    if (!raw) return false;
+    return String(raw).slice(0, 10) === todayStr;
+  });
+};
+
 function TabRxPrescriptionPrintView() {
   const divRef = useRef(null);
   const printRef = useRef();
@@ -240,7 +255,9 @@ function TabRxPrescriptionPrintView() {
   const [printBlob, setPrintBlob] = useState(null);
 
   const [gynecHistoryData, setGynecHistoryData] = useState(null);
-  const [labParamsData, setLabParamsData] = useState([]);
+  const [labParamsData, setLabParamsData] = useState(() =>
+    filterTodayLabParams(normalizeLabResultsResponse(state?.labParamsData)),
+  );
   const [createBillDrawer, setCreateBillDrawer] = useState(false);
   const [recentBillDrawer, setRecentBillDrawer] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
@@ -394,16 +411,21 @@ function TabRxPrescriptionPrintView() {
   const getLabParams = async () => {
     try {
       const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-      const cleanedToken = token.replace(/['"]+/g, "");
+      const cleanedToken = token ? token.replace(/['"]+/g, "") : "";
+      if (!patient_data?.patient_unique_id || !baseUrl) {
+        return;
+      }
+      // Match Configure Print Settings: full fetch + today's rows (not ?today=true).
       const response = await axios.get(
-        `${baseUrl}/api/v1/lab-parameters/results/${patient_data?.patient_unique_id}?today=true`,
+        `${baseUrl}/api/v1/lab-parameters/results/${patient_data.patient_unique_id}`,
         {
           headers: {
             Authorization: `Bearer ${cleanedToken}`,
           },
         },
       );
-      setLabParamsData(normalizeLabResultsResponse(response));
+      const labResults = normalizeLabResultsResponse(response);
+      setLabParamsData(filterTodayLabParams(labResults));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }

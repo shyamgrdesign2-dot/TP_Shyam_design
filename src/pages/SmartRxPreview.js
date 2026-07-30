@@ -33,6 +33,7 @@ import { checkCredits } from "../redux/monetizationSlice";
 import { services } from "../redux/doctorsSlice";
 import ExpiredSubModal from "./monetization/components/ExpiredSubModal";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import {
   getClinic,
   getTokenData,
@@ -150,6 +151,8 @@ function SmartRxPreview() {
     const showDigitalWrittenToggle = isRxDigitisedForTabs || isBackFromDigitise;
     const [showDigitalRx, setShowDigitalRx] = useState(false);
     const [cvtDrawer, setCvtDrawer] = useState(false);
+    // Same as Configure Print Settings / TabRx: print payload often omits labs for smart Rx.
+    const [labParamsData, setLabParamsData] = useState([]);
     const progressRef = useRef(null);
     const progressValue = useRef(0);
     const hasToggledRef = useRef(false);
@@ -263,6 +266,56 @@ function SmartRxPreview() {
         setPrintBlob(null);
         setNumPages(undefined);
     }, [showDigitalRx]);
+
+    useEffect(() => {
+        const patientUniqueId = patient_data?.patient_unique_id;
+        if (!patientUniqueId) {
+            setLabParamsData([]);
+            return;
+        }
+
+        let isCancelled = false;
+        const fetchLabParams = async () => {
+            try {
+                const labParamsBaseUrl = env.lab_params_api_url;
+                if (!labParamsBaseUrl) {
+                    if (!isCancelled) setLabParamsData([]);
+                    return;
+                }
+                const authToken = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+                const cleanedToken = authToken ? authToken.replace(/['"]+/g, "") : "";
+                // Match Configure Print Settings: fetch all, keep today's rows for Rx print.
+                const response = await axios.get(
+                    `${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientUniqueId}`,
+                    { headers: { Authorization: `Bearer ${cleanedToken}` } },
+                );
+                if (isCancelled) return;
+                const labResults = normalizeLabResultsResponse(response);
+                // Same intent as ConfigurePrintSetting.getTodayLabParams (local calendar day)
+                const now = new Date();
+                const todayStr = [
+                    now.getFullYear(),
+                    String(now.getMonth() + 1).padStart(2, "0"),
+                    String(now.getDate()).padStart(2, "0"),
+                ].join("-");
+                setLabParamsData(
+                    labResults.filter((labResult) => {
+                        const raw = labResult?.date || labResult?.createdAt;
+                        if (!raw) return false;
+                        return String(raw).slice(0, 10) === todayStr;
+                    }),
+                );
+            } catch (error) {
+                console.error("Error fetching lab params for smart rx print:", error);
+                if (!isCancelled) setLabParamsData([]);
+            }
+        };
+
+        fetchLabParams();
+        return () => {
+            isCancelled = true;
+        };
+    }, [patient_data?.patient_unique_id]);
 
     const fetchRxDigitisedData = async () => {
         try {
@@ -618,6 +671,7 @@ function SmartRxPreview() {
         selectedLang,
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
+        labParamsData,
         dentalExaminationData,
         oralExamination,
         patientUniqueId: patient_data?.patient_unique_id,
