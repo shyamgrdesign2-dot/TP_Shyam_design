@@ -65,7 +65,19 @@
     }
 
     &[data-behind] .tesseract-ct-sticky-action::before {
-      display: none;
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 18px;
+      transform: translateX(-100%);
+      pointer-events: none;
+      background: linear-gradient(
+        to left,
+        rgba(15, 23, 42, 0.12),
+        transparent
+      );
     }
 
     /* Column sizing (non-medication tables): the notes column soaks up all
