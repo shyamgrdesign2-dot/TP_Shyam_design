@@ -759,7 +759,7 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
         {CHILD_DRAWER_DATA}
       </Drawer>
 
-      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
         {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
           <VoiceRxModuleCapture
             moduleName="Advices"

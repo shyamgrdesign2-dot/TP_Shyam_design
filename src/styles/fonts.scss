@@ -196,5 +196,6 @@
 }
 .iconrotate270 {
   transform: rotate(270deg);
-  display: inline-block;
+  display: flex;
+  align-items: center;
 }

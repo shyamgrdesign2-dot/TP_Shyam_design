@@ -14,6 +14,10 @@ import {
 import { LoadingOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
+import {
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
 import styles from "./OphthalmologyExamPanel.module.scss";
 import {
   OPHTHALMOLOGY_OPTIONS,
@@ -508,46 +512,29 @@ const OphthalmologySectionCard = ({
             if (customAction) {
               return customAction;
             }
+            const ACTION_ICON_MAP = {
+              "Load from Prev.": "refresh-arrow",
+              "Clear": "eraser",
+              "Templates": "grid-5",
+              "Save": "ram",
+            };
+            const iconName = ACTION_ICON_MAP[action];
             return (
-            <button
-              key={action}
-              type="button"
-              className={styles.headerAction}
-              disabled={isDisabled}
-              title={isDisabled ? "No prev data found" : undefined}
-              onClick={() => {
-                if (!isDisabled) {
-                  onAction?.(section, action);
-                }
-              }}
-            >
-              {action === "Load from Prev." ? (
-                <>
-                  <i className="icon-reload"></i>
-                  <span className={styles.headerActionUnderline}>Load from Prev.</span>
-                </>
-              ) : action === "Clear" ? (
-                <>
-                  <i className="icon-eraser1"></i>
-                  <span>Clear</span>
-                </>
-              ) : action === "Templates" ? (
-                <>
-                  <i className="icon-template"></i>
-                  <span>Templates</span>
-                </>
-              ) : action === "Save" ? (
-                <>
-                  <i className="icon-save"></i>
-                  <span>Save</span>
-                </>
-              ) : (
-                <>
-                  <span className={styles.actionIcon} />
-                  {action}
-                </>
-              )}
-            </button>
+              <TesseractButton
+                key={action}
+                variant="tonal"
+                theme="neutral"
+                size="sm"
+                aria-label={action}
+                disabled={isDisabled}
+                title={isDisabled ? "No prev data found" : action}
+                onClick={() => {
+                  if (!isDisabled) {
+                    onAction?.(section, action);
+                  }
+                }}
+                icon={iconName ? <TPLibraryIcon name={iconName} variant="linear" size={18} /> : undefined}
+              />
             );
           })}
           {showCollapseToggle && (
@@ -1830,10 +1817,13 @@ const OphthalmologyExamPanel = ({
                   overlayClassName="pop-350 pp-0"
                   placement="bottom"
                 >
-                  <button type="button" className={styles.headerAction}>
-                    <i className="icon-template"></i>
-                    <span>Templates</span>
-                  </button>
+                  <TesseractButton
+                    variant="tonal"
+                    theme="neutral"
+                    size="sm"
+                    aria-label="Browse slit lamp templates"
+                    icon={<TPLibraryIcon name="grid-5" variant="linear" size={18} />}
+                  />
                 </Popover>
               );
             }
@@ -1858,10 +1848,14 @@ const OphthalmologyExamPanel = ({
                     overlayClassName="pop-450 pp-0"
                     placement="bottom"
                   >
-                    <button type="button" className={styles.headerAction}>
-                      <i className="icon-save"></i>
-                      <span>Save</span>
-                    </button>
+                    <TesseractButton
+                      variant="tonal"
+                      theme="neutral"
+                      size="sm"
+                      aria-label="Save slit lamp template"
+                      disabled={slitLampTemplateRows.length === 0}
+                      icon={<TPLibraryIcon name="ram" variant="linear" size={18} />}
+                    />
                   </Popover>
                 </Tooltip>
               );
@@ -1877,10 +1871,13 @@ const OphthalmologyExamPanel = ({
                   overlayClassName="pop-350 pp-0"
                   placement="bottom"
                 >
-                  <button type="button" className={styles.headerAction}>
-                    <i className="icon-template"></i>
-                    <span>Templates</span>
-                  </button>
+                  <TesseractButton
+                    variant="tonal"
+                    theme="neutral"
+                    size="sm"
+                    aria-label="Browse fundus templates"
+                    icon={<TPLibraryIcon name="grid-5" variant="linear" size={18} />}
+                  />
                 </Popover>
               );
             }
@@ -1905,10 +1902,14 @@ const OphthalmologyExamPanel = ({
                     overlayClassName="pop-450 pp-0"
                     placement="bottom"
                   >
-                    <button type="button" className={styles.headerAction}>
-                      <i className="icon-save"></i>
-                      <span>Save</span>
-                    </button>
+                    <TesseractButton
+                      variant="tonal"
+                      theme="neutral"
+                      size="sm"
+                      aria-label="Save fundus template"
+                      disabled={fundusTemplateRows.length === 0}
+                      icon={<TPLibraryIcon name="ram" variant="linear" size={18} />}
+                    />
                   </Popover>
                 </Tooltip>
               );

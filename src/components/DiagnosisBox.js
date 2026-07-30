@@ -1251,25 +1251,6 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       {DELETE_MODAL}
       {REMOVE_ALL_ROWS}
       {TABLE_DIAGNOSIS}
-      {(isApexAIAccessable || tp_monetization_enable) && (
-        <div style={{ padding: useTesseractUi ? "0" : "0 14px" }}>
-          <DifferentialDiagnosis
-            handleDDxDrawer={handleDDxDrawer}
-            ddxOptionsList={ddxOptionsList?.filter(
-              (e) =>
-                ![...diagnosisData.map((e1) => e1.tds_name)].includes(
-                  e.tds_name
-                )
-            )}
-            getGenerateDDx={getGenerateDDx}
-            isDDxLoading={isDDxLoading}
-            onSelectParent={onSelectDDx}
-            isDiagnosis={true}
-            handleDDxKnowMore={handleDDxKnowMore}
-            isDDxGenerated={isDDxGenerated}
-          />
-        </div>
-      )}
       {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
         <div className={voiceModuleStyles.moduleSlot}>
           <VoiceRxModuleCapture
@@ -1312,6 +1293,25 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               {name}
             </TesseractButton>
           ))}
+        </div>
+      )}
+      {(isApexAIAccessable || tp_monetization_enable) && (
+        <div style={{ padding: useTesseractUi ? "0" : "0 14px" }}>
+          <DifferentialDiagnosis
+            handleDDxDrawer={handleDDxDrawer}
+            ddxOptionsList={ddxOptionsList?.filter(
+              (e) =>
+                ![...diagnosisData.map((e1) => e1.tds_name)].includes(
+                  e.tds_name
+                )
+            )}
+            getGenerateDDx={getGenerateDDx}
+            isDDxLoading={isDDxLoading}
+            onSelectParent={onSelectDDx}
+            isDiagnosis={true}
+            handleDDxKnowMore={handleDDxKnowMore}
+            isDDxGenerated={isDDxGenerated}
+          />
         </div>
       )}
     </>

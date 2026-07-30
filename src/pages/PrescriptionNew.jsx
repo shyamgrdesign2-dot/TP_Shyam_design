@@ -1191,6 +1191,27 @@ function PrescriptionNew() {
   const [activeTab, setActiveTab] = useState("basicInfo");
   const [drAgentOpen, setDrAgentOpen] = useState(false);
   const isTablet = useTabletViewport();
+  const rxWrapperRef = useRef(null);
+  const leftShadowRef = useRef(null);
+  const rightShadowRef = useRef(null);
+
+  useEffect(() => {
+    const el = rxWrapperRef.current;
+    if (!el) return;
+    const update = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      if (leftShadowRef.current)
+        leftShadowRef.current.style.opacity = scrollLeft > 0 ? "1" : "0";
+      if (rightShadowRef.current)
+        rightShadowRef.current.style.opacity =
+          scrollLeft + clientWidth < scrollWidth - 1 ? "1" : "0";
+    };
+    el.addEventListener("scroll", update, { passive: true });
+    update();
+    const t = setTimeout(update, 300);
+    return () => { el.removeEventListener("scroll", update); clearTimeout(t); };
+  }, [drAgentOpen]);
+
   const prescriptionWrapperStyle = {
     flex: "1 1 auto",
     minWidth: 0,
@@ -1198,11 +1219,13 @@ function PrescriptionNew() {
     height: "100%",
     maxHeight: "100%",
     overflowY: "auto",
-    overflowX: "hidden",
+    overflowX: "auto",
     overscrollBehavior: "contain",
     boxSizing: "border-box",
-    transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)",
-    ...(!isTablet && drAgentOpen ? { paddingRight: 408 } : {}),
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    transition: "margin-right 220ms cubic-bezier(0.4, 0, 0.2, 1)",
+    marginRight: drAgentOpen && isTablet ? "min(360px, calc(100vw - 24px))" : 0,
   };
   const drAgentOverlayClassName = [
     drAgentStyles.drAgentOverlay,
@@ -3239,7 +3262,7 @@ function PrescriptionNew() {
                 setIsEditDocument={setIsEditDocument}
                 setUploadDocDrawer={setUploadDocDrawer}
               />
-              <div className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
+              <div ref={rxWrapperRef} className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
           {/* <img src={hey} alt="vitals" className="me-3 hey" /> */}
           <div className="row">
             
@@ -3397,6 +3420,8 @@ function PrescriptionNew() {
             </div>
           </div>
         </div>
+        <div ref={leftShadowRef} className={drAgentStyles.rxScrollShadowLeft} />
+        <div ref={rightShadowRef} className={drAgentStyles.rxScrollShadowRight} style={{ right: drAgentOpen && isTablet ? "min(360px, calc(100vw - 24px))" : 0 }} />
         </div>
         {vitalDrawer && (
           <Drawer

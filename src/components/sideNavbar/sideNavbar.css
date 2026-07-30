@@ -189,6 +189,8 @@
      Must set color here explicitly so background-color: currentColor resolves to white. */
   color: #ffffff !important;
   background-color: currentColor;
+  -webkit-mask-image: var(--snv-icon-url);
+  mask-image: var(--snv-icon-url);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
@@ -280,8 +282,8 @@
   align-items: stretch;
   overflow: hidden;
   background: #ffffff;
-  border-right: 1px solid var(--tp-slate-200);
-  box-shadow: 1px 0 0 rgba(226, 226, 234, 0.6);
+  border-right: none;
+  box-shadow: none;
 }
 
 .snv-section-header {

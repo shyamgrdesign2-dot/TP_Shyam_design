@@ -1748,7 +1748,19 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                       arrow={false}
                       onOpenChange={showHideFrequencyPopOver}
                       overlayClassName="pp-0">
-                      <i className='icon-info ms-1 fs-18'></i>
+                      <span
+                        aria-hidden="true"
+                        className="ms-1"
+                        style={{
+                          display: 'inline-block',
+                          width: 16,
+                          height: 16,
+                          flexShrink: 0,
+                          backgroundColor: 'currentColor',
+                          mask: 'url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/essential/info-circle.svg) center / contain no-repeat',
+                          WebkitMask: 'url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/essential/info-circle.svg) center / contain no-repeat',
+                        }}
+                      />
                     </Popover>
                   </div>
                 </Col>
@@ -1839,7 +1851,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
-                            style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isMedicationInventorySelectionRequired(item) ? { background: "#fff8ef" } : undefined}
+                            style={{ position: 'relative', ...(isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isMedicationInventorySelectionRequired(item) ? { background: "#fff8ef" } : {}) }}
                           >
                             <div className={isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
                               {isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? (
@@ -1899,6 +1911,9 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                               </Tooltip>
                               {renderSelectedMedicineStock(item)}
                             </div>
+                            <div className="badge-tapper" onClick={() => taperDoseAdd(item)}>
+                              <i className="icon-Add me-1"></i> Tapering Dose
+                            </div>
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined} style={{ height: isChikitsalayAccessable ? "stretch" : undefined }}>
                             {!item.pms_default && !(isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item)) &&
@@ -1941,9 +1956,9 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                                     />
                                     {ii === 0 && (profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
                                       dosesList.some((e1) => e1.medicine_id == item.tmm_id) ? (
-                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, left: 20 }} onClick={() => handleViewDoseCalcDrawer("1", item?.tmm_id)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Edit Calc." : "Edit Calculation"}</div>
+                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, right: 0 }} onClick={() => handleViewDoseCalcDrawer("1", item?.tmm_id)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Edit Calc." : "Edit Calculation"}</div>
                                       ) : (
-                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, left: 20 }} onClick={() => handleViewDoseCalcDrawer("1", 0)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Dose Calc." : "Dose Calculator"}</div>
+                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, right: 0 }} onClick={() => handleViewDoseCalcDrawer("1", 0)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Dose Calc." : "Dose Calculator"}</div>
                                       )
                                     )}
                                   </Col>
@@ -2017,7 +2032,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                                       allowClear
                                     />
                                     {item?.tmm_days_duration_type && (
-                                      <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><i className="icon-copyIcon fs-12-1" />Autofill to all meds</div>
+                                      <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><span style={{ display: "inline-block", width: 14, height: 14, flexShrink: 0, backgroundColor: "currentColor", WebkitMask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/copy.svg) center / contain no-repeat", mask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/copy.svg) center / contain no-repeat", marginRight: 3 }} />Autofill to all meds</div>
                                     )}
                                   </Col>
                                   <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
@@ -2047,9 +2062,6 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                               )
                             })}
                           </Col>
-                          <div className="badge-tapper" onClick={() => taperDoseAdd(item)}>
-                            <i className="icon-Add me-1"></i> Tapering Dose
-                          </div>
                         </Row>
                       )}
                     </Draggable>

@@ -1040,7 +1040,7 @@ const VOICE_RX_ACTION_ICONS = {
 };
 
 export const VoiceRxModuleActionButton = React.forwardRef(function VoiceRxModuleActionButton(
-  { type = "template", label, disabled = false, onClick, className = "", ...rest },
+  { type = "template", label, disabled = false, onClick, className = "", small = false, ...rest },
   ref
 ) {
   const Icon = VOICE_RX_ACTION_ICONS[type] || Grid5;
@@ -1052,10 +1052,10 @@ export const VoiceRxModuleActionButton = React.forwardRef(function VoiceRxModule
       aria-label={label}
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
-      className={[styles.moduleActionButton, className].filter(Boolean).join(" ")}
+      className={[styles.moduleActionButton, small && styles.moduleActionButtonSm, className].filter(Boolean).join(" ")}
       {...rest}
     >
-      <Icon color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" />
+      <Icon color="#4C4E5C" size={small ? 16 : 24} strokeWidth={1.5} variant="Linear" />
     </button>
   );
 });
