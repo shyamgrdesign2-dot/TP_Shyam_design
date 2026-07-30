@@ -11,6 +11,7 @@ import {
 // eslint-disable-next-line import/no-unresolved
 import "@dhspl-tatvacare/tesseract-ui/styles.css";
 import "../data-analytics/data-analytics.css";
+import "./mission-analytics.css";
 
 import FilterBar from "../data-analytics/filters/FilterBar";
 import { DEFAULT_DATE_VALUE, periodToRange, datesToRange } from "../data-analytics/filters/periods";
@@ -23,6 +24,7 @@ import useFilterOptions from "../data-analytics/data/useFilterOptions";
 import useCapabilities from "../data-analytics/data/useCapabilities";
 import { trackAnalytics, EVENTS } from "../data-analytics/data/analyticsTracking";
 import useMissionData from "./data/useMissionData";
+import { exportMissionExcel } from "./exportMissionExcel";
 
 export default function MissionAnalyticsPage() {
   const navigate = useNavigate();
@@ -50,6 +52,7 @@ export default function MissionAnalyticsPage() {
   }, [doctorLocked, caps.selfId]);
 
   const [refreshKey, setRefreshKey] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const handleRefresh = useCallback(() => {
     trackAnalytics(EVENTS.REFRESH, { department: "opd", section: "all" });
     import("../data-analytics/data/apiCache").then((m) => m.clearApiCache());
@@ -110,18 +113,78 @@ export default function MissionAnalyticsPage() {
   const { loading, data } = useMissionData({
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
+    doctorId: filters.doctor,
+    clinicId: filters.clinic,
+    refreshKey,
   });
   const { kpis, charts } = data;
 
+  const handleExport = useCallback(() => {
+    if (loading || exporting) return;
+    setExporting(true);
+    try {
+      exportMissionExcel({
+        kpis,
+        charts,
+        filters,
+        doctorOptions,
+        clinicOptions,
+      });
+      trackAnalytics(EVENTS.REPORT_DOWNLOADED, {
+        department: "opd",
+        report_name: "mission_opd_analytics",
+        filter_type: "excel_export",
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [loading, exporting, kpis, charts, filters, doctorOptions, clinicOptions]);
+
   const kpiItems = useMemo(() => [
-    { key: "footfall", label: "Total footfall", value: kpis.totalFootfall, kind: "number", tooltip: "All appointments booked in the selected period" },
-    { key: "completed", label: "Completed", value: kpis.completed, kind: "number", tooltip: "Consultations completed (Smart Sync matched)" },
+    {
+      key: "footfall",
+      label: "Total footfall",
+      value: kpis.totalFootfall,
+      kind: "number",
+      tooltip: "All appointments booked in the selected period",
+      ...(typeof kpis.totalFootfallDelta === "number" ? { delta: kpis.totalFootfallDelta } : {}),
+    },
+    {
+      key: "completed",
+      label: "Completed",
+      value: kpis.completed,
+      kind: "number",
+      tooltip: "Appointments completed in the selected period",
+      ...(typeof kpis.completedDelta === "number" ? { delta: kpis.completedDelta } : {}),
+    },
     { key: "inQueue", label: "In queue / No-show", value: kpis.scheduled, kind: "number", tooltip: "Still waiting in queue. For past dates, these are no-shows." },
-    { key: "cancelled", label: "Cancelled", value: kpis.cancelled, kind: "number", tooltip: "Appointments cancelled in the selected period" },
-    { key: "avgVisitsPerDay", label: "Avg visits / day", value: kpis.avgVisitsPerDay, kind: "number", tooltip: "Total footfall divided by number of days" },
+    { key: "cancelled", label: "Cancelled", value: kpis.cancelled, kind: "number", invert: true, tooltip: "Appointments cancelled in the selected period" },
+    {
+      key: "avgVisitsPerDay",
+      label: "Avg visits / day",
+      value: kpis.avgVisitsPerDay,
+      kind: "number",
+      approx: true,
+      tooltip: "Total footfall divided by number of days",
+      ...(typeof kpis.avgVisitsPerDayDelta === "number" ? { delta: kpis.avgVisitsPerDayDelta } : {}),
+    },
     { key: "busyDay", label: "Busiest day", value: kpis.busiestDay || "No data", kind: "text", tooltip: "Weekday with the most visits" },
-    { key: "rate", label: "Digitization %", value: kpis.digitalPrescriptionPercent, kind: "percent", tooltip: "Percentage of consultations with a digital prescription" },
-    { key: "prescriptions", label: "Total digitized", value: kpis.totalPrescriptionsWithMeds, kind: "number", approx: true, tooltip: "Prescriptions with medications (digital Rx count)" },
+    {
+      key: "rate",
+      label: "Digitization %",
+      value: null,
+      kind: "percent",
+      disabled: true,
+      tooltip: "Digitization metrics are not available yet.",
+    },
+    {
+      key: "prescriptions",
+      label: "Total digitized",
+      value: null,
+      kind: "number",
+      disabled: true,
+      tooltip: "Digitization metrics are not available yet.",
+    },
     { key: "total", label: "Total patients", value: kpis.totalPatients, kind: "number", tooltip: "Unique patients seen in the selected period" },
     { key: "onetime", label: "One-time visitors", value: kpis.oneTime, kind: "number", tooltip: "Patients who visited only once" },
     { key: "returning", label: "Returning patients", value: kpis.returning, kind: "number", tooltip: "Patients with more than one visit" },
@@ -149,6 +212,15 @@ export default function MissionAnalyticsPage() {
                 </span>
               }
               actions={[
+                {
+                  type: "cta",
+                  icon: "document-download",
+                  variant: "tonal",
+                  theme: "neutral",
+                  onClick: handleExport,
+                  ariaLabel: "Export Excel",
+                  disabled: loading || exporting,
+                },
                 { type: "cta", icon: "refresh-arrow2", variant: "tonal", theme: "neutral", onClick: handleRefresh, ariaLabel: "Refresh" },
               ]}
               density="compact"

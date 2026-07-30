@@ -4,41 +4,156 @@ import {
   seriesToDonut,
   seriesToXY,
   anyToDonut,
-  isEmptyDonut,
 } from "../../data-analytics/charts/adapters";
+import { getDoctorList } from "../../data-analytics/data/doctorList";
+import { pctDelta } from "../../data-analytics/data/deltaUtils";
 
 const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const safe = (p) => p.then((r) => r).catch(() => null);
-const fmt = (d) => d.toISOString().slice(0, 10);
 
-export default function useMissionData({ startDate, endDate } = {}) {
+const MODE_SERIES = [
+  ["Smart Sync", "smartSync"],
+  ["Voice RX", "voiceRx"],
+  // Backend sometimes uses keyboardRx for point-and-click; match DataAnalytics logic.
+  ["Type Rx", "typeRx"],
+  ["Tab RX", "tabRx"],
+  ["Snap RX", "snapRx"],
+];
+
+const FANOUT_CAP = 20;
+const BATCH_SIZE = 4;
+
+function singleIdOnly(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s || s === "all") return null;
+  // CSV => multi-select; clinic/* endpoints reject CSV doctorId/clinicId.
+  if (s.includes(",")) return null;
+  return s;
+}
+
+async function buildByDoctorFanout({ startDate, endDate, clinicIdSingle, doctorIdCsv } = {}) {
+  let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
+
+  if (doctorIdCsv) {
+    const wanted = new Set(String(doctorIdCsv).split(",").filter(Boolean));
+    doctors = doctors.filter((d) => wanted.has(String(d.um_id)));
+  }
+
+  doctors = doctors.slice(0, FANOUT_CAP);
+  if (!doctors.length) {
+    return { data: { kpis: { total: 0, smartSync: 0 }, byDoctor: { labels: [], datasets: [] } } };
+  }
+
+  const baseParams = {};
+  if (startDate && endDate) {
+    baseParams.startDate = startDate;
+    baseParams.endDate = endDate;
+  }
+  if (clinicIdSingle) baseParams.clinicId = clinicIdSingle;
+
+  // Fetch one clinic/consultation-modes per doctor to build a stacked "byDoctor" chart.
+  const kpisByDoctor = new Array(doctors.length);
+  for (let i = 0; i < doctors.length; i += BATCH_SIZE) {
+    const batch = doctors.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map((d) =>
+        ApiReporting.clinicConsultationModes({ ...baseParams, doctorId: d.um_id })
+          .then((r) => (r?.data ?? r)?.kpis ?? null)
+          .catch(() => null)
+      )
+    );
+    results.forEach((k, j) => { kpisByDoctor[i + j] = k; });
+  }
+
+  const labels = doctors.map((d) => d.um_name || `Doctor ${d.um_id}`);
+
+  const byDoctor = {
+    labels,
+    datasets: MODE_SERIES.map(([label, key]) => ({
+      label,
+      data: doctors.map((_, idx) => {
+        const kpis = kpisByDoctor[idx];
+        if (!kpis) return 0;
+        const v = key === "typeRx" ? (kpis.typeRx ?? kpis.keyboardRx) : kpis[key];
+        return toNum(v);
+      }),
+    })),
+  };
+
+  // Mission cards only need these totals.
+  const total = doctors.reduce((sum, _, idx) => sum + toNum(kpisByDoctor[idx]?.total), 0);
+  const smartSync = doctors.reduce((sum, _, idx) => sum + toNum(kpisByDoctor[idx]?.smartSync), 0);
+
+  return {
+    data: {
+      kpis: { total, smartSync },
+      byDoctor,
+    },
+  };
+}
+
+export default function useMissionData({ startDate, endDate, doctorId, clinicId, refreshKey } = {}) {
   const [state, setState] = useState({ loading: true, error: null, data: empty() });
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
-    const sp = {};
-    if (startDate && endDate) { sp.startDate = startDate; sp.endDate = endDate; }
+    const spAnalytics = {};
+    if (startDate && endDate) { spAnalytics.startDate = startDate; spAnalytics.endDate = endDate; }
+    if (doctorId && doctorId !== "all") spAnalytics.doctorId = doctorId;
+    if (clinicId && clinicId !== "all") spAnalytics.clinicId = clinicId;
 
-    const [apptRaw, overviewRaw, patientsRaw, modesRaw] = await Promise.all([
-      safe(ApiReporting.analyticsAppointment(sp)),
-      safe(ApiReporting.operationalOverview(sp)),
-      safe(ApiReporting.analyticsPatients(sp)),
-      safe(ApiReporting.clinicConsultationModes(sp)),
+    // clinic/* endpoints reject CSV doctorId/clinicId, so use singleIdOnly or fan-out.
+    const sd = singleIdOnly(doctorId);
+    const sc = singleIdOnly(clinicId);
+
+    const spModesSingle = {};
+    if (startDate && endDate) { spModesSingle.startDate = startDate; spModesSingle.endDate = endDate; }
+    if (sd) spModesSingle.doctorId = sd;
+    if (sc) spModesSingle.clinicId = sc;
+
+    const shouldFanoutModes =
+      doctorId && doctorId !== "all" && !sd && String(doctorId).includes(",");
+
+    const modesPromise = shouldFanoutModes
+      ? safe(buildByDoctorFanout({ startDate, endDate, clinicIdSingle: sc, doctorIdCsv: doctorId }))
+      : safe(ApiReporting.clinicConsultationModes(spModesSingle));
+
+    const [apptRaw, apptSummaryRaw, patientsRaw, modesRaw] = await Promise.all([
+      safe(ApiReporting.analyticsAppointment(spAnalytics)),
+      safe(ApiReporting.clinicalAppointmentSummary(spAnalytics)),
+      safe(ApiReporting.analyticsPatients(spAnalytics)),
+      modesPromise,
     ]);
 
     const appt = apptRaw?.data ?? apptRaw ?? {};
-    const ov = overviewRaw?.data ?? overviewRaw ?? {};
+    const apptSummary = apptSummaryRaw?.data ?? apptSummaryRaw ?? {};
+    const liveKpis = apptSummary.kpis ?? {};
     const pt = patientsRaw?.data ?? patientsRaw ?? {};
     const ptKpis = pt.kpis ?? {};
     const modes = modesRaw?.data ?? modesRaw ?? {};
     const modesKpis = modes.kpis ?? {};
 
-    const statusDonut = seriesToDonut(appt.appointmentStatus);
-    const completed = donutVal(statusDonut, "Completed");
-    const scheduled = donutVal(statusDonut, "Scheduled");
-    const cancelled = donutVal(statusDonut, "Cancelled");
-    const draft = donutVal(statusDonut, "Draft");
-    const totalBooked = completed + scheduled + cancelled + draft;
+    // Match Data Analytics Appointments: live summary KPIs (not operationalOverview / analytics donut).
+    const totalFootfall = toNum(liveKpis.total);
+    const completed = toNum(liveKpis.completed);
+    const scheduled = toNum(liveKpis.inQueue);
+    const cancelled = toNum(liveKpis.cancelled);
+
+    // Same period-over-period logic as useAppointmentsLive (Data Analytics Appointments).
+    const prev = liveKpis.previous ?? {};
+    const prevTotal = toNum(prev.total);
+    const prevCompleted = toNum(prev.completed);
+    const hasPrevFootfall = prevTotal > 0;
+    const totalFootfallDelta = hasPrevFootfall ? pctDelta(totalFootfall, prevTotal) : null;
+    const completedDelta = hasPrevFootfall ? pctDelta(completed, prevCompleted) : null;
+    const avgVisitsPerDayDelta = totalFootfallDelta;
+
+    const statusDonut = [
+      { label: "Completed", value: completed },
+      { label: "In queue", value: scheduled },
+      { label: "Cancelled", value: cancelled },
+    ];
 
     const rangeDays = computeRangeDays(startDate, endDate);
 
@@ -60,26 +175,24 @@ export default function useMissionData({ startDate, endDate } = {}) {
       error: null,
       data: {
         kpis: {
-          totalFootfall: toNum(ov.totalFootfall),
-          totalBooked,
+          totalFootfall,
+          totalFootfallDelta,
+          totalBooked: totalFootfall,
           completed,
+          completedDelta,
           scheduled,
           cancelled,
-          avgVisitsPerDay: rangeDays ? Math.round(toNum(ov.totalFootfall) / rangeDays) : toNum(ov.avgConsultationsPerDay),
+          avgVisitsPerDay: rangeDays ? Math.round(totalFootfall / rangeDays) : 0,
+          avgVisitsPerDayDelta,
           busiestDay,
           totalConsultations: toNum(modesKpis.total),
           smartSync: toNum(modesKpis.smartSync),
-          digitalPrescriptionPercent: toNum(ov.digitalPrescriptionPercent),
-          totalPrescriptionsWithMeds: toNum(ov.totalPrescriptionsWithMeds),
           totalPatients: toNum(ptKpis.totalPatients),
           oneTime: toNum(ptKpis.oneTime),
           returning: toNum(ptKpis.returning),
         },
-        deltas: {
-          totalFootfall: ov.totalFootfallDelta != null ? { value: toNum(ov.totalFootfallDelta), isDown: ov.totalFootfallIsDown } : null,
-        },
         charts: {
-          appointmentStatus: statusDonut.filter((d) => d.label !== "Draft"),
+          appointmentStatus: statusDonut,
           visitTrend,
           ageDistribution: ageXY,
           visitFrequency: visitFreqXY,
@@ -90,7 +203,7 @@ export default function useMissionData({ startDate, endDate } = {}) {
         },
       },
     });
-  }, [startDate, endDate]);
+  }, [startDate, endDate, doctorId, clinicId, refreshKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -100,24 +213,19 @@ export default function useMissionData({ startDate, endDate } = {}) {
 function empty() {
   return {
     kpis: {
-      totalFootfall: 0, totalBooked: 0, completed: 0, scheduled: 0,
-      cancelled: 0, avgVisitsPerDay: 0, busiestDay: null,
+      totalFootfall: 0, totalFootfallDelta: null, totalBooked: 0,
+      completed: 0, completedDelta: null, scheduled: 0,
+      cancelled: 0, avgVisitsPerDay: 0, avgVisitsPerDayDelta: null,
+      busiestDay: null,
       totalConsultations: 0, smartSync: 0,
-      digitalPrescriptionPercent: 0, totalPrescriptionsWithMeds: 0,
       totalPatients: 0, oneTime: 0, returning: 0,
     },
-    deltas: {},
     charts: {
       appointmentStatus: [], visitTrend: null, ageDistribution: null,
       visitFrequency: null, genderDistribution: [], newVsReturning: [],
       segmentation: [], byDoctor: null,
     },
   };
-}
-
-function donutVal(donut, label) {
-  const item = (donut || []).find((d) => d.label === label);
-  return toNum(item?.value);
 }
 
 function computeRangeDays(startDate, endDate) {

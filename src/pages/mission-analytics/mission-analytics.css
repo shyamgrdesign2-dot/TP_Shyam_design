@@ -1,2 +1,17 @@
-/* Mission Analytics reuses data-analytics.css (da-root scope) entirely.
-   This file is kept as a placeholder for any future mission-specific overrides. */
+/* Mission-specific KPI overrides (shared da-root scope). */
+.da-root .da-kpi-card.da-kpi-disabled {
+  opacity: 0.52;
+  pointer-events: none;
+  filter: grayscale(0.35);
+  background: var(--tesseract-slate-50, #f8fafc) !important;
+  box-shadow: none !important;
+}
+
+.da-root .da-kpi-card.da-kpi-disabled::before {
+  display: none;
+}
+
+.da-root .da-kpi-card.da-kpi-disabled [style*="font-size: 30px"],
+.da-root .da-kpi-card.da-kpi-disabled [style*="font-size: 20px"] {
+  color: var(--tesseract-slate-400, #94a3b8) !important;
+}

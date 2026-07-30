@@ -433,8 +433,9 @@ function KpiRow({ title = "Key metrics", kpis = [], loading = false, columns }) 
               <Skeleton key={i} variant="rectangular" height={96} radius={16} />
             ))
           : kpis.map((k) => {
-          const hasDelta = typeof k.delta === "number" && Number.isFinite(k.delta);
-          const isNoData = k.kind === "text" && (!k.value || k.value === "No data");
+          const isDisabled = !!k.disabled;
+          const hasDelta = !isDisabled && typeof k.delta === "number" && Number.isFinite(k.delta);
+          const isNoData = !isDisabled && k.kind === "text" && (!k.value || k.value === "No data");
           return (
             <StatCard
               key={k.key}
@@ -442,21 +443,24 @@ function KpiRow({ title = "Key metrics", kpis = [], loading = false, columns }) 
                 k.tooltip ? (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                     {k.label}
-                    <InfoTooltip text={k.tooltip} />
+                    {!isDisabled && <InfoTooltip text={k.tooltip} />}
                   </span>
                 ) : k.label
               }
-              value={k.value}
+              value={isDisabled ? "—" : k.value}
               format={
-                k.approx
-                  ? approxFormat(k.kind)
-                  : FORMATTERS[k.kind] || FORMATTERS.number
+                isDisabled
+                  ? (v) => v
+                  : k.approx
+                    ? approxFormat(k.kind)
+                    : FORMATTERS[k.kind] || FORMATTERS.number
               }
               showSparkline={false}
               icon={<KpiGlyph name={KPI_ICON[k.key] || "chart-square"} kpiKey={k.key} />}
               iconPosition="right"
-              className={`da-kpi-card${isNoData ? " da-kpi-nodata" : ""}`}
+              className={`da-kpi-card${isNoData ? " da-kpi-nodata" : ""}${isDisabled ? " da-kpi-disabled" : ""}`}
               {...(hasDelta ? { footer: <DeltaFooter delta={k.delta} invert={!!k.invert} /> } : {})}
+              {...(isDisabled ? { footer: <span style={{ fontSize: 12, color: "var(--tesseract-fg-tertiary, var(--tesseract-slate-400))" }}>Coming soon</span> } : {})}
             />
           );
         })}
