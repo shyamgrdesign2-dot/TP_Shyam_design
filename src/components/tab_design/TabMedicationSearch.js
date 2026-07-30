@@ -2242,10 +2242,12 @@ function TabMedicationSearch({ passIndex, onClose }) {
                                 <span className="chip-med-content">
                                   <span className="chip-med-name">{item.value}</span>
                                   {renderLowStockBadge(JSON.parse(item.key))}
+                                  {JSON.parse(item.key)?.isLowStock && <span className="d-inline-flex align-items-center text-white ms-1" style={{fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f'}}>Low Stock</span>}
                                 </span>
                               </Button>
                             )}
                             {(JSON.parse(item.key)?.tmm_hm_type === 1 && JSON.parse(item.key)?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                            {(JSON.parse(item.key)?.tmm_hm_type === 21 && JSON.parse(item.key)?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#1e88e5', right: 6, top: -6}}>P</span>}
                             {(JSON.parse(item.key)?.tmm_hm_type == 15 && Number(JSON.parse(item.key)?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                             <FreeBadge show={item?.is_free} className="position-absolute" style={{ right: 0, top: -10 }} />
                           </div>
@@ -2265,9 +2267,11 @@ function TabMedicationSearch({ passIndex, onClose }) {
                               <span className="chip-med-content">
                                 <span className="chip-med-name">{item.tmm_medicine_name}</span>
                                 {renderLowStockBadge(item)}
+                                {item?.isLowStock && <span className="d-inline-flex align-items-center text-white ms-1" style={{fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f'}}>Low Stock</span>}
                               </span>
                             </Button>
                             {(item?.tmm_hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small lh-1 fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                            {(item?.tmm_hm_type === 21 && item?.um_id === 0) && <span className="position-absolute align-items-center small lh-1 fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#1e88e5', right: 6, top: -6}}>P</span>}
                             {(item?.tmm_hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small lh-1 fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                             <FreeBadge show={item?.is_free} className="position-absolute" style={{ right: 0, top: -10 }} />
                           </div>

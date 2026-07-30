@@ -3942,12 +3942,20 @@ const ConsultationDrawer = ({
           <div>
             <span className="fw-medium">{e.tmm_medicine_name}</span>,{" "}
             <span>{e.tmm_generic}</span>{" "}
-            {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2) && e?.um_id === 0 && (
+            {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2 || e?.tmm_hm_type == 21) && e?.um_id === 0 && (
               <span
                 className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
                 style={{ width: 18, height: 18, background: "#c44ea2" }}
               >
                 {getHmTypeIndicator(e)}
+              </span>
+            )}
+            {e?.isLowStock && (
+              <span
+                className="d-inline-flex align-items-center text-white ms-1"
+                style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "#d32f2f" }}
+              >
+                Low Stock
               </span>
             )}
           </div>

@@ -163,7 +163,7 @@ const MedicationsTable = ({
         <div>
           <span className="fw-medium">{medicineName}</span>,{' '}
           <span>{genericName}</span>{' '}
-          {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0 && (
+          {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2 || medication?.tmm_hm_type == 21) && medication?.um_id === 0 && (
             <div
               className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle sc-tour-button"
               style={{
@@ -177,6 +177,14 @@ const MedicationsTable = ({
             >
               {getHmTypeIndicator(medication)}
             </div>
+          )}
+          {medication?.isLowStock && (
+            <span
+              className="d-inline-flex align-items-center text-white ms-1"
+              style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f' }}
+            >
+              Low Stock
+            </span>
           )}
         </div>
       ),
@@ -270,12 +278,12 @@ const MedicationsTable = ({
               <div>
                 <span className="fw-medium">{medicineName}</span>,{' '}
                 <span>{genericName}</span>{' '}
-                {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0 && (
+                {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2 || medication?.tmm_hm_type == 21) && medication?.um_id === 0 && (
                   <div
                     className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle sc-tour-button"
-                    style={{ 
-                      width: 18, 
-                      height: 18, 
+                    style={{
+                      width: 18,
+                      height: 18,
                       backgroundImage: `url(${groundingIndicatorBg})`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
@@ -284,6 +292,14 @@ const MedicationsTable = ({
                   >
                     {getHmTypeIndicator(medication)}
                   </div>
+                )}
+                {medication?.isLowStock && (
+                  <span
+                    className="d-inline-flex align-items-center text-white ms-1"
+                    style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f' }}
+                  >
+                    Low Stock
+                  </span>
                 )}
               </div>
             ),
@@ -1322,7 +1338,7 @@ const MedicationsTable = ({
                           (getMedicationDisplayName(item) || String(item?.name ?? "").trim() || "-"),
                           true
                         )}
-                        {((item?.metadata?.tmm_hm_type == 1 || item?.metadata?.tmm_hm_type == 2) && item?.metadata?.um_id === 0) && (
+                        {((item?.metadata?.tmm_hm_type == 1 || item?.metadata?.tmm_hm_type == 2 || item?.metadata?.tmm_hm_type == 21) && item?.metadata?.um_id === 0) && (
                           <span
                             className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
                             style={{ 
@@ -1339,7 +1355,15 @@ const MedicationsTable = ({
                             </div>
                           </span>
                         )}
-                      </div>                                                       
+                        {(item?.metadata?.isLowStock || item?.isLowStock) && (
+                          <span
+                            className="d-inline-flex align-items-center text-white ms-2"
+                            style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f' }}
+                          >
+                            Low Stock
+                          </span>
+                        )}
+                      </div>
                       {(item.corrected_name || item.metadata?.tmm_generic || item.metadata?.generic_name) && (
                         <div className={styles['medicine-subtitle']}>
                           {item.corrected_name || item.metadata?.tmm_generic || item.metadata?.generic_name || ''}

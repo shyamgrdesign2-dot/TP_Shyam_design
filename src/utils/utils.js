@@ -859,6 +859,7 @@ export const getHmTypeIndicator = (item, isChikitsalayAccessable = false) => {
   const umId = item.um_id ?? item.metadata?.um_id;
   if (hmType == 1 && Number(umId) === 0) return 'Z';
   if (hmType == 2 ) return 'A';
+  if (hmType == 21 && Number(umId) === 0) return 'P';
   if (hmType == 15 && isChikitsalayAccessable && Number(umId) === 0) {
     const hasMedicineHmType =
       item.tmm_hm_type != null || item.metadata?.tmm_hm_type != null;
