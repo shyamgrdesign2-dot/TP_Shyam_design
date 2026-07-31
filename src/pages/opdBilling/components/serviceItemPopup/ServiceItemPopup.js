@@ -40,14 +40,16 @@ const ServiceItemPopup = ({
   const [serviceItem, setServiceItem] = useState({
     id: item?.id || item?.masterId,
     name: item?.name,
-    type: dentalOnly ? DENTAL_ONLY_TYPE : item?.type || "Service",
+    type: dentalOnly ? DENTAL_ONLY_TYPE : item?.type,
     price: item?.price || item?.amount,
     discount: item?.discount,
     discountType: item?.discountType || advancedSettings?.defaultDiscountType || "flat",
     gst: item?.gst,
   });
   const [billItemTypes, setBillItemTypes] = useState([]);
-  const [typeSearch, setTypeSearch] = useState("");
+  const [typeSearch, setTypeSearch] = useState(() =>
+    dentalOnly ? "" : item?.type ? String(item.type) : ""
+  );
   const [typesLoading, setTypesLoading] = useState(false);
   const [creatingType, setCreatingType] = useState(false);
   const [deletingTypeId, setDeletingTypeId] = useState(null);
@@ -65,30 +67,35 @@ const ServiceItemPopup = ({
     const loadTypes = async () => {
       setTypesLoading(true);
       const types = await getBillItemTypes();
-      if (!cancelled) {
-        const nextTypes = Array.isArray(types) ? types : [];
-        setBillItemTypes(nextTypes);
-        setServiceItem((prev) => {
-          if (nextTypes.length === 0 && editIndex === -1) {
-            setTypeSearch("");
-            return { ...prev, type: undefined };
-          }
-          if (prev.type) {
-            const selected = nextTypes.find((t) => t?.name === prev.type);
-            if (selected) {
-              setTypeSearch(selected.displayName || selected.name);
-            }
-          }
-          return prev;
-        });
-        setTypesLoading(false);
+      if (cancelled) return;
+
+      const nextTypes = Array.isArray(types) ? types : [];
+      setBillItemTypes(nextTypes);
+
+      const currentType = item?.type;
+      if (!currentType) {
+        setTypeSearch("");
+        setServiceItem((prev) => ({ ...prev, type: undefined }));
+      } else {
+        const selected = nextTypes.find(
+          (t) => t?.name === currentType || t?.displayName === currentType
+        );
+        if (selected) {
+          setTypeSearch(selected.displayName || selected.name);
+          setServiceItem((prev) => ({ ...prev, type: selected.name }));
+        } else {
+          // Keep the item's own type visible even if not in the fetched list
+          setTypeSearch(String(currentType));
+          setServiceItem((prev) => ({ ...prev, type: currentType }));
+        }
       }
+      setTypesLoading(false);
     };
     loadTypes();
     return () => {
       cancelled = true;
     };
-  }, [dentalOnly, editIndex]);
+  }, [dentalOnly, editIndex, item?.type]);
 
   const { profile } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
@@ -324,7 +331,13 @@ const ServiceItemPopup = ({
   const isTypeSelected = dentalOnly
     ? serviceItem.type === DENTAL_ONLY_TYPE
     : !!serviceItem.type &&
-      (billItemTypes || []).some((type) => type?.name === serviceItem.type);
+      ((billItemTypes || []).some(
+        (type) =>
+          type?.name === serviceItem.type ||
+          type?.displayName === serviceItem.type
+      ) ||
+        // Allow saving edited items whose type string is already set
+        (editIndex > -1 && !!item?.type && item.type === serviceItem.type));
 
   const showTypeError =
     !dentalOnly &&
