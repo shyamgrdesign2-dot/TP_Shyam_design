@@ -223,10 +223,20 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                 {plan.services.map((svc, idx) => {
                   const teeth = svc.teeth?.length > 0 ? svc.teeth : [svc.toothFdi];
                   const isFullMouth = teeth.includes("full-mouth");
-                  const teethCount = isFullMouth ? 1 : teeth.length;
+                  const isMaxillary = teeth.includes("maxillary");
+                  const isMandibular = teeth.includes("mandibular");
+                  const isArchScope = isFullMouth || isMaxillary || isMandibular;
+                  const teethCount = isArchScope ? 1 : teeth.length;
                   const surgeryDate = svc.procedureDate
                     ? dayjs(svc.procedureDate).format("D MMM YY")
                     : null;
+                  const archPillLabel = isFullMouth
+                    ? (isChikitsalayAccessable ? "88" : "Full")
+                    : isMaxillary
+                      ? (isChikitsalayAccessable ? "86" : "Max")
+                      : isMandibular
+                        ? (isChikitsalayAccessable ? "87" : "Mand")
+                        : null;
                   
                   return (
                     <tr key={idx} className={styles.tbodyTr}>
@@ -238,14 +248,14 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                           <p className={styles.treatmentName}>{svc.treatment}</p>
                           {teethCount > 1 ? (
                             <p className={styles.toothMeta}>{teethCount} teeth</p>
-                          ) : teethCount === 1 && !isFullMouth ? (
+                          ) : teethCount === 1 && !isArchScope ? (
                             <p className={styles.toothMeta}>{fdiToLabel(teeth[0])}</p>
                           ) : null}
                         </div>
                       </td>
                       <td className={styles.td}>
-                        {isFullMouth ? (
-                          <span className={styles.tdToothPill}>Full</span>
+                        {archPillLabel ? (
+                          <span className={styles.tdToothPill}>{archPillLabel}</span>
                         ) : teethCount > 0 ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                             {teeth.map(fdi => (

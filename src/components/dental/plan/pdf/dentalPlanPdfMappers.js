@@ -54,6 +54,8 @@ export function formatDiscountDisplay(service = {}) {
 
 export function formatTeethLine(teeth = []) {
   if (!teeth?.length || teeth.includes("full-mouth")) return "Full mouth";
+  if (teeth.includes("maxillary")) return "Maxillary";
+  if (teeth.includes("mandibular")) return "Mandibular";
   return teeth.map((t) => `T${t}`).join(", ");
 }
 

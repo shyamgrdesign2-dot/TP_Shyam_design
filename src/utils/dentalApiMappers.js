@@ -1,4 +1,13 @@
 import { toVisualTypeSet } from "./dentalVisualTypes";
+import { isGrowthBookFeatureOn } from "./growthbook";
+import { GB_CHIKITSALAY } from "./constants";
+
+/** UI scope tokens ↔ Chikitsalay API tooth codes. */
+const FULL_MOUTH = "full-mouth";
+const MAXILLARY = "maxillary";
+const MANDIBULAR = "mandibular";
+const TO_CHIKITSALAY = { [FULL_MOUTH]: "88", [MAXILLARY]: "86", [MANDIBULAR]: "87" };
+const FROM_CHIKITSALAY = { "88": FULL_MOUTH, "86": MAXILLARY, "87": MANDIBULAR };
 
 const PLAN_STATUS_FROM_API = {
   DRAFT: "draft",
@@ -113,22 +122,74 @@ const fromApiServiceStatus = (status) => SERVICE_STATUS_FROM_API[status] || stat
 
 const fromApiPlanStatus = (status) => PLAN_STATUS_FROM_API[status] || status;
 
+function isChikitsalayEnabled() {
+  return isGrowthBookFeatureOn(GB_CHIKITSALAY);
+}
+
+/** Map API/UI tooth token to canonical UI scope, or null if FDI. */
+function toUiScope(token) {
+  if (token == null || token === "") return null;
+  const t = String(token);
+  if (FROM_CHIKITSALAY[t]) return FROM_CHIKITSALAY[t];
+  if (t === FULL_MOUTH || t === "FULL") return FULL_MOUTH;
+  if (t === MAXILLARY || t === "UPPER_ARCH") return MAXILLARY;
+  if (t === MANDIBULAR || t === "LOWER_ARCH") return MANDIBULAR;
+  return null;
+}
+
+function resolveScope(teeth, toothFdi) {
+  for (const t of Array.isArray(teeth) ? teeth : []) {
+    const scope = toUiScope(t);
+    if (scope) return scope;
+  }
+  return toUiScope(toothFdi);
+}
+
+function fromApiTeeth(teeth) {
+  const arr =
+    Array.isArray(teeth) && teeth.length > 0 ? teeth.map(String) : [FULL_MOUTH];
+  const scope = resolveScope(arr);
+  return scope ? [scope] : arr;
+}
+
+/** When Chikitsalay is on: full-mouth→88, maxillary→86, mandibular→87. */
+function toApiTeeth(teeth, toothFdi) {
+  const teethArr = Array.isArray(teeth) ? teeth.map(String) : [];
+  const scope = resolveScope(teethArr, toothFdi);
+  if (scope) {
+    return isChikitsalayEnabled() ? [TO_CHIKITSALAY[scope]] : [scope];
+  }
+  const normalTeeth = teethArr.filter((t) => !toUiScope(t) && !FROM_CHIKITSALAY[t]);
+  if (normalTeeth.length > 0) return normalTeeth;
+  const fdi = toothFdi != null && toothFdi !== "" ? String(toothFdi) : "";
+  if (fdi && !toUiScope(fdi)) return [fdi];
+  return isChikitsalayEnabled() ? ["88"] : [FULL_MOUTH];
+}
+
 const getServiceTooth = (service = {}) => {
   const teeth = Array.isArray(service.teeth) ? service.teeth : [];
   return service.tooth_fdi || service.toothFdi || teeth[0] || "full-mouth";
 };
 
+function toothScopeLabel(toothFdi) {
+  if (toothFdi === FULL_MOUTH) return "Full Mouth";
+  if (toothFdi === MAXILLARY) return "Maxillary";
+  if (toothFdi === MANDIBULAR) return "Mandibular";
+  return `Tooth ${toothFdi}`;
+}
+
 export const toDentalService = (service = {}) => {
   // tooth_fdi may be an array (new) or a string (legacy)
   const rawTooth = service.tooth_fdi ?? service.toothFdi;
-  const teeth = Array.isArray(rawTooth)
+  const rawTeeth = Array.isArray(rawTooth)
     ? rawTooth
     : rawTooth
     ? [String(rawTooth)]
     : Array.isArray(service.teeth) && service.teeth.length > 0
     ? service.teeth
-    : ["full-mouth"];
-  const toothFdi = teeth[0] || "full-mouth";
+    : [FULL_MOUTH];
+  const teeth = fromApiTeeth(rawTeeth);
+  const toothFdi = teeth[0] || FULL_MOUTH;
   const rate = Number(service.rate) || 0;
   const discount = Number(service.discount) || 0;
   const discountType = service.discountType || "flat";
@@ -139,7 +200,8 @@ export const toDentalService = (service = {}) => {
     [];
   const normalizedQvrs = rawVisits.map(toDentalQvr);
 
-  const teethCount = teeth.includes("full-mouth") ? 1 : Math.max(1, teeth.length);
+  const isArchScope = Boolean(toUiScope(toothFdi));
+  const teethCount = isArchScope ? 1 : Math.max(1, teeth.length);
   const totalRate = rate * teethCount;
   
   let computedDiscount = 0;
@@ -156,7 +218,7 @@ export const toDentalService = (service = {}) => {
     treatment: service.treatment || service.name || "",
     teeth,
     toothFdi,
-    toothLabel: toothFdi === "full-mouth" ? "Full Mouth" : `Tooth ${toothFdi}`,
+    toothLabel: toothScopeLabel(toothFdi),
     surfaces: service.surfaces || service.surface_codes || ["whole"],
     rate,
     discount,
@@ -415,7 +477,9 @@ export const toDentalServicePatchRequest = (data = {}) => {
   }
   if (data.treatment) patch.treatment = data.treatment;
   if (data.surfaces?.length) patch.surfaces = data.surfaces;
-  if (Array.isArray(data.teeth) && data.teeth.length) patch.teeth = data.teeth;
+  if (Array.isArray(data.teeth) && data.teeth.length) {
+    patch.teeth = toApiTeeth(data.teeth, data.tooth_fdi || data.toothFdi);
+  }
   return patch;
 };
 
@@ -435,14 +499,6 @@ export const toDentalServiceRequest = (service = {}) => {
     tatvaProcedureId: service.tatvaProcedureId,
     visitProcedure: service.visitProcedure,
   });
-  const teethArr = Array.isArray(service.teeth) ? service.teeth : [];
-  const normalTeeth = teethArr.filter((t) => t !== "full-mouth");
-  if (normalTeeth.length > 0) {
-    request.teeth = normalTeeth;
-  } else if (toothFdi && toothFdi !== "full-mouth") {
-    request.teeth = [String(toothFdi)];
-  } else {
-    request.teeth = ["full-mouth"];
-  }
+  request.teeth = toApiTeeth(service.teeth, toothFdi);
   return request;
 };

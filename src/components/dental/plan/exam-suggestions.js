@@ -31,6 +31,8 @@ const TOOTH_NAMES = {
 
 export function fdiToLabel(fdi) {
   if (fdi === "full-mouth") return "Full Mouth";
+  if (fdi === "maxillary") return "Maxillary";
+  if (fdi === "mandibular") return "Mandibular";
   const q = fdi[0];
   const pos = parseInt(fdi[1], 10);
   const quadrant = QUADRANT_MAP[q] ?? "";
@@ -409,9 +411,23 @@ function normalizeOralSurfacesForPlan(surfaces = []) {
   return (surfaces || []).map(String);
 }
 
+/** Map oral region surfaces to plan teeth scope (full-mouth / maxillary / mandibular). */
+function teethFromOralSurfaces(surfaces = []) {
+  const ids = (surfaces || []).map((s) => String(s).toUpperCase());
+  const hasMaxillary = ids.some(
+    (s) => s === "UPPER_ARCH" || s === "MAXILLARY",
+  );
+  const hasMandibular = ids.some(
+    (s) => s === "LOWER_ARCH" || s === "MANDIBULAR",
+  );
+  if (hasMaxillary && !hasMandibular) return ["maxillary"];
+  if (hasMandibular && !hasMaxillary) return ["mandibular"];
+  return ["full-mouth"];
+}
+
 /**
  * Build a treatment-plan service from an oral examination procedure entry.
- * Oral procedures are full-mouth scoped (no FDI tooth codes).
+ * Teeth scope comes from oral region (full-mouth / maxillary / mandibular).
  */
 export function toPlanServiceFromOralProcedure(entry, options = {}) {
   const { appointmentId, procedureItems } = options;
@@ -432,11 +448,12 @@ export function toPlanServiceFromOralProcedure(entry, options = {}) {
     visitProcedure?.discount != null ? visitProcedure.discount : 0;
   const discountType =
     visitProcedure?.discountType === "percentage" ? "percentage" : "flat";
+  const oralSurfaces = entry.surfaces || entry.area || [];
 
   return {
     treatment: visitProcedure?.procedureName || treatment,
-    teeth: ["full-mouth"],
-    surfaces: normalizeOralSurfacesForPlan(entry.surfaces || entry.area || []),
+    teeth: teethFromOralSurfaces(oralSurfaces),
+    surfaces: normalizeOralSurfacesForPlan(oralSurfaces),
     rate,
     discount,
     discountType,
