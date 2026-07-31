@@ -141,6 +141,56 @@ const CustomRow = (props) => {
   );
 };
 
+/** Sortable row for Page Breaker modal — plain divs alone don't participate in dnd-kit. */
+const PageBreakerModalSortableRow = ({ id, children }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    display: "flex",
+    alignItems: "center",
+    padding: "12px 0",
+    borderBottom: "1px solid #E2E2EA",
+    transform: CSS.Translate.toString(transform),
+    transition,
+    ...(isDragging
+      ? {
+          position: "relative",
+          zIndex: 9999,
+          opacity: 0.5,
+          backgroundColor: "#fff",
+        }
+      : {}),
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <div
+        ref={setActivatorNodeRef}
+        {...listeners}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          marginRight: "12px",
+          cursor: "grab",
+          color: "#8c8c8c",
+          touchAction: "none",
+        }}
+      >
+        <MenuOutlined style={{ fontSize: "12px", color: "#8c8c8c" }} />
+      </div>
+      {children}
+    </div>
+  );
+};
+
 const checkboxOptions = [
   {
     label: "DOSE",
@@ -1377,31 +1427,35 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
   ];
 
   const onDragEndCaseOption = ({ active, over }) => {
-    if (active.id !== over?.id) {
-      setPrintSettings((prev) => {
-        const activeIndex = prev.prescription.case_option.findIndex((i) => i.id === active.id);
-        const overIndex = prev.prescription.case_option.findIndex((i) => i.id === over?.id);
-        if (activeIndex === -1 || overIndex === -1) {
-          console.warn('Invalid drag operation: activeIndex or overIndex not found');
-          return prev;
-        }
-        // Track reorder if the Drawing Canvas section (id 25) is moved
-        if (active.id === 25 || over?.id === 25) {
-          trackEvent("drawing_canvas_print_section_reordered", {
-            patient_id: caseManagerData?.patient_data?.patient_unique_id,
-            consultation_id: caseManagerData?.tcm_id,
-            old_position: activeIndex,
-            new_position: overIndex,
-          });
-        }
-        return {
-          ...prev,
-          prescription: {
-            case_option: arrayMove(prev.prescription.case_option, activeIndex, overIndex)
-          }
-        };
-      });
-    }
+    if (over == null || String(active.id) === String(over.id)) return;
+    setPrintSettings((prev) => {
+      const activeIndex = prev.prescription.case_option.findIndex(
+        (i) => String(i.id) === String(active.id)
+      );
+      const overIndex = prev.prescription.case_option.findIndex(
+        (i) => String(i.id) === String(over.id)
+      );
+      if (activeIndex === -1 || overIndex === -1) {
+        console.warn('Invalid drag operation: activeIndex or overIndex not found');
+        return prev;
+      }
+      // Track reorder if the Drawing Canvas section (id 25) is moved
+      if (String(active.id) === "25" || String(over.id) === "25") {
+        trackEvent("drawing_canvas_print_section_reordered", {
+          patient_id: caseManagerData?.patient_data?.patient_unique_id,
+          consultation_id: caseManagerData?.tcm_id,
+          old_position: activeIndex,
+          new_position: overIndex,
+        });
+      }
+      return {
+        ...prev,
+        prescription: {
+          ...prev.prescription,
+          case_option: arrayMove(prev.prescription.case_option, activeIndex, overIndex),
+        },
+      };
+    });
   };
 
   const onDragEndOphthalmologySubSections = ({ active, over }, recordIndex) => {
@@ -1522,7 +1576,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
               dataSource={(() => {
                 const filtered = printSettings?.prescription?.case_option?.filter((option, index) => {
                   if (option.type === "page_break") {
-                    return tokenData?.hospital_business_id == env.zydus_business_id;
+                    // return tokenData?.hospital_business_id == env.zydus_business_id;
+                    return true;
                   }
                   // Show vaccination (id 10) when module vaccines OR prescription vaccines exist – same condition as symptoms
                   if (option.id === 10) {
@@ -1689,31 +1744,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     items={filteredItems.map((i) => i.id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    {filteredItems.map((option, index) => (
-                   <div key={option.id} style={{ 
-                     display: 'flex', 
-                     alignItems: 'center', 
-                     padding: '12px 0',
-                     borderBottom: '1px solid #E2E2EA'
-                   }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      marginRight: '12px',
-                      cursor: 'grab',
-                      color: '#8c8c8c'
-                    }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: '2px',
-                        fontSize: '12px'
-                      }}>
-                        <div style={{ width: '12px', height: '1px', backgroundColor: '#8c8c8c' }}></div>
-                        <div style={{ width: '12px', height: '1px', backgroundColor: '#8c8c8c' }}></div>
-                        <div style={{ width: '12px', height: '1px', backgroundColor: '#8c8c8c' }}></div>
-                      </div>
-                    </div>
+                    {filteredItems.map((option) => (
+                   <PageBreakerModalSortableRow key={option.id} id={option.id}>
                     {option.type !== "page_break" && (
                       <div 
                         style={{ 
@@ -1742,7 +1774,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                         <div style={{
                           borderRadius: '6px',
                           textAlign: 'center',
-                          color: '#8c8c8c',
+                          color: '#4B4AD5',
                           fontSize: '9px'
                         }}>
                           ---------- Page Breaker ----------
@@ -1817,7 +1849,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                         }}
                       />
                     )}
-                  </div>
+                  </PageBreakerModalSortableRow>
                 ))}
               </SortableContext>
             </DndContext>

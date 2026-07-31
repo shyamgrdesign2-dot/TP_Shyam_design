@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { Button, Checkbox, DatePicker, Drawer, Dropdown, Input, Spin, Table, Tag } from "antd";
-import { InfoCircleOutlined, DownOutlined, FilterOutlined, PlusOutlined, PrinterOutlined, SearchOutlined, UpOutlined } from "@ant-design/icons";
+import { DownOutlined, FileTextOutlined, FilterOutlined, InfoCircleOutlined, PlusOutlined, PrinterOutlined, SearchOutlined, UpOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { fetchLimsPatients, fetchPatientLabResults } from "./limsApi";
 import { summariseResults, latestDateResults } from "./limsHelpers";
@@ -10,6 +11,11 @@ import ViewLabParam from "../../components/ViewLabParams";
 import LabResultsDrawer from "./LabResultsDrawer";
 import AddPatientDrawer from "./AddPatientDrawer";
 import LimsAccessBoundary from "./LimsAccessBoundary";
+import CreateBill from "../opdBilling/components/createBill/CreateBill";
+import RecentBills from "../opdBilling/components/recentBills/RecentBills";
+import ExpiredSubModal from "../monetization/components/ExpiredSubModal";
+import { fetchBillsByPatient, fetchPatientWalletBalance } from "../opdBilling/service";
+import { useOpdBilling } from "../opdBilling/useOpdBilling";
 import {
   filterLabResultsByDoctor,
   filterLabResultsForLimsLastVisit,
@@ -18,6 +24,8 @@ import {
   normalizeLabResultsResponse,
 } from "../../utils/labResultsUtils";
 import { isReceptionistSession } from "../../utils/receptionistSession";
+import { S_BILLING, S_TATVA_PRACTICE, TRIAL } from "../../utils/constants";
+import { getClinic, trackEvent } from "../../utils/utils";
 import styles from "./LimsPage.module.css";
 
 const ICON_DOTS = "https://pmdoctorportal.tatvacare.in/tp-icons/straight/bold/settings/3-dots-more.svg";
@@ -78,7 +86,7 @@ function labResultsForLimsPatient(patient, results, isReceptionist) {
   return filterLabResultsByDoctor(flat, getPatientLastVisitDoctorUmId(patient));
 }
 
-function ActionMenu({ onAction, isFilled }) {
+function ActionMenu({ onAction, isFilled, showBilling }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -147,6 +155,16 @@ function ActionMenu({ onAction, isFilled }) {
             <PrinterOutlined />
             <span>Print</span>
           </button>
+          {showBilling && (
+            <button
+              type="button"
+              className={styles.actionItem}
+              onClick={() => { onAction("createBill"); setOpen(false); }}
+            >
+              <FileTextOutlined />
+              <span>Create Bill</span>
+            </button>
+          )}
         </div>,
         document.body
       )}
@@ -451,10 +469,52 @@ function FilterContent({ value, onChange, onClear, onDone }) {
   );
 }
 
+function buildBillingPatientData(patient, billResponse, searchParams) {
+  const apiPatient = billResponse?.patient;
+  return {
+    patient_unique_id: patient?.patient_unique_id,
+    pm_fullname: apiPatient?.name || patient?.pm_fullname,
+    pm_contact_no: apiPatient?.phone || patient?.pm_contact_no,
+    pm_pid: patient?.pm_pid,
+    tpml_refrence_id: apiPatient?.refId || patient?.tpml_refrence_id,
+    pm_salutation: apiPatient?.salutation,
+    pm_gender: apiPatient?.gender || patient?.pm_gender,
+    address: apiPatient?.address,
+    ageYears: apiPatient?.ageYears ?? patient?.ageYears,
+    ageMonths: apiPatient?.ageMonths ?? patient?.ageMonths,
+    ageDays: apiPatient?.ageDays ?? patient?.ageDays,
+    pam_id: patient?.pam_id,
+    source: patient?.source ?? searchParams?.get("source"),
+    receptionistId: patient?.receptionistId ?? searchParams?.get("receptionistId"),
+    receptionistName: patient?.receptionistName ?? searchParams?.get("receptionistName"),
+    lastVisitDoctor: patient?.lastVisitDoctor,
+  };
+}
+
+function getBillingDoctorIds(record, isReceptionist, userId, searchParams) {
+  if (!isReceptionist) return [userId];
+  const rowDoctorId = record?.lastVisitDoctor?.um_id;
+  if (rowDoctorId != null && rowDoctorId !== "") return [rowDoctorId];
+  return searchParams.get("um_id")?.split(",")?.filter(Boolean) || [];
+}
+
+function withCurrentSearch(path, search) {
+  const query = search?.startsWith("?") ? search : search ? `?${search}` : "";
+  return `${path}${query}`;
+}
+
 function LimsPageMain() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const isReceptionist = isReceptionistSession(location.search);
+  const { isOpdBillingAccessable } = useOpdBilling();
+  const showBilling = isReceptionist || isOpdBillingAccessable;
+  const { profile, userId } = useSelector((state) => state.doctors);
+  const { planDetails } = useSelector((state) => state.subscription);
+  const serviceMappings = planDetails?.service_mappings || [];
+  const EMR_planDetails = serviceMappings.find((e) => e.service_name === S_TATVA_PRACTICE);
+  const BILLING_planDetails = serviceMappings.find((e) => e.service_name === S_BILLING);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -474,12 +534,98 @@ function LimsPageMain() {
   const [draftStatusFilter, setDraftStatusFilter] = useState({});
   const [filterOpen, setFilterOpen] = useState(false);
   const [addPatientOpen, setAddPatientOpen] = useState(false);
+  const [createBillDrawer, setCreateBillDrawer] = useState(false);
+  const [recentBillDrawer, setRecentBillDrawer] = useState(false);
+  const [billingPatient, setBillingPatient] = useState(null);
+  const [patientBills, setPatientBills] = useState([]);
+  const [patientWalletBalance, setPatientWalletBalance] = useState(null);
+  const [billData, setBillData] = useState(null);
+  const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const tableWrapRef = useRef(null);
   const observer = useRef();
   const listMetaRef = useRef(listMeta);
+  const billingSourcePatientRef = useRef(null);
   const [tableMaxH, setTableMaxH] = useState(600);
 
   const PAGE_SIZE = 25;
+
+  const showHideSubModal = useCallback(() => {
+    setIsSubModalOpen((open) => !open);
+  }, []);
+
+  const checkBillingPurchased = useCallback(async () => {
+    if (EMR_planDetails?.plan_tier !== TRIAL && BILLING_planDetails?.plan_tier === TRIAL) {
+      showHideSubModal();
+      return false;
+    }
+    return true;
+  }, [EMR_planDetails, BILLING_planDetails, showHideSubModal]);
+
+  const showHideBackModal = useCallback(() => {
+    setIsBackModalOpen((open) => !open);
+  }, []);
+
+  const getPatientBills = useCallback(async (record, sortParams = {}) => {
+    const sourcePatient = record || billingSourcePatientRef.current;
+    if (!sourcePatient?.patient_unique_id) {
+      return [];
+    }
+
+    if (record) {
+      billingSourcePatientRef.current = record;
+    }
+
+    const queryParams = {
+      doctorIds: getBillingDoctorIds(sourcePatient, isReceptionist, userId, searchParams),
+      sortBy: sortParams.field || "date",
+      sortOrder: sortParams.order || "asc",
+      page: 1,
+      limit: 25,
+      patientId: sourcePatient.patient_unique_id,
+      appointmentId: isReceptionist ? undefined : sourcePatient?.pam_id,
+      type: "new",
+    };
+
+    if (!isReceptionist) {
+      queryParams.startDate = dayjs().format("YYYY-MM-DD");
+      queryParams.endDate = dayjs().format("YYYY-MM-DD");
+    }
+
+    const response = await fetchBillsByPatient(queryParams);
+    const patientData = buildBillingPatientData(sourcePatient, response, searchParams);
+    billingSourcePatientRef.current = patientData;
+    setBillingPatient(patientData);
+    const bills = (response?.bills || []).map((bill) => ({
+      ...bill,
+      patient: response?.patient,
+    }));
+    setPatientBills(bills);
+
+    const walletRes = await fetchPatientWalletBalance(sourcePatient.patient_unique_id);
+    setPatientWalletBalance(walletRes?.advanceDepositBalance);
+    return bills;
+  }, [isReceptionist, searchParams, userId]);
+
+  const handleCreateBillDrawer = useCallback(() => {
+    setCreateBillDrawer((open) => {
+      const nextOpen = !open;
+      if (recentBillDrawer && !nextOpen && billingSourcePatientRef.current) {
+        getPatientBills(billingSourcePatientRef.current);
+      }
+      return nextOpen;
+    });
+    if (createBillDrawer) {
+      setBillData(null);
+    }
+  }, [createBillDrawer, recentBillDrawer, getPatientBills]);
+
+  const handleRecentBillDrawer = useCallback(() => {
+    setRecentBillDrawer((open) => !open);
+    if (recentBillDrawer) {
+      setBillData(null);
+    }
+  }, [recentBillDrawer]);
 
   const doctorNameById = useMemo(() => {
     const map = { ...getReceptionistDoctorNameMapFromUrl() };
@@ -766,14 +912,36 @@ function LimsPageMain() {
       }
     } else if (action === "print") {
       navigate(
-        {
-          pathname: `/lims/print/${patient.patient_unique_id}`,
-          search: location.search,
-        },
+        withCurrentSearch(`/lims/print/${patient.patient_unique_id}`, searchParams.toString()),
         { state: { patient } },
       );
+    } else if (action === "createBill") {
+      billingSourcePatientRef.current = patient;
+      const isPurchased = await checkBillingPurchased();
+      if (!isPurchased) return;
+      const bills = await getPatientBills(patient);
+      const clinic = getClinic();
+      const rowDoctor = patient?.lastVisitDoctor;
+      trackEvent("TP_Billing_CreateBill", {
+        patientName: patient.pm_fullname,
+        patientId: patient?.patient_unique_id,
+        doctorSpeciality: isReceptionist ? rowDoctor?.dp_name : profile?.dp_name,
+        doctorId: isReceptionist ? rowDoctor?.um_id : profile?.doctor_unique_id,
+        doctorContact: isReceptionist ? rowDoctor?.um_contact : profile?.um_contact,
+        source: isReceptionist ? (patient?.source || searchParams.get("source") || "lims") : "lims",
+        city: clinic?.hm_city,
+        pincode: clinic?.hm_pincode,
+        subscriptionStatus: planDetails?.currentPlanStatus,
+        receptionistId: searchParams.get("receptionistId"),
+        receptionistName: searchParams.get("receptionistName"),
+      });
+      if (!bills?.length) {
+        setCreateBillDrawer(true);
+      } else {
+        setRecentBillDrawer(true);
+      }
     }
-  }, [navigate, location.search]);
+  }, [navigate, checkBillingPurchased, getPatientBills, profile, planDetails, isReceptionist, searchParams]);
 
   const columns = useMemo(
     () => [
@@ -834,11 +1002,12 @@ function LimsPageMain() {
           <ActionMenu
             onAction={(action) => handleAction(action, r)}
             isFilled={r._summary?.status === "filled"}
+            showBilling={showBilling}
           />
         ),
       },
     ],
-    [handleAction]
+    [handleAction, showBilling]
   );
 
   const hasActiveFilter = Boolean(dateRange || statusFilter?.status?.length || statusFilter?.tests?.length);
@@ -1056,6 +1225,58 @@ function LimsPageMain() {
           setPage(1);
           loadPatients(search.trim(), 1, false);
         }}
+      />
+
+      {createBillDrawer && (
+        <Drawer
+          closeIcon={false}
+          placement="right"
+          bodyStyle={{ backgroundColor: "white" }}
+          open={createBillDrawer}
+          onClose={showHideBackModal}
+          width="100%"
+          push={false}
+        >
+          <CreateBill
+            handleCreateBillDrawer={handleCreateBillDrawer}
+            isBackModalOpen={isBackModalOpen}
+            showHideBackModal={showHideBackModal}
+            patientData={billingPatient}
+            editBillData={billData && Object.keys(billData).length > 0 ? { ...billData, patient: { ...billData?.patient, patientId: billData?.patientId || billData?.patient?.patientId } } : null}
+            setEditedBillData={setBillData}
+          />
+        </Drawer>
+      )}
+
+      {recentBillDrawer && (
+        <Drawer
+          closeIcon={false}
+          placement="right"
+          open={recentBillDrawer}
+          onClose={handleRecentBillDrawer}
+          width={isReceptionist ? "100%" : "77%"}
+          push={false}
+        >
+          <RecentBills
+            fromLims
+            handleRecentBillDrawer={handleRecentBillDrawer}
+            handleCreateBillDrawer={handleCreateBillDrawer}
+            patientBills={patientBills}
+            getPatientBills={getPatientBills}
+            totalAdvanceBalance={patientWalletBalance}
+            patientData={billingPatient}
+            billData={billData}
+            setBillData={setBillData}
+            createBillDrawer={createBillDrawer}
+            setCreateBillDrawer={setCreateBillDrawer}
+          />
+        </Drawer>
+      )}
+
+      <ExpiredSubModal
+        title={S_BILLING}
+        isSubModalOpen={isSubModalOpen}
+        showHideSubModal={showHideSubModal}
       />
     </div>
   );

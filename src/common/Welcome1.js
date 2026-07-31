@@ -175,7 +175,7 @@ function Welcome1(props) {
     };
 
     const onConsultClick = async (patient) => {
-        navigate("/prescription", { state: { patient_data: patient, send_path: "patient_details" } });
+        navigate(consultRoute, { state: { patient_data: patient, send_path: "patient_details" } });
         if (isChikitsalayAccessable) {
             clinicTargetStatus(patient?.pam_id, {
                 targetStatus: CLINIC_TARGET_STATUS.SERVING,
@@ -530,7 +530,7 @@ function Welcome1(props) {
                                         >
                                             Consult
                                         </button>
-                                    ) : (isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || isTabRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                                    ) : (isDentalEnabled || isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || isTabRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                                         <PrimaryActionButton
                                             isSmartRxAccessible={isSmartSyncAccessableFromGB}
                                             isSnapRxAccessible={isSnapRxAccessableFromGB}
@@ -553,7 +553,11 @@ function Welcome1(props) {
                                                     "doctor_id": profile?.doctor_unique_id,
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
                                                 });
-                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details" } })
+                                                if (isDentalEnabled) {
+                                                    onTypeRxClick(patient_data);
+                                                } else {
+                                                    navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details" } })
+                                                }
                                             }}>
                                             {'Start New Visit'}
                                         </Button>

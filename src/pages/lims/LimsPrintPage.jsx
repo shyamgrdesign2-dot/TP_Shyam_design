@@ -1,28 +1,27 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import { Button, Select, message } from "antd";
 import { PrinterOutlined, SettingOutlined, DownloadOutlined } from "@ant-design/icons";
 import { pdf } from "@react-pdf/renderer";
 import { browserName } from "react-device-detect";
 
-import PrintSettingsContext from "../../context/PrintSettingsContext";
-import { getDefaultPrintsettings } from "../../redux/doctorsSlice";
-import { updateFooterImageHeight, sendMessageToParent } from "../../utils/utils";
+import { sendMessageToParent, updateFooterImageHeight } from "../../utils/utils";
 import { EVENTS } from "../../utils/events";
 import { uploadDocsToAzure } from "../medicalRecords/service";
 import { printBlobInNewTab } from "../opdBilling/utils/helper";
 import { fetchLimsPatients, fetchPatientLabResults } from "./limsApi";
-import { loadLimsSettings, ensureLabOption, initFileStates } from "./limsPrintUtils";
-import { LabResultsPreview } from "./LimsPrintConfig";
+import { fetchLimsPrintSettings, initFileStates, resolveLimsQrCodeDataUrl } from "./limsPrintUtils";
 import LimsReportPdf from "./LimsReportPdf";
+import LimsReportPdfPreview from "./LimsReportPdfPreview";
 import styles from "./LimsPrintPage.module.css";
 import LimsAccessBoundary from "./LimsAccessBoundary";
 import {
   filterLabResultsByDoctor,
+  getAttendingDoctorUmIdFromUrl,
   getPatientLastVisitDoctorUmId,
   isLabResultsReceptionistSession,
 } from "../../utils/labResultsUtils";
+import { useSelector } from "react-redux";
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DOWNLOAD_MESSAGE_KEY = "lims-download-report";
@@ -32,16 +31,17 @@ function LimsPrintPageMain() {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const dispatch = useDispatch();
   const printRef = useRef(null);
+  const { profile } = useSelector((state) => state.doctors);
+  const limsListPath = `/lims${location.search || ""}`;
 
   const [patient, setPatient] = useState(location.state?.patient || null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPreviewReady, setIsPreviewReady] = useState(false);
 
-  const { defaultPrintSettings } = useSelector((s) => s.doctors);
   const [printSettings, setPrintSettings] = useState(null);
   const [fileHeader, setFileHeader] = useState(null);
   const [fileFooter, setFileFooter] = useState(null);
@@ -50,25 +50,60 @@ function LimsPrintPageMain() {
   const [fileSignature, setFileSignature] = useState(null);
 
   useEffect(() => {
-    dispatch(getDefaultPrintsettings());
-  }, [dispatch]);
+    if (printSettings) return;
+    let cancelled = false;
+
+    const loadSettings = async () => {
+      const limsSettings = await fetchLimsPrintSettings();
+      if (cancelled || !limsSettings) return;
+
+      setPrintSettings(limsSettings);
+      initFileStates(limsSettings, {
+        setFileLogo,
+        setFileWatermark,
+        setFileSignature,
+        setFileHeader,
+        setFileFooter,
+      });
+    };
+
+    loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [printSettings]);
 
   useEffect(() => {
-    if (!defaultPrintSettings || printSettings) return;
-    const saved = loadLimsSettings();
-    if (saved?.printSettings) {
-      setPrintSettings(saved.printSettings);
-      if (saved.files?.logo) setFileLogo(saved.files.logo);
-      if (saved.files?.watermark) setFileWatermark(saved.files.watermark);
-      if (saved.files?.signature) setFileSignature(saved.files.signature);
-      if (saved.files?.header) setFileHeader(saved.files.header);
-      if (saved.files?.footer) updateFooterImageHeight(saved.files.footer, setFileFooter, true);
-    } else {
-      const ps = ensureLabOption(JSON.parse(JSON.stringify(defaultPrintSettings)));
-      setPrintSettings(ps);
-      initFileStates(ps, { setFileLogo, setFileWatermark, setFileSignature, setFileHeader, setFileFooter });
-    }
-  }, [defaultPrintSettings, printSettings]);
+    if (!fileFooter?.showFile) return;
+    updateFooterImageHeight(fileFooter, setFileFooter);
+  }, [fileFooter?.showFile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const attachQr = async () => {
+      if (!printSettings) return;
+      if (printSettings.qrcode_enable !== "Y") {
+        if (printSettings.qrcode) {
+          setPrintSettings((prev) => (prev ? { ...prev, qrcode: null } : prev));
+        }
+        return;
+      }
+      if (printSettings.qrcode) return;
+      const doctorUmId =
+        getPatientLastVisitDoctorUmId(patient) ?? getAttendingDoctorUmIdFromUrl();
+      const qrcode = await resolveLimsQrCodeDataUrl({
+        printSettings,
+        profile,
+        doctorUmId,
+      });
+      if (cancelled || !qrcode) return;
+      setPrintSettings((prev) => (prev ? { ...prev, qrcode } : prev));
+    };
+    attachQr();
+    return () => {
+      cancelled = true;
+    };
+  }, [printSettings?.qrcode_enable, printSettings?.qrcode, profile, patient]);
 
   useEffect(() => {
     if (!patientId) return;
@@ -183,8 +218,12 @@ function LimsPrintPageMain() {
     printSettings,
   ]);
 
+  const handlePreviewReadyChange = useCallback((ready) => {
+    setIsPreviewReady(ready);
+  }, []);
+
   const handlePrint = useCallback(async () => {
-    if (!printRef.current) {
+    if (!isPreviewReady) {
       message.error("Print preview is not ready.");
       return;
     }
@@ -195,7 +234,6 @@ function LimsPrintPageMain() {
       duration: 0,
     });
     try {
-      // Always print a generated PDF so browser does not inject the page URL footer.
       const pdfBlob = await buildReportPdfBlob();
       if (browserName === "Chrome WebView" || browserName === "WebKit") {
         const file = new File([pdfBlob], reportFileName, { type: "application/pdf" });
@@ -218,11 +256,11 @@ function LimsPrintPageMain() {
       console.error("LIMS print failed:", error);
       message.error("Failed to prepare print.");
     }
-  }, [buildReportPdfBlob, reportFileName]);
+  }, [buildReportPdfBlob, isPreviewReady, reportFileName]);
 
   const handleDownload = useCallback(async () => {
-    if (!printRef.current || isDownloading) {
-      if (!printRef.current) message.error("Report preview is not ready.");
+    if (!isPreviewReady || isDownloading) {
+      if (!isPreviewReady) message.error("Report preview is not ready.");
       return;
     }
     setIsDownloading(true);
@@ -272,22 +310,7 @@ function LimsPrintPageMain() {
     } finally {
       setIsDownloading(false);
     }
-  }, [buildReportPdfBlob, isDownloading, reportFileName]);
-
-  const contextApi = {
-    printSettings,
-    setPrintSettings,
-    fileHeader,
-    setFileHeader,
-    fileFooter,
-    setFileFooter,
-    fileLogo,
-    setFileLogo,
-    fileWatermark,
-    setFileWatermark,
-    fileSignature,
-    setFileSignature,
-  };
+  }, [buildReportPdfBlob, isDownloading, isPreviewReady, reportFileName]);
 
   if (loading) {
     return (
@@ -301,13 +324,7 @@ function LimsPrintPageMain() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <button
-            type="button"
-            className={styles.backBtn}
-            onClick={() =>
-              navigate({ pathname: "/lims", search: location.search })
-            }
-          >
+          <button type="button" className={styles.backBtn} onClick={() => navigate(limsListPath)}>
             <i className="icon-right" />
           </button>
           <div className={styles.headerDivider} />
@@ -316,11 +333,12 @@ function LimsPrintPageMain() {
             <div className={styles.meta}>{[patientInfo.gender, patientInfo.age].filter(Boolean).join(", ")}</div>
           </div>
         </div>
-        {/* <Button
+        <Button
           icon={<SettingOutlined />}
           onClick={() =>
-            navigate("/lims/print-settings", {
+            navigate(`/lims/print-settings${location.search || ""}`, {
               state: {
+                // pathname only — query is carried via location.search on print-settings
                 from: `/lims/print/${patientId}`,
                 patient,
                 patientId,
@@ -329,7 +347,7 @@ function LimsPrintPageMain() {
           }
         >
           Print Settings
-        </Button> */}
+        </Button>
       </div>
 
       <div className={styles.body}>
@@ -365,17 +383,17 @@ function LimsPrintPageMain() {
 
         <main className={styles.preview}>
           <div className={styles.printCard} id="lims-print-area" ref={printRef}>
-            {printSettings ? (
-              <PrintSettingsContext.Provider value={contextApi}>
-                <LabResultsPreview
-                  results={filteredResults}
-                  patient={patient}
-                  emptyText="No lab results for the selected date."
-                />
-              </PrintSettingsContext.Provider>
-            ) : (
-              <div className={styles.noResults}>Loading print settings...</div>
-            )}
+            <LimsReportPdfPreview
+              results={filteredResults}
+              patient={patient}
+              printSettings={printSettings}
+              fileHeader={fileHeader}
+              fileFooter={fileFooter}
+              fileLogo={fileLogo}
+              fileWatermark={fileWatermark}
+              fileSignature={fileSignature}
+              onReadyChange={handlePreviewReadyChange}
+            />
           </div>
         </main>
       </div>

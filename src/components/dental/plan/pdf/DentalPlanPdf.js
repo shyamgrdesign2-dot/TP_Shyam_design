@@ -73,6 +73,7 @@ const DentalPlanPdf = ({
             profile={profile}
             gstIn={gstIn}
             isIpdBill={false}
+            documentTitle={isEstimate ? "Plan Estimate" : ""}
           />
 
           {isEstimate ? (

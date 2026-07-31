@@ -12,12 +12,18 @@ import { TP_ASSETS_BASE } from "../../utils/constants";
 import {
   LAB_RESULTS_CASE_ID,
   arrowSymbol,
-  groupByReport,
+  getLimsMarginByFormat,
+  formatLabResultValue,
+  groupByReportForPrint,
+  isRemarksTest,
   rangeText,
 } from "./limsPrintUtils";
 import { formatDateLabel } from "./limsHelpers";
 
-// Same font set as the bill PDF (ViewBillPdf) so print settings font_family works.
+const PX_TO_PT = 0.75;
+const px = (n) => n * PX_TO_PT;
+
+// Same font set as bill PDF so page_format.font_family applies.
 Font.register({
   family: "Roboto",
   fonts: [
@@ -58,18 +64,19 @@ Font.register({
     { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Bold.ttf`, fontWeight: 700 },
   ],
 });
+Font.register({
+  family: "Tahoma",
+  fonts: [
+    { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Regular.ttf`, fontWeight: 400 },
+    { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Medium.ttf`, fontWeight: 500 },
+    { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Bold.ttf`, fontWeight: 700 },
+  ],
+});
 
-const REGISTERED_FONTS = ["Roboto", "Arial", "Times-Roman", "Verdana", "Calibri"];
+const REGISTERED_FONTS = ["Roboto", "Arial", "Times-Roman", "Verdana", "Calibri", "Tahoma"];
 
-// The on-screen preview card is 794px wide = A4 at 96dpi, so px * 0.75 = pt.
-const PX = 0.75;
-const px = (n) => n * PX;
-
-// Styles mirror LimsPrintConfig.module.css (the preview the old html2canvas flow captured).
 const styles = StyleSheet.create({
   page: {
-    paddingVertical: px(24),
-    paddingHorizontal: px(28),
     color: "#171725",
     backgroundColor: "#ffffff",
   },
@@ -81,10 +88,9 @@ const styles = StyleSheet.create({
     opacity: 0.08,
     objectFit: "contain",
   },
-  uploadedHeaderImg: { width: "100%", objectFit: "contain", marginBottom: px(12) },
-  uploadedFooterImg: { width: "100%", objectFit: "contain", marginTop: px(24) },
-  /* Custom header (letterhead 0); divider below it already adds spacing */
-  headerBlock: { marginBottom: 0 },
+  uploadedHeaderImg: { width: "100%", objectFit: "contain" },
+  uploadedFooterImg: { width: "100%", objectFit: "contain" },
+  headerBlock: { marginBottom: px(8) },
   headerRow: { flexDirection: "row", alignItems: "flex-start" },
   headerLeft: { flex: 1 },
   headerRight: { flexShrink: 0, alignItems: "flex-end", textAlign: "right", marginLeft: px(12) },
@@ -98,8 +104,7 @@ const styles = StyleSheet.create({
   doctorName: { fontSize: px(13), fontWeight: 700, color: "#4f4dc8" },
   clinicName: { fontSize: px(11), fontWeight: 600, color: "#171725" },
   subheader: { fontSize: px(9), color: "#44444f", marginTop: px(1), lineHeight: 1.45 },
-  divider: { height: px(1), backgroundColor: "#e2e2ea", marginVertical: px(10) },
-  /* Patient info */
+  divider: { height: px(1), backgroundColor: "#e2e2ea", marginVertical: px(8) },
   patientBlock: { paddingVertical: px(2) },
   patientRow: { flexDirection: "row", flexWrap: "wrap", color: "#44444f" },
   patientField: { flexDirection: "row", marginRight: px(12), marginBottom: px(2) },
@@ -111,11 +116,9 @@ const styles = StyleSheet.create({
     color: "#92929d",
     fontSize: px(11),
   },
-  /* Report blocks */
   reportBlock: { marginBottom: px(14) },
   dateHeading: {
     fontWeight: 600,
-    fontSize: px(10),
     color: "#171725",
     marginBottom: px(4),
   },
@@ -128,16 +131,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: px(8),
     borderRadius: px(2),
   },
-  reportName: { fontWeight: 700, fontSize: px(10), color: "#171725" },
-  reportMeta: { fontSize: px(9), color: "#696974" },
-  /* Table format */
+  reportName: { fontWeight: 700, color: "#171725" },
+  reportMeta: { color: "#696974" },
   table: { borderWidth: px(1), borderColor: "#d5d5dc" },
   tableHeadRow: { flexDirection: "row", backgroundColor: "#f1f1f5" },
   tableHeadCell: {
     fontWeight: 600,
     textTransform: "uppercase",
     letterSpacing: 0.3,
-    fontSize: px(8),
     color: "#696974",
     paddingVertical: px(3),
     paddingHorizontal: px(6),
@@ -149,7 +150,6 @@ const styles = StyleSheet.create({
   tableSubHeadRow: { flexDirection: "row", backgroundColor: "#f1f1f5" },
   tableSubHeadCell: {
     fontWeight: 700,
-    fontSize: px(9),
     color: "#171725",
     paddingVertical: px(3),
     paddingHorizontal: px(6),
@@ -158,7 +158,6 @@ const styles = StyleSheet.create({
   },
   tableRow: { flexDirection: "row" },
   tableCell: {
-    fontSize: px(9),
     color: "#171725",
     paddingVertical: px(2),
     paddingHorizontal: px(6),
@@ -172,8 +171,6 @@ const styles = StyleSheet.create({
   colResult: { width: "28%" },
   colRange: { width: "27%" },
   abnormal: { color: "#c5292a" },
-  arrow: { fontSize: px(7) },
-  /* List view format */
   listItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -183,66 +180,63 @@ const styles = StyleSheet.create({
     borderBottomWidth: px(1),
     borderBottomColor: "#f1f1f5",
   },
-  listName: { fontWeight: 600, fontSize: px(9), color: "#171725" },
-  listRange: { fontSize: px(8), color: "#92929d" },
-  listResult: { fontSize: px(9), color: "#171725", textAlign: "right" },
-  /* Inline format */
+  listName: { fontWeight: 600, color: "#171725" },
+  listRange: { color: "#92929d" },
+  listResult: { color: "#171725", textAlign: "right" },
   inline: {
     paddingVertical: px(4),
     paddingHorizontal: px(6),
     lineHeight: 1.6,
-    fontSize: px(9),
     color: "#171725",
   },
-  /* Signature */
-  signatureBlock: { marginTop: px(32), paddingTop: px(8) },
+  signatureBlock: { marginTop: px(24), paddingTop: px(8) },
   signatureRight: { alignItems: "flex-end", textAlign: "right" },
   signatureImg: { maxWidth: px(160), maxHeight: px(60), objectFit: "contain" },
   signatureName: {
     fontWeight: 600,
-    fontSize: px(10),
     color: "#171725",
     marginTop: px(2),
   },
-  signatureQual: { fontSize: px(9), color: "#44444f" },
-  /* Footer */
-  footerDivider: { height: px(1), backgroundColor: "#e2e2ea", marginTop: px(24) },
+  signatureQual: { color: "#44444f" },
+  footerBar: { backgroundColor: "#171725", height: px(2), width: "100%" },
   footerText: {
+    marginTop: px(6),
+    color: "#171725",
+    fontWeight: 400,
+    textAlign: "left",
+  },
+  qrBlock: { marginTop: px(16), maxWidth: px(220) },
+  qrImg: { width: 61, height: 61, objectFit: "contain" },
+  qrCaption: { marginTop: px(4), color: "#171725", lineHeight: 1.35 },
+  pageNumber: {
+    position: "absolute",
+    bottom: px(8),
+    right: px(12),
     fontSize: px(8),
-    color: "#92929d",
-    textAlign: "center",
-    paddingVertical: px(4),
+    color: "#696974",
   },
 });
 
 const cleanSubheader = (text) =>
   text ? text.replace(/^null\s*/i, "").trim() || "" : "";
 
-/**
- * The preview <img> stores a no-CORS response (without the
- * Access-Control-Allow-Origin header) in the browser cache, and the image
- * server sends no `Vary: Origin`. react-pdf fetches images with CORS, so it
- * would be served that cached header-less response and fail. A unique query
- * string bypasses the cache so the CORS request reaches the server, which
- * does return the CORS headers (this is why the bill PDF, which has no <img>
- * preview, always worked).
- */
 const imageUrl = (state, cacheBust) => {
   const url = state?.showFile || null;
   if (typeof url !== "string" || !/^https?:/i.test(url)) return url;
   return `${url}${url.includes("?") ? "&" : "?"}pdfcb=${cacheBust}`;
 };
 
-const resultText = (test) =>
-  [String(test.value), test.units || ""].filter(Boolean).join(" ");
+const resultText = (test) => formatLabResultValue(test);
 
 const withArrow = (test) => {
+  if (isRemarksTest(test)) return resultText(test);
   const arrow = arrowSymbol(test.arrowDirection);
   return `${resultText(test)}${arrow ? ` ${arrow}` : ""}`;
 };
 
 const isAbnormal = (test) =>
-  test.arrowDirection === "UP" || test.arrowDirection === "DOWN";
+  !isRemarksTest(test) &&
+  (test.arrowDirection === "UP" || test.arrowDirection === "DOWN");
 
 function PatientFields({ patient, fields, fontSize }) {
   const age = patient.ageYears
@@ -292,7 +286,7 @@ function TableResults({ results }) {
   return Array.from(dateGroups.entries()).map(([dateKey, entries]) => {
     const clusters = [];
     entries.forEach((entry) => {
-      groupByReport(entry.inputs).forEach((tests, reportName) => {
+      groupByReportForPrint(entry.inputs).forEach((tests, reportName) => {
         const filled = tests.filter(
           (test) => test.value != null && String(test.value).trim() !== "",
         );
@@ -368,7 +362,7 @@ function TableResults({ results }) {
 
 function NonTableResults({ results, format }) {
   return results.flatMap((entry, entryIndex) =>
-    Array.from(groupByReport(entry.inputs).entries()).map(
+    Array.from(groupByReportForPrint(entry.inputs).entries()).map(
       ([reportName, tests]) => {
         const filled = tests.filter(
           (test) => test.value != null && String(test.value).trim() !== "",
@@ -414,6 +408,9 @@ function NonTableResults({ results, format }) {
                     style={isAbnormal(test) ? styles.abnormal : undefined}
                   >
                     {test.testName || ""}
+                    {!isRemarksTest(test) && rangeText(test) ? (
+                      <Text style={styles.listRange}> (Ref: {rangeText(test)})</Text>
+                    ) : null}
                     {resultText(test) ? `: ${withArrow(test)}` : ""}
                     {index < filled.length - 1 ? "; " : ""}
                   </Text>
@@ -439,28 +436,54 @@ export default function LimsReportPdf({
 }) {
   const hf = printSettings?.header_footer || {};
   const pf = printSettings?.page_format || {};
-  const letterhead = printSettings?.letterhead_format;
+  const letterhead = Number(printSettings?.letterhead_format);
   const doctorInfo = hf.header?.doctor_info;
   const clinicInfo = hf.header?.clinic_info;
   const otherSettings = hf.other_settings;
-  const footerCfg = hf.footer;
+  const footerCfg = hf.footer || {};
+  const footerTitle = footerCfg.title || footerCfg.text || "";
 
   const fontFamily = REGISTERED_FONTS.includes(pf.font_family)
     ? pf.font_family
     : "Roboto";
-  const baseFontSize = px(pf.font_size || 10);
-  const patientFontSize = px(pf.patient_info_font_size || pf.font_size || 10);
+  const baseFontSize = px(Number(pf.font_size) || 10);
+  const patientFontSize = px(
+    Number(pf.patient_info_font_size) || Number(pf.font_size) || 10,
+  );
+  const showPagination = !!pf.pagination;
 
-  // Own letterhead (2): honor the custom top/bottom margins (cm -> px like preview).
-  const ownMargin =
-    letterhead === 2 ? hf.custom_letterhead_margin || hf.margin || {} : {};
-  const pagePadding =
-    letterhead === 2
-      ? {
-          paddingTop: px((parseFloat(ownMargin.top) || 2) * 28),
-          paddingBottom: px((parseFloat(ownMargin.bottom) || 2) * 28),
-        }
-      : {};
+  const paddingTop = getLimsMarginByFormat(letterhead, hf, "top", 0.5);
+  const paddingLeft = getLimsMarginByFormat(letterhead, hf, "left", 0.5);
+  const paddingRight = getLimsMarginByFormat(letterhead, hf, "right", 0.5);
+  const paddingBottomMargin = getLimsMarginByFormat(letterhead, hf, "bottom", 0.5);
+
+  const getFooterImageRenderHeight = () => {
+    const footerWidth = Number(fileFooter?.footerWidth);
+    const footerHeight = Number(fileFooter?.footerHeight);
+    const availableWidth = Math.max(0, 595 - (paddingLeft + paddingRight));
+    if (footerWidth > 0 && footerHeight > 0 && availableWidth > 0) {
+      return (footerHeight / footerWidth) * availableWidth;
+    }
+    const rendered = Number(fileFooter?.renderedFooterImageHeight);
+    return Number.isFinite(rendered) && rendered > 0 ? rendered : px(56);
+  };
+
+  const getFooterTextRenderHeight = () => {
+    if (!footerTitle) return 0;
+    const footerFontSize = px(footerCfg.font_size || 10);
+    return px(2) + px(6) + footerFontSize * 1.2;
+  };
+
+  // Reserve space so fixed footer/pagination don't overlap content (same approach as ViewPDF).
+  const footerReserve =
+    letterhead === 1 && fileFooter?.showFile
+      ? getFooterImageRenderHeight()
+      : letterhead === 0
+        ? getFooterTextRenderHeight()
+        : 0;
+  const paginationReserve = showPagination ? px(16) : 0;
+  const footerContentGap = px(5);
+  const paddingBottom = paddingBottomMargin + footerReserve + footerContentGap + paginationReserve;
 
   const labOption = printSettings?.prescription?.case_option?.find(
     (option) => option.id === LAB_RESULTS_CASE_ID,
@@ -477,11 +500,15 @@ export default function LimsReportPdf({
     printSettings?.water_mark_enable === "Y" && watermarkSrc;
   const showSignature =
     printSettings?.signature_enable === "Y" && signatureSrc;
+  const qrSrc =
+    typeof printSettings?.qrcode === "string" && printSettings.qrcode
+      ? printSettings.qrcode
+      : null;
+  const showQr = printSettings?.qrcode_enable === "Y" && !!qrSrc;
   const hasResults = results.some((entry) =>
     (entry.inputs || []).some(
       (input) =>
         input?.testName &&
-        input.testName !== "Remarks" &&
         input.value != null &&
         String(input.value).trim() !== "",
     ),
@@ -517,44 +544,104 @@ export default function LimsReportPdf({
       </View>
     );
 
+  const renderFixedHeader = () => {
+    if (letterhead === 1 && headerSrc) {
+      return (
+        <View fixed>
+          <Image src={headerSrc} style={styles.uploadedHeaderImg} />
+        </View>
+      );
+    }
+    if (letterhead === 0) {
+      return (
+        <View style={styles.headerBlock} fixed>
+          <View style={styles.headerRow} wrap={false}>
+            <View style={styles.headerLeft}>
+              {showLogo && !doctorOnRight && (
+                <Image src={logoSrc} style={styles.logo} />
+              )}
+              {!doctorOnRight && renderDoctorBlock("left")}
+              {clinicInfo?.place !== "R" && renderClinicBlock("left")}
+            </View>
+            <View style={styles.headerRight}>
+              {showLogo && doctorOnRight && (
+                <Image src={logoSrc} style={styles.logo} />
+              )}
+              {doctorOnRight && renderDoctorBlock("right")}
+              {clinicInfo?.place === "R" && renderClinicBlock("right")}
+            </View>
+          </View>
+          <View style={styles.divider} />
+        </View>
+      );
+    }
+    return null;
+  };
+
+  const renderFixedFooter = () => {
+    if (letterhead === 1 && footerSrc) {
+      return (
+        <View
+          style={{
+            position: "absolute",
+            left: paddingLeft,
+            right: paddingRight,
+            bottom: paddingBottomMargin,
+          }}
+          fixed
+        >
+          <Image src={footerSrc} style={styles.uploadedFooterImg} />
+        </View>
+      );
+    }
+    if (letterhead === 0 && footerTitle) {
+      return (
+        <View
+          style={{
+            position: "absolute",
+            left: paddingLeft,
+            right: paddingRight,
+            bottom: paddingBottomMargin,
+          }}
+          fixed
+        >
+          <View style={styles.footerBar} />
+          <Text
+            style={[
+              styles.footerText,
+              { fontSize: px(footerCfg.font_size || 10) },
+            ]}
+          >
+            {footerTitle}
+          </Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
   return (
     <Document>
       <Page
         size="A4"
-        style={[styles.page, { fontFamily, fontSize: baseFontSize }, pagePadding]}
+        style={[
+          styles.page,
+          {
+            fontFamily,
+            fontSize: baseFontSize,
+            paddingTop,
+            paddingLeft,
+            paddingRight,
+            paddingBottom,
+          },
+        ]}
         wrap
       >
         {showWatermark && (
           <Image src={watermarkSrc} style={styles.watermark} fixed />
         )}
 
-        {/* Letterhead: Upload (1) */}
-        {letterhead === 1 && headerSrc && (
-          <Image src={headerSrc} style={styles.uploadedHeaderImg} />
-        )}
-
-        {/* Letterhead: Custom (0) — logo stacks above the info block, like preview */}
-        {letterhead === 0 && (
-          <View style={styles.headerBlock}>
-            <View style={styles.headerRow} wrap={false}>
-              <View style={styles.headerLeft}>
-                {showLogo && !doctorOnRight && (
-                  <Image src={logoSrc} style={styles.logo} />
-                )}
-                {!doctorOnRight && renderDoctorBlock("left")}
-                {clinicInfo?.place !== "R" && renderClinicBlock("left")}
-              </View>
-              <View style={styles.headerRight}>
-                {showLogo && doctorOnRight && (
-                  <Image src={logoSrc} style={styles.logo} />
-                )}
-                {doctorOnRight && renderDoctorBlock("right")}
-                {clinicInfo?.place === "R" && renderClinicBlock("right")}
-              </View>
-            </View>
-            <View style={styles.divider} />
-          </View>
-        )}
+        {renderFixedHeader()}
 
         <PatientFields
           patient={patient}
@@ -592,24 +679,25 @@ export default function LimsReportPdf({
           </View>
         )}
 
-        {/* Footer: uploaded image (letterhead 1) */}
-        {letterhead === 1 && footerSrc && (
-          <Image src={footerSrc} style={styles.uploadedFooterImg} />
+        {showQr && (
+          <View style={styles.qrBlock} wrap={false}>
+            <Image src={qrSrc} style={styles.qrImg} />
+            <Text style={styles.qrCaption}>
+              {`Scan QR code to book an appointment\nwith your doctor`}
+            </Text>
+          </View>
         )}
 
-        {/* Footer: text */}
-        {footerCfg?.enable === "Y" && footerCfg?.text && (
-          <>
-            <View style={styles.footerDivider} />
-            <Text
-              style={[
-                styles.footerText,
-                { fontSize: px(footerCfg.font_size || 10) },
-              ]}
-            >
-              {footerCfg.text}
-            </Text>
-          </>
+        {renderFixedFooter()}
+
+        {showPagination && (
+          <Text
+            style={styles.pageNumber}
+            fixed
+            render={({ pageNumber, totalPages }) =>
+              `Page ${pageNumber}/${totalPages}`
+            }
+          />
         )}
       </Page>
     </Document>

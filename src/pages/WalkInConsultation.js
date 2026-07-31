@@ -18,6 +18,7 @@ import { resetVaccineState } from "../redux/vaccineSlice";
 
 import { GB_ISCRIBE, GB_SNAP_RX, GB_CVT_EXT_HOS, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX,GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, PAID } from "../utils/constants";
 import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
@@ -70,6 +71,8 @@ function WalkInConsultation() {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const tp_monetization_enable = !shouldMonetizationDisabled();
+  const isDentalEnabled = useIsDentalEnabled();
+  const consultRoute = isDentalEnabled ? DENTAL_RX_PAD_ROUTE : "/prescription";
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -169,7 +172,7 @@ function WalkInConsultation() {
     //   doctor_id: profile?.doctor_unique_id,
     // //   patient_id: record?.patient_unique_id,
     // });
-    navigate("/prescription", { state: { patient_data: record } });
+    navigate(consultRoute, { state: { patient_data: record } });
   };
 
   const getMenuItems = (record) => {
@@ -421,7 +424,7 @@ function WalkInConsultation() {
                     "patient_number": patient?.pm_contact_no,
                     "patient_id": patient?.patient_unique_id
                   });
-                  navigate("/prescription", { state: { patient_data: patient } })
+                  navigate(consultRoute, { state: { patient_data: patient } })
                 }}
               >
                 Start Consult

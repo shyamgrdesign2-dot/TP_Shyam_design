@@ -95,7 +95,18 @@
 }
 
 .print-bill-table {
+  table-layout: fixed;
+  width: 100%;
+
+  th,
+  td {
+    overflow: hidden;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
   .ant-table-row {
-    height: 75px !important;
+    height: auto !important;
   }
 }
