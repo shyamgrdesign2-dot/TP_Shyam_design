@@ -303,6 +303,7 @@ const dentalPlanSlice = createSlice({
       .addCase(fetchDentalPlans.pending, (state) => {
         state.loading = true;
         state.plans = [];
+        state.sessionPendingServices = [];
         state.error = null;
       })
       .addCase(fetchDentalPlans.fulfilled, (state, action) => {

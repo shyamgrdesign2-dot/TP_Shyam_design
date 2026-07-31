@@ -360,6 +360,121 @@ export function buildSessionPendingPlanServices(
   });
 }
 
+/** Oral exam procedure key — mirrors dental getExaminationProcedureKey. */
+export function getOralExaminationProcedureKey(entry = {}) {
+  const id = String(entry.id ?? "").trim();
+  if (id) return `id:oral::${id}`;
+
+  const name = String(entry.name ?? "").trim().toLowerCase();
+  const surfaces = [...(entry.surfaces || entry.area || [])]
+    .map(String)
+    .sort()
+    .join(",");
+  return `svc:oral::${name}::${surfaces}`;
+}
+
+export function collectOralExaminationProcedureKeys(entries = []) {
+  const keys = new Set();
+  for (const entry of entries) {
+    if (entry?.kind && entry.kind !== "procedure") continue;
+    keys.add(getOralExaminationProcedureKey(entry));
+  }
+  return keys;
+}
+
+export function filterNewOralExaminationProcedures(
+  currentEntries = [],
+  baselineEntries = [],
+) {
+  const baselineKeys = collectOralExaminationProcedureKeys(baselineEntries);
+  const fresh = [];
+
+  for (const entry of currentEntries) {
+    if (entry?.kind !== "procedure") continue;
+    if (!baselineKeys.has(getOralExaminationProcedureKey(entry))) {
+      fresh.push(entry);
+    }
+  }
+  return fresh;
+}
+
+function normalizeOralSurfacesForPlan(surfaces = []) {
+  const ids = (surfaces || []).map((s) => String(s).toUpperCase());
+  if (
+    !ids.length ||
+    ids.some((s) => s === "WHOLE" || s === "GENERALIZED" || s === "FULL")
+  ) {
+    return ["whole"];
+  }
+  return (surfaces || []).map(String);
+}
+
+/**
+ * Build a treatment-plan service from an oral examination procedure entry.
+ * Oral procedures are full-mouth scoped (no FDI tooth codes).
+ */
+export function toPlanServiceFromOralProcedure(entry, options = {}) {
+  const { appointmentId, procedureItems } = options;
+  const rawName = String(entry?.name ?? "").trim();
+  if (!rawName) return null;
+
+  const treatment = mapChartProcedureName(rawName) ?? rawName;
+  let visitProcedure =
+    resolveVisitProcedure(entry) || resolveVisitProcedure(entry?.visitProcedure);
+  if (!visitProcedure && procedureItems?.length) {
+    const match =
+      findProcedureCatalogItem(procedureItems, rawName) ||
+      findProcedureCatalogItem(procedureItems, treatment);
+    visitProcedure = resolveVisitProcedure(match);
+  }
+  const rate = visitProcedure?.price ?? getRate(treatment);
+  const discount =
+    visitProcedure?.discount != null ? visitProcedure.discount : 0;
+  const discountType =
+    visitProcedure?.discountType === "percentage" ? "percentage" : "flat";
+
+  return {
+    treatment: visitProcedure?.procedureName || treatment,
+    teeth: ["full-mouth"],
+    surfaces: normalizeOralSurfacesForPlan(entry.surfaces || entry.area || []),
+    rate,
+    discount,
+    discountType,
+    notes: entry.note || entry.notes || undefined,
+    procedureDate: entry.since || entry.procedure_date || undefined,
+    tatvaProcedureId: entry.id || undefined,
+    appointmentId: appointmentId || undefined,
+    visitProcedure: visitProcedure || undefined,
+    status: "planned",
+  };
+}
+
+/**
+ * Build pending plan services from oral canvas/API procedure entries.
+ * When baselineOralEntries is provided, only procedures added since baseline are included.
+ */
+export function buildSessionPendingPlanServicesFromOral(
+  oralEntries = [],
+  baselineOralEntries = [],
+  options = {},
+) {
+  const { appointmentId, procedureItems } = options;
+  const procedureEntries =
+    baselineOralEntries != null
+      ? filterNewOralExaminationProcedures(oralEntries, baselineOralEntries)
+      : (oralEntries || []).filter((e) => e?.kind === "procedure");
+
+  const services = [];
+  for (const entry of procedureEntries) {
+    const service = toPlanServiceFromOralProcedure(entry, {
+      appointmentId,
+      procedureItems,
+    });
+    if (service) services.push(service);
+  }
+  return services;
+}
+
 export function buildPlanNameForService(service, planDateLabel) {
   const dateLabel = planDateLabel || new Date().toISOString().slice(0, 10);
   return `${service.treatment} ${dateLabel}`;

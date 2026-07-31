@@ -67,7 +67,11 @@ const dentalExaminationSlice = createSlice({
     },
     clearDentalChart: (state) => {
       state.toothState = {};
+      state.baselineToothState = {};
       state.version = 0;
+      state.dentitionType = null;
+      state.error = null;
+      state.lastSaved = null;
     },
     resetDentalError: (state) => {
       state.error = null;

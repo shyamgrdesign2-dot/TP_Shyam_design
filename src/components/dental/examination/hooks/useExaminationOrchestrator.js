@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 import { syncOralCanvasState } from "../../../../redux/oralExaminationSlice";
 import { setSessionPendingServices, clearSessionPendingServices } from "../../../../redux/dentalPlanSlice";
-import { buildSessionPendingPlanServices } from "../../plan/exam-suggestions";
+import {
+  buildSessionPendingPlanServices,
+  buildSessionPendingPlanServicesFromOral,
+} from "../../plan/exam-suggestions";
 import { normalizeOralSurfaceIds } from "../types";
 
 /**
@@ -23,6 +26,7 @@ export function useExaminationOrchestrator({
   syncState,
   dispatch,
   baselineToothState,
+  baselineOralEntries,
   procedureItems,
   appointmentId,
 }) {
@@ -198,11 +202,17 @@ export function useExaminationOrchestrator({
 
     syncState({ toothState: newToothState, dentitionType: canvasState.patientType });
 
-    const pendingServices = buildSessionPendingPlanServices(
+    const dentalPending = buildSessionPendingPlanServices(
       newToothState,
       baselineToothState || {},
       { appointmentId, procedureItems },
     );
+    const oralPending = buildSessionPendingPlanServicesFromOral(
+      canvasState.oralEntries || [],
+      baselineOralEntries || [],
+      { appointmentId, procedureItems },
+    );
+    const pendingServices = [...dentalPending, ...oralPending];
     const pendingSnapshot = JSON.stringify(pendingServices);
     if (pendingSnapshot !== pendingSnapshotRef.current) {
       pendingSnapshotRef.current = pendingSnapshot;
@@ -218,6 +228,7 @@ export function useExaminationOrchestrator({
     syncState,
     dispatch,
     baselineToothState,
+    baselineOralEntries,
     procedureItems,
     appointmentId,
   ]);

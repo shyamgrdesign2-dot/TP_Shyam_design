@@ -48,6 +48,9 @@ export function ExaminationTab({ patientId, patientAge = 30, appointmentId }) {
   const dispatch = useDispatch();
   const { profile, userId } = useSelector((state) => state.doctors);
   const { baselineToothState } = useSelector(selectDentalExamination);
+  const baselineOralEntries = useSelector(
+    (state) => state.oralExamination?.baselineOralEntries || [],
+  );
   const { procedureItems } = useDentalMasters();
   const patientType = patientAge < 12 ? "pediatric" : patientAge < 18 ? "mixed" : "adult";
 
@@ -63,6 +66,12 @@ export function ExaminationTab({ patientId, patientAge = 30, appointmentId }) {
   } = useOralExamination(patientId);
   const [canvasState, setCanvasState] = useState(null);
   const moduleOpenedRef = useRef(false);
+
+  // Drop local canvas state when switching patients so prior oral/dental entries cannot re-sync
+  useEffect(() => {
+    setCanvasState(null);
+    moduleOpenedRef.current = false;
+  }, [patientId]);
 
   // Staggered preload for all dentition geometries
   useEffect(() => {
@@ -140,6 +149,7 @@ export function ExaminationTab({ patientId, patientAge = 30, appointmentId }) {
     syncState,
     dispatch,
     baselineToothState,
+    baselineOralEntries,
     procedureItems,
     appointmentId,
   });
