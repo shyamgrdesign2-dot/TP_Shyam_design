@@ -160,11 +160,24 @@ export const NATIVE_DATA_ANALYTICS_NAV_ENABLED = false;
 
 /**
  * Mission / CVT special doctors: analytics-only sidebar → /mission-analytics.
- * Add JWT user_id values here when provided.
+ * Per-environment list from EnvironmentConfig (UAT ≠ prod user ids).
+ * Override: REACT_APP_MISSION_ANALYTICS_SPECIAL_USER_IDS=123,456
  */
-export const MISSION_ANALYTICS_SPECIAL_USER_IDS = [
-  36357,
-];
+function parseMissionAnalyticsSpecialUserIds() {
+  const fromEnvVar = process.env.REACT_APP_MISSION_ANALYTICS_SPECIAL_USER_IDS;
+  const raw = fromEnvVar != null && String(fromEnvVar).trim() !== ""
+    ? String(fromEnvVar).split(",")
+    : (env.mission_analytics_special_user_ids ?? []);
+  return (Array.isArray(raw) ? raw : [])
+    .map((id) => String(id).trim())
+    .filter(Boolean)
+    .map((id) => {
+      const n = Number(id);
+      return Number.isFinite(n) ? n : id;
+    });
+}
+
+export const MISSION_ANALYTICS_SPECIAL_USER_IDS = parseMissionAnalyticsSpecialUserIds();
 
 
 export const MISSION_HOSPITAL_ADDRESS = "THE MISSION HOSPITAL Plot No. 219(P), IMMON KALYAN SARANI, SECTOR-2C, Bidhannagar, Durgapur -713212, West Bengal - Ph No: 8687500500";

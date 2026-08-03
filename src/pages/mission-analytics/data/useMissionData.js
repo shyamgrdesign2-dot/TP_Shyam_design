@@ -128,101 +128,136 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
       safe(ApiReporting.cvtByDoctor(spAnalytics)),
     ]);
 
-    const appt = apptRaw?.data ?? apptRaw ?? {};
-    const apptSummary = apptSummaryRaw?.data ?? apptSummaryRaw ?? {};
-    const liveKpis = apptSummary.kpis ?? {};
-    const pt = patientsRaw?.data ?? patientsRaw ?? {};
-    const ptKpis = pt.kpis ?? {};
-    const modes = modesRaw?.data ?? modesRaw ?? {};
-    const modesKpis = modes.kpis ?? {};
-
-    const cvtDailySrc = unwrapCvtPayload(cvtDailyRaw);
-    const cvtByDoctorSrc = unwrapCvtPayload(cvtByDoctorRaw);
-    const cvtDailySeries = unwrapCvtSeries(cvtDailySrc);
-    const cvtByDoctorSeries = unwrapCvtSeries(cvtByDoctorSrc);
-
-    // Prefer daily totals; fall back to by-doctor payload if daily is missing.
-    const totalDigitized = toNum(
-      cvtDailySrc?.totalDigitized ?? cvtByDoctorSrc?.totalDigitized
-    );
-    const totalCases = toNum(cvtDailySrc?.totalCases ?? cvtByDoctorSrc?.totalCases);
-    const digitalPrescriptionPercent =
-      totalCases > 0 ? Math.round((100 * totalDigitized) / totalCases) : null;
-
-    // Match Data Analytics Appointments: live summary KPIs (not operationalOverview / analytics donut).
-    const totalFootfall = toNum(liveKpis.total);
-    const completed = toNum(liveKpis.completed);
-    const scheduled = toNum(liveKpis.inQueue);
-    const cancelled = toNum(liveKpis.cancelled);
-
-    // Same period-over-period logic as useAppointmentsLive (Data Analytics Appointments).
-    const prev = liveKpis.previous ?? {};
-    const prevTotal = toNum(prev.total);
-    const prevCompleted = toNum(prev.completed);
-    const hasPrevFootfall = prevTotal > 0;
-    const totalFootfallDelta = hasPrevFootfall ? pctDelta(totalFootfall, prevTotal) : null;
-    const completedDelta = hasPrevFootfall ? pctDelta(completed, prevCompleted) : null;
-    const avgVisitsPerDayDelta = totalFootfallDelta;
-
-    const statusDonut = [
-      { label: "Completed", value: completed },
-      { label: "In queue", value: scheduled },
-      { label: "Cancelled", value: cancelled },
-    ];
-
-    const rangeDays = computeRangeDays(startDate, endDate);
-
-    const busiestDay = findBusiest(appt.visitsByWeekday);
-
-    const visitTrend = buildVisitTrend(appt.appointments, cvtDailySeries);
-
-    const byDoctor = buildDoctorBars(modes.byDoctor, cvtByDoctorSeries);
-
-    const ageXY = seriesToXY(pt.age);
-    const visitFreqXY = seriesToXY(pt.visitFrequency);
-    const genderDonut = anyToDonut(pt.gender);
-    const newVsReturning = seriesToDonut(appt.newVsReturning);
-
-    const segmentation = buildSegmentation(pt.visitFrequency);
-
-    setState({
-      loading: false,
-      error: null,
-      data: {
-        kpis: {
-          totalFootfall,
-          totalFootfallDelta,
-          totalBooked: totalFootfall,
-          completed,
-          completedDelta,
-          scheduled,
-          cancelled,
-          avgVisitsPerDay: rangeDays ? Math.round(totalFootfall / rangeDays) : 0,
-          avgVisitsPerDayDelta,
-          busiestDay,
-          digitalPrescriptionPercent,
-          totalDigitized,
-          totalConsultations: toNum(modesKpis.total),
-          smartSync: toNum(modesKpis.smartSync),
-          totalPatients: toNum(ptKpis.totalPatients),
-          oneTime: toNum(ptKpis.oneTime),
-          returning: toNum(ptKpis.returning),
-        },
-        charts: {
-          appointmentStatus: statusDonut,
-          visitTrend,
-          ageDistribution: ageXY,
-          visitFrequency: visitFreqXY,
-          genderDistribution: genderDonut,
-          newVsReturning,
-          segmentation,
-          byDoctor,
-        },
-      },
-    });
+    return {
+      apptRaw,
+      apptSummaryRaw,
+      patientsRaw,
+      modesRaw,
+      cvtDailyRaw,
+      cvtByDoctorRaw,
+      startDate,
+      endDate,
+    };
   }, [startDate, endDate, doctorId, clinicId, refreshKey]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      const payload = await load();
+      if (!alive || !payload) return;
+
+      const {
+        apptRaw,
+        apptSummaryRaw,
+        patientsRaw,
+        modesRaw,
+        cvtDailyRaw,
+        cvtByDoctorRaw,
+        startDate: rangeStart,
+        endDate: rangeEnd,
+      } = payload;
+
+      const appt = apptRaw?.data ?? apptRaw ?? {};
+      const apptSummary = apptSummaryRaw?.data ?? apptSummaryRaw ?? {};
+      const liveKpis = apptSummary.kpis ?? {};
+      const pt = patientsRaw?.data ?? patientsRaw ?? {};
+      const ptKpis = pt.kpis ?? {};
+      const modes = modesRaw?.data ?? modesRaw ?? {};
+      const modesKpis = modes.kpis ?? {};
+
+      const cvtDailySrc = unwrapCvtPayload(cvtDailyRaw);
+      const cvtByDoctorSrc = unwrapCvtPayload(cvtByDoctorRaw);
+      const cvtDailySeries = unwrapCvtSeries(cvtDailySrc);
+      const cvtByDoctorSeries = unwrapCvtSeries(cvtByDoctorSrc);
+
+      // Prefer daily totals; fall back to by-doctor payload if daily is missing.
+      const totalDigitized = toNum(
+        cvtDailySrc?.totalDigitized ?? cvtByDoctorSrc?.totalDigitized
+      );
+      const totalCases = toNum(cvtDailySrc?.totalCases ?? cvtByDoctorSrc?.totalCases);
+      const digitalPrescriptionPercent =
+        totalCases > 0 ? Math.round((100 * totalDigitized) / totalCases) : null;
+
+      // Match Data Analytics Appointments: live summary KPIs (not operationalOverview / analytics donut).
+      const totalFootfall = toNum(liveKpis.total);
+      const completed = toNum(liveKpis.completed);
+      const scheduled = toNum(liveKpis.inQueue);
+      const cancelled = toNum(liveKpis.cancelled);
+
+      // Same period-over-period logic as useAppointmentsLive (Data Analytics Appointments).
+      const prev = liveKpis.previous ?? {};
+      const prevTotal = toNum(prev.total);
+      const prevCompleted = toNum(prev.completed);
+      const hasPrevFootfall = prevTotal > 0;
+      const totalFootfallDelta = hasPrevFootfall ? pctDelta(totalFootfall, prevTotal) : null;
+      const completedDelta = hasPrevFootfall ? pctDelta(completed, prevCompleted) : null;
+      const avgVisitsPerDayDelta = totalFootfallDelta;
+
+      const statusDonut = [
+        { label: "Completed", value: completed },
+        { label: "In queue", value: scheduled },
+        { label: "Cancelled", value: cancelled },
+      ];
+
+      const rangeDays = computeRangeDays(rangeStart, rangeEnd);
+
+      const busiestDay = findBusiest(appt.visitsByWeekday);
+
+      const visitTrend = buildVisitTrend(appt.appointments, cvtDailySeries);
+
+      const byDoctor = buildDoctorBars(modes.byDoctor, cvtByDoctorSeries);
+
+      const ageXY = seriesToXY(pt.age);
+      const visitFreqXY = seriesToXY(pt.visitFrequency);
+      const genderDonut = anyToDonut(pt.gender);
+      const newVsReturning = seriesToDonut(appt.newVsReturning);
+
+      const segmentation = buildSegmentation(pt.visitFrequency);
+
+      if (!alive) return;
+
+      setState({
+        loading: false,
+        error: null,
+        data: {
+          kpis: {
+            totalFootfall,
+            totalFootfallDelta,
+            totalBooked: totalFootfall,
+            completed,
+            completedDelta,
+            scheduled,
+            cancelled,
+            avgVisitsPerDay: rangeDays ? Math.round(totalFootfall / rangeDays) : 0,
+            avgVisitsPerDayDelta,
+            busiestDay,
+            digitalPrescriptionPercent,
+            totalDigitized,
+            totalConsultations: toNum(modesKpis.total),
+            smartSync: toNum(modesKpis.smartSync),
+            totalPatients: toNum(ptKpis.totalPatients),
+            oneTime: toNum(ptKpis.oneTime),
+            returning: toNum(ptKpis.returning),
+          },
+          charts: {
+            appointmentStatus: statusDonut,
+            visitTrend,
+            ageDistribution: ageXY,
+            visitFrequency: visitFreqXY,
+            genderDistribution: genderDonut,
+            newVsReturning,
+            segmentation,
+            byDoctor,
+          },
+        },
+      });
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [load]);
 
   return { ...state, reload: load };
 }

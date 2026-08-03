@@ -36,10 +36,7 @@ function Welcome(props) {
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
-  const analyticsOnlyHome = isMissionAnalyticsOnlyUser(
-    isCvtExtHosAccessableFromGB,
-    decodedToken?.result
-  );
+  const analyticsOnlyHome = isMissionAnalyticsOnlyUser(decodedToken?.result);
   const isMissionAnalyticsView =
     locationPath === "/mission-analytics" ||
     (locationPath === "/" && analyticsOnlyHome);

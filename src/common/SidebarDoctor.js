@@ -214,12 +214,11 @@ function SidebarDoctor() {
     if (moduleName === "data_analytics") {
       const tokenResult = tokenData || getDecodedToken()?.result;
       const dest = resolveDataAnalyticsDestination({
-        isCvtExtHos: isCvtExtHosAccessableFromGB,
         tokenResult,
         profile,
       });
       if (dest === "mission") {
-        const onlyAnalytics = isMissionAnalyticsOnlyUser(isCvtExtHosAccessableFromGB, tokenResult);
+        const onlyAnalytics = isMissionAnalyticsOnlyUser(tokenResult);
         return navigate(onlyAnalytics ? "/" : "/mission-analytics");
       }
       if (dest === "native") return navigate("/data-analytics-x");
@@ -477,20 +476,14 @@ function SidebarDoctor() {
   };
 
   const tokenResult = tokenData || getDecodedToken()?.result;
-  const showMissionAnalytics = canShowMissionAnalyticsNav(
-    isCvtExtHosAccessableFromGB,
-    tokenResult,
-    profile
-  );
-  const analyticsOnlySidebar = isMissionAnalyticsOnlyUser(
-    isCvtExtHosAccessableFromGB,
-    tokenResult
-  );
+  // Mission Analytics gated by JWT hospital_business_id (not GrowthBook).
+  const showMissionAnalytics = canShowMissionAnalyticsNav(tokenResult, profile);
+  const analyticsOnlySidebar = isMissionAnalyticsOnlyUser(tokenResult);
   const hasDataAnalyticsModule = !!profile?.module_data?.some(
     (m) => m?.type === "data_analytics"
   );
   const showNonCvtDataAnalytics = canShowNonCvtDataAnalyticsNav({
-    isCvtExtHos: isCvtExtHosAccessableFromGB,
+    tokenResult,
     hasModuleData: hasDataAnalyticsModule,
   });
 

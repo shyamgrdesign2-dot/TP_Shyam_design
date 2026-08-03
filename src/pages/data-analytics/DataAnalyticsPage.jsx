@@ -160,6 +160,7 @@ export default function DataAnalyticsPage() {
   const handleRefresh = useCallback(() => {
     trackAnalytics(EVENTS.REFRESH, { department, section });
     import("./data/apiCache").then((m) => m.clearApiCache());
+    import("./data/doctorList").then((m) => m.clearDoctorListCache());
     setRefreshKey((k) => k + 1);
   }, [department, section]);
 

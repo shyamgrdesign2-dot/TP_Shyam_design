@@ -44,10 +44,7 @@ function AppointmentList() {
   const { isMobile: isMobileDevice, isTablet } = useDeviceType();
   const shouldShowMobileDashboard = isMobileDevice && !isTablet && !isReceptionist;
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
-  const analyticsOnlyHome = isMissionAnalyticsOnlyUser(
-    isCvtExtHosAccessableFromGB,
-    getDecodedToken()?.result
-  );
+  const analyticsOnlyHome = isMissionAnalyticsOnlyUser(getDecodedToken()?.result);
 
   
   useEffect(() => {

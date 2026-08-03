@@ -36,6 +36,7 @@ const dev = {
     "https://pm-medicalhistory-uat.tatvacare.in/api/v1/obstetric-history",
   zydus_api_url: `https://pm-ingest-webhook-uat.tatvacare.in`,
   mission_hospital_business_id: "7921766745277649",
+  mission_analytics_special_user_ids: [36357],  // UAT/dev Mission special user (analytics-only sidebar)
   zydus_business_id: "754811713438773",
   zydus_proxy_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
@@ -135,6 +136,7 @@ const qa_tp = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-qa.tatvacare.in`,
   mission_hospital_business_id: "7921766745277649",
+  mission_analytics_special_user_ids: [36357],  // UAT/dev Mission special user (analytics-only sidebar)
   zydus_business_id: "754811713438773",
   rx_digitization: "https://pm-rxdigitization-qa.tatvacare.in",
   visit_api_url: "https://pm-visit-integration-qa.tatvacare.in",
@@ -232,6 +234,7 @@ const qa = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-uat.tatvacare.in`,
   mission_hospital_business_id: "7921766745277649",
+  mission_analytics_special_user_ids: [36357],  // UAT/dev Mission special user (analytics-only sidebar)
   zydus_business_id: "754811713438773",
   zydus_proxy_url: "https://pm-ict-proxy-uat.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-uat.tatvacare.in",
@@ -329,6 +332,7 @@ const uat = {
     "https://pm-medicalhistory-uat.tatvacare.in/api/v1/obstetric-history",
   zydus_api_url: `https://pm-ingest-webhook-uat.tatvacare.in`,
   mission_hospital_business_id: "7921766745277649",
+  mission_analytics_special_user_ids: [36357],  // UAT/dev Mission special user (analytics-only sidebar)
   zydus_business_id: "754811713438773",
   zydus_proxy_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
@@ -429,6 +433,7 @@ const prod = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-prod.tatvacare.in`,
   mission_hospital_business_id: "7821776311505768",
+  mission_analytics_special_user_ids: [36357],
   zydus_business_id: "368451724046474",
   zydus_proxy_url: "https://pm-ict-proxy.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-prod.tatvacare.in",
@@ -556,6 +561,7 @@ const zyPreprod = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-preprod.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-preprod.tatvacare.in`,
   mission_hospital_business_id: "7821776311505768",
+  mission_analytics_special_user_ids: [],  // Prod: set confirmed prod JWT user_id(s) here (do not reuse UAT ids)
   zydus_business_id: "368451724046474",
   zydus_proxy_url: "https://pm-ict-proxy-preprod.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-preprod.tatvacare.in",
@@ -683,6 +689,7 @@ const zyProd = {
   zydus_ict_lab_result_api_url: "https://zy-ict-proxy-prod.tatvacare.in",
   zydus_api_url: `https://zy-ingest-webhook-prod.tatvacare.in`,
   mission_hospital_business_id: "7821776311505768",
+  mission_analytics_special_user_ids: [],  // Prod: set confirmed prod JWT user_id(s) here (do not reuse UAT ids)
   zydus_business_id: "368451724046474",
   zydus_proxy_url: "https://zy-ict-proxy-prod.tatvacare.in",
   rx_digitization: "https://zy-rxdigitization-prod.tatvacare.in",

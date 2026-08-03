@@ -2,6 +2,7 @@ import { env } from "../../../EnvironmentConfig";
 import {
   NATIVE_DATA_ANALYTICS_NAV_ENABLED,
   MISSION_ANALYTICS_SPECIAL_USER_IDS,
+  EXTERNAL_HOSPITAL_BUSINESS_IDS,
 } from "../../../utils/constants";
 
 /** Full Tesseract analytics (all OPD/IPD sections). */
@@ -22,11 +23,21 @@ export function isMissionAnalyticsSpecialUser(tokenResult) {
 }
 
 /**
- * Mission / CVT sidebar: Data Analytics for admin or special allowlisted users only.
- * Other doctors never see it (even if module_data includes data_analytics).
+ * Mission Hospital tenant — sync check from JWT business id (no GrowthBook).
+ * Prefer this for Mission Analytics gates so hard refresh never waits on GB.
  */
-export function canShowMissionAnalyticsNav(isCvtExtHos, tokenResult, profile) {
-  if (!isCvtExtHos) return false;
+export function isMissionHospitalUser(tokenResult) {
+  const businessId = String(tokenResult?.hospital_business_id ?? "");
+  const missionId = String(EXTERNAL_HOSPITAL_BUSINESS_IDS.MISSION_HOSPITAL ?? "");
+  return !!businessId && !!missionId && businessId === missionId;
+}
+
+/**
+ * Mission sidebar: Data Analytics for admin or special allowlisted users only.
+ * Other Mission doctors never see it (even if module_data includes data_analytics).
+ */
+export function canShowMissionAnalyticsNav(tokenResult, profile) {
+  if (!isMissionHospitalUser(tokenResult)) return false;
   return (
     isAnalyticsAdmin(tokenResult, profile) ||
     isMissionAnalyticsSpecialUser(tokenResult)
@@ -34,14 +45,13 @@ export function canShowMissionAnalyticsNav(isCvtExtHos, tokenResult, profile) {
 }
 
 /** Special Mission users: sidebar is analytics-only (no Appointment / other modules). */
-export function isMissionAnalyticsOnlyUser(isCvtExtHos, tokenResult) {
-  return !!isCvtExtHos && isMissionAnalyticsSpecialUser(tokenResult);
+export function isMissionAnalyticsOnlyUser(tokenResult) {
+  return isMissionHospitalUser(tokenResult) && isMissionAnalyticsSpecialUser(tokenResult);
 }
 
 /**
  * Who gets the native Data Analytics page vs legacy SSO.
  * - NATIVE_DATA_ANALYTICS_NAV_ENABLED → full native for everyone else
- * - Allowlisted user ids (Data_ANALYTICS_ENABLED) → full module
  * - Mission Hospital business id → OPD Consultation Modes only (legacy path)
  * - Everyone else → SSO (pre-module behaviour)
  */
@@ -70,14 +80,11 @@ export function canOpenNativeDataAnalytics(tokenResult) {
  * @returns {"mission"|"native"|"sso"|"none"}
  */
 export function resolveDataAnalyticsDestination({
-  isCvtExtHos,
   tokenResult,
   profile,
 } = {}) {
-  if (isCvtExtHos) {
-    return canShowMissionAnalyticsNav(isCvtExtHos, tokenResult, profile)
-      ? "mission"
-      : "none";
+  if (isMissionHospitalUser(tokenResult)) {
+    return canShowMissionAnalyticsNav(tokenResult, profile) ? "mission" : "none";
   }
   if (NATIVE_DATA_ANALYTICS_NAV_ENABLED) {
     return "native";
@@ -88,12 +95,12 @@ export function resolveDataAnalyticsDestination({
   return "sso";
 }
 
-/** Whether non-CVT sidebar should render a Data Analytics item. */
+/** Whether non-Mission sidebar should render a Data Analytics item. */
 export function canShowNonCvtDataAnalyticsNav({
-  isCvtExtHos,
+  tokenResult,
   hasModuleData,
 } = {}) {
-  if (isCvtExtHos) return false;
+  if (isMissionHospitalUser(tokenResult)) return false;
   if (NATIVE_DATA_ANALYTICS_NAV_ENABLED) return true;
   return !!hasModuleData;
 }

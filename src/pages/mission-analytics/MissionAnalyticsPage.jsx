@@ -27,8 +27,6 @@ import useCapabilities from "../data-analytics/data/useCapabilities";
 import { trackAnalytics, EVENTS } from "../data-analytics/data/analyticsTracking";
 import { canShowMissionAnalyticsNav } from "../data-analytics/data/analyticsAccess";
 import { getDecodedToken } from "../../utils/localStorage";
-import { GB_CVT_EXT_HOS } from "../../utils/constants";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useSelector } from "react-redux";
 import useMissionData from "./data/useMissionData";
 import { exportMissionExcel } from "./exportMissionExcel";
@@ -40,19 +38,19 @@ import { exportMissionExcel } from "./exportMissionExcel";
 export default function MissionAnalyticsPage({ embedded = false } = {}) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(true);
-  const isCvtExtHos = useFeatureIsOn(GB_CVT_EXT_HOS);
   const profile = useSelector((s) => s.doctors?.profile) || {};
   const tokenResult = getDecodedToken()?.result;
 
   const caps = useCapabilities();
   const openedAtRef = useRef(Date.now());
 
-  // Admin or special Mission users only; other CVT doctors / non-CVT → home.
+  // Admin or special Mission users only; other Mission / non-Mission → home.
+  // Gated by JWT hospital_business_id (EXTERNAL_HOSPITAL_BUSINESS_IDS), not GrowthBook.
   useEffect(() => {
-    if (!canShowMissionAnalyticsNav(isCvtExtHos, tokenResult, profile)) {
+    if (!canShowMissionAnalyticsNav(tokenResult, profile)) {
       navigate("/", { replace: true });
     }
-  }, [isCvtExtHos, tokenResult, profile, navigate]);
+  }, [tokenResult, profile, navigate]);
 
   useEffect(() => {
     trackAnalytics(EVENTS.OPENED, { department: "opd" });
@@ -77,6 +75,7 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
   const handleRefresh = useCallback(() => {
     trackAnalytics(EVENTS.REFRESH, { department: "opd", section: "all" });
     import("../data-analytics/data/apiCache").then((m) => m.clearApiCache());
+    import("../data-analytics/data/doctorList").then((m) => m.clearDoctorListCache());
     setRefreshKey((k) => k + 1);
   }, []);
 
@@ -209,7 +208,7 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
     { key: "returning", label: "Returning patients", value: kpis.returning, kind: "number", tooltip: "Patients with more than one visit" },
   ], [kpis]);
 
-  if (!canShowMissionAnalyticsNav(isCvtExtHos, tokenResult, profile)) {
+  if (!canShowMissionAnalyticsNav(tokenResult, profile)) {
     return null;
   }
 

@@ -37,7 +37,12 @@ import config from "../../config";
 // the shared axios 20s default under browser connection contention — raise
 // timeout for reporting only so Mission / Data Analytics do not cancel early.
 const REPORTING_TIMEOUT_MS = 300000; // 5 minutes
-const baseUrl = { customBaseUrl: config.reporting_api_url, timeout: REPORTING_TIMEOUT_MS };
+// Heavy aggregations must not be retried by axiosService (3× would block ~15 min).
+const baseUrl = {
+  customBaseUrl: config.reporting_api_url,
+  timeout: REPORTING_TIMEOUT_MS,
+  skipRetry: true,
+};
 
 const get = (url, params) => api.get(url, { params, ...baseUrl });
 const getBlob = (url, params) =>

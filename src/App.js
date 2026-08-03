@@ -335,12 +335,18 @@ function App() {
       localStorage.clear();
       sessionStorage.clear();
       clearReceptionistSession();
+      import("./pages/data-analytics/data/doctorList")
+        .then((m) => m.clearDoctorListCache())
+        .catch(() => {});
       window.location.href = "/login";
     } catch (error) {
       console.error("Error during logout:", error);
       localStorage.clear();
       sessionStorage.clear();
       clearReceptionistSession();
+      import("./pages/data-analytics/data/doctorList")
+        .then((m) => m.clearDoctorListCache())
+        .catch(() => {});
       window.location.href = "/login";
     } finally {
       window.isLoggingOut = false;
