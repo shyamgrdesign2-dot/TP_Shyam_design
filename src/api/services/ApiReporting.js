@@ -7,7 +7,7 @@ import config from "../../config";
 // Selects the Reporting (Pm-Core) service via the shared axiosService. The
 // Bearer JWT the app already holds is attached by axiosService; no new axios
 // instance and no new auth flow. Mirrors the ApiIpd.js pattern. Every path
-// lives under /api/v1/reports/... on config.reporting_api_url.
+// lives under /api/v1/reports/... on config.reporting_api_url
 //
 // Scope: business id always comes from the token. clinicId (and doctorId on
 // Tab 1) are OPTIONAL narrowing filters. Writes never read scope from the body.

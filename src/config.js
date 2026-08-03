@@ -79,8 +79,5 @@ export default {
   abha_records_api_url: env.abha_records_api_url,
   consultation_api_url: env.consultation_api_url,
   order_management_api_url: env.order_management_api_url,
-  // Reporting microservice (Pm-Core). Local override: set REACT_APP_REPORTING_API_URL
-  // (e.g. http://localhost:3002) in .env.dev to hit a local reporting service.
-  reporting_api_url:
-    process.env.REACT_APP_REPORTING_API_URL || env.reporting_api_url,
+  reporting_api_url: env.reporting_api_url,
 };
