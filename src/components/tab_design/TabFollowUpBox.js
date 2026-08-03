@@ -639,39 +639,23 @@ function TabFollowUpBox() {
                 ].filter(Boolean).join(" ")}
             >
                 <div className="p-14-pb0">
-                    <Row gutter={30}>
-                        <Col md={8}>
-                            <div className="d-flex align-items-center mb-14">
-                                <img className='me-2' src={followUp} alt="Symptoms" />
-                                <div className="title-common">Follow-up</div>
-                            </div>
-                            <div className="d-flex calender-merge-input mt-3">
-                                <Input className="w-100 calnder-input1" placeholder="e.g. 3 Days" value={followUpInput} inputMode="numeric" onChange={onChangeFollowUp} allowClear />
-                                <DatePicker 
-                                    inputReadOnly 
-                                    disabledDate={disabledDate} 
-                                    onChange={onDateChanged} 
-                                    value={selectedDate ? dayjs(selectedDate) : null}
-                                />
-                            </div>
-                            {followUpDate && (
-                                <div className="title fontroboto mt-2">
-                                    {moment(followUpDate).format('dddd, Do MMMM YYYY')}
-                                </div>
-                            )}
-                            <div className="d-flex flex-wrap mt-14 fllowbtn">
-                                {dateOptions.length > 0 &&
-                                    dateOptions.map((item, i) => {
-                                        return (
-                                            <Button key={i} type="text" className="btn btn-primary2 px-5-16 btn-fw-bold fs-12 mb-12 me-12" onClick={() => onOptionPress(item)}>{item.label}</Button>
-                                        )
-                                    })}
-                            </div>
-                        </Col>
-                        <Col md={16}>
+                    <>
+                        <div>
                             <div className="d-flex align-items-center justify-content-between mb-14">
                                 <div className="d-flex align-items-center">
-                                    <img className='me-2' src={Notes} alt="Symptoms" />
+                                    <span
+                                      aria-hidden
+                                      style={{
+                                        display: "inline-block",
+                                        width: 20,
+                                        height: 20,
+                                        flexShrink: 0,
+                                        marginRight: 8,
+                                        backgroundColor: "var(--tesseract-violet-500, #673AAC)",
+                                        WebkitMask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/note-2.svg) center / contain no-repeat",
+                                        mask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/note-2.svg) center / contain no-repeat",
+                                      }}
+                                    />
                                     <div className="title-common">Additional Notes</div>
                                 </div>
                                 {!isMobile ? (
@@ -687,7 +671,7 @@ function TabFollowUpBox() {
                                             {isVoiceRxNewFromGB ? (
                                                 <span>
                                                     <Tooltip placement="top" title="Browse additional notes templates">
-                                                        <VoiceRxModuleActionButton type="template" label="Browse additional notes templates" />
+                                                        <VoiceRxModuleActionButton type="template" label="Browse additional notes templates" small />
                                                     </Tooltip>
                                                 </span>
                                             ) : (
@@ -713,6 +697,7 @@ function TabFollowUpBox() {
                                                             type="save"
                                                             label="Save additional notes as template"
                                                             disabled={additionalNote.length === 0}
+                                                            small
                                                         />
                                                     </span>
                                                 ) : (
@@ -723,12 +708,23 @@ function TabFollowUpBox() {
                                                 )}
                                             </Popover>
                                         </Tooltip>
+                                        {isVoiceRxNewFromGB && (
+                                            <Tooltip placement="top" title="Clear additional notes">
+                                                <VoiceRxModuleActionButton
+                                                    type="clear"
+                                                    label="Clear additional notes"
+                                                    disabled={additionalNote.length === 0}
+                                                    onClick={() => setAdditionalNote("")}
+                                                    small
+                                                />
+                                            </Tooltip>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="d-flex align-items-center">
                                         {isVoiceRxNewFromGB ? (
                                             <Tooltip placement="top" title="Browse additional notes templates">
-                                                <VoiceRxModuleActionButton type="template" label="Browse additional notes templates" onClick={handleDrawerTemplate} />
+                                                <VoiceRxModuleActionButton type="template" label="Browse additional notes templates" onClick={handleDrawerTemplate} small />
                                             </Tooltip>
                                         ) : (
                                             <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
@@ -742,11 +738,23 @@ function TabFollowUpBox() {
                                                     label="Save additional notes as template"
                                                     disabled={additionalNote.length === 0}
                                                     onClick={() => (additionalNote.length > 0) && handleDrawerSave()}
+                                                    small
                                                 />
                                             ) : (
                                                 <button className='btn d-flex align-items-center btn-text' onClick={() => (additionalNote.length > 0) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
                                             )}
                                         </Tooltip>
+                                        {isVoiceRxNewFromGB && (
+                                            <Tooltip placement="top" title="Clear additional notes">
+                                                <VoiceRxModuleActionButton
+                                                    type="clear"
+                                                    label="Clear additional notes"
+                                                    disabled={additionalNote.length === 0}
+                                                    onClick={() => setAdditionalNote("")}
+                                                    small
+                                                />
+                                            </Tooltip>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -759,8 +767,49 @@ function TabFollowUpBox() {
                                     </Button>
                                 )}
                             </div>
-                        </Col>
-                    </Row>
+                        </div>
+                        <div style={{ borderTop: "0.5px solid var(--tp-slate-100, #f1f1f5)", margin: "14px 0" }} />
+                        <div>
+                            <div className="d-flex align-items-center mb-14">
+                                <span
+                                  aria-hidden
+                                  style={{
+                                    display: "inline-block",
+                                    width: 20,
+                                    height: 20,
+                                    flexShrink: 0,
+                                    marginRight: 8,
+                                    backgroundColor: "var(--tesseract-violet-500, #673AAC)",
+                                    WebkitMask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/time/calendar-2.svg) center / contain no-repeat",
+                                    mask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/time/calendar-2.svg) center / contain no-repeat",
+                                  }}
+                                />
+                                <div className="title-common">Follow-up</div>
+                            </div>
+                            <div className="d-flex calender-merge-input mt-3">
+                                <Input className="w-100 calnder-input1" placeholder="e.g. 3 Days" value={followUpInput} inputMode="numeric" onChange={onChangeFollowUp} allowClear />
+                                <DatePicker
+                                    inputReadOnly
+                                    disabledDate={disabledDate}
+                                    onChange={onDateChanged}
+                                    value={selectedDate ? dayjs(selectedDate) : null}
+                                />
+                            </div>
+                            {followUpDate && (
+                                <div className="title fontroboto mt-2">
+                                    {moment(followUpDate).format('dddd, Do MMMM YYYY')}
+                                </div>
+                            )}
+                            <div className="d-flex flex-wrap mt-14 fllowbtn">
+                                {dateOptions.length > 0 &&
+                                    dateOptions.map((item, i) => {
+                                        return (
+                                            <Button key={i} type="text" className="btn btn-primary2 px-5-16 btn-fw-bold fs-12" onClick={() => onOptionPress(item)}>{item.label}</Button>
+                                        )
+                                    })}
+                            </div>
+                        </div>
+                    </>
                 </div>
                 {DELETE_MODAL}
                 <Drawer title="Additional Notes Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto">

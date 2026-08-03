@@ -11,6 +11,14 @@
 }
 
 .tesseract-rxpad {
+  /* ── Card + header + body padding (matches reference) ── */
+  [class*="_header_125qj"] {
+    padding: 16px 16px 0 !important;
+  }
+  [class*="_body_125qj"] {
+    padding: 14px 16px 16px !important;
+  }
+
   /* Section title — portal font/color, overriding tesseract heading font */
   h3 {
     font-family: 'Poppins' !important;
@@ -24,9 +32,9 @@
 
   /* ── Table shell (mirror of ClinicalTable .wrap/.table) ── */
   .tesseract-ct {
-    border: 1px solid var(--tesseract-slate-100, #e2e8f0);
+    border: 0.5px solid var(--tp-slate-200, #e2e2ea);
     border-radius: var(--tesseract-radius-10, 10px);
-    background: var(--tesseract-slate-0, #fff);
+    background: #fff;
     overflow: hidden;
     overflow-x: auto;
 
@@ -50,10 +58,26 @@
     }
 
     .tesseract-ct-sticky-action {
-      position: sticky;
+      position: sticky !important;
       right: 0;
       z-index: 5;
-      background: var(--tesseract-slate-0, #fff);
+      background: #fff;
+    }
+
+    &[data-behind] .tesseract-ct-sticky-action::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 18px;
+      transform: translateX(-100%);
+      pointer-events: none;
+      background: linear-gradient(
+        to left,
+        rgba(15, 23, 42, 0.12),
+        transparent
+      );
     }
 
     /* Column sizing (non-medication tables): the notes column soaks up all
@@ -76,45 +100,27 @@
       justify-content: center;
     }
     .tesseract-ct-head .tesseract-ct-sticky-action {
-      background: var(--tesseract-slate-50, #f8fafc);
+      background: var(--tp-slate-50, #f8f8fc);
       z-index: 6;
-    }
-
-    /* Left fade shadow on the pinned column — ONLY while content is
-       scrolled behind it (mirror of [data-behind] .sticky[data-shadow]). */
-    &[data-behind] .tesseract-ct-sticky-action::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      width: 18px;
-      transform: translateX(-100%);
-      pointer-events: none;
-      background: linear-gradient(
-        to left,
-        color-mix(in srgb, var(--tesseract-slate-900, #0f172a) 12%, transparent),
-        transparent
-      );
     }
 
     /* header row (mirror of .headRow/.th) */
     .tesseract-ct-head {
       min-height: 38px;
-      background: var(--tesseract-slate-50, #f8fafc);
+      background: var(--tp-slate-50, #f8f8fc);
 
       .tesseract-ct-th {
         display: flex;
         align-items: center;
         padding: 8px 12px;
-        font-family: 'Poppins';
+        font-family: 'Inter', 'Poppins', sans-serif;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
         letter-spacing: 0.02em;
         text-transform: uppercase;
-        color: var(--tesseract-slate-500, #64748b);
-        border-right: 1px solid var(--tesseract-slate-100, #e2e8f0);
-        background: var(--tesseract-slate-50, #f8fafc);
+        color: var(--tp-slate-500, #71717a);
+        border-right: 0.5px solid var(--tp-slate-200, #e2e2ea);
+        background: var(--tp-slate-50, #f8f8fc);
 
         &:last-child {
           border-right: none;
@@ -122,65 +128,313 @@
       }
     }
 
-    /* body rows (mirror of .row/.td) */
+    /* body rows — every row uses border-top as its separator; kill ALL
+       inherited portal borders. The header owns no bottom border; the
+       first row's border-top is the only line between header and body. */
     .symptoms-table-row {
-      min-height: 52px;
-      border-top: 1px solid var(--tesseract-slate-100, #e2e8f0);
+      min-height: 42px;
+      border-top: 0.5px solid var(--tp-slate-200, #e2e2ea) !important;
+      border-bottom: none !important;
       transition: background-color 150ms ease;
 
       &:hover {
-        background: color-mix(in srgb, var(--tesseract-slate-50, #f8fafc) 60%, transparent);
+        background: color-mix(in srgb, var(--tp-slate-50, #f8f8fc) 60%, transparent);
       }
 
       > .ant-col {
-        border-right: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+        border-right: 0.5px solid var(--tp-slate-200, #e2e2ea) !important;
+        border-bottom: none !important;
         display: flex;
-        align-items: center;
+        align-items: stretch;
 
         &:last-child {
           border-right: none !important;
         }
       }
 
+      .symptoms-table-cell {
+        border-bottom: none !important;
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+      }
+
       &.prescription-empty-line-row--draft {
-        border-top: 1px solid var(--tesseract-slate-100, #e2e8f0);
+        border-top: 0.5px solid var(--tp-slate-200, #e2e2ea) !important;
+        border-bottom: none !important;
       }
     }
 
     /* neutralize the portal's own row border/background utilities inside */
     .symptoms-table-row .border-end {
-      border-right: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+      border-right: 0.5px solid var(--tp-slate-200, #e2e2ea) !important;
+    }
+
+    /* ── Cell inputs: fill the cell, blue focus ring ── */
+    .symptoms-table-cell {
+      padding: 0 !important;
+      position: relative;
+
+      .ant-select,
+      .ant-input,
+      .ant-input-textarea,
+      > div {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 42px;
+      }
+
+      .ant-select-selector {
+        height: 100% !important;
+        min-height: 42px !important;
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 12px !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .ant-select-selection-search-input {
+        height: 100% !important;
+        padding: 0 12px !important;
+        text-overflow: ellipsis;
+      }
+
+      .ant-select-selection-search {
+        width: 100% !important;
+        inset-inline-start: 0 !important;
+        inset-inline-end: 0 !important;
+      }
+
+      .ant-input {
+        height: 100% !important;
+        min-height: 42px;
+        padding: 0 12px !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+
+      .ant-select-focused .ant-select-selector,
+      .ant-input:focus,
+      .ant-input-focused {
+        background: transparent !important;
+        border-radius: 6px !important;
+        box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5) !important;
+      }
+
+      .ant-select-focused ~ .ant-select-selector,
+      .ant-select.ant-select-focused .ant-select-selector {
+        background: transparent !important;
+        border-radius: 6px !important;
+        box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5) !important;
+      }
     }
 
     /* ── Medication header (existing nested header row, restyled in place) ── */
     .tesseract-ct-med-head {
-      background: var(--tesseract-slate-50, #f8fafc) !important;
+      background: var(--tp-slate-50, #f8f8fc) !important;
       border-top: none !important;
-      border-bottom: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+      border-bottom: 0.5px solid var(--tp-slate-200, #e2e2ea) !important;
       min-height: 38px;
+      color: var(--tp-slate-500, #71717a);
 
       label {
-        font-family: 'Poppins';
+        font-family: 'Inter', 'Poppins', sans-serif;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
         letter-spacing: 0.02em;
         text-transform: uppercase;
-        color: var(--tesseract-slate-500, #64748b);
+        color: var(--tp-slate-500, #71717a);
       }
 
       .border-end,
       .border-start {
-        border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+        border-color: var(--tp-slate-200, #e2e2ea) !important;
       }
     }
 
     /* medication body rows */
     .taper-dose {
-      border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+      border-color: var(--tp-slate-200, #e2e2ea) !important;
+
+      .badge-tapper {
+        border-radius: 6px 0 0 0 !important;
+      }
 
       .border-end,
       .border-start {
-        border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+        border-color: var(--tp-slate-200, #e2e2ea) !important;
+      }
+
+      > .ant-col:not(.border-end):not(.border-start) {
+        border-right: none !important;
+      }
+
+      .ant-row > .ant-col,
+      > .ant-col {
+        display: flex;
+        align-items: stretch;
+        min-height: 42px;
+      }
+
+      /* Details column (Col lg={18}) must stack inner rows vertically */
+      > .ant-col-lg-18 {
+        flex-direction: column;
+      }
+
+      /* Medicine name cell — fill the cell, 2-line clamp */
+      .fontroboto.fw-medium.p-2 {
+        padding: 4px 8px !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 42px;
+        overflow: hidden;
+      }
+
+      .text-main2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        word-break: break-word;
+        line-height: 1.35;
+      }
+
+      .text-truncate.fw-normal {
+        font-size: 12px;
+        line-height: 1.3;
+        color: var(--tp-slate-500, #71717a);
+      }
+
+      .ant-select {
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      .ant-select-selector {
+        height: 100% !important;
+        min-height: 42px !important;
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 12px !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .ant-select-selection-search-input {
+        height: 100% !important;
+      }
+
+      .ant-input {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 42px;
+        padding: 0 12px !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+
+      .notesinput {
+        border: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        min-height: 42px;
+      }
+
+      textarea.notesinput {
+        height: 52px !important;
+        min-height: 0 !important;
+        max-height: 52px !important;
+        padding: 13px 12px !important;
+        resize: none !important;
+        overflow-y: hidden !important;
+        box-sizing: border-box !important;
+      }
+
+      .ant-select-focused .ant-select-selector,
+      .ant-select.ant-select-focused .ant-select-selector {
+        background: transparent !important;
+        border-radius: 6px !important;
+        box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5) !important;
+      }
+
+      .ant-input:focus,
+      .ant-input-focused,
+      .notesinput:focus {
+        background: transparent !important;
+        border-radius: 6px !important;
+        box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5) !important;
+      }
+    }
+
+    /* Draft/empty line row — inputs fill cells */
+    .prescription-empty-line-ui {
+      .ant-col {
+        display: flex;
+        align-items: stretch;
+        min-height: 42px;
+
+        &:has(.prescription-empty-line-drag-handle) {
+          align-items: center;
+          justify-content: center;
+        }
+      }
+
+      .ant-select {
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      .ant-select-selector {
+        height: 100% !important;
+        min-height: 42px !important;
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 12px !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .ant-input {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 42px;
+        padding: 0 12px !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+      }
+
+      textarea.notesinput,
+      textarea.ant-input {
+        height: 52px !important;
+        min-height: 0 !important;
+        max-height: 52px !important;
+        padding: 13px 12px !important;
+        resize: none !important;
+        overflow-y: hidden !important;
+        box-sizing: border-box !important;
+      }
+
+      .ant-select-focused .ant-select-selector,
+      .ant-select.ant-select-focused .ant-select-selector {
+        background: transparent !important;
+        border-radius: 6px !important;
+        box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5) !important;
+      }
+
+      .ant-input:focus,
+      .ant-input-focused {
+        background: transparent !important;
+        border-radius: 6px !important;
+        box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5) !important;
       }
     }
   }
@@ -221,22 +475,22 @@
       border: none !important;
 
       thead tr {
-        background: var(--tesseract-slate-50, #f8fafc);
+        background: var(--tp-slate-50, #f8f8fc);
         border-top: none !important;
-        border-bottom: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+        border-bottom: 0.5px solid var(--tp-slate-200, #e2e2ea) !important;
       }
 
       .custom-module-v2__table-header-cell {
         padding: 8px 12px;
         min-height: 38px;
-        font-family: 'Poppins';
+        font-family: 'Inter', 'Poppins', sans-serif;
         font-size: 12px;
         font-weight: 600;
         letter-spacing: 0.02em;
         text-transform: uppercase;
-        color: var(--tesseract-slate-500, #64748b);
-        background: var(--tesseract-slate-50, #f8fafc);
-        border-right: 1px solid var(--tesseract-slate-100, #e2e8f0) !important;
+        color: var(--tp-slate-500, #71717a);
+        background: var(--tp-slate-50, #f8f8fc);
+        border-right: 0.5px solid var(--tp-slate-200, #e2e2ea) !important;
         border-bottom: none !important;
 
         &:last-child {
@@ -245,12 +499,12 @@
       }
 
       tbody tr {
-        border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+        border-color: var(--tp-slate-200, #e2e2ea) !important;
       }
 
       .custom-module-v2__table-cell {
-        border-bottom-color: var(--tesseract-slate-100, #e2e8f0) !important;
-        border-right-color: var(--tesseract-slate-100, #e2e8f0) !important;
+        border-bottom-color: var(--tp-slate-200, #e2e2ea) !important;
+        border-right-color: var(--tp-slate-200, #e2e2ea) !important;
       }
 
       /* last row: the wrap's bottom border is the closing line */
@@ -264,7 +518,7 @@
     .ant-row.border-bottom,
     .ant-row .border-end,
     .ant-row .border-start {
-      border-color: var(--tesseract-slate-100, #e2e8f0) !important;
+      border-color: var(--tp-slate-200, #e2e2ea) !important;
     }
   }
 
@@ -272,14 +526,27 @@
   .tesseract-rxpad-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--tesseract-space-2, 8px);
-    padding: 12px 0 2px;
+    gap: 8px;
+    padding: 0 0 2px;
 
     .tesseract-rxpad-chip {
       max-width: 180px;
       font-weight: 500 !important;
+      font-size: 12px !important;
+      border-radius: 10px !important;
+      background: var(--tp-slate-100, #f1f1f5) !important;
+      color: var(--tp-slate-600, #71717a) !important;
+      border: none !important;
+      height: 36px !important;
+      min-height: 36px !important;
+      padding: 0 12px !important;
+      transition: background-color 150ms, color 150ms;
 
-      /* ellipsis for long symptom names */
+      &:hover {
+        background: var(--tp-slate-200, #e2e2ea) !important;
+        color: var(--tp-slate-700, #454551) !important;
+      }
+
       span {
         display: block;
         max-width: 160px;
@@ -287,7 +554,180 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         font-weight: 500;
+        font-size: 12px;
+        color: inherit;
       }
+    }
+  }
+
+  /* ── Advice section: tighter body top padding ── */
+  &[data-voice-rx-dictation-target="advice"] [class*="_body_125qj"] {
+    padding-top: 8px !important;
+  }
+
+  /* ── Search icon override (tesseract SVG) ── */
+  .icon-search::before {
+    content: '' !important;
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background-color: currentColor;
+    -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/search/search.svg") center / contain no-repeat;
+    mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/search/search.svg") center / contain no-repeat;
+  }
+
+  /* ── Icon overrides (correct category paths) ─────────── */
+  [data-tp-icon="eraser/linear"] {
+    -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/eraser.svg") center / contain no-repeat !important;
+    mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/eraser.svg") center / contain no-repeat !important;
+  }
+
+  [data-tp-icon="calculator/linear"] {
+    -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/school-learning/calculator.svg") center / contain no-repeat !important;
+    mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/school-learning/calculator.svg") center / contain no-repeat !important;
+  }
+
+  [data-tp-icon="pills/bulk"] {
+    -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/tablets.svg") center / contain no-repeat !important;
+    mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/tablets.svg") center / contain no-repeat !important;
+  }
+
+  [data-tp-icon="clipboard-check/bulk"] {
+    -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/content-edit/document-sketch.svg") center / contain no-repeat !important;
+    mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/content-edit/document-sketch.svg") center / contain no-repeat !important;
+  }
+
+  [data-tp-icon="stethoscope/bulk"] {
+    -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/medical-service.svg") center / contain no-repeat !important;
+    mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/medical-service.svg") center / contain no-repeat !important;
+  }
+
+  [data-tp-icon="health/bulk"] {
+    -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/surgical-scissors-02.svg") center / contain no-repeat !important;
+    mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/surgical-scissors-02.svg") center / contain no-repeat !important;
+  }
+
+  /* ── Dropdown arrow override ─────────────────────────── */
+  .ant-select-arrow {
+    .anticon {
+      display: none;
+    }
+
+    &::after {
+      content: "";
+      display: block;
+      width: 14px;
+      height: 14px;
+      background-color: currentColor;
+      -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-down4.svg") center / contain no-repeat;
+      mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-down4.svg") center / contain no-repeat;
+    }
+  }
+
+  /* ── Search input prefix vertical centering ── */
+  .ant-input-prefix {
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  /* ── Global focus ring: primary blue on ALL inputs ── */
+  .ant-select.ant-select-focused .ant-select-selector {
+    border-radius: 6px !important;
+    box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5) !important;
+  }
+
+  .ant-input:focus,
+  .ant-input-focused,
+  .notesinput:focus,
+  textarea.ant-input:focus {
+    border-color: var(--tp-blue-500, #4B4AD5) !important;
+    border-radius: 6px !important;
+    box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5) !important;
+  }
+
+}
+
+/* ── Prescription area: remove outer padding and tighten card spacing ── */
+.prescription-wrapper .prescription-box-sm {
+  margin-bottom: 16px !important;
+  border: none !important;
+}
+
+.prescription-wrapper .row {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.prescription-wrapper .col-lg-12 {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-top: 0 !important;
+}
+
+.prescription-wrapper .ant-layout-content {
+  padding: 16px !important;
+}
+
+/* Additional Notes + Follow-up card bottom padding */
+.prescription-box-sm .p-14-pb0 {
+  padding-bottom: 14px !important;
+}
+
+/* Advices search icon — center-align vertically */
+.tesseract-rxpad .ant-input-affix-wrapper {
+  display: flex !important;
+  align-items: center !important;
+
+  .ant-input-prefix {
+    display: flex;
+    align-items: center;
+    margin-inline-end: 8px;
+  }
+}
+
+/* ── Global icon path fixes (apply everywhere, not just inside .tesseract-rxpad) ── */
+[data-tp-icon="eraser/linear"] {
+  -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/eraser.svg") center / contain no-repeat !important;
+  mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/eraser.svg") center / contain no-repeat !important;
+}
+
+[data-tp-icon="virus/bulk"] {
+  -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/virus.svg") center / contain no-repeat !important;
+  mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/virus.svg") center / contain no-repeat !important;
+}
+
+/* ── Follow-up input row — wider than old 320px cap ── */
+.prescription-box-sm .calender-merge-input {
+  max-width: 480px;
+}
+
+/* ── Follow-up quick buttons as chips (outside .tesseract-rxpad
+   because the follow-up section is NOT nested inside it) ── */
+.prescription-box-sm .fllowbtn {
+  gap: 8px !important;
+  margin-top: 10px !important;
+
+  .ant-btn {
+    height: 36px !important;
+    border-radius: 10px !important;
+    background: var(--tp-slate-100, #f1f1f5) !important;
+    color: var(--tp-slate-600, #71717a) !important;
+    border: none !important;
+    font-weight: 500 !important;
+    font-size: 12px !important;
+    padding: 0 12px !important;
+    margin: 0 !important;
+
+    span {
+      color: inherit !important;
+      font-size: inherit !important;
+      font-weight: inherit !important;
+      font-family: inherit !important;
+    }
+
+    &:hover {
+      background: var(--tp-slate-200, #e2e2ea) !important;
+      color: var(--tp-slate-700, #454551) !important;
     }
   }
 }

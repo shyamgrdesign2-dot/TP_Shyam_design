@@ -35,7 +35,7 @@ body{
     .header-patient-info {
         align-items: center;
         min-width: 0;
-        max-height: 60px;
+        max-height: 62px;
         overflow: hidden;
     }
 
@@ -44,23 +44,26 @@ body{
         overflow: hidden;
         line-height: 1.2;
 
-        .patientName,
-        .text-2 {
+        .patientName {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             line-height: 1.25;
+            font-weight: 600;
         }
 
         .text-2 {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
             line-height: 1.2;
         }
     }
 
     .headerprescription {
-        height: 60px;
-        max-height: 60px;
-        box-shadow: -1px -1px 0px 0px #E2E2EA inset;
+        height: 62px;
+        max-height: 62px;
+        box-shadow: 0 1px 0 0 #E2E2EA inset;
 
         .headerprescription-actions-col {
             flex: 1 1 auto;
@@ -180,7 +183,7 @@ body{
 
             .patientName {
                 color: #44444F;
-                font-weight: 500;
+                font-weight: 600;
             }
 
             .header-patient-details {

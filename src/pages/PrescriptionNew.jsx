@@ -111,6 +111,9 @@ import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
 import CustomModule from "../components/CustomModule";
 import CarePlanDropdown from "../components/CarePlanDropdown";
+import DrawingCanvas from "./drawingCanvas/DrawingCanvas";
+import DrawingCanvasList from "./drawingCanvas/components/DrawingCanvasList";
+import { listPatientCanvasMapping } from "./drawingCanvas/service";
 import CarePlanList from "../components/CarePlanList";
 import { getCarePlanNames, getCarePlanAssignments } from "./smartSync/services/carePlanService";
 
@@ -1000,6 +1003,16 @@ function PrescriptionNew() {
   const [labReportID, setLabReportID] = useState(null);
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
+  const [drawingCanvases, setDrawingCanvases] = useState([]);
+  const normalizeCanvasIds = useCallback((value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      return value.split(",").map((id) => id.trim()).filter(Boolean);
+    }
+    return [];
+  }, []);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState([]);
+  const [drawingCanvasDrawer, setDrawingCanvasDrawer] = useState(false);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
@@ -1157,7 +1170,10 @@ function PrescriptionNew() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
-    isDraft: caseManagerData?.is_draft
+    isDraft: caseManagerData?.is_draft,
+    // HeaderPrescription reads this off the context (not props) to persist
+    // canvas_filename on save, so the Show in Rx toggle is a no-op without it.
+    rxDrawingCanvasIds,
   };
 
   const [vitalDrawer, setVitalDrawer] = useState(false);
@@ -1191,6 +1207,27 @@ function PrescriptionNew() {
   const [activeTab, setActiveTab] = useState("basicInfo");
   const [drAgentOpen, setDrAgentOpen] = useState(false);
   const isTablet = useTabletViewport();
+  const rxWrapperRef = useRef(null);
+  const leftShadowRef = useRef(null);
+  const rightShadowRef = useRef(null);
+
+  useEffect(() => {
+    const el = rxWrapperRef.current;
+    if (!el) return;
+    const update = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      if (leftShadowRef.current)
+        leftShadowRef.current.style.opacity = scrollLeft > 0 ? "1" : "0";
+      if (rightShadowRef.current)
+        rightShadowRef.current.style.opacity =
+          scrollLeft + clientWidth < scrollWidth - 1 ? "1" : "0";
+    };
+    el.addEventListener("scroll", update, { passive: true });
+    update();
+    const t = setTimeout(update, 300);
+    return () => { el.removeEventListener("scroll", update); clearTimeout(t); };
+  }, [drAgentOpen]);
+
   const prescriptionWrapperStyle = {
     flex: "1 1 auto",
     minWidth: 0,
@@ -1198,11 +1235,13 @@ function PrescriptionNew() {
     height: "100%",
     maxHeight: "100%",
     overflowY: "auto",
-    overflowX: "hidden",
+    overflowX: "auto",
     overscrollBehavior: "contain",
     boxSizing: "border-box",
-    transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)",
-    ...(!isTablet && drAgentOpen ? { paddingRight: 408 } : {}),
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    transition: "margin-right 220ms cubic-bezier(0.4, 0, 0.2, 1)",
+    marginRight: drAgentOpen && isTablet ? "min(360px, calc(100vw - 24px))" : 0,
   };
   const drAgentOverlayClassName = [
     drAgentStyles.drAgentOverlay,
@@ -2333,6 +2372,58 @@ function PrescriptionNew() {
   };
 
   // Handle Add button click
+  const fetchPatientCanvases = useCallback(async () => {
+    const pId = patient_data?.patient_unique_id;
+    if (!pId) return;
+    const res = await listPatientCanvasMapping(pId, tcmId);
+    if (res?.status && res?.records) {
+      setDrawingCanvases(res.records.map((r) => ({
+        id: r.mapping_id,
+        name: r.canvas_name,
+        url: r.canvas_url,
+        created_at: r.created_at || r.createdAt || r.canvas_created_at,
+        scene: null,
+      })));
+    }
+  }, [patient_data?.patient_unique_id, tcmId]);
+
+  useEffect(() => {
+    fetchPatientCanvases();
+  }, [fetchPatientCanvases]);
+
+  const handleDrawerDrawingCanvas = useCallback(() => {
+    setDrawingCanvasDrawer((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    setRxDrawingCanvasIds(normalizeCanvasIds(caseManagerData?.canvas_filename));
+  }, [tcmId, pamId, normalizeCanvasIds]);
+
+  const handleToggleCanvasRx = useCallback((canvasId, checked) => {
+    setRxDrawingCanvasIds((prev) => (
+      checked
+        ? [...Array.from(new Set([...prev, canvasId]))]
+        : prev.filter((id) => String(id) !== String(canvasId))
+    ));
+  }, []);
+
+  const handleSaveDrawingCanvas = useCallback((updatedCanvases, meta) => {
+    if (Array.isArray(updatedCanvases)) {
+      setDrawingCanvases(updatedCanvases);
+      const knownIds = new Set(updatedCanvases.map((c) => String(c?.id)).filter(Boolean));
+      setRxDrawingCanvasIds((prev) => prev.filter((id) => knownIds.has(String(id))));
+    } else {
+      fetchPatientCanvases();
+    }
+    if (meta && meta.mappingId != null && meta.mappingId !== "") {
+      setRxDrawingCanvasIds((prev) => (
+        meta.showInRx !== false
+          ? [...new Set([...prev, meta.mappingId])]
+          : prev.filter((id) => String(id) !== String(meta.mappingId))
+      ));
+    }
+  }, [fetchPatientCanvases]);
+
   const handleAddClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -3042,6 +3133,9 @@ function PrescriptionNew() {
           handleDrawerOpthal();
         }
         break;
+      case "canvas":
+        handleDrawerDrawingCanvas();
+        break;
       case "zydusLabReports":
         handleZydusTestReportDrawer();
         break;
@@ -3238,8 +3332,27 @@ function PrescriptionNew() {
                 setFilesData={setFilesData}
                 setIsEditDocument={setIsEditDocument}
                 setUploadDocDrawer={setUploadDocDrawer}
+                carePlanActions={{
+                  CarePlanList,
+                  CarePlanDropdown,
+                  patientId: patient_data?.patient_unique_id,
+                  tcmId,
+                  doctorId: userId,
+                  clinicId: decodedToken?.result?.clinic_id,
+                  selectedCarePlan,
+                  onCarePlanSelect: setSelectedCarePlan,
+                  placeholder: carePlanPlaceholder,
+                }}
+                canvasActions={{
+                  DrawingCanvasList,
+                  drawingCanvases,
+                  setDrawingCanvases,
+                  handleDrawerDrawingCanvas,
+                  rxDrawingCanvasIds,
+                  onToggleRx: handleToggleCanvasRx,
+                }}
               />
-              <div className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
+              <div ref={rxWrapperRef} className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
           {/* <img src={hey} alt="vitals" className="me-3 hey" /> */}
           <div className="row">
             
@@ -3397,7 +3510,55 @@ function PrescriptionNew() {
             </div>
           </div>
         </div>
+        <div ref={leftShadowRef} className={drAgentStyles.rxScrollShadowLeft} />
+        <div ref={rightShadowRef} className={drAgentStyles.rxScrollShadowRight} style={{ right: drAgentOpen && isTablet ? "min(360px, calc(100vw - 24px))" : 0 }} />
+          {/* ── Dr Agent Panel + FAB ── */}
+          {/* Must stay inside the route shell: on desktop .drAgentOverlay is an
+              in-flow flex item (flex: 0 0 auto) that shares this flex row with
+              the prescription wrapper. Only the tablet variant is position:fixed. */}
+          {canUseVoiceRxModuleUi && (
+            <DrAgentRuntime
+              isOpen={drAgentOpen}
+              overlayClassName={drAgentOverlayClassName}
+              patientId={patient_data?.patient_unique_id}
+              doctorId={profile?.doctor_unique_id}
+              patientData={patient_data}
+              voiceHydrationStatus={voiceHydrationStatus}
+              symptomCollectorStatus={symptomCollectorStatus}
+              onPrintSoap={handlePrintSoapPdf}
+              onClose={() => setDrAgentOpen(false)}
+              onOpen={() => setDrAgentOpen(true)}
+            />
+          )}
         </div>
+        {drawingCanvasDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            bodyStyle={{ backgroundColor: "white" }}
+            onClose={handleDrawerDrawingCanvas}
+            open={drawingCanvasDrawer}
+            width="60%"
+            push={false}
+          >
+            <DrawingCanvas
+              patientId={patient_data?.patient_unique_id}
+              tcmId={tcmId}
+              canvases={drawingCanvases}
+              rxDrawingCanvasIds={rxDrawingCanvasIds}
+              onToggleRx={(canvasId, checked) => {
+                setRxDrawingCanvasIds((prev) => (
+                  checked
+                    ? [...Array.from(new Set([...prev, canvasId]))]
+                    : prev.filter((id) => String(id) !== String(canvasId))
+                ));
+              }}
+              onCreateCanvas={() => {}}
+              onSave={handleSaveDrawingCanvas}
+              onClose={handleDrawerDrawingCanvas}
+            />
+          </Drawer>
+        )}
         {vitalDrawer && (
           <Drawer
             closeIcon={false}
@@ -3727,22 +3888,6 @@ function PrescriptionNew() {
             callAction={videoConsultAction}
           />
         )}
-
-        {/* ── Dr Agent Panel + FAB ── */}
-          {canUseVoiceRxModuleUi && (
-            <DrAgentRuntime
-              isOpen={drAgentOpen}
-              overlayClassName={drAgentOverlayClassName}
-              patientId={patient_data?.patient_unique_id}
-              doctorId={profile?.doctor_unique_id}
-              patientData={patient_data}
-              voiceHydrationStatus={voiceHydrationStatus}
-              symptomCollectorStatus={symptomCollectorStatus}
-              onPrintSoap={handlePrintSoapPdf}
-              onClose={() => setDrAgentOpen(false)}
-              onOpen={() => setDrAgentOpen(true)}
-            />
-          )}
 
           </>
         )}
