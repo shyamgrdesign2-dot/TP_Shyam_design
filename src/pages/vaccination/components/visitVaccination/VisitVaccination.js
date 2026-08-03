@@ -127,7 +127,7 @@ function VisitVaccination() {
               <div className="d-flex justify-content-between align-items-end">
                 <div className="dueDateText">
                   {vaccine.tvd_due_date
-                    ? `Update due date : ${moment(vaccine.tvd_due_date).format(
+                    ? `Updated due date : ${moment(vaccine.tvd_due_date).format(
                         "DD-MMM-YYYY"
                       )}`
                     : vaccine.dueDate

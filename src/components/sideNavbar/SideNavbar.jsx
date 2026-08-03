@@ -38,8 +38,8 @@ import { VoiceRecorderCore } from "../dr-agent/voicerx/VoiceRecorderCore";
 import RecordCard from "../../pages/medicalRecords/components/recordCard/RecordCard";
 import CashManagerContext from "../../context/CashManagerContext";
 import { useAccess } from "../../pages/vaccination/useAccess";
-import { getOverridenDueDate, getPatientVaccineDetails, getVaccineBrands, getVaccineTemplates } from "../../pages/vaccination/service";
-import { mergeDataPatientDetails } from "../../pages/vaccination/VaccinationHelper";
+import { getOverridenDueDate, getPatientVaccineDetails, getTvtAgeBySection, getVaccineBrands, getVaccineTemplates } from "../../pages/vaccination/service";
+import { getDates, getDefaultOption, getDistinctAges, mergeDataPatientDetails, splitVaccinesByCategory, VaccinationCategoryEnum } from "../../pages/vaccination/VaccinationHelper";
 import { getAllOpthalPrescriptions } from "../../pages/ophthalmology/service";
 import { getAllGrowthChartParams, getParentalDetails } from "../../pages/growthChart/service";
 import {
@@ -2342,6 +2342,7 @@ function buildViewData(overrides = {}, sourceData = {}) {
     gynec: sourceData.gynec ?? [],
     obstetric: sourceData.obstetric ?? [],
     vaccine: sourceData.vaccine ?? { pending: [], given: [] },
+    vaccineCategories: sourceData.vaccineCategories ?? { iap: [], other: [] },
     growth: sourceData.growth ?? { entries: [], info: {} },
     optal: sourceData.optal ?? [],
     personalNotes: sourceData.personalNotes ?? [],
@@ -4121,6 +4122,86 @@ function groupVaccByWeek(rows) {
   return order.map((week) => ({ week, items: map.get(week) }));
 }
 
+// Same relative wording VisitVaccination shows next to each due date ("This month",
+// "Next year", ...). Duplicated rather than lifted out of that component so the
+// patient-details card keeps its exact current behaviour.
+function vaccineDueRelativeLabel(vaccine) {
+  const now = moment();
+  const due = vaccine?.tvd_due_date
+    ? moment(new Date(vaccine.tvd_due_date))
+    : moment(vaccine?.dueDate, "Do MMM YYYY");
+  if (!due.isValid()) return "";
+  const days = now.diff(due, "days");
+  const weeks = now.diff(due, "weeks");
+  const months = now.diff(due, "months");
+  const years = now.diff(due, "years");
+  if (years >= 1) return "Last Year";
+  if (months >= 1) return "Last month";
+  if (weeks >= 1) return "Last week";
+  if (days >= 1) return "Last day";
+  if (days === 0) return "Today";
+  if (years < 0) return "Next year";
+  if (months < 0) return "Next month";
+  if (weeks < 0) return "This month";
+  if (days < 0) return "This week";
+  return "";
+}
+
+// NewRx sidenav vaccination. Mirrors the VisitVaccination card on patient details:
+// same source (overridden due dates only, not the whole standard template), same
+// IAP/Other split, and the same age-band slice so we show the current pending window
+// rather than every dose since birth. Only the grouping and labels differ.
+function buildVaccineCategoryData(overridenVaccineRows = [], ageSections = null, birthDate = "") {
+  const empty = { iap: [], other: [] };
+  if (!Array.isArray(overridenVaccineRows) || !overridenVaccineRows.length || !ageSections) return empty;
+
+  const combined = mergeDataPatientDetails(overridenVaccineRows, [], [], [], birthDate) || [];
+  const split = splitVaccinesByCategory(combined, ageSections);
+
+  const toRows = (ageEntries) => ageEntries.flatMap(([week, vaccines]) => (
+    (vaccines || []).flatMap((item) => {
+      const overriddenDue = item?.tvd_due_date || "";
+      const dobDue = item?.dueDate || "";
+      const givenDateRaw = item?.tvp_given_date || "";
+      if (!overriddenDue && !dobDue && !givenDateRaw) return [];
+
+      const dueMoment = overriddenDue
+        ? moment(new Date(overriddenDue))
+        : moment(dobDue, "Do MMM YYYY");
+      let status = "given";
+      if (overriddenDue || dobDue) {
+        status = dueMoment.isValid() && moment().isSameOrAfter(dueMoment, "day") ? "overdue" : "due";
+      }
+
+      return [{
+        week: week || item?.tvt_age || "Vaccines",
+        name: item?.tvac_name || item?.tvt_name || "Vaccine",
+        status,
+        // Overridden due date wins; otherwise fall back to the DOB-derived date,
+        // labelled as such exactly like the patient-details card does.
+        dueLabel: overriddenDue
+          ? `Updated due date: ${moment(new Date(overriddenDue)).format("DD-MMM-YYYY")}`
+          : dobDue ? `Due date: ${dobDue} (Based on DOB)` : "",
+        relative: (overriddenDue || dobDue) ? vaccineDueRelativeLabel(item) : "",
+        givenDate: givenDateRaw ? formatVaccDate(givenDateRaw) : "",
+        brand: item?.brandName || item?.tvc_name || "",
+        note: item?.tvp_remarks || item?.tvd_remarks || "",
+      }];
+    })
+  ));
+
+  // IAP is limited to the bands up to and including the patient's current one, exactly
+  // as VisitVaccination does for its "Pending Vaccines" list.
+  const iapEntries = [...getDistinctAges(split[VaccinationCategoryEnum[0].key] || []).idMap];
+  const iapCutoff = getDefaultOption(getDates(getDistinctAges(split[VaccinationCategoryEnum[0].key] || []).idMap));
+  const otherEntries = [...getDistinctAges(split[VaccinationCategoryEnum[1].key] || []).idMap];
+
+  return {
+    iap: toRows(iapEntries.slice(0, iapCutoff + 1)),
+    other: toRows(otherEntries),
+  };
+}
+
 function buildLegacyVaccineData(patientVaccineRows = [], vaccineTemplateRows = []) {
   if (vaccineTemplateRows.length) {
     const rows = vaccineTemplateRows.map((item) => {
@@ -4542,6 +4623,96 @@ function VaccineBody({ data = { pending: [], given: [] } }) {
         </article>
       ) : null}
     </>
+  );
+}
+
+const VACCINE_STATUS_LABEL = { overdue: "Over due", due: "Due", given: "Given" };
+
+function VaccineStatusWeekGroup({ week, items }) {
+  return (
+    <div className="snv-vaccine-week-group">
+      <div className="snv-vaccine-week-chip">
+        <Calendar2 size={13} variant="Bulk" color="var(--tp-slate-500)" />
+        <span>{week}</span>
+      </div>
+      <div className="snv-vaccine-item-list">
+        {items.map((item, i) => (
+          <div key={`${week}-${item.name}-${i}`} className="snv-vaccine-item">
+            <span className="snv-vaccine-bullet" aria-hidden="true" />
+            <p className="snv-vaccine-item-text">
+              <span className="snv-vaccine-name">{item.name}</span>
+              <span>{" ("}</span>
+              <span className="snv-vaccine-muted">Status: </span>
+              <span className={`snv-vaccine-date-${item.status}`}>{VACCINE_STATUS_LABEL[item.status]}</span>
+              {item.dueLabel ? (
+                <span className="snv-vaccine-muted">{` | ${item.dueLabel}`}</span>
+              ) : null}
+              {item.relative ? (
+                <span className="snv-vaccine-muted">{` | ${item.relative}`}</span>
+              ) : null}
+              {item.givenDate ? (
+                <>
+                  <span className="snv-vaccine-muted">{" | Given date: "}</span>
+                  <span className="snv-vaccine-date-given">{item.givenDate}</span>
+                </>
+              ) : null}
+              {item.brand ? (
+                <span className="snv-vaccine-muted">{` | Brand: ${item.brand}`}</span>
+              ) : null}
+              {item.note ? (
+                <span className="snv-vaccine-muted">{` | Note: ${item.note}`}</span>
+              ) : null}
+              <span>{" )"}</span>
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VaccineCategoryCard({ title, rows, expanded, onToggle }) {
+  if (!rows.length) return null;
+  const groups = groupVaccByWeek(rows);
+  return (
+    <article className="snv-date-card">
+      <button type="button" className="snv-date-card-header" onClick={onToggle}>
+        <span>{`${title}(${rows.length})`}</span>
+        {expanded ? <ArrowSquareUp size={18} variant="Linear" /> : <ArrowSquareDown size={18} variant="Linear" />}
+      </button>
+      {expanded ? (
+        <div className="snv-date-card-body">
+          {groups.map((g, i) => <VaccineStatusWeekGroup key={`${title}-${g.week}-${i}`} week={g.week} items={g.items} />)}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function VaccineCategoryContent({ data = { iap: [], other: [] }, emptyState }) {
+  const iap = Array.isArray(data.iap) ? data.iap : [];
+  const other = Array.isArray(data.other) ? data.other : [];
+  const [expanded, setExpanded] = useState({ iap: true, other: true });
+
+  if (!iap.length && !other.length) {
+    return <div className="snv-content-scroll" data-snv-scroll-root="true">{emptyState}</div>;
+  }
+
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      <VaccineCategoryCard
+        title="IAP Vaccine"
+        rows={iap}
+        expanded={expanded.iap}
+        onToggle={() => setExpanded((p) => ({ ...p, iap: !p.iap }))}
+      />
+      <VaccineCategoryCard
+        title="Other Vaccine"
+        rows={other}
+        expanded={expanded.other}
+        onToggle={() => setExpanded((p) => ({ ...p, other: !p.other }))}
+      />
+    </div>
   );
 }
 
@@ -5481,12 +5652,7 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
     case "obstetric":
       return <ObstetricContent sections={viewData.obstetric} emptyState={emptyState} />;
     case "vaccine":
-      // return <VaccineContent data={viewData.vaccine} />; // TODO: INTEL - TO BE HANDLED ON PROD FIRST (showing due date to all vaccines by default)
-      return isSectionEmptyForInlineActions("vaccine", viewData) ? (
-        <div className="snv-content-scroll" data-snv-scroll-root="true">{emptyState}</div>
-      ) : (
-        <HiddenScrollRoot />
-      );
+      return <VaccineCategoryContent data={viewData.vaccineCategories} emptyState={emptyState} />;
     case "growth":
       return <GrowthContent data={viewData.growth} emptyState={emptyState} />;
     case "optal":
@@ -5535,8 +5701,8 @@ function isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating, canv
     return (viewData.medicalRecordsRawDocs || []).length === 0 && (viewData.medicalRecords || []).length === 0;
   }
   if (activeId === "vaccine") {
-    const vaccine = viewData.vaccine || {};
-    return (vaccine.pending || []).length === 0 && (vaccine.given || []).length === 0;
+    const categories = viewData.vaccineCategories || {};
+    return (categories.iap || []).length === 0 && (categories.other || []).length === 0;
   }
   if (activeId === "gynec") return (viewData.gynec || []).length === 0;
   if (activeId === "obstetric") return getVisibleObstetricSections(viewData.obstetric || []).length === 0;
@@ -5772,6 +5938,9 @@ export function SideNavbar({
   const [hasPastVisitsLoaded, setHasPastVisitsLoaded] = useState(false);
   const [patientVaccineRows, setPatientVaccineRows] = useState([]);
   const [vaccineTemplateRows, setVaccineTemplateRows] = useState([]);
+  const [vaccineAgeSections, setVaccineAgeSections] = useState(null);
+  const [overridenVaccineRows, setOverridenVaccineRows] = useState([]);
+  const [vaccineDob, setVaccineDob] = useState("");
   const [opthalPrescriptionRows, setOpthalPrescriptionRows] = useState([]);
   const [growthChartRows, setGrowthChartRows] = useState([]);
   const [growthParentalDetails, setGrowthParentalDetails] = useState(null);
@@ -5868,11 +6037,12 @@ export function SideNavbar({
 
     const fetchVaccines = async () => {
       try {
-        const [patientTemplates, standardTemplates, overridenVaccines, vaccineBrands] = await Promise.all([
+        const [patientTemplates, standardTemplates, overridenVaccines, vaccineBrands, tvtAgeBySection] = await Promise.all([
           getPatientVaccineDetails(patientId, patientPid),
           getVaccineTemplates(),
           getOverridenDueDate(patientId, patientPid),
           getVaccineBrands(),
+          getTvtAgeBySection(),
         ]);
         if (vaccineRequestRef.current !== requestId) return;
         const mergedTemplates = mergeDataPatientDetails(
@@ -5884,10 +6054,15 @@ export function SideNavbar({
         );
         setPatientVaccineRows(Array.isArray(patientTemplates) ? patientTemplates : []);
         setVaccineTemplateRows(Array.isArray(mergedTemplates) ? mergedTemplates : []);
+        setVaccineAgeSections(tvtAgeBySection || null);
+        setOverridenVaccineRows(Array.isArray(overridenVaccines) ? overridenVaccines : []);
+        setVaccineDob(patientDob || "");
       } catch (error) {
         if (vaccineRequestRef.current !== requestId) return;
         setPatientVaccineRows([]);
         setVaccineTemplateRows([]);
+        setVaccineAgeSections(null);
+        setOverridenVaccineRows([]);
         console.error("[SideNavbar][Vaccines] failed to fetch patient vaccines:", error);
       }
     };
@@ -6111,6 +6286,10 @@ export function SideNavbar({
     () => buildLegacyVaccineData(patientVaccineRows, vaccineTemplateRows),
     [patientVaccineRows, vaccineTemplateRows]
   );
+  const vaccineCategoryData = useMemo(
+    () => buildVaccineCategoryData(overridenVaccineRows, vaccineAgeSections, vaccineDob),
+    [overridenVaccineRows, vaccineAgeSections, vaccineDob]
+  );
   const legacyOpthalEntries = useMemo(
     () => buildLegacyOpthalEntries(opthalPrescriptionRows),
     [opthalPrescriptionRows]
@@ -6172,9 +6351,10 @@ export function SideNavbar({
     gynec: legacyGynecSections,
     obstetric: legacyObstetricSections,
     vaccine: legacyVaccineData,
+    vaccineCategories: vaccineCategoryData,
     optal: legacyOpthalEntries,
     growth: legacyGrowthData,
-  }), [digitizedOverrides, legacyPastVisitEntries, legacyVitalsEntries, legacyHistorySections, legacyLabEntries, legacyMedicalRecords, allUploadedDocs, uploadDocCategories, legacyGynecSections, legacyObstetricSections, legacyVaccineData, legacyOpthalEntries, legacyGrowthData]);
+  }), [digitizedOverrides, legacyPastVisitEntries, legacyVitalsEntries, legacyHistorySections, legacyLabEntries, legacyMedicalRecords, allUploadedDocs, uploadDocCategories, legacyGynecSections, legacyObstetricSections, legacyVaccineData, vaccineCategoryData, legacyOpthalEntries, legacyGrowthData]);
 
   const pastVisitsState = useMemo(() => ({
     loading: isPastVisitsLoading,
