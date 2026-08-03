@@ -6,6 +6,8 @@ import {
   DrawerContent,
   HeroBanner,
   Header,
+  Button,
+  TPLibraryIcon,
   Skeleton,
 } from "@dhspl-tatvacare/tesseract-ui";
 // eslint-disable-next-line import/no-unresolved
@@ -23,15 +25,34 @@ import { BarChartZ } from "../data-analytics/charts/EmptyAware";
 import useFilterOptions from "../data-analytics/data/useFilterOptions";
 import useCapabilities from "../data-analytics/data/useCapabilities";
 import { trackAnalytics, EVENTS } from "../data-analytics/data/analyticsTracking";
+import { canShowMissionAnalyticsNav } from "../data-analytics/data/analyticsAccess";
+import { getDecodedToken } from "../../utils/localStorage";
+import { GB_CVT_EXT_HOS } from "../../utils/constants";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useSelector } from "react-redux";
 import useMissionData from "./data/useMissionData";
 import { exportMissionExcel } from "./exportMissionExcel";
 
-export default function MissionAnalyticsPage() {
+/**
+ * @param {{ embedded?: boolean }} props
+ * embedded — render inside AppointmentList shell (Welcome + content), no full-page drawer.
+ */
+export default function MissionAnalyticsPage({ embedded = false } = {}) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(true);
+  const isCvtExtHos = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const profile = useSelector((s) => s.doctors?.profile) || {};
+  const tokenResult = getDecodedToken()?.result;
 
   const caps = useCapabilities();
   const openedAtRef = useRef(Date.now());
+
+  // Admin or special Mission users only; other CVT doctors / non-CVT → home.
+  useEffect(() => {
+    if (!canShowMissionAnalyticsNav(isCvtExtHos, tokenResult, profile)) {
+      navigate("/", { replace: true });
+    }
+  }, [isCvtExtHos, tokenResult, profile, navigate]);
 
   useEffect(() => {
     trackAnalytics(EVENTS.OPENED, { department: "opd" });
@@ -188,218 +209,240 @@ export default function MissionAnalyticsPage() {
     { key: "returning", label: "Returning patients", value: kpis.returning, kind: "number", tooltip: "Patients with more than one visit" },
   ], [kpis]);
 
+  if (!canShowMissionAnalyticsNav(isCvtExtHos, tokenResult, profile)) {
+    return null;
+  }
+
+  const heroActions = (
+    <div className="ma-hero-actions">
+      <Button
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label="Export Excel"
+        onClick={handleExport}
+        disabled={loading || exporting}
+        leftIcon={<TPLibraryIcon name="document-download" size={18} variant="bulk" />}
+      />
+      <Button
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label="Refresh"
+        onClick={handleRefresh}
+        leftIcon={<TPLibraryIcon name="refresh-arrow2" size={18} variant="bulk" />}
+      />
+    </div>
+  );
+
+  const body = (
+    <div
+      className={`da-root${embedded ? " ma-embedded" : ""}`}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: 0,
+        background: "var(--tesseract-slate-50)",
+      }}
+    >
+      {!embedded && (
+        <Header
+          back
+          onBack={close}
+          leading={
+            <span style={{ fontSize: 16, fontWeight: 600, color: "var(--tesseract-fg-heading)", whiteSpace: "nowrap" }}>
+              Data Analytics
+            </span>
+          }
+          density="compact"
+        />
+      )}
+
+      <main className={embedded ? "ma-embedded-main" : undefined} style={embedded ? undefined : {
+        flex: 1,
+        minWidth: 0,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}>
+        <HeroBanner
+          size={embedded ? "md" : "lg"}
+          align="top"
+          tone="violet"
+          title="OPD Analytics"
+          subtitle="All metrics at a glance"
+          bottomRadius={24}
+          actions={heroActions}
+        />
+
+        <div className={embedded ? "ma-embedded-card-wrap" : undefined} style={embedded ? undefined : { padding: "0 24px 24px", flex: 1, minHeight: 0, display: "flex" }}>
+          <div
+            className={embedded ? "ma-embedded-card" : undefined}
+            style={embedded ? undefined : {
+              marginTop: -72,
+              position: "relative",
+              zIndex: 1,
+              flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              background: "var(--tesseract-bg-surface, #fff)",
+              border: "none",
+              borderRadius: "var(--tesseract-radius-16)",
+              boxShadow: "var(--tesseract-shadow-lg)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                flexShrink: 0,
+                padding: "16px 20px",
+                background: "var(--tesseract-slate-0)",
+                position: "relative",
+                zIndex: 2,
+                boxShadow: filterShadow ? "var(--tesseract-shadow-md)" : "none",
+                transition: "box-shadow 0.2s ease",
+              }}
+            >
+              <FilterBar
+                dateValue={dateValue}
+                onDateChange={handleDateChange}
+                doctors={doctors}
+                onDoctorsChange={(v) => { setDoctors(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department: "opd", section: "all", filter_type: "doctor", filter_count: v.length }); }}
+                clinics={clinics}
+                onClinicsChange={(v) => { setClinics(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department: "opd", section: "all", filter_type: "clinic", filter_count: v.length }); }}
+                doctorOptions={doctorOptions}
+                clinicOptions={clinicOptions}
+                doctorLocked={doctorLocked}
+                lockedDoctorLabel={caps.selfName}
+                singleClinic={caps.singleClinic}
+                hasActiveFilters={hasActiveFilters}
+                onClearAll={clearAllFilters}
+              />
+            </div>
+
+            <div
+              key={refreshKey}
+              ref={scrollRef}
+              onScroll={onContentScroll}
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                padding: "4px 20px 20px",
+                background: "var(--tesseract-bg-surface, #fff)",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                <KpiRow title="Key metrics" kpis={loading ? [] : kpiItems} loading={loading} />
+
+                <SectionBlock title="More insights" count={8}>
+                  {loading ? (
+                    <div className="da-chart-grid">
+                      <Skeleton variant="rectangular" height={320} radius={16} />
+                      <Skeleton variant="rectangular" height={320} radius={16} />
+                      <Skeleton variant="rectangular" height={320} radius={16} />
+                      <Skeleton variant="rectangular" height={320} radius={16} />
+                    </div>
+                  ) : (
+                    <ChartGrid>
+                      <ChartTile
+                        title="Appointment status"
+                        iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/business/activity.svg"
+                        titleTooltip="Breakdown of appointment outcomes"
+                      >
+                        <DonutWithLegend data={charts.appointmentStatus} centerLabel="Appointments" height={240} />
+                      </ChartTile>
+
+                      <ChartTile
+                        title="Visit trend"
+                        icon="chart-square"
+                        titleTooltip="Booked vs completed vs digitized (CVT) per day"
+                      >
+                        <MaybeScroll count={charts.visitTrend?.data?.length || 0} fit={7} perItem={80}>
+                          <BarChartZ data={charts.visitTrend?.data} series={charts.visitTrend?.series} xKey="x" height={240} showAverage={false} />
+                        </MaybeScroll>
+                      </ChartTile>
+
+                      <ChartTile
+                        title="Doctor-wise comparison"
+                        icon="stethoscope"
+                        titleTooltip="Booked vs completed vs digitized (CVT) per doctor"
+                      >
+                        <MaybeScroll count={charts.byDoctor?.data?.length || 0} fit={5} perItem={110}>
+                          <BarChartZ data={charts.byDoctor?.data} series={charts.byDoctor?.series} xKey="x" height={240} showAverage={false} />
+                        </MaybeScroll>
+                      </ChartTile>
+
+                      <ChartTile
+                        title="Overall donut"
+                        iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/business/activity.svg"
+                        titleTooltip="Cancellations, booked, and completed overview"
+                      >
+                        <DonutWithLegend
+                          data={[
+                            { label: "Completed", value: kpis.completed },
+                            { label: "In queue / No-show", value: kpis.scheduled },
+                            { label: "Cancelled", value: kpis.cancelled },
+                          ]}
+                          centerLabel="Total"
+                          height={240}
+                        />
+                      </ChartTile>
+
+                      <ChartTile
+                        title="Age distribution"
+                        iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/users/profile-circle.svg"
+                        titleTooltip="Patient age group breakdown"
+                      >
+                        <BarChartZ data={charts.ageDistribution?.data} series={charts.ageDistribution?.series} xKey="x" height={240} showAverage={false} />
+                      </ChartTile>
+
+                      <ChartTile
+                        title="Visit frequency"
+                        iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/chart/right-chart.svg"
+                        titleTooltip="Distribution of patients by number of visits"
+                      >
+                        <BarChartZ data={charts.visitFrequency?.data} series={charts.visitFrequency?.series} xKey="x" height={240} showAverage={false} />
+                      </ChartTile>
+
+                      <ChartTile
+                        title="Gender distribution"
+                        iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/users/profile-2user.svg"
+                        titleTooltip="Patient gender breakdown"
+                      >
+                        <DonutWithLegend data={charts.genderDistribution} centerLabel="Patients" height={240} />
+                      </ChartTile>
+
+                      <ChartTile
+                        title="Patient segmentation"
+                        icon="profile-tick"
+                        titleTooltip="New (1 visit), Occasional (2-3), Regular (4-10), Loyal (10+)"
+                      >
+                        <DonutWithLegend data={charts.segmentation} centerLabel="Patients" height={240} />
+                      </ChartTile>
+                    </ChartGrid>
+                  )}
+                </SectionBlock>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+
+  if (embedded) {
+    return <TesseractThemeProvider colorScheme="light">{body}</TesseractThemeProvider>;
+  }
+
   return (
     <TesseractThemeProvider colorScheme="light">
       <Drawer open={open} onOpenChange={(v) => (!v ? close() : setOpen(v))}>
         <DrawerContent side="right" width="full" showClose={false} bodyPadding={0}>
-          <div
-            className="da-root"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-              background: "var(--tesseract-slate-50)",
-            }}
-          >
-            <Header
-              back
-              onBack={close}
-              leading={
-                <span style={{ fontSize: 16, fontWeight: 600, color: "var(--tesseract-fg-heading)", whiteSpace: "nowrap" }}>
-                  OPD Analytics
-                </span>
-              }
-              actions={[
-                {
-                  type: "cta",
-                  icon: "document-download",
-                  variant: "tonal",
-                  theme: "neutral",
-                  onClick: handleExport,
-                  ariaLabel: "Export Excel",
-                  disabled: loading || exporting,
-                },
-                { type: "cta", icon: "refresh-arrow2", variant: "tonal", theme: "neutral", onClick: handleRefresh, ariaLabel: "Refresh" },
-              ]}
-              density="compact"
-            />
-
-            <main
-              style={{
-                flex: 1,
-                minWidth: 0,
-                minHeight: 0,
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-              }}
-            >
-              <HeroBanner
-                size="lg"
-                align="top"
-                tone="violet"
-                title="OPD Analytics"
-                subtitle="All metrics at a glance"
-                bottomRadius={24}
-              />
-
-              <div style={{ padding: "0 24px 24px", flex: 1, minHeight: 0, display: "flex" }}>
-                <div
-                  style={{
-                    marginTop: -72,
-                    position: "relative",
-                    zIndex: 1,
-                    flex: 1,
-                    minHeight: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    background: "var(--tesseract-bg-surface, #fff)",
-                    border: "none",
-                    borderRadius: "var(--tesseract-radius-16)",
-                    boxShadow: "var(--tesseract-shadow-lg)",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      flexShrink: 0,
-                      padding: "16px 20px",
-                      background: "var(--tesseract-slate-0)",
-                      position: "relative",
-                      zIndex: 2,
-                      boxShadow: filterShadow ? "var(--tesseract-shadow-md)" : "none",
-                      transition: "box-shadow 0.2s ease",
-                    }}
-                  >
-                    <FilterBar
-                      dateValue={dateValue}
-                      onDateChange={handleDateChange}
-                      doctors={doctors}
-                      onDoctorsChange={(v) => { setDoctors(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department: "opd", section: "all", filter_type: "doctor", filter_count: v.length }); }}
-                      clinics={clinics}
-                      onClinicsChange={(v) => { setClinics(v); trackAnalytics(EVENTS.FILTER_APPLIED, { department: "opd", section: "all", filter_type: "clinic", filter_count: v.length }); }}
-                      doctorOptions={doctorOptions}
-                      clinicOptions={clinicOptions}
-                      doctorLocked={doctorLocked}
-                      lockedDoctorLabel={caps.selfName}
-                      singleClinic={caps.singleClinic}
-                      hasActiveFilters={hasActiveFilters}
-                      onClearAll={clearAllFilters}
-                    />
-                  </div>
-
-                  <div
-                    key={refreshKey}
-                    ref={scrollRef}
-                    onScroll={onContentScroll}
-                    style={{
-                      flex: 1,
-                      minHeight: 0,
-                      overflowY: "auto",
-                      padding: "4px 20px 20px",
-                      background: "var(--tesseract-bg-surface, #fff)",
-                    }}
-                  >
-                    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                      {/* Single KPI row with all metrics */}
-                      <KpiRow title="Key metrics" kpis={loading ? [] : kpiItems} loading={loading} />
-
-                      {/* Single chart section */}
-                      <SectionBlock title="More insights" count={8}>
-                        {loading ? (
-                          <div className="da-chart-grid">
-                            <Skeleton variant="rectangular" height={320} radius={16} />
-                            <Skeleton variant="rectangular" height={320} radius={16} />
-                            <Skeleton variant="rectangular" height={320} radius={16} />
-                            <Skeleton variant="rectangular" height={320} radius={16} />
-                          </div>
-                        ) : (
-                          <ChartGrid>
-                            <ChartTile
-                              title="Appointment status"
-                              iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/business/activity.svg"
-                              titleTooltip="Breakdown of appointment outcomes"
-                            >
-                              <DonutWithLegend data={charts.appointmentStatus} centerLabel="Appointments" height={240} />
-                            </ChartTile>
-
-                            <ChartTile
-                              title="Visit trend"
-                              icon="chart-square"
-                              titleTooltip="Booked vs completed vs digitized (CVT) per day"
-                            >
-                              {/* Grouped 3-series bars need ~80px/day; scroll beyond 7 days so 10–31d ranges stay readable. */}
-                              <MaybeScroll count={charts.visitTrend?.data?.length || 0} fit={7} perItem={80}>
-                                <BarChartZ data={charts.visitTrend?.data} series={charts.visitTrend?.series} xKey="x" height={240} showAverage={false} />
-                              </MaybeScroll>
-                            </ChartTile>
-
-                            <ChartTile
-                              title="Doctor-wise comparison"
-                              icon="stethoscope"
-                              titleTooltip="Booked vs completed vs digitized (CVT) per doctor"
-                            >
-                              <MaybeScroll count={charts.byDoctor?.data?.length || 0} fit={5} perItem={110}>
-                                <BarChartZ data={charts.byDoctor?.data} series={charts.byDoctor?.series} xKey="x" height={240} showAverage={false} />
-                              </MaybeScroll>
-                            </ChartTile>
-
-                            <ChartTile
-                              title="Overall donut"
-                              iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/business/activity.svg"
-                              titleTooltip="Cancellations, booked, and completed overview"
-                            >
-                              <DonutWithLegend
-                                data={[
-                                  { label: "Completed", value: kpis.completed },
-                                  { label: "In queue / No-show", value: kpis.scheduled },
-                                  { label: "Cancelled", value: kpis.cancelled },
-                                ]}
-                                centerLabel="Total"
-                                height={240}
-                              />
-                            </ChartTile>
-
-                            <ChartTile
-                              title="Age distribution"
-                              iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/users/profile-circle.svg"
-                              titleTooltip="Patient age group breakdown"
-                            >
-                              <BarChartZ data={charts.ageDistribution?.data} series={charts.ageDistribution?.series} xKey="x" height={240} showAverage={false} />
-                            </ChartTile>
-
-                            <ChartTile
-                              title="Visit frequency"
-                              iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/chart/right-chart.svg"
-                              titleTooltip="Distribution of patients by number of visits"
-                            >
-                              <BarChartZ data={charts.visitFrequency?.data} series={charts.visitFrequency?.series} xKey="x" height={240} showAverage={false} />
-                            </ChartTile>
-
-                            <ChartTile
-                              title="Gender distribution"
-                              iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/users/profile-2user.svg"
-                              titleTooltip="Patient gender breakdown"
-                            >
-                              <DonutWithLegend data={charts.genderDistribution} centerLabel="Patients" height={240} />
-                            </ChartTile>
-
-                            <ChartTile
-                              title="Patient segmentation"
-                              icon="profile-tick"
-                              titleTooltip="New (1 visit), Occasional (2-3), Regular (4-10), Loyal (10+)"
-                            >
-                              <DonutWithLegend data={charts.segmentation} centerLabel="Patients" height={240} />
-                            </ChartTile>
-                          </ChartGrid>
-                        )}
-                      </SectionBlock>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </main>
-          </div>
+          {body}
         </DrawerContent>
       </Drawer>
     </TesseractThemeProvider>

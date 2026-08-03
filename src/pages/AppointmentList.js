@@ -12,6 +12,7 @@ import WalkInConsultation from "./WalkInConsultation";
 import MobileWalkInConsultation from "./mobile/WalkInConsultation/WalkInConsultation";
 import MobileWalkInConsultationZydus from "./mobile/WalkInConsultationZydus/WalkInConsultationZydus";
 import MessagesData from "./MessagesData";
+import MissionAnalyticsPage from "./mission-analytics";
 import { useDeviceType } from "../utils/deviceDetection";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -27,6 +28,7 @@ import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
 import VoiceRxPromoModal from "../components/VoiceRxPromoModal";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { isMissionAnalyticsOnlyUser } from "./data-analytics/data/analyticsAccess";
 
 function AppointmentList() {
   const dispatch = useDispatch();
@@ -42,6 +44,10 @@ function AppointmentList() {
   const { isMobile: isMobileDevice, isTablet } = useDeviceType();
   const shouldShowMobileDashboard = isMobileDevice && !isTablet && !isReceptionist;
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const analyticsOnlyHome = isMissionAnalyticsOnlyUser(
+    isCvtExtHosAccessableFromGB,
+    getDecodedToken()?.result
+  );
 
   
   useEffect(() => {
@@ -86,13 +92,27 @@ function AppointmentList() {
     }
   }, []);
 
+  const hideWelcomeForMissionAnalytics =
+    locationPath === "/mission-analytics" ||
+    (analyticsOnlyHome && (locationPath === "/" || locationPath === ""));
+
   return (
     <>
       {!shouldShowMobileDashboard && !isReceptionist && <Header locationPath={locationPath} />}
       <div className="d-flex">
         {!shouldShowMobileDashboard && !isReceptionist && <SidebarDoctor />}
-        <div className={`w-100 bg-body ${shouldShowMobileDashboard && locationPath === '/' ? '' : (shouldShowMobileDashboard && locationPath != '/' && locationPath != '/bulk_messages' ? 'vh-100' : 'wrapper')}`}>
-          {!shouldShowMobileDashboard && !isReceptionist && (
+        <div
+          className={`w-100 bg-body ${
+            hideWelcomeForMissionAnalytics
+              ? "ma-shell-content"
+              : shouldShowMobileDashboard && locationPath === "/"
+                ? ""
+                : shouldShowMobileDashboard && locationPath != "/" && locationPath != "/bulk_messages"
+                  ? "vh-100"
+                  : "wrapper"
+          }`}
+        >
+          {!shouldShowMobileDashboard && !isReceptionist && !hideWelcomeForMissionAnalytics && (
             <Welcome
               locationPath={locationPath}
               appointmentAgentsData={agentsData}
@@ -105,11 +125,14 @@ function AppointmentList() {
               element={
                 shouldShowMobileDashboard ? (
                   <AppointmentDashboardMobile />
+                ) : analyticsOnlyHome ? (
+                  <MissionAnalyticsPage embedded />
                 ) : (
                   <Appointment locationPath={locationPath} appointmentAgentsData={agentsData} />
                 )
               } 
             />
+            <Route path="mission-analytics" element={<MissionAnalyticsPage embedded />} />
             <Route 
               path="walk_in_consultation" 
               element={(isMobileDevice && !isTablet) ? <MobileWalkInConsultation /> : <WalkInConsultation />} 

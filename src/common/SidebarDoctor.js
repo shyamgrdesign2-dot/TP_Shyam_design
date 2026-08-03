@@ -8,10 +8,15 @@ import axios from "axios";
 
 import config from "../config";
 import { useLocalStorage, getDecodedToken } from "../utils/localStorage";
-import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, GB_CVT_EXT_HOS, GB_LIMS } from "../utils/constants";
+import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, GB_CVT_EXT_HOS, GB_LIMS, NATIVE_DATA_ANALYTICS_NAV_ENABLED } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, sendMessageToParent, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
-import { canOpenNativeDataAnalytics } from "../pages/data-analytics/data/analyticsAccess";
+import {
+  canShowMissionAnalyticsNav,
+  canShowNonCvtDataAnalyticsNav,
+  isMissionAnalyticsOnlyUser,
+  resolveDataAnalyticsDestination,
+} from "../pages/data-analytics/data/analyticsAccess";
 import FullPageLoader from "../pages/vaccination/components/Loader";
 import { useOpdBilling } from "../pages/opdBilling/useOpdBilling";
 import moment from "moment";
@@ -204,16 +209,21 @@ function SidebarDoctor() {
       setHoveredItem(null);
     }
 
-    // Native Data Analytics for allowlisted users; Mission/CVT ext hospitals
-    // get the standalone mission page; everyone else keeps the legacy PHP SSO.
+    // Data Analytics: Mission/CVT → /mission-analytics (admin/special only);
+    // non-CVT → native page when release flag or allowlist; else legacy SSO.
     if (moduleName === "data_analytics") {
-      if (isCvtExtHosAccessableFromGB) {
-        return navigate("/mission-analytics");
-      }
       const tokenResult = tokenData || getDecodedToken()?.result;
-      if (canOpenNativeDataAnalytics(tokenResult)) {
-        return navigate("/data-analytics-x");
+      const dest = resolveDataAnalyticsDestination({
+        isCvtExtHos: isCvtExtHosAccessableFromGB,
+        tokenResult,
+        profile,
+      });
+      if (dest === "mission") {
+        const onlyAnalytics = isMissionAnalyticsOnlyUser(isCvtExtHosAccessableFromGB, tokenResult);
+        return navigate(onlyAnalytics ? "/" : "/mission-analytics");
       }
+      if (dest === "native") return navigate("/data-analytics-x");
+      if (dest === "none") return;
       return check_SSO(moduleName);
     }
 
@@ -466,10 +476,38 @@ function SidebarDoctor() {
     }
   };
 
+  const tokenResult = tokenData || getDecodedToken()?.result;
+  const showMissionAnalytics = canShowMissionAnalyticsNav(
+    isCvtExtHosAccessableFromGB,
+    tokenResult,
+    profile
+  );
+  const analyticsOnlySidebar = isMissionAnalyticsOnlyUser(
+    isCvtExtHosAccessableFromGB,
+    tokenResult
+  );
+  const hasDataAnalyticsModule = !!profile?.module_data?.some(
+    (m) => m?.type === "data_analytics"
+  );
+  const showNonCvtDataAnalytics = canShowNonCvtDataAnalyticsNav({
+    isCvtExtHos: isCvtExtHosAccessableFromGB,
+    hasModuleData: hasDataAnalyticsModule,
+  });
+
+  // Special Mission users stay on `/` with embedded analytics (no redirect loop).
+  // Admin Mission users open `/mission-analytics` (also embedded in this shell).
+  useEffect(() => {
+    if (!analyticsOnlySidebar) return;
+    if (location.pathname === "/mission-analytics") {
+      navigate("/", { replace: true });
+    }
+  }, [analyticsOnlySidebar, location.pathname, navigate]);
+
   return (
     <>
       <div className="SidebarDoctor" ref={sidebarRef}>
         {/* <div className="scrollable-content"> */}
+          {!analyticsOnlySidebar && (
           <NavLink
             to="/"
             replace={true}
@@ -482,7 +520,9 @@ function SidebarDoctor() {
                 location.pathname !== "/billing-dashboard" &&
                 location.pathname !== "/all_patients" &&
                 location.pathname !== "/apollo-consultations" &&
-                location.pathname !== "/bulk_messages";
+                location.pathname !== "/bulk_messages" &&
+                location.pathname !== "/mission-analytics" &&
+                location.pathname !== "/data-analytics-x";
               
               if (isPending) return "pending";
               if (isOnHomeRoute || (hasNoActiveRoute && !isActive)) return "active";
@@ -497,7 +537,9 @@ function SidebarDoctor() {
                  (location.pathname !== "/billing-dashboard" &&
                   location.pathname !== "/all_patients" &&
                   location.pathname !== "/apollo-consultations" &&
-                  location.pathname !== "/bulk_messages")) || 
+                  location.pathname !== "/bulk_messages" &&
+                  location.pathname !== "/mission-analytics" &&
+                  location.pathname !== "/data-analytics-x")) || 
                 isAppointmentHovered
                   ? ni.calendarPrimary
                   : ni.calendar
@@ -512,66 +554,112 @@ function SidebarDoctor() {
               )}
             </div>
           </NavLink>
+          )}
 
-          {/* CVT/Mission Hospital: dedicated mission analytics page.
-              Everyone else: module_data Data Analytics stays outside the CVT
-              gate so it remains available when Ask Tatva is hidden. */}
-          {isCvtExtHosAccessableFromGB ? (
+          {/* Mission/CVT: admin + special → /mission-analytics (no module_data required).
+              Other CVT doctors: no Data Analytics.
+              Non-CVT: release flag → native; else module_data → SSO (or allowlist native). */}
+          {showMissionAnalytics ? (
             <NavLink
               replace={true}
               className={({ isPending }) =>
-                isPending ? "pending" : hoveredItem === "mission_analytics" ? "active" : ""
+                isPending
+                  ? "pending"
+                  : hoveredItem === "mission_analytics" ||
+                      location.pathname === "/mission-analytics" ||
+                      (analyticsOnlySidebar && (location.pathname === "/" || location.pathname === ""))
+                    ? "active"
+                    : ""
               }
               onClick={(e) => {
                 e.preventDefault();
                 scrollToTop();
                 setHoveredItem(null);
-                navigate("/mission-analytics");
+                // Special users already have analytics on `/`; admin opens dedicated path.
+                navigate(analyticsOnlySidebar ? "/" : "/mission-analytics");
               }}
               onMouseEnter={() => setHoveredItem("mission_analytics")}
               onMouseLeave={() => setHoveredItem(null)}
             >
               <img
-                src={getIcon("data_analytics", hoveredItem === "mission_analytics", false)}
+                src={getIcon(
+                  "data_analytics",
+                  hoveredItem === "mission_analytics" ||
+                    location.pathname === "/mission-analytics" ||
+                    (analyticsOnlySidebar && (location.pathname === "/" || location.pathname === "")),
+                  false
+                )}
                 alt="data_analytics"
               />
               <div className="mt-1 px-2">
                 <div className="text-truncate">Data Analytics</div>
               </div>
             </NavLink>
-          ) : (
-            profile?.module_data
-              ?.filter((item) => item?.type === "data_analytics")
-              ?.map((item) => {
-                const hoverKey = "data_analytics";
-                const isHovered = hoveredItem === hoverKey;
-                return (
-                  <div key={item.type} className="position-relative">
-                    <NavLink
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setHoveredItem(null);
-                        clickOldModule(item.type);
-                      }}
-                      replace={true}
-                      className={({ isPending }) =>
-                        isPending ? "pending" : isHovered ? "active" : ""
-                      }
-                      onMouseEnter={() => setHoveredItem(hoverKey)}
-                      onMouseLeave={() => setHoveredItem(null)}
-                    >
-                      <img
-                        src={getIcon(item.type, isHovered, false)}
-                        alt={`${item.type}`}
-                      />
-                      <div className="mt-1 px-2">{item.title}</div>
-                    </NavLink>
-                  </div>
-                );
-              })
-          )}
+          ) : showNonCvtDataAnalytics ? (
+            NATIVE_DATA_ANALYTICS_NAV_ENABLED ? (
+              <NavLink
+                replace={true}
+                className={({ isPending }) =>
+                  isPending
+                    ? "pending"
+                    : hoveredItem === "data_analytics" || location.pathname === "/data-analytics-x"
+                      ? "active"
+                      : ""
+                }
+                onClick={(e) => {
+                  e.preventDefault();
+                  setHoveredItem(null);
+                  clickOldModule("data_analytics");
+                }}
+                onMouseEnter={() => setHoveredItem("data_analytics")}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                <img
+                  src={getIcon(
+                    "data_analytics",
+                    hoveredItem === "data_analytics" || location.pathname === "/data-analytics-x",
+                    false
+                  )}
+                  alt="data_analytics"
+                />
+                <div className="mt-1 px-2">
+                  <div className="text-truncate">Data Analytics</div>
+                </div>
+              </NavLink>
+            ) : (
+              profile?.module_data
+                ?.filter((item) => item?.type === "data_analytics")
+                ?.map((item) => {
+                  const hoverKey = "data_analytics";
+                  const isHovered = hoveredItem === hoverKey;
+                  return (
+                    <div key={item.type} className="position-relative">
+                      <NavLink
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setHoveredItem(null);
+                          clickOldModule(item.type);
+                        }}
+                        replace={true}
+                        className={({ isPending }) =>
+                          isPending ? "pending" : isHovered ? "active" : ""
+                        }
+                        onMouseEnter={() => setHoveredItem(hoverKey)}
+                        onMouseLeave={() => setHoveredItem(null)}
+                      >
+                        <img
+                          src={getIcon(item.type, isHovered, false)}
+                          alt={`${item.type}`}
+                        />
+                        <div className="mt-1 px-2">{item.title}</div>
+                      </NavLink>
+                    </div>
+                  );
+                })
+            )
+          ) : null}
 
-          {!isCvtExtHosAccessableFromGB && (
+          {!isCvtExtHosAccessableFromGB && !analyticsOnlySidebar && (
           <>
 
           <NavLink

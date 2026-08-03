@@ -150,6 +150,23 @@ export const EXTERNAL_HOSPITAL_BUSINESS_IDS = {
   MISSION_HOSPITAL: String(env.mission_hospital_business_id),
 };
 
+/**
+ * When false (default): non-CVT users keep legacy Data Analytics → SSO
+ * (only if module_data includes data_analytics).
+ * When true: non-CVT admin + other doctors get native /data-analytics-x
+ * (admin = all doctors; other = self only via existing doctorLocked).
+ */
+export const NATIVE_DATA_ANALYTICS_NAV_ENABLED = false;
+
+/**
+ * Mission / CVT special doctors: analytics-only sidebar → /mission-analytics.
+ * Add JWT user_id values here when provided.
+ */
+export const MISSION_ANALYTICS_SPECIAL_USER_IDS = [
+  36357,
+];
+
+
 export const MISSION_HOSPITAL_ADDRESS = "THE MISSION HOSPITAL Plot No. 219(P), IMMON KALYAN SARANI, SECTOR-2C, Bidhannagar, Durgapur -713212, West Bengal - Ph No: 8687500500";
 
 export const FREE = "FREE";
