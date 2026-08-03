@@ -119,11 +119,13 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
       ? safe(buildByDoctorFanout({ startDate, endDate, clinicIdSingle: sc, doctorIdCsv: doctorId }))
       : safe(ApiReporting.clinicConsultationModes(spModesSingle));
 
-    const [apptRaw, apptSummaryRaw, patientsRaw, modesRaw] = await Promise.all([
+    const [apptRaw, apptSummaryRaw, patientsRaw, modesRaw, cvtDailyRaw, cvtByDoctorRaw] = await Promise.all([
       safe(ApiReporting.analyticsAppointment(spAnalytics)),
       safe(ApiReporting.clinicalAppointmentSummary(spAnalytics)),
       safe(ApiReporting.analyticsPatients(spAnalytics)),
       modesPromise,
+      safe(ApiReporting.cvtDaily(spAnalytics)),
+      safe(ApiReporting.cvtByDoctor(spAnalytics)),
     ]);
 
     const appt = apptRaw?.data ?? apptRaw ?? {};
@@ -133,6 +135,19 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
     const ptKpis = pt.kpis ?? {};
     const modes = modesRaw?.data ?? modesRaw ?? {};
     const modesKpis = modes.kpis ?? {};
+
+    const cvtDailySrc = unwrapCvtPayload(cvtDailyRaw);
+    const cvtByDoctorSrc = unwrapCvtPayload(cvtByDoctorRaw);
+    const cvtDailySeries = unwrapCvtSeries(cvtDailySrc);
+    const cvtByDoctorSeries = unwrapCvtSeries(cvtByDoctorSrc);
+
+    // Prefer daily totals; fall back to by-doctor payload if daily is missing.
+    const totalDigitized = toNum(
+      cvtDailySrc?.totalDigitized ?? cvtByDoctorSrc?.totalDigitized
+    );
+    const totalCases = toNum(cvtDailySrc?.totalCases ?? cvtByDoctorSrc?.totalCases);
+    const digitalPrescriptionPercent =
+      totalCases > 0 ? Math.round((100 * totalDigitized) / totalCases) : null;
 
     // Match Data Analytics Appointments: live summary KPIs (not operationalOverview / analytics donut).
     const totalFootfall = toNum(liveKpis.total);
@@ -159,9 +174,9 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
 
     const busiestDay = findBusiest(appt.visitsByWeekday);
 
-    const visitTrend = buildVisitTrend(appt.appointments);
+    const visitTrend = buildVisitTrend(appt.appointments, cvtDailySeries);
 
-    const byDoctor = buildDoctorBars(modes.byDoctor, modesKpis);
+    const byDoctor = buildDoctorBars(modes.byDoctor, cvtByDoctorSeries);
 
     const ageXY = seriesToXY(pt.age);
     const visitFreqXY = seriesToXY(pt.visitFrequency);
@@ -185,6 +200,8 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
           avgVisitsPerDay: rangeDays ? Math.round(totalFootfall / rangeDays) : 0,
           avgVisitsPerDayDelta,
           busiestDay,
+          digitalPrescriptionPercent,
+          totalDigitized,
           totalConsultations: toNum(modesKpis.total),
           smartSync: toNum(modesKpis.smartSync),
           totalPatients: toNum(ptKpis.totalPatients),
@@ -217,6 +234,7 @@ function empty() {
       completed: 0, completedDelta: null, scheduled: 0,
       cancelled: 0, avgVisitsPerDay: 0, avgVisitsPerDayDelta: null,
       busiestDay: null,
+      digitalPrescriptionPercent: null, totalDigitized: 0,
       totalConsultations: 0, smartSync: 0,
       totalPatients: 0, oneTime: 0, returning: 0,
     },
@@ -243,16 +261,85 @@ function findBusiest(visitsByWeekday) {
   return maxVal > 0 ? visitsByWeekday.labels[maxIdx] : null;
 }
 
-function buildVisitTrend(appointments) {
-  const base = seriesToXY(appointments);
-  if (!base?.data?.length) return base;
-  const srcKey = base.series?.[0]?.key || "value";
-  const data = base.data.map((row) => ({
-    x: row[base.xKey],
-    booked: toNum(row[srcKey]),
-    completed: 0,
-    digitized: 0,
-  }));
+/** CVT endpoints wrap chart as { series, totalDigitized, totalCases }; tolerate top-level series too. */
+function unwrapCvtPayload(raw) {
+  if (!raw) return null;
+  return raw?.data ?? raw;
+}
+
+function unwrapCvtSeries(payload) {
+  if (!payload) return null;
+  const series = payload.series ?? payload;
+  if (series?.labels && Array.isArray(series.datasets)) return series;
+  return null;
+}
+
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function shortenDateLabel(label) {
+  if (typeof label !== "string") return label;
+  const m = label.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return label;
+  return `${parseInt(m[3], 10)} ${SHORT_MONTHS[parseInt(m[2], 10) - 1]}`;
+}
+
+function findDatasetByLabel(datasets, matcher) {
+  return (datasets || []).find((d) => matcher(String(d?.label || "")));
+}
+
+function buildDigitizedByLabel(cvtSeries) {
+  const map = new Map();
+  if (!cvtSeries?.labels?.length) return map;
+  const data = cvtSeries.datasets?.[0]?.data || [];
+  cvtSeries.labels.forEach((label, i) => {
+    const key = shortenDateLabel(label);
+    map.set(String(key), toNum(data[i]));
+    // Also keep raw label for 1:1 match when already "DD MMM".
+    map.set(String(label), toNum(data[i]));
+  });
+  return map;
+}
+
+function buildDigitizedByDoctor(cvtByDoctor) {
+  const map = new Map();
+  if (!cvtByDoctor?.labels?.length) return map;
+  const data = cvtByDoctor.datasets?.[0]?.data || [];
+  cvtByDoctor.labels.forEach((name, i) => {
+    map.set(String(name), toNum(data[i]));
+  });
+  return map;
+}
+
+function buildVisitTrend(appointments, cvtDaily) {
+  if (!appointments?.labels?.length) {
+    const base = seriesToXY(appointments);
+    return base;
+  }
+
+  const datasets = appointments.datasets || [];
+  const bookedDs =
+    findDatasetByLabel(datasets, (l) => /booked|total appointment/i.test(l)) ||
+    datasets.find((d) => !/completed/i.test(String(d?.label || ""))) ||
+    datasets[0];
+  const completedDs = findDatasetByLabel(datasets, (l) => /completed/i.test(l));
+
+  const digitizedMap = buildDigitizedByLabel(cvtDaily);
+  const cvtData = cvtDaily?.datasets?.[0]?.data || [];
+
+  const data = appointments.labels.map((label, i) => {
+    const x = shortenDateLabel(label);
+    let digitized = digitizedMap.get(String(x));
+    if (digitized == null) digitized = digitizedMap.get(String(label));
+    if (digitized == null && cvtDaily?.labels?.length === appointments.labels.length) {
+      digitized = toNum(cvtData[i]);
+    }
+    return {
+      x,
+      booked: toNum(bookedDs?.data?.[i]),
+      completed: toNum(completedDs?.data?.[i]),
+      digitized: toNum(digitized),
+    };
+  });
+
   return {
     data,
     series: [
@@ -264,18 +351,29 @@ function buildVisitTrend(appointments) {
   };
 }
 
-function buildDoctorBars(byDoctor, modesKpis) {
+function buildDoctorBars(byDoctor, cvtByDoctor) {
   if (!byDoctor?.labels?.length) return null;
   const doctors = byDoctor.labels;
   const datasets = byDoctor.datasets || [];
+  const digitizedMap = buildDigitizedByDoctor(cvtByDoctor);
+
   const data = doctors.map((name, i) => {
+    let booked = 0;
     let consultations = 0;
-    datasets.forEach((ds) => { consultations += toNum(ds.data?.[i]); });
+    datasets.forEach((ds) => {
+      if (String(ds.label || "").toLowerCase() === "booked") {
+        booked = toNum(ds.data?.[i]);
+      } else {
+        consultations += toNum(ds.data?.[i]);
+      }
+    });
+    // Merge CVT by full doctor name before compacting the x-axis label.
+    const digitized = toNum(digitizedMap.get(String(name)));
     return {
       x: compactDrName(name),
-      booked: 0,
+      booked,
       consultations,
-      digitized: 0,
+      digitized,
     };
   });
   return {

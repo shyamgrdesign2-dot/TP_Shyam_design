@@ -17,7 +17,7 @@ import FilterBar from "../data-analytics/filters/FilterBar";
 import { DEFAULT_DATE_VALUE, periodToRange, datesToRange } from "../data-analytics/filters/periods";
 import KpiRow from "../data-analytics/sections/KpiRow";
 import SectionBlock from "../data-analytics/sections/SectionBlock";
-import { ChartGrid, ChartTile } from "../data-analytics/sections/ChartLayout";
+import { ChartGrid, ChartTile, MaybeScroll } from "../data-analytics/sections/ChartLayout";
 import DonutWithLegend from "../data-analytics/charts/DonutWithLegend";
 import { BarChartZ } from "../data-analytics/charts/EmptyAware";
 import useFilterOptions from "../data-analytics/data/useFilterOptions";
@@ -172,18 +172,16 @@ export default function MissionAnalyticsPage() {
     {
       key: "rate",
       label: "Digitization %",
-      value: null,
+      value: kpis.digitalPrescriptionPercent,
       kind: "percent",
-      disabled: true,
-      tooltip: "Digitization metrics are not available yet.",
+      tooltip: "Digitized prescriptions as a share of total CVT cases in the selected period",
     },
     {
       key: "prescriptions",
       label: "Total digitized",
-      value: null,
+      value: kpis.totalDigitized,
       kind: "number",
-      disabled: true,
-      tooltip: "Digitization metrics are not available yet.",
+      tooltip: "Prescriptions digitized (CVT) in the selected period",
     },
     { key: "total", label: "Total patients", value: kpis.totalPatients, kind: "number", tooltip: "Unique patients seen in the selected period" },
     { key: "onetime", label: "One-time visitors", value: kpis.oneTime, kind: "number", tooltip: "Patients who visited only once" },
@@ -330,7 +328,10 @@ export default function MissionAnalyticsPage() {
                               icon="chart-square"
                               titleTooltip="Booked vs completed vs digitized (CVT) per day"
                             >
-                              <BarChartZ data={charts.visitTrend?.data} series={charts.visitTrend?.series} xKey="x" height={240} showAverage={false} />
+                              {/* Grouped 3-series bars need ~80px/day; scroll beyond 7 days so 10–31d ranges stay readable. */}
+                              <MaybeScroll count={charts.visitTrend?.data?.length || 0} fit={7} perItem={80}>
+                                <BarChartZ data={charts.visitTrend?.data} series={charts.visitTrend?.series} xKey="x" height={240} showAverage={false} />
+                              </MaybeScroll>
                             </ChartTile>
 
                             <ChartTile
@@ -338,7 +339,9 @@ export default function MissionAnalyticsPage() {
                               icon="stethoscope"
                               titleTooltip="Booked vs completed vs digitized (CVT) per doctor"
                             >
-                              <BarChartZ data={charts.byDoctor?.data} series={charts.byDoctor?.series} xKey="x" height={240} showAverage={false} />
+                              <MaybeScroll count={charts.byDoctor?.data?.length || 0} fit={5} perItem={110}>
+                                <BarChartZ data={charts.byDoctor?.data} series={charts.byDoctor?.series} xKey="x" height={240} showAverage={false} />
+                              </MaybeScroll>
                             </ChartTile>
 
                             <ChartTile

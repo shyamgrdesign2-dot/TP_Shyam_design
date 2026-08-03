@@ -33,7 +33,11 @@ import config from "../../config";
 // contract exactly; several Tab-1/Tab-2 dashboard endpoints may not be live yet
 // and will return 4xx/empty until the backend ships them — callers fall back to
 // zero-fill.
-const baseUrl = { customBaseUrl: config.reporting_api_url };
+// Heavy dashboard aggregations (consultation-modes, patients, CVT) can exceed
+// the shared axios 20s default under browser connection contention — raise
+// timeout for reporting only so Mission / Data Analytics do not cancel early.
+const REPORTING_TIMEOUT_MS = 300000; // 5 minutes
+const baseUrl = { customBaseUrl: config.reporting_api_url, timeout: REPORTING_TIMEOUT_MS };
 
 const get = (url, params) => api.get(url, { params, ...baseUrl });
 const getBlob = (url, params) =>
@@ -196,6 +200,11 @@ ApiReporting.addInpatientReference = (data) =>
 // OPD Consultation Modes — kpis, modeMix, modeTrend, byDoctor
 ApiReporting.clinicConsultationModes = (params) =>
   get(`/api/v1/reports/clinic/consultation-modes`, params);
+// CVT digitization — daily + by-doctor (Mission Visit trend / Doctor-wise charts)
+ApiReporting.cvtDaily = (params) =>
+  get(`/api/v1/reports/cvt/daily`, params);
+ApiReporting.cvtByDoctor = (params) =>
+  get(`/api/v1/reports/cvt/by-doctor`, params);
 // OPD Patients — demographics, gender, age, visitFrequency, rfm
 ApiReporting.analyticsPatients = (params) =>
   get(`/api/v1/reports/analytics/patients`, params);

@@ -75,8 +75,8 @@ function buildKpiRows(kpis) {
   push("Cancelled", kpis.cancelled, null);
   push("Avg visits / day", kpis.avgVisitsPerDay, kpis.avgVisitsPerDayDelta);
   push("Busiest day", kpis.busiestDay || "No data", null);
-  push("Digitization %", "Coming soon", null);
-  push("Total digitized", "Coming soon", null);
+  push("Digitization %", kpis.digitalPrescriptionPercent, null);
+  push("Total digitized", kpis.totalDigitized, null);
   push("Total patients", kpis.totalPatients, null);
   push("One-time visitors", kpis.oneTime, null);
   push("Returning patients", kpis.returning, null);
