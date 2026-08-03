@@ -1,28 +1,39 @@
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
-
 /**
  * Export the currently filtered Mission OPD Analytics dashboard as a multi-sheet .xlsx.
  * Uses data already loaded in the page (same snapshot as the UI).
+ * xlsx / file-saver are loaded on demand so they stay out of the home shell bundle.
  */
-export function exportMissionExcel({
+export async function exportMissionExcel({
   kpis = {},
   charts = {},
   filters = {},
   doctorOptions = [],
   clinicOptions = [],
 } = {}) {
+  const [XLSXmod, fileSaverMod] = await Promise.all([
+    import("xlsx"),
+    import("file-saver"),
+  ]);
+  const XLSX = XLSXmod?.default?.utils ? XLSXmod.default : XLSXmod;
+  const saveAs =
+    fileSaverMod.saveAs ||
+    fileSaverMod.default?.saveAs ||
+    fileSaverMod.default;
+  if (typeof saveAs !== "function") {
+    throw new Error("file-saver saveAs is unavailable");
+  }
+
   const wb = XLSX.utils.book_new();
 
-  appendSheet(wb, "Summary", buildSummaryRows(filters, doctorOptions, clinicOptions));
-  appendSheet(wb, "Key Metrics", buildKpiRows(kpis));
-  appendSheet(wb, "Appointment Status", buildDonutRows(charts.appointmentStatus));
-  appendSheet(wb, "Visit Trend", buildXyRows(charts.visitTrend, ["booked", "completed", "digitized"]));
-  appendSheet(wb, "Doctor Comparison", buildXyRows(charts.byDoctor, ["booked", "consultations", "digitized"], "Doctor"));
-  appendSheet(wb, "Age Distribution", buildXyRows(charts.ageDistribution));
-  appendSheet(wb, "Visit Frequency", buildXyRows(charts.visitFrequency));
-  appendSheet(wb, "Gender", buildDonutRows(charts.genderDistribution));
-  appendSheet(wb, "Segmentation", buildDonutRows(charts.segmentation));
+  appendSheet(XLSX, wb, "Summary", buildSummaryRows(filters, doctorOptions, clinicOptions));
+  appendSheet(XLSX, wb, "Key Metrics", buildKpiRows(kpis));
+  appendSheet(XLSX, wb, "Appointment Status", buildDonutRows(charts.appointmentStatus));
+  appendSheet(XLSX, wb, "Visit Trend", buildXyRows(charts.visitTrend, ["booked", "completed", "digitized"]));
+  appendSheet(XLSX, wb, "Doctor Comparison", buildXyRows(charts.byDoctor, ["booked", "consultations", "digitized"], "Doctor"));
+  appendSheet(XLSX, wb, "Age Distribution", buildXyRows(charts.ageDistribution));
+  appendSheet(XLSX, wb, "Visit Frequency", buildXyRows(charts.visitFrequency));
+  appendSheet(XLSX, wb, "Gender", buildDonutRows(charts.genderDistribution));
+  appendSheet(XLSX, wb, "Segmentation", buildDonutRows(charts.segmentation));
 
   const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   const blob = new Blob([wbout], {
@@ -32,7 +43,7 @@ export function exportMissionExcel({
   saveAs(blob, `mission-opd-analytics_${dateStamp}.xlsx`);
 }
 
-function appendSheet(wb, name, rows) {
+function appendSheet(XLSX, wb, name, rows) {
   const safeRows = rows?.length ? rows : [["No data"]];
   const ws = XLSX.utils.aoa_to_sheet(safeRows);
   // Excel sheet names max 31 chars

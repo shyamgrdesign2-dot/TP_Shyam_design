@@ -29,7 +29,6 @@ import { canShowMissionAnalyticsNav } from "../data-analytics/data/analyticsAcce
 import { getDecodedToken } from "../../utils/localStorage";
 import { useSelector } from "react-redux";
 import useMissionData from "./data/useMissionData";
-import { exportMissionExcel } from "./exportMissionExcel";
 
 /**
  * @param {{ embedded?: boolean }} props
@@ -139,11 +138,12 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
   });
   const { kpis, charts } = data;
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     if (loading || exporting) return;
     setExporting(true);
     try {
-      exportMissionExcel({
+      const { exportMissionExcel } = await import("./exportMissionExcel");
+      await exportMissionExcel({
         kpis,
         charts,
         filters,
@@ -155,6 +155,8 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
         report_name: "mission_opd_analytics",
         filter_type: "excel_export",
       });
+    } catch (err) {
+      console.error("Mission analytics export failed:", err);
     } finally {
       setExporting(false);
     }

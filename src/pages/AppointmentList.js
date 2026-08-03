@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 
 import Header from "../common/Header";
@@ -12,7 +12,6 @@ import WalkInConsultation from "./WalkInConsultation";
 import MobileWalkInConsultation from "./mobile/WalkInConsultation/WalkInConsultation";
 import MobileWalkInConsultationZydus from "./mobile/WalkInConsultationZydus/WalkInConsultationZydus";
 import MessagesData from "./MessagesData";
-import MissionAnalyticsPage from "./mission-analytics";
 import { useDeviceType } from "../utils/deviceDetection";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -29,6 +28,20 @@ import { fetchAgents } from "./appointmentAgent/service";
 import VoiceRxPromoModal from "../components/VoiceRxPromoModal";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { isMissionAnalyticsOnlyUser } from "./data-analytics/data/analyticsAccess";
+import { lazyRetry } from "../utils/lazyRetry";
+import FullPageLoader from "./vaccination/components/Loader";
+
+const MissionAnalyticsPage = lazy(() =>
+  lazyRetry(() => import("./mission-analytics"))
+);
+
+function EmbeddedMissionAnalytics() {
+  return (
+    <Suspense fallback={<FullPageLoader />}>
+      <MissionAnalyticsPage embedded />
+    </Suspense>
+  );
+}
 
 function AppointmentList() {
   const dispatch = useDispatch();
@@ -123,13 +136,13 @@ function AppointmentList() {
                 shouldShowMobileDashboard ? (
                   <AppointmentDashboardMobile />
                 ) : analyticsOnlyHome ? (
-                  <MissionAnalyticsPage embedded />
+                  <EmbeddedMissionAnalytics />
                 ) : (
                   <Appointment locationPath={locationPath} appointmentAgentsData={agentsData} />
                 )
               } 
             />
-            <Route path="mission-analytics" element={<MissionAnalyticsPage embedded />} />
+            <Route path="mission-analytics" element={<EmbeddedMissionAnalytics />} />
             <Route 
               path="walk_in_consultation" 
               element={(isMobileDevice && !isTablet) ? <MobileWalkInConsultation /> : <WalkInConsultation />} 
