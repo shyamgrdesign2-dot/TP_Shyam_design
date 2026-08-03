@@ -51,13 +51,13 @@ export function getDataAnalyticsAccessMode(tokenResult) {
     return DA_ACCESS_FULL;
   }
 
-  const userId = tokenResult?.user_id;
-  if (
-    userId != null &&
-    Data_ANALYTICS_ENABLED.some((id) => String(id) === String(userId))
-  ) {
-    return DA_ACCESS_FULL;
-  }
+  // const userId = tokenResult?.user_id;
+  // if (
+  //   userId != null &&
+  //   Data_ANALYTICS_ENABLED.some((id) => String(id) === String(userId))
+  // ) {
+  //   return DA_ACCESS_FULL;
+  // }
 
   const businessId = String(tokenResult?.hospital_business_id ?? "");
   const missionBusinessId = String(env.mission_hospital_business_id ?? "");

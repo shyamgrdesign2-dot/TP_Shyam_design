@@ -99,7 +99,7 @@ function AppointmentList() {
   return (
     <>
       {!shouldShowMobileDashboard && !isReceptionist && <Header locationPath={locationPath} />}
-      <div className="d-flex">
+      <div className={`d-flex${hideWelcomeForMissionAnalytics ? " ma-shell-row" : ""}`}>
         {!shouldShowMobileDashboard && !isReceptionist && <SidebarDoctor />}
         <div
           className={`w-100 bg-body ${

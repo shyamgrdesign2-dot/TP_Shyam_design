@@ -296,6 +296,7 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
             }}
           >
             <div
+              className={embedded ? "ma-embedded-filters" : undefined}
               style={{
                 flexShrink: 0,
                 padding: "16px 20px",
@@ -327,7 +328,8 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
               key={refreshKey}
               ref={scrollRef}
               onScroll={onContentScroll}
-              style={{
+              className={embedded ? "ma-embedded-scroll" : undefined}
+              style={embedded ? undefined : {
                 flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
@@ -435,7 +437,22 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
   );
 
   if (embedded) {
-    return <TesseractThemeProvider colorScheme="light">{body}</TesseractThemeProvider>;
+    return (
+      <TesseractThemeProvider
+        colorScheme="light"
+        className="ma-embedded-theme-fill"
+        style={{
+          flex: "1 1 auto",
+          minHeight: 0,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {body}
+      </TesseractThemeProvider>
+    );
   }
 
   return (

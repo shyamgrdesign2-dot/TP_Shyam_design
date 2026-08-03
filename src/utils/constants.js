@@ -156,7 +156,7 @@ export const EXTERNAL_HOSPITAL_BUSINESS_IDS = {
  * When true: non-CVT admin + other doctors get native /data-analytics-x
  * (admin = all doctors; other = self only via existing doctorLocked).
  */
-export const NATIVE_DATA_ANALYTICS_NAV_ENABLED = false;
+export const NATIVE_DATA_ANALYTICS_NAV_ENABLED = true;
 
 /**
  * Mission / CVT special doctors: analytics-only sidebar → /mission-analytics.
