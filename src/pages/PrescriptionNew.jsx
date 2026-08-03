@@ -3422,6 +3422,24 @@ function PrescriptionNew() {
         </div>
         <div ref={leftShadowRef} className={drAgentStyles.rxScrollShadowLeft} />
         <div ref={rightShadowRef} className={drAgentStyles.rxScrollShadowRight} style={{ right: drAgentOpen && isTablet ? "min(360px, calc(100vw - 24px))" : 0 }} />
+          {/* ── Dr Agent Panel + FAB ── */}
+          {/* Must stay inside the route shell: on desktop .drAgentOverlay is an
+              in-flow flex item (flex: 0 0 auto) that shares this flex row with
+              the prescription wrapper. Only the tablet variant is position:fixed. */}
+          {canUseVoiceRxModuleUi && (
+            <DrAgentRuntime
+              isOpen={drAgentOpen}
+              overlayClassName={drAgentOverlayClassName}
+              patientId={patient_data?.patient_unique_id}
+              doctorId={profile?.doctor_unique_id}
+              patientData={patient_data}
+              voiceHydrationStatus={voiceHydrationStatus}
+              symptomCollectorStatus={symptomCollectorStatus}
+              onPrintSoap={handlePrintSoapPdf}
+              onClose={() => setDrAgentOpen(false)}
+              onOpen={() => setDrAgentOpen(true)}
+            />
+          )}
         </div>
         {vitalDrawer && (
           <Drawer
@@ -3752,22 +3770,6 @@ function PrescriptionNew() {
             callAction={videoConsultAction}
           />
         )}
-
-        {/* ── Dr Agent Panel + FAB ── */}
-          {canUseVoiceRxModuleUi && (
-            <DrAgentRuntime
-              isOpen={drAgentOpen}
-              overlayClassName={drAgentOverlayClassName}
-              patientId={patient_data?.patient_unique_id}
-              doctorId={profile?.doctor_unique_id}
-              patientData={patient_data}
-              voiceHydrationStatus={voiceHydrationStatus}
-              symptomCollectorStatus={symptomCollectorStatus}
-              onPrintSoap={handlePrintSoapPdf}
-              onClose={() => setDrAgentOpen(false)}
-              onOpen={() => setDrAgentOpen(true)}
-            />
-          )}
 
           </>
         )}
