@@ -92,7 +92,7 @@ const dev = {
 };
 
 const qa_tp = {
-  reporting_api_url: "https://pm-reporting-qa.tatvacare.in",
+  reporting_api_url: "https://pm-core-uat.tatvacare.in",
   appointment_api_url: `https://pm-master-webservice-qa.tatvacare.in/`,
   symptoms_api_url: `https://pm-symptoms-qa.tatvacare.in`,
   examination_api_url: `https://pm-examination-qa.tatvacare.in`,
@@ -194,7 +194,7 @@ const qa_tp = {
 };
 
 const qa = {
-  reporting_api_url: "https://pm-reporting-uat.tatvacare.in",
+  reporting_api_url: "https://pm-core-uat.tatvacare.in",
   appointment_api_url: `https://node-doctor.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   symptoms_api_url: `https://strauss-symptoms.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   examination_api_url: `https://strauss-examination.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
@@ -391,8 +391,7 @@ const uat = {
 };
 
 const prod = {
-  // reporting_api_url: "https://pm-core-prod.tatvacare.in",
-  reporting_api_url: "https://pm-core-prod.nicerock-72127a04.centralindia.azurecontainerapps.io/",
+  reporting_api_url: "https://pm-core-prod.tatvacare.in",
   appointment_api_url: `https://pm-master-prod-webservice.tatvacare.in`,
   symptoms_api_url: `https://pm-symptoms-prod.tatvacare.in`,
   examination_api_url: `https://pm-examination-prod.tatvacare.in`,
@@ -519,7 +518,7 @@ const prod = {
 };
 
 const zyPreprod = {
-  reporting_api_url: "https://pm-reporting-preprod.tatvacare.in",
+  reporting_api_url: "https://pm-core-prod.tatvacare.in",
   appointment_api_url: `https://pm-master-preprod-webservice.tatvacare.in`,
   symptoms_api_url: `https://pm-symptoms-preprod.tatvacare.in`,
   examination_api_url: `https://pm-examination-preprod.tatvacare.in`,
