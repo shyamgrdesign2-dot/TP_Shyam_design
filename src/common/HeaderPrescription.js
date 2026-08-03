@@ -478,6 +478,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     // AND on the new page in voice-less point-n-click mode (where clicking it
     // re-enters the same page with the VoiceRx flow enabled).
     const shouldHideLegacyVoiceRxCta = isNewPrescriptionUi && showVoiceRxModule;
+    // The icon-only action group is a new-UI treatment, not a voice feature, so
+    // point-n-click sessions get it too even though showVoiceRxModule is false there.
+    const useCompactActionIcons = Boolean(isNewPrescriptionUi || showVoiceRxModule);
     const shouldShowLegacyVoiceRxCta =
         !shouldHideLegacyVoiceRxCta &&
         (isFreeVoiceRxUser || tp_monetization_enable) &&
@@ -1819,7 +1822,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     setCustomModuleContents(Array.from(moduleMap.values()));
                 }
             }
-            (isMobile || (isTablet && isNewPrescriptionUi) || (isCompactHeader && showVoiceRxModule)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
+            (isMobile || (isTablet && isNewPrescriptionUi) || (isCompactHeader && useCompactActionIcons)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
         } else {
             errorMessage(action.error)
         }
@@ -3659,7 +3662,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     showHideSubModal={onVoiceRxTrialChipClick}
                                 />
                             ) : null}
-                            {!showVoiceRxModule && (
+                            {!useCompactActionIcons && (
                                 <Popover
                                     open={popOverVideo}
                                     onOpenChange={showHideVideoListPopover}
@@ -3675,7 +3678,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     </button>
                                 </Popover>
                             )}
-                            {showVoiceRxModule ? (
+                            {useCompactActionIcons ? (
                                 <div className={voiceModuleStyles.headerActionGroup}>
                                     <Popover
                                         open={popOverVideo}
@@ -3799,7 +3802,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {DELETE_MODAL}
                             {CLEAR_MODAL}
 
-                            {!showVoiceRxModule && (
+                            {!useCompactActionIcons && (
                                 <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
                                     {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="setting-2" variant="linear" size={18} /></span> : isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
                                 </button>

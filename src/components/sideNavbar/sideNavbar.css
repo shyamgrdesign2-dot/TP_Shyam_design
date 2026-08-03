@@ -2780,3 +2780,41 @@
   font-weight: 500;
   line-height: 18px;
 }
+
+/* Care Plan section — assign-new block below the read-only assigned list.
+   Every rule here is scoped under .snv-content-scroll / .snv-care-plan-assign so the
+   shared CarePlanList and CarePlanDropdown are untouched on patient details and the
+   old point-n-click pad. */
+.snv-care-plan-assign {
+  padding: 0 12px 12px 0;
+}
+
+/* CarePlanList hardcodes an inline 10px top/left pad on its heading; the scroll
+   container already supplies the section padding, so drop it here. */
+.snv-content-scroll .care-plan-list-container > .title-common {
+  padding: 0 !important;
+}
+
+/* Match the sidenav section-heading treatment instead of the 16px pad heading. */
+.snv-content-scroll .care-plan-list-container > .title-common,
+.snv-care-plan-assign .title-common {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--tp-slate-700) !important;
+}
+
+/* CarePlanDropdown hardcodes an inline 6px pad. Drop it on the left so the title and
+   select line up with the assigned-plan cards, and on top so the scroll container's
+   own padding isn't doubled up when this block is the first thing in the section. */
+.snv-care-plan-assign > div {
+  padding-top: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* Divider only when there are assigned plans above to separate from. CarePlanList
+   renders null when the patient has none, so this block is then the first child. */
+.snv-care-plan-assign:not(:first-child) {
+  margin-top: 8px;
+  border-top: 1px solid var(--tp-slate-200, #e2e2ea);
+}

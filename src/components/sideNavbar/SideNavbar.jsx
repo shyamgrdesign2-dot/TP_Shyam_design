@@ -19,7 +19,9 @@ import {
   ArrowDown2,
   ArrowSquareDown,
   ArrowSquareUp,
+  Brush2,
   Calendar2,
+  ClipboardTick,
   Copy,
   DocumentText,
   Eye,
@@ -71,7 +73,7 @@ import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitiz
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
 import { getDecodedToken } from "../../utils/localStorage";
 import { trackEvent } from "../../utils/utils";
-import { GB_ZYDUS_USER } from "../../utils/constants";
+import { GB_CARE_PLAN, GB_ZYDUS_USER } from "../../utils/constants";
 import { buildMedicineDoseDisplayText } from "../../utils/medicationCopyNormalization";
 import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import { ToothIcon } from "../dental/ToothIcon";
@@ -98,6 +100,8 @@ const NAV_ITEMS = [
   { id: "growth", label: "Growth", icon: { kind: "iconsax", Icon: Ruler } },
   { id: "optal", label: "Ophthal", icon: { kind: "iconsax", Icon: Eye } },
   { id: "personalNotes", label: "Private Notes", icon: { kind: "iconsax", Icon: DocumentText } },
+  { id: "carePlan", label: "Care Plan", icon: { kind: "iconsax", Icon: ClipboardTick } },
+  { id: "canvas", label: "Canvas", icon: { kind: "iconsax", Icon: Brush2 } },
   { id: "referral", label: "Referral", icon: { kind: "custom", Component: ReferralIcon } },
   { id: "zydusLabReports", label: "Zydus Reports", icon: { kind: "medical", name: "lab" } },
   { id: "dentalPlan", label: "Dental Plan", icon: { kind: "custom", Component: ToothIcon } },
@@ -117,7 +121,7 @@ function getCustomizedPadNavId(item, access = {}) {
     case 1:
       return "vitals";
     case 3:
-      return access.isGynaecHistoryAccessable ? "gynec" : "history";
+      return access.isGynaecHistoryAccessable ? ["history", "gynec"] : "history";
     case 7:
       return access.isVaccinationAccessable ? "vaccine" : null;
     case 8:
@@ -130,6 +134,10 @@ function getCustomizedPadNavId(item, access = {}) {
       return "medicalRecords";
     case 19:
       return "labResults";
+    case 22:
+      return access.isCarePlanAccessable ? "carePlan" : null;
+    case 24:
+      return "canvas";
     case 25:
       if (access.referralOnRightPad) return null;
       return access.isCrossConsultAccessable ? "referral" : null;
@@ -152,6 +160,8 @@ const SECTION_TITLES = {
   growth: "Growth",
   optal: "Ophthal History",
   personalNotes: "Private Notes",
+  carePlan: "Care Plans",
+  canvas: "Canvas",
   referral: "Referral",
   zydusLabReports: "Zydus Reports",
   dentalPlan: "Dental Plan",
@@ -3578,6 +3588,21 @@ const EMPTY_SECTION_CONFIG = {
     addLabel: "Add Lab Results",
     showVoice: false,
   },
+  vaccine: {
+    message: "No vaccinations have been recorded for this patient yet.",
+    addLabel: "Add Vaccinations",
+    showVoice: false,
+  },
+  medicalRecords: {
+    message: "No medical records have been added for this patient yet.",
+    addLabel: "Add New Records",
+    showVoice: false,
+  },
+  canvas: {
+    message: "No canvases have been created for this patient yet.",
+    addLabel: "Add Canvas",
+    showVoice: false,
+  },
   gynec: {
     message: "No gynec history has been recorded for this patient yet.",
     addLabel: "Add Gynec History",
@@ -3941,6 +3966,7 @@ function RecordsContent({
   setFilesData = NOOP,
   setIsEditDocument = NOOP,
   setUploadDocDrawer = NOOP,
+  emptyState,
 }) {
   const scrollRef = useRef(null);
   const [activeCategory, setActiveCategory] = useState(-1);
@@ -4003,7 +4029,7 @@ function RecordsContent({
       data-snv-scroll-root="true"
     >
       {!hasRecords ? (
-        <div className="snv-empty-state">No data recorded.</div>
+        emptyState || <div className="snv-empty-state">No data recorded.</div>
       ) : (
         <div className="snv-filter-strip">
           {availableCategories.map((category) => (
@@ -4198,6 +4224,42 @@ function buildOpthalStructureItems(rows = []) {
   });
 }
 
+// Shared by auto refraction, lensometer and glass prescription — all three use the
+// same sphere/cylinder/axis columns as the main OphthalmologyExamPanel tables.
+const OPTHAL_REFRACTION_FIELDS = [
+  { key: "sphere", label: "SPH" },
+  { key: "cylinder", label: "CYL" },
+  { key: "axis", label: "Axis" },
+  { key: "add", label: "Add" },
+  { key: "distance", label: "Dist" },
+  { key: "near", label: "Near" },
+];
+
+// autoRefraction stores Undilated and Dilated rows in one flat array keyed by `type`,
+// so they have to be split before findOpthalEyeRow, which matches on eye alone and
+// would otherwise always return the first OD/OS row regardless of type.
+function buildOpthalRefractionSections(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const hasTypedRows = list.some((item) => String(item?.type || "").trim());
+  if (!hasTypedRows) {
+    return [{
+      id: "auto-refraction",
+      title: "Auto Refraction Test",
+      icon: "AR",
+      items: buildOpthalEyeItems(list, OPTHAL_REFRACTION_FIELDS),
+    }];
+  }
+  return ["Undilated", "Dilated"].map((type) => ({
+    id: `auto-refraction-${type.toLowerCase()}`,
+    title: `Auto Refraction Test - ${type}`,
+    icon: "AR",
+    items: buildOpthalEyeItems(
+      list.filter((item) => String(item?.type || "").toLowerCase() === type.toLowerCase()),
+      OPTHAL_REFRACTION_FIELDS
+    ),
+  }));
+}
+
 function buildLegacyOpthalEntries(rows = []) {
   return rows.flatMap((row, index) => {
     const sections = [
@@ -4212,6 +4274,19 @@ function buildLegacyOpthalEntries(rows = []) {
           { key: "cNear", label: "C Near" },
           { key: "ucNear", label: "UC Near" },
         ]),
+      },
+      ...buildOpthalRefractionSections(row?.autoRefraction),
+      {
+        id: "lensometer",
+        title: "Lensometer Values",
+        icon: "LM",
+        items: buildOpthalEyeItems(row?.lensometerValues, OPTHAL_REFRACTION_FIELDS),
+      },
+      {
+        id: "glass-prescription",
+        title: "Glass Prescription",
+        icon: "GP",
+        items: buildOpthalEyeItems(row?.glassPrescription, OPTHAL_REFRACTION_FIELDS),
       },
       {
         id: "iop",
@@ -5269,13 +5344,91 @@ function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voice
   );
 }
 
+function CarePlanContent({ carePlanActions }) {
+  const {
+    CarePlanList: CarePlanListComponent,
+    CarePlanDropdown: CarePlanDropdownComponent,
+    patientId,
+    tcmId,
+    doctorId,
+    clinicId,
+    selectedCarePlan,
+    onCarePlanSelect,
+    placeholder,
+  } = carePlanActions || {};
+
+  if (!CarePlanListComponent || !CarePlanDropdownComponent) {
+    return <div className="snv-content-scroll" data-snv-scroll-root="true"><div className="snv-empty-state">No data recorded.</div></div>;
+  }
+
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      <CarePlanListComponent
+        patientId={patientId}
+        selectedTcmId={tcmId}
+        readOnly
+        title="Assigned Care Plans"
+        hideWhenEmpty
+        onCarePlanSelect={onCarePlanSelect}
+      />
+      <div className="snv-care-plan-assign">
+        <CarePlanDropdownComponent
+          onCarePlanSelect={onCarePlanSelect}
+          selectedCarePlan={selectedCarePlan}
+          patientId={patientId}
+          doctorId={doctorId}
+          clinicId={clinicId}
+          placeholder={placeholder}
+        />
+      </div>
+    </div>
+  );
+}
+
+const CANVAS_HIDDEN_MENU_KEYS = ["addEdit", "preview", "duplicate"];
+
+function CanvasContent({ canvasActions, emptyState }) {
+  const {
+    DrawingCanvasList: DrawingCanvasListComponent,
+    drawingCanvases = [],
+    setDrawingCanvases,
+    handleDrawerDrawingCanvas,
+    rxDrawingCanvasIds = [],
+    onToggleRx,
+  } = canvasActions || {};
+
+  if (!DrawingCanvasListComponent) {
+    return <div className="snv-content-scroll" data-snv-scroll-root="true"><div className="snv-empty-state">No data recorded.</div></div>;
+  }
+
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      {drawingCanvases.length === 0 ? emptyState : (
+        <DrawingCanvasListComponent
+          drawingCanvases={drawingCanvases}
+          setDrawingCanvases={setDrawingCanvases}
+          handleDrawerDrawingCanvas={handleDrawerDrawingCanvas}
+          rxDrawingCanvasIds={rxDrawingCanvasIds}
+          onToggleRx={onToggleRx}
+          hideShowInRx={false}
+          hideMoreOptions={false}
+          // Add/Edit and Preview only re-open the drawer, and Duplicate has no
+          // persisting handler here, so the rail menu is Rename/Download/Delete.
+          hiddenMenuKeys={CANVAS_HIDDEN_MENU_KEYS}
+          maxItems={null}
+        />
+      )}
+    </div>
+  );
+}
+
 function HiddenScrollRoot() {
   return (
     <div className="snv-content-scroll snv-hidden-scroll-root" data-snv-scroll-root="true" aria-hidden="true" />
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, referralValue, onReferralChange, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, referralValue, onReferralChange, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions, carePlanActions, canvasActions }) {
   const emptyState = EMPTY_SECTION_CONFIG[activeId] ? (
     <SideNavEmptyState
       sectionId={activeId}
@@ -5320,6 +5473,7 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           setFilesData={medicalRecordActions?.setFilesData}
           setIsEditDocument={medicalRecordActions?.setIsEditDocument}
           setUploadDocDrawer={medicalRecordActions?.setUploadDocDrawer}
+          emptyState={emptyState}
         />
       );
     case "gynec":
@@ -5328,7 +5482,11 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
       return <ObstetricContent sections={viewData.obstetric} emptyState={emptyState} />;
     case "vaccine":
       // return <VaccineContent data={viewData.vaccine} />; // TODO: INTEL - TO BE HANDLED ON PROD FIRST (showing due date to all vaccines by default)
-      return <HiddenScrollRoot />;
+      return isSectionEmptyForInlineActions("vaccine", viewData) ? (
+        <div className="snv-content-scroll" data-snv-scroll-root="true">{emptyState}</div>
+      ) : (
+        <HiddenScrollRoot />
+      );
     case "growth":
       return <GrowthContent data={viewData.growth} emptyState={emptyState} />;
     case "optal":
@@ -5343,6 +5501,10 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           voiceDisabled={privateNotesVoiceDisabled}
         />
       );
+    case "carePlan":
+      return <CarePlanContent carePlanActions={carePlanActions} />;
+    case "canvas":
+      return <CanvasContent canvasActions={canvasActions} emptyState={emptyState} />;
     case "referral":
       return (
         <ReferralContent
@@ -5364,10 +5526,18 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
   }
 }
 
-function isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating) {
+function isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating, canvasActions) {
+  if (activeId === "canvas") return (canvasActions?.drawingCanvases || []).length === 0;
   if (activeId === "vitals") return !vitalsUpdating && (viewData.vitals || []).length === 0;
   if (activeId === "history") return (viewData.history || []).length === 0;
   if (activeId === "labResults") return (viewData.labResults || []).length === 0;
+  if (activeId === "medicalRecords") {
+    return (viewData.medicalRecordsRawDocs || []).length === 0 && (viewData.medicalRecords || []).length === 0;
+  }
+  if (activeId === "vaccine") {
+    const vaccine = viewData.vaccine || {};
+    return (vaccine.pending || []).length === 0 && (vaccine.given || []).length === 0;
+  }
   if (activeId === "gynec") return (viewData.gynec || []).length === 0;
   if (activeId === "obstetric") return getVisibleObstetricSections(viewData.obstetric || []).length === 0;
   if (activeId === "growth") {
@@ -5406,7 +5576,7 @@ function sectionVoiceLabel(activeId) {
 }
 
 function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, actionCounts, hidePlusIcon, voiceEnabled, voiceLocked }) {
-  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal" || activeId === "dentalPlan") return null;
+  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal" || activeId === "dentalPlan" || activeId === "carePlan") return null;
   const status = voiceState?.status || "idle";
   const busy = status === "recording" || status === "transcribing" || status === "digitizing";
   const disabled = busy || voiceLocked;
@@ -5438,7 +5608,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, referralValue, onReferralChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, voiceAnalyticsContext, medicalRecordActions }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, referralValue, onReferralChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, voiceAnalyticsContext, medicalRecordActions, carePlanActions, canvasActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -5449,7 +5619,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
     ? (activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "Transcribing private notes..." : "Refining your captured consultation...")
     : voiceStatus === "digitizing" ? "Filling section…" : undefined;
   const privateNotesVoiceDisabled = voiceLocked || ["recording", "transcribing", "digitizing"].includes(voiceStatus);
-  const emptyInlineActions = isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating);
+  const emptyInlineActions = isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating, canvasActions);
 
   useEdgeSwipeNavigation({
     containerRef,
@@ -5508,6 +5678,8 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           onVoiceClick={onVoiceClick}
           emptyVoiceDisabled={voiceLocked || ["recording", "transcribing", "digitizing"].includes(voiceStatus)}
           medicalRecordActions={medicalRecordActions}
+          carePlanActions={carePlanActions}
+          canvasActions={canvasActions}
         />
       </div>
       {showVoiceRx && voiceRecorderVisible && (
@@ -5574,6 +5746,8 @@ export function SideNavbar({
   setFilesData = NOOP,
   setIsEditDocument = NOOP,
   setUploadDocDrawer = NOOP,
+  carePlanActions,
+  canvasActions,
 }) {
   const dispatch = useDispatch();
   const [activeId, setActiveId] = useState(() => initialActiveId);
@@ -5621,6 +5795,7 @@ export function SideNavbar({
   const { isPediatricAccessable } = useAccess();
   const isCrossConsultAccessable = useCrossConsult();
   const isDentalAccessable = useIsDentalEnabled();
+  const isCarePlanAccessable = useFeatureIsOn(GB_CARE_PLAN);
   const {
     vitalsData = [],
     setVitalsData,
@@ -6021,6 +6196,7 @@ export function SideNavbar({
     history: "Add/Edit Details",
     labResults: "Add/Edit Details",
     medicalRecords: "Add/Edit Details",
+    canvas: "Add Canvas",
     gynec: "Add/Edit Details",
     obstetric: "Add/Edit Details",
     vaccine: "Add/Edit Details",
@@ -6037,23 +6213,28 @@ export function SideNavbar({
   }), [labParamsDataProp?.length]);
 
   const navItems = useMemo(() => {
-    const seen = new Set(["pastVisits", "vitals", "history"]);
-    const orderedItems = [NAV_ITEM_BY_ID.pastVisits, NAV_ITEM_BY_ID.vitals, NAV_ITEM_BY_ID.history];
+    // Only Past Visits is pinned; it is not a Customize Your Pad module. Vitals and
+    // History are real modules (ids 1 and 3) so they follow their toggles like the rest.
+    const seen = new Set(["pastVisits"]);
+    const orderedItems = [NAV_ITEM_BY_ID.pastVisits];
     const access = {
       isVaccinationAccessable,
       isGrowthChartAccessable,
       isGynaecHistoryAccessable,
       isCrossConsultAccessable,
+      isCarePlanAccessable,
       referralOnRightPad,
       isDentalAccessable,
     };
 
     (customizedPadLeftList || []).forEach((item) => {
-      const navId = getCustomizedPadNavId(item, access);
-      if (navId === "growth") return;
-      if (!navId || seen.has(navId) || !NAV_ITEM_BY_ID[navId]) return;
-      seen.add(navId);
-      orderedItems.push(NAV_ITEM_BY_ID[navId]);
+      const navIds = getCustomizedPadNavId(item, access);
+      (Array.isArray(navIds) ? navIds : [navIds]).forEach((navId) => {
+        if (navId === "growth") return;
+        if (!navId || seen.has(navId) || !NAV_ITEM_BY_ID[navId]) return;
+        seen.add(navId);
+        orderedItems.push(NAV_ITEM_BY_ID[navId]);
+      });
     });
 
     if (isOpthalModuleAccessible && !seen.has("optal")) {
@@ -6078,6 +6259,7 @@ export function SideNavbar({
     isVaccinationAccessable,
     isZydusUserAccessable,
     isCrossConsultAccessable,
+    isCarePlanAccessable,
     referralOnRightPad,
     isDentalAccessable,
   ]);
@@ -6592,6 +6774,8 @@ export function SideNavbar({
             setIsEditDocument,
             setUploadDocDrawer,
           }}
+          carePlanActions={carePlanActions}
+          canvasActions={canvasActions}
         />
       ) : null}
       <TPConfirmDialog

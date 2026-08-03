@@ -111,6 +111,9 @@ import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
 import CustomModule from "../components/CustomModule";
 import CarePlanDropdown from "../components/CarePlanDropdown";
+import DrawingCanvas from "./drawingCanvas/DrawingCanvas";
+import DrawingCanvasList from "./drawingCanvas/components/DrawingCanvasList";
+import { listPatientCanvasMapping } from "./drawingCanvas/service";
 import CarePlanList from "../components/CarePlanList";
 import { getCarePlanNames, getCarePlanAssignments } from "./smartSync/services/carePlanService";
 
@@ -1000,6 +1003,16 @@ function PrescriptionNew() {
   const [labReportID, setLabReportID] = useState(null);
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
+  const [drawingCanvases, setDrawingCanvases] = useState([]);
+  const normalizeCanvasIds = useCallback((value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      return value.split(",").map((id) => id.trim()).filter(Boolean);
+    }
+    return [];
+  }, []);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState([]);
+  const [drawingCanvasDrawer, setDrawingCanvasDrawer] = useState(false);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
@@ -1157,7 +1170,10 @@ function PrescriptionNew() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
-    isDraft: caseManagerData?.is_draft
+    isDraft: caseManagerData?.is_draft,
+    // HeaderPrescription reads this off the context (not props) to persist
+    // canvas_filename on save, so the Show in Rx toggle is a no-op without it.
+    rxDrawingCanvasIds,
   };
 
   const [vitalDrawer, setVitalDrawer] = useState(false);
@@ -2356,6 +2372,58 @@ function PrescriptionNew() {
   };
 
   // Handle Add button click
+  const fetchPatientCanvases = useCallback(async () => {
+    const pId = patient_data?.patient_unique_id;
+    if (!pId) return;
+    const res = await listPatientCanvasMapping(pId, tcmId);
+    if (res?.status && res?.records) {
+      setDrawingCanvases(res.records.map((r) => ({
+        id: r.mapping_id,
+        name: r.canvas_name,
+        url: r.canvas_url,
+        created_at: r.created_at || r.createdAt || r.canvas_created_at,
+        scene: null,
+      })));
+    }
+  }, [patient_data?.patient_unique_id, tcmId]);
+
+  useEffect(() => {
+    fetchPatientCanvases();
+  }, [fetchPatientCanvases]);
+
+  const handleDrawerDrawingCanvas = useCallback(() => {
+    setDrawingCanvasDrawer((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    setRxDrawingCanvasIds(normalizeCanvasIds(caseManagerData?.canvas_filename));
+  }, [tcmId, pamId, normalizeCanvasIds]);
+
+  const handleToggleCanvasRx = useCallback((canvasId, checked) => {
+    setRxDrawingCanvasIds((prev) => (
+      checked
+        ? [...Array.from(new Set([...prev, canvasId]))]
+        : prev.filter((id) => String(id) !== String(canvasId))
+    ));
+  }, []);
+
+  const handleSaveDrawingCanvas = useCallback((updatedCanvases, meta) => {
+    if (Array.isArray(updatedCanvases)) {
+      setDrawingCanvases(updatedCanvases);
+      const knownIds = new Set(updatedCanvases.map((c) => String(c?.id)).filter(Boolean));
+      setRxDrawingCanvasIds((prev) => prev.filter((id) => knownIds.has(String(id))));
+    } else {
+      fetchPatientCanvases();
+    }
+    if (meta && meta.mappingId != null && meta.mappingId !== "") {
+      setRxDrawingCanvasIds((prev) => (
+        meta.showInRx !== false
+          ? [...new Set([...prev, meta.mappingId])]
+          : prev.filter((id) => String(id) !== String(meta.mappingId))
+      ));
+    }
+  }, [fetchPatientCanvases]);
+
   const handleAddClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -3065,6 +3133,9 @@ function PrescriptionNew() {
           handleDrawerOpthal();
         }
         break;
+      case "canvas":
+        handleDrawerDrawingCanvas();
+        break;
       case "zydusLabReports":
         handleZydusTestReportDrawer();
         break;
@@ -3261,6 +3332,25 @@ function PrescriptionNew() {
                 setFilesData={setFilesData}
                 setIsEditDocument={setIsEditDocument}
                 setUploadDocDrawer={setUploadDocDrawer}
+                carePlanActions={{
+                  CarePlanList,
+                  CarePlanDropdown,
+                  patientId: patient_data?.patient_unique_id,
+                  tcmId,
+                  doctorId: userId,
+                  clinicId: decodedToken?.result?.clinic_id,
+                  selectedCarePlan,
+                  onCarePlanSelect: setSelectedCarePlan,
+                  placeholder: carePlanPlaceholder,
+                }}
+                canvasActions={{
+                  DrawingCanvasList,
+                  drawingCanvases,
+                  setDrawingCanvases,
+                  handleDrawerDrawingCanvas,
+                  rxDrawingCanvasIds,
+                  onToggleRx: handleToggleCanvasRx,
+                }}
               />
               <div ref={rxWrapperRef} className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
           {/* <img src={hey} alt="vitals" className="me-3 hey" /> */}
@@ -3441,6 +3531,34 @@ function PrescriptionNew() {
             />
           )}
         </div>
+        {drawingCanvasDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            bodyStyle={{ backgroundColor: "white" }}
+            onClose={handleDrawerDrawingCanvas}
+            open={drawingCanvasDrawer}
+            width="60%"
+            push={false}
+          >
+            <DrawingCanvas
+              patientId={patient_data?.patient_unique_id}
+              tcmId={tcmId}
+              canvases={drawingCanvases}
+              rxDrawingCanvasIds={rxDrawingCanvasIds}
+              onToggleRx={(canvasId, checked) => {
+                setRxDrawingCanvasIds((prev) => (
+                  checked
+                    ? [...Array.from(new Set([...prev, canvasId]))]
+                    : prev.filter((id) => String(id) !== String(canvasId))
+                ));
+              }}
+              onCreateCanvas={() => {}}
+              onSave={handleSaveDrawingCanvas}
+              onClose={handleDrawerDrawingCanvas}
+            />
+          </Drawer>
+        )}
         {vitalDrawer && (
           <Drawer
             closeIcon={false}
