@@ -79,4 +79,5 @@ export default {
   abha_records_api_url: env.abha_records_api_url,
   consultation_api_url: env.consultation_api_url,
   order_management_api_url: env.order_management_api_url,
+  reporting_api_url: env.reporting_api_url,
 };

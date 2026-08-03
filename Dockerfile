@@ -7,6 +7,10 @@ ARG REACT_APP_ENV
 ARG SENTRY_AUTH_TOKEN
 ARG GENERATE_SOURCEMAP
 ARG PUBLIC_URL
+# GitHub Packages PAT (read:packages). Pass from CI:
+#   --build-arg NODE_AUTH_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
+# Used only for npm install; not kept as ENV so it is less likely to linger in layers.
+ARG NODE_AUTH_TOKEN
 
 ENV REACT_APP_ENV=$REACT_APP_ENV
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
@@ -19,9 +23,10 @@ ENV CI=false
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package*.json .npmrc ./
 
-RUN npm install --legacy-peer-deps
+RUN NODE_AUTH_TOKEN="$NODE_AUTH_TOKEN" npm install --legacy-peer-deps \
+  && rm -f .npmrc
 
 COPY . .
 

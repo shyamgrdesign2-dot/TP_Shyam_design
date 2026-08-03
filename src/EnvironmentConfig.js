@@ -1,4 +1,5 @@
 const dev = {
+  reporting_api_url: "https://pm-core-uat.tatvacare.in",
   appointment_api_url: `https://node-doctor.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   symptoms_api_url: `https://strauss-symptoms.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   examination_api_url: `https://strauss-examination.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
@@ -35,6 +36,7 @@ const dev = {
     "https://pm-medicalhistory-uat.tatvacare.in/api/v1/obstetric-history",
   zydus_api_url: `https://pm-ingest-webhook-uat.tatvacare.in`,
   mission_hospital_business_id: "7921766745277649",
+  mission_analytics_special_user_ids: [36357],  // UAT/dev Mission special user (analytics-only sidebar)
   zydus_business_id: "754811713438773",
   zydus_proxy_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
@@ -91,6 +93,7 @@ const dev = {
 };
 
 const qa_tp = {
+  reporting_api_url: "https://pm-core-uat.tatvacare.in",
   appointment_api_url: `https://pm-master-webservice-qa.tatvacare.in/`,
   symptoms_api_url: `https://pm-symptoms-qa.tatvacare.in`,
   examination_api_url: `https://pm-examination-qa.tatvacare.in`,
@@ -133,6 +136,7 @@ const qa_tp = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-qa.tatvacare.in`,
   mission_hospital_business_id: "7921766745277649",
+  mission_analytics_special_user_ids: [36357],  // UAT/dev Mission special user (analytics-only sidebar)
   zydus_business_id: "754811713438773",
   rx_digitization: "https://pm-rxdigitization-qa.tatvacare.in",
   visit_api_url: "https://pm-visit-integration-qa.tatvacare.in",
@@ -192,6 +196,7 @@ const qa_tp = {
 };
 
 const qa = {
+  reporting_api_url: "https://pm-core-uat.tatvacare.in",
   appointment_api_url: `https://node-doctor.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   symptoms_api_url: `https://strauss-symptoms.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   examination_api_url: `https://strauss-examination.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
@@ -229,6 +234,7 @@ const qa = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-uat.tatvacare.in`,
   mission_hospital_business_id: "7921766745277649",
+  mission_analytics_special_user_ids: [36357],  // UAT/dev Mission special user (analytics-only sidebar)
   zydus_business_id: "754811713438773",
   zydus_proxy_url: "https://pm-ict-proxy-uat.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-uat.tatvacare.in",
@@ -284,6 +290,7 @@ const qa = {
 };
 
 const uat = {
+  reporting_api_url: "https://pm-core-uat.tatvacare.in",
   appointment_api_url: `https://pm-master-uat-webservice.tatvacare.in`,
   symptoms_api_url: `https://pm-symptoms-uat.tatvacare.in`,
   examination_api_url: `https://pm-examination-uat.tatvacare.in`,
@@ -325,6 +332,7 @@ const uat = {
     "https://pm-medicalhistory-uat.tatvacare.in/api/v1/obstetric-history",
   zydus_api_url: `https://pm-ingest-webhook-uat.tatvacare.in`,
   mission_hospital_business_id: "7921766745277649",
+  mission_analytics_special_user_ids: [36357],  // UAT/dev Mission special user (analytics-only sidebar)
   zydus_business_id: "754811713438773",
   zydus_proxy_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
@@ -387,6 +395,7 @@ const uat = {
 };
 
 const prod = {
+  reporting_api_url: "https://pm-core-prod.tatvacare.in",
   appointment_api_url: `https://pm-master-prod-webservice.tatvacare.in`,
   symptoms_api_url: `https://pm-symptoms-prod.tatvacare.in`,
   examination_api_url: `https://pm-examination-prod.tatvacare.in`,
@@ -424,6 +433,7 @@ const prod = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-prod.tatvacare.in`,
   mission_hospital_business_id: "7821776311505768",
+  mission_analytics_special_user_ids: [36357],
   zydus_business_id: "368451724046474",
   zydus_proxy_url: "https://pm-ict-proxy.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-prod.tatvacare.in",
@@ -513,6 +523,7 @@ const prod = {
 };
 
 const zyPreprod = {
+  reporting_api_url: "https://pm-core-prod.tatvacare.in",
   appointment_api_url: `https://pm-master-preprod-webservice.tatvacare.in`,
   symptoms_api_url: `https://pm-symptoms-preprod.tatvacare.in`,
   examination_api_url: `https://pm-examination-preprod.tatvacare.in`,
@@ -550,6 +561,7 @@ const zyPreprod = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-preprod.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-preprod.tatvacare.in`,
   mission_hospital_business_id: "7821776311505768",
+  mission_analytics_special_user_ids: [],  // Prod: set confirmed prod JWT user_id(s) here (do not reuse UAT ids)
   zydus_business_id: "368451724046474",
   zydus_proxy_url: "https://pm-ict-proxy-preprod.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-preprod.tatvacare.in",
@@ -639,6 +651,7 @@ const zyPreprod = {
 };
 
 const zyProd = {
+  reporting_api_url: "https://zy-reporting-prod.tatvacare.in",
   appointment_api_url: `https://zy-master-prod-webservice.tatvacare.in`,
   symptoms_api_url: `https://zy-symptoms-prod.tatvacare.in`,
   examination_api_url: `https://zy-examination-prod.tatvacare.in`,
@@ -676,6 +689,7 @@ const zyProd = {
   zydus_ict_lab_result_api_url: "https://zy-ict-proxy-prod.tatvacare.in",
   zydus_api_url: `https://zy-ingest-webhook-prod.tatvacare.in`,
   mission_hospital_business_id: "7821776311505768",
+  mission_analytics_special_user_ids: [],  // Prod: set confirmed prod JWT user_id(s) here (do not reuse UAT ids)
   zydus_business_id: "368451724046474",
   zydus_proxy_url: "https://zy-ict-proxy-prod.tatvacare.in",
   rx_digitization: "https://zy-rxdigitization-prod.tatvacare.in",
