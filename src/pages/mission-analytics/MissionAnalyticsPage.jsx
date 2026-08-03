@@ -25,7 +25,7 @@ import { BarChartZ } from "../data-analytics/charts/EmptyAware";
 import useFilterOptions from "../data-analytics/data/useFilterOptions";
 import useCapabilities from "../data-analytics/data/useCapabilities";
 import { trackAnalytics, EVENTS } from "../data-analytics/data/analyticsTracking";
-import { canShowMissionAnalyticsNav } from "../data-analytics/data/analyticsAccess";
+import { canShowMissionAnalyticsNav, isMissionAnalyticsSpecialUser } from "../data-analytics/data/analyticsAccess";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useSelector } from "react-redux";
 import useMissionData from "./data/useMissionData";
@@ -64,7 +64,11 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
   const [doctors, setDoctors] = useState([]);
   const [clinics, setClinics] = useState([]);
 
-  const doctorLocked = !caps.isAdmin && !!caps.selfId;
+  // Special Mission users get the same doctor/clinic filters as Mission admins
+  // (business-wide roster), not the self-only lock used for other non-admin doctors.
+  const fullMissionFilters =
+    caps.isAdmin || isMissionAnalyticsSpecialUser(tokenResult);
+  const doctorLocked = !fullMissionFilters && !!caps.selfId;
   useEffect(() => {
     if (doctorLocked) setDoctors([caps.selfId]);
   }, [doctorLocked, caps.selfId]);
