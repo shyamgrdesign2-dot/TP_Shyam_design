@@ -981,6 +981,12 @@
   }
 }
 
+.serviceStatusTriggerDisabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .serviceStatusContent {
   width: 180px;
   border-radius: 8px !important;

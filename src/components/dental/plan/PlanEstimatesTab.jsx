@@ -106,7 +106,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
           </div>
         </div>
         <div className={styles.actionRow}>
-          {!isSessionPendingPlan && (
+          {!isSessionPendingPlan && !isChikitsalayAccessable && (
           <button
             type="button"
             // onClick={handleActivateClick}

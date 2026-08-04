@@ -63,8 +63,8 @@ const STATUS_OPTIONS = [
 const CHIKITSALAY_STATUS_OPTIONS = [
   { value: "in-progress", label: "In Progress" },
   { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "refund", label: "Refund" },
+  // { value: "cancelled", label: "Cancelled" },
+  // { value: "refund", label: "Refund" },
 ];
 
 const ALL_STATUS_OPTIONS = [
@@ -166,6 +166,8 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
     ? CHIKITSALAY_STATUS_OPTIONS
     : STATUS_OPTIONS;
   const dropdownValue = normalizeStatusForDropdown(service);
+  const isStatusLocked =
+    isChikitsalayAccessable && dropdownValue === "completed";
   const statusLabel =
     ALL_STATUS_OPTIONS.find((opt) => opt.value === dropdownValue)?.label ??
     "Select status";
@@ -236,37 +238,47 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
             </div>
             <div className={styles.serviceCardStatusRow}>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild={true}>
+                <DropdownMenuTrigger asChild={true} disabled={isStatusLocked}>
                   <button
                     type="button"
+                    disabled={isStatusLocked}
                     onClick={(e) => e.stopPropagation()}
                     className={cx(
                       styles.serviceStatusTrigger,
-                      statusSelectClasses
+                      statusSelectClasses,
+                      isStatusLocked && styles.serviceStatusTriggerDisabled
                     )}
-                    aria-label="Change service status"
+                    aria-label={
+                      isStatusLocked
+                        ? "Service status is completed and cannot be changed"
+                        : "Change service status"
+                    }
                   >
                     <span>{statusLabel}</span>
-                    <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+                    {!isStatusLocked && (
+                      <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+                    )}
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className={cx(
-                    dropdownContentClass,
-                    styles.serviceStatusContent
-                  )}
-                >
-                  {statusOptions.map((opt) => (
-                    <DropdownMenuItem
-                      key={opt.value}
-                      onClick={() => handleServiceStatusChange(opt.value)}
-                      className={`${statusSelectItemBaseClass} ${getStatusSelectItemToneClasses(opt.value)}`}
-                    >
-                      {opt.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
+                {!isStatusLocked && (
+                  <DropdownMenuContent
+                    align="start"
+                    className={cx(
+                      dropdownContentClass,
+                      styles.serviceStatusContent
+                    )}
+                  >
+                    {statusOptions.map((opt) => (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        onClick={() => handleServiceStatusChange(opt.value)}
+                        className={`${statusSelectItemBaseClass} ${getStatusSelectItemToneClasses(opt.value)}`}
+                      >
+                        {opt.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                )}
               </DropdownMenu>
             </div>
           </div>
