@@ -25,6 +25,10 @@ import { services } from "../redux/doctorsSlice";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import IPDKnowMore from "../pages/monetization/components/IPDKnowMore";
 import PharmacyKnowMore from "../pages/monetization/components/PharmacyKnowMore";
+import {
+  getPharmacyAccessState,
+  hasPharmacyInterestSubmittedToday,
+} from "../pages/monetization/utils/pharmacyInterest";
 import AskTatvaKnowMore from "../pages/monetization/components/AskTatvaKnowMore";
 import { EVENTS } from "../utils/events";
 import { ASSETS } from "../assets";
@@ -182,15 +186,19 @@ function SidebarDoctor() {
   }
 
   const isFirstClickOfDay = (key) => {
-    const localStorageExtraData = localStorage.getItem(PERSISTANT_STORAGE_KEY_EXTRA);
-    const jsonData = localStorageExtraData ? JSON.parse(localStorageExtraData) : {};
-    const today = moment().format('YYYY-MM-DD');
-    if (jsonData[`${key}_date`] !== today) {
-      jsonData[`${key}_date`] = today;
-      localStorage.setItem(PERSISTANT_STORAGE_KEY_EXTRA, JSON.stringify(jsonData));
-      return true;
-    } else {
+    try {
+      const localStorageExtraData = localStorage.getItem(PERSISTANT_STORAGE_KEY_EXTRA);
+      const jsonData = localStorageExtraData ? JSON.parse(localStorageExtraData) : {};
+      const today = moment().format("YYYY-MM-DD");
+      if (jsonData[`${key}_date`] !== today) {
+        jsonData[`${key}_date`] = today;
+        localStorage.setItem(PERSISTANT_STORAGE_KEY_EXTRA, JSON.stringify(jsonData));
+        return true;
+      }
       return false;
+    } catch {
+      // Private mode / quota / corrupt JSON — treat as first click without crashing.
+      return true;
     }
   };
 
@@ -232,16 +240,26 @@ function SidebarDoctor() {
     // if (moment(planDetails?.plan_active_date).diff("2025-07-01", 'days') > 0) {
       if (tp_monetization_enable && (moduleName === S_PHARMACY || moduleName === S_IPD)) {
         setSubModalData({ service_name: moduleName })
-        if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier === TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) {
-          if (isFirstClickOfDay(moduleName)) {
+        if (moduleName === S_PHARMACY) {
+          const pharmacyAccess = getPharmacyAccessState(planDetails);
+          // Paid Pharmacy → SSO. Non-paid: Know More until interest form submitted today;
+          // then SSO only while trial is active. Expired/locked never SSO.
+          if (pharmacyAccess.segment === "paid") {
+            check_SSO(moduleName);
+          } else if (
+            pharmacyAccess.segment === "trial_active" &&
+            hasPharmacyInterestSubmittedToday()
+          ) {
+            check_SSO(moduleName);
+          } else if (
+            pharmacyAccess.segment === "trial_active" ||
+            pharmacyAccess.segment === "trial_expired" ||
+            pharmacyAccess.segment === "locked"
+          ) {
             handlePharmacyKnowMore();
           } else {
             check_SSO(moduleName);
           }
-        } else if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier !== TRIAL && PHARMACY_planDetails?.plan_tier !== TRIAL) {
-          check_SSO(moduleName);
-        } else if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier !== TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) {
-          handlePharmacyKnowMore();
         } else if (moduleName === S_IPD && EMR_planDetails?.plan_tier === TRIAL && IPD_planDetails?.plan_tier === TRIAL) {
           if (isFirstClickOfDay(moduleName)) {
             handleIPDKnowMore();
@@ -846,23 +864,54 @@ function SidebarDoctor() {
               </div>
             </NavLink>
           )}
-          {/* {isLimsAccessableFromGB && ( */}
-            {/* <NavLink
+          {/* Lead-gen only: show LIMS to users without GB access → NoAccess page. */}
+          {!isLimsAccessableFromGB && (
+            <NavLink
               to="/lims"
               replace={true}
               className={({ isActive, isPending }) =>
-                isPending ? "pending" : isActive || location.pathname.startsWith("/lims") ? "active" : ""
+                isPending
+                  ? "pending"
+                  : isActive || location.pathname.startsWith("/lims")
+                    ? "active"
+                    : ""
               }
               onMouseEnter={() => setHoveredItem("lims")}
               onMouseLeave={() => setHoveredItem(null)}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9.5 2v6.4L4.7 18.2A2 2 0 006.5 21h11a2 2 0 001.8-2.8L14.5 8.4V2" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 2h6M7.5 15h9" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round"/>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M9.5 2v6.4L4.7 18.2A2 2 0 006.5 21h11a2 2 0 001.8-2.8L14.5 8.4V2"
+                  stroke={
+                    location.pathname.startsWith("/lims") || hoveredItem === "lims"
+                      ? "#4b4ad5"
+                      : "#6b6b7a"
+                  }
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M9 2h6M7.5 15h9"
+                  stroke={
+                    location.pathname.startsWith("/lims") || hoveredItem === "lims"
+                      ? "#4b4ad5"
+                      : "#6b6b7a"
+                  }
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
               </svg>
               <div className="mt-1 px-2">LIMS</div>
-            </NavLink> */}
-          {/* )} */}
+            </NavLink>
+          )}
+
           </>
           )}
         {/* </div> */}

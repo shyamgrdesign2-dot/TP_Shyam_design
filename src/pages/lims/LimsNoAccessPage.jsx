@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Button } from "antd";
 import {
+  getClinicCity,
   getClinicName,
   getDeviceSdkData,
   getTokenData,
@@ -20,6 +21,7 @@ export default function LimsNoAccessPage() {
 
   const handleRequestAccess = useCallback(() => {
     const clinic_name = getClinicName(profile?.hospital_data);
+    const clinic_city = getClinicCity(profile?.hospital_data);
     const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
     const urlParams = new URLSearchParams(window.location.search);
@@ -28,17 +30,28 @@ export default function LimsNoAccessPage() {
       mobile_no: tokenData?.mobile_no,
       hospital_business_id: tokenData?.hospital_business_id,
       clinic_id: tokenData?.clinic_id,
-      receptionist_id: tokenData?.user_id,
-      receptionist_name: urlParams.get("receptionistName"),
-      clinic_name: urlParams.get("clinicName") || clinic_name,
-      center_city: urlParams.get("centerCity"),
+      clinic_name: isReceptionist
+        ? urlParams.get("clinicName") || clinic_name
+        : clinic_name,
+      center_city: isReceptionist
+        ? urlParams.get("centerCity") || clinic_city
+        : clinic_city,
       former_page: "lims",
       feature: "lims",
+      ...(isReceptionist
+        ? {
+            receptionist_id: tokenData?.user_id,
+            receptionist_name: urlParams.get("receptionistName"),
+          }
+        : {
+            doctor_id: tokenData?.doctor_unique_id || profile?.doctor_unique_id,
+            doctor_name: profile?.um_name,
+          }),
       ...deviceSdkData,
     });
 
     setSubmitted(true);
-  }, [profile]);
+  }, [profile, isReceptionist]);
 
   return (
     <div className={styles.shell}>
