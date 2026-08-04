@@ -180,15 +180,19 @@ function SidebarDoctor() {
   }
 
   const isFirstClickOfDay = (key) => {
-    const localStorageExtraData = localStorage.getItem(PERSISTANT_STORAGE_KEY_EXTRA);
-    const jsonData = localStorageExtraData ? JSON.parse(localStorageExtraData) : {};
-    const today = moment().format('YYYY-MM-DD');
-    if (jsonData[`${key}_date`] !== today) {
-      jsonData[`${key}_date`] = today;
-      localStorage.setItem(PERSISTANT_STORAGE_KEY_EXTRA, JSON.stringify(jsonData));
-      return true;
-    } else {
+    try {
+      const localStorageExtraData = localStorage.getItem(PERSISTANT_STORAGE_KEY_EXTRA);
+      const jsonData = localStorageExtraData ? JSON.parse(localStorageExtraData) : {};
+      const today = moment().format("YYYY-MM-DD");
+      if (jsonData[`${key}_date`] !== today) {
+        jsonData[`${key}_date`] = today;
+        localStorage.setItem(PERSISTANT_STORAGE_KEY_EXTRA, JSON.stringify(jsonData));
+        return true;
+      }
       return false;
+    } catch {
+      // Private mode / quota / corrupt JSON — treat as first click without crashing.
+      return true;
     }
   };
 
@@ -706,23 +710,54 @@ function SidebarDoctor() {
               </div>
             </NavLink>
           )}
+          {/* Lead-gen only: show LIMS to users without GB access → NoAccess page. */}
           {!isLimsAccessableFromGB && (
-             <NavLink
+            <NavLink
               to="/lims"
               replace={true}
               className={({ isActive, isPending }) =>
-                isPending ? "pending" : isActive || location.pathname.startsWith("/lims") ? "active" : ""
+                isPending
+                  ? "pending"
+                  : isActive || location.pathname.startsWith("/lims")
+                    ? "active"
+                    : ""
               }
               onMouseEnter={() => setHoveredItem("lims")}
               onMouseLeave={() => setHoveredItem(null)}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9.5 2v6.4L4.7 18.2A2 2 0 006.5 21h11a2 2 0 001.8-2.8L14.5 8.4V2" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 2h6M7.5 15h9" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round"/>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M9.5 2v6.4L4.7 18.2A2 2 0 006.5 21h11a2 2 0 001.8-2.8L14.5 8.4V2"
+                  stroke={
+                    location.pathname.startsWith("/lims") || hoveredItem === "lims"
+                      ? "#4b4ad5"
+                      : "#6b6b7a"
+                  }
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M9 2h6M7.5 15h9"
+                  stroke={
+                    location.pathname.startsWith("/lims") || hoveredItem === "lims"
+                      ? "#4b4ad5"
+                      : "#6b6b7a"
+                  }
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
               </svg>
               <div className="mt-1 px-2">LIMS</div>
-            </NavLink> 
-          )} 
+            </NavLink>
+          )}
+
           </>
           )}
         {/* </div> */}

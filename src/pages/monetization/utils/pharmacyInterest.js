@@ -19,7 +19,11 @@ function readExtraStorage() {
 }
 
 function writeExtraStorage(jsonData) {
-  localStorage.setItem(PERSISTANT_STORAGE_KEY_EXTRA, JSON.stringify(jsonData));
+  try {
+    localStorage.setItem(PERSISTANT_STORAGE_KEY_EXTRA, JSON.stringify(jsonData));
+  } catch {
+    // Private mode / quota — interest gate may not persist; avoid crashing the UI.
+  }
 }
 
 export function hasPharmacyInterestSubmittedToday() {
@@ -52,16 +56,21 @@ export function getPharmacyAccessState(planDetails) {
   const pharmacyPaid = pharmacy && pharmacy.plan_tier !== TRIAL;
   const emrPaid = emr && emr.plan_tier !== TRIAL;
 
-  const remainingDays = emrTrial
-    ? moment(plan_expiry_date).diff(moment().format("YYYY-MM-DD"), "days")
-    : 0;
+  // Match FreeTrialButton: EMR plan_expiry_date drives dual-trial expiry.
+  // Invalid/missing dates must not count as active (moment(null) → NaN; NaN < 0 is false).
+  const expiry = plan_expiry_date ? moment(plan_expiry_date) : null;
+  const hasValidExpiry = Boolean(expiry?.isValid?.());
+  const remainingDays =
+    emrTrial && hasValidExpiry
+      ? expiry.startOf("day").diff(moment().startOf("day"), "days")
+      : null;
 
   if (pharmacyPaid && emrPaid) {
     return { segment: "paid", canSso: true, canTryPharmacy: false };
   }
 
   if (emrTrial && pharmacyTrial) {
-    if (remainingDays < 0) {
+    if (remainingDays === null || remainingDays < 0) {
       return { segment: "trial_expired", canSso: false, canTryPharmacy: false };
     }
     return { segment: "trial_active", canSso: true, canTryPharmacy: true };

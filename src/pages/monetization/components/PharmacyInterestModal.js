@@ -3,7 +3,9 @@ import { Button, Input, Modal } from "antd";
 
 import { INDIAN_MOBILE_REGEX } from "../utils/pharmacyInterest";
 
-const stripDigits = (value) => value.replace(/\d/g, "");
+/** Allow letters, digits, spaces, and common name/clinic punctuation. */
+const sanitizeTextField = (value) =>
+  value.replace(/[^\p{L}\p{N}\s.'&\-/]/gu, "");
 
 const PharmacyInterestModal = ({
   open,
@@ -82,7 +84,7 @@ const PharmacyInterestModal = ({
             value={formName}
             placeholder="Enter name"
             maxLength={100}
-            onChange={(e) => setFormName(stripDigits(e.target.value))}
+            onChange={(e) => setFormName(sanitizeTextField(e.target.value))}
             onBlur={() => setTouched((t) => ({ ...t, form_name: true }))}
             status={touched.form_name && errors.form_name ? "error" : undefined}
           />
@@ -117,7 +119,7 @@ const PharmacyInterestModal = ({
             value={formClinic}
             placeholder="Enter clinic name"
             maxLength={150}
-            onChange={(e) => setFormClinic(stripDigits(e.target.value))}
+            onChange={(e) => setFormClinic(sanitizeTextField(e.target.value))}
             onBlur={() => setTouched((t) => ({ ...t, form_clinic: true }))}
             status={
               touched.form_clinic && errors.form_clinic ? "error" : undefined
