@@ -46,8 +46,8 @@ jobs:
 
       - name: Docker login to ACR
         env:
-          REGISTRY_USER: ${{ secrets.PMPREPRODDOCTORPORTAL_REGISTRY_USERNAME }}
-          REGISTRY_PASS: ${{ secrets.PMPREPRODDOCTORPORTAL_REGISTRY_PASSWORD }}
+          REGISTRY_USER: ${{ secrets.ZY_PMPREPRODDOCTORPORTAL_REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.ZY_PMPREPRODDOCTORPORTAL_REGISTRY_PASSWORD }}
         run: |
           set -euo pipefail
           echo "$REGISTRY_PASS" | docker login zypractice02.azurecr.io -u "$REGISTRY_USER" --password-stdin
