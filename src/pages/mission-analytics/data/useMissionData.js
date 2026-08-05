@@ -21,6 +21,9 @@ const MODE_SERIES = [
 ];
 
 const FANOUT_CAP = 20;
+// Export builds the doctor comparison for the FULL roster (the on-screen chart stays capped for
+// readability/perf). Still bounded so a pathologically large clinic can't fan out unboundedly.
+const EXPORT_FANOUT_CAP = 500;
 const BATCH_SIZE = 4;
 
 function singleIdOnly(v) {
@@ -32,7 +35,21 @@ function singleIdOnly(v) {
   return s;
 }
 
-async function buildByDoctorFanout({ startDate, endDate, clinicIdSingle, doctorIdCsv } = {}) {
+/** Read a single-doctor consultation-modes response's "Booked" value (its byDoctor has one row). */
+function bookedFromModesResponse(resp) {
+  const ds = (resp?.data ?? resp)?.byDoctor?.datasets;
+  if (!Array.isArray(ds)) return 0;
+  const booked = ds.find((d) => String(d?.label || "").toLowerCase() === "booked");
+  return toNum(booked?.data?.[0]);
+}
+
+async function buildByDoctorFanout({
+  startDate,
+  endDate,
+  clinicIdSingle,
+  doctorIdCsv,
+  cap = FANOUT_CAP,
+} = {}) {
   let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
 
   if (doctorIdCsv) {
@@ -40,7 +57,7 @@ async function buildByDoctorFanout({ startDate, endDate, clinicIdSingle, doctorI
     doctors = doctors.filter((d) => wanted.has(String(d.um_id)));
   }
 
-  doctors = doctors.slice(0, FANOUT_CAP);
+  if (Number.isFinite(cap)) doctors = doctors.slice(0, cap);
   if (!doctors.length) {
     return { data: { kpis: { total: 0, smartSync: 0 }, byDoctor: { labels: [], datasets: [] } } };
   }
@@ -52,38 +69,43 @@ async function buildByDoctorFanout({ startDate, endDate, clinicIdSingle, doctorI
   }
   if (clinicIdSingle) baseParams.clinicId = clinicIdSingle;
 
-  // Fetch one clinic/consultation-modes per doctor to build a stacked "byDoctor" chart.
-  const kpisByDoctor = new Array(doctors.length);
+  // Fetch one clinic/consultation-modes per doctor to build a stacked "byDoctor" chart. Keep the
+  // full response (not just kpis) so we can also read each doctor's "Booked" count.
+  const respByDoctor = new Array(doctors.length);
   for (let i = 0; i < doctors.length; i += BATCH_SIZE) {
     const batch = doctors.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
       batch.map((d) =>
         ApiReporting.clinicConsultationModes({ ...baseParams, doctorId: d.um_id })
-          .then((r) => (r?.data ?? r)?.kpis ?? null)
+          .then((r) => (r?.data ?? r) ?? null)
           .catch(() => null)
       )
     );
-    results.forEach((k, j) => { kpisByDoctor[i + j] = k; });
+    results.forEach((r, j) => { respByDoctor[i + j] = r; });
   }
 
   const labels = doctors.map((d) => d.um_name || `Doctor ${d.um_id}`);
+  const kpisByDoctor = respByDoctor.map((r) => r?.kpis ?? null);
 
   const byDoctor = {
     labels,
-    datasets: MODE_SERIES.map(([label, key]) => ({
-      label,
-      data: doctors.map((_, idx) => {
-        const kpis = kpisByDoctor[idx];
-        if (!kpis) return 0;
-        const v = key === "typeRx" ? (kpis.typeRx ?? kpis.keyboardRx) : kpis[key];
-        return toNum(v);
-      }),
-    })),
+    // "Booked" first so buildDoctorBars picks it up as the booked series (rest = consultations).
+    datasets: [
+      { label: "Booked", data: respByDoctor.map((r) => bookedFromModesResponse(r)) },
+      ...MODE_SERIES.map(([label, key]) => ({
+        label,
+        data: kpisByDoctor.map((kpis) => {
+          if (!kpis) return 0;
+          const v = key === "typeRx" ? (kpis.typeRx ?? kpis.keyboardRx) : kpis[key];
+          return toNum(v);
+        }),
+      })),
+    ],
   };
 
   // Mission cards only need these totals.
-  const total = doctors.reduce((sum, _, idx) => sum + toNum(kpisByDoctor[idx]?.total), 0);
-  const smartSync = doctors.reduce((sum, _, idx) => sum + toNum(kpisByDoctor[idx]?.smartSync), 0);
+  const total = kpisByDoctor.reduce((sum, kpis) => sum + toNum(kpis?.total), 0);
+  const smartSync = kpisByDoctor.reduce((sum, kpis) => sum + toNum(kpis?.smartSync), 0);
 
   return {
     data: {
@@ -91,6 +113,34 @@ async function buildByDoctorFanout({ startDate, endDate, clinicIdSingle, doctorI
       byDoctor,
     },
   };
+}
+
+/**
+ * Build the Doctor Comparison rows for the FULL doctor roster (uncapped) — used by the Excel export
+ * so the sheet lists every doctor, independent of the on-screen chart's top-10/cap. Fans out
+ * consultation-modes per doctor and merges CVT digitized (one call, all doctors). Respects the
+ * current doctor/clinic filter. Returns the same { data, series, xKey } shape as charts.byDoctor.
+ */
+export async function buildAllDoctorBars({ startDate, endDate, doctorId, clinicId } = {}) {
+  const clinicIdSingle = singleIdOnly(clinicId);
+  const doctorIdCsv = doctorId && doctorId !== "all" ? String(doctorId) : null;
+
+  const modesFull = await buildByDoctorFanout({
+    startDate,
+    endDate,
+    clinicIdSingle,
+    doctorIdCsv,
+    cap: EXPORT_FANOUT_CAP,
+  });
+
+  const cvtParams = {};
+  if (startDate && endDate) { cvtParams.startDate = startDate; cvtParams.endDate = endDate; }
+  if (doctorId && doctorId !== "all") cvtParams.doctorId = doctorId;
+  if (clinicId && clinicId !== "all") cvtParams.clinicId = clinicId;
+  const cvtRaw = await safe(ApiReporting.cvtByDoctor(cvtParams));
+  const cvtByDoctorSeries = unwrapCvtSeries(unwrapCvtPayload(cvtRaw));
+
+  return buildDoctorBars(modesFull.data.byDoctor, cvtByDoctorSeries);
 }
 
 export default function useMissionData({ startDate, endDate, doctorId, clinicId, refreshKey } = {}) {
