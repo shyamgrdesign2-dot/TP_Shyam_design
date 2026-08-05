@@ -1245,12 +1245,32 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     );
   }, [isModalOpen1]);
 
+  // Differential Diagnosis block. The old point-n-click pad shows it ABOVE the
+  // search field (as on prod); NewRx shows it below the chips.
+  const DDX_BLOCK = (isApexAIAccessable || tp_monetization_enable) ? (
+    <div style={{ padding: useTesseractUi ? "0" : "0 14px" }}>
+      <DifferentialDiagnosis
+        handleDDxDrawer={handleDDxDrawer}
+        ddxOptionsList={ddxOptionsList?.filter(
+          (e) => ![...diagnosisData.map((e1) => e1.tds_name)].includes(e.tds_name)
+        )}
+        getGenerateDDx={getGenerateDDx}
+        isDDxLoading={isDDxLoading}
+        onSelectParent={onSelectDDx}
+        isDiagnosis={true}
+        handleDDxKnowMore={handleDDxKnowMore}
+        isDDxGenerated={isDDxGenerated}
+      />
+    </div>
+  ) : null;
+
   // Body below the header — identical for the classic and Tesseract shells.
   const BODY_CONTENT = (
     <>
       {DELETE_MODAL}
       {REMOVE_ALL_ROWS}
       {TABLE_DIAGNOSIS}
+      {!useTesseractUi && DDX_BLOCK}
       {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
         <div className={voiceModuleStyles.moduleSlot}>
           <VoiceRxModuleCapture
@@ -1295,25 +1315,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
           ))}
         </div>
       )}
-      {(isApexAIAccessable || tp_monetization_enable) && (
-        <div style={{ padding: useTesseractUi ? "0" : "0 14px" }}>
-          <DifferentialDiagnosis
-            handleDDxDrawer={handleDDxDrawer}
-            ddxOptionsList={ddxOptionsList?.filter(
-              (e) =>
-                ![...diagnosisData.map((e1) => e1.tds_name)].includes(
-                  e.tds_name
-                )
-            )}
-            getGenerateDDx={getGenerateDDx}
-            isDDxLoading={isDDxLoading}
-            onSelectParent={onSelectDDx}
-            isDiagnosis={true}
-            handleDDxKnowMore={handleDDxKnowMore}
-            isDDxGenerated={isDDxGenerated}
-          />
-        </div>
-      )}
+      {useTesseractUi && DDX_BLOCK}
     </>
   );
 

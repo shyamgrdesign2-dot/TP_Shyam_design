@@ -50,6 +50,7 @@ import {
 import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { PrescriptionEmptyLineDragHandle } from "./PrescriptionEmptyLineUi";
 
 import TextArea from "antd/es/input/TextArea";
 import { GB_VOICE_RX_NEW_UI, MESSAGE_KEY } from "../utils/constants";
@@ -972,11 +973,7 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
                       ].filter(Boolean).join(" ")}
                     >
                       <Col lg={1} md={1} sm={1} xs={1} className={["text-center", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleDragCell : ""].filter(Boolean).join(" ")}>
-                        <MenuOutlined
-                          {...provided.dragHandleProps}
-                          className="drag-handle"
-                          style={{ cursor: "grab" }}
-                        ></MenuOutlined>
+                        <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
                       </Col>
                       <Col
                         lg={8}
@@ -1476,14 +1473,20 @@ function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
 
   // Tesseract shell drops the "Add New Line" CTA — keep a trailing empty row
   // as the add affordance instead (ClinicalTable auto-row behavior).
+  // Maintain EXACTLY one: the old version only appended, so picking "Add Custom"
+  // (which adds its own row) left two blanks, and deleting the filled row left
+  // them stranded. Trim every trailing blank, then re-add a single one.
   useEffect(() => {
     if (!useTesseractUi) return;
     const rows = Array.isArray(moduleData) ? moduleData : [];
-    const last = rows[rows.length - 1];
-    const lastHasContent = last && (String(last.title || "").trim() || String(last.notes || "").trim());
-    if (rows.length === 0 || lastHasContent) {
-      updateCustomModuleContents([...rows, { title: "", notes: "" }]);
+    const hasContent = (row) =>
+      row && (String(row.title || "").trim() || String(row.notes || "").trim());
+    let filledCount = rows.length;
+    while (filledCount > 0 && !hasContent(rows[filledCount - 1])) {
+      filledCount -= 1;
     }
+    if (rows.length === filledCount + 1) return; // already exactly one trailing blank
+    updateCustomModuleContents([...rows.slice(0, filledCount), { title: "", notes: "" }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moduleData, useTesseractUi]);
   const voiceDictationTargetId = `custom-module-${module?.module_id || module?.name || "legacy"}`;

@@ -212,10 +212,16 @@ const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) =
           });
           return normalizedRow;
         } else {
-          // Create new row with id and all named fields
-          const newRow = { id: uuidv4() };
+          // Saved rows come back without an id — End Visit strips it before
+          // persisting. Rebuild the id but KEEP everything the row already
+          // carries: rebuilding purely from module.namedFields wipes the data
+          // whenever the module definition hasn't resolved yet, and that blank
+          // row then gets written back over the real content.
+          const newRow = { ...row, id: uuidv4() };
           module.namedFields?.forEach((field) => {
-            newRow[field.fieldName] = row[field.fieldName] || "";
+            if (!(field.fieldName in newRow)) {
+              newRow[field.fieldName] = "";
+            }
           });
           return newRow;
         }
@@ -425,18 +431,23 @@ const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) =
   // Tesseract shell drops the "Add New Line" CTA — the table keeps a trailing
   // empty row instead (ClinicalTable auto-row affordance): once the last row
   // has content, a fresh empty row is appended automatically.
+  // Maintain EXACTLY one trailing blank: only appending left duplicate blanks
+  // behind (e.g. after picking "Add Custom", or after deleting a filled row).
   useEffect(() => {
     if (!useTesseractUi || isMobile) return;
     const rows = Array.isArray(moduleData) ? moduleData : [];
-    const last = rows[rows.length - 1];
-    const lastHasContent = last && module?.namedFields?.some(
-      (field) => String(last[field.fieldName] || "").trim()
-    );
-    if (lastHasContent) {
-      const updatedData = [...rows, createEmptyRow()];
-      setModuleData(updatedData);
-      updateCustomModuleContents(updatedData);
+    const hasContent = (row) =>
+      row && module?.namedFields?.some(
+        (field) => String(row[field.fieldName] || "").trim()
+      );
+    let filledCount = rows.length;
+    while (filledCount > 0 && !hasContent(rows[filledCount - 1])) {
+      filledCount -= 1;
     }
+    if (rows.length === filledCount + 1) return; // already exactly one trailing blank
+    const updatedData = [...rows.slice(0, filledCount), createEmptyRow()];
+    setModuleData(updatedData);
+    updateCustomModuleContents(updatedData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moduleData, useTesseractUi, isMobile]);
 

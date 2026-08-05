@@ -25,7 +25,7 @@ import DiagnosisBox from "../components/DiagnosisBox";
 import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
 import InvestigationBox from "../components/InvestigationBox";
-import TabFollowUpBox from "../components/tab_design/TabFollowUpBox";
+import TabFollowUpBoxNew from "../components/tab_design/TabFollowUpBoxNew";
 import ReferralBox from "../components/ReferralBox";
 import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
 import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
@@ -985,7 +985,13 @@ function PrescriptionNew() {
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
-  const [customModuleContents, setCustomModuleContents] = useState([]);
+  // Seed from the prescription being edited on the FIRST render, not in an
+  // effect. Child module components mount before the parent's effects run, and
+  // an empty initial value made them write a blank placeholder row into shared
+  // state — which then won the race and wiped the saved content on edit.
+  const [customModuleContents, setCustomModuleContents] = useState(
+    () => (caseManagerData?.moduleContents?.length ? caseManagerData.moduleContents : [])
+  );
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
   // const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
   //   (!isVoiceRxNewUiFlow && caseManagerData?.smart_prescription_filename) ||
@@ -3352,7 +3358,7 @@ function PrescriptionNew() {
                   onToggleRx: handleToggleCanvasRx,
                 }}
               />
-              <div ref={rxWrapperRef} className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
+              <div ref={rxWrapperRef} className="w-100 bg-body wrapper2 prescription-wrapper prescription-wrapper--newrx" style={prescriptionWrapperStyle}>
           {/* <img src={hey} alt="vitals" className="me-3 hey" /> */}
           <div className="row">
             
@@ -3400,13 +3406,21 @@ function PrescriptionNew() {
                     
                     if (moduleContent) {
                       // Create a fallback module definition from the content
+                      // Only CustomModuleV2 stamps module_version, so a missing
+                      // version means a v1 entry. Defaulting it to "v2" rendered
+                      // v1 content in the v2 component with no fields at all.
+                      const fallbackVersion = moduleContent.module_version || "v1";
+                      // Derive the field list from whichever saved row actually
+                      // carries data — the first row can be an empty placeholder.
+                      const fallbackRow = (moduleContent.content || []).find(
+                        (row) => row && Object.keys(row).some((key) => key !== "id")
+                      );
                       customModule = {
                         module_id: moduleContent.module_id,
                         name: moduleContent.module_name || e.tmdpm_name,
-                        version: moduleContent.module_version || "v2",
-                        // For V2 modules, extract namedFields from the first content row
-                        namedFields: moduleContent.module_version === "v2" && moduleContent.content?.length > 0
-                          ? Object.keys(moduleContent.content[0])
+                        version: fallbackVersion,
+                        namedFields: fallbackVersion === "v2" && fallbackRow
+                          ? Object.keys(fallbackRow)
                               .filter((key) => key !== "id") // Exclude the id field
                               .map((key, index) => ({
                                 fieldName: key,
@@ -3482,7 +3496,7 @@ function PrescriptionNew() {
                     </div>
                   ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <TabFollowUpBox />
+                      <TabFollowUpBoxNew />
                     </div>
                   ) : e.tmdpm_id === 26 && e.tmdpm_status === 0 && isCrossConsultAccessable ? (
                     <div key={i} className="prescription-box-sm">

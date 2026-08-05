@@ -40,6 +40,7 @@ import {
 } from "../redux/adviceSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { PrescriptionEmptyLineDragHandle } from "./PrescriptionEmptyLineUi";
 import { classNames } from "@react-pdf-viewer/core";
 import { ASSETS } from "../assets";
 import {
@@ -56,6 +57,8 @@ const {
   alerticon: alertIcon,
   advice: Adviceicon,
 } = ASSETS.images;
+
+const MAX_ADVICE_CHIPS = 7;
 
 function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
@@ -104,6 +107,43 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
+
+  // Frequently-used chips (Tesseract shell only) — captured from the
+  // frequently-searched list; not overwritten by typed-search results.
+  const [frequentAdviceChips, setFrequentAdviceChips] = useState([]);
+  useEffect(() => {
+    if (!searchQuery && Array.isArray(parentOptionsList) && parentOptionsList.length > 0) {
+      // The frequently-searched API can return the same advice more than once;
+      // dedupe so the chip keys stay unique.
+      setFrequentAdviceChips([
+        ...new Set(parentOptionsList.map((e) => e.advice_name).filter(Boolean)),
+      ]);
+    }
+  }, [parentOptionsList, searchQuery]);
+  // Chips are a shortcut, not the full list — the dropdown still shows every
+  // frequently-used advice. Slice after filtering so a fresh one backfills as
+  // rows get added.
+  const availableAdviceChips = useTesseractUi
+    ? frequentAdviceChips
+        .filter(
+          (name) => !adviceData.some(
+            (row) => String(row.advice_name || "").toLowerCase() === name.toLowerCase()
+          )
+        )
+        .slice(0, MAX_ADVICE_CHIPS)
+    : [];
+  const onChipAdd = useCallback((name) => {
+    setAdviceData((prev) => [
+      ...prev,
+      {
+        unique_id: uuidv4(),
+        change: 1,
+        pms_default: 0,
+        advice_name: name,
+      },
+    ]);
+  }, [setAdviceData]);
+
 
   const [autoCompleteFlag, setAutoCompleteFlag] = useState(false);
   const [childDrawer, setChildDrawer] = useState(false);
@@ -460,9 +500,7 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
                       >
                         <Col lg={1} md={1} sm={1} xs={1} className="text-center">
                           {useTesseractUi ? (
-                            <span {...provided.dragHandleProps} className="drag-handle" style={{ cursor: 'grab', display: 'inline-flex', color: '#9aa0aa' }}>
-                              <TPLibraryIcon name="menu" variant="linear" size={18} />
-                            </span>
+                            <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
                           ) : (
                             <MenuOutlined
                               {...provided.dragHandleProps}
@@ -759,7 +797,7 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
         {CHILD_DRAWER_DATA}
       </Drawer>
 
-      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
+      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : (useTesseractUi ? "" : "p-14")}>
         {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
           <VoiceRxModuleCapture
             moduleName="Advices"
@@ -857,6 +895,23 @@ function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
         }
       >
         {BODY_CONTENT}
+        {availableAdviceChips.length > 0 && (
+          <div className="tesseract-rxpad-chips">
+            {availableAdviceChips.map((name) => (
+              <TesseractButton
+                key={name}
+                variant="tonal"
+                theme="neutral"
+                size="sm"
+                className="tesseract-rxpad-chip"
+                title={name}
+                onClick={() => onChipAdd(name)}
+              >
+                {name}
+              </TesseractButton>
+            ))}
+          </div>
+        )}
       </RxPadSection>
     );
   }
