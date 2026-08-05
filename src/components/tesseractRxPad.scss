@@ -259,9 +259,24 @@
     /* medication body rows */
     .taper-dose {
       border-color: var(--tp-slate-200, #e2e2ea) !important;
+      position: relative;
 
       .badge-tapper {
         border-radius: 6px 0 0 0 !important;
+      }
+
+      /* Only the "Tapering Dose" CTA moves. It sits inside the medicine-name
+         column and would otherwise fall into the flow, landing mid-cell beside
+         the generic name. Anchor it to the bottom-left of the whole medication
+         row — under the medicine name, below any "Then" rows. The Dose Calc.
+         badges share .badge-tapper and must stay bottom-right, so they are
+         deliberately not covered by this rule. */
+      .badge-tapper--taper {
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: auto !important;
+        border-radius: 0 6px 0 0 !important;
       }
 
       .border-end,
@@ -647,29 +662,31 @@
 
 }
 
-/* ── Prescription area: remove outer padding and tighten card spacing ── */
-.prescription-wrapper .prescription-box-sm {
+/* ── Prescription area: remove outer padding and tighten card spacing ──
+   NewRx only. These were unscoped and stripped the old point-n-click pad's
+   card borders and gutters along with it. */
+.prescription-wrapper--newrx .prescription-box-sm {
   margin-bottom: 16px !important;
   border: none !important;
 }
 
-.prescription-wrapper .row {
+.prescription-wrapper--newrx .row {
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
 
-.prescription-wrapper .col-lg-12 {
+.prescription-wrapper--newrx .col-lg-12 {
   padding-left: 0 !important;
   padding-right: 0 !important;
   margin-top: 0 !important;
 }
 
-.prescription-wrapper .ant-layout-content {
+.prescription-wrapper--newrx .ant-layout-content {
   padding: 16px !important;
 }
 
 /* Additional Notes + Follow-up card bottom padding */
-.prescription-box-sm .p-14-pb0 {
+.prescription-wrapper--newrx .prescription-box-sm .p-14-pb0 {
   padding-bottom: 14px !important;
 }
 
@@ -697,13 +714,13 @@
 }
 
 /* ── Follow-up input row — wider than old 320px cap ── */
-.prescription-box-sm .calender-merge-input {
+.prescription-wrapper--newrx .prescription-box-sm .calender-merge-input {
   max-width: 480px;
 }
 
 /* ── Follow-up quick buttons as chips (outside .tesseract-rxpad
    because the follow-up section is NOT nested inside it) ── */
-.prescription-box-sm .fllowbtn {
+.prescription-wrapper--newrx .prescription-box-sm .fllowbtn {
   gap: 8px !important;
   margin-top: 10px !important;
 

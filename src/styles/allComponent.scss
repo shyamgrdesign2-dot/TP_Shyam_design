@@ -519,22 +519,29 @@
 
 // Prescription Component SCSS
 .prescription-wrapper {
-  padding: 0;
+  // Restored for the old point-n-click pad. NewRx opts out below.
+  padding: 20px;
   position: relative;
   z-index: 0;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
 
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  // NewRx supplies its own padding inside each section card and needs the
+  // wrapper flush, scroll-shadowed and horizontally scrollable.
+  &.prescription-wrapper--newrx {
+    padding: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 
-  > .row {
-    min-width: 640px;
-  }
+    &::-webkit-scrollbar {
+      display: none;
+    }
 
-  &.bg-body {
-    background-color: #f1f1f5 !important;
+    > .row {
+      min-width: 640px;
+    }
+
+    &.bg-body {
+      background-color: #f1f1f5 !important;
+    }
   }
 
   &.prescription-wrapper-digitise {
@@ -579,31 +586,47 @@
 
   .prescription-box-sm {
     background-color: $white;
-    border: 1px solid #f1f1f5;
-    border-radius: 16px;
-    margin-bottom: 16px;
+    border: 1px solid $bordercolor;
+    border-radius: 20px;
+    margin-bottom: 15px;
 
     &:last-child {
       margin-bottom: 0;
     }
   }
 
-  .opthal-panel-wrapper {
+  &.prescription-wrapper--newrx .opthal-panel-wrapper {
     margin-bottom: 16px;
     border-radius: 20px;
     border: none;
+
+    .ant-collapse {
+      border: none !important;
+      border-radius: 20px !important;
+    }
+
+    .ant-collapse-item {
+      border: none !important;
+    }
+  }
+
+  // NewRx cards are flatter and tighter; the old pad keeps its original chrome.
+  &.prescription-wrapper--newrx .prescription-box-sm {
+    border: 1px solid #f1f1f5;
+    border-radius: 16px;
+    margin-bottom: 16px;
+  }
+
+  .opthal-panel-wrapper {
+    margin-bottom: 15px;
+    border-radius: 16px;
     background: white;
     .ant-collapse {
       background: white !important;
-      border: none !important;
-      border-radius: 20px !important;
 
       &.ant-collapse-icon-position-start {
         background: white !important;
       }
-    }
-    .ant-collapse-item {
-      border: none !important;
     }
     .ant-collapse-item-active {
       .ant-collapse-header {
@@ -618,7 +641,9 @@
     }
   }
 
-  .fllowbtn .btn-primary2 {
+  // Follow-up quick buttons as flat grey pills — NewRx only. Unscoped, this
+  // restyled the old point-n-click pad's buttons too, which prod never had.
+  &.prescription-wrapper--newrx .fllowbtn .btn-primary2 {
     min-height: 32px !important;
     height: auto !important;
     border-radius: 10px !important;
@@ -937,6 +962,12 @@
 
           &[aria-expanded="false"] {
             border-radius: 12px !important;
+            padding: 17px 20px;
+          }
+
+          // Compact collapsed DDx bar — NewRx only. The old pad keeps its
+          // original 17px/20px header so the Diagnosis section is unchanged.
+          .prescription-wrapper--newrx &[aria-expanded="false"] {
             padding: 0 16px;
             min-height: 42px;
             height: 42px;
@@ -3554,6 +3585,12 @@ body {
 
           &[aria-expanded="false"] {
             border-radius: 12px !important;
+            padding: 17px 20px;
+          }
+
+          // Compact collapsed DDx bar — NewRx only. The old pad keeps its
+          // original 17px/20px header so the Diagnosis section is unchanged.
+          .prescription-wrapper--newrx &[aria-expanded="false"] {
             padding: 0 16px;
             min-height: 42px;
             height: 42px;

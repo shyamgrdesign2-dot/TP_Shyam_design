@@ -1843,7 +1843,10 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                             xs={5}
                             className={[
                               isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
-                              isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? "align-self-stretch" : ""
+                              // Stretch so the cell spans every tapering row: the
+                              // "Tapering Dose" CTA is absolutely positioned inside
+                              // it, so a short cell left the CTA floating mid-row.
+                              (useTesseractUi || (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item))) ? "align-self-stretch" : ""
                             ].filter(Boolean).join(" ") || undefined}
                             data-testid={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
                             onClick={() => {
@@ -1911,7 +1914,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                               </Tooltip>
                               {renderSelectedMedicineStock(item)}
                             </div>
-                            <div className="badge-tapper" onClick={() => taperDoseAdd(item)}>
+                            <div className="badge-tapper badge-tapper--taper" onClick={() => taperDoseAdd(item)}>
                               <i className="icon-Add me-1"></i> Tapering Dose
                             </div>
                           </Col>
