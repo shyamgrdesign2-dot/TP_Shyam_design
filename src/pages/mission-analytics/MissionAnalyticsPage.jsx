@@ -28,7 +28,7 @@ import { trackAnalytics, EVENTS } from "../data-analytics/data/analyticsTracking
 import { canShowMissionAnalyticsNav, isMissionAnalyticsSpecialUser } from "../data-analytics/data/analyticsAccess";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useSelector } from "react-redux";
-import useMissionData from "./data/useMissionData";
+import useMissionData, { buildAllDoctorBars } from "./data/useMissionData";
 
 /**
  * @param {{ embedded?: boolean }} props
@@ -146,10 +146,21 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
     if (loading || exporting) return;
     setExporting(true);
     try {
-      const { exportMissionExcel } = await import("./exportMissionExcel");
+      // Decouple the export from the on-screen chart: fan out over the FULL doctor roster so the
+      // "Doctor Comparison" sheet lists every doctor (the chart stays capped for readability/perf).
+      // Falls back to the capped chart data if the full build fails.
+      const [{ exportMissionExcel }, fullByDoctor] = await Promise.all([
+        import("./exportMissionExcel"),
+        buildAllDoctorBars({
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          doctorId: filters.doctor,
+          clinicId: filters.clinic,
+        }).catch(() => null),
+      ]);
       await exportMissionExcel({
         kpis,
-        charts,
+        charts: fullByDoctor?.data?.length ? { ...charts, byDoctor: fullByDoctor } : charts,
         filters,
         doctorOptions,
         clinicOptions,
@@ -164,7 +175,7 @@ export default function MissionAnalyticsPage({ embedded = false } = {}) {
     } finally {
       setExporting(false);
     }
-  }, [loading, exporting, kpis, charts, filters, doctorOptions, clinicOptions]);
+  }, [loading, exporting, kpis, charts, filters, doctorOptions, clinicOptions, dateRange]);
 
   const kpiItems = useMemo(() => [
     {
