@@ -6,10 +6,18 @@ import { TREATMENT_NAMES, getRate } from "./treatments";
 import { findProcedureCatalogItem, resolveVisitProcedure } from "../examination/types";
 import { transformToothStateToApi } from "../lib/examination-helpers";
 import { toDentalService } from "../../../utils/dentalApiMappers";
+import { isGrowthBookFeatureOn } from "../../../utils/growthbook";
+import { GB_CHIKITSALAY } from "../../../utils/constants";
 
 export const SESSION_PENDING_PLAN_ID = "__session_pending__";
 
 export const EXAM_CHART_STORAGE_PREFIX = "dental.exam.chart.";
+
+/** visitProcedure pricing is Chikitsalay-only; keep non-Chikitsalay plan rates unchanged. */
+function resolvePlanVisitProcedure(item) {
+  if (!isGrowthBookFeatureOn(GB_CHIKITSALAY)) return undefined;
+  return resolveVisitProcedure(item);
+}
 
 const QUADRANT_MAP = {
   1: "Upper Right",
@@ -255,12 +263,12 @@ export function toPlanServiceFromProcedure(toothCode, proc, options = {}) {
   if (!rawName) return null;
 
   const treatment = mapChartProcedureName(rawName) ?? rawName;
-  let visitProcedure = resolveVisitProcedure(proc);
+  let visitProcedure = resolvePlanVisitProcedure(proc);
   if (!visitProcedure && procedureItems?.length) {
     const match =
       findProcedureCatalogItem(procedureItems, rawName) ||
       findProcedureCatalogItem(procedureItems, treatment);
-    visitProcedure = resolveVisitProcedure(match);
+    visitProcedure = resolvePlanVisitProcedure(match);
   }
   const rate = visitProcedure?.price ?? getRate(treatment);
   const discount =
@@ -345,7 +353,9 @@ function planServiceToRequest(service) {
     procedureDate: service.procedureDate || service.procedure_date,
     tatvaProcedureId: service.tatvaProcedureId,
     appointmentId: service.appointmentId,
-    visitProcedure: service.visitProcedure,
+    visitProcedure: isGrowthBookFeatureOn(GB_CHIKITSALAY)
+      ? service.visitProcedure
+      : undefined,
   };
 }
 
@@ -436,12 +446,12 @@ export function toPlanServiceFromOralProcedure(entry, options = {}) {
 
   const treatment = mapChartProcedureName(rawName) ?? rawName;
   let visitProcedure =
-    resolveVisitProcedure(entry) || resolveVisitProcedure(entry?.visitProcedure);
+    resolvePlanVisitProcedure(entry) || resolvePlanVisitProcedure(entry?.visitProcedure);
   if (!visitProcedure && procedureItems?.length) {
     const match =
       findProcedureCatalogItem(procedureItems, rawName) ||
       findProcedureCatalogItem(procedureItems, treatment);
-    visitProcedure = resolveVisitProcedure(match);
+    visitProcedure = resolvePlanVisitProcedure(match);
   }
   const rate = visitProcedure?.price ?? getRate(treatment);
   const discount =

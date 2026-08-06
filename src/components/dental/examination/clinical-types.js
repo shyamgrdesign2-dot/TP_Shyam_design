@@ -19,8 +19,9 @@ export const PROCEDURE_CATALOG = [
 ];
 
 export function getProcedureLabel(item) {
-  if (typeof item === "string") return item;
-  return item?.label || item?.code || item?.name || "";
+  if (typeof item === "string") return String(item).replace(/\r/g, "").trim();
+  const raw = item?.label || item?.code || item?.name || "";
+  return String(raw).replace(/\r/g, "").trim();
 }
 
 export function resolveVisitProcedure(item) {
@@ -28,9 +29,13 @@ export function resolveVisitProcedure(item) {
 
   const nested = item.visitProcedure || item.visit_procedure;
   if (nested && typeof nested === "object") {
+    const procedureName = nested.procedureName ?? nested.procedure_name;
     return {
       procedureId: nested.procedureId ?? nested.procedure_id,
-      procedureName: nested.procedureName ?? nested.procedure_name,
+      procedureName:
+        procedureName != null
+          ? String(procedureName).replace(/\r/g, "").trim()
+          : undefined,
       procedureCode: nested.procedureCode ?? nested.procedure_code,
       price: nested.price,
       discount: nested.discount ?? null,
@@ -57,17 +62,18 @@ export function resolveVisitProcedure(item) {
 
 export function normalizeProcedureCatalogItems(apiArr, fallbackArr = PROCEDURE_CATALOG) {
   if (!apiArr?.length) {
-    return fallbackArr.map((label) => ({ code: label, label }));
+    return fallbackArr.map((label) => ({ code: label, label: getProcedureLabel(label) }));
   }
   return apiArr.map((item) => {
     if (typeof item !== "object" || item == null) {
-      const label = String(item);
+      const label = getProcedureLabel(item);
       return { code: label, label };
     }
     const visitProcedure = resolveVisitProcedure(item);
+    const label = getProcedureLabel(item);
     return {
-      code: item.code || item.name || item.id || item.label,
-      label: item.label || item.name || item.code || "",
+      code: String(item.code || item.name || item.id || label).replace(/\r/g, "").trim(),
+      label,
       ...(visitProcedure ? { visitProcedure } : {}),
     };
   }).filter((item) => item.label);

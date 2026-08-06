@@ -51,7 +51,7 @@ export function ExaminationTab({ patientId, patientAge = 30, appointmentId }) {
   const baselineOralEntries = useSelector(
     (state) => state.oralExamination?.baselineOralEntries || [],
   );
-  const { procedureItems } = useDentalMasters();
+  const { procedureItems, oralProcedureItems } = useDentalMasters();
   const patientType = patientAge < 12 ? "pediatric" : patientAge < 18 ? "mixed" : "adult";
 
   const { syncState, toothState, dentitionType, loading, saveChart, error } = useDentalExamination(patientId);
@@ -151,6 +151,7 @@ export function ExaminationTab({ patientId, patientAge = 30, appointmentId }) {
     baselineToothState,
     baselineOralEntries,
     procedureItems,
+    oralProcedureItems,
     appointmentId,
   });
 

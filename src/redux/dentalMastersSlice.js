@@ -31,6 +31,7 @@ const initialState = {
   oralDiagnoses: [],
   oralSurfaceFindings: [],
   oralProcedures: [],
+  oralProcedureItems: [],
 };
 
 // Helper to normalize API data with fallbacks
@@ -95,6 +96,14 @@ export const fetchAllDentalMasters = createAsyncThunk(
         Array.isArray(rawProcedures) ? rawProcedures : [],
         PROCEDURE_CATALOG,
       );
+      const rawOralProcedures =
+        getDentalApiPayload(oralProceduresRes)?.items ||
+        getDentalApiPayload(oralProceduresRes) ||
+        [];
+      const oralProcedureItems = normalizeProcedureCatalogItems(
+        Array.isArray(rawOralProcedures) ? rawOralProcedures : [],
+        [],
+      );
       return {
         surfaces: normalize(getDentalApiPayload(surfacesRes)?.items || getDentalApiPayload(surfacesRes), ALL_ZONES),
         rawDiagnosesMeta: [...rawToothDiagnoses, ...(Array.isArray(rawProcedures) ? rawProcedures : [])],
@@ -107,7 +116,8 @@ export const fetchAllDentalMasters = createAsyncThunk(
         oralAreaItems: getDentalApiPayload(oralAreasRes)?.items || [],
         oralDiagnoses: normalize(rawOralDiagnoses, []),
         oralSurfaceFindings: normalize(rawOralSurfaceFindings, []),
-        oralProcedures: normalize(getDentalApiPayload(oralProceduresRes)?.items || getDentalApiPayload(oralProceduresRes), [], 'label'),
+        oralProcedures: oralProcedureItems.map(getProcedureLabel),
+        oralProcedureItems,
       };
     } catch (err) {
       return rejectWithValue(err.message);
@@ -164,6 +174,7 @@ const dentalMastersSlice = createSlice({
         state.oralDiagnoses = action.payload.oralDiagnoses;
         state.oralSurfaceFindings = action.payload.oralSurfaceFindings;
         state.oralProcedures = action.payload.oralProcedures;
+        state.oralProcedureItems = action.payload.oralProcedureItems || [];
         state.visualTypeMap = buildVisualTypeMap(action.payload.rawDiagnosesMeta);
         state.fetchedAt = Date.now();
       })

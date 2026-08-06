@@ -248,7 +248,9 @@ export function EntryTab({ state, kind }) {
     state.onClearMultiSelect();
     const surfaces = getDefaultTreatmentSurfaces(name);
     pendingActivateRef.current = true;
-    const visitProcedure = resolveVisitProcedure(catalogItem);
+    const visitProcedure = isChikitsalayAccessable
+      ? resolveVisitProcedure(catalogItem)
+      : undefined;
     state.onAddEntry({
       kind,
       name,
@@ -399,11 +401,14 @@ export function EntryTab({ state, kind }) {
                             const match = usesProcedureCatalog
                               ? findProcedureCatalogItem(procedureItems, name)
                               : null;
-                            const visitProcedure = resolveVisitProcedure(match);
+                            const visitProcedure =
+                              isChikitsalayAccessable && usesProcedureCatalog
+                                ? resolveVisitProcedure(match)
+                                : undefined;
                             state.onUpdateEntry(e.id, {
                               name,
-                              ...(usesProcedureCatalog && visitProcedure
-                                ? { visitProcedure }
+                              ...(usesProcedureCatalog
+                                ? { visitProcedure: visitProcedure || undefined }
                                 : {}),
                             });
                           }}

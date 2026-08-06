@@ -28,6 +28,7 @@ export function useExaminationOrchestrator({
   baselineToothState,
   baselineOralEntries,
   procedureItems,
+  oralProcedureItems,
   appointmentId,
 }) {
   const pendingSnapshotRef = useRef("");
@@ -210,7 +211,10 @@ export function useExaminationOrchestrator({
     const oralPending = buildSessionPendingPlanServicesFromOral(
       canvasState.oralEntries || [],
       baselineOralEntries || [],
-      { appointmentId, procedureItems },
+      {
+        appointmentId,
+        procedureItems: oralProcedureItems?.length ? oralProcedureItems : procedureItems,
+      },
     );
     const pendingServices = [...dentalPending, ...oralPending];
     const pendingSnapshot = JSON.stringify(pendingServices);
@@ -230,6 +234,7 @@ export function useExaminationOrchestrator({
     baselineToothState,
     baselineOralEntries,
     procedureItems,
+    oralProcedureItems,
     appointmentId,
   ]);
 
