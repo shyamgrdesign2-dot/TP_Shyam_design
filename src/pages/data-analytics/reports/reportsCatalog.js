@@ -154,7 +154,7 @@ export const REPORTS = [
   },
   // --- Clinical ---
   {
-    id: "appointment-analytics", group: "Clinical", dept: "opd",
+    id: "appointment-analytics", roleId: 387, group: "Clinical", dept: "opd",
     icon: `${IC}medical/clipboard-activity.svg`,
     label: "Appointment Analytics",
     desc: "Appointment status and doctor-wise breakdown.",
@@ -181,7 +181,7 @@ export const REPORTS = [
     }),
   },
   {
-    id: "ipd-analytics", group: "Clinical", dept: "ipd",
+    id: "ipd-analytics", roleId: 22, group: "Clinical", dept: "ipd",
     icon: `${IC}medical/clipboard-activity.svg`,
     label: "IPD Analytics",
     desc: "Inpatient clinical activity and department-wise breakdown.",
@@ -191,7 +191,7 @@ export const REPORTS = [
     buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, filterBy: f?.ipdFilterBy, ids: f?.ipdFilterIds }),
   },
   {
-    id: "prescription-analytics", group: "Clinical", dept: "opd",
+    id: "prescription-analytics", roleId: 388, group: "Clinical", dept: "opd",
     icon: `${IC}content-edit/document-sketch.svg`,
     label: "Prescription Analytics",
     desc: "Brand, generic and company prescription volumes.",
@@ -201,7 +201,7 @@ export const REPORTS = [
     buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, doctorId: f?.doctorId }),
   },
   {
-    id: "prescription-medicine", group: "Clinical", dept: "opd",
+    id: "prescription-medicine", roleId: 388, group: "Clinical", dept: "opd",
     icon: `${IC}medical/tablets.svg`,
     label: "Prescription Medicine Detailed",
     desc: "Medicine-level prescription detail for OPD.",

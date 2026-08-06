@@ -337,4 +337,14 @@ ApiReporting.clinicDashboard = (params) =>
 ApiReporting.clinicSummary = (params) =>
   get(`/api/v1/reports/clinic/summary`, params);
 
+/* ================================================================== *
+ * Permissions — resolved module/role grants for the caller
+ * ================================================================== */
+// { hospitalId, hospitals[], modules[], roles[], hasAnalytics } resolved live
+// from the legacy grant tables (PHP admin panel "Role Assignment" screen).
+// hospitalId? must be one of the caller's own hospitals (403 otherwise);
+// omitted = the token clinic.
+ApiReporting.myPermissions = (params) =>
+  get(`/api/v1/reports/permissions/me`, params);
+
 export default ApiReporting;
