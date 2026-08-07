@@ -58,6 +58,7 @@ import HeaderPrescription from "../common/HeaderPrescription";
 import VitalsBox from "../components/VitalsBox";
 import TabVitalsList from "../components/tab_design/TabVitalsList";
 import MedicalHistoryBox from "../components/MedicalHistoryBox";
+import MedicalHistoryDrawerV2 from "../components/medical-history-v2/Medical_History_Drawer_V2";
 import TabMedicalHistoryList from "../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../components/PrivateNotesBox";
 import TabPrivateNotesList from "../components/tab_design/TabPrivateNotesList";
@@ -2904,33 +2905,48 @@ function ConsultationLayout({ children, headerProps }) {
             />
           </Drawer>
         )}
-        <Drawer
-          className="scroll-y-hidden"
-          closeIcon={false}
-          placement="right"
-          onClose={handleDrawerMedicalHistory}
-          open={medicalHistoryDrawer}
-          width="75%"
-          zIndex={1100}
-        >
-          <MedicalHistoryBox
-            key={`medical-history-${medicalHistoryInitialActiveKey}-${medicalHistoryDrawerMode}`}
-            handleDrawerMedicalHistory={handleDrawerMedicalHistory}
-            handleCollapsed={handleCollapsed}
-            onSave={medicalHistoryDrawerMode === "medical" ? undefined : handleSaveGynecHistory}
+        {canUseVoiceRxModuleUi && medicalHistoryDrawerMode !== "gynec" ? (
+          <MedicalHistoryDrawerV2
+            open={medicalHistoryDrawer}
+            onOpenChange={(open) => {
+              if (!open) handleDrawerMedicalHistory();
+              else setMedicalHistoryDrawer(true);
+            }}
+            onSave={undefined}
             initialActiveKey={medicalHistoryInitialActiveKey}
             hideMenstrualHistoryTab={medicalHistoryDrawerMode === "medical"}
-            gynecOnly={medicalHistoryDrawerMode === "gynec"}
-            initialGynecHistory={
-              medicalHistoryDrawerMode === "gynec" &&
-              updatedGynecHistory &&
-              !Array.isArray(updatedGynecHistory)
-                ? updatedGynecHistory
-                : undefined
-            }
+            gynecOnly={false}
             showVoiceRxModule={canUseVoiceRxModuleUi}
           />
-        </Drawer>
+        ) : (
+          <Drawer
+            className="scroll-y-hidden"
+            closeIcon={false}
+            placement="right"
+            onClose={handleDrawerMedicalHistory}
+            open={medicalHistoryDrawer}
+            width="75%"
+            zIndex={1100}
+          >
+            <MedicalHistoryBox
+              key={`medical-history-${medicalHistoryInitialActiveKey}-${medicalHistoryDrawerMode}`}
+              handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+              handleCollapsed={handleCollapsed}
+              onSave={medicalHistoryDrawerMode === "medical" ? undefined : handleSaveGynecHistory}
+              initialActiveKey={medicalHistoryInitialActiveKey}
+              hideMenstrualHistoryTab={medicalHistoryDrawerMode === "medical"}
+              gynecOnly={medicalHistoryDrawerMode === "gynec"}
+              initialGynecHistory={
+                medicalHistoryDrawerMode === "gynec" &&
+                updatedGynecHistory &&
+                !Array.isArray(updatedGynecHistory)
+                  ? updatedGynecHistory
+                  : undefined
+              }
+              showVoiceRxModule={canUseVoiceRxModuleUi}
+            />
+          </Drawer>
+        )}
         <Drawer
           closeIcon={false}
           placement="right"

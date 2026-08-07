@@ -1,0 +1,1466 @@
+.drawerBody {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Drawer overlay: page header must sit behind ── */
+:global([data-radix-dialog-overlay]) {
+  z-index: 1099 !important;
+}
+
+/* ── Drawer shell override ── */
+.drawerShell {
+  border-radius: var(--tesseract-radius-0) !important;
+  overflow: hidden;
+  width: 85vw !important;
+  max-width: 85vw !important;
+  z-index: 1100 !important;
+}
+
+/* Y/N toggle: visible indicator */
+.rightPanel [data-theme="primary"] > span[aria-hidden="true"] {
+  background: var(--tesseract-blue-100) !important;
+  box-shadow: 0 1px 3px rgba(75, 74, 213, 0.12) !important;
+}
+
+.rightPanel [data-theme="primary"] button[data-state="active"] span {
+  color: var(--tesseract-blue-500) !important;
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+/* Red indicator when N is selected */
+.rightPanel [data-enable-value="N"] [data-theme="primary"] > span[aria-hidden="true"] {
+  background: var(--tesseract-error-50) !important;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.rightPanel [data-enable-value="N"] [data-theme="primary"] button[data-state="active"] span {
+  color: var(--tesseract-error-600) !important;
+}
+
+/* Center divider between inactive segment options */
+.rightPanel [role="radiogroup"] button {
+  position: relative;
+}
+
+.rightPanel [role="radiogroup"] button[data-state="inactive"] + button[data-state="inactive"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12%;
+  height: 76%;
+  width: 1px;
+  background: var(--tesseract-slate-300);
+  pointer-events: none;
+}
+
+/* ── Back arrow: replace close-square icon with left arrow ── */
+.drawerShell [class*="_closeBtn_"] {
+  order: -1;
+}
+
+.drawerShell [class*="_closeBtn_"] [data-tp-icon] {
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-left3.svg") !important;
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-left3.svg") !important;
+  -webkit-mask-size: contain !important;
+  mask-size: contain !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  -webkit-mask-position: center !important;
+  mask-position: center !important;
+  width: var(--tesseract-size-22) !important;
+  height: var(--tesseract-size-22) !important;
+}
+
+/* Header divider full height */
+.drawerShell [class*="_header_"] > [class*="_divider_"] {
+  align-self: stretch !important;
+  height: auto !important;
+}
+
+/* Save button: min-width + white text */
+.footerContent button[class*="_button_"] {
+  min-width: 100px;
+}
+
+.footerContent button[class*="_button_"],
+.footerContent button[class*="_button_"] span {
+  color: var(--tesseract-fg-inverse) !important;
+}
+
+/* Drawer title size */
+.drawerShell h2[class*="_title_"] {
+  font-size: var(--tesseract-text-body-lg) !important;
+  font-weight: var(--tesseract-weight-semibold) !important;
+}
+
+.leftPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--tesseract-bg-page-subtle);
+}
+
+.searchBar {
+  padding: var(--tesseract-space-4) var(--tesseract-space-5) var(--tesseract-space-2);
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Search input: 42px height + straight search-2 icon */
+.searchBar [class*="_fieldRow_"] {
+  height: var(--tesseract-size-42) !important;
+  background: var(--tesseract-bg-surface) !important;
+  border: 1px solid var(--tesseract-border-neutral) !important;
+}
+
+.searchBar [data-tp-icon*="search"] {
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/search/search-2.svg") !important;
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/search/search-2.svg") !important;
+}
+
+.sectionsScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--tesseract-space-2) var(--tesseract-space-5) var(--tesseract-space-5);
+  background:
+    linear-gradient(var(--tesseract-bg-page-subtle) 33%, transparent) center top,
+    linear-gradient(transparent, var(--tesseract-bg-page-subtle) 66%) center bottom,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.06), transparent) center top,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.06), transparent) center bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 40px, 100% 40px, 100% 10px, 100% 10px;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* ── SectionCard wrapper spacing ── */
+.sectionCardWrap {
+  margin-bottom: var(--tesseract-space-3);
+}
+
+/* Plain white cards: no outer border, no gradient */
+.sectionCardWrap section[class*="_card_"],
+.sectionCardWrap section[class*="_card_"][class*="_bordered_"] {
+  background: var(--tesseract-bg-surface) !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Section card header-to-body divider */
+.sectionCardWrap section[class*="_card_"][data-divided] > [class*="_body_"] {
+  border-top: 1.5px solid var(--tesseract-border-soft) !important;
+}
+
+.noKnownWrap {
+  display: flex;
+  align-items: center;
+}
+
+.noKnownWrap label {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+}
+
+/* ── Section card header ── */
+.sectionCardWrap section[class*="_card_"] > header[class*="_header_"] {
+  padding: var(--tesseract-space-3-5) var(--tesseract-space-4) !important;
+}
+
+/* Center-align icon + title + checkbox + collapse arrow */
+.sectionCardWrap [class*="_titleRow_"] {
+  align-items: center !important;
+}
+
+/* Checkbox inline with title, no extra margin */
+.sectionCardWrap [class*="_headerActions_"] {
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+
+/* Center-align checkbox with its label text */
+.sectionCardWrap [class*="_headerActions_"] label[class*="_field_"] {
+  align-items: center !important;
+}
+
+/* Section titles */
+.sectionCardWrap h3[class*="_title_"] {
+  font-weight: var(--tesseract-weight-semibold) !important;
+  font-size: var(--tesseract-text-body-sm) !important;
+  margin-bottom: 0 !important;
+}
+
+/* ── Section count badge ── */
+.sectionCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tesseract-size-20);
+  height: var(--tesseract-size-20);
+  padding: 0 var(--tesseract-space-1-5);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-slate-200);
+  color: var(--tesseract-fg-secondary);
+  font-size: var(--tesseract-text-caption-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  margin-left: var(--tesseract-space-1-5);
+  vertical-align: middle;
+}
+
+/* ── Tag grid ── */
+.tagGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-2-5);
+  padding: var(--tesseract-space-1) 0;
+}
+
+/* ── Frequently Used subheading + capped area (2 rows) ── */
+.frequentlyUsedDivider {
+  margin: var(--tesseract-space-3-5) 0 var(--tesseract-space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2-5);
+}
+
+.frequentlyUsedDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--tesseract-border-neutral);
+}
+
+.frequentlyUsedLabel {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-slate-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ── Sort/filter button + menu on Frequently Used ── */
+.sortFilterBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: var(--tesseract-size-24);
+  height: var(--tesseract-size-24);
+  border: none;
+  border-radius: var(--tesseract-radius-6);
+  background: transparent;
+  color: var(--tesseract-slate-400);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  order: 1;
+  overflow: visible;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sortFilterBtn:hover {
+  background: var(--tesseract-slate-50);
+  color: var(--tesseract-slate-600);
+}
+
+.sortFilterBtn[data-active="true"] {
+  color: var(--tesseract-blue-600);
+  background: var(--tesseract-blue-50);
+}
+
+/* ── Sort icon: tri-state mask swap ── */
+.sortIcon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/essential/sort.svg") center / contain no-repeat;
+  mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/essential/sort.svg") center / contain no-repeat;
+}
+
+.sortIcon[data-sort="az"] {
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/sort-ascending.svg");
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/sort-ascending.svg");
+}
+
+.sortIcon[data-sort="za"] {
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/sort-descending.svg");
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/sort-descending.svg");
+}
+
+
+.frequentlyUsedWrap {
+  position: relative;
+}
+
+.frequentlyUsedChips {
+  max-height: 86px;
+  overflow: hidden;
+}
+
+/* Overlay "+N more" at end of 2nd row with gradient fade */
+.showMoreOverlay {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--tesseract-size-36);
+  padding: 0 var(--tesseract-space-2-5) 0 var(--tesseract-space-9);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, var(--tesseract-slate-0) 40%);
+  border: none;
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-link);
+  cursor: pointer;
+  font-family: var(--tesseract-font-body);
+  z-index: 2;
+}
+
+.showMoreOverlay:hover {
+  color: var(--tesseract-blue-600);
+}
+
+/* "Show more" / "Show less" toggle button */
+.showMoreBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tesseract-space-1);
+  width: 100%;
+  margin-top: var(--tesseract-space-2);
+  padding: var(--tesseract-space-1-5) var(--tesseract-space-3);
+  border: none;
+  background: none;
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-link);
+  cursor: pointer;
+  font-family: var(--tesseract-font-body);
+  border-radius: var(--tesseract-radius-8);
+  transition: background 0.15s ease;
+}
+
+.showMoreBtn:hover {
+  background: var(--tesseract-blue-50);
+}
+
+.showMoreArrow {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-up4.svg") center / contain no-repeat;
+  mask: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-up4.svg") center / contain no-repeat;
+  transition: transform 0.2s ease;
+}
+
+.showMoreArrow[data-expanded="false"] {
+  transform: rotate(180deg);
+}
+
+/* ── Tag badge: pill shape, text-only ── */
+.tagBadge {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-slate-100);
+  overflow: hidden;
+  font-size: var(--tesseract-text-caption-lg);
+  line-height: 1.3;
+  cursor: pointer;
+  height: var(--tesseract-size-36);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tagBadge:hover {
+  background: var(--tesseract-slate-200);
+}
+
+/* Selected tag outline: blue for Y, red for N */
+.tagBadge[data-selected="true"] {
+  box-shadow: 0 0 0 2px var(--tesseract-blue-400);
+}
+
+.tagBadge[data-selected="true"][data-enable="N"] {
+  box-shadow: 0 0 0 2px var(--tesseract-error-400);
+}
+
+.tagBadge[data-enable="Y"] {
+  background: var(--tesseract-blue-50);
+}
+
+.tagBadge[data-enable="Y"]:hover {
+  background: var(--tesseract-blue-100);
+}
+
+.tagBadge[data-enable="N"] {
+  background: var(--tesseract-error-50);
+}
+
+.tagBadge[data-enable="N"]:hover {
+  background: var(--tesseract-error-100);
+}
+
+.tagTitle {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--tesseract-space-3-5);
+  color: var(--tesseract-fg-primary);
+  font-weight: var(--tesseract-weight-medium);
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--tesseract-font-body);
+}
+
+.tagBadge[data-enable="Y"] .tagTitle {
+  color: var(--tesseract-blue-500);
+}
+
+.tagBadge[data-enable="N"] .tagTitle {
+  color: var(--tesseract-error-700);
+}
+
+/* Selected chips: less right padding to leave room for toggle zone */
+.tagBadge[data-enable="Y"] .tagTitle,
+.tagBadge[data-enable="N"] .tagTitle {
+  padding: 0 var(--tesseract-space-1-5) 0 var(--tesseract-space-3-5);
+}
+
+
+
+/* ── Selected chip Y/N toggle zone ── */
+.tagEnable {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 var(--tesseract-space-2-5);
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  cursor: pointer;
+  white-space: nowrap;
+  height: 100%;
+  border-left: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 0 var(--tesseract-radius-12) var(--tesseract-radius-12) 0;
+}
+
+.tagBadge[data-enable="Y"] .tagEnable {
+  color: var(--tesseract-blue-500);
+  background: var(--tesseract-blue-50);
+}
+
+.tagBadge[data-enable="N"] .tagEnable {
+  color: var(--tesseract-error-700);
+  background: var(--tesseract-error-50);
+}
+
+.enableArrowImg {
+  width: var(--tesseract-size-12);
+  height: var(--tesseract-size-12);
+  opacity: 0.7;
+}
+
+.tagBadge[data-enable="Y"] .enableArrowImg {
+  filter: brightness(0) saturate(100%) invert(26%) sepia(98%) saturate(1800%) hue-rotate(237deg) brightness(82%) contrast(102%);
+}
+
+.tagBadge[data-enable="N"] .enableArrowImg {
+  filter: brightness(0) saturate(100%) invert(18%) sepia(80%) saturate(4500%) hue-rotate(350deg) brightness(85%) contrast(110%);
+}
+
+/* ── "Add as Custom" divider ── */
+.addCustomDivider {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  margin: var(--tesseract-space-3) 0 var(--tesseract-space-1-5);
+}
+
+.addCustomDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--tesseract-border-neutral);
+}
+
+.addCustomDividerLabel {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-slate-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ── "Add as Custom" button ── */
+.addCustomBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  margin-top: var(--tesseract-space-2);
+  padding: var(--tesseract-space-2) var(--tesseract-space-3-5);
+  border: 1px solid var(--tesseract-blue-300);
+  background: transparent;
+  border-radius: var(--tesseract-radius-12);
+  font-size: var(--tesseract-text-body-sm);
+  cursor: pointer;
+  font-family: var(--tesseract-font-body);
+  color: var(--tesseract-blue-600);
+}
+
+.addCustomBtn [data-tp-icon] {
+  background-color: var(--tesseract-blue-600) !important;
+  width: var(--tesseract-size-18) !important;
+  height: var(--tesseract-size-18) !important;
+}
+
+.addCustomBtn:hover {
+  background: var(--tesseract-blue-50);
+  border-color: var(--tesseract-blue-400);
+}
+
+.addCustomIcon {
+  color: var(--tesseract-blue-500);
+  display: flex;
+  align-items: center;
+}
+
+.addCustomIcon [data-tp-icon] {
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/essential/add.svg") !important;
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/essential/add.svg") !important;
+}
+
+.addCustomLabel {
+  color: var(--tesseract-blue-600);
+  font-weight: var(--tesseract-weight-regular);
+}
+
+.addCustomLabel strong {
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+/* ── Selected chip (card-style) ── */
+.selectedChip {
+  display: flex;
+  align-items: center;
+  border-radius: var(--tesseract-radius-12);
+  border: none;
+  background: var(--tesseract-blue-50);
+  font-size: var(--tesseract-text-caption-lg);
+  cursor: pointer;
+  min-width: 150px;
+  max-width: 240px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  overflow: hidden;
+}
+
+.selectedChip:hover {
+  background: var(--tesseract-blue-100);
+}
+
+.selectedChip[data-selected="true"] {
+  border: 1px solid var(--tesseract-blue-500);
+}
+
+.selectedChip[data-enable="N"] {
+  background: var(--tesseract-error-50);
+}
+
+.selectedChip[data-enable="N"]:hover {
+  background: var(--tesseract-error-100);
+}
+
+.selectedChip[data-selected="true"][data-enable="N"] {
+  border: 1px solid var(--tesseract-error-600);
+}
+
+.selectedChipBody {
+  flex: 1;
+  min-width: 0;
+  padding: var(--tesseract-space-2) var(--tesseract-space-2-5) var(--tesseract-space-2) var(--tesseract-space-3-5);
+}
+
+.selectedChipTitle {
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-blue-600);
+  font-size: var(--tesseract-text-body-sm);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selectedChip[data-enable="N"] .selectedChipTitle {
+  color: var(--tesseract-error-600);
+}
+
+.selectedChipSubtext {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-blue-500) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+
+.selectedChip[data-enable="N"] .selectedChipSubtext {
+  color: var(--tesseract-error-500) !important;
+}
+
+.chipDot {
+  color: var(--tesseract-blue-300) !important;
+}
+
+.selectedChip[data-enable="N"] .chipDot {
+  color: var(--tesseract-error-200) !important;
+}
+
+.selectedChipClose {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0 var(--tesseract-space-3);
+  cursor: pointer;
+  color: var(--tesseract-blue-400);
+  font-size: var(--tesseract-text-body-lg);
+  font-weight: 300;
+  align-self: stretch;
+  border-radius: 0 var(--tesseract-radius-12) var(--tesseract-radius-12) 0;
+  transition: color 0.15s ease, background 0.15s ease;
+  border-left: 1px solid rgba(75, 74, 213, 0.1);
+}
+
+.selectedChip[data-enable="N"] .selectedChipClose {
+  color: var(--tesseract-error-400);
+  border-left-color: rgba(220, 38, 38, 0.1);
+}
+
+.selectedChipClose:hover {
+  color: var(--tesseract-blue-600);
+  background: var(--tesseract-blue-50);
+}
+
+.selectedChip[data-enable="N"] .selectedChipClose:hover {
+  color: var(--tesseract-error-600);
+  background: var(--tesseract-error-50);
+}
+
+/* ── Slide-in animation ── */
+.chipSlideIn {
+  animation: chipSlideIn 0.3s ease;
+}
+
+@keyframes chipSlideIn {
+  from {
+    opacity: 0.4;
+    transform: translateY(var(--tesseract-space-1-5));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Chip hover tooltip (dark) ── */
+.chipTooltip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1-5);
+  padding: var(--tesseract-space-1) 0;
+}
+
+.chipTooltipTitle {
+  font-weight: var(--tesseract-weight-semibold);
+  font-size: 13px;
+  line-height: 1.3;
+  color: #fff;
+}
+
+.chipTooltipRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+}
+
+.chipTooltipRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tesseract-space-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chipTooltipBullet {
+  width: 4px;
+  height: 4px;
+  min-width: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  position: relative;
+  top: -1px;
+}
+
+.chipTooltipLabel {
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+}
+
+.chipTooltipValue {
+  color: #fff;
+  font-weight: var(--tesseract-weight-medium);
+  word-break: break-word;
+}
+
+/* ── Detail fade-in ── */
+@keyframes detailFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Right panel ── */
+.rightPanel {
+  width: 420px;
+  min-width: 420px;
+  overflow-y: auto;
+  background: var(--tesseract-bg-surface);
+  border-left: none;
+}
+
+.rightPanel > div {
+  animation: detailFadeIn 0.2s ease;
+}
+
+/* ── Right panel empty state ── */
+.rightPanelEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tesseract-space-4);
+  height: 100%;
+  padding: var(--tesseract-space-10) var(--tesseract-space-8);
+  text-align: center;
+}
+
+.emptyIcon {
+  color: var(--tesseract-slate-200);
+  opacity: 0.5;
+}
+
+.emptyHeading {
+  font-size: var(--tesseract-text-body-base);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-tertiary);
+  margin: 0;
+}
+
+.emptySubtext {
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-slate-400);
+  line-height: 1.5;
+  max-width: 260px;
+}
+
+/* ── Detail panel ── */
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+  padding: var(--tesseract-space-3-5) var(--tesseract-space-5);
+  background: var(--tesseract-bg-surface);
+  border-bottom: 0.5px solid var(--tesseract-border-neutral);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.detailHeaderIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tesseract-size-36);
+  height: var(--tesseract-size-36);
+  border-radius: var(--tesseract-radius-12);
+  background: var(--tesseract-violet-50);
+  color: var(--tesseract-violet-500) !important;
+}
+
+.detailHeaderIcon [data-tp-icon] {
+  color: var(--tesseract-violet-500) !important;
+  background-color: var(--tesseract-violet-500) !important;
+}
+
+.detailHeaderText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-0-5);
+  min-width: 0;
+}
+
+.detailSection {
+  font-size: var(--tesseract-text-caption);
+  color: var(--tesseract-slate-400);
+  font-weight: var(--tesseract-weight-medium);
+}
+
+.detailTagName {
+  font-size: var(--tesseract-text-body-base);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.deleteBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--tesseract-error-600);
+  cursor: pointer;
+  padding: var(--tesseract-space-1);
+  transition: opacity 0.15s ease;
+}
+
+.deleteBtn [data-tp-icon] {
+  background-color: var(--tesseract-error-600) !important;
+}
+
+.deleteBtn:hover {
+  opacity: 0.75;
+}
+
+.detailBody {
+  padding: var(--tesseract-space-5);
+}
+
+.detailFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-4);
+}
+
+.detailEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tesseract-space-4);
+  padding: var(--tesseract-space-12) var(--tesseract-space-8);
+  text-align: center;
+}
+
+.detailEmptyIcon {
+  color: var(--tesseract-slate-200);
+  opacity: 0.45;
+}
+
+.detailEmptyHeading {
+  font-size: var(--tesseract-text-body-base);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-tertiary);
+  margin: 0;
+}
+
+.detailEmptySubtext {
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-slate-400);
+  line-height: 1.5;
+  max-width: 240px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1-5);
+}
+
+.fieldLabel {
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-regular);
+  color: var(--tesseract-slate-400);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.noteField {
+  width: 100%;
+  min-height: 72px;
+  padding: var(--tesseract-space-2-5) var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-12);
+  font-size: var(--tesseract-text-caption-lg);
+  font-family: var(--tesseract-font-body);
+  color: var(--tesseract-fg-heading);
+  background: var(--tesseract-bg-surface);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.noteField:focus {
+  border-color: var(--tesseract-border-focus);
+  box-shadow: var(--tesseract-focus-primary);
+}
+
+.noteField::placeholder {
+  color: var(--tesseract-slate-400);
+}
+
+/* ── Since input with suggestions ── */
+.sinceWrap {
+  position: relative;
+}
+
+.sinceInputRow {
+  display: flex;
+  position: relative;
+}
+
+.sinceInput {
+  width: 100%;
+  height: var(--tesseract-size-40);
+  padding: 0 var(--tesseract-space-9) 0 var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-12);
+  font-size: var(--tesseract-text-body-sm);
+  font-family: var(--tesseract-font-body);
+  color: var(--tesseract-fg-heading);
+  background: var(--tesseract-bg-surface);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.sinceInput:focus {
+  border-color: var(--tesseract-border-focus);
+  box-shadow: var(--tesseract-focus-primary);
+}
+
+.sinceInput::placeholder {
+  color: var(--tesseract-slate-400);
+}
+
+.sinceClear {
+  position: absolute;
+  right: var(--tesseract-space-2-5);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--tesseract-slate-400);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: var(--tesseract-text-body-base);
+  line-height: 1;
+  z-index: 1;
+}
+
+.sinceClear:hover {
+  color: var(--tesseract-fg-secondary);
+}
+
+.sinceSuggestions {
+  position: absolute;
+  top: calc(100% + var(--tesseract-space-1));
+  left: 0;
+  right: 0;
+  background: var(--tesseract-bg-surface);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-12);
+  box-shadow: var(--tesseract-shadow-md);
+  z-index: 20;
+  padding: var(--tesseract-space-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-0-5);
+}
+
+.sinceSuggestionItem {
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  border: none;
+  background: none;
+  font-size: var(--tesseract-text-body-sm);
+  font-family: var(--tesseract-font-body);
+  color: var(--tesseract-fg-primary);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--tesseract-radius-12);
+  transition: background 0.1s ease;
+}
+
+.sinceSuggestionItem:hover {
+  background: var(--tesseract-bg-surface-active);
+  color: var(--tesseract-blue-500);
+}
+
+.sinceSuggestionDivider {
+  height: 1px;
+  background: var(--tesseract-border-neutral);
+  margin: var(--tesseract-space-0-5) 0;
+}
+
+.sinceClearOption {
+  color: var(--tesseract-error-500) !important;
+  font-weight: var(--tesseract-weight-medium);
+}
+
+.sinceClearOption:hover {
+  background: var(--tesseract-error-50) !important;
+  color: var(--tesseract-error-600) !important;
+}
+
+/* Override all dropdown chevrons in the right panel to straight style */
+.rightPanel [data-tp-icon*="chevron-down"],
+.rightPanel [data-tp-icon*="arrow-down"] {
+  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-down4.svg") !important;
+  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-down4.svg") !important;
+}
+
+/* Fix: Tesseract InputBox / Dropdown focus states */
+.drawerShell [class*="_wrap_"][data-size]:focus-within [class*="_fieldRow_"] {
+  border-color: var(--tesseract-border-focus) !important;
+  box-shadow: var(--tesseract-focus-primary) !important;
+}
+
+.drawerShell [class*="_trigger_"]:focus-visible {
+  border-color: var(--tesseract-border-focus) !important;
+  box-shadow: var(--tesseract-focus-primary) !important;
+}
+
+/* Search clear icon */
+.searchBar [class*="_clear_"] [data-tp-icon] {
+  width: var(--tesseract-size-18) !important;
+  height: var(--tesseract-size-18) !important;
+  background-color: var(--tesseract-slate-600) !important;
+}
+
+/* Section empty hint */
+.sectionEmptyHint {
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-slate-400);
+  text-align: center;
+  padding: var(--tesseract-space-4) var(--tesseract-space-3);
+  line-height: 1.4;
+}
+
+/* Empty state rectangle when no selected tags */
+.selectedTagsEmpty {
+  background: var(--tesseract-slate-50);
+  border: 1px dashed var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-12);
+  padding: var(--tesseract-space-5) var(--tesseract-space-4);
+  text-align: center;
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-slate-400);
+  line-height: 1.4;
+}
+
+/* ── Additional History textarea ── */
+.additionalHistoryField {
+  width: 100%;
+  min-height: 100px;
+  padding: var(--tesseract-space-2-5) var(--tesseract-space-3);
+  border: 1px solid var(--tesseract-border-neutral);
+  border-radius: var(--tesseract-radius-12);
+  font-size: var(--tesseract-text-caption-lg);
+  font-family: var(--tesseract-font-body);
+  color: var(--tesseract-fg-heading);
+  background: var(--tesseract-bg-surface);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.additionalHistoryField:focus {
+  border-color: var(--tesseract-border-focus);
+  box-shadow: var(--tesseract-focus-primary);
+}
+
+.additionalHistoryField::placeholder {
+  color: var(--tesseract-slate-400);
+}
+
+/* ── 12px corner radius on all SegmentedControls + Dropdown trigger ── */
+.drawerShell [role="radiogroup"] {
+  border-radius: var(--tesseract-radius-12) !important;
+}
+
+.drawerShell [role="radiogroup"] [role="radio"] {
+  border-radius: var(--tesseract-radius-12) !important;
+}
+
+.drawerShell [class*="_trigger_"] {
+  border-radius: var(--tesseract-radius-12) !important;
+}
+
+/* Bigger Dropdown relationship chips */
+.detailFields [class*="_triggerChip_"] {
+  height: var(--tesseract-size-28) !important;
+  padding: 0 var(--tesseract-space-2-5) !important;
+  font-size: var(--tesseract-text-caption-lg) !important;
+}
+
+/* Relationship chip close icon */
+.detailFields [class*="_triggerChip_"] [class*="_remove_"] {
+  width: var(--tesseract-size-16) !important;
+  height: var(--tesseract-size-16) !important;
+  margin-left: var(--tesseract-space-1) !important;
+  opacity: 0.75 !important;
+}
+
+.detailFields [class*="_triggerChip_"] [class*="_remove_"] [data-tp-icon] {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.detailFields [class*="_triggerChip_"] [class*="_remove_"]:hover {
+  opacity: 1 !important;
+}
+
+/* ── Footer ── */
+.footerContent {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--tesseract-space-3);
+  width: 100%;
+}
+
+/* ── Responsive: small screens = full width, detail stacks below ── */
+@media (max-width: 600px) {
+  .drawerShell {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+
+  .drawerBody {
+    flex-direction: column;
+  }
+
+  .leftPanel {
+    border-bottom: 1px solid var(--tesseract-border-neutral);
+    flex: none;
+    max-height: 55%;
+  }
+
+  .rightPanel {
+    width: 100%;
+    min-width: 100%;
+    flex: 1;
+    border-left: none;
+    border-top: 1px solid var(--tesseract-border-neutral);
+  }
+}
+
+/* Structured tooltip */
+.tooltipContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-1);
+  min-width: 180px;
+  max-width: 320px;
+  color: var(--tesseract-fg-inverse);
+}
+
+.tooltipHeading {
+  font-weight: var(--tesseract-weight-semibold);
+  font-size: var(--tesseract-text-caption-lg);
+  color: var(--tesseract-fg-inverse);
+  white-space: nowrap;
+}
+
+.tooltipDivider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: var(--tesseract-space-1) 0;
+}
+
+.tooltipRow {
+  font-size: var(--tesseract-text-caption);
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--tesseract-fg-inverse);
+}
+
+.tooltipRowNote {
+  font-size: var(--tesseract-text-caption);
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-word;
+  color: var(--tesseract-fg-inverse);
+}
+
+.tooltipLabel {
+  color: rgba(255, 255, 255, 0.65);
+  font-weight: var(--tesseract-weight-regular);
+}
+
+.tooltipValue {
+  color: var(--tesseract-fg-inverse);
+  font-weight: var(--tesseract-weight-semibold);
+}
+
+/* ── Shimmer loading ── */
+.shimmerWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tesseract-space-4);
+  padding: var(--tesseract-space-4);
+}
+
+.shimmerLine {
+  height: var(--tesseract-size-14);
+  border-radius: var(--tesseract-radius-12);
+  background: linear-gradient(
+    90deg,
+    var(--tesseract-slate-100) 25%,
+    var(--tesseract-slate-50) 50%,
+    var(--tesseract-slate-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.shimmerW40 { width: 40%; }
+.shimmerW60 { width: 60%; }
+.shimmerW100 { width: 100%; }
+
+.shimmerDivider {
+  height: 1px;
+  width: 100%;
+  background: var(--tesseract-border-neutral);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Customize Popover (inside Tesseract Tooltip) ── */
+.customizePopover {
+  width: 360px;
+  border-radius: var(--tesseract-radius-12);
+  overflow: hidden;
+}
+
+.customizePanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--tesseract-space-3-5) var(--tesseract-space-4);
+  border-bottom: 1px solid var(--tesseract-border-soft);
+}
+
+.customizePanelTitle {
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-primary);
+}
+
+.customizePanelReset {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 2px;
+  color: var(--tesseract-warning-600) !important;
+}
+
+.customizePanelReset span {
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+.customizeRow {
+  display: flex;
+  align-items: center;
+  padding: var(--tesseract-space-3) var(--tesseract-space-4);
+  border-bottom: 1px solid var(--tesseract-slate-50);
+  transition: background 0.1s ease;
+  gap: var(--tesseract-space-3);
+}
+
+.customizeRow:last-child {
+  border-bottom: none;
+}
+
+.customizeRow:hover {
+  background: var(--tesseract-bg-surface-hover);
+}
+
+.customizeRowIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tesseract-size-32);
+  height: var(--tesseract-size-32);
+  border-radius: var(--tesseract-radius-8);
+  background: var(--tesseract-violet-50);
+  flex-shrink: 0;
+}
+
+.customizeRowIcon [data-tp-icon] {
+  background-color: var(--tesseract-violet-500) !important;
+}
+
+.customizeRowName {
+  font-size: var(--tesseract-text-caption-lg);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-primary);
+  flex: 1;
+}
+
+/* ── Drag Handle ── */
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tesseract-slate-400);
+  cursor: move;
+  touch-action: none;
+  flex-shrink: 0;
+  padding: var(--tesseract-space-0-5);
+  border-radius: var(--tesseract-radius-4);
+  transition: color 0.15s ease;
+}
+
+.dragHandle:hover {
+  color: var(--tesseract-fg-secondary);
+}
+
+/* ── Toggle in customize row: push to right ── */
+.customizeRow [data-size] {
+  margin-left: auto;
+}
+
+/* ── Header Settings Button (Tesseract tonal, icon-only override) ── */
+.headerSettingsBtn {
+  padding: 0 !important;
+  width: var(--tesseract-size-42) !important;
+  min-width: var(--tesseract-size-42) !important;
+  height: var(--tesseract-size-42) !important;
+  flex-shrink: 0;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.headerSettingsBtn > span {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 0 !important;
+}
+
+.headerSettingsBtn > span > span {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 0 !important;
+}
+
+.headerSettingsBtn [data-tp-icon] {
+  background-color: currentColor !important;
+}
+
+/* ── Header Actions (gear + divider + save) ── */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+}
+
+.headerActions [class*="_divider_"] {
+  align-self: stretch;
+  height: auto;
+}
+
+/* White text on Save button in header */
+.headerActions button[data-variant="solid"][data-theme="primary"],
+.headerActions button[data-variant="solid"][data-theme="primary"] span {
+  color: var(--tesseract-fg-inverse) !important;
+}
+
+/* ── Global overrides for portalled elements (tooltips, dialogs, date pickers) ── */
+:global([data-radix-popper-content-wrapper]) :global([role="tooltip"]) {
+  background-color: var(--tesseract-slate-900) !important;
+  color: var(--tesseract-slate-0) !important;
+}
+
+:global([data-radix-popper-content-wrapper]) :global([role="tooltip"]) * {
+  color: inherit !important;
+}
+
+:global([data-radix-popper-content-wrapper]),
+:global(div[id^="tp-tt-"]) {
+  z-index: 1150 !important;
+}
+
+:global([role="alertdialog"]) {
+  z-index: 1200 !important;
+}
+
+:global(body) > :global(div[data-state="open"]:has(+ [role="alertdialog"])) {
+  z-index: 1150 !important;
+}
+
+:global([role="alertdialog"]) :global(button[data-theme="error"]) span,
+:global([role="alertdialog"]) :global(button[data-theme="error"]) {
+  color: var(--tesseract-error-600) !important;
+}
+
+:global([role="alertdialog"]) :global(button[data-theme="primary"][data-variant="solid"]) span,
+:global([role="alertdialog"]) :global(button[data-theme="primary"][data-variant="solid"]) {
+  color: var(--tesseract-fg-inverse) !important;
+}
+
+:global(div[id^="tp-drp-popover-"]) :global(button[data-variant="solid"][data-theme="primary"]) span,
+:global(div[id^="tp-drp-popover-"]) :global(button[data-variant="solid"][data-theme="primary"]) {
+  color: var(--tesseract-fg-inverse) !important;
+}
+
+/* Customize tooltip (light variant): seamless, elevated popover */
+:global(div[id^="tp-tt-"][data-variant="light"]) {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+:global(div[id^="tp-tt-"][data-variant="light"]) :global(span[class*="_inner_"]) {
+  border-radius: var(--tesseract-radius-16) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  background: var(--tesseract-bg-surface) !important;
+  overflow: hidden !important;
+}
+
+:global(div[id^="tp-tt-"][data-variant="light"]) > :global(span[aria-hidden="true"]) {
+  left: auto !important;
+  right: 18px !important;
+  transform: none !important;
+}
+
+/* Dark tooltip text: Tesseract Tooltip inner spans inherit dark text; force white */
+:global(div[id^="tp-tt-"][role="tooltip"]) {
+  color: var(--tesseract-slate-0) !important;
+}
+
+:global(div[id^="tp-tt-"][role="tooltip"]) :global(*) {
+  color: inherit !important;
+}
