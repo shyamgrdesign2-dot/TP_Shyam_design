@@ -155,8 +155,8 @@ export const REPORTS = [
     buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment, accountant: f?.account && f.account !== "all" ? f.account : undefined }),
   },
   {
-    id: "ipd-reports", group: "Financial", dept: "ipd",
-    icon: `${IC}buildings/building-4.svg`,
+    id: "ipd-reports", roleId: 22, group: "Financial", dept: "ipd",
+    icon: "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/content-edit/document-text.svg",
     label: "IPD Reports",
     desc: "Admitting and discharged patient reports with financials.",
     live: true,

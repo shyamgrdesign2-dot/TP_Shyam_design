@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
 import { anyToDonut, seriesToXY, compactXY, compactDoctorLabel } from "../charts/adapters";
-import { toNum, pctDelta, singleIdOnly } from "./deltaUtils";
+import { toNum, pctDelta, singleIdOnly, safe } from "./deltaUtils";
 import { cached } from "./apiCache";
 import { getDoctorList } from "./doctorList";
 
@@ -110,6 +110,8 @@ export default function useConsultationModesData({ month, startDate, endDate, do
     modeMix: [],
     modeTrend: null,
     byDoctor: null,
+    visitTrend: null,
+    doctorComparison: null,
   });
 
   const load = useCallback(async () => {
@@ -126,8 +128,37 @@ export default function useConsultationModesData({ month, startDate, endDate, do
     if (singleIdOnly(clinicId)) params.clinicId = singleIdOnly(clinicId);
     const singleClinic = singleIdOnly(clinicId);
 
-    const payload = await cached("modes", params, () => ApiReporting.clinicConsultationModes(params)).catch(() => null);
+    // CVT (digitization) data — fetched in parallel with the main modes call.
+    const cvtParams = {};
+    if (startDate && endDate) { cvtParams.startDate = startDate; cvtParams.endDate = endDate; }
+    if (doctorId && doctorId !== "all") cvtParams.doctorId = doctorId;
+    if (clinicId && clinicId !== "all") cvtParams.clinicId = clinicId;
+
+    const apptParams = {};
+    if (startDate && endDate) { apptParams.startDate = startDate; apptParams.endDate = endDate; }
+    if (doctorId && doctorId !== "all") apptParams.doctorId = doctorId;
+    if (clinicId && clinicId !== "all") apptParams.clinicId = clinicId;
+
+    const [payload, cvtDailyRaw, cvtByDoctorRaw, apptRaw] = await Promise.all([
+      cached("modes", params, () => ApiReporting.clinicConsultationModes(params)).catch(() => null),
+      safe(cached("cvtDaily", cvtParams, () => ApiReporting.cvtDaily(cvtParams))),
+      safe(cached("cvtByDoctor", cvtParams, () => ApiReporting.cvtByDoctor(cvtParams))),
+      safe(cached("apptAnalytics", apptParams, () => ApiReporting.analyticsAppointment(apptParams))),
+    ]);
     const src = payload?.data ?? payload ?? {};
+
+    // CVT data extraction
+    const cvtDailySrc = cvtDailyRaw?.data ?? cvtDailyRaw;
+    const cvtByDoctorSrc = cvtByDoctorRaw?.data ?? cvtByDoctorRaw;
+    const cvtDailySeries = unwrapCvtSeries(cvtDailySrc);
+    const cvtByDoctorSeries = unwrapCvtSeries(cvtByDoctorSrc);
+    const totalDigitized = toNum(cvtDailySrc?.totalDigitized ?? cvtByDoctorSrc?.totalDigitized);
+    const totalCases = toNum(cvtDailySrc?.totalCases ?? cvtByDoctorSrc?.totalCases);
+    const digitalPrescriptionPercent = totalCases > 0 ? Math.round((100 * totalDigitized) / totalCases) : null;
+
+    // Visit trend: booked vs completed vs digitized (daily)
+    const apptData = apptRaw?.data ?? apptRaw ?? {};
+    const visitTrend = buildVisitTrend(apptData.appointments, cvtDailySeries);
 
     // Always fan-out per-doctor so every clinic doctor appears (even with
     // zero data). The backend's byDoctor omits zero-data doctors.
@@ -144,9 +175,21 @@ export default function useConsultationModesData({ month, startDate, endDate, do
       if (stacked) byDoctor = compactXY(seriesToXY(stacked), compactDoctorLabel);
     }
 
+    // Doctor comparison: booked vs completed vs digitized (per doctor)
+    const doctorComparison = buildDoctorComparison(byDoctor, cvtByDoctorSeries);
+
     // Who uses it most — the doctor with the highest consultation volume
     // (summed across all modes from the stacked by-doctor data)
     const kpisOut = buildKpis(src.kpis);
+
+    // CVT KPIs
+    if (digitalPrescriptionPercent != null) {
+      kpisOut.push({ key: "digitizationPct", label: "Digitization %", kind: "percent", value: digitalPrescriptionPercent, tooltip: "Digitized prescriptions as a share of total CVT cases in the selected period" });
+    }
+    if (totalDigitized > 0) {
+      kpisOut.push({ key: "totalDigitized", label: "Total digitized", kind: "number", value: totalDigitized, tooltip: "Prescriptions digitized (CVT) in the selected period" });
+    }
+
     const most = mostActiveDoctor(byDoctor);
     if (most) {
       kpisOut.push({ key: "mostActiveDoctor", label: "Most active doctor", kind: "text", value: most, tooltip: "Doctor with the most consultations in the selected period, across all modes" });
@@ -182,6 +225,8 @@ export default function useConsultationModesData({ month, startDate, endDate, do
       modeMix,
       modeTrend: src.modeTrend ? normTrendLabels(seriesToXY(src.modeTrend)) : null,
       byDoctor,
+      visitTrend,
+      doctorComparison,
     });
     // enabledModes is consumed via ref-stable JSON below
   }, [month, startDate, endDate, doctorId, clinicId, JSON.stringify(enabledModes)]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -191,6 +236,113 @@ export default function useConsultationModesData({ month, startDate, endDate, do
   }, [load]);
 
   return { ...state, reload: load };
+}
+
+// ── CVT (digitization) helpers ──────────────────────────────────────────
+function unwrapCvtSeries(payload) {
+  if (!payload) return null;
+  const series = payload.series ?? payload;
+  if (series?.labels && Array.isArray(series.datasets)) return series;
+  return null;
+}
+
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function shortenDateLabel(label) {
+  if (typeof label !== "string") return label;
+  const m = label.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return label;
+  return `${parseInt(m[3], 10)} ${SHORT_MONTHS[parseInt(m[2], 10) - 1]}`;
+}
+
+function findDatasetByLabel(datasets, matcher) {
+  return (datasets || []).find((d) => matcher(String(d?.label || "")));
+}
+
+function buildDigitizedByLabel(cvtSeries) {
+  const map = new Map();
+  if (!cvtSeries?.labels?.length) return map;
+  const data = cvtSeries.datasets?.[0]?.data || [];
+  cvtSeries.labels.forEach((label, i) => {
+    const key = shortenDateLabel(label);
+    map.set(String(key), toNum(data[i]));
+    map.set(String(label), toNum(data[i]));
+  });
+  return map;
+}
+
+function buildDigitizedByDoctor(cvtByDoctor) {
+  const map = new Map();
+  if (!cvtByDoctor?.labels?.length) return map;
+  const data = cvtByDoctor.datasets?.[0]?.data || [];
+  cvtByDoctor.labels.forEach((name, i) => {
+    map.set(String(name), toNum(data[i]));
+  });
+  return map;
+}
+
+function buildVisitTrend(appointments, cvtDaily) {
+  if (!appointments?.labels?.length) return null;
+
+  const datasets = appointments.datasets || [];
+  const bookedDs =
+    findDatasetByLabel(datasets, (l) => /booked|total appointment/i.test(l)) ||
+    datasets.find((d) => !/completed/i.test(String(d?.label || ""))) ||
+    datasets[0];
+  const completedDs = findDatasetByLabel(datasets, (l) => /completed/i.test(l));
+
+  const digitizedMap = buildDigitizedByLabel(cvtDaily);
+  const cvtData = cvtDaily?.datasets?.[0]?.data || [];
+
+  const data = appointments.labels.map((label, i) => {
+    const x = shortenDateLabel(label);
+    let digitized = digitizedMap.get(String(x));
+    if (digitized == null) digitized = digitizedMap.get(String(label));
+    if (digitized == null && cvtDaily?.labels?.length === appointments.labels.length) {
+      digitized = toNum(cvtData[i]);
+    }
+    return {
+      x,
+      booked: toNum(bookedDs?.data?.[i]),
+      completed: toNum(completedDs?.data?.[i]),
+      digitized: toNum(digitized),
+    };
+  });
+
+  return {
+    data,
+    series: [
+      { key: "booked", label: "Appointments booked" },
+      { key: "completed", label: "Consultations completed" },
+      { key: "digitized", label: "Digitized (CVT)" },
+    ],
+    xKey: "x",
+  };
+}
+
+function buildDoctorComparison(byDoctor, cvtByDoctor) {
+  if (!byDoctor?.data?.length) return null;
+  const digitizedMap = buildDigitizedByDoctor(cvtByDoctor);
+  const keys = (byDoctor.series || []).map((se) => se.key);
+
+  const data = byDoctor.data.map((row) => {
+    const consultations = keys.reduce((a, k) => a + (Number(row[k]) || 0), 0);
+    const digitized = toNum(digitizedMap.get(String(row.x)));
+    return {
+      x: row.x,
+      booked: consultations,
+      consultations,
+      digitized,
+    };
+  });
+  return {
+    data,
+    series: [
+      { key: "booked", label: "Appointments booked" },
+      { key: "consultations", label: "Consultations completed" },
+      { key: "digitized", label: "Digitized (CVT)" },
+    ],
+    xKey: "x",
+  };
 }
 
 // Per-mode counts are NOT KPI cards — that is exactly what the mode-mix donut

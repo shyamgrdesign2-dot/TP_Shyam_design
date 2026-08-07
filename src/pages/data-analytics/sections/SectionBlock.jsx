@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function SectionBlock({ title, subtitle, count, children }) {
+export default function SectionBlock({ title, subtitle, count, badge, children }) {
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {title && (
@@ -40,6 +40,22 @@ export default function SectionBlock({ title, subtitle, count, children }) {
               }}
             >
               {count}
+            </span>
+          )}
+          {badge && (
+            <span
+              style={{
+                borderRadius: "var(--tesseract-radius-full)",
+                background: "var(--tesseract-warning-100)",
+                padding: "2px 8px",
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                color: "var(--tesseract-warning-600)",
+                textTransform: "uppercase",
+              }}
+            >
+              {badge}
             </span>
           )}
           {subtitle && (

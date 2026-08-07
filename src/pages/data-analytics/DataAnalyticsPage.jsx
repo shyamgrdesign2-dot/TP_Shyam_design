@@ -93,6 +93,10 @@ const CARE_SUB_TABS = [
   // { id: "custom-modules", label: "Custom Modules", icon: "social/atom", fixedVariant: "linear" },
 ];
 
+const REPORTS_SUB_TABS = [
+  { id: "opd", label: "OPD", icon: "medical/clipboard-activity" },
+  { id: "ipd", label: "IPD", icon: "medical/hospital-bed" },
+];
 
 // The new Data Analytics — a standalone page that OPENS like a full-page,
 // right-anchored drawer, built entirely on Tesseract. Kept separate from the
@@ -137,7 +141,7 @@ export default function DataAnalyticsPage() {
   // Procedures / Gynec / Obstetric tabs were REMOVED (API-CONTRACTS-CURRENT
   // §7 WONT-BUILD: procedures have no data source; gynec/obstetric live in
   // MongoDB outside the reporting pipeline).
-  const subTabsConfig = section === "care" ? CARE_SUB_TABS : null;
+  const subTabsConfig = section === "care" ? CARE_SUB_TABS : section === "reports" ? REPORTS_SUB_TABS : null;
 
   // Shared filter state — every section reads the same values. The date filter
   // defaults to the "Past 7 days" preset; `dateValue` is what the picker shows
@@ -285,7 +289,7 @@ export default function DataAnalyticsPage() {
     if (isConsultModesOnly && value !== "consultation-modes") return;
     trackAnalytics(EVENTS.SECTION_VIEW, { department, section: value });
     setSection(value);
-    setSubTab("all");
+    setSubTab(value === "reports" ? "opd" : "all");
   };
 
   // Clear-all resets every filter to its default state (all doctors, all
@@ -390,7 +394,7 @@ export default function DataAnalyticsPage() {
                   size="lg"
                   align="top"
                   tone="violet"
-                  title={`${deptLabel} ${hero.title}`}
+                  title={section === "reports" ? hero.title : `${deptLabel} ${hero.title}`}
                   subtitle={hero.subtitle}
                   bottomRadius={24}
                 />
@@ -541,7 +545,7 @@ function SectionContent({ department, section, filters, hero, subTab, isConsultM
       case "messages":
         return <MessagesSection filters={filters} />;
       case "reports":
-        return <ReportsTab filters={filters} department="opd" />;
+        return <ReportsTab filters={filters} department={subTab === "ipd" ? "ipd" : "opd"} />;
       default:
         break;
     }
@@ -559,7 +563,7 @@ function SectionContent({ department, section, filters, hero, subTab, isConsultM
       case "billing":
         return <BillingSection filters={filters} department="ipd" />;
       case "reports":
-        return <ReportsTab filters={filters} department="ipd" />;
+        return <ReportsTab filters={filters} department={subTab === "ipd" ? "ipd" : "opd"} />;
       default:
         break;
     }
