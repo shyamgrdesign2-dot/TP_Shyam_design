@@ -24,7 +24,7 @@ import { v4 as uuidv4 } from "uuid";
 import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from "../context/CashManagerContext";
-import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence, shouldMonetizationDisabled } from "../utils/utils";
+import { errorMessage, isDecimalNumeric, onlyDecimalFormat, removeBeforeWhiteSpace, capitalizeAfterSentence, shouldMonetizationDisabled } from "../utils/utils";
 
 import { MenuOutlined } from '@ant-design/icons';
 import {
@@ -432,7 +432,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const onSearchSinceChid = useCallback(
     (query, i) => {
-      const updateQuery = onlyNumberFormat(query);
+      const updateQuery = onlyDecimalFormat(query);
       diagnosisData[i].since = updateQuery;
       setDiagnosisData((prev) => [...prev]);
       if (updateQuery) {
@@ -453,8 +453,9 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const onBlurSinceChid = useCallback(
     (i) => {
-      if (isNumeric(diagnosisData[i].since)) {
-        diagnosisData[i].since = `${diagnosisData[i].since} ${parseInt(diagnosisData[i].since) <= 1 ? 'Year' : 'Year(s)'}`;
+      const sinceValue = String(diagnosisData[i].since || '').replace(/\.$/, '');
+      if (isDecimalNumeric(sinceValue)) {
+        diagnosisData[i].since = `${sinceValue} ${parseFloat(sinceValue) <= 1 ? 'Year' : 'Year(s)'}`;
         setDiagnosisData((prev) => [...prev]);
       }
     },

@@ -4,7 +4,11 @@ import { Button, Spin } from "antd";
 import "./VisitVaccination.scss";
 
 import { useLocation, useNavigate } from "react-router-dom";
-import { getOverridenDueDate, getTvtAgeBySection } from "../../service";
+import {
+  getOverridenDueDate,
+  getPatientVaccineDetails,
+  getTvtAgeBySection,
+} from "../../service";
 import {
   dateFormatter,
   getDates,
@@ -34,17 +38,32 @@ function VisitVaccination() {
 
   const overDueVaccines = async () => {
     const tvtAgeBySection = await getTvtAgeBySection();
-    const overridenVaccines = await getOverridenDueDate(
-      patient_data?.patient_unique_id,
-      patient_data?.pm_pid
+    const patientUid = patient_data?.patient_unique_id;
+    const patientPid = patient_data?.vac_pid || patient_data?.pm_pid;
+
+    const [overridenVaccines, patientVaccineDetails] = await Promise.all([
+      getOverridenDueDate(patientUid, patientPid),
+      getPatientVaccineDetails(patientUid, patientPid),
+    ]);
+
+    const givenTempIds = new Set(
+      (patientVaccineDetails || [])
+        .filter((vaccine) => vaccine?.tvp_given_date)
+        .map((vaccine) => vaccine.tvp_temp_id)
     );
 
+    // Drop already-given vaccines before building pending/upcoming/other lists
     const combinedData = mergeDataPatientDetails(
       overridenVaccines,
-      [],
+      patientVaccineDetails,
       [],
       [],
       patient_data?.DOB || patient_data?.vac_dob || ""
+    ).filter(
+      (vaccine) =>
+        !vaccine?.tvp_given_date &&
+        !givenTempIds.has(vaccine?.tvt_id) &&
+        !givenTempIds.has(vaccine?.tvd_temp_id)
     );
     
     // Split vaccines by category (IAP and Other)
@@ -58,8 +77,8 @@ function VisitVaccination() {
     const options = getDates(completeData);
     const defaultOption = getDefaultOption(options);
 
-    const otherVaccines = splitData[VaccinationCategoryEnum[1].key] || [];
-    const otherVaccinesWithAges = getDistinctAges(otherVaccines);
+    const otherVaccinesList = splitData[VaccinationCategoryEnum[1].key] || [];
+    const otherVaccinesWithAges = getDistinctAges(otherVaccinesList);
     const otherCompleteData = otherVaccinesWithAges.idMap;
     setOtherVaccines([...otherCompleteData]);
 

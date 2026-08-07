@@ -53,8 +53,8 @@ function MedicalHistoryList(props) {
                                                     <>
                                                         <div key={Math.random()} className='my-2'>
                                                             <span>{medical_history_title(e?.tmmhs_id)}</span> <label>{e1?.title}</label>
-                                                            {e1?.since && e?.tmmhs_id != 5 && (
-                                                                <> | <span>Since</span> : <label>{e1?.since}</label></>
+                                                            {e1?.oldSince && e?.tmmhs_id != 5 && (
+                                                                <> | <span>Since</span> : <label>{e1?.oldSince}</label></>
                                                             )}
                                                             {e1?.date && e?.tmmhs_id == 5 && (
                                                                 <> | <span>Date of Surgery</span> : <label>{e1?.date}</label></>

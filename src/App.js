@@ -49,6 +49,9 @@ import { useVoiceRxNewUiFlag, useNewPointClickUiFlag } from "./utils/voiceRxNavi
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
 );
+const DataAnalyticsPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/data-analytics"))
+);
 const Prescription = React.lazy(() =>
   lazyRetry(() => import("./pages/Prescription"))
 );
@@ -341,12 +344,18 @@ function App() {
       localStorage.clear();
       sessionStorage.clear();
       clearReceptionistSession();
+      import("./pages/data-analytics/data/doctorList")
+        .then((m) => m.clearDoctorListCache())
+        .catch(() => {});
       window.location.href = "/login";
     } catch (error) {
       console.error("Error during logout:", error);
       localStorage.clear();
       sessionStorage.clear();
       clearReceptionistSession();
+      import("./pages/data-analytics/data/doctorList")
+        .then((m) => m.clearDoctorListCache())
+        .catch(() => {});
       window.location.href = "/login";
     } finally {
       window.isLoggingOut = false;
@@ -716,8 +725,7 @@ function App() {
         <Route path="/login" element={<Onboarding />} />
         <Route path="/our-offerings" element={<OurOffering />} />
         <Route path="/final-setup" element={<FinalSetup />} />
-
-        {/* Restricted route - authorized only to get/upload snapRx files */}
+{/* Restricted route - authorized only to get/upload snapRx files */}
         <Route path="snap-rx/mobile-upload" element={<UploadRx />} />
         <Route
           path="ophthal-snap-rx/mobile-upload"
@@ -791,6 +799,7 @@ function App() {
             element={(isMobile && !isTablet) ? <MobileAllPatients /> : <AllPatients />} 
           />
           <Route path="billing-settings" element={<BillingSettings />} />
+          <Route path="data-analytics-x" element={<DataAnalyticsPage />} />
           <Route path="add-appointment" element={<AddAppointment />} />
           {(isReceptionist || (isMobile && !isTablet)) ? <Route path="add_patient" element={<AddNewPatient />} /> : null}
           <Route path="snap-rx" element={<SnapRx />} />
