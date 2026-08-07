@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import styles from './ConsultationDrawer.module.css';
-import surgeriesIcon from '../assets/images/surgery.svg';
+import { ASSETS } from "../assets";
+const surgeriesIcon = ASSETS.images.surgery;
 
 /**
  * SurgeriesRichTextEditor - Rich text editor for Surgeries/Procedures section

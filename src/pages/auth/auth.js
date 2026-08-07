@@ -6,8 +6,10 @@ import SetPassword from "./components/SetPassword";
 import "./auth.scss";
 import Signup from "./components/Signup";
 import ClinicSetup from "./components/ClinicSetup";
+import { isZyPreprodOrZyProdEnv } from "../../utils/environment";
 
 const AuthContainer = () => {
+  const isSignupDisabled = isZyPreprodOrZyProdEnv();
   const [currentView, setCurrentView] = useState("loginWithOtp"); // Default to login with OTP
   const [reason, setReason] = useState("");
   const [mobileNumber, setMobileNumber] = useState(null);
@@ -39,10 +41,16 @@ const AuthContainer = () => {
     }
 
     // Set state based on query params
-    if (viewParam) setCurrentView(viewParam || "loginWithOtp");
+    if (viewParam) {
+      setCurrentView(
+        isSignupDisabled && viewParam === "signup"
+          ? "loginWithOtp"
+          : viewParam || "loginWithOtp"
+      );
+    }
     if (reasonParam) setReason(reasonParam);
     if (mobileNumber) setMobileNumber(mobileNumber);
-  }, [navigate]);
+  }, [isSignupDisabled, navigate]);
 
   const handleView = (data) => {
     setData(data);
@@ -56,7 +64,7 @@ const AuthContainer = () => {
     } else if (data?.view === "setPassword") {
       setCurrentView("setPassword");
     } else if (data?.view === "signup") {
-      setCurrentView("signup");
+      setCurrentView(isSignupDisabled ? "loginWithOtp" : "signup");
     } else if (data?.view === "clinic-setup") {
       setCurrentView("clinic-setup")
     }
@@ -77,12 +85,31 @@ const AuthContainer = () => {
       case "setPassword":
         return <SetPassword number={mobileNumber} data={data} />;
       case "signup":
+        if (isSignupDisabled) {
+          return (
+            <LoginWithOTP
+              handleView={handleView}
+              reason={reason}
+              number={mobileNumber}
+            />
+          );
+        }
         return <Signup handleView={handleView}
           reason={reason}
           number={mobileNumber} />;
       case "clinic-setup":
         if (localStorage.getItem('mo_mobile') == null) {
-          setCurrentView('signup');
+          if (isSignupDisabled) {
+            setCurrentView("loginWithOtp");
+            return (
+              <LoginWithOTP
+                handleView={handleView}
+                reason={reason}
+                number={mobileNumber}
+              />
+            );
+          }
+          setCurrentView("signup");
           return <Signup handleView={handleView}
             reason={reason}
             number={mobileNumber} />

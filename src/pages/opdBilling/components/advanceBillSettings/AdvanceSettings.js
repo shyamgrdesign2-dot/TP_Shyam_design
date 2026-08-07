@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import SequenceSettings from "./SequenceSettings";
 import { updateAdvancedSettings } from "../../service";
 import { errorMessage, getClinic, trackEvent } from "../../../../utils/utils";
+import { getDecodedToken } from "../../../../utils/localStorage";
 import dayjs from "dayjs";
 import InfoTooltip from "../billingDashboard/BillingTable/InfoToolTip/InfoTooltip";
 
@@ -18,6 +19,9 @@ const AdvanceBillSettings = ({ visible, onClose, getAdvanceSettings }) => {
   const [ipdReceiptModalOpen, setIpdReceiptModalOpen] = useState(false);
   const [advanceReceiptModalOpen, setAdvanceReceiptModalOpen] = useState(false);
   const { profile } = useSelector((state) => state.doctors);
+  
+  const decodedToken = getDecodedToken();
+  const isAdmin = Boolean(decodedToken?.result?.admin);
 
   useEffect(() => {
     if (advancedSettings) setSettings(advancedSettings);
@@ -116,6 +120,10 @@ const AdvanceBillSettings = ({ visible, onClose, getAdvanceSettings }) => {
   };
 
   const handleEnabledForReceptionist = (e) => {
+    setSettings({ ...settings, [e.target.name]: e.target.value === "Allow" });
+  };
+
+  const handleEditBillAccessControlForReceptionist = (e) => {
     setSettings({ ...settings, [e.target.name]: e.target.value === "Allow" });
   };
 
@@ -690,6 +698,38 @@ const AdvanceBillSettings = ({ visible, onClose, getAdvanceSettings }) => {
                         })}
                       </Radio.Group>
                     </div>
+                    {isAdmin && (
+                      <div className={styles.formItem}>
+                        <div className={styles.inputWithIcon}>
+                          <label>Edit Bill Access Control for Reception</label>
+                          <InfoTooltip type={"EditBillAccessControlForReception"} />
+                        </div>
+                        <Radio.Group
+                          value={
+                            settings.editBillAccessControlForReceptionist === false ? "Restrict" : "Allow"
+                          }
+                          style={{ display: "flex", marginTop: 10 }}
+                          onChange={handleEditBillAccessControlForReceptionist}
+                          name="editBillAccessControlForReceptionist"
+                        >
+                          {["Allow", "Restrict"].map((item, i) => {
+                            return (
+                              <Radio.Button
+                                key={i}
+                                value={item}
+                                style={{
+                                  width: "50%",
+                                  height: "38px",
+                                }}
+                                className="custom-radio-button d-flex align-items-center justify-content-center"
+                              >
+                                {item}
+                              </Radio.Button>
+                            );
+                          })}
+                        </Radio.Group>
+                      </div>
+                    )}
                   </div>
                 ),
               },

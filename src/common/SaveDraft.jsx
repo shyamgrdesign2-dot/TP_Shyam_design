@@ -1,11 +1,16 @@
 import { Button, Tour } from "antd";
-import draftIcon from "../assets/images/draft-primary.svg";
+
 import { useEffect, useRef, useState } from "react";
-import tagNewWebm from "../assets/images/new-gif.webm";
-import tagNewMp4 from "../assets/images/new-gif.mp4";
+
 import LoopingVideo from "../components/common/LoopingVideo";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { useDispatch, useSelector } from "react-redux";
+import { ASSETS } from "../assets";
+const {
+  draftPrimary: draftIcon,
+  newGif_3: tagNewWebm,
+  newGif_2: tagNewMp4,
+} = ASSETS.images;
 
 const SaveDraft = ({ onSaveAsDraft, loading, label }) => {
   const tourRef = useRef(null);

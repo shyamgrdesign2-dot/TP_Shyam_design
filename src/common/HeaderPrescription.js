@@ -1,36 +1,41 @@
-import React, { useState, useEffect, useCallback, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useMemo, useRef } from 'react';
 import { Container, Navbar, Row, Col } from 'react-bootstrap';
 import { Button, Dropdown, Tooltip, Popover, Input, Spin, Tabs, Select, Drawer, message } from 'antd';
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isMobile, isDesktop } from 'react-device-detect';
+import { useCompactPrescriptionHeader } from '../hooks/useCompactPrescriptionHeader';
 import { useTabletViewport } from '../hooks/useTabletViewport';
 import { v4 as uuidv4 } from 'uuid';
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useFeatureIsOn, useFeatureValue } from "@growthbook/growthbook-react";
+import { MicVAD } from "@ricky0123/vad-web";
 
 import CustomizeSetting from './CustomizeSetting';
 
 import CashManagerContext from "../context/CashManagerContext";
 import ProfilePopover from './ProfilePopover';
 import CommonModal from './CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
-import tutorial2 from '../assets/images/tutorial2.webp';
+
 // import videoimg1 from '../assets/images/tutorial-img1.webp';
 // import videoimg2 from '../assets/images/tutorial-img2.webp';
-import playIcons from '../assets/images/tube-icon.svg';
-import fullicon from '../assets/images/full-icon.svg';
-import settingsIcon from '../assets/images/settings-icon.svg';
+
 import VideoModal from './VideoModal';
 import SaveDraft from './SaveDraft';
+import FreeTrialButton from '../pages/monetization/components/FreeTrialButton';
+import { TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
+import {
+    VoiceRxModuleActionButton,
+} from '../components/dr-agent/voicerx/VoiceRxModuleCapture';
+import { qdToast } from '../components/quick-dictator/voice-bar-context';
+import voiceModuleStyles from '../components/dr-agent/voicerx/VoiceRxModuleCapture.module.scss';
+import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncContext';
 
-import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType, trackEvent, medicationsHaveFrequencyAndDuration } from "../utils/utils";
+import { transcribeAnyAudio } from '../components/dr-agent/voicerx/api/agent-audio-service';
 
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE } from "../utils/constants";
-import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
-
-import visitEnd from '../assets/images/end-visit.svg';
-import imgCloseVisit from '../assets/images/close-visit.svg';
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, MEDICINE_STOCK_STATUS } from "../utils/constants";
+import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -43,19 +48,32 @@ import {
     addCaseManager,
     editCaseManager,
     getInvestigationAndMedicine,
+    orderMedicineAndInvestigation,
     draftToConsultation
 } from "../redux/caseManagerSlice";
+import { addMedicine } from "../redux/medicationSlice";
 import { customizedPad, listVideo } from "../redux/doctorsSlice";
 import GenRxButton from '../components/GenRxButton';
 
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import { getDecodedToken } from '../utils/localStorage';
+import { appendStripped, stripEmptyRows } from '../utils/voiceRxRowStrip';
+import {
+  attachCrossConsultToCaseManagerPayload,
+  syncCrossConsultReferral,
+} from '../utils/crossConsultHelpers';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
-import { setAddToRx } from '../api/services/ApiGenRx';
+import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
+import { updateVoiceEditedData, beginVoiceAttempt, markVoiceLogCreated, addVoiceHistoryEntry } from '../redux/voiceDigitizationSlice';
+import { store } from '../redux/store';
+import { VOICE_RX_2_VERSION, VOICE_RX_PROCESSING_API, uploadAndLogVoiceRx2, buildVoiceHistoryEntry, trackVoiceRx2StartEvent, uploadAndTrackVoiceRx2LowSpeechBlock } from '../components/dr-agent/voicerx/voiceRx2Logging';
+import { htmlToSoapSections } from '../components/dr-agent/voicerx/utils/soap-formatter';
+import { getLatestSoapDraft } from '../components/dr-agent/voicerx/utils/soap-session-draft';
+import { buildVoiceSoapStoreFields } from '../utils/voiceSoapPayload';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
-import videoSvg from '../assets/images/video.svg';
+
 import { EVENTS } from '../utils/events';
 import { OPHTHALMOLOGY_SECTIONS } from "../utils/ophthalmologyExamConstants";
 import { buildOpthalPayload } from "../utils/ophthalmologyPayload";
@@ -63,38 +81,294 @@ import {
     createOpthalPrescription,
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
+import { syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
+import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
+import { ASSETS } from "../assets";
+import {
+    hasInvalidChikitsalayDiagnosis,
+    hasInvalidChikitsalayInvestigation,
+    hasInvalidChikitsalayMedication,
+    getInvalidChikitsalayInventoryMessage,
+} from "../utils/chikitsalayInventory";
+import {
+    CUSTOM_MEDICINE_DEFAULT_UNIT_ID,
+    CUSTOM_MEDICINE_TYPE_ID,
+    CUSTOM_MEDICINE_UNITS,
+    mergeMedicineUnitOptions,
+    parseMedicationFrequencySlots,
+    resolveCopiedDoseFields,
+} from "../utils/medicationCopyNormalization";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+const {
+  alerticon: alertIcon,
+  tutorial2,
+  tubeIcon: playIcons,
+  fullIcon: fullicon,
+  settingsIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  video: videoSvg,
+  notesMultiple,
+} = ASSETS.images;
 
 var oneClickCosultationTemplateId = 0
+const HEADER_DICTATION_TARGET = "header";
+const HEADER_DICTATION_NO_INPUT_LOCATION = "no input field selected and no cursor is active";
+const HEADER_DICTATION_MIN_DURATION_MS = 1000;
+const TP_CONFIG_DATA_FEATURE_KEY = "tp-config-data";
+const DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS = 60000;
+const HEADER_DICTATION_VAD_ASSET_BASE_PATH = "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/";
+const HEADER_DICTATION_VAD_ONNX_WASM_BASE_PATH = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/";
+const HEADER_DICTATION_VAD_MODEL = "v5";
+const HEADER_DICTATION_VAD_POSITIVE_SPEECH_THRESHOLD = 0.3;
+const HEADER_DICTATION_VAD_NEGATIVE_SPEECH_THRESHOLD = 0.2;
+const HEADER_DICTATION_VAD_MIN_SPEECH_MS = 400;
+const HEADER_DICTATION_VAD_WAVEFORM_SPEECH_THRESHOLD = 0.3;
+const HEADER_DICTATION_VAD_WAVEFORM_ON_MS = 160;
+const HEADER_DICTATION_VAD_WAVEFORM_OFF_MS = 450;
+const HEADER_DICTATION_AUDIO_ACTIVITY_THRESHOLD = 0.012;
+const HEADER_DICTATION_AUDIO_ACTIVITY_ON_MS = 120;
+const HEADER_DICTATION_AUDIO_ACTIVITY_OFF_MS = 650;
+const HEADER_DICTATION_AUDIO_ACTIVITY_WARMUP_MS = 500;
+const HEADER_DICTATION_MIN_ACTIVE_AUDIO_MS = 400;
+const HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO = 0.05;
+const HEADER_DICTATION_MAX_FRAME_DELTA_MS = 500;
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon }) {
+function getVoiceDictationTargetId(element) {
+    const targetNode = element?.closest?.("[data-voice-rx-dictation-target]");
+    return targetNode?.getAttribute("data-voice-rx-dictation-target") || HEADER_DICTATION_TARGET;
+}
 
-    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
+function getEditableSelection(element) {
+    if (!element) return null;
+    const editableRoot = element.isContentEditable
+        ? element
+        : element.closest?.("[contenteditable='true'], [contenteditable='']");
+    if (editableRoot) {
+        const selection = window.getSelection?.();
+        let range = null;
+        if (selection && selection.rangeCount > 0) {
+            const candidate = selection.getRangeAt(0);
+            const startElement = candidate.startContainer?.nodeType === 1
+                ? candidate.startContainer
+                : candidate.startContainer?.parentElement;
+            const endElement = candidate.endContainer?.nodeType === 1
+                ? candidate.endContainer
+                : candidate.endContainer?.parentElement;
+            if (
+                startElement &&
+                endElement &&
+                editableRoot.contains(startElement) &&
+                editableRoot.contains(endElement)
+            ) {
+                range = candidate.cloneRange();
+            }
+        }
+        return {
+            type: "contenteditable",
+            element: editableRoot,
+            range,
+            targetId: getVoiceDictationTargetId(editableRoot),
+        };
+    }
 
-    const { frequencyList, timingList, videoList } = useSelector((state) => state.doctors);
+    if (element.tagName !== "INPUT" && element.tagName !== "TEXTAREA") return null;
+    let selectionStart = null;
+    let selectionEnd = null;
+    try {
+        selectionStart = typeof element.selectionStart === "number" ? element.selectionStart : null;
+        selectionEnd = typeof element.selectionEnd === "number" ? element.selectionEnd : null;
+    } catch (_) {
+        selectionStart = null;
+        selectionEnd = null;
+    }
+    return {
+        type: "input",
+        element,
+        selectionStart,
+        selectionEnd,
+        targetId: getVoiceDictationTargetId(element),
+    };
+}
+
+function getAudioContextCtor() {
+    if (typeof window === "undefined") return null;
+    return window.AudioContext || window.webkitAudioContext || null;
+}
+
+function getSilenceDetectorThresholdMs(config) {
+    const value = Number(config?.silenceDetectorThresholdInMs);
+    return Number.isFinite(value) && value > 0 ? value : DEFAULT_SILENCE_DETECTOR_THRESHOLD_MS;
+}
+
+function isVadEnabled(config) {
+    return config?.enableVAD === true;
+}
+
+function createHeaderSpeechAnalysisStats() {
+    return {
+        analyzedDurationMs: 0,
+        speechDurationMs: 0,
+        totalFrames: 0,
+        speechFrames: 0,
+        rmsSum: 0,
+        maxRms: 0,
+        firstFrameAtMs: 0,
+        lastFrameAtMs: 0,
+        firstSpeechAtMs: 0,
+        lastSpeechAtMs: 0,
+    };
+}
+
+function buildHeaderSpeechAnalysisSnapshot(stats, durationMs, { vadEnabled = false } = {}) {
+    const analyzedDurationMs = Math.max(0, Math.round(stats?.analyzedDurationMs || 0));
+    const speechDurationMs = Math.max(0, Math.round(stats?.speechDurationMs || 0));
+    const totalFrames = Math.max(0, stats?.totalFrames || 0);
+    const speechFrames = Math.max(0, stats?.speechFrames || 0);
+    const speechCoverageRatio = analyzedDurationMs > 0 ? speechDurationMs / analyzedDurationMs : 0;
+    const speechFrameRatio = totalFrames > 0 ? speechFrames / totalFrames : 0;
+    const averageRms = totalFrames > 0 ? (stats?.rmsSum || 0) / totalFrames : 0;
+
+    return {
+        vadEnabled,
+        detector: vadEnabled ? "ricky0123_vad" : "audio_rms",
+        minSpeechDurationMs: HEADER_DICTATION_MIN_ACTIVE_AUDIO_MS,
+        minSpeechCoverageRatio: HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO,
+        minSpeechCoveragePercent: Math.round(HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO * 100),
+        speechCoverageRatio,
+        speechCoveragePercent: Math.round(speechCoverageRatio * 100),
+        speechFrameRatio,
+        speechFramePercent: Math.round(speechFrameRatio * 100),
+        analyzedDurationMs,
+        speechDurationMs,
+        nonSpeechDurationMs: Math.max(0, analyzedDurationMs - speechDurationMs),
+        audioDurationMs: Math.round(durationMs || 0),
+        totalVadFrames: totalFrames,
+        speechVadFrames: speechFrames,
+        averageSpeechProbability: Number(averageRms.toFixed(4)),
+        maxSpeechProbability: Number(Math.max(0, stats?.maxRms || 0).toFixed(4)),
+        canEvaluateSpeechCoverage: analyzedDurationMs >= HEADER_DICTATION_MIN_DURATION_MS && totalFrames > 0,
+    };
+}
+
+function getDashedMedicineFrequencyFields(item = {}) {
+    const parsedFrequency = parseMedicationFrequencySlots(item?.tmm_freq_type_name || item?.frequency);
+    if (!parsedFrequency) return {};
+    return {
+        tmm_freq_type_name: parsedFrequency.label,
+        tmm_freq_type: 0,
+        tmf_block: 0,
+        tmf_block_val: "",
+        tcm_tmm_freq_morning: parsedFrequency.morning,
+        tcm_tmm_freq_afternoon: parsedFrequency.afternoon,
+        tcm_tmm_freq_evening: parsedFrequency.evening,
+        tcm_tmm_freq_night: parsedFrequency.night,
+    };
+}
+
+async function getConsentForVoicePrescriptionPayload() {
+    let userIp = "";
+    try {
+        const ipResponse = await fetch("https://api.ipify.org?format=json");
+        const ipData = await ipResponse.json();
+        userIp = ipData?.ip || "";
+    } catch (error) {
+        console.warn("[voice-rx-2/consent] Could not fetch IP:", error?.message || error);
+    }
+    return {
+        timestamp: Date.now(),
+        ip: userIp || "0.0.0.0",
+        given: true,
+    };
+}
+
+function normalizeVoiceHistoryForStore(history) {
+    if (!Array.isArray(history)) return [];
+    return history.map((entry) => {
+        if (!entry || typeof entry !== "object") return entry;
+        const digitize = Array.isArray(entry.digitize)
+            ? (entry.digitize.find((item) => item && typeof item === "object") || {})
+            : (entry.digitize || {});
+        return {
+            ...entry,
+            digitize,
+        };
+    });
+}
+
+function withSurgeriesAliasForVoiceStore(value, fallbackSurgeries) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const hasSurgeries = Array.isArray(value.surgeries) && value.surgeries.length > 0;
+    if (hasSurgeries) return value;
+
+    const surgeryRows = Array.isArray(value.surgery) && value.surgery.length > 0
+        ? value.surgery
+        : Array.isArray(fallbackSurgeries) && fallbackSurgeries.length > 0
+            ? fallbackSurgeries
+            : [];
+
+    return surgeryRows.length > 0 ? { ...value, surgeries: surgeryRows } : value;
+}
+
+function getVoiceSoapDraftForStore(voiceDigitization) {
+    const liveVoiceDigitization = store.getState()?.voiceDigitization || voiceDigitization || {};
+    const sessionId = liveVoiceDigitization?.sessionId || voiceDigitization?.sessionId || "";
+    const latestDraft = getLatestSoapDraft(sessionId);
+    const latestHtml = latestDraft?.html || liveVoiceDigitization?.soapHtml || voiceDigitization?.soapHtml || "";
+    const latestSoap =
+        htmlToSoapSections(latestHtml) ||
+        latestDraft?.soap ||
+        liveVoiceDigitization?.soap ||
+        voiceDigitization?.soap ||
+        null;
+    return {
+        soap: latestSoap,
+        soapHtml: latestHtml,
+        sessionId: sessionId || voiceDigitization?.sessionId,
+        liveVoiceDigitization,
+    };
+}
+
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false, onEndVisit, isEndVisitLoading = false, hasDentalData = false, onPreviewClick, showPreviewButton = false, onSelectLetterHead, isDentalConsultation = false, showVoiceRxTrialChip = false, onVoiceRxTrialChipClick }) {
+
+    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded, userId } = useSelector((state) => state.doctors);
+
+    const { frequencyList, timingList, videoList, medicineTypeList } = useSelector((state) => state.doctors);
     const vaccines = useSelector((state) => state.vaccines);
     const { givenVaccines, updatedDueVaccines } = vaccines;
     const { measurements } = useSelector((state) => state.growthChart);
     const { isObstetricDetailsUpdated } = useSelector(
         (state) => state.obstetric
     );
+    const voiceDigitization = useSelector((state) => state.voiceDigitization);
+    const location = useLocation();
+
     const {
         templates,
         loading,
     } = useSelector((state) => state.caseManager);
+    const { planDetails } = useSelector((state) => state.subscription);
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
+    const { activeVoiceModule, headerDictation, setHeaderDictation, guardVoiceRxUsage } = useRxPadSync();
 
     const {customModules} = useSelector((state) => state.customModules);
 
     const navigate = useNavigate();
     const isTablet = useTabletViewport();
-    const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft } = useContext(CashManagerContext);
+    const isCompactHeader = useCompactPrescriptionHeader();
+    const headerOverlayZIndex = isNewPrescriptionUi ? 1305 : undefined;
+    const shouldUseMobileTemplateContent = isMobile && !isTablet;
+    const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft, rxDrawingCanvasIds, referralData } = useContext(CashManagerContext);
     const { isAutofillSelected, selectedSymptomsCollector, symptomCollector } = useSelector(
         (state) => state.ddx
     );
     const ophthalmologyExam = useSelector((state) => state.ophthalmologyExam);
 
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+    const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
     //PopOver1
     const [popOver1, setPopOver1] = useState(false);
@@ -127,11 +401,1037 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
     const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
+    const isHeaderVoiceDictationEnabled = Boolean(isNewPrescriptionUi && showVoiceRxModule && isVoiceRxNewFromGB);
+    const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
+    const headerVoiceVadEnabled = isVadEnabled(tpConfigData);
+    const headerVoiceSilenceThresholdMs = getSilenceDetectorThresholdMs(tpConfigData);
+    // header transcribe voice state
+    const [, setHeaderVoiceStateRaw] = useState("idle"); // "idle" | "recording" | "transcribing"
+    const [headerTranscriptFallback, setHeaderTranscriptFallback] = useState("");
+    const headerVoiceStateRef = useRef("idle");
+    const setHeaderVoiceState = useCallback((s) => { headerVoiceStateRef.current = s; setHeaderVoiceStateRaw(s); }, []);
+    const headerVoiceMediaRecorderRef = useRef(null);
+    const headerVoiceAudioChunksRef = useRef([]);
+    const headerVoiceRecorderOrderRef = useRef(0);
+    const headerVoiceSwitchPromiseRef = useRef(null);
+    const headerVoiceStreamRef = useRef(null);
+    const headerVoiceLastShiftTimeRef = useRef(0);
+    const headerVoiceCursorRef = useRef(null); // { element, selectionStart, selectionEnd, targetId }
+    const headerVoiceTargetIdRef = useRef(HEADER_DICTATION_TARGET);
+    const headerVoiceInputLocationRef = useRef(HEADER_DICTATION_NO_INPUT_LOCATION);
+    const headerVoiceRecordStartMsRef = useRef(0);
+    const headerVoiceActivityCleanupRef = useRef(null);
+    const headerVoiceHumanVoiceDetectedRef = useRef(false);
+    const headerVoiceActivityStartedAtRef = useRef(0);
+    const headerVoiceActivityInactiveStartedAtRef = useRef(0);
+    const headerVoiceAudioActiveRef = useRef(false);
+    const headerVoiceLastAudioAtRef = useRef(0);
+    const headerVoiceActivityReadyAtRef = useRef(0);
+    const headerVoiceSpeechAnalysisStatsRef = useRef(createHeaderSpeechAnalysisStats());
+    const headerVoiceVadEnabledRef = useRef(headerVoiceVadEnabled);
+    const headerVoiceVadActiveRef = useRef(false);
+    const headerVoiceVadSpeechCandidateStartedAtRef = useRef(0);
+    const headerVoiceVadLastSpeechFrameAtRef = useRef(0);
+    const headerVoiceVadInstanceRef = useRef(null);
+    const headerVoiceVadStartTokenRef = useRef(0);
+    const headerVoiceSilenceReminderIntervalRef = useRef(null);
+    const headerVoiceMutedRef = useRef(false);
+    const headerVoiceDeviceIdRef = useRef("default");
+
+    useEffect(() => {
+        headerVoiceVadEnabledRef.current = headerVoiceVadEnabled;
+    }, [headerVoiceVadEnabled]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return undefined;
+        window.__tpQuickDictControllerActive = Boolean(isHeaderVoiceDictationEnabled);
+        window.dispatchEvent(new CustomEvent("tp-quickdict-controller", {
+            detail: { active: Boolean(isHeaderVoiceDictationEnabled) },
+        }));
+        return () => {
+            window.__tpQuickDictControllerActive = false;
+            window.dispatchEvent(new CustomEvent("tp-quickdict-controller", {
+                detail: { active: false },
+            }));
+        };
+    }, [isHeaderVoiceDictationEnabled]);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
+    const tokenData = getDecodedToken()?.result;
+    const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
+    const shouldUseChikitsalayInventoryValidation =
+        isNewPrescriptionUi && Boolean(showVoiceRxModule) && isChikitsalayAccessable;
+    const hasUngroundedMedications = shouldUseChikitsalayInventoryValidation
+        ? (
+            diagnosisData.some(hasInvalidChikitsalayDiagnosis) ||
+            investigationData.some(hasInvalidChikitsalayInvestigation) ||
+            medicationData.some(hasInvalidChikitsalayMedication)
+        )
+        : isZydusAccount && medicationData.some(
+            (item) => !!item?.voice_rx_from_module && !(Number(item?.tmm_id) > 0)
+        );
     const [saveDraftLoading, setSaveDraftLoading] = useState(false);
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
-    const {isEditRx = false} = useLocation().state || {};
-    const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx;
+    const {isEditRx = false, isVoiceRxNewUiFlow = false} = location.state || {};
+    const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx && !isVoiceRxNewUiFlow;
+    // Hidden while the new-UI voice module is active; shown on the old page
+    // AND on the new page in voice-less point-n-click mode (where clicking it
+    // re-enters the same page with the VoiceRx flow enabled).
+    const shouldHideLegacyVoiceRxCta = isNewPrescriptionUi && showVoiceRxModule;
+    // The icon-only action group is a new-UI treatment, not a voice feature, so
+    // point-n-click sessions get it too even though showVoiceRxModule is false there.
+    const useCompactActionIcons = Boolean(isNewPrescriptionUi || showVoiceRxModule);
+    const shouldShowLegacyVoiceRxCta =
+        !shouldHideLegacyVoiceRxCta &&
+        (isFreeVoiceRxUser || tp_monetization_enable) &&
+        handleGenRx &&
+        !hideVoiceRxIcon;
+
+    const publishHeaderDictation = useCallback((status, targetId) => {
+        const resolvedTargetId = status === "idle"
+            ? HEADER_DICTATION_TARGET
+            : targetId || headerVoiceTargetIdRef.current || HEADER_DICTATION_TARGET;
+        setHeaderDictation({ status, targetId: resolvedTargetId });
+    }, [setHeaderDictation]);
+
+    const publishQuickDictState = useCallback((status, extra = {}) => {
+        if (typeof window === "undefined") return;
+        window.dispatchEvent(new CustomEvent("tp-quickdict-state", {
+            detail: {
+                status,
+                stream: status === "idle" ? null : headerVoiceStreamRef.current,
+                targetId: status === "idle"
+                    ? HEADER_DICTATION_TARGET
+                    : headerVoiceTargetIdRef.current || HEADER_DICTATION_TARGET,
+                muted: headerVoiceMutedRef.current,
+                ...extra,
+            },
+        }));
+    }, []);
+
+    const getHeaderVoiceAudioConstraints = useCallback(() => {
+        const deviceId = headerVoiceDeviceIdRef.current;
+        return deviceId && deviceId !== "default"
+            ? { audio: { deviceId: { exact: deviceId } } }
+            : { audio: true };
+    }, []);
+
+    const attachHeaderVoiceRecorderChunkHandler = useCallback((recorder) => {
+        if (!recorder) return recorder;
+        const recorderOrder = headerVoiceRecorderOrderRef.current;
+        headerVoiceRecorderOrderRef.current += 1;
+        let chunkOrder = 0;
+        recorder.ondataavailable = (event) => {
+            if (event.data && event.data.size > 0) {
+                headerVoiceAudioChunksRef.current.push({
+                    data: event.data,
+                    recorderOrder,
+                    chunkOrder,
+                });
+                chunkOrder += 1;
+            }
+        };
+        return recorder;
+    }, []);
+
+    const stopHeaderVoiceRecorderAndFlush = useCallback((recorder) => new Promise((resolve) => {
+        if (!recorder || recorder.state === "inactive") {
+            resolve();
+            return;
+        }
+        let resolved = false;
+        const finish = () => {
+            if (resolved) return;
+            resolved = true;
+            resolve();
+        };
+        recorder.addEventListener?.("stop", finish, { once: true });
+        try {
+            if (recorder.state === "recording") recorder.requestData();
+        } catch (_) {}
+        try {
+            recorder.stop();
+        } catch (_) {
+            finish();
+        }
+    }), []);
+
+    const buildHeaderVoiceAudioBlob = useCallback((mimeType) => {
+        const orderedChunks = [...headerVoiceAudioChunksRef.current]
+            .sort((a, b) => (a.recorderOrder - b.recorderOrder) || (a.chunkOrder - b.chunkOrder))
+            .map((chunk) => chunk.data);
+        return new Blob(orderedChunks, { type: mimeType || "audio/webm" });
+    }, []);
+
+    const startHeaderVoiceRecorder = useCallback((stream) => {
+        const mimeType = getSupportedMimeType();
+        const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        attachHeaderVoiceRecorderChunkHandler(recorder);
+        headerVoiceMediaRecorderRef.current = recorder;
+        try {
+            recorder.start(1000);
+        } catch (_) {
+            recorder.start();
+        }
+        return recorder;
+    }, [attachHeaderVoiceRecorderChunkHandler]);
+
+    const handleHeaderVadFrameProcessed = useCallback((probs) => {
+        if (!headerVoiceVadActiveRef.current || !headerVoiceVadEnabledRef.current || typeof performance === "undefined") return;
+        const now = performance.now();
+        const speechProbability = Number(probs?.isSpeech || 0);
+        const vadSpeechFrame = speechProbability >= HEADER_DICTATION_VAD_WAVEFORM_SPEECH_THRESHOLD;
+        const stats = headerVoiceSpeechAnalysisStatsRef.current;
+        const previousFrameAtMs = stats.lastFrameAtMs || 0;
+        const rawDeltaMs = previousFrameAtMs ? now - previousFrameAtMs : 0;
+        const frameDeltaMs = rawDeltaMs > 0 ? Math.min(rawDeltaMs, HEADER_DICTATION_MAX_FRAME_DELTA_MS) : 0;
+
+        stats.totalFrames += 1;
+        stats.rmsSum += speechProbability;
+        stats.maxRms = Math.max(stats.maxRms, speechProbability);
+        stats.firstFrameAtMs = stats.firstFrameAtMs || now;
+        stats.lastFrameAtMs = now;
+        stats.analyzedDurationMs += frameDeltaMs;
+
+        if (vadSpeechFrame) {
+            stats.speechFrames += 1;
+            stats.speechDurationMs += frameDeltaMs;
+            stats.firstSpeechAtMs = stats.firstSpeechAtMs || now;
+            stats.lastSpeechAtMs = now;
+            headerVoiceLastAudioAtRef.current = now;
+            if (!headerVoiceVadSpeechCandidateStartedAtRef.current) headerVoiceVadSpeechCandidateStartedAtRef.current = now;
+            headerVoiceVadLastSpeechFrameAtRef.current = now;
+            if (!headerVoiceHumanVoiceDetectedRef.current && now - headerVoiceVadSpeechCandidateStartedAtRef.current >= HEADER_DICTATION_VAD_WAVEFORM_ON_MS) {
+                headerVoiceHumanVoiceDetectedRef.current = true;
+            }
+        } else {
+            headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+            if (headerVoiceHumanVoiceDetectedRef.current && now - headerVoiceVadLastSpeechFrameAtRef.current >= HEADER_DICTATION_VAD_WAVEFORM_OFF_MS) {
+                headerVoiceHumanVoiceDetectedRef.current = false;
+            }
+        }
+    }, []);
+
+    const destroyHeaderVadInstance = useCallback(async () => {
+        const vad = headerVoiceVadInstanceRef.current;
+        headerVoiceVadInstanceRef.current = null;
+        if (!vad) return;
+        try {
+            await vad.destroy();
+        } catch (error) {
+            console.warn("[HeaderTranscribe] VAD cleanup skipped", error?.message || error);
+        }
+    }, []);
+
+    const startHeaderVad = useCallback(async (stream) => {
+        if (!stream) throw new Error("No active header dictation stream for VAD.");
+        const startToken = headerVoiceVadStartTokenRef.current + 1;
+        headerVoiceVadStartTokenRef.current = startToken;
+        await destroyHeaderVadInstance();
+        if (headerVoiceVadStartTokenRef.current !== startToken || !headerVoiceVadActiveRef.current) return;
+        const vad = await MicVAD.new({
+            model: HEADER_DICTATION_VAD_MODEL,
+            startOnLoad: true,
+            getStream: async () => stream,
+            pauseStream: async () => {},
+            resumeStream: async () => stream,
+            positiveSpeechThreshold: HEADER_DICTATION_VAD_POSITIVE_SPEECH_THRESHOLD,
+            negativeSpeechThreshold: HEADER_DICTATION_VAD_NEGATIVE_SPEECH_THRESHOLD,
+            minSpeechMs: HEADER_DICTATION_VAD_MIN_SPEECH_MS,
+            onFrameProcessed: handleHeaderVadFrameProcessed,
+            onSpeechRealStart: () => {
+                if (!headerVoiceVadActiveRef.current || !headerVoiceVadEnabledRef.current) return;
+                headerVoiceHumanVoiceDetectedRef.current = true;
+                headerVoiceLastAudioAtRef.current = typeof performance !== "undefined" ? performance.now() : Date.now();
+            },
+            onSpeechEnd: () => {
+                headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+                if (headerVoiceVadEnabledRef.current) headerVoiceHumanVoiceDetectedRef.current = false;
+            },
+            onVADMisfire: () => {
+                headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+                if (headerVoiceVadEnabledRef.current) headerVoiceHumanVoiceDetectedRef.current = false;
+            },
+            baseAssetPath: HEADER_DICTATION_VAD_ASSET_BASE_PATH,
+            onnxWASMBasePath: HEADER_DICTATION_VAD_ONNX_WASM_BASE_PATH,
+        });
+        if (headerVoiceVadStartTokenRef.current !== startToken || !headerVoiceVadActiveRef.current) {
+            try {
+                await vad.destroy();
+            } catch (error) {
+                console.warn("[HeaderTranscribe] stale VAD cleanup skipped", error?.message || error);
+            }
+            return;
+        }
+        headerVoiceVadInstanceRef.current = vad;
+    }, [destroyHeaderVadInstance, handleHeaderVadFrameProcessed]);
+
+    const stopHeaderVoiceActivityDetection = useCallback(({ preserveSpeechAnalysis = false } = {}) => {
+        if (headerVoiceSilenceReminderIntervalRef.current) {
+            window.clearInterval(headerVoiceSilenceReminderIntervalRef.current);
+            headerVoiceSilenceReminderIntervalRef.current = null;
+        }
+        headerVoiceActivityCleanupRef.current?.();
+        headerVoiceActivityCleanupRef.current = null;
+        headerVoiceVadActiveRef.current = false;
+        headerVoiceVadStartTokenRef.current += 1;
+        void destroyHeaderVadInstance();
+        headerVoiceActivityStartedAtRef.current = 0;
+        headerVoiceActivityInactiveStartedAtRef.current = 0;
+        headerVoiceAudioActiveRef.current = false;
+        headerVoiceLastAudioAtRef.current = 0;
+        headerVoiceActivityReadyAtRef.current = 0;
+        headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+        headerVoiceVadLastSpeechFrameAtRef.current = 0;
+        if (preserveSpeechAnalysis) {
+            headerVoiceSpeechAnalysisStatsRef.current.lastFrameAtMs = 0;
+        } else {
+            headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
+        }
+    }, [destroyHeaderVadInstance]);
+
+    const startHeaderRmsActivityDetection = useCallback((stream) => {
+        const AudioContextCtor = getAudioContextCtor();
+        if (!stream || !AudioContextCtor) {
+            headerVoiceHumanVoiceDetectedRef.current = false;
+            return;
+        }
+
+        let rafId = 0;
+        let source = null;
+        let audioContext = null;
+        let analyser = null;
+        let samples = null;
+
+        try {
+            audioContext = new AudioContextCtor();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 512;
+            analyser.smoothingTimeConstant = 0.55;
+            source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+            samples = new Uint8Array(analyser.fftSize);
+            if (audioContext.state === "suspended") {
+                void audioContext.resume().catch(() => {});
+            }
+        } catch (_) {
+            headerVoiceHumanVoiceDetectedRef.current = false;
+            void audioContext?.close?.().catch(() => {});
+            return;
+        }
+
+        const setAudioActiveState = (nextActive) => {
+            if (headerVoiceAudioActiveRef.current === nextActive) return;
+            headerVoiceAudioActiveRef.current = nextActive;
+            if (nextActive) {
+                headerVoiceHumanVoiceDetectedRef.current = true;
+                headerVoiceLastAudioAtRef.current = performance.now();
+            }
+        };
+
+        const tick = () => {
+            if (!analyser || !samples) return;
+            analyser.getByteTimeDomainData(samples);
+            let sumSquares = 0;
+            for (let index = 0; index < samples.length; index += 1) {
+                const centered = (samples[index] - 128) / 128;
+                sumSquares += centered * centered;
+            }
+            const rms = Math.sqrt(sumSquares / samples.length);
+            const now = performance.now();
+            if (headerVoiceActivityReadyAtRef.current && now < headerVoiceActivityReadyAtRef.current) {
+                headerVoiceActivityStartedAtRef.current = 0;
+                headerVoiceActivityInactiveStartedAtRef.current = 0;
+                rafId = requestAnimationFrame(tick);
+                return;
+            }
+            const stats = headerVoiceSpeechAnalysisStatsRef.current;
+            const previousFrameAtMs = stats.lastFrameAtMs || 0;
+            const rawDeltaMs = previousFrameAtMs ? now - previousFrameAtMs : 0;
+            const frameDeltaMs = rawDeltaMs > 0 ? Math.min(rawDeltaMs, HEADER_DICTATION_MAX_FRAME_DELTA_MS) : 0;
+            const speechFrame = rms >= HEADER_DICTATION_AUDIO_ACTIVITY_THRESHOLD;
+            stats.totalFrames += 1;
+            stats.rmsSum += rms;
+            stats.maxRms = Math.max(stats.maxRms, rms);
+            stats.firstFrameAtMs = stats.firstFrameAtMs || now;
+            stats.lastFrameAtMs = now;
+            stats.analyzedDurationMs += frameDeltaMs;
+            if (speechFrame) {
+                stats.speechFrames += 1;
+                stats.speechDurationMs += frameDeltaMs;
+                stats.firstSpeechAtMs = stats.firstSpeechAtMs || now;
+                stats.lastSpeechAtMs = now;
+            }
+            if (rms >= HEADER_DICTATION_AUDIO_ACTIVITY_THRESHOLD) {
+                headerVoiceActivityInactiveStartedAtRef.current = 0;
+                if (!headerVoiceActivityStartedAtRef.current) headerVoiceActivityStartedAtRef.current = now;
+                if (!headerVoiceAudioActiveRef.current && now - headerVoiceActivityStartedAtRef.current >= HEADER_DICTATION_AUDIO_ACTIVITY_ON_MS) {
+                    setAudioActiveState(true);
+                }
+            } else {
+                headerVoiceActivityStartedAtRef.current = 0;
+                if (!headerVoiceActivityInactiveStartedAtRef.current) headerVoiceActivityInactiveStartedAtRef.current = now;
+                if (headerVoiceAudioActiveRef.current && now - headerVoiceActivityInactiveStartedAtRef.current >= HEADER_DICTATION_AUDIO_ACTIVITY_OFF_MS) {
+                    setAudioActiveState(false);
+                }
+            }
+            const lastAudioAt = headerVoiceLastAudioAtRef.current || now;
+            if (!headerVoiceAudioActiveRef.current && now - lastAudioAt >= headerVoiceSilenceThresholdMs) {
+                headerVoiceLastAudioAtRef.current = now;
+            }
+            rafId = requestAnimationFrame(tick);
+        };
+
+        rafId = requestAnimationFrame(tick);
+        headerVoiceActivityCleanupRef.current = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            source?.disconnect();
+            void audioContext?.close?.().catch(() => {});
+        };
+    }, [headerVoiceSilenceThresholdMs]);
+
+    const startHeaderVoiceActivityDetection = useCallback((stream, { resetSpeechAnalysis = true } = {}) => {
+        stopHeaderVoiceActivityDetection({ preserveSpeechAnalysis: !resetSpeechAnalysis });
+        headerVoiceHumanVoiceDetectedRef.current = false;
+        headerVoiceActivityStartedAtRef.current = 0;
+        headerVoiceActivityInactiveStartedAtRef.current = 0;
+        headerVoiceAudioActiveRef.current = false;
+        headerVoiceLastAudioAtRef.current = typeof performance !== "undefined" ? performance.now() : 0;
+        headerVoiceActivityReadyAtRef.current = typeof performance !== "undefined"
+            ? performance.now() + HEADER_DICTATION_AUDIO_ACTIVITY_WARMUP_MS
+            : 0;
+        if (resetSpeechAnalysis) {
+            headerVoiceSpeechAnalysisStatsRef.current = createHeaderSpeechAnalysisStats();
+        }
+        headerVoiceVadSpeechCandidateStartedAtRef.current = 0;
+        headerVoiceVadLastSpeechFrameAtRef.current = 0;
+        if (headerVoiceSilenceReminderIntervalRef.current) {
+            window.clearInterval(headerVoiceSilenceReminderIntervalRef.current);
+            headerVoiceSilenceReminderIntervalRef.current = null;
+        }
+        if (typeof window !== "undefined" && headerVoiceSilenceThresholdMs > 0) {
+            const checkIntervalMs = Math.min(1000, Math.max(250, headerVoiceSilenceThresholdMs / 4));
+            headerVoiceSilenceReminderIntervalRef.current = window.setInterval(() => {
+                if (headerVoiceStateRef.current !== "recording") return;
+                if (headerVoiceMutedRef.current) return;
+                const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+                const lastAudioAt = headerVoiceLastAudioAtRef.current || now;
+                if (now - lastAudioAt < headerVoiceSilenceThresholdMs) return;
+                headerVoiceLastAudioAtRef.current = now;
+                qdToast("Audio seems quiet. Please try speaking a little closer to the mic.", {
+                    type: "warning",
+                    duration: 3,
+                });
+            }, checkIntervalMs);
+        }
+
+        if (headerVoiceVadEnabledRef.current) {
+            headerVoiceVadActiveRef.current = true;
+            void startHeaderVad(stream).catch((error) => {
+                console.warn("[HeaderTranscribe] VAD unavailable, falling back to audio-level detection", error?.message || error);
+                if (!headerVoiceVadActiveRef.current || !stream?.active) return;
+                headerVoiceVadActiveRef.current = false;
+                startHeaderRmsActivityDetection(stream);
+            });
+            return;
+        }
+
+        headerVoiceVadActiveRef.current = false;
+        startHeaderRmsActivityDetection(stream);
+    }, [headerVoiceSilenceThresholdMs, startHeaderRmsActivityDetection, startHeaderVad, stopHeaderVoiceActivityDetection]);
+
+    const insertTranscriptAtCursor = useCallback((transcript, cursor) => {
+        const text = String(transcript || "");
+        const el = cursor?.element;
+        if (!text || !el || !document.contains(el)) return false;
+
+        if (cursor?.type === "contenteditable" || el.isContentEditable) {
+            el.focus();
+            try {
+                const selection = window.getSelection?.();
+                if (selection) {
+                    selection.removeAllRanges();
+                    if (cursor?.range) {
+                        selection.addRange(cursor.range);
+                    } else {
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        range.collapse(false);
+                        selection.addRange(range);
+                    }
+                }
+                const inserted = document.execCommand("insertText", false, text);
+                if (!inserted) {
+                    const selection = window.getSelection?.();
+                    if (!selection || selection.rangeCount === 0) return false;
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    const textNode = document.createTextNode(text);
+                    range.insertNode(textNode);
+                    range.setStartAfter(textNode);
+                    range.setEndAfter(textNode);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+                const inputEvent = typeof InputEvent === "function"
+                    ? new InputEvent("input", {
+                        bubbles: true,
+                        inputType: "insertText",
+                        data: text,
+                    })
+                    : new Event("input", { bubbles: true });
+                el.dispatchEvent(inputEvent);
+                return true;
+            } catch (error) {
+                console.warn("[HeaderTranscribe] contenteditable insert failed", error);
+                return false;
+            }
+        }
+
+        if (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA") return false;
+        const current = el.value || "";
+        const start = typeof cursor.selectionStart === "number" ? cursor.selectionStart : current.length;
+        const end = typeof cursor.selectionEnd === "number" ? cursor.selectionEnd : start;
+        const safeStart = Math.max(0, Math.min(start, current.length));
+        const safeEnd = Math.max(safeStart, Math.min(end, current.length));
+        const newValue = current.slice(0, safeStart) + text + current.slice(safeEnd);
+        const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+        const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+        if (!nativeSetter) return false;
+        nativeSetter.call(el, newValue);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        const newPos = safeStart + text.length;
+        try {
+            el.setSelectionRange(newPos, newPos);
+        } catch (_) {}
+        el.focus();
+        return true;
+    }, []);
+
+    const copyTranscriptToClipboard = useCallback(async (transcript) => {
+        const text = String(transcript || "").trim();
+        if (!text) return;
+        try {
+            if (navigator?.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement("textarea");
+                textarea.value = text;
+                textarea.setAttribute("readonly", "");
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textarea);
+            }
+            qdToast("Transcript copied to clipboard.");
+        } catch (error) {
+            console.error("[HeaderTranscribe] clipboard copy failed", error);
+            setHeaderTranscriptFallback(text);
+            qdToast("Transcript is ready. Please copy it from the popup.", { type: "warning" });
+        }
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            const recorder = headerVoiceMediaRecorderRef.current;
+            if (recorder && recorder.state !== 'inactive') {
+                recorder.ondataavailable = null;
+                recorder.onstop = null;
+                try { recorder.stop(); } catch (_) {}
+            }
+            stopHeaderVoiceActivityDetection();
+            const stream = headerVoiceStreamRef.current;
+            if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
+        };
+    }, [stopHeaderVoiceActivityDetection]);
+
+    // ── Header transcribe: cursor tracking ─────────────────────────────────
+    useEffect(() => {
+        if (!isHeaderVoiceDictationEnabled) return;
+        const onFocusIn = (e) => {
+            const selection = getEditableSelection(e.target);
+            if (selection) headerVoiceCursorRef.current = selection;
+        };
+        const onUpdateCursor = (event) => {
+            const el = document.activeElement;
+            const selection = getEditableSelection(el);
+            if (selection) {
+                headerVoiceCursorRef.current = selection;
+                return;
+            }
+            if (event?.target?.closest?.("[data-header-dictation-trigger]")) return;
+            headerVoiceCursorRef.current = null;
+        };
+        document.addEventListener('focusin', onFocusIn);
+        document.addEventListener('click', onUpdateCursor);
+        document.addEventListener('keyup', onUpdateCursor);
+        return () => {
+            document.removeEventListener('focusin', onFocusIn);
+            document.removeEventListener('click', onUpdateCursor);
+            document.removeEventListener('keyup', onUpdateCursor);
+        };
+    }, [isHeaderVoiceDictationEnabled]);
+
+    // ── Header transcribe: start / stop recording ──────────────────────────
+    const headerVoiceStopAndTranscribe = useCallback(async () => {
+        if (headerVoiceSwitchPromiseRef.current) {
+            try {
+                await headerVoiceSwitchPromiseRef.current;
+            } catch (_) {}
+        }
+        const recorder = headerVoiceMediaRecorderRef.current;
+        if (!recorder || recorder.state === 'inactive') return;
+        const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "header" });
+        if (!canUseVoiceRx) return;
+        const targetId = headerVoiceTargetIdRef.current || headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
+        const voiceInputLocation = headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION;
+        setHeaderVoiceState("transcribing");
+        publishHeaderDictation("transcribing", targetId);
+        publishQuickDictState("transcribing", { stream: headerVoiceStreamRef.current });
+        const submitClickedAtMs = Date.now();
+        const submitClickedAt = new Date(submitClickedAtMs).toISOString();
+        const durationMs = submitClickedAtMs - (headerVoiceRecordStartMsRef.current || submitClickedAtMs);
+        const submitId = `header-transcribe-${submitClickedAtMs}-${Math.random().toString(36).slice(2, 8)}`;
+        dispatch(beginVoiceAttempt());
+        await stopHeaderVoiceRecorderAndFlush(recorder);
+        const headerSubmitVadEnabled = headerVoiceVadEnabledRef.current;
+        const speechAnalysis = buildHeaderSpeechAnalysisSnapshot(headerVoiceSpeechAnalysisStatsRef.current, durationMs, {
+            vadEnabled: headerSubmitVadEnabled,
+        });
+        // Fail open when the detector produced no usable frames (VAD assets unavailable,
+        // still loading, or AudioContext unsupported) — the backend judges the audio instead.
+        const humanVoiceDetected = speechAnalysis.canEvaluateSpeechCoverage
+            ? Boolean(
+                speechAnalysis.speechDurationMs >= HEADER_DICTATION_MIN_ACTIVE_AUDIO_MS &&
+                speechAnalysis.speechCoverageRatio >= HEADER_DICTATION_MIN_AUDIO_COVERAGE_RATIO
+            )
+            : true;
+        stopHeaderVoiceActivityDetection();
+        const stream = headerVoiceStreamRef.current;
+        if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
+        const mimeType = recorder.mimeType || "audio/webm";
+        const audioBlob = buildHeaderVoiceAudioBlob(mimeType);
+        if (durationMs <= 0 || durationMs < HEADER_DICTATION_MIN_DURATION_MS || !audioBlob.size || !humanVoiceDetected) {
+            const blockedErrorMessage = !audioBlob.size
+                ? "No audio recording found for transcription."
+                : !humanVoiceDetected
+                ? "Human voice not detected in header dictation."
+                : "Audio duration is too short for transcription.";
+            const blockedFailedPhase = !audioBlob.size
+                ? "audio-precheck-no-audio"
+                : !humanVoiceDetected
+                ? "vad-precheck"
+                : "audio-precheck-too-short";
+            const blockedAction = !audioBlob.size
+                ? "blocked_no_audio_recording"
+                : !humanVoiceDetected
+                ? "blocked_before_transcribe_audio"
+                : "blocked_audio_too_short";
+            qdToast(!audioBlob.size
+                ? "No audio was captured. Please try recording again."
+                : !humanVoiceDetected
+                ? "We couldn't detect any speech in the recording. Please try again."
+                : "The recording was too short. Please speak for at least a second.", {
+                    type: "warning",
+                });
+            void uploadAndTrackVoiceRx2LowSpeechBlock({
+                patientData: patient_data,
+                profile,
+                sessionId: voiceDigitization?.sessionId || submitId,
+                submitId,
+                requestId: submitId,
+                submitClickedAt,
+                submitClickedAtMs,
+                durationMs,
+                mode: "dictation",
+                fromVoiceRecording: true,
+                voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
+                moduleName: "header-dictation",
+                sourceSurface: "header",
+                voiceInputLocation,
+                isDoctorAgent: false,
+                processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO,
+                extra: {
+                    doctorId: profile?.doctor_unique_id || "",
+                    patientId: patient_data?.patient_unique_id || "",
+                    voiceApiCalled: false,
+                    status: "blocked",
+                    voice_failed: true,
+                    failedPhase: blockedFailedPhase,
+                    error_message: blockedErrorMessage,
+                    retry_attempts: 0,
+                },
+                speechAnalysis: {
+                    action: blockedAction,
+                    failedPhase: blockedFailedPhase,
+                    error_message: blockedErrorMessage,
+                    ...speechAnalysis,
+                },
+            }).catch((error) => {
+                console.error("[HeaderTranscribe] blocked event logging failed", error);
+            });
+            headerVoiceAudioChunksRef.current = [];
+            setHeaderVoiceState("idle");
+            headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+            headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
+            publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+            publishQuickDictState("idle");
+            return;
+        }
+        const cursor = headerVoiceCursorRef.current;
+        try {
+            const transcribeAnyAudioContext = {
+                patientId: patient_data?.patient_unique_id,
+                doctorId: profile?.doctor_unique_id,
+                doctorName: profile?.um_name || "",
+                patientName: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
+                sessionId: voiceDigitization?.sessionId || submitId,
+            };
+            const { transcript } = await transcribeAnyAudio({
+                audioBlob,
+                context: transcribeAnyAudioContext,
+            });
+            const clinicalCompletedAtMs = Date.now();
+            if (transcript) {
+                const inserted = insertTranscriptAtCursor(transcript, cursor);
+                if (!inserted) {
+                    await copyTranscriptToClipboard(transcript);
+                }
+            }
+	            guardVoiceRxUsage?.({ phase: "mark-used", surface: "header" });
+	            uploadAndLogVoiceRx2({
+                audioBlob,
+                patientData: patient_data,
+                profile,
+                sessionId: voiceDigitization?.sessionId || submitId,
+                submitId,
+                requestId: submitId,
+                submitClickedAt,
+                submitClickedAtMs,
+                durationMs,
+                clinicalStatus: "completed",
+                mode: "dictation",
+                fromVoiceRecording: true,
+                voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
+                moduleName: "header-dictation",
+                sourceSurface: "header",
+                voiceInputLocation,
+                isDoctorAgent: false,
+                processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO,
+                voiceLogCreated: voiceDigitization?.voiceLogCreated,
+                markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
+                clinicalCompletedAtMs,
+                transcriptCompletedAtMs: clinicalCompletedAtMs,
+                transcript,
+                speechAnalysis,
+            }).then(({ source }) => {
+                dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
+                    type: "AUDIO_NO_CONTEXT",
+                    source,
+                    durationMs,
+                    timeRequiredInMs: clinicalCompletedAtMs - submitClickedAtMs,
+                    conversation: transcript || "",
+                    digitize: [],
+                    isDoctorAgent: false,
+                    moduleName: "header-dictation",
+                })));
+            });
+        } catch (err) {
+            console.error('[HeaderTranscribe] transcription failed', err);
+            qdToast("Couldn't transcribe audio. Please try again.", { type: "error" });
+            uploadAndLogVoiceRx2({
+                audioBlob,
+                patientData: patient_data,
+                profile,
+                sessionId: voiceDigitization?.sessionId || submitId,
+                submitId,
+                requestId: submitId,
+                submitClickedAt,
+                submitClickedAtMs,
+                durationMs,
+                clinicalStatus: "failed",
+                failedPhase: "agents-transcribe-any-audio",
+                errorMessage: err?.message || "Header voice transcription failed",
+                mode: "dictation",
+                fromVoiceRecording: true,
+                voicecall: (voiceDigitization?.voiceCallCount || 0) + 1,
+                moduleName: "header-dictation",
+                sourceSurface: "header",
+                voiceInputLocation,
+                isDoctorAgent: false,
+                processingApiName: VOICE_RX_PROCESSING_API.TRANSCRIBE_ANY_AUDIO,
+                voiceLogCreated: voiceDigitization?.voiceLogCreated,
+                markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
+                clinicalCompletedAtMs: Date.now(),
+                speechAnalysis,
+            });
+        }
+        setHeaderVoiceState("idle");
+        headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
+        publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+        publishQuickDictState("idle");
+    }, [buildHeaderVoiceAudioBlob, copyTranscriptToClipboard, dispatch, guardVoiceRxUsage, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, stopHeaderVoiceActivityDetection, stopHeaderVoiceRecorderAndFlush, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const headerVoiceStartRecording = useCallback(async (triggerType = "manual_click") => {
+        if (!isHeaderVoiceDictationEnabled) return;
+        if (headerVoiceStateRef.current !== "idle") return;
+        if (activeVoiceModule) return;
+        const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "header" });
+        if (!canUseVoiceRx) return;
+        const cursor = headerVoiceCursorRef.current;
+        const hasCursor = cursor?.element && document.activeElement === cursor.element;
+        const targetId = hasCursor ? cursor.targetId : HEADER_DICTATION_TARGET;
+        headerVoiceTargetIdRef.current = targetId;
+        headerVoiceInputLocationRef.current = hasCursor ? targetId : HEADER_DICTATION_NO_INPUT_LOCATION;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(getHeaderVoiceAudioConstraints());
+            headerVoiceStreamRef.current = stream;
+            headerVoiceMutedRef.current = false;
+            startHeaderVoiceActivityDetection(stream);
+            headerVoiceAudioChunksRef.current = [];
+            headerVoiceRecorderOrderRef.current = 0;
+            startHeaderVoiceRecorder(stream);
+            headerVoiceRecordStartMsRef.current = Date.now();
+            trackVoiceRx2StartEvent({
+                patientData: patient_data,
+                profile,
+                sessionId: voiceDigitization?.sessionId || "",
+                mode: "dictation",
+                fromVoiceRecording: true,
+                voicecall: voiceDigitization?.voiceCallCount || 0,
+                moduleName: "header-dictation",
+                sourceSurface: "header",
+                voiceInputLocation: headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION,
+                isDoctorAgent: false,
+                triggerType,
+                triggeredByDoubleShift: triggerType === "double_shift",
+                extra: {
+                    doctorId: profile?.doctor_unique_id || "",
+                    patientId: patient_data?.patient_unique_id || "",
+                    trigger_location: "header_dictation_shortcut",
+                },
+            });
+            setHeaderVoiceState("recording");
+            publishHeaderDictation("recording", targetId);
+            publishQuickDictState("recording", { stream });
+        } catch (err) {
+            console.error('[HeaderTranscribe] mic access failed', err);
+            qdToast("Unable to access microphone. Please try again.", { type: "error" });
+            stopHeaderVoiceActivityDetection();
+            const stream = headerVoiceStreamRef.current;
+            if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
+            headerVoiceMutedRef.current = false;
+            headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+            headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
+            publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+            publishQuickDictState("idle");
+        }
+    }, [activeVoiceModule, guardVoiceRxUsage, getHeaderVoiceAudioConstraints, isHeaderVoiceDictationEnabled, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, startHeaderVoiceActivityDetection, startHeaderVoiceRecorder, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
+
+    const headerVoiceCancelRecording = useCallback(() => {
+        const recorder = headerVoiceMediaRecorderRef.current;
+        if (recorder && recorder.state !== 'inactive') {
+            recorder.ondataavailable = null;
+            recorder.onstop = null;
+            try { recorder.stop(); } catch (_) {}
+        }
+        stopHeaderVoiceActivityDetection();
+        const stream = headerVoiceStreamRef.current;
+        if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
+        headerVoiceAudioChunksRef.current = [];
+        headerVoiceMutedRef.current = false;
+        setHeaderVoiceState("idle");
+        headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
+        publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+        publishQuickDictState("idle");
+    }, [publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, stopHeaderVoiceActivityDetection]);
+
+    const headerVoiceSwitchDevice = useCallback(async ({ deviceId } = {}) => {
+        const nextDeviceId = deviceId || "default";
+        headerVoiceDeviceIdRef.current = nextDeviceId;
+        if (!isHeaderVoiceDictationEnabled) return;
+        if (headerVoiceStateRef.current !== "recording") return;
+
+        const switchPromise = (async () => {
+            if (headerVoiceSwitchPromiseRef.current) {
+                try {
+                    await headerVoiceSwitchPromiseRef.current;
+                } catch (_) {}
+            }
+
+            const previousRecorder = headerVoiceMediaRecorderRef.current;
+            if (previousRecorder && previousRecorder.state !== "inactive") {
+                await stopHeaderVoiceRecorderAndFlush(previousRecorder);
+            }
+            if (headerVoiceMediaRecorderRef.current === previousRecorder) {
+                headerVoiceMediaRecorderRef.current = null;
+            }
+            stopHeaderVoiceActivityDetection({ preserveSpeechAnalysis: true });
+
+            const previousStream = headerVoiceStreamRef.current;
+            if (previousStream) {
+                previousStream.getTracks().forEach((track) => track.stop());
+                headerVoiceStreamRef.current = null;
+            }
+
+            const targetId = headerVoiceTargetIdRef.current || HEADER_DICTATION_TARGET;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(getHeaderVoiceAudioConstraints());
+                headerVoiceStreamRef.current = stream;
+                headerVoiceMutedRef.current = false;
+                startHeaderVoiceActivityDetection(stream, { resetSpeechAnalysis: false });
+                startHeaderVoiceRecorder(stream);
+                setHeaderVoiceState("recording");
+                publishHeaderDictation("recording", targetId);
+                publishQuickDictState("recording", { stream, muted: false });
+            } catch (error) {
+                console.error("[HeaderTranscribe] mic switch failed", error);
+                qdToast("Unable to switch microphone. Please try again.", { type: "error" });
+                headerVoiceMutedRef.current = false;
+                setHeaderVoiceState("idle");
+                headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+                headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
+                publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+                publishQuickDictState("idle");
+            }
+        })();
+        headerVoiceSwitchPromiseRef.current = switchPromise;
+        try {
+            await switchPromise;
+        } finally {
+            if (headerVoiceSwitchPromiseRef.current === switchPromise) {
+                headerVoiceSwitchPromiseRef.current = null;
+            }
+        }
+    }, [getHeaderVoiceAudioConstraints, isHeaderVoiceDictationEnabled, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, startHeaderVoiceActivityDetection, startHeaderVoiceRecorder, stopHeaderVoiceActivityDetection, stopHeaderVoiceRecorderAndFlush]);
+
+    useEffect(() => {
+        if (!isHeaderVoiceDictationEnabled || typeof window === "undefined") return undefined;
+
+        const onQuickDictSubmit = () => {
+            if (headerVoiceStateRef.current === "recording") {
+                headerVoiceStopAndTranscribe();
+            }
+        };
+        const onQuickDictCancel = () => {
+            if (headerVoiceStateRef.current === "recording") {
+                headerVoiceCancelRecording();
+            }
+        };
+        const onQuickDictToggleMute = () => {
+            if (headerVoiceStateRef.current !== "recording") return;
+            const stream = headerVoiceStreamRef.current;
+            if (!stream) return;
+            const nextMuted = !headerVoiceMutedRef.current;
+            headerVoiceMutedRef.current = nextMuted;
+            stream.getAudioTracks().forEach((track) => {
+                track.enabled = !nextMuted;
+            });
+            if (!nextMuted) {
+                headerVoiceLastAudioAtRef.current = typeof performance !== "undefined" ? performance.now() : Date.now();
+            }
+            publishQuickDictState("recording", { stream, muted: nextMuted });
+            qdToast(nextMuted ? "Microphone muted" : "Microphone resumed", {
+                type: nextMuted ? "warning" : "success",
+                duration: 2,
+            });
+        };
+        const onQuickDictSwitchDevice = (event) => {
+            headerVoiceSwitchDevice(event?.detail || {});
+        };
+
+        window.addEventListener("tp-quickdict-submit", onQuickDictSubmit);
+        window.addEventListener("tp-quickdict-cancel", onQuickDictCancel);
+        window.addEventListener("tp-quickdict-toggle-mute", onQuickDictToggleMute);
+        window.addEventListener("tp-quickdict-switch-device", onQuickDictSwitchDevice);
+        return () => {
+            window.removeEventListener("tp-quickdict-submit", onQuickDictSubmit);
+            window.removeEventListener("tp-quickdict-cancel", onQuickDictCancel);
+            window.removeEventListener("tp-quickdict-toggle-mute", onQuickDictToggleMute);
+            window.removeEventListener("tp-quickdict-switch-device", onQuickDictSwitchDevice);
+        };
+    }, [headerVoiceCancelRecording, headerVoiceStopAndTranscribe, headerVoiceSwitchDevice, isHeaderVoiceDictationEnabled, publishQuickDictState]);
+
+    // ── Header transcribe: keyboard triggers ───────────────────────────────
+    // double-shift → start | single shift (while recording) → submit | Esc → cancel
+    useEffect(() => {
+        if (!isHeaderVoiceDictationEnabled) return;
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                if (headerVoiceStateRef.current === "recording") {
+                    headerVoiceCancelRecording();
+                }
+                return;
+            }
+            if (e.key !== 'Shift') return;
+            const now = Date.now();
+            if (headerVoiceStateRef.current === "recording") {
+                // any single shift while recording → submit
+                headerVoiceLastShiftTimeRef.current = 0;
+                headerVoiceStopAndTranscribe();
+                return;
+            }
+            // idle: detect double-shift to start
+            if (now - headerVoiceLastShiftTimeRef.current < 500) {
+                headerVoiceLastShiftTimeRef.current = 0;
+                headerVoiceStartRecording("double_shift");
+            } else {
+                headerVoiceLastShiftTimeRef.current = now;
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [isHeaderVoiceDictationEnabled, headerVoiceStartRecording, headerVoiceStopAndTranscribe, headerVoiceCancelRecording]);
+
+    const syncOrderMedicineAndInvestigation = useCallback((resolvedTcmId) => {
+        const patientUniqueId = patient_data?.patient_unique_id;
+        const hasMedication = Array.isArray(medicationData) && medicationData.length > 0;
+        const hasInvestigation = Array.isArray(investigationData) && investigationData.length > 0;
+        if (!resolvedTcmId || !patientUniqueId || (!hasMedication && !hasInvestigation)) return;
+        const clinic_name = getClinicName(profile?.hospital_data);
+        const eventPayload = {
+            clinic_name,
+            patient_id: patientUniqueId,
+            tcm_id: resolvedTcmId,
+            hasMedication,
+            hasInvestigation,
+        };
+
+        dispatch(orderMedicineAndInvestigation({
+            tcm_id: resolvedTcmId,
+            patient_unique_id: patientUniqueId,
+        }))
+            .then((orderAction) => {
+                const requestSucceeded =
+                    orderAction?.meta?.requestStatus === "fulfilled" &&
+                    orderAction?.payload?.status !== false;
+                if (requestSucceeded) {
+                    window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
+                        ...eventPayload,
+                        status: "success",
+                    });
+                } else {
+                    const failureReason =
+                        orderAction?.payload?.message ||
+                        orderAction?.payload?.error ||
+                        orderAction?.error?.message ||
+                        "request_rejected";
+                    window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
+                        ...eventPayload,
+                        status: "failure",
+                        reason: failureReason,
+                    });
+                }
+            });
+    }, [dispatch, patient_data?.patient_unique_id, medicationData, investigationData, profile?.hospital_data]);
+
+    const hasRxDrawingCanvasIds =
+        (Array.isArray(rxDrawingCanvasIds) && rxDrawingCanvasIds.length > 0) ||
+        (typeof rxDrawingCanvasIds === "string" && rxDrawingCanvasIds.split(",").filter(Boolean).length > 0);
 
     const trackSaveDraftEvent = useCallback(() => {
         window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.save, {
@@ -246,12 +1546,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
     }, [isAutofillSelected, selectedSymptomsCollector]);
 
-    const items = [
-        {
-            label: <div onClick={onResetClick}>Clear</div>,
-            key: 'clear',
-        },
-    ];
     async function onResetClick() {
         setSymptomsData([])
         setExaminationData([])
@@ -268,6 +1562,26 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         setCustomModuleContents([]);
         dispatch(resetOpthalForm());
     }
+
+    const showClearConfirmation = useCallback(() => {
+        setIsClearModalOpen(true);
+    }, []);
+
+    const showHideClearModal = useCallback(() => {
+        setIsClearModalOpen(false);
+    }, []);
+
+    const handleConfirmClear = async () => {
+        await onResetClick();
+        setIsClearModalOpen(false);
+    };
+
+    const items = [
+        {
+            label: <div onClick={showClearConfirmation}>Clear</div>,
+            key: 'clear',
+        },
+    ];
     // const languageItems = [
     //     {
     //         label: '1st menu item',
@@ -338,7 +1652,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         window.Moengage.track_event("one_click_template_select", {
             "template_name": tmoc_template_name
         });
-        const action = await dispatch(oneClickSingleTemplateDetails(tmoc_id));
+        const action = await dispatch(
+            oneClickSingleTemplateDetails({
+                templateId: tmoc_id,
+                isChikitsalayAccessable,
+            })
+        );
         if (action.meta.requestStatus === "fulfilled") {
             const data = action.payload
             if (data !== undefined) {
@@ -503,7 +1822,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     setCustomModuleContents(Array.from(moduleMap.values()));
                 }
             }
-            !isMobile ? showHideTemplatesListPopover() : handleDrawerTemplate()
+            (isMobile || (isTablet && isNewPrescriptionUi) || (isCompactHeader && useCompactActionIcons)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
         } else {
             errorMessage(action.error)
         }
@@ -556,17 +1875,35 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 };
             });
         }
+        const templateSymptoms = symptomsData;
+        const templateExaminations = examinationData;
+        const templateSurgeries = surgeriesData;
+        const templateDiagnosis = diagnosisData;
+        const templateInvestigations = investigationData;
+
+        if (shouldUseChikitsalayInventoryValidation && (
+            templateDiagnosis.some(hasInvalidChikitsalayDiagnosis) ||
+            templateInvestigations.some(hasInvalidChikitsalayInvestigation) ||
+            updatedMedication.some(hasInvalidChikitsalayMedication)
+        )) {
+            errorMessage(getInvalidChikitsalayInventoryMessage({
+                diagnosisData: templateDiagnosis,
+                investigationData: templateInvestigations,
+                medicationData: updatedMedication,
+            }));
+            return;
+        }
         
         var sendData = {
             tmoc_template_name: inputTemplateName,
             data: {
-                symptoms: symptomsData.map(({ symptom_name, change }) => ({ symptom_name, ...(change !== undefined && { change }) })),
-                examination: examinationData.map(({ examination_name, change }) => ({ examination_name, ...(change !== undefined && { change }) })),
-                surgeries: surgeriesData.map(({ name, change, masterId, notes }) => ({ name, masterId, notes, ...(change !== undefined && { change }) })),
-                diagnosis: diagnosisData.map(({ tds_id, tds_name, icd_code, status, pms_default, change }) => ({ tds_id, tds_name, icd_code, status, pms_default, ...(change !== undefined && { change }) })),
+                symptoms: templateSymptoms.map(({ symptom_name, change }) => ({ symptom_name, ...(change !== undefined && { change }) })),
+                examination: templateExaminations.map(({ examination_name, change }) => ({ examination_name, ...(change !== undefined && { change }) })),
+                surgeries: templateSurgeries.map(({ name, change, masterId, notes }) => ({ name, masterId, notes, ...(change !== undefined && { change }) })),
+                diagnosis: templateDiagnosis.map(({ tds_id, tds_name, icd_code, status, pms_default, change }) => ({ tds_id, tds_name, icd_code, status, pms_default, ...(change !== undefined && { change }) })),
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
-                investigation: investigationData.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
+                investigation: templateInvestigations.map(({ investigation_name, change, id, service_code }) => ({ investigation_name, ...(change !== undefined && { change }), ...(id != null && String(id).trim() !== "" && { id }), ...(service_code != null && String(service_code).trim() !== "" && { service_code }) })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -685,19 +2022,37 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 };
             });
         }
+        const templateSymptoms = symptomsData;
+        const templateExaminations = examinationData;
+        const templateSurgeries = surgeriesData;
+        const templateDiagnosis = diagnosisData;
+        const templateInvestigations = investigationData;
+
+        if (shouldUseChikitsalayInventoryValidation && (
+            templateDiagnosis.some(hasInvalidChikitsalayDiagnosis) ||
+            templateInvestigations.some(hasInvalidChikitsalayInvestigation) ||
+            updatedMedication.some(hasInvalidChikitsalayMedication)
+        )) {
+            errorMessage(getInvalidChikitsalayInventoryMessage({
+                diagnosisData: templateDiagnosis,
+                investigationData: templateInvestigations,
+                medicationData: updatedMedication,
+            }));
+            return;
+        }
 
         var data = JSON.parse(inputTemplateName);
         var sendData = {
             tmoc_id: data.tmoc_id,
             tmoc_template_name: data.tmoc_template_name,
             data: {
-                symptoms: symptomsData.map(({ symptom_name, change }) => ({ symptom_name, ...(change !== undefined && { change }) })),
-                examination: examinationData.map(({ examination_name, change }) => ({ examination_name, ...(change !== undefined && { change }) })),
-                surgeries: surgeriesData.map(({ name, change, masterId, notes }) => ({ name, masterId, notes, ...(change !== undefined && { change }) })),
-                diagnosis: diagnosisData.map(({ tds_id, tds_name, status, pms_default }) => ({ tds_id, tds_name, status, pms_default })),
+                symptoms: templateSymptoms.map(({ symptom_name, change }) => ({ symptom_name, ...(change !== undefined && { change }) })),
+                examination: templateExaminations.map(({ examination_name, change }) => ({ examination_name, ...(change !== undefined && { change }) })),
+                surgeries: templateSurgeries.map(({ name, change, masterId, notes }) => ({ name, masterId, notes, ...(change !== undefined && { change }) })),
+                diagnosis: templateDiagnosis.map(({ tds_id, tds_name, status, pms_default }) => ({ tds_id, tds_name, status, pms_default })),
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
-                investigation: investigationData.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
+                investigation: templateInvestigations.map(({ investigation_name, change, id, service_code }) => ({ investigation_name, ...(change !== undefined && { change }), ...(id != null && String(id).trim() !== "" && { id }), ...(service_code != null && String(service_code).trim() !== "" && { service_code }) })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -798,6 +2153,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 isModalOpen={isModalOpen}
                 onCancel={showHideModal}
                 modalWidth={500}
+                zIndex={headerOverlayZIndex}
                 title={"You may lose your data"}
                 modalBody={
                     <>
@@ -828,6 +2184,43 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             />
         );
     }, [isModalOpen]);
+
+    const CLEAR_MODAL = useMemo(() => {
+        return (
+            <CommonModal
+                isModalOpen={isClearModalOpen}
+                onCancel={showHideClearModal}
+                modalWidth={500}
+                zIndex={headerOverlayZIndex}
+                title={"You may lose your data"}
+                modalBody={
+                    <>
+                        <div className="alert-warning rounded-10px p-2 patient-details">
+                            <div className="d-flex align-items-center">
+                                <img className='me-3' src={alertIcon} alt="Warning" />
+                                <span>
+                                    Are you sure you want to clear all prescription data?
+                                </span>
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <div className="d-flex align-items-center mt-2 justify-content-end">
+                                <div
+                                    onClick={handleConfirmClear}
+                                    className="me-4 text-decoration-underline btn p-0 text-main"
+                                >
+                                    Clear
+                                </div>
+                                <Button onClick={showHideClearModal} className="lh-lg btn btn-primary3 btn-41 px-4">
+                                    <span>No</span>
+                                </Button>
+                            </div>
+                        </div>
+                    </>
+                }
+            />
+        );
+    }, [handleConfirmClear, isClearModalOpen, showHideClearModal]);
 
     //Template Componet Web
     const TEMPLATE_CONTENT_WEB = useCallback(() => {
@@ -1101,9 +2494,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const CUSTOMIZE_CONTENT_TAB = useMemo(() => {
         return (
-            <CustomizeSetting handleDrawerCustomize={handleDrawerCustomize} isVaccinationEnabled={isVaccinationEnabled} isGrowthChartEnabled={isGrowthChartEnabled} page="normal-rx-page"/>
+            <CustomizeSetting
+                handleDrawerCustomize={handleDrawerCustomize}
+                isVaccinationEnabled={isVaccinationEnabled}
+                isGrowthChartEnabled={isGrowthChartEnabled}
+                page="normal-rx-page"
+                isTabRx={Boolean(isTabPrescription)}
+            />
         );
-    }, [customizeDrawer]);
+    }, [customizeDrawer, isTabPrescription, isVaccinationEnabled, isGrowthChartEnabled, handleDrawerCustomize]);
     
     const hasOpthalValues = useCallback(() => {
         return (
@@ -1116,6 +2515,95 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             Object.values(ophthalmologyExam?.extraFields || {}).some((value) => value)
         );
     }, [ophthalmologyExam]);
+
+    const hasSymptomsWithSince = useMemo(
+        () =>
+            symptomsData.length > 0 &&
+            symptomsData.every(
+                (symptom) => String(symptom?.since ?? "").trim() !== ""
+            ),
+        [symptomsData]
+    );
+
+    const hasMedicationsFrequencyAndDuration = useMemo(
+        () => medicationsHaveFrequencyAndDuration(medicationData),
+        [medicationData]
+    );
+
+    const hasOutOfStockMedication = useMemo(
+        () =>
+            medicationData.some(
+                (medication) =>
+                    medication?.stock_status === MEDICINE_STOCK_STATUS.NO_STOCK
+            ),
+        [medicationData]
+    );
+
+    const hasDiagnosisNameAndIcdCode = useMemo(
+        () =>
+            diagnosisData.length > 0 &&
+            diagnosisData.every(
+                (diagnosis) =>
+                    String(diagnosis?.tds_name ?? "").trim() !== "" &&
+                    String(diagnosis?.icd_code ?? "").trim() !== ""
+            ),
+        [diagnosisData]
+    );
+
+    const hasValidChikitsalayInventoryRows = useMemo(
+        () =>
+            !(
+                diagnosisData.some(hasInvalidChikitsalayDiagnosis) ||
+                investigationData.some(hasInvalidChikitsalayInvestigation) ||
+                medicationData.some(hasInvalidChikitsalayMedication)
+            ),
+        [diagnosisData, investigationData, medicationData]
+    );
+
+    const invalidChikitsalayInventoryMessage = useMemo(
+        () =>
+            getInvalidChikitsalayInventoryMessage({
+                diagnosisData,
+                investigationData,
+                medicationData,
+            }),
+        [diagnosisData, investigationData, medicationData]
+    );
+
+    const endVisitTooltipMessage = useMemo(() => {
+        if (isChikitsalayAccessable) {
+            const missingMedicationFields =
+                medicationData.length > 0 && !hasMedicationsFrequencyAndDuration;
+
+            if (!hasSymptomsWithSince && diagnosisData.length === 0) {
+                return "Please fill Symptoms and Diagnosis to end the consultation.";
+            } else if (!hasSymptomsWithSince) {
+                return "Please fill Symptoms and Since to end the consultation.";
+            } else if (diagnosisData.length === 0) {
+                return "Please fill Diagnosis to end the consultation.";
+            } else if (!hasDiagnosisNameAndIcdCode) {
+                return "Please fill Diagnosis names that has ICD codes for all diagnoses to end the consultation.";
+            } else if (shouldUseChikitsalayInventoryValidation && !hasValidChikitsalayInventoryRows) {
+                return invalidChikitsalayInventoryMessage;
+            } else if (hasOutOfStockMedication) {
+                return "Please select an in-stock medicine or alternative to end the consultation.";
+            } else if (missingMedicationFields) {
+                return "Please fill Frequency and Duration for all medicines to end the consultation.";
+            }
+        }
+        return "Please fill your prescription to end visit.";
+    }, [
+        isChikitsalayAccessable,
+        hasSymptomsWithSince,
+        diagnosisData,
+        hasDiagnosisNameAndIcdCode,
+        hasValidChikitsalayInventoryRows,
+        invalidChikitsalayInventoryMessage,
+        shouldUseChikitsalayInventoryValidation,
+        hasOutOfStockMedication,
+        medicationData.length,
+        hasMedicationsFrequencyAndDuration,
+    ]);
 
     const opthalTablesById = useMemo(() => {
         return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
@@ -1235,9 +2723,147 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         };
     }, [ophthalmologyExam]);
 
+    const buildMedicinePayload = useCallback(async () => {
+        const getVoiceRxMedicineName = (item = {}) => (
+            item.tmm_medicine_name ||
+            item.medicine_name ||
+            item.voice_rx_original_name ||
+            item.name ||
+            ""
+        );
+
+        const hasMedicineId = (item = {}) => {
+            const numericTmmId = Number(item?.tmm_id);
+            return item?.tmm_id !== undefined &&
+                item?.tmm_id !== null &&
+                String(item.tmm_id).trim() !== "" &&
+                Number.isFinite(numericTmmId) &&
+                numericTmmId !== 0;
+        };
+
+        const payload = [];
+        const createdVoiceMedicineByGroup = new Map();
+        const defaultMedicineType = Array.isArray(medicineTypeList) ? medicineTypeList[0]?.tmy_id : 0;
+
+        for (const { medicineUnit, ...rest } of medicationData) {
+            const shouldKeepUnitMetadata = showVoiceRxModule && (
+                rest?.voice_rx_group_id ||
+                rest?.voice_rx_original_name ||
+                rest?.tmm_dosage_unit_name ||
+                rest?.tmm_unit_name
+            );
+            const voiceMedicineUnits = shouldKeepUnitMetadata
+                ? mergeMedicineUnitOptions(medicineUnit, CUSTOM_MEDICINE_UNITS)
+                : medicineUnit;
+            const dashedFrequencyFields = getDashedMedicineFrequencyFields(rest);
+            if (!rest?.voice_rx_from_module || hasMedicineId(rest)) {
+                if (shouldKeepUnitMetadata) {
+                    const doseFields = resolveCopiedDoseFields(rest, voiceMedicineUnits, {
+                        defaultIfMissing: true,
+                        defaultDose: "1",
+                        includeCustomUnits: true,
+                    });
+                    const resolvedUnit = doseFields.tmm_unit || rest.tmm_unit || rest.tmu_id || rest.default_tmm_unit || 0;
+                    payload.push({
+                        ...rest,
+                        ...dashedFrequencyFields,
+                        ...doseFields,
+                        tmm_unit: resolvedUnit,
+                        tmu_id: resolvedUnit,
+                        default_tmm_unit: rest.default_tmm_unit || resolvedUnit,
+                        medicineUnit: voiceMedicineUnits,
+                    });
+                } else {
+                    payload.push(rest);
+                }
+                continue;
+            }
+
+            const medicineName = getVoiceRxMedicineName(rest);
+            const medicineGroupKey = String(
+                rest.voice_rx_group_id ||
+                rest.voice_rx_original_name ||
+                medicineName
+            ).trim().toLowerCase();
+            let createdMedicine = createdVoiceMedicineByGroup.get(medicineGroupKey);
+
+            if (!createdMedicine) {
+                const customVoiceMedicineType = showVoiceRxModule ? CUSTOM_MEDICINE_TYPE_ID : rest.tmm_type || defaultMedicineType || 0;
+                const action = await dispatch(addMedicine({
+                    tmm_medicine_name: medicineName,
+                    tmm_type: customVoiceMedicineType,
+                    tmm_generic: rest.tmm_generic || "",
+                    tmm_company: rest.tmm_company || "",
+                }));
+                if (action.meta.requestStatus !== "fulfilled") {
+                    throw new Error(action?.error?.message || `Failed to add medicine ${medicineName}`);
+                }
+
+                createdMedicine = Array.isArray(action.payload) ? action.payload[0] : action.payload;
+                if (medicineGroupKey) {
+                    createdVoiceMedicineByGroup.set(medicineGroupKey, createdMedicine);
+                }
+            }
+
+            const createdMedicineUnits = mergeMedicineUnitOptions(
+                Array.isArray(createdMedicine?.medicineUnit) && createdMedicine.medicineUnit.length
+                    ? createdMedicine.medicineUnit
+                    : Array.isArray(medicineUnit) && medicineUnit.length
+                        ? medicineUnit
+                        : [],
+                CUSTOM_MEDICINE_UNITS
+            );
+            const doseFields = resolveCopiedDoseFields(rest, createdMedicineUnits, {
+                defaultIfMissing: true,
+                defaultDose: "1",
+                fallbackUnitIdOnMissing: CUSTOM_MEDICINE_DEFAULT_UNIT_ID,
+                fallbackUnitIdOnUnitMismatch: CUSTOM_MEDICINE_DEFAULT_UNIT_ID,
+                fallbackUnitTitle: "unit(s)",
+                includeCustomUnits: true,
+            });
+            const resolvedUnit = doseFields.tmm_unit || rest.tmm_unit || createdMedicine?.default_tmm_unit || createdMedicine?.tmm_unit || 0;
+
+            payload.push({
+                ...rest,
+                tmm_id: createdMedicine?.tmm_id,
+                tmm_medicine_name: createdMedicine?.tmm_medicine_name || medicineName,
+                tmm_type: createdMedicine?.tmm_type ?? rest.tmm_type ?? 0,
+                tmm_generic: createdMedicine?.tmm_generic ?? rest.tmm_generic ?? "",
+                tmm_company: createdMedicine?.tmm_company ?? rest.tmm_company ?? "",
+                ...dashedFrequencyFields,
+                ...doseFields,
+                tmm_unit: resolvedUnit,
+                tmu_id: resolvedUnit,
+                medicineUnit: createdMedicineUnits,
+                voice_rx_original_tmm_id: rest.tmm_id ?? 0,
+                voice_rx_from_module: false,
+                voice_rx_original_name: rest.voice_rx_original_name || medicineName,
+                pms_default: createdMedicine?.pms_default ?? rest.pms_default ?? 1,
+                objectID: createdMedicine?.objectID || rest.objectID,
+                default_tmm_unit: rest.default_tmm_unit ?? createdMedicine?.default_tmm_unit ?? resolvedUnit ?? 0,
+            });
+        }
+
+        return payload;
+    }, [dispatch, medicationData, medicineTypeList, showVoiceRxModule]);
+
     const onSaveAsDraft = async () => {
         if (saveDraftLoading) return;
         trackSaveDraftEvent();
+        const selectedCanvasCount = Array.isArray(rxDrawingCanvasIds) ? rxDrawingCanvasIds.length
+          : typeof rxDrawingCanvasIds === "string" ? rxDrawingCanvasIds.split(",").filter(Boolean).length : 0;
+        if (selectedCanvasCount > 0) {
+          trackEvent("drawing_canvas_saved_in_draft", {
+            specialty: profile?.dp_name,
+            specialty_id: profile?.dp_id,
+            doctor_unique_id: profile?.doctor_unique_id,
+            doctor_name: profile?.um_name,
+            patient_id: patient_data?.patient_unique_id,
+            consultation_id: tcmId,
+            selected_canvas_count: selectedCanvasCount,
+            prescription_type: isTabPrescription ? "tab_rx" : "normal_rx",
+          });
+        }
         setSaveDraftLoading(true);
 
         try {
@@ -1252,8 +2878,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
           const opthalPatientId = patient_data?.patient_unique_id;
           const shouldSyncOpthal = hasOphthalPayloadData(opthalPayload);
       
+          const medicinePayload = await buildMedicinePayload();
+
           const sendData = {
             is_draft: 1,
+            ui_version: isVoiceRxNewFromGB ? "new" : "old",
             action: tcmId == 0 ? "add" : "edit",
             tcm_id: tcmId,
             patient_unique_id:
@@ -1269,7 +2898,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             examination: examinationData,
             surgeries: surgeriesData,
             diagnosis: diagnosisData,
-            medicine: medicationData.map(({ medicineUnit, ...rest }) => rest),
+            medicine: medicinePayload,
             advice: adviceData,
             investigation: investigationData,
             vitals: vitalsData,
@@ -1288,6 +2917,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
             labReportID: labReportID,
             zydusSelectedLabParams: zydusSelectedLabParams,
+            canvas_filename: rxDrawingCanvasIds,
           };
       
           const decodedToken = getDecodedToken();
@@ -1363,14 +2993,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
               );
             }
             try {
-              // Ensure care plan is linked to the definitive consultation id
               const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-
-              const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-                patient_data?.patient_unique_id,
-                generatedTcmId,
-                'draft',
-              );
 
               if (generatedTcmId > 0 && selectedCarePlan) {
                 if (
@@ -1447,6 +3070,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             errorMessage('Please fillup surgery name')
         } else if (diagnosisData.length > 0 && diagnosisData.filter((e) => e.tds_name == "").length > 0) {
             errorMessage('Please fillup diagnosis name')
+        } else if (isChikitsalayAccessable && !hasDiagnosisNameAndIcdCode) {
+            errorMessage('Please add Diagnosis names that has ICD codes for all diagnoses')
+        } else if (shouldUseChikitsalayInventoryValidation && !hasValidChikitsalayInventoryRows) {
+            errorMessage(invalidChikitsalayInventoryMessage)
+        } else if (isChikitsalayAccessable && hasOutOfStockMedication) {
+            errorMessage('Please select an in-stock medicine or alternative to end the consultation.')
         } else if (medicationData.length > 0 && medicationData.filter((e) => e.tmm_medicine_name == "").length > 0) {
             errorMessage('Please fillup medication name')
         } else if (adviceData.length > 0 && adviceData.filter(e => e.advice_name == "").length > 0) {
@@ -1466,7 +3095,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             const opthalPatientId = patient_data?.patient_unique_id;
             const shouldSyncOpthal = hasOphthalPayloadData(opthalPayload);
 
+            const medicinePayload = await buildMedicinePayload();
+
             var sendData = {
+                ui_version: isVoiceRxNewFromGB ? "new" : "old",
                 action: tcmId == 0 ? 'add' : 'edit',
                 tcm_id: tcmId,
                 patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
@@ -1476,7 +3108,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 examination: examinationData,
                 surgeries: surgeriesData,
                 diagnosis: diagnosisData,
-                medicine: medicationData.map(({ medicineUnit, ...rest }) => rest),
+                medicine: medicinePayload,
                 advice: adviceData,
                 investigation: investigationData,
                 vitals: vitalsData,
@@ -1527,7 +3159,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     .filter(Boolean),
                 pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
                 labReportID: labReportID,
-                zydusSelectedLabParams: zydusSelectedLabParams
+                zydusSelectedLabParams: zydusSelectedLabParams,
+                canvas_filename: rxDrawingCanvasIds
             };
 
             const decodedToken = getDecodedToken();
@@ -1542,22 +3175,51 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
             }
 
-            const clinic_name = getClinicName(profile?.hospital_data);
-            tcmId == 0 ?
-                window.Moengage.track_event("TP_Consultation_ended", {
-                    clinic_name,
-                    patient_number: patient_data?.pm_contact_no,
-                    patient_id: patient_data?.patient_unique_id,
-                tcm_id: tcmId,
-            })
-                :
-                window.Moengage.track_event("TP_Consultation_edited", {
-                    clinic_name,
-                    patient_number: patient_data?.pm_contact_no,
-                    patient_id: patient_data?.patient_unique_id,
-                    tcm_id: tcmId,
-                })
+            attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+                referredBy: profile?.um_name,
+                pendingCrossConsult: patient_data,
+            });
 
+            const clinic_name = getClinicName(profile?.hospital_data);
+            const consultationEventPayload = {
+                clinic_name,
+                patient_number: patient_data?.pm_contact_no,
+                patient_id: patient_data?.patient_unique_id,
+                patient_name: patient_data?.pm_fullname || patient_data?.patient_name || [patient_data?.pm_first_name, patient_data?.pm_last_name].filter(Boolean).join(" "),
+                doctor_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                appEnv: process.env.REACT_APP_ENV || "prod",
+                tcm_id: tcmId,
+            };
+            const shouldAttachVoiceCallCount =
+                isVoiceRxNewUiFlow &&
+                showVoiceRxModule;
+            if (shouldAttachVoiceCallCount) {
+                consultationEventPayload.voicecall = voiceDigitization?.voiceCallCount || 0;
+                consultationEventPayload.voice_rx_session_id = voiceDigitization?.sessionId || "";
+                consultationEventPayload.voice_rx_version = VOICE_RX_2_VERSION;
+                consultationEventPayload.voice_rx_history_count = Array.isArray(voiceDigitization?.history) ? voiceDigitization.history.length : 0;
+                consultationEventPayload.voice_rx_has_history = Boolean(voiceDigitization?.history?.length);
+            }
+            tcmId == 0 ?
+                window.Moengage.track_event("TP_Consultation_ended", consultationEventPayload)
+                :
+                window.Moengage.track_event("TP_Consultation_edited", consultationEventPayload)
+
+            const finalSelectedCanvasCount = Array.isArray(rxDrawingCanvasIds) ? rxDrawingCanvasIds.length
+              : typeof rxDrawingCanvasIds === "string" ? rxDrawingCanvasIds.split(",").filter(Boolean).length : 0;
+            if (finalSelectedCanvasCount > 0) {
+              trackEvent("drawing_canvas_saved_in_final_rx", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: patient_data?.patient_unique_id,
+                consultation_id: tcmId,
+                selected_canvas_count: finalSelectedCanvasCount,
+                prescription_type: isTabPrescription ? "tab_rx" : "normal_rx",
+              });
+            }
             const caseManagerPromise = isDraft 
                 ? dispatch(draftToConsultation(sendData))
                 : tcmId == 0
@@ -1593,6 +3255,71 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
             }
             if (action.meta.requestStatus === "fulfilled") {
+                const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
+                try {
+                    await syncGynecHistoryAfterEndVisit(
+                        patient_data?.patient_unique_id,
+                        userId,
+                        gynecHistory,
+                        { getGynecDetails, postGynecDetails, updateGynecDetails }
+                    );
+                } catch (error) {
+                    console.error("[GynecHistory][EndVisit] sync failed", error);
+                }
+                const liveVoiceDigitizationForStore = store.getState()?.voiceDigitization || voiceDigitization;
+                if (liveVoiceDigitizationForStore?.history?.length > 0) {
+                    const voiceEditedData = {
+                        patientDetails: {},
+                        vitalsAndBodyComposition: vitalsData,
+                        symptoms: symptomsData,
+                        examinations: examinationData,
+                        diagnosis: diagnosisData,
+                        medications: medicinePayload,
+                        vaccinations: givenVaccines,
+                        surgeries: surgeriesData,
+                        labResults: [],
+                        medicalHistory: medicalHistoryData,
+                        advice: adviceData,
+                        labInvestigation: investigationData,
+                        followUp: followUpDate,
+                        others: customModuleContents,
+                    };
+                    dispatch(updateVoiceEditedData(voiceEditedData));
+                    try {
+                        const consentPayload = await getConsentForVoicePrescriptionPayload();
+                        const voiceStoreDraft = getVoiceSoapDraftForStore(liveVoiceDigitizationForStore);
+                        const voiceStoreDigitizeData = withSurgeriesAliasForVoiceStore(
+                            voiceStoreDraft.liveVoiceDigitization?.digitizeData,
+                            surgeriesData
+                        );
+                        const voiceStoreClinicNotes = withSurgeriesAliasForVoiceStore(
+                            voiceStoreDraft.liveVoiceDigitization?.clinicNotes,
+                            surgeriesData
+                        );
+                        await storeVoicePrescription({
+                            patientId: patient_data?.patient_unique_id,
+                            doctorId: profile?.doctor_unique_id,
+                            tcmId: generatedTcmId,
+                            appointmentId: patient_data?.pam_id ?? pamId,
+                            sessionId: voiceStoreDraft.sessionId,
+                            payload: {
+                                history: normalizeVoiceHistoryForStore(voiceStoreDraft.liveVoiceDigitization?.history),
+                                digitizeData: voiceStoreDigitizeData,
+                                editedData: voiceEditedData,
+                                clinicNotes: voiceStoreClinicNotes,
+                                ...buildVoiceSoapStoreFields({
+                                    soap: voiceStoreDraft.soap,
+                                    soapHtml: voiceStoreDraft.soapHtml,
+                                }),
+                                version: "v3",
+                                consent: consentPayload,
+                            },
+                        });
+                    } catch (error) {
+                        console.error("[voice-rx-2/store-prescription] Failed", error?.message || error);
+                    }
+                }
+                syncOrderMedicineAndInvestigation(generatedTcmId);
                 if (
                     opthalModuleAutoAdded &&
                     customizedPadRightList?.some((item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID)
@@ -1609,18 +3336,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     );
                 }
                 try {
-                    // Ensure care plan is linked to the definitive consultation id
                     const decodedToken = getDecodedToken();
                     const tokenData = decodedToken?.result;
-                    const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-
-                    const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-                        patient_data?.patient_unique_id,
-                        generatedTcmId,
-                        'submit',
-                    );
 
                     if (generatedTcmId > 0 && selectedCarePlan) {
+
                         if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
                             await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
                         } else if (
@@ -1642,18 +3362,16 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 } catch (error) {
                     console.error('Care plan sync after submit failed:', error);
                 }
-                
-                // Fetch care plan assignments to include in print state
-                let carePlanAssignments = [];
-                try {
-                    if (patient_data?.patient_unique_id) {
-                        const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
-                        carePlanAssignments = Array.isArray(assignmentsResp?.data) ? assignmentsResp.data : (Array.isArray(assignmentsResp) ? assignmentsResp : (assignmentsResp?.assignments || []));
-                    }
-                } catch (cpFetchErr) {
-                    console.error('Failed to fetch care plan assignments for print state:', cpFetchErr);
-                }
 
+                try {
+                    await syncCrossConsultReferral({
+                        tcmId: generatedTcmId,
+                        pendingCrossConsult: patient_data,
+                    });
+                } catch (error) {
+                    console.error('Cross consult sync failed:', error);
+                }
+                
                 message.open({
                     key: MESSAGE_KEY,
                     type: '',
@@ -1671,9 +3389,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     duration: 5,
                 });
 
-                if (useVoiceRx) {
+                if (!isFreeVoiceRxUser && useVoiceRx) {
                     let sendData = {
-                        b2c_id: profile?.b2c,
+                        b2c_id: profile?.b2c ?? planDetails?.profile_b2c,
                         service_name: S_VOICE_RX
                     }
                     dispatch(updateCredits(sendData))
@@ -1702,7 +3420,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     isMedicineList: medicationData.length > 0 ? true : false
                 })
 
-
                 if (tokenData?.hospital_business_id == env.zydus_business_id
                     && isZydusUserAccessableFromGB
                     && patient_data?.mrno !== undefined
@@ -1721,12 +3438,24 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     }
                     const actionIM = await dispatch(getInvestigationAndMedicine(sendInvestigationAndMedicine))
                     if (actionIM.meta.requestStatus === "fulfilled") {
+                        const cmInvestigations = actionIM?.payload?.investigation ?? [];
+                        const investigationList = (investigationData.length > 0 ? cmInvestigations : []).map(
+                            (item) => ({
+                                serviceName: String(item?.investigation_name ?? "").trim(),
+                                serviceCode: String(item?.service_code ?? "").trim(),
+                            })
+                        );
+                        const investigationsForMoengage = investigationData.length > 0
+                            ? cmInvestigations
+                                .map((item) => `${item.investigation_name}:${item.service_code ?? ""}`)
+                                .join(", ")
+                            : "";
 
                         window.Moengage.track_event("Z_getInvestigationAndMedicine_API_Response", {
                             clinic_name,
                             patient_id: patient_data?.patient_unique_id,
                             status: 'suceess',
-                            investigationList: investigationData.length > 0 ? actionIM?.payload?.investigation.map(item => item.investigation_name).join(', ') : [],
+                            investigationList: investigationsForMoengage,
                             medicineList: medicationData.length > 0 ? actionIM?.payload?.medicine.map(({ tmm_medicine_name, display_qty, tmm_remarks }) => JSON.stringify({ name: tmm_medicine_name, quantity:display_qty, instruction: tmm_remarks })).join(', ') : []
                         })
 
@@ -1741,7 +3470,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             "doctorCode": patient_data?.employeeId,
                             "storeCode": storeCode, // hardcoded value
                             "duplicateCheck": 1, // hardcoded value
-                            "investigationList": investigationData.length > 0 ? actionIM?.payload?.investigation.map(item => item.investigation_name) : [],
+                            "investigationList": investigationList,
                             "medicineList": medicationData.length > 0 ? actionIM?.payload?.medicine.map(({ tmm_medicine_name, display_qty, tmm_remarks }) => ({ name: tmm_medicine_name, quantity:display_qty, instruction: tmm_remarks })) : [],
                             "pillupSwitch": isPillUpAccessableFromGB && pillupSwitch ? 1 : 0
                         }
@@ -1757,7 +3486,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             "doctorCode": patient_data?.employeeId,
                             "storeCode": storeCode, // hardcoded value
                             "duplicateCheck": 1, // hardcoded value
-                            "investigationList": investigationData.length > 0 ? actionIM?.payload?.investigation.map(item => item.investigation_name).join(', ') : [],
+                            "investigationList": investigationsForMoengage,
                             "medicineList": medicationData.length > 0 ? actionIM?.payload?.medicine.map(({ tmm_medicine_name, display_qty, tmm_remarks }) => JSON.stringify({ name: tmm_medicine_name, quantity:display_qty, instruction: tmm_remarks })).join(', ') : [],
                             "pillupSwitch": isPillUpAccessableFromGB && pillupSwitch ? 1 : 0
                         })
@@ -1783,7 +3512,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     }
                 }
 
-                navigate('/prescription_print_view', { replace: true, state: { ...action.payload, patient_data: patient_data, labParamsData: labParamsData, zydusSelectedLabParams: zydusSelectedLabParams, labReportID: labReportID, carePlanAssignments } })
+                navigate('/prescription_print_view', { replace: true, state: { ...action.payload, patient_data: patient_data, labParamsData: labParamsData, zydusSelectedLabParams: zydusSelectedLabParams, labReportID: labReportID, from: window.location.pathname, isVoiceRxNewUiFlow } })
             } else {
                 errorMessage(action.error)
             }
@@ -1791,7 +3520,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     }
 
     const checkDataFillOrNot = () => {
-        if (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || medicationData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasOpthalValues() || hasCustomModuleContent() || followUpDate || additionalNote || givenVaccines?.length > 0 || updatedDueVaccines?.length > 0 || measurements?.length > 0 || selectedCarePlan?.plan_name) {
+        if (hasDentalData || symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || medicationData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasOpthalValues() || hasCustomModuleContent() || followUpDate || additionalNote || givenVaccines?.length > 0 || updatedDueVaccines?.length > 0 || measurements?.length > 0 || selectedCarePlan?.plan_name) {
             showHideBackModal()
         } else {
             if (send_path !== undefined) {
@@ -1849,10 +3578,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [popOverVideo]);
     return (
-        <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
+        <Navbar className={`justify-content-between headerprescription p-0 ${isCompactHeader ? ' headerprescription--tablet' : ''}${isNewPrescriptionUi ? ' headerprescription--new-ui' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
             <Container fluid className='h-100 gx-0 w-100'>
                 <Row className='h-100 align-items-center w-100 justify-content-between'>
-                    <Col sm="auto" className={`h-100 ${isTablet ? 'pr-0' : ''}`}>
+                    <Col sm="auto" className={`h-100 ${isCompactHeader ? 'pr-0' : ''}`}>
                         <div className='align-items-center d-flex h-100'>
                             <div className='border-end h-100 text-center'>
                                 <div onClick={checkDataFillOrNot} className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
@@ -1862,6 +3591,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     isModalOpen={isBackModalOpen}
                                     onCancel={showHideBackModal}
                                     modalWidth={500}
+                                    zIndex={headerOverlayZIndex}
                                     title={"You may lose your data"}
                                     modalBody={
                                         <>
@@ -1886,13 +3616,142 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         </>
                                     }
                                 />
+                                <CommonModal
+                                    isModalOpen={Boolean(headerTranscriptFallback)}
+                                    onCancel={() => setHeaderTranscriptFallback("")}
+                                    modalWidth={560}
+                                    zIndex={headerOverlayZIndex}
+                                    title="Transcript is ready"
+                                    modalBody={
+                                        <>
+                                            <Input.TextArea
+                                                value={headerTranscriptFallback}
+                                                autoSize={{ minRows: 5, maxRows: 10 }}
+                                                readOnly
+                                                onFocus={(event) => event.target.select()}
+                                            />
+                                            <div className="d-flex justify-content-end mt-3">
+                                                <Button
+                                                    className="btn btn-primary3 btn-41 px-4"
+                                                    onClick={async () => {
+                                                        try {
+                                                            await navigator.clipboard.writeText(headerTranscriptFallback);
+                                                            qdToast("Transcript copied to clipboard.");
+                                                            setHeaderTranscriptFallback("");
+                                                        } catch (error) {
+                                                            console.error("[HeaderTranscribe] manual clipboard copy failed", error);
+                                                            qdToast("Select the transcript text and copy it manually.", { type: "warning" });
+                                                        }
+                                                    }}
+                                                >
+                                                    Copy Transcript
+                                                </Button>
+                                            </div>
+                                        </>
+                                    }
+                                />
                             </div>
                             <ProfilePopover patient_data={patient_data} isPrescriptionPage />
                         </div>
                     </Col>
                     <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
                         <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
-                            {!isMobile ? (
+                            {isNewPrescriptionUi && showVoiceRxTrialChip ? (
+                                <FreeTrialButton
+                                    title={S_VOICE_RX}
+                                    showHideSubModal={onVoiceRxTrialChipClick}
+                                />
+                            ) : null}
+                            {!useCompactActionIcons && (
+                                <Popover
+                                    open={popOverVideo}
+                                    onOpenChange={showHideVideoListPopover}
+                                    content={VIDEO_CONTENT}
+                                    trigger="click"
+                                    overlayClassName="pop-430 pp-0 videoTutorial"
+                                    placement="bottom"
+                                    zIndex={headerOverlayZIndex}
+                                >
+                                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isCompactHeader ? 'me-20' : ''}`}>
+                                        {/* onClick={showHideVideoListPopover} */}
+                                        <span><img src={tutorial2} /></span>
+                                    </button>
+                                </Popover>
+                            )}
+                            {useCompactActionIcons ? (
+                                <div className={voiceModuleStyles.headerActionGroup}>
+                                    <Popover
+                                        open={popOverVideo}
+                                        onOpenChange={showHideVideoListPopover}
+                                        content={VIDEO_CONTENT}
+                                        trigger="click"
+                                        overlayClassName="pop-430 pp-0 videoTutorial"
+                                        placement="bottom"
+                                        zIndex={headerOverlayZIndex}
+                                    >
+                                        <button className="btn d-flex align-items-center btn-text p-0">
+                                            {/* onClick={showHideVideoListPopover} */}
+                                            <span><img src={tutorial2} /></span>
+                                        </button>
+                                    </Popover>
+                                    <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
+                                    {isCompactHeader ? (
+                                        <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
+                                            <span>
+                                                <VoiceRxModuleActionButton type="template" label="Browse prescription templates" onClick={handleDrawerTemplate} />
+                                            </span>
+                                        </Tooltip>
+                                    ) : (
+                                        <Popover
+                                            open={popOver1}
+                                            onOpenChange={showHideTemplatesListPopover}
+                                            content={shouldUseMobileTemplateContent ? TEMPLATE_CONTENT_TAB : TEMPLATE_CONTENT_WEB}
+                                            trigger="click"
+                                            overlayClassName="pop-350 pp-0"
+                                            placement="bottom"
+                                            zIndex={headerOverlayZIndex}
+                                        >
+                                            <span>
+                                                <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
+                                                    <VoiceRxModuleActionButton type="template" label="Browse prescription templates" />
+                                                </Tooltip>
+                                            </span>
+                                        </Popover>
+                                    )}
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                                        {isMobile ? (
+                                            <VoiceRxModuleActionButton
+                                                type="save"
+                                                label="Save prescription as template"
+                                                disabled={hasUngroundedMedications || !(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
+                                                onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}
+                                            />
+                                        ) : (
+                                            <Popover
+                                                open={popOver2}
+                                                onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
+                                                content={SAVE_CONTENT_WEB}
+                                                trigger="click"
+                                                overlayClassName="pop-450 pp-0"
+                                                placement="bottom"
+                                                zIndex={headerOverlayZIndex}
+                                            >
+                                                <span>
+                                                    <VoiceRxModuleActionButton
+                                                        type="save"
+                                                        label="Save prescription as template"
+                                                        disabled={hasUngroundedMedications || !(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
+                                                    />
+                                                </span>
+                                            </Popover>
+                                        )}
+                                    </Tooltip>
+                                    <Tooltip placement="bottom" title="Customize prescription sections" zIndex={headerOverlayZIndex}>
+                                        <VoiceRxModuleActionButton type="customize" label="Customize prescription sections" onClick={handleDrawerCustomize} />
+                                    </Tooltip>
+                                    <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
+                                </div>
+                            ) : !isMobile ? (
                                 <div className="d-flex align-items-center">
                                     <Popover
                                         open={popOver1}
@@ -1901,72 +3760,65 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         trigger="click"
                                         overlayClassName="pop-350 pp-0"
                                         placement="bottom"
+                                        zIndex={headerOverlayZIndex}
                                     >
                                         <button className="btn d-flex align-items-center btn-text">
                                             {" "}
-                                            <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
+                                            {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                         </button>
                                     </Popover>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <Popover
                                             open={popOver2}
-                                            onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
+                                            onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
                                             content={SAVE_CONTENT_WEB}
                                             trigger="click"
                                             overlayClassName="pop-450 pp-0"
                                             placement="bottom"
+                                            zIndex={headerOverlayZIndex}
                                         >
-                                            <button className="btn d-flex align-items-center btn-text">
-                                                {" "}
-                                                <i className="icon-save me-2"></i> <span>Save</span>
-                                            </button>
-
+                                            <span>
+                                                <button className="btn d-flex align-items-center btn-text" disabled={hasUngroundedMedications}>
+                                                    {" "}
+                                                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span>
+                                                </button>
+                                            </span>
                                         </Popover>
                                     </Tooltip>
                                 </div>
                             ) : (
                                 <div className="d-flex align-items-center">
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
-                                        <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
+                                        {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                     </button>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
-                                        <button className='btn d-flex align-items-center btn-text' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                                        <span>
+                                            <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span></button>
+                                        </span>
                                     </Tooltip>
                                 </div>
                             )}
 
                             {DELETE_MODAL}
+                            {CLEAR_MODAL}
 
-                            <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
-                                {isTablet ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isTablet) ? "Custom" : "Customize"}</span>
-                            </button>
-
+                            {!useCompactActionIcons && (
+                                <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
+                                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="setting-2" variant="linear" size={18} /></span> : isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
+                                </button>
+                            )}
 
                             {/* <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
                                <span><img height={42} src={tutorial} /></span>
                             </button> */}
 
-                            <Popover
-                                open={popOverVideo}
-                                onOpenChange={showHideVideoListPopover}
-                                content={VIDEO_CONTENT}
-                                trigger="click"
-                                overlayClassName="pop-430 pp-0 videoTutorial"
-                                placement="bottom"
-                            >
-                                <button className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? 'me-20' : ''}`}>
-                                    {/* onClick={showHideVideoListPopover} */}
-                                    <span><img src={tutorial2} /></span>
-                                </button>
-                            </Popover>
-
-                            <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto">
+                            <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
                                 {TEMPLATE_CONTENT_TAB}
                             </Drawer>
-                            <Drawer title="Save Template" placement="right" onClose={handleDrawerSave} open={saveDrawer} className="modalWidth-563" width="auto">
+                            <Drawer title="Save Template" placement="right" onClose={handleDrawerSave} open={saveDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
                                 {SAVE_CONTENT_TAB}
                             </Drawer>
-                            <Drawer placement="right" closeIcon={false} onClose={handleDrawerCustomize} open={customizeDrawer} className="modalWidth-900" width="auto">
+                            <Drawer placement="right" closeIcon={false} onClose={handleDrawerCustomize} open={customizeDrawer} className="modalWidth-900" width="auto" zIndex={headerOverlayZIndex}>
                                 {CUSTOMIZE_CONTENT_TAB}
                             </Drawer>
 
@@ -2002,19 +3854,19 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 </div>
                             </Tooltip> */}
                             {showTeleconsultIcon && (
-                                <Tooltip placement="bottom" title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"} destroyTooltipOnHide trigger={["hover"]} mouseLeaveDelay={0}>
+                                <Tooltip placement="bottom" title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"} destroyTooltipOnHide trigger={["hover"]} mouseLeaveDelay={0} zIndex={headerOverlayZIndex}>
                                     <span className={isTeleconsultActive ? "d-inline-block" : ""}>
                                         <button
                                             type="button"
-                                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isTablet ? 'me-20' : ''}`}
-                                            style={isTablet ? {marginLeft: '10px'} : {}}
+                                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isCompactHeader ? 'me-20' : ''}`}
+                                            style={isCompactHeader ? {marginLeft: '10px'} : {}}
                                             onClick={onTeleconsultClick}
                                             disabled={isTeleconsultJoinLoading || isTeleconsultActive}
                                         >
                                             {isTeleconsultJoinLoading ? (
-                                                <LoadingOutlined style={{ fontSize: 24, ...(!isTablet && { marginLeft: '10px' }) }} />
+                                                <LoadingOutlined style={{ fontSize: 24, ...(!isCompactHeader && { marginLeft: '10px' }) }} />
                                             ) : (
-                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isTablet ? { marginLeft: '10px' } : {}} />
+                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isCompactHeader ? { marginLeft: '10px' } : {}} />
                                             )}
                                         </button>
                                     </span>
@@ -2026,30 +3878,73 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     loading={isVideoConsultLoading}
                                 />
                             )}
-                            {
-                                (isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx && !hideVoiceRxIcon ? (
-                                    isTablet ?
-                                        <>
-                                            <div className="headerprescription-tablet-sep" aria-hidden="true" />
-                                            <TabVoiceRxButton onClick={handleGenRx} /> 
-                                        </>
-                                        : 
-                                        <GenRxButton onClick={handleGenRx} />
-                                ) : null
-                            }
+                            {/* VoiceRx CTA — the new UI always uses the prod GenRxButton (animated
+                                gradient-video border); the compact icon-only variant is old-UI only. */}
+                            {shouldShowLegacyVoiceRxCta ? (
+                                isNewPrescriptionUi ? (
+                                    <GenRxButton onClick={handleGenRx} className="tesseract-genrx-cta" />
+                                ) : isCompactHeader ?
+                                    <TabVoiceRxButton onClick={handleGenRx} />
+                                    :
+                                    <GenRxButton onClick={handleGenRx} />
+                            ) : null}
 
-                            {isTablet && <div className="headerprescription-tablet-sep" aria-hidden="true" />}
+                            {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isCompactHeader ? 'Draft' : 'Save as Draft'} />}
 
-                            {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isTablet ? 'Draft' : 'Save as Draft'} />}
+                            {(() => {
+                              // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes/drawing canvas).
+                              const hasPrescriptionModuleData = (
+                                hasDentalData ||
+                                symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 ||
+                                diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 ||
+                                medicationData.length > 0 || privateNotesData || followUpDate || additionalNote ||
+                                givenVaccines.length > 0 || updatedDueVaccines?.length > 0 ||
+                                customModuleContents?.some((e) => e?.content?.length && e?.content?.some(c => c.title || c.notes)) ||
+                                hasOpthalValues() || hasCustomModuleContent() || hasRxDrawingCanvasIds
+                              );
+                              // Sidebar-only signals (vitals/medical history/measurements/gynec/obstetric/lab params/zydus labs).
+                              const hasSidebarOnlyData = (
+                                vitalsData.length > 0 || medicalHistoryData.length > 0 || measurements.length > 0 ||
+                                (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated ||
+                                labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0
+                              );
+                              // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
+                              const canEndVisit = isChikitsalayAccessable ? hasSymptomsWithSince && hasDiagnosisNameAndIcdCode && (!shouldUseChikitsalayInventoryValidation || hasValidChikitsalayInventoryRows) && !hasOutOfStockMedication && hasMedicationsFrequencyAndDuration : (hasPrescriptionModuleData || hasSidebarOnlyData);
+                              return (
+                                <>
+                                {onSelectLetterHead && !isDentalConsultation && (
+                                  <Tooltip placement="bottom" title="Letterhead" zIndex={headerOverlayZIndex}>
+                                    <button type="button" className="btn align-items-center justify-content-center d-flex btn-41 me-2" onClick={onSelectLetterHead}>
+                                      <img src={notesMultiple} alt="Notes" />
+                                    </button>
+                                  </Tooltip>
+                                )}
+                                {showPreviewButton && onPreviewClick && (
+                                  <>
+                                    <div className="headerprescription-preview-divider" aria-hidden="true" />
+                                    <Tooltip placement="bottom" title="Preview Rx" zIndex={headerOverlayZIndex}>
+                                      <Button
+                                        type="button"
+                                        className="btn-41 btn px-2 me-2 ant-btn-text btn-input align-items-center d-flex consultation-preview-btn"
+                                        onClick={onPreviewClick}
+                                        icon={<i className="icon-Preview" />}
+                                      >
+                                        Preview
+                                      </Button>
+                                    </Tooltip>
+                                  </>
+                                )}
+                                <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
+                                    <Button type='button' data-testid="prescription-end-visit" className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && (onEndVisit ? onEndVisit() : onEndVisitClick())} loading={onEndVisit ? isEndVisitLoading : (loading && !saveDraftLoading)}>
+                                        <i className='icon-exit me-2'></i>
+                                        {isCompactHeader ? "End" : "End Visit"}
+                                    </Button>
+                                </Tooltip>
+                                </>
+                              );
+                            })()}
 
-                            <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please fill your prescription to end visit."}>
-                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues() || hasCustomModuleContent()) && onEndVisitClick()} loading={loading && !saveDraftLoading}>
-                                    <i className='icon-exit me-2'></i>
-                                    {isTablet ? "End" : "End Visit"}
-                                </Button>
-                            </Tooltip>
-
-                            <Dropdown className='btn btn-outline btn-more p-0' menu={{ items }} trigger={['click']}>
+                            <Dropdown className='btn btn-outline btn-more p-0' menu={{ items }} trigger={['click']} overlayStyle={{ zIndex: headerOverlayZIndex }}>
                                 <a onClick={(e) => e.preventDefault()}>
                                     <i className='icon-More'></i>
                                 </a>

@@ -1,7 +1,9 @@
 import React, { useCallback } from 'react';
 import { Drawer } from 'antd';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
+
 import './WalkInConsultationModal.scss';
+import { ASSETS } from "../../../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 function WalkInConsultationModal({
   visible,

@@ -7,8 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { useLocation } from 'react-router-dom';
 import styles from './ConsultationDrawer.module.css';
-import medicationsIcon from '../assets/images/Medication.svg';
-import groundingIndicatorBg from '../assets/images/grounding-indicator.svg';
+
 import {
   searchMedication,
   getFrequentlySearchedMedication
@@ -22,6 +21,11 @@ import ApiMedication from '../api/services/ApiMedication';
 import CustomMedicinePopup from './CustomMedicinePopup';
 import config from '../config';
 import { useGrounding } from '../hooks/useGrounding';
+import { ASSETS } from "../assets";
+const {
+  medication: medicationsIcon,
+  groundingIndicator: groundingIndicatorBg,
+} = ASSETS.images;
 
 /** Shown in the medicine column; user edits update groundedMedicineName so voice PATCH keeps OCR/source in `name`. */
 function getMedicationDisplayName(item) {

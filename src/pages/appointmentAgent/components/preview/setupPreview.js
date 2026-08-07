@@ -1,10 +1,15 @@
-import iPhoneBg from "../../../../assets/images/iPhone.webp";
+
 import { Button } from "antd";
 import "./Preview.scss";
-import profile from "../../../../assets/images/profile-blue.svg";
-import genRxBgWebm from "../../../../assets/images/gen-rx-bg.webm";
-import genRxBgMp4 from "../../../../assets/images/gen-rx-bg.mp4";
+
 import LoopingVideo from "../../../../components/common/LoopingVideo";
+import { ASSETS } from "../../../../assets";
+const {
+  iphone: iPhoneBg,
+  profileBlue: profile,
+  genRxBg_2: genRxBgWebm,
+  genRxBg: genRxBgMp4,
+} = ASSETS.images;
 
 const SetupPreview = ({
   name,

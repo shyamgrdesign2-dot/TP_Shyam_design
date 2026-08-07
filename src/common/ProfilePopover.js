@@ -7,10 +7,13 @@ import { useSelector, useDispatch } from "react-redux";
 import moment from 'moment';
 import { getDecodedToken } from '../utils/localStorage';
 import config from '../config';
-import { NEO_NATOLOGISTS_DP_ID, PAEDIATRIC_DP_ID } from '../utils/constants';
+import { GB_CVT_EXT_HOS, NEO_NATOLOGISTS_DP_ID, PAEDIATRIC_DP_ID } from '../utils/constants';
 import { isMobile } from 'react-device-detect';
 import { listBloodGroup, editBloodGroup, viewPatient } from '../redux/appointmentsSlice';
-import BloodIcon from '../assets/images/blood.svg';
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { ASSETS } from "../assets";
+const BloodIcon = ASSETS.images.blood;
+
 
 export const genderAge = (patient_data, profile, shouldShowGender = true) => {
     var value = shouldShowGender && patient_data?.pm_gender
@@ -53,6 +56,8 @@ function ProfilePopover(props) {
     const { patients_details } = useSelector(
         (state) => state.records
     );
+
+    const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
 
@@ -134,7 +139,11 @@ function ProfilePopover(props) {
                     <div className="round-box bg-body-secondary"><i className="icon-Id fs-21"></i></div>
                     <div className="text-truncate">
                         <div className="fontroboto letterspacing">Patient Id</div>
-                        <div className="fontroboto letterspacing fw-medium">{patient_data !== undefined ? patient_data?.pm_pid : "000000"}</div>
+                        <div className="fontroboto letterspacing fw-medium">
+                            {isCvtExtHosAccessableFromGB
+                                ? (patients_details?.pm_reference_id || patient_data?.pm_reference_id || patient_data?.tpml_refrence_id || "000000")
+                                : (patient_data !== undefined ? patient_data?.pm_pid : "000000")}
+                        </div>
                     </div>
                 </div>
             )}
@@ -195,24 +204,26 @@ function ProfilePopover(props) {
                     </div>
                 </div>
             )}
-            <div>
-                {tokenData?.hospital_business_id != config.zydus_business_id && (
-                    <Link to="/edit_patient" replace={true} state={{ patient_data: patient_data }}>
-                        <Button className='btn btn-primary2 d-flex justify-content-center align-items-center w-100 mt-3 btn-41'>
-                            <i className='icon-Edit me-2 fs-21'></i>
-                            Edit Profile
-                        </Button>
-                    </Link>
-                )}
-                {locationPath == '/patient_details' ? '' :
-                    <Link to="/patient_details" state={{ patient_data: patient_data }}>
-                        <Button className='btn btn-primary2 align-items-center d-flex justify-content-center w-100 mt-3 btn-41'>
-                            <i className='icon-Visit-Summary fs-21 me-2'></i>
-                            Visit Summary
-                        </Button>
-                    </Link>
-                }
-            </div>
+            { !isCvtExtHosAccessableFromGB && 
+                <div>
+                    {tokenData?.hospital_business_id != config.zydus_business_id && (
+                        <Link to="/edit_patient" replace={true} state={{ patient_data: patient_data }}>
+                            <Button className='btn btn-primary2 d-flex justify-content-center align-items-center w-100 mt-3 btn-41'>
+                                <i className='icon-Edit me-2 fs-21'></i>
+                                Edit Profile
+                            </Button>
+                        </Link>
+                    )}
+                    {locationPath == '/patient_details' ? '' :
+                        <Link to="/patient_details" state={{ patient_data: patient_data }}>
+                            <Button className='btn btn-primary2 align-items-center d-flex justify-content-center w-100 mt-3 btn-41'>
+                                <i className='icon-Visit-Summary fs-21 me-2'></i>
+                                Visit Summary
+                            </Button>
+                        </Link>
+                    }
+                </div>
+            }
         </>
     )
 
@@ -249,20 +260,19 @@ function ProfilePopover(props) {
                 </div>
             ) : patient_data ?
                 (
-                    <div className={'align-items-center d-flex h-100 ps-3'}>
-                        <div className='rounded-pill patientProfile border me-3'>{makeDefaultLogo(patient_data?.pm_fullname)}</div>
-                        <div>
-                            <div className='patientName'>{getPatientName()}
-                                <div className='text-2'>
-                                    {patient_data !== undefined ? genderAge(patients_details || patient_data, profile) : `M, 30y`}
-                                    {(patient_data?.pm_blood_group || patient_data?.patient_blood_group || patients_details?.pm_blood_group) && (
-                                        <>, {patient_data?.pm_blood_group || patient_data?.patient_blood_group || patients_details?.pm_blood_group}</>
-                                    )}
-                                </div>
+                    <div className="align-items-center d-flex ps-3 header-patient-info">
+                        <div className="rounded-pill patientProfile border me-3 flex-shrink-0">{makeDefaultLogo(patient_data?.pm_fullname)}</div>
+                        <div className="header-patient-details min-w-0">
+                            <div className="patientName text-truncate" title={patient_data?.pm_fullname}>{getPatientName()}</div>
+                            <div className="text-2 text-truncate">
+                                {patient_data !== undefined ? genderAge(patients_details || patient_data, profile) : `M, 30y`}
+                                {(patient_data?.pm_blood_group || patient_data?.patient_blood_group || patients_details?.pm_blood_group) && (
+                                    <>, {patient_data?.pm_blood_group || patient_data?.patient_blood_group || patients_details?.pm_blood_group}</>
+                                )}
                             </div>
                         </div>
-                        <div className='iconrotate270 align-self-start ms-2 mt-1'>
-                            <i className='icon-right'></i>
+                        <div className="iconrotate270 ms-2 flex-shrink-0 d-flex align-items-center">
+                            <i className="icon-right"></i>
                         </div>
                     </div>
                 ) : null}

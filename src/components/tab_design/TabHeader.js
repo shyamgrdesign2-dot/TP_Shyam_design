@@ -6,10 +6,14 @@ import { useSelector } from "react-redux";
 import { useDeviceType } from "../../utils/deviceDetection";
 
 import { ADD, EDIT } from "../../utils/constants";
-import tutorial from '../../assets/images/tutorial-icon.svg';
-import playIcons from '../../assets/images/tube-icon.svg';
+
 import VideoModal from "../../common/VideoModal";
 import { getClinicName } from "../../utils/utils";
+import { ASSETS } from "../../assets";
+const {
+  tutorialIcon: tutorial,
+  tubeIcon: playIcons,
+} = ASSETS.images;
 
 function TabHeader({ flag, mode = ADD, title, loading, onClick }) {
     const navigate = useNavigate();

@@ -1,6 +1,7 @@
 import moment from "moment";
 import VaccineTable from "../vaccineTable/VaccineTable";
 import "./vaccinationChart.scss";
+import { ASSETS } from "../../../../assets";
 
 const columns = [
   {
@@ -81,7 +82,7 @@ const VaccinationChart = ({
             <div className="header">Vaccination Chart</div>
             <div className="details">
               <img
-                src={require("../../../../assets/images/babyImage.webp")}
+                src={ASSETS.images.babyimage}
                 alt="Baby"
                 width={32}
                 height={32}

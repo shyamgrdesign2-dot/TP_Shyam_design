@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useMemo,
+  useRef,
 } from "react";
 import {
   Input,
@@ -29,24 +30,62 @@ import {
   CloseOutlined,
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../../context/CashManagerContext";
-import ModuleIcon from "../../assets/images/custom-module.svg";
-import editIcon from "../../assets/images/edit-icon-blue.svg";
-import deleteIcon from "../../assets/images/delete-icon-blue.svg";
-import alertIcon from "../../assets/images/alertIcon.svg";
+
 import DisabledModuleTooltip from "./DisabledModuleTooltip";
 import CommonModal from "../../common/CommonModal";
 import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { removeBeforeWhiteSpace, errorMessage, getClinic } from "../../utils/utils";
 import { getDecodedToken } from "../../utils/localStorage";
+import { GB_VOICE_RX_NEW_UI } from "../../utils/constants";
 import "./CustomModuleV2.scss";
 import { isMobile } from "react-device-detect";
 import CustomModuleV2Drawer from "./CustomModuleV2Drawer";
 import CustomModuleFieldAutoComplete from "./CustomModuleFieldAutoComplete";
 import CustomModuleFieldTextAreaAutoComplete from "./CustomModuleFieldTextAreaAutoComplete";
 import EditCustomModuleDrawer from "./EditCustomModuleDrawer";
+import { ASSETS } from "../../assets";
+import {
+  VoiceRxModuleActionButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "../dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { Grid5, Trash } from "iconsax-reactjs";
+import { useVoiceRxNewUiFlag } from "../../utils/voiceRxNavigation";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "../tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "../tesseractCt";
+const {
+  customModule: ModuleIcon,
+  editIconBlue: editIcon,
+  deleteIconBlue: deleteIcon,
+  alerticon: alertIcon,
+} = ASSETS.images;
+
+function insertTranscriptIntoFieldValue(value, transcript, selectionStart, selectionEnd) {
+  const currentValue = String(value || "");
+  const nextTranscript = String(transcript || "").trim();
+  if (!nextTranscript) return currentValue;
+
+  const hasStart = Number.isInteger(selectionStart);
+  const hasEnd = Number.isInteger(selectionEnd);
+  const start = hasStart ? Math.max(0, Math.min(selectionStart, currentValue.length)) : currentValue.length;
+  const end = hasEnd ? Math.max(start, Math.min(selectionEnd, currentValue.length)) : start;
+
+  if (end > start || start < currentValue.length) {
+    return `${currentValue.slice(0, start)}${nextTranscript}${currentValue.slice(end)}`;
+  }
+
+  return currentValue.trim() ? `${currentValue.trimEnd()}\n${nextTranscript}` : nextTranscript;
+}
 
 /**
  * CustomModuleV2 Component
@@ -59,7 +98,9 @@ import EditCustomModuleDrawer from "./EditCustomModuleDrawer";
  * @param {String} module.name - Module name
  * @param {Array} module.namedFields - Array of field configurations
  */
-const CustomModuleV2 = ({ module }) => {
+const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) => {
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
   const dispatch = useDispatch();
   const {
     userId,
@@ -81,6 +122,8 @@ const CustomModuleV2 = ({ module }) => {
   const [activeRowId, setActiveRowId] = useState(null);
   const [drawerValues, setDrawerValues] = useState({});
   const [focusedFieldId, setFocusedFieldId] = useState(null); // Track which field is focused
+  const [voiceTargetHighlight, setVoiceTargetHighlight] = useState(null);
+  const lastVoiceTargetRef = useRef(null);
 
   // Templates List Popover (popOver1) / Drawer (templateDrawer)
   const [popOver1, setPopOver1] = useState(false);
@@ -169,10 +212,16 @@ const CustomModuleV2 = ({ module }) => {
           });
           return normalizedRow;
         } else {
-          // Create new row with id and all named fields
-          const newRow = { id: uuidv4() };
+          // Saved rows come back without an id — End Visit strips it before
+          // persisting. Rebuild the id but KEEP everything the row already
+          // carries: rebuilding purely from module.namedFields wipes the data
+          // whenever the module definition hasn't resolved yet, and that blank
+          // row then gets written back over the real content.
+          const newRow = { ...row, id: uuidv4() };
           module.namedFields?.forEach((field) => {
-            newRow[field.fieldName] = row[field.fieldName] || "";
+            if (!(field.fieldName in newRow)) {
+              newRow[field.fieldName] = "";
+            }
           });
           return newRow;
         }
@@ -233,6 +282,112 @@ const CustomModuleV2 = ({ module }) => {
     [module, setCustomModuleContents]
   );
 
+  const rememberVoiceTarget = useCallback((rowId, fieldName, selection = {}) => {
+    const row = moduleData.find((item) => item.id === rowId);
+    const value = String(row?.[fieldName] || "");
+    const selectionStart = Number.isInteger(selection.selectionStart) ? selection.selectionStart : value.length;
+    const selectionEnd = Number.isInteger(selection.selectionEnd) ? selection.selectionEnd : selectionStart;
+
+    lastVoiceTargetRef.current = {
+      rowId,
+      fieldName,
+      selectionStart,
+      selectionEnd,
+    };
+    setVoiceTargetHighlight({ rowId, fieldName });
+  }, [moduleData]);
+
+  const resolveVoiceTarget = useCallback((rows) => {
+    const fieldNames = module.namedFields?.map((field) => field.fieldName).filter(Boolean) || [];
+    const lastTarget = lastVoiceTargetRef.current;
+    if (
+      lastTarget &&
+      fieldNames.includes(lastTarget.fieldName) &&
+      rows.some((row) => row.id === lastTarget.rowId)
+    ) {
+      return lastTarget;
+    }
+
+    for (const row of rows) {
+      for (const fieldName of fieldNames) {
+        if (!String(row?.[fieldName] || "").trim()) {
+          return { rowId: row.id, fieldName, selectionStart: 0, selectionEnd: 0 };
+        }
+      }
+    }
+
+    const fallbackRow = rows[rows.length - 1];
+    const fallbackFieldName = fieldNames[0];
+    return {
+      rowId: fallbackRow?.id,
+      fieldName: fallbackFieldName,
+      selectionStart: String(fallbackRow?.[fallbackFieldName] || "").length,
+      selectionEnd: String(fallbackRow?.[fallbackFieldName] || "").length,
+    };
+  }, [module.namedFields]);
+
+  const applyVoiceTranscriptToFocusedField = useCallback((transcript) => {
+    const cleanTranscript = String(transcript || "").trim();
+    const fieldNames = module.namedFields?.map((field) => field.fieldName).filter(Boolean) || [];
+    if (!cleanTranscript || fieldNames.length === 0) return;
+
+    const nextModuleData = moduleData.length ? moduleData.map((row) => ({ ...row })) : [createEmptyRow()];
+    const target = resolveVoiceTarget(nextModuleData);
+    if (!target?.fieldName) return;
+
+    const targetRowIndex = nextModuleData.findIndex((row) => row.id === target.rowId);
+    const rowIndex = targetRowIndex >= 0 ? targetRowIndex : nextModuleData.length - 1;
+    nextModuleData[rowIndex] = {
+      ...nextModuleData[rowIndex],
+      [target.fieldName]: insertTranscriptIntoFieldValue(
+        nextModuleData[rowIndex]?.[target.fieldName],
+        cleanTranscript,
+        target.selectionStart,
+        target.selectionEnd
+      ),
+    };
+
+    setModuleData(nextModuleData);
+    updateCustomModuleContents(nextModuleData);
+    setHasChanges(true);
+  }, [createEmptyRow, module.namedFields, moduleData, resolveVoiceTarget, updateCustomModuleContents]);
+
+  const copyPayloadMatchesThisModule = useCallback((payload = {}) => {
+    const targetedModuleId = payload.sideNavCustomModuleTargetId || payload.digitization?.sideNavCustomModuleTargetId;
+    if (targetedModuleId) {
+      return String(targetedModuleId) === String(module?.module_id);
+    }
+    const digitization = payload.digitization || {};
+    const copiedModules = [
+      ...(Array.isArray(payload.moduleContents) ? payload.moduleContents : []),
+      ...(Array.isArray(payload.module_contents) ? payload.module_contents : []),
+      ...(Array.isArray(digitization.moduleContents) ? digitization.moduleContents : []),
+      ...(Array.isArray(digitization.module_contents) ? digitization.module_contents : []),
+    ];
+    return copiedModules.some((copiedModule) => (
+      String(copiedModule?.module_id) === String(module?.module_id)
+    ));
+  }, [module?.module_id]);
+
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: module?.name || "Custom Module",
+    onTranscriptionApply: applyVoiceTranscriptToFocusedField,
+    transcriptionSuccessMessage: "Transcript added from voice dictation",
+    copyPayloadMatcher: copyPayloadMatchesThisModule,
+  });
+
+  const isVoiceTargetHighlighted = useCallback((rowId, fieldName) => (
+    voiceCaptureOpen &&
+    voiceTargetHighlight?.rowId === rowId &&
+    voiceTargetHighlight?.fieldName === fieldName
+  ), [voiceCaptureOpen, voiceTargetHighlight]);
+
   // Handle field value change
   const handleFieldChange = (rowId, fieldName, value) => {
     // Ensure rowId exists and is valid
@@ -272,6 +427,29 @@ const CustomModuleV2 = ({ module }) => {
     updateCustomModuleContents(updatedData);
     setHasChanges(true);
   };
+
+  // Tesseract shell drops the "Add New Line" CTA — the table keeps a trailing
+  // empty row instead (ClinicalTable auto-row affordance): once the last row
+  // has content, a fresh empty row is appended automatically.
+  // Maintain EXACTLY one trailing blank: only appending left duplicate blanks
+  // behind (e.g. after picking "Add Custom", or after deleting a filled row).
+  useEffect(() => {
+    if (!useTesseractUi || isMobile) return;
+    const rows = Array.isArray(moduleData) ? moduleData : [];
+    const hasContent = (row) =>
+      row && module?.namedFields?.some(
+        (field) => String(row[field.fieldName] || "").trim()
+      );
+    let filledCount = rows.length;
+    while (filledCount > 0 && !hasContent(rows[filledCount - 1])) {
+      filledCount -= 1;
+    }
+    if (rows.length === filledCount + 1) return; // already exactly one trailing blank
+    const updatedData = [...rows.slice(0, filledCount), createEmptyRow()];
+    setModuleData(updatedData);
+    updateCustomModuleContents(updatedData);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleData, useTesseractUi, isMobile]);
 
   // Handle deleting a row
   const handleDeleteRow = (rowId) => {
@@ -1113,7 +1291,7 @@ const CustomModuleV2 = ({ module }) => {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -1151,7 +1329,7 @@ const CustomModuleV2 = ({ module }) => {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -1275,7 +1453,7 @@ const CustomModuleV2 = ({ module }) => {
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
                   <div className="round-box">
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
@@ -1408,9 +1586,11 @@ const CustomModuleV2 = ({ module }) => {
     };
   }, [module?.module_id]);
 
-  return (
-    <div className="prescription-box-sm" data-module-id={module?.module_id}>
-      {/* Header */}
+  const voiceDictationTargetId = `custom-module-${module?.module_id || module?.name || "v2"}`;
+  const activeDropdownFieldId = focusedFieldId;
+
+  // Classic shell header (kept verbatim; the Tesseract shell renders its own).
+  const CLASSIC_HEADER = (
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
           <div className="d-flex w-100">
@@ -1452,14 +1632,45 @@ const CustomModuleV2 = ({ module }) => {
             </div>
 
             <div className="d-flex align-items-center">
-              <button
-                className="btn d-flex align-items-center btn-text"
-                onClick={loadPreviousClick}
-              >
-                <i className="icon-reload me-2"></i>
-                <span>Load Prev. data</span>
-              </button>
-              {isMobile ? (
+              {isVoiceRxModuleEnabled ? (
+                <Tooltip placement="bottom" title="Load previous data">
+                  <VoiceRxModuleActionButton type="reload" label="Load previous data" onClick={loadPreviousClick} />
+                </Tooltip>
+              ) : (
+                <button
+                  className="btn d-flex align-items-center btn-text"
+                  onClick={loadPreviousClick}
+                >
+                  <i className="icon-reload me-2"></i>
+                  <span>Load Prev. data</span>
+                </button>
+              )}
+              {isVoiceRxModuleEnabled ? (
+                isMobile ? (
+                  <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                    <VoiceRxModuleActionButton
+                      type="template"
+                      label={`Browse ${module?.name || "module"} templates`}
+                      onClick={handleDrawerTemplate}
+                    />
+                  </Tooltip>
+                ) : (
+                  <Popover
+                    open={popOver1}
+                    onOpenChange={showHideTemplatesListPopover}
+                    content={TEMPLATE_CONTENT}
+                    trigger="click"
+                    overlayClassName="pop-350 pp-0"
+                    placement="bottom"
+                  >
+                    <span>
+                      <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                        <VoiceRxModuleActionButton type="template" label={`Browse ${module?.name || "module"} templates`} />
+                      </Tooltip>
+                    </span>
+                  </Popover>
+                )
+              ) : isMobile ? (
                 <button
                   className="btn d-flex align-items-center btn-text"
                   onClick={handleDrawerTemplate}
@@ -1489,7 +1700,35 @@ const CustomModuleV2 = ({ module }) => {
                     : `Please enter some ${module?.name} to save a template`
                 }
               >
-                {isMobile ? (
+                {isVoiceRxModuleEnabled ? (
+                  isMobile ? (
+                    <VoiceRxModuleActionButton
+                      type="save"
+                      label={`Save ${module?.name || "module"} as template`}
+                      onClick={() => hasDataToSave && handleSaveTemplateDrawer()}
+                      disabled={!hasDataToSave}
+                    />
+                  ) : (
+                    <Popover
+                      open={popOver2}
+                      onOpenChange={() =>
+                        hasDataToSave && showHideSaveTemplatePopOver()
+                      }
+                      content={SAVE_CONTENT}
+                      trigger="click"
+                      overlayClassName="pop-450 pp-0"
+                      placement="bottom"
+                    >
+                      <span>
+                        <VoiceRxModuleActionButton
+                          type="save"
+                          label={`Save ${module?.name || "module"} as template`}
+                          disabled={!hasDataToSave}
+                        />
+                      </span>
+                    </Popover>
+                  )
+                ) : isMobile ? (
                   <button
                     className="btn d-flex align-items-center btn-text"
                     style= {{border: "none"}}
@@ -1516,13 +1755,24 @@ const CustomModuleV2 = ({ module }) => {
                   </Popover>
                 )}
               </Tooltip>
-              <button
-                onClick={handleClear}
-                className="btn btn-text clear-text d-flex align-items-center"
-                disabled={!hasDataToSave}
-              >
-                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <Tooltip placement="bottom" title="Clear this section">
+                  <VoiceRxModuleActionButton
+                    type="clear"
+                    label={`Clear ${module?.name || "module"}`}
+                    onClick={handleClear}
+                    disabled={!hasDataToSave}
+                  />
+                </Tooltip>
+              ) : (
+                <button
+                  onClick={handleClear}
+                  className="btn btn-text clear-text d-flex align-items-center"
+                  disabled={!hasDataToSave}
+                >
+                  <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+                </button>
+              )}
               <Dropdown
                 overlay={moreMenu}
                 trigger={["click"]}
@@ -1546,115 +1796,165 @@ const CustomModuleV2 = ({ module }) => {
           </>
         )}
       </div>
+  );
 
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
       {/* Delete Template Modal */}
       {DELETE_MODAL}
 
       {/* Table */}
-      <table className={`custom-module-v2__table ${columnClass} mt-14`}>
-        {/* Table Header */}
-        <thead>
-          <tr className="border-top border-bottom">
-            {module.namedFields?.map((field, index) => (
-              <th
-                key={field.fieldName}
-                className="custom-module-v2__table-header-cell"
-              >
-                {field.fieldLabel.toUpperCase()}
-              </th>
-            ))}
-            <th className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">
-              {/* Action column header */}
-            </th>
-          </tr>
-        </thead>
-
-        {/* Table Body */}
-        <tbody>
-          {moduleData.map((row, rowIndex) => {
-            // Ensure row has an id - fallback to index if missing (shouldn't happen but safety check)
-            const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
-            return (
-            <tr
-              key={rowKey}
-              className="border-bottom"
-            >
-              {module.namedFields?.map((field, fieldIndex) => (
-                <td
+      <div
+        className={[isVoiceRxModuleEnabled ? "custom-module-v2__table-scroll-wrap" : "", useTesseractUi ? "tesseract-ct" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
+        <table className={`custom-module-v2__table ${columnClass} mt-14`}>
+          {/* Table Header */}
+          <thead>
+            <tr className="border-top border-bottom">
+              {module.namedFields?.map((field, index) => (
+                <th
                   key={field.fieldName}
-                  className="custom-module-v2__table-cell"
+                  className="custom-module-v2__table-header-cell"
                 >
-                  {isMobile ? (
-                    <div
-                      onClick={() => handleEditRow(row.id)}
-                      style={{ cursor: "pointer", width: "100%", padding: "4px 12px" }}
-                    >
-                      <TextArea
-                        placeholder={`Enter ${field.fieldLabel}`}
-                        value={row[field.fieldName] || ""}
-                        className="custom-module-v2__input"
-                        bordered={false}
-                        disabled={true}
-                        autoSize={{ minRows: 1, maxRows: 10 }}
-                        style={{ 
-                          pointerEvents: "none",
-                          color: "#000000",
-                          WebkitTextFillColor: "#000000",
-                          opacity: 1
+                  {field.fieldLabel ?? field.fieldName}
+                </th>
+              ))}
+              <th className={["custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action", useTesseractUi ? "tesseract-ct-sticky-action" : ""].filter(Boolean).join(" ")}>
+                {/* Action column header */}
+              </th>
+            </tr>
+          </thead>
+
+          {/* Table Body */}
+          <tbody>
+            {moduleData.map((row, rowIndex) => {
+              // Ensure row has an id - fallback to index if missing (shouldn't happen but safety check)
+              const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
+              const isActiveDropdownRow = module.namedFields?.some(
+                (field) => activeDropdownFieldId === `${row.id}-${field.fieldName}`
+              );
+              // Tesseract: the trailing empty row is the add affordance — no delete CTA on it.
+              const rowIsEmpty = !module.namedFields?.some(
+                (field) => String(row[field.fieldName] || "").trim()
+              );
+              return (
+              <tr
+                key={rowKey}
+                className={[
+                  "border-bottom",
+                  isActiveDropdownRow ? "custom-module-v2__table-row--dropdown-open" : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {module.namedFields?.map((field, fieldIndex) => (
+                  <td
+                    key={field.fieldName}
+                    className={[
+                      "custom-module-v2__table-cell",
+                      activeDropdownFieldId === `${row.id}-${field.fieldName}` ? "custom-module-v2__table-cell--dropdown-open" : "",
+                      isVoiceTargetHighlighted(row.id, field.fieldName) ? "custom-module-v2__voice-target-cell" : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    {isMobile ? (
+                      <div
+                        onClick={() => {
+                          rememberVoiceTarget(row.id, field.fieldName);
+                          handleEditRow(row.id);
                         }}
+                        style={{ cursor: "pointer", width: "100%", padding: "4px 12px" }}
+                      >
+                        <TextArea
+                          placeholder={`Enter ${field.fieldLabel}`}
+                          value={row[field.fieldName] || ""}
+                          className="custom-module-v2__input"
+                          bordered={false}
+                          disabled={true}
+                          autoSize={{ minRows: 1, maxRows: 10 }}
+                          style={{ 
+                            pointerEvents: "none",
+                            color: "#000000",
+                            WebkitTextFillColor: "#000000",
+                            opacity: 1
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <CustomModuleFieldTextAreaAutoComplete
+                        fieldName={field.fieldName}
+                        fieldLabel={field.fieldLabel}
+                        value={row[field.fieldName] || ""}
+                        onChange={(value) =>
+                          handleFieldChange(row.id, field.fieldName, value)
+                        }
+                        moduleId={module.module_id}
+                        templates={templates || []}
+                        className="custom-module-v2__input w-100"
+                        fieldId={`${row.id}-${field.fieldName}`}
+                        focusedFieldId={focusedFieldId}
+                        onFocusChange={(nextFocusedFieldId) => {
+                          setFocusedFieldId(nextFocusedFieldId);
+                          if (nextFocusedFieldId) {
+                            rememberVoiceTarget(row.id, field.fieldName);
+                          }
+                        }}
+                        onCursorChange={(selection) => rememberVoiceTarget(row.id, field.fieldName, selection)}
                       />
-                    </div>
-                  ) : (
-                    <CustomModuleFieldTextAreaAutoComplete
-                      fieldName={field.fieldName}
-                      fieldLabel={field.fieldLabel}
-                      value={row[field.fieldName] || ""}
-                      onChange={(value) =>
-                        handleFieldChange(row.id, field.fieldName, value)
-                      }
-                      moduleId={module.module_id}
-                      templates={templates || []}
-                      className="custom-module-v2__input w-100"
-                      fieldId={`${row.id}-${field.fieldName}`}
-                      focusedFieldId={focusedFieldId}
-                      onFocusChange={setFocusedFieldId}
-                    />
+                    )}
+                  </td>
+                ))}
+                <td className={["custom-module-v2__table-cell custom-module-v2__table-cell--action text-center", useTesseractUi ? "tesseract-ct-sticky-action" : ""].filter(Boolean).join(" ")}>
+                  {isMobile && (
+                    <Button
+                      className="btn py-0 btn-delete-prescription px-0"
+                      onClick={() => handleEditRow(row.id)}
+                    >
+                      <i className="icon-Edit"></i>
+                    </Button>
+                  )}
+                  {!(useTesseractUi && rowIsEmpty) && (
+                    <Button
+                      className="btn py-0 btn-delete-prescription px-0"
+                      onClick={() => handleDeleteRow(row.id)}
+                    >
+                      {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                    </Button>
                   )}
                 </td>
-              ))}
-              <td className="custom-module-v2__table-cell custom-module-v2__table-cell--action text-center">
-                {isMobile && (
-                  <Button
-                    className="btn py-0 btn-delete-prescription px-0"
-                    onClick={() => handleEditRow(row.id)}
-                  >
-                    <i className="icon-Edit"></i>
-                  </Button>
-                )}
-                <Button
-                  className="btn py-0 btn-delete-prescription px-0"
-                  onClick={() => handleDeleteRow(row.id)}
-                >
-                  <i className="icon-delete"></i>
-                </Button>
-              </td>
-            </tr>
-          );
-          })}
-        </tbody>
-      </table>
-
-      {/* Add New Line Button */}
-      <div className="p-14">
-        <Button
-          type="link"
-          icon={<PlusOutlined />}
-          className="add-custom-module-link"
-          onClick={handleAddRow}
-        >
-          Add New Line
-        </Button>
+              </tr>
+            );
+            })}
+          </tbody>
+        </table>
       </div>
+
+      {/* Add New Line Button (hidden in the Tesseract shell — trailing empty row is the add affordance) */}
+      {((isVoiceRxModuleEnabled && voiceCaptureOpen) || !useTesseractUi) && (
+        <div
+          className={
+            isVoiceRxModuleEnabled && voiceCaptureOpen
+              ? [voiceModuleStyles.moduleSlot, voiceModuleStyles.moduleCaptureActiveSlot].filter(Boolean).join(" ")
+              : "p-14"
+          }
+        >
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              mode="transcribe"
+              moduleName={module?.name || "Custom Module"}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : (
+            <Button
+              type="link"
+              icon={<PlusOutlined />}
+              className="add-custom-module-link"
+              onClick={handleAddRow}
+            >
+              Add New Line
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Template Drawer for Tablet/Mobile */}
       {isMobile && (
@@ -1704,6 +2004,163 @@ const CustomModuleV2 = ({ module }) => {
 
       {/* Delete Confirmation Modal */}
       {DELETE_CONFIRMATION_MODAL}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target={voiceDictationTargetId}
+        data-module-id={module?.module_id}
+        title={module?.name}
+        icon="bulk/note-2"
+        className={[
+          "tesseract-rxpad",
+          "prescription-box-sm",
+          isVoiceRxModuleEnabled ? "custom-module-v2--voice-rx-scroll" : "",
+          activeDropdownFieldId ? "custom-module-v2--dropdown-open" : "",
+          voiceModuleStyles.moduleRoot,
+          isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
+          voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+        ].filter(Boolean).join(" ")}
+        headerActions={
+          canEditName ? (
+            <div className="d-flex w-100">
+              <Input
+                placeholder="Enter custom module name"
+                value={newModuleName}
+                onChange={(e) => setNewModuleName(e.target.value)}
+                className="custom-module-input"
+              />
+              <CheckOutlined
+                className="input-action-icon tick-icon"
+                onClick={handleEditModuleName}
+              />
+              <CloseOutlined
+                className="input-action-icon cross-icon"
+                onClick={handleCancel}
+              />
+            </div>
+          ) : (
+            <>
+              <DisabledModuleTooltip
+                module={module}
+                hospitalSearchResults={hospitalSearchResults}
+                placement="bottom"
+                type="title"
+              >
+                <InfoCircleOutlined
+                  style={{ color: "#a1a1aa", fontSize: 16 }}
+                />
+              </DisabledModuleTooltip>
+              <Tooltip placement="bottom" title="Load previous data">
+                <span>
+                  {tesseractActionButton({ icon: "refresh", label: "Load previous data", onClick: loadPreviousClick })}
+                </span>
+              </Tooltip>
+              {isMobile ? (
+                <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                  <span>
+                    {tesseractActionButton({ icon: "grid-5", label: `Browse ${module?.name || "module"} templates`, onClick: handleDrawerTemplate })}
+                  </span>
+                </Tooltip>
+              ) : (
+                <Popover
+                  open={popOver1}
+                  onOpenChange={showHideTemplatesListPopover}
+                  content={TEMPLATE_CONTENT}
+                  trigger="click"
+                  overlayClassName="pop-350 pp-0"
+                  placement="bottomRight"
+                >
+                  <span>
+                    <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                      {tesseractActionButton({ icon: "grid-5", label: `Browse ${module?.name || "module"} templates` })}
+                    </Tooltip>
+                  </span>
+                </Popover>
+              )}
+              <Tooltip
+                placement="bottom"
+                title={
+                  hasDataToSave
+                    ? ""
+                    : `Please enter some ${module?.name} to save a template`
+                }
+              >
+                {isMobile ? (
+                  <span>
+                    {tesseractActionButton({ icon: "ram", label: `Save ${module?.name || "module"} as template`, onClick: () => hasDataToSave && handleSaveTemplateDrawer(), disabled: !hasDataToSave })}
+                  </span>
+                ) : (
+                  <Popover
+                    open={popOver2}
+                    onOpenChange={() =>
+                      hasDataToSave && showHideSaveTemplatePopOver()
+                    }
+                    content={SAVE_CONTENT}
+                    trigger="click"
+                    overlayClassName="pop-450 pp-0"
+                    placement="bottomRight"
+                  >
+                    <span>
+                      {tesseractActionButton({ icon: "ram", label: `Save ${module?.name || "module"} as template`, disabled: !hasDataToSave })}
+                    </span>
+                  </Popover>
+                )}
+              </Tooltip>
+              <Tooltip placement="bottom" title="Clear this section">
+                <span>
+                  {tesseractActionButton({ icon: "eraser", label: `Clear ${module?.name || "module"}`, onClick: handleClear, disabled: !hasDataToSave })}
+                </span>
+              </Tooltip>
+              <Dropdown
+                overlay={moreMenu}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <span>
+                  {tesseractActionButton({ icon: "more", label: "More module options" })}
+                </span>
+              </Dropdown>
+            </>
+          )
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
+
+  return (
+    <div
+      ref={sectionRef}
+      data-voice-rx-dictation-target={voiceDictationTargetId}
+      className={[
+        "prescription-box-sm",
+        isVoiceRxModuleEnabled ? "custom-module-v2--voice-rx-scroll" : "",
+        activeDropdownFieldId ? "custom-module-v2--dropdown-open" : "",
+        voiceModuleStyles.moduleRoot,
+        isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
+        voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+      ].filter(Boolean).join(" ")}
+      data-module-id={module?.module_id}
+    >
+      {CLASSIC_HEADER}
+      {BODY_CONTENT}
     </div>
   );
 };

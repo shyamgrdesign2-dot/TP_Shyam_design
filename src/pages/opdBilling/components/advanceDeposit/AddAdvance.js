@@ -35,8 +35,7 @@ import {
   fetchAdvancedDepositDashboard,
   listAdvancedDepositByPatient,
 } from "../../service";
-import imgCloseVisit from "../../../../assets/images/close-visit.svg";
-import visitEnd from "../../../../assets/images/end-visit.svg";
+
 import { MESSAGE_KEY } from "../../../../utils/constants";
 import { ListGroup } from "react-bootstrap";
 import { PaymentOptions } from "../../utils/constants";
@@ -56,6 +55,11 @@ import { useLocation } from "react-router-dom";
 import { isMobile } from "react-device-detect";
 import RefIdPopup from "../refIdPopup/RefIdPopup";
 import { throttle } from "lodash";
+import { ASSETS } from "../../../../assets";
+const {
+  closeVisit: imgCloseVisit,
+  endVisit: visitEnd,
+} = ASSETS.images;
 
 const dateFormat = "YYYY-MM-DD";
 const showDateFormat = "DD MMM, YY";

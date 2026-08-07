@@ -1,6 +1,6 @@
 import { Button, Checkbox, Input } from "antd";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "./../../../../assets/images/alertIcon.svg";
+
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -20,6 +20,8 @@ import {
   upsertCustomAncScheduler,
   upsertCustomImmunisation,
 } from "../../service";
+import { ASSETS } from "../../../../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 const AncImmunisationPopup = ({
   popupType,

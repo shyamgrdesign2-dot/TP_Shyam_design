@@ -8,17 +8,6 @@ import dayjs from 'dayjs';
 import { useSelector, useDispatch } from "react-redux";
 import { paymentHistory, userCampaign, userCampaignDelete, userCampaignDetails, userCount, userCredit } from "../redux/bulkMessagesSlice";
 
-import editIcon from "../assets/images/edit.svg";
-import emptyCampaign from '../assets/images/empty-campaign-history.svg'
-import emptyPurchase from '../assets/images/empty-purchase-history.svg'
-import newGifWebm from '../assets/images/new-gif.webm';
-import newGifMp4 from '../assets/images/new-gif.mp4';
-import messagesVideo from '../assets/images/messages-video.webp';
-import RecievedImg from '../assets/images/received.svg';
-import SendImg from '../assets/images/send.svg';
-import { ReactComponent as MailMessage } from '../assets/images/mail-message.svg';
-import { ReactComponent as TextMessage } from '../assets/images/text-message.svg';
-import { ReactComponent as RecieptMessage } from '../assets/images/mail-reciept.svg';
 import LoopingVideo from "../components/common/LoopingVideo";
 import "../components/bulk_messages/messages.scss";
 import "../components/common/dateRangePill.scss";
@@ -30,6 +19,20 @@ import { TAB_CAMPAIGN, TAB_DRAFT, TAB_PURCHASE } from "../utils/constants";
 import { errorMessage, getClinicCity, removeBeforeWhiteSpace } from "../utils/utils";
 import AvailableCredits from "../components/bulk_messages/AvailableCredits";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
+import { ASSETS } from "../assets";
+const {
+  edit: editIcon,
+  emptyCampaignHistory: emptyCampaign,
+  emptyPurchaseHistory: emptyPurchase,
+  newGif_3: newGifWebm,
+  newGif_2: newGifMp4,
+  messagesVideo,
+  received: RecievedImg,
+  send: SendImg,
+  mailMessage,
+  textMessage,
+  mailReciept,
+} = ASSETS.images;
 
 const { RangePicker } = DatePicker;
 
@@ -118,8 +121,7 @@ function MessagesData(props) {
                 key: TAB_CAMPAIGN,
                 label: (
                     <div className="d-flex align-items-center">
-                        <MailMessage />
-                        {/* <img width={17} height={17} className="me-2" src={MailMessage} alt="Campaign History" /> */}
+                        <img width={17} height={17} className="me-2" src={mailMessage} alt="" />
                         {`Campaign History ${tabCountObj ? '(' + tabCountObj?.count_live + ')' : ''}`}
                     </div>
                 ),
@@ -128,7 +130,7 @@ function MessagesData(props) {
                 key: TAB_DRAFT,
                 label: (
                     <div className="d-flex align-items-center">
-                        <TextMessage />
+                        <img width={17} height={17} className="me-2" src={textMessage} alt="" />
                         {`Draft Campigns ${tabCountObj ? '(' + tabCountObj?.count_draft + ')' : ''}`}
                     </div>
                 ),
@@ -137,7 +139,7 @@ function MessagesData(props) {
                 key: TAB_PURCHASE,
                 label: (
                     <div className="d-flex align-items-center">
-                        <RecieptMessage />
+                        <img width={17} height={17} className="me-2" src={mailReciept} alt="" />
                         {`Purchase History ${tabCountObj ? '(' + tabCountObj?.count_paymentHistory + ')' : ''}`}
                     </div>
                 ),

@@ -1,13 +1,18 @@
 import React, { useRef, useState } from "react";
-import AdharImg from "../../../assets/images/adhar.webp";
+
 import AbhaNavigationCard from "../common/AbhaNavigationCard";
-import LinkMobileIcon from "../../../assets/images/link-mobile-icon.svg";
-import GlobalIcon from "../../../assets/images/global-icon.svg";
-import PersonalCardIcon from "../../../assets/images/personal-card-icon.svg";
-import AadhaarIcon from "../../../assets/images/aadhaar-icon.svg";
-import LeftArrow from "../../../assets/images/left-arrow.svg";
+
 import ErrorText from "../common/ErrorText";
 import TermsAndConditionsPopup from "../common/TermsAndConditionsPopup";
+import { ASSETS } from "../../../assets";
+const {
+  adhar: AdharImg,
+  linkMobileIcon: LinkMobileIcon,
+  globalIcon: GlobalIcon,
+  personalCardIcon: PersonalCardIcon,
+  aadhaarIcon: AadhaarIcon,
+  leftArrow: LeftArrow,
+} = ASSETS.images;
 
 const BiometricAadhaarEntry = ({
   onNext = () => {},

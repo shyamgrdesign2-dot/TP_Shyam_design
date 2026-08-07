@@ -1,5 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+import { normalizeVitalsAndBodyCompositionToRxRowFields } from "../utils/symptomCollectorVitalsMerge";
+
 const initialState = {
   isApexAISelected: false,
   isSymptomsBox: false,
@@ -36,7 +38,26 @@ const ddxSlice = createSlice({
       state.symptomCollector = action.payload;
     },
     setSelectedSymptomsCollector: (state, action) => {
-      state.selectedSymptomsCollector = action.payload;
+      const payload = action.payload;
+      if (
+        payload &&
+        typeof payload === "object" &&
+        payload.vitalsAndBodyComposition != null &&
+        typeof payload.vitalsAndBodyComposition === "object"
+      ) {
+        const normalized = normalizeVitalsAndBodyCompositionToRxRowFields(
+          payload.vitalsAndBodyComposition
+        );
+        state.selectedSymptomsCollector = {
+          ...payload,
+          vitalsAndBodyComposition:
+            Object.keys(normalized).length > 0
+              ? normalized
+              : payload.vitalsAndBodyComposition,
+        };
+      } else {
+        state.selectedSymptomsCollector = payload ?? {};
+      }
     },
     setSelectAutofill: (state, action) => {
       state.isAutofillSelected = action.payload;

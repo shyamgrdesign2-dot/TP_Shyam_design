@@ -4,12 +4,14 @@ import { Button } from 'antd';
 import { useSelector, useDispatch } from "react-redux";
 
 import CommonModal from './CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import { useNavigate } from 'react-router-dom';
 import { S_TATVA_PRACTICE } from '../utils/constants';
 import { interest } from '../redux/monetizationSlice';
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData } from '../utils/utils';
 import { openModal } from '../redux/doctorModalSlice';
+import { ASSETS } from "../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 function HeaderUnlimitedAccess() {
 

@@ -18,15 +18,20 @@ import {
   errorMessage 
 } from '../../../utils/utils';
 import { getDecodedToken } from '../../../utils/localStorage';
+import { useVoiceRxNavigation } from '../../../utils/voiceRxNavigation';
 import { getProfile } from '../../../redux/doctorsSlice';
-import successIcon from '../../../assets/images/end-visit.svg';
-import closeIcon from '../../../assets/images/close-visit.svg';
-import profileAddIcon from '../../../assets/mobile/profile-add.svg';
+import { ASSETS } from "../../../assets";
+const {
+  endVisit: successIcon,
+  closeVisit: closeIcon,
+} = ASSETS.images;
+const profileAddIcon = ASSETS.mobile.profileAdd;
 
 const SHIMMER_ITEMS = [0, 1, 2, 3, 4];
 
 function AllPatients() {
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const location = useLocation();
   const dispatch = useDispatch();
   
@@ -254,13 +259,15 @@ function AllPatients() {
 
   const handleWalkInConsultation = useCallback((patient) => {
     // Start voice consultation for this patient (same as Patient Details flow)
-    navigate('/voice-rx-consult', {
-      state: {
+    navigateVoiceRx(
+      {
         patient_data: patient,
         isFromTabView: true,
         from: '/all_patients'
-      }
-    });
+      },
+      {},
+      "mobile_all_patients_walk_in"
+    );
     
     trackEvent("TP_AllPatients_WalkInConsultation", {
       ...doctorDetails,
@@ -268,7 +275,7 @@ function AllPatients() {
       patient_name: patient?.pm_fullname || patient?.pm_name,
       patient_number: patient?.pm_contact_no || patient?.pm_mobile,
     });
-  }, [navigate, doctorDetails]);
+  }, [navigateVoiceRx, doctorDetails]);
 
   const handleAddNewPatient = useCallback(() => {
     navigate('/add_patient', {

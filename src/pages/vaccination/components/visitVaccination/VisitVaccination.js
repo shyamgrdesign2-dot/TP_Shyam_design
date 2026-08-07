@@ -3,7 +3,6 @@ import Card from "react-bootstrap/Card";
 import { Button, Spin } from "antd";
 import "./VisitVaccination.scss";
 
-import Vaccination from "../../../../assets/images/Vaccination.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getOverridenDueDate, getTvtAgeBySection } from "../../service";
 import {
@@ -16,12 +15,18 @@ import {
   VaccinationCategoryEnum,
 } from "../../VaccinationHelper";
 import moment from "moment";
+import { ASSETS } from "../../../../assets";
+import { useIsDentalEnabled } from "../../../../hooks/useIsDentalEnabled";
+import { DENTAL_RX_PAD_ROUTE } from "../../../../utils/dentalRoutes";
+const Vaccination = ASSETS.images.vaccination;
 
 function VisitVaccination() {
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state || {};
   const { patient_data } = locationState;
+  const isDentalEnabled = useIsDentalEnabled();
+  const consultRoute = isDentalEnabled ? DENTAL_RX_PAD_ROUTE : "/prescription";
 
   const [upcomingVaccines, setUpcomingVaccines] = useState([]);
   const [pendingVaccines, setPendingVaccines] = useState([]);
@@ -122,7 +127,7 @@ function VisitVaccination() {
               <div className="d-flex justify-content-between align-items-end">
                 <div className="dueDateText">
                   {vaccine.tvd_due_date
-                    ? `Update due date : ${moment(vaccine.tvd_due_date).format(
+                    ? `Updated due date : ${moment(vaccine.tvd_due_date).format(
                         "DD-MMM-YYYY"
                       )}`
                     : vaccine.dueDate
@@ -171,7 +176,7 @@ function VisitVaccination() {
                 <Button
                   className="btn btn-input d-flex align-items-center gap-1"
                   onClick={() =>
-                    navigate("/prescription", {
+                    navigate(consultRoute, {
                       state: {
                         patient_data: patient_data,
                         chartType: "vaccination",

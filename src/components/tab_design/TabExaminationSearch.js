@@ -12,15 +12,17 @@ import {
 } from "../../redux/examinationSlice";
 import { updateDragDrop } from "../../redux/doctorsSlice";
 
-import dragChipsWebm from '../../../src/assets/images/drag-chips.webm'
-import dragChipsMp4 from '../../../src/assets/images/drag-chips.mp4'
 import LoopingVideo from "../common/LoopingVideo";
-import tagNew from '../../../src/assets/images/tag-new.svg'
-
 import TabSearchHeader from "./TabSearchHeader";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import { setIsDDxReadyToGenerate } from "../../redux/ddxSlice";
+import { ASSETS } from "../../assets";
+const {
+  dragChips_2: dragChipsWebm,
+  dragChips: dragChipsMp4,
+  tagNew,
+} = ASSETS.images;
 
 function TabExaminationSearch({ passIndex, onClose }) {
 

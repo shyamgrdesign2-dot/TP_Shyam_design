@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, Radio, Dropdown, message, Button } from 'antd';
 import { MoreOutlined, PlusOutlined, FileTextOutlined, CloseOutlined } from '@ant-design/icons';
-import eyePreview from '../../../assets/images/eye-preview.svg';
+
 import TemplatePreviewModal from '../../smartSync/components/TemplatePreviewModal';
 import { getTemplates } from '../services/templateService';
 import { deleteCustomSyncPadTemplate } from '../../smartSync/services/uploadService';
@@ -11,14 +11,19 @@ import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import axios from 'axios';
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../../../utils/constants';
-import download from '../../../assets/images/document-download.svg';
-import edit from '../../../assets/images/document-edit.svg';
-import trash from '../../../assets/images/trash.svg';
-import alertIcon from '../../../assets/images/alertIcon.svg';
-import notesMultiple from '../../../assets/images/notes-multiple.svg';
-import closeIcon from "../../../assets/images/close.svg";
+
 import { generateStandardTemplateBackground } from '../utils/standardTemplateHelper';
 import './TemplateSidebar.scss';
+import { ASSETS } from "../../../assets";
+const {
+  eyePreview,
+  documentDownload: download,
+  documentEdit: edit,
+  trash,
+  alerticon: alertIcon,
+  notesMultiple,
+  close: closeIcon,
+} = ASSETS.images;
 
 const TemplateSidebar = ({
   visible,

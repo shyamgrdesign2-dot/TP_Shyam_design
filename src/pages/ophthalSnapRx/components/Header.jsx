@@ -6,9 +6,13 @@ import { useNavigate } from "react-router-dom";
 import CashManagerContext from "../../../context/CashManagerContext";
 import ProfilePopover from "../../../common/ProfilePopover";
 import CommonModal from "../../../common/CommonModal";
-import alertIcon from "../../../assets/images/alertIcon.svg";
-import tutorial from "../../../assets/images/tutorial.svg";
+
 import "./Header.scss";
+import { ASSETS } from "../../../assets";
+const {
+  alerticon: alertIcon,
+  tutorial,
+} = ASSETS.images;
 
 function Header({
   onClear,

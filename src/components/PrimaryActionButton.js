@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Dropdown } from "antd";
-import smartPad from "../assets/images/smartPad.svg";
+import { useSelector } from "react-redux";
+
 import { isMobile, isTablet } from "react-device-detect";
 import { isZydus } from "../utils/utils";
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { GB_TAB_RX } from "../utils/constants";
+import { GB_TAB_RX, GB_CVT_EXT_HOS } from "../utils/constants";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
+import { ASSETS } from "../assets";
+const smartPad = ASSETS.images.smartpad;
 
 /**
  * PrimaryActionButton Component
  * 
  * A reusable component that renders a primary action button with dropdown for additional options.
- * Handles the priority-based rendering: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+ * Handles the priority-based rendering: SmartRx > TabRx > VoiceRx > SnapRx > Consult
  * Special case: For Zydus accounts, Consult is always primary and other options go to dropdown
  * 
  * @param {Object} props
@@ -36,10 +40,12 @@ const PrimaryActionButton = ({
   isVoiceRxAccessible = false,
   isVoiceRxPaid = false,
   // isTabRxAccessible = false,
+  isTypeRxAccessible = true,
   onSmartRxClick,
   onSnapRxClick,
   onVoiceRxClick,
   onTabRxClick,
+  onTypeRxClick,
   onConsultClick,
   patient,
   setAutoCompleteFlag,
@@ -47,6 +53,10 @@ const PrimaryActionButton = ({
   onClose,
   fullWidth = false,
 }) => {
+  const { profile } = useSelector((state) => state.doctors);
+  const dpid = profile?.dp_id;
+  const department = profile?.dp_name;
+
   // Check if mobile (screen width < 768)
   const [isMobileScreen, setIsMobileScreen] = useState(
     typeof window !== "undefined" && window.innerWidth < 768
@@ -86,7 +96,7 @@ const PrimaryActionButton = ({
   // Check if this is a Zydus account
   const isZydusAccount = isZydus();
 
-  // Determine available options based on priority: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+  // Determine available options based on priority: SmartRx > TabRx > VoiceRx > SnapRx > Consult
   // Special handling: 
   // 1. If VoiceRx is accessible but not paid, Consult becomes primary and VoiceRx goes to dropdown
   // 2. For Zydus accounts, Consult is always primary and all other options go to dropdown
@@ -97,10 +107,19 @@ const PrimaryActionButton = ({
 
   const isTabRxEnabledFromGB = useFeatureIsOn(GB_TAB_RX);
   const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
-  // const isTabRxVisible = isTabRxEnabledFromGB ;
-  
-  if (isZydusAccount) {
-    // For Zydus accounts: Consult is always primary, all other options go to dropdown
+
+  const isDental = dpid === 26 || (department && department.toLowerCase() === 'dental');
+  const isDentalEnabled = useIsDentalEnabled();
+  const isDentalAndEnabled = isDentalEnabled;
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+
+  if (isCvtExtHosAccessableFromGB) {
+    if (isSmartRxAccessible) {
+      allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+    }
+  } else if (isDentalAndEnabled) {
+    allAvailableOptions.push({ type: "consult", label: "Consult", handler: onTypeRxClick });
+
     if (isSmartRxAccessible && !isMobile) {
       dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
@@ -113,33 +132,39 @@ const PrimaryActionButton = ({
     if (isTabRxVisible) {
       dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
-    // Consult is always primary for Zydus
+  } else if (isZydusAccount) {
+    if (isSmartRxAccessible && !isMobile) {
+      dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+    }
+    if (isTabRxVisible) {
+      dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
+    }
+    if (isVoiceRxAccessible) {
+      dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+    }
+    if (isSnapRxAccessible) {
+      dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
+    }
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
   } else {
-    // Normal priority logic: SmartRx > VoiceRx > SnapRx > TabRx > Consult
     if (isSmartRxAccessible && !isMobile) {
       allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
-    
-    // Handle VoiceRx: If paid, it's primary; if not paid, Consult is primary and VoiceRx goes to dropdown
-    if (isVoiceRxAccessible && isVoiceRxPaid) {
-      allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
-    }
-    
-    if (isSnapRxAccessible) {
-      allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
-    }
-    
-    // TabRx comes before Consult
+
     if (isTabRxVisible) {
       allAvailableOptions.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
-    
-    // Consult is always available as fallback
-    // If VoiceRx is accessible but not paid, Consult becomes primary
+
+    if (isVoiceRxAccessible && isVoiceRxPaid) {
+      allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+    }
+
+    if (isSnapRxAccessible) {
+      allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
+    }
+
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
-    
-    // If VoiceRx is accessible but not paid, add it to dropdown (after Consult)
+
     if (isVoiceRxAccessible && !isVoiceRxPaid) {
       allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
     }
@@ -147,10 +172,14 @@ const PrimaryActionButton = ({
 
   // Primary button is the first available option (highest priority)
   const primaryOption = allAvailableOptions[0];
-  // Dropdown options: For Zydus, use dropdownOptionsList; otherwise, use remaining options from allAvailableOptions
-  const dropdownOptions = isZydusAccount ? dropdownOptionsList : allAvailableOptions.slice(1);
+  // Dropdown options: For Zydus and DentalAndEnabled, use dropdownOptionsList; otherwise, use remaining options from allAvailableOptions
+  const dropdownOptions = (isZydusAccount || isDentalAndEnabled) ? dropdownOptionsList : allAvailableOptions.slice(1);
 
-  // Generate dropdown menu items - following priority order: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+  if (!primaryOption) {
+    return null;
+  }
+
+  // Generate dropdown menu items - following priority order: SmartRx > TabRx> VoiceRx > SnapRx > Consult
   const getMenuItems = () => {
     if (dropdownOptions.length === 0) return [];
 
@@ -171,7 +200,7 @@ const PrimaryActionButton = ({
       }
 
       items.push({
-        label: labelText,
+        label: <span data-testid={`primary-action-option-${option.type}`}>{labelText}</span>,
         key: option.type,
         onClick: handleClick,
       });
@@ -195,7 +224,7 @@ const PrimaryActionButton = ({
 
   // Get primary button text
   const getPrimaryButtonText = () => {
-    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
+    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" || primaryOption.type === "typerx") {
       return primaryOption.label;
     }
     if (primaryOption.type === "voicerx") {
@@ -206,7 +235,7 @@ const PrimaryActionButton = ({
 
   // If mobile screen, show simple button without dropdown
   if (isMobileScreen) {
-    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
+    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" || primaryOption.type === "typerx") {
       return (
         <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
           {/* <img src={smartPad} alt="vitals" /> */}
@@ -234,9 +263,9 @@ const PrimaryActionButton = ({
           paddingLeft: "6px",
           justifyContent: "flex-start"
         }
-      : { paddingLeft: "6px" };
+      : { paddingLeft: "0px" };
     
-    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
+    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" || primaryOption.type === "typerx") {
       return (
         <div 
           ref={buttonRef}
@@ -314,6 +343,7 @@ const PrimaryActionButton = ({
             if (option.type === "snaprx") return "Start New SnapRx";
             if (option.type === "voicerx") return "Start Voice Rx";
             if (option.type === "tabrx") return "Start TabRx";
+            if (option.type === "typerx") return "Start TypeRx";
             return "Start New Consult";
           };
 
@@ -362,13 +392,15 @@ const PrimaryActionButton = ({
     <div 
       ref={buttonRef}
       className="d-flex btn btn-smart-rx-walkin"
+      data-testid={`primary-action-${primaryOption.type}`}
       style={{ ...containerStyle, position: "relative", zIndex: 1 }}
     >
-      {primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" ? (
+      {primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" || primaryOption.type === "typerx" ? (
         <div style={dropdownOptions.length === 0 ? { ...primaryButtonStyle, width: fullWidth ? "100%" : undefined } : primaryButtonStyle} onClick={handlePrimaryClick}>
           {/* <img src={smartPad} alt="vitals" /> */}
           <button 
             className="btn btn-smartRx-text"
+            data-testid={`primary-action-main-${primaryOption.type}`}
             style={fullWidth ? { width: "100%", textAlign: "left" } : {}}
           >
             {primaryOption.label}
@@ -379,6 +411,7 @@ const PrimaryActionButton = ({
           {/* <img src={smartPad} alt="vitals" /> */}
           <button 
             className="btn btn-smartRx-text"
+            data-testid={`primary-action-main-${primaryOption.type}`}
             style={fullWidth ? { width: "100%", textAlign: "left" } : {}}
           >
             {getPrimaryButtonText()}
@@ -428,6 +461,7 @@ const PrimaryActionButton = ({
               }}
             >
               <a
+                data-testid={`primary-action-dropdown-${primaryOption.type}`}
                 onClick={(e) => {
                   e.preventDefault();
                 }}

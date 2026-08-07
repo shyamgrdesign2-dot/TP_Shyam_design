@@ -1,10 +1,14 @@
 import React from 'react';
 import './PatientOptionsModal.scss';
-import CloseIcon from '../../../../assets/mobile/close 2.svg';
-import UserIcon from '../../../../assets/mobile/user.svg';
-import LoginIcon from '../../../../assets/mobile/login.svg';
-import CalendarIcon from '../../../../assets/mobile/calendar-2.svg';
+
 import { trackEvent } from '../../../../utils/utils';
+import { ASSETS } from "../../../../assets";
+const {
+  close2: CloseIcon,
+  user: UserIcon,
+  login: LoginIcon,
+  calendar2: CalendarIcon,
+} = ASSETS.mobile;
 
 function PatientOptionsModal({ 
   patient, 

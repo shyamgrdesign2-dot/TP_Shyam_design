@@ -1,15 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tabs } from "antd";
-import wtsApIcon from "../../../../assets/images/aa-wts-ap.svg";
-import googleBusinessIcon from "../../../../assets/images/aa-google-mybusiness.svg";
-import smsCampaignIcon from "../../../../assets/images/aa-sms-campaign.svg";
-import micrositeIcon from "../../../../assets/images/aa-microsite.svg";
-import fileIcon from "../../../../assets/images/aa-file.svg";
-import playIcons from "../../../../assets/images/tube-icon.svg";
-import SMS from "../../../../assets/images/sms.svg";
 
 import { Col, Row } from "react-bootstrap";
 import VideoModal from "../../../../common/VideoModal";
+import { ASSETS } from "../../../../assets";
+const {
+  aaWtsAp: wtsApIcon,
+  aaGoogleMybusiness: googleBusinessIcon,
+  aaSmsCampaign: smsCampaignIcon,
+  aaMicrosite: micrositeIcon,
+  aaFile: fileIcon,
+  tubeIcon: playIcons,
+  sms: SMS,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 

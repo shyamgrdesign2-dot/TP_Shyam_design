@@ -1,21 +1,24 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tabs } from "antd";
-import tatvaAiIcon from "../assets/images/apexAI.svg";
 
-import codeIcon from "../assets/images/code.svg";
-import clinicalStudyIcon from "../assets/images/clinical-study.svg";
-import compliantIcon from "../assets/images/compliant.svg";
-import validateHealthcareIcon from "../assets/images/validate-heathcare.svg";
-import playIcons from "../assets/images/tube-icon.svg";
 import { Col, Row } from "react-bootstrap";
 import VideoModal from "../common/VideoModal";
 import Slider from "react-slick"; // Using react-slick for the carousel
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import GenRxTips from "./GenRxTips";
-import genRxIcon from "../assets/images/gen-rx.svg";
-import ddxIcon from "../assets/images/tatva-ai-ddx.svg";
-import arrow from "../assets/images/shaded-arrow.svg";
+import { ASSETS } from "../assets";
+const {
+  apexai: tatvaAiIcon,
+  code: codeIcon,
+  clinicalStudy: clinicalStudyIcon,
+  compliant: compliantIcon,
+  validateHeathcare: validateHealthcareIcon,
+  tubeIcon: playIcons,
+  genRx: genRxIcon,
+  tatvaAiDdx: ddxIcon,
+  shadedArrow: arrow,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 

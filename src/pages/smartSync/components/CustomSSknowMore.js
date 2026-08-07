@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Tabs } from "antd";
-import playIcons from "../../../assets/images/tube-icon.svg";
+
 import VideoModal from "../../../common/VideoModal";
+import { ASSETS } from "../../../assets";
+const playIcons = ASSETS.images.tubeIcon;
 
 const { TabPane } = Tabs;
 

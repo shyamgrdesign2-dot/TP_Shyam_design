@@ -1,6 +1,8 @@
 import { Col, Input, Row } from "antd";
-import rxDisplayArea from "./../../../../assets/images/rx-display-area.svg";
+
 import { onlyDecimalFormat } from "../../../../utils/utils";
+import { ASSETS } from "../../../../assets";
+const rxDisplayArea = ASSETS.images.rxDisplayArea;
 
 const LetterheadOwn = ({ headerFooter, setPrintSettings, marginType }) => {
   //Own Letterhead

@@ -1,13 +1,18 @@
 import React, { useState } from "react";
-import iPhoneBg from "../../../../assets/images/iPhone.webp";
-import clinicBg from "../../../../assets/images/clinic-detail-bg.webp";
+
 import "./Preview.scss";
-import closeIcon from "../../../../assets/images/close-with-white-fill.svg";
+
 import {
   MailOutlined,
   PhoneOutlined,
   EnvironmentOutlined,
 } from "@ant-design/icons";
+import { ASSETS } from "../../../../assets";
+const {
+  iphone: iPhoneBg,
+  clinicDetailBg: clinicBg,
+  closeWithWhiteFill: closeIcon,
+} = ASSETS.images;
 
 const ClinicPreview = ({
   contactNumber,

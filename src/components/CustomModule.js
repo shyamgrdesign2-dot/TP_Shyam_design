@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useMemo,
   useContext,
+  useRef,
 } from "react";
 import {
   AutoComplete,
@@ -29,14 +30,15 @@ import {
   PlusOutlined,
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from "uuid";
 import "./CustomModule.scss";
 
 import CommonModal from "../common/CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
+
 import CashManagerContext from "../context/CashManagerContext";
 import { errorMessage, removeBeforeWhiteSpace, getClinic } from "../utils/utils";
-import ModuleIcon from "../assets/images/custom-module.svg";
+
 import { MenuOutlined } from "@ant-design/icons";
 import DisabledModuleTooltip from "./customModulesV2/DisabledModuleTooltip";
 import {
@@ -48,16 +50,63 @@ import {
 import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import editIcon from "../assets/images/edit-icon-blue.svg";
-import deleteIcon from "../assets/images/delete-icon-blue.svg";
+import { PrescriptionEmptyLineDragHandle } from "./PrescriptionEmptyLineUi";
+
 import TextArea from "antd/es/input/TextArea";
-import { MESSAGE_KEY } from "../utils/constants";
-import visitEnd from "../assets/images/end-visit.svg";
-import imgCloseVisit from "../assets/images/close-visit.svg";
+import { GB_VOICE_RX_NEW_UI, MESSAGE_KEY } from "../utils/constants";
+
 import { getDecodedToken } from "../utils/localStorage";
 import config from "../config";
+import { ASSETS } from "../assets";
+import { Grid5, Trash } from "iconsax-reactjs";
+import {
+  VoiceRxModuleActionButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "./tesseractCt";
+const {
+  alerticon: alertIcon,
+  customModule: ModuleIcon,
+  editIconBlue: editIcon,
+  deleteIconBlue: deleteIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
-function CustomModule({ module }) {
+const hasCustomModuleRowContent = (row) => (
+  String(row?.title ?? "").trim() !== "" ||
+  String(row?.notes ?? "").trim() !== ""
+);
+
+function insertTranscriptIntoFieldValue(value, transcript, selectionStart, selectionEnd) {
+  const currentValue = String(value || "");
+  const nextTranscript = String(transcript || "").trim();
+  if (!nextTranscript) return currentValue;
+
+  const hasStart = Number.isInteger(selectionStart);
+  const hasEnd = Number.isInteger(selectionEnd);
+  const start = hasStart ? Math.max(0, Math.min(selectionStart, currentValue.length)) : currentValue.length;
+  const end = hasEnd ? Math.max(start, Math.min(selectionEnd, currentValue.length)) : start;
+
+  if (end > start || start < currentValue.length) {
+    return `${currentValue.slice(0, start)}${nextTranscript}${currentValue.slice(end)}`;
+  }
+
+  return currentValue.trim() ? `${currentValue.trimEnd()}\n${nextTranscript}` : nextTranscript;
+}
+
+function CustomModule({ module, showVoiceRxModule, useTesseractUi = false }) {
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
   const { customModules, searchModuleResults, loading, hospitalSearchResults } = useSelector(
     (state) => state.customModules
   );
@@ -111,6 +160,8 @@ function CustomModule({ module }) {
   const [canEditName, setCanEditName] = useState(false);
   const [newModuleName, setNewModuleName] = useState(module?.name || "");
   const [isDeleteModuleModalOpen, setIsDeleteModuleModalOpen] = useState(false);
+  const [voiceTargetHighlight, setVoiceTargetHighlight] = useState(null);
+  const lastVoiceTargetRef = useRef(null);
   const moduleData =
     customModuleContents
       .filter((content) => content.module_id === module.module_id)
@@ -217,9 +268,120 @@ function CustomModule({ module }) {
     });
   };
 
+  const rememberVoiceTarget = useCallback((rowIndex, field, event) => {
+    const row = moduleData[rowIndex] || {};
+    const value = String(row[field] || "");
+    const target = event?.target;
+    const selectionStart = Number.isInteger(target?.selectionStart) ? target.selectionStart : value.length;
+    const selectionEnd = Number.isInteger(target?.selectionEnd) ? target.selectionEnd : selectionStart;
+
+    lastVoiceTargetRef.current = {
+      rowIndex,
+      field,
+      selectionStart,
+      selectionEnd,
+    };
+    setVoiceTargetHighlight({ rowIndex, field });
+  }, [moduleData]);
+
+  const resolveVoiceTarget = useCallback((rows) => {
+    const lastTarget = lastVoiceTargetRef.current;
+    if (
+      lastTarget &&
+      rows[lastTarget.rowIndex] &&
+      (lastTarget.field === "title" || lastTarget.field === "notes")
+    ) {
+      return lastTarget;
+    }
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+      for (const field of ["title", "notes"]) {
+        if (!String(rows[rowIndex]?.[field] || "").trim()) {
+          return { rowIndex, field, selectionStart: 0, selectionEnd: 0 };
+        }
+      }
+    }
+
+    const rowIndex = Math.max(0, rows.length - 1);
+    return {
+      rowIndex,
+      field: "title",
+      selectionStart: String(rows[rowIndex]?.title || "").length,
+      selectionEnd: String(rows[rowIndex]?.title || "").length,
+    };
+  }, []);
+
+  const applyVoiceTranscriptToFocusedField = useCallback((transcript) => {
+    const cleanTranscript = String(transcript || "").trim();
+    if (!cleanTranscript) return;
+
+    const nextModuleData = moduleData.length ? moduleData.map((row) => ({ ...row })) : [{ title: "", notes: "" }];
+    const target = resolveVoiceTarget(nextModuleData);
+    if (!nextModuleData[target.rowIndex]) {
+      nextModuleData[target.rowIndex] = { title: "", notes: "" };
+    }
+
+    const field = target.field === "notes" ? "notes" : "title";
+    nextModuleData[target.rowIndex] = {
+      ...nextModuleData[target.rowIndex],
+      [field]: insertTranscriptIntoFieldValue(
+        nextModuleData[target.rowIndex]?.[field],
+        cleanTranscript,
+        target.selectionStart,
+        target.selectionEnd
+      ),
+      change: 1,
+    };
+    updateCustomModuleContents(nextModuleData);
+  }, [moduleData, resolveVoiceTarget, updateCustomModuleContents]);
+
+  const copyPayloadMatchesThisModule = useCallback((payload = {}) => {
+    const targetedModuleId = payload.sideNavCustomModuleTargetId || payload.digitization?.sideNavCustomModuleTargetId;
+    if (targetedModuleId) {
+      return String(targetedModuleId) === String(module?.module_id);
+    }
+    const digitization = payload.digitization || {};
+    const copiedModules = [
+      ...(Array.isArray(payload.moduleContents) ? payload.moduleContents : []),
+      ...(Array.isArray(payload.module_contents) ? payload.module_contents : []),
+      ...(Array.isArray(digitization.moduleContents) ? digitization.moduleContents : []),
+      ...(Array.isArray(digitization.module_contents) ? digitization.module_contents : []),
+    ];
+    return copiedModules.some((copiedModule) => (
+      String(copiedModule?.module_id) === String(module?.module_id)
+    ));
+  }, [module?.module_id]);
+
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: module?.name || "Custom Module",
+    onTranscriptionApply: applyVoiceTranscriptToFocusedField,
+    transcriptionSuccessMessage: "Transcript added from voice dictation",
+    copyPayloadMatcher: copyPayloadMatchesThisModule,
+  });
+
+  const isVoiceTargetHighlighted = useCallback((rowIndex, field) => (
+    voiceCaptureOpen &&
+    voiceTargetHighlight?.rowIndex === rowIndex &&
+    voiceTargetHighlight?.field === field
+  ), [voiceCaptureOpen, voiceTargetHighlight]);
+
   const onFocusChid = (i) => {
+    const value = String(moduleData[i]?.title || "");
+    lastVoiceTargetRef.current = {
+      rowIndex: i,
+      field: "title",
+      selectionStart: value.length,
+      selectionEnd: value.length,
+    };
+    setVoiceTargetHighlight({ rowIndex: i, field: "title" });
     setSearchChildQuery({
-      query: moduleData[i].title,
+      query: moduleData[i]?.title || "",
       index: i,
     });
   };
@@ -235,6 +397,13 @@ function CustomModule({ module }) {
       };
       updateCustomModuleContents(updatedModuleData);
       setSearchChildQuery({ query: updatedQuery, index: i });
+      lastVoiceTargetRef.current = {
+        rowIndex: i,
+        field: "title",
+        selectionStart: updatedQuery.length,
+        selectionEnd: updatedQuery.length,
+      };
+      setVoiceTargetHighlight({ rowIndex: i, field: "title" });
     },
     [moduleData]
   );
@@ -307,8 +476,9 @@ function CustomModule({ module }) {
 
       updatedModuleData[i] = { ...updatedModuleData[i], notes: e.target.value };
       updateCustomModuleContents(updatedModuleData);
+      rememberVoiceTarget(i, "notes", e);
     },
-    [moduleData]
+    [moduleData, rememberVoiceTarget]
   );
 
   const onRemoveRow = (index) => {
@@ -565,7 +735,13 @@ function CustomModule({ module }) {
   );
 
   const onAddTemplateClicked = async () => {
-    if (!moduleData?.some((e) => e.title || e.notes)) {
+    const templateModuleData = isVoiceRxModuleEnabled
+      ? moduleData?.filter(hasCustomModuleRowContent)
+      : moduleData;
+    const hasTemplateModuleData = isVoiceRxModuleEnabled
+      ? templateModuleData?.some(hasCustomModuleRowContent)
+      : templateModuleData?.some((e) => e.title || e.notes);
+    if (!hasTemplateModuleData) {
       errorMessage(
         `At least 1 ${module.module_name || module.name} should be added`
       );
@@ -577,7 +753,9 @@ function CustomModule({ module }) {
             templates: [
               {
                 template_name: inputTemplateName,
-                content: moduleData?.filter((e) => e.title || e.notes),
+                content: isVoiceRxModuleEnabled
+                  ? templateModuleData?.filter(hasCustomModuleRowContent)
+                  : templateModuleData?.filter((e) => e.title || e.notes),
               },
               ...cm.templates,
             ],
@@ -605,9 +783,15 @@ function CustomModule({ module }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (moduleData.length === 0) {
+    const templateModuleData = isVoiceRxModuleEnabled
+      ? moduleData?.filter(hasCustomModuleRowContent)
+      : moduleData;
+    const hasBlankModuleTitle = isVoiceRxModuleEnabled
+      ? templateModuleData.filter((e) => String(e.title ?? "").trim() === "").length > 0
+      : templateModuleData.filter((e) => e.title == "").length > 0;
+    if (templateModuleData.length === 0) {
       errorMessage(`At least 1 ${module?.name} added`);
-    } else if (moduleData.filter((e) => e.title == "").length > 0) {
+    } else if (hasBlankModuleTitle) {
       errorMessage(`Please fillup ${module?.name} name`);
     } else {
       let data = JSON.parse(inputTemplateName);
@@ -620,7 +804,9 @@ function CustomModule({ module }) {
                 return {
                   ...t,
                   template_name: data.template_name,
-                  content: moduleData?.filter((e) => e.title || e.notes),
+                  content: isVoiceRxModuleEnabled
+                    ? templateModuleData?.filter(hasCustomModuleRowContent)
+                    : templateModuleData?.filter((e) => e.title || e.notes),
                 };
               }
               return t;
@@ -756,10 +942,18 @@ function CustomModule({ module }) {
 
   const TABLE_CUSTOM_MODULE = useMemo(() => {
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId={`${module?.name}`} direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
+      <div
+        className={[isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableScrollWrap : "", useTesseractUi ? "tesseract-ct" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId={`${module?.name}`} direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableBody : undefined}
+              >
               {moduleData.map((item, index) => (
                 <Draggable
                   key={index}
@@ -772,18 +966,25 @@ function CustomModule({ module }) {
                       {...provided.draggableProps}
                       key={index}
                       gutter={[0]}
-                      className={`${
-                        index === 0 && "mt-14 border-top"
-                      } align-items-center border-bottom`}
+                      className={[
+                        index === 0 && "mt-14 border-top",
+                        "align-items-center border-bottom",
+                        isVoiceRxModuleEnabled ? voiceModuleStyles.moduleTableRow : "",
+                      ].filter(Boolean).join(" ")}
                     >
-                      <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                        <MenuOutlined
-                          {...provided.dragHandleProps}
-                          className="drag-handle"
-                          style={{ cursor: "grab" }}
-                        ></MenuOutlined>
+                      <Col lg={1} md={1} sm={1} xs={1} className={["text-center", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleDragCell : ""].filter(Boolean).join(" ")}>
+                        <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
                       </Col>
-                      <Col lg={8} md={8} sm={8} xs={8}>
+                      <Col
+                        lg={8}
+                        md={8}
+                        sm={8}
+                        xs={8}
+                        className={[
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.modulePrimaryCell : "",
+                          isVoiceTargetHighlighted(index, "title") ? "custom-module-voice-target-cell" : "",
+                        ].filter(Boolean).join(" ")}
+                      >
                         <div className="fontroboto fw-medium">
                           <AutoComplete
                             defaultValue={item.title}
@@ -792,7 +993,13 @@ function CustomModule({ module }) {
                             bordered={false}
                             defaultOpen={false}
                             onSearch={(query) => onSearchChild(query, index)}
-                            onFocus={() => onFocusChid(index)}
+                            onFocus={(event) => {
+                              onFocusChid(index);
+                              rememberVoiceTarget(index, "title", event);
+                            }}
+                            onClick={(event) => rememberVoiceTarget(index, "title", event)}
+                            onKeyUp={(event) => rememberVoiceTarget(index, "title", event)}
+                            onMouseUp={(event) => rememberVoiceTarget(index, "title", event)}
                             options={childSearchOptions}
                             className="autocomplete-custom w-100 inputborder"
                             defaultActiveFirstOption={true}
@@ -813,35 +1020,47 @@ function CustomModule({ module }) {
                         md={14}
                         sm={13}
                         xs={13}
-                        className="border-end"
+                        className={[
+                          "border-end",
+                          isVoiceRxModuleEnabled ? voiceModuleStyles.moduleWideNotesCell : "",
+                          isVoiceTargetHighlighted(index, "notes") ? "custom-module-voice-target-cell" : "",
+                        ].filter(Boolean).join(" ")}
                       >
                         <TextArea
                           className="customnotesinput"
                           placeholder="Notes"
                           value={item.notes}
                           onChange={(e) => onChangeNoteChild(e, index)}
+                          onFocus={(event) => rememberVoiceTarget(index, "notes", event)}
+                          onClick={(event) => rememberVoiceTarget(index, "notes", event)}
+                          onKeyUp={(event) => rememberVoiceTarget(index, "notes", event)}
+                          onMouseUp={(event) => rememberVoiceTarget(index, "notes", event)}
+                          onSelect={(event) => rememberVoiceTarget(index, "notes", event)}
                           autoSize={{ minRows: 1, maxRows: 10 }} // Dynamically resizes between 1 and 10 rows
                         />
                       </Col>
-                      <Col lg={1} md={1} sm={2} xs={2} className="text-center">
-                        <Button
-                          className="btn py-0 btn-delete-prescription px-0"
-                          onClick={() => onRemoveRow(index)}
-                        >
-                          <i className="icon-delete"></i>
-                        </Button>
+                      <Col lg={1} md={1} sm={2} xs={2} className={["text-center", useTesseractUi ? "tesseract-ct-sticky-action" : "", isVoiceRxModuleEnabled ? voiceModuleStyles.moduleActionCell : ""].filter(Boolean).join(" ")}>
+                        {!(useTesseractUi && !String(item?.title || "").trim() && !String(item?.notes || "").trim()) && (
+                          <Button
+                            className="btn py-0 btn-delete-prescription px-0"
+                            onClick={() => onRemoveRow(index)}
+                          >
+                            {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                          </Button>
+                        )}
                       </Col>
                     </Row>
                   )}
                 </Draggable>
               ))}
               {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [moduleData, childSearchOptions]);
+  }, [moduleData, childSearchOptions, isVoiceRxModuleEnabled, useTesseractUi]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -879,7 +1098,7 @@ function CustomModule({ module }) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -912,7 +1131,7 @@ function CustomModule({ module }) {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -985,7 +1204,7 @@ function CustomModule({ module }) {
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
                   <div className="round-box">
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
@@ -1252,8 +1471,194 @@ function CustomModule({ module }) {
     updateCustomModuleContents([...moduleData, { title: "", notes: "" }]);
   };
 
+  // Tesseract shell drops the "Add New Line" CTA — keep a trailing empty row
+  // as the add affordance instead (ClinicalTable auto-row behavior).
+  // Maintain EXACTLY one: the old version only appended, so picking "Add Custom"
+  // (which adds its own row) left two blanks, and deleting the filled row left
+  // them stranded. Trim every trailing blank, then re-add a single one.
+  useEffect(() => {
+    if (!useTesseractUi) return;
+    const rows = Array.isArray(moduleData) ? moduleData : [];
+    const hasContent = (row) =>
+      row && (String(row.title || "").trim() || String(row.notes || "").trim());
+    let filledCount = rows.length;
+    while (filledCount > 0 && !hasContent(rows[filledCount - 1])) {
+      filledCount -= 1;
+    }
+    if (rows.length === filledCount + 1) return; // already exactly one trailing blank
+    updateCustomModuleContents([...rows.slice(0, filledCount), { title: "", notes: "" }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleData, useTesseractUi]);
+  const voiceDictationTargetId = `custom-module-${module?.module_id || module?.name || "legacy"}`;
+
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_CUSTOM_MODULE}
+      {DELETE_MODULE_MODAL}
+
+      {((isVoiceRxModuleEnabled && voiceCaptureOpen) || !useTesseractUi) && (
+      <div
+        className={
+          isVoiceRxModuleEnabled && voiceCaptureOpen
+            ? [voiceModuleStyles.moduleSlot, voiceModuleStyles.moduleCaptureActiveSlot].filter(Boolean).join(" ")
+            : "p-14"
+        }
+      >
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+          <VoiceRxModuleCapture
+            mode="transcribe"
+            moduleName={module?.name || "Custom Module"}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        ) : !useTesseractUi ? (
+          <Button
+            type="link"
+            icon={<PlusOutlined />}
+            className="add-custom-module-link"
+            onClick={handleAddRow}
+          >
+            Add New Line
+          </Button>
+        ) : null}
+      </div>
+      )}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    const hasModuleData = moduleData?.filter((e) => e.title || e.notes).length > 0;
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target={voiceDictationTargetId}
+        title={module?.name}
+        icon="bulk/note-2"
+        className={[
+          "tesseract-rxpad",
+          "prescription-box-sm",
+          voiceModuleStyles.moduleRoot,
+          isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
+          voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+        ].filter(Boolean).join(" ")}
+        headerActions={
+          canEditName ? (
+            <div className="d-flex w-100">
+              <Input
+                placeholder="Enter custom module name"
+                value={newModuleName}
+                onChange={(e) => setNewModuleName(e.target.value)}
+                className="custom-module-input"
+              />
+              <CheckOutlined
+                className="input-action-icon tick-icon"
+                onClick={handleEditModuleName}
+              />
+              <CloseOutlined
+                className="input-action-icon cross-icon"
+                onClick={handleCancel}
+              />
+            </div>
+          ) : (
+            <>
+              <DisabledModuleTooltip
+                module={module}
+                hospitalSearchResults={hospitalSearchResults}
+                placement="bottom"
+                type="title"
+              >
+                <InfoCircleOutlined
+                  style={{ color: "#a1a1aa", fontSize: 16 }}
+                />
+              </DisabledModuleTooltip>
+              <Tooltip placement="bottom" title="Load previous data">
+                <span>
+                  {tesseractActionButton({ icon: "refresh", label: "Load previous data", onClick: loadPreviousClick })}
+                </span>
+              </Tooltip>
+              <Popover
+                open={popOver1}
+                onOpenChange={showHideTemplatesListPopover}
+                content={TEMPLATE_CONTENT}
+                trigger="click"
+                overlayClassName="pop-350 pp-0"
+                placement="bottomRight"
+              >
+                <span>
+                  <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                    {tesseractActionButton({ icon: "grid-5", label: `Browse ${module?.name || "module"} templates` })}
+                  </Tooltip>
+                </span>
+              </Popover>
+              <Tooltip
+                placement="bottom"
+                title={
+                  hasModuleData
+                    ? ""
+                    : `Please enter some ${module?.name} to save a template`
+                }
+              >
+                <Popover
+                  open={popOver2}
+                  onOpenChange={() => hasModuleData && showHideSaveTemplatePopOver()}
+                  content={SAVE_CONTENT}
+                  trigger="click"
+                  overlayClassName="pop-450 pp-0"
+                  placement="bottomRight"
+                >
+                  <span>
+                    {tesseractActionButton({ icon: "ram", label: `Save ${module?.name || "module"} as template`, disabled: !hasModuleData })}
+                  </span>
+                </Popover>
+              </Tooltip>
+              <Tooltip placement="bottom" title="Clear this section">
+                <span>
+                  {tesseractActionButton({ icon: "eraser", label: `Clear ${module?.name || "module"}`, onClick: showHideClearData, disabled: !hasModuleData })}
+                </span>
+              </Tooltip>
+              <Dropdown
+                overlay={menu}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <span>
+                  {tesseractActionButton({ icon: "more", label: "More module options" })}
+                </span>
+              </Dropdown>
+            </>
+          )
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
+
   return (
-    <div className="prescription-box-sm">
+    <div
+      ref={sectionRef}
+      data-voice-rx-dictation-target={voiceDictationTargetId}
+      className={[
+        "prescription-box-sm",
+        voiceModuleStyles.moduleRoot,
+        isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
+        voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+      ].filter(Boolean).join(" ")}
+    >
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
           <div className="d-flex w-100">
@@ -1295,14 +1700,20 @@ function CustomModule({ module }) {
             </div>
 
             <div className="d-flex align-items-center">
-              <button
-                className="btn d-flex align-items-center btn-text"
-                onClick={loadPreviousClick}
-              >
-                {" "}
-                <i className="icon-reload me-2"></i>{" "}
-                <span>Load Prev. data</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <Tooltip placement="bottom" title="Load previous data">
+                  <VoiceRxModuleActionButton type="reload" label="Load previous data" onClick={loadPreviousClick} />
+                </Tooltip>
+              ) : (
+                <button
+                  className="btn d-flex align-items-center btn-text"
+                  onClick={loadPreviousClick}
+                >
+                  {" "}
+                  <i className="icon-reload me-2"></i>{" "}
+                  <span>Load Prev. data</span>
+                </button>
+              )}
               <Popover
                 open={popOver1}
                 onOpenChange={showHideTemplatesListPopover}
@@ -1311,10 +1722,18 @@ function CustomModule({ module }) {
                 overlayClassName="pop-350 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-template me-2"></i> <span>Templates</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                      <VoiceRxModuleActionButton type="template" label={`Browse ${module?.name || "module"} templates`} />
+                    </Tooltip>
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-template me-2"></i> <span>Templates</span>
+                  </button>
+                )}
               </Popover>
               <Tooltip
                 placement="bottom"
@@ -1335,23 +1754,44 @@ function CustomModule({ module }) {
                   overlayClassName="pop-450 pp-0"
                   placement="bottom"
                 >
-                  <button className="btn d-flex align-items-center btn-text">
-                    {" "}
-                    <i className="icon-save me-2"></i> <span>Save</span>
-                  </button>
+                  {isVoiceRxModuleEnabled ? (
+                    <span>
+                      <VoiceRxModuleActionButton
+                        type="save"
+                        label={`Save ${module?.name || "module"} as template`}
+                        disabled={moduleData?.filter((e) => e.title || e.notes).length === 0}
+                      />
+                    </span>
+                  ) : (
+                    <button className="btn d-flex align-items-center btn-text">
+                      {" "}
+                      <i className="icon-save me-2"></i> <span>Save</span>
+                    </button>
+                  )}
                 </Popover>
               </Tooltip>
-              <button
-                onClick={showHideClearData}
-                className="btn btn-text clear-text d-flex align-items-center"
-                disabled={
-                  moduleData?.filter((e) => e.title || e.notes).length > 0
-                    ? false
-                    : true
-                }
-              >
-                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <Tooltip placement="bottom" title="Clear this section">
+                  <VoiceRxModuleActionButton
+                    type="clear"
+                    label={`Clear ${module?.name || "module"}`}
+                    onClick={showHideClearData}
+                    disabled={moduleData?.filter((e) => e.title || e.notes).length === 0}
+                  />
+                </Tooltip>
+              ) : (
+                <button
+                  onClick={showHideClearData}
+                  className="btn btn-text clear-text d-flex align-items-center"
+                  disabled={
+                    moduleData?.filter((e) => e.title || e.notes).length > 0
+                      ? false
+                      : true
+                  }
+                >
+                  <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+                </button>
+              )}
               <Dropdown
                 overlay={menu}
                 trigger={["click"]}
@@ -1376,21 +1816,7 @@ function CustomModule({ module }) {
         )}
       </div>
 
-      {DELETE_MODAL}
-      {REMOVE_ALL_ROWS}
-      {TABLE_CUSTOM_MODULE}
-      {DELETE_MODULE_MODAL}
-
-      <div className="p-14">
-        <Button
-          type="link"
-          icon={<PlusOutlined />}
-          className="add-custom-module-link"
-          onClick={handleAddRow}
-        >
-          Add New Line
-        </Button>
-      </div>
+      {BODY_CONTENT}
     </div>
   );
 }

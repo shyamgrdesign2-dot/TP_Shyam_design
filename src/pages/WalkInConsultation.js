@@ -16,8 +16,9 @@ import { clearSearch, searchPatients } from "../redux/appointmentsSlice";
 import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
-import smartPad from "../assets/images/smartPad.svg";
-import { GB_ISCRIBE, GB_SNAP_RX, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX, PAID, GB_VOICE_RX_FREE } from "../utils/constants";
+import { GB_ISCRIBE, GB_SNAP_RX, GB_CVT_EXT_HOS, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX,GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, PAID } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
@@ -26,9 +27,15 @@ import {
   getClinic,
   getTokenData
 } from "../utils/utils";
-import AbhaIcon from "../assets/images/abha-svg.svg";
+
 import AbhaDrawer from "../components/abha/AbhaDrawer";
 import PrimaryActionButton from "../components/PrimaryActionButton";
+import { ASSETS } from "../assets";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
+const {
+  smartpad: smartPad,
+  abhaSvg: AbhaIcon,
+} = ASSETS.images;
 
 function WalkInConsultation() {
   const navigate = useNavigate();
@@ -60,8 +67,12 @@ function WalkInConsultation() {
     GB_SNAP_RX
   );
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const tp_monetization_enable = !shouldMonetizationDisabled();
+  const isDentalEnabled = useIsDentalEnabled();
+  const consultRoute = isDentalEnabled ? DENTAL_RX_PAD_ROUTE : "/prescription";
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -156,13 +167,12 @@ function WalkInConsultation() {
   //   // setOpenRowIndex(patient?.patient_unique_id);
   // };
 
-
   const onConsultClick = async (record) => {
     // window.Moengage.track_event("patient_search_consult", {
     //   doctor_id: profile?.doctor_unique_id,
     // //   patient_id: record?.patient_unique_id,
     // });
-    navigate("/prescription", { state: { patient_data: record } });
+    navigate(consultRoute, { state: { patient_data: record } });
   };
 
   const getMenuItems = (record) => {
@@ -327,7 +337,6 @@ function WalkInConsultation() {
   };
   
 
-
   const PatientPlank = (patient) => {
     return (
       <>
@@ -397,6 +406,7 @@ function WalkInConsultation() {
                 onSnapRxClick={onSnapRxClick}
                 onVoiceRxClick={onVoiceRxClick}
                 onTabRxClick={onTabRxClick}
+                onTypeRxClick={onTypeRxClick}
                 onConsultClick={onConsultClick}
                 patient={patient}
                 setAutoCompleteFlag={setAutoCompleteFlag}
@@ -414,7 +424,7 @@ function WalkInConsultation() {
                     "patient_number": patient?.pm_contact_no,
                     "patient_id": patient?.patient_unique_id
                   });
-                  navigate("/prescription", { state: { patient_data: patient } })
+                  navigate(consultRoute, { state: { patient_data: patient } })
                 }}
               >
                 Start Consult
@@ -499,19 +509,24 @@ function WalkInConsultation() {
       }
     }
     if (!isMobileOnly) {
-      data.push({
-        key: -1,
-        value: "Add New Patient",
-        label: (
-          <div className="d-flex align-items-center gap-3">
-            {AddPatientPlank()}
-            {profile?.HipID && profile?.abhaEnable ? AddPatientViaAbhaPlank() : null}
-          </div>
-        ),
-      });
+      const showRegularAddPatient = !isCvtExtHosAccessableFromGB;
+      const showAbhaAddPatient =
+        profile?.HipID && profile?.abhaEnable;
+      if (showRegularAddPatient || showAbhaAddPatient) {
+        data.push({
+          key: -1,
+          value: "Add New Patient",
+          label: (
+            <div className="d-flex align-items-center gap-3">
+              {showRegularAddPatient && AddPatientPlank()}
+              {showAbhaAddPatient ? AddPatientViaAbhaPlank() : null}
+            </div>
+          ),
+        });
+      }
     }
     setSearchOptions(data);
-  }, [patients]);
+  }, [patients, isCvtExtHosAccessableFromGB, profile?.HipID, profile?.abhaEnable]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -572,17 +587,20 @@ function WalkInConsultation() {
       source: "Patient Selected",
     });
     
-    // Navigate to Voice Rx Doctor Consult Page
-    navigate("/voice-rx-consult", {
-      state: { 
-        patient_data: patient,
-        isFromTabView: isMobileOnly
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        { patient_data: patient, isFromTabView: isMobileOnly },
+        "walk_in_patient_selected"
+      ),
     });
   };
 
   const onTabRxClick = async (patient) => {
     navigate("/tab-rx", { state: { patient_data: patient } });
+  };
+  const onTypeRxClick = async (patient) => {
+    navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: patient } });
   };
 
   const COMMON_MODAL = useMemo(() => {
@@ -645,6 +663,7 @@ function WalkInConsultation() {
                     onSnapRxClick={onSnapRxClick}
                     onVoiceRxClick={onVoiceRxClick}
                     onTabRxClick={onTabRxClick}
+                    onTypeRxClick={onTypeRxClick}
                     onConsultClick={(patient) => {
                       const clinic_name = getClinicName(profile?.hospital_data);
                       window.Moengage.track_event("TP_Consult_started", {
@@ -693,8 +712,6 @@ function WalkInConsultation() {
     }
   }
 
-
-
   const handleCreateAbhaDrawer = useCallback(() => {
     setCreateAbhaDrawer(!createAbhaDrawer);
   }, [createAbhaDrawer]);
@@ -715,6 +732,7 @@ function WalkInConsultation() {
             value={searchQuery}
             onSearch={onSearchParent}
             options={searchOptions}
+            data-testid="walkin-patient-search-autocomplete"
             className={`${isMobileOnly ? "autocomplete-ios" : "w-100"
               } autocomplete-custom`}
             // onSelect={onSelect}
@@ -729,6 +747,7 @@ function WalkInConsultation() {
               }`}
           >
             <Input
+              data-testid="walkin-patient-search-input"
               placeholder="Search by Patient’s Name, Phone number or Id"
               prefix={<i className="icon-search"></i>}
               suffix={

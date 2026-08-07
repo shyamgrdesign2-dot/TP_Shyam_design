@@ -1,10 +1,14 @@
 import React from 'react';
 import { Drawer } from 'antd';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
-import loginIcon from '../../../../assets/mobile/login.svg';
-import calendarIcon from '../../../../assets/mobile/calendar-2.svg';
-import userEditIcon from '../../../../assets/mobile/user-edit.svg';
+
 import './PatientDetailsOptionsModal.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  close2: closeIcon,
+  login: loginIcon,
+  calendar2: calendarIcon,
+  userEdit: userEditIcon,
+} = ASSETS.mobile;
 
 function PatientDetailsOptionsModal({
   visible,

@@ -4,8 +4,11 @@ import { useSelector } from "react-redux";
 import moment from "moment";
 
 import { FAILED_VERIFICATION, FREE, S_TATVA_PRACTICE, TRIAL } from "../../../utils/constants";
-import coinSmRed from "../../../assets/images/coin-sm-red.webp";
-import coinSm from "../../../assets/images/coin-sm.webp";
+import { ASSETS } from "../../../assets";
+const {
+  coinSmRed,
+  coinSm,
+} = ASSETS.images;
 
 function FreeTrialButton({ title, showHideSubModal }) {
 

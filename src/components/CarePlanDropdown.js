@@ -6,7 +6,8 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage } from "../utils/utils";
 import { getCarePlanNames, getCarePlanAssignments, assignCarePlan } from "../pages/smartSync/services/carePlanService";
 import { GB_CARE_PLAN } from "../utils/constants";
-import carePlanIcon from "../assets/images/onboard-page-icons/health.svg";
+import { ASSETS } from "../assets";
+const carePlanIcon = ASSETS.images.onboardPageIcons.health;
 
 const { Option } = Select;
 
@@ -159,7 +160,6 @@ function CarePlanDropdown({ onCarePlanSelect, selectedCarePlan, patientId, docto
                         ))}
                     </Select>
                 </div>
-
 
             </div>
         </>

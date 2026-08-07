@@ -1,11 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { Drawer, Checkbox, Button, Input } from 'antd';
 import { UpOutlined, DownOutlined } from '@ant-design/icons';
-import closeIcon from '../../assets/mobile/close 2.svg';
-import activeVerticleUpDown from '../../assets/images/active-verticle-up-down.svg';
-import inactiveVerticleUpDown from '../../assets/images/inactive-verticle-up-down.svg';
-import verticleUpDown from '../../assets/images/verticle-up-down.svg';
+
 import './MobileMedicalHistorySectionsList.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
+const {
+  activeVerticleUpDown,
+  inactiveVerticleUpDown,
+  verticleUpDown,
+} = ASSETS.images;
 
 function MobileMedicalHistorySectionsList({
   visible,

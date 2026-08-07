@@ -1,6 +1,8 @@
 import React from 'react';
-import emptyIllustration from '../../../../assets/mobile/empty_illustration.svg';
+
 import './EmptyState.scss';
+import { ASSETS } from "../../../../assets";
+const emptyIllustration = ASSETS.mobile.emptyIllustration;
 
 function EmptyState({ message }) {
   return (

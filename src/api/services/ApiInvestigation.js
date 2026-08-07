@@ -1,5 +1,6 @@
 import api from "./axiosService";
 import config from '../../config';
+import { buildNoCustomDataPayload } from "../../utils/chikitsalaySearchParams";
 
 const baseUrl = { customBaseUrl: config.investigation_api_url }
 const baseSearchEngineUrl = { customBaseUrl: config.searchengine_url };
@@ -19,9 +20,14 @@ ApiInvestigation.deleteTemplate = function (templateId) {
   return api.get(`/api/v1/investigation/deleteTemplate/${templateId}`, baseUrl);
 };
 
-ApiInvestigation.getFuzzySearch = function (query, max_results = 1) {
+ApiInvestigation.getFuzzySearch = function (query, max_results = 1, { isChikitsalayAccessable } = {}) {
+  const params = new URLSearchParams({
+    search: query,
+    max_results,
+    ...buildNoCustomDataPayload(isChikitsalayAccessable),
+  });
   return api.get(
-    `/api/v1/investigation/fuzzySearch?search=${query}&max_results=${max_results}`,
+    `/api/v1/investigation/fuzzySearch?${params.toString()}`,
     fuzzySearchBaseUrl
   );
 };
@@ -30,8 +36,13 @@ ApiInvestigation.getInvestigationTemplates = function (query) {
   return api.get(`/api/v1/investigation/listTemplate`, baseUrl);
 };
 
-ApiInvestigation.getFrequentlySearchedInvestigation = function () {
-  return api.get(`/api/v1/investigation/frequentlyInvestigations`, baseSearchEngineUrl);
+ApiInvestigation.singleTemplateDetails = function (templateId) {
+  return api.get(`/api/v1/investigation/singleTemplateDetails/${templateId}`, baseUrl);
+};
+
+ApiInvestigation.getFrequentlySearchedInvestigation = function ({ isChikitsalayAccessable } = {}) {
+  const params = new URLSearchParams(buildNoCustomDataPayload(isChikitsalayAccessable));
+  return api.get(`/api/v1/investigation/frequentlyInvestigations?${params.toString()}`, baseSearchEngineUrl);
 };
 
 // ApiInvestigation.getFrequentlySearchedInvestigation = function () {
@@ -40,9 +51,10 @@ ApiInvestigation.getFrequentlySearchedInvestigation = function () {
 //   }, baseUrl);
 // };
 
-ApiInvestigation.searchInvestigation = function (query) {
+ApiInvestigation.searchInvestigation = function (query, { isChikitsalayAccessable } = {}) {
   return api.post(`/api/v1/investigation/search`, {
-    search: query
+    search: query,
+    ...buildNoCustomDataPayload(isChikitsalayAccessable),
   }, baseSearchEngineUrl);
 };
 

@@ -7,12 +7,16 @@ import { useSelector, useDispatch } from "react-redux";
 import { MESSAGE_KEY } from "../../utils/constants";
 
 import CommonModal from '../../common/CommonModal';
-import alertIcon from '../../assets/images/alertIcon.svg';
-import visitEnd from '../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../assets/images/close-visit.svg';
+
 import { listCertificate, deleteCertificate } from "../../redux/doctorsSlice";
 
 import { errorMessage } from "../../utils/utils";
+import { ASSETS } from "../../assets";
+const {
+  alerticon: alertIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 function CreateCertificate({ handleCreateCertificateDrawer, patient_data, replace, selectedTemplate, tcu_id }) {
 
@@ -25,7 +29,6 @@ function CreateCertificate({ handleCreateCertificateDrawer, patient_data, replac
     useEffect(() => {
         dispatch(listCertificate());
     }, []);
-
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [removeId, setRemoveId] = useState(null);

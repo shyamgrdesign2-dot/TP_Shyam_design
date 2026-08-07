@@ -6,15 +6,16 @@ import { useSelector, useDispatch } from "react-redux";
 import { userCredit } from "../redux/bulkMessagesSlice";
 
 import { getDecodedToken } from "../utils/localStorage";
-import CreditImg from "../assets/images/credit_icon.svg"
 import config from "../config";
 import AvailableCredits from "../components/bulk_messages/AvailableCredits";
 import { getClinicCity } from "../utils/utils";
 import { isMobile } from "react-device-detect";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ZYDUS_USER } from "../utils/constants";
+import { GB_CVT_EXT_HOS, GB_ZYDUS_USER } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import useTabletViewport from "../hooks/useTabletViewport";
+import { ASSETS } from "../assets";
+const CreditImg = ASSETS.images.creditIcon;
 
 function Welcome(props) {
 
@@ -33,6 +34,8 @@ function Welcome(props) {
   const isFromAddAppointment = location.state?.from === "/add-appointment";
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+
 
   const isTablet = useTabletViewport();
 
@@ -103,7 +106,7 @@ function Welcome(props) {
           </div>
           <div className="d-flex gap-1">
             <div>
-              {locationPath == "/" &&
+              {locationPath == "/" && !isCvtExtHosAccessableFromGB &&
                 <div className="d-lg-flex d-block">
                   {decodedToken?.result?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && (
                     <Button
@@ -129,6 +132,7 @@ function Welcome(props) {
                   <Button
                     variant="primary"
                     className="px-3 btn-41"
+                    data-testid="start-walkin-consultation"
                     onClick={clickWalkInConsultation}>
                     {`Start Walk-in ${isTablet ? "" : "Consultation"}`}
                   </Button>

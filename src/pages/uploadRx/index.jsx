@@ -1,17 +1,14 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { Card, Typography, Switch, Carousel, Button } from "antd";
 import "./styles.scss";
-import websiteLogo from "../../assets/images/website-images/logo.webp";
+
 import ScanAnimationWrapper from "../../components/scanAnimationWrapper/ScanAnimationWrapper";
-import aiAgent from "../../assets/images/ai-agent.webp";
-import scanUploadRx from "../../assets/images/scan-upload-rx.webp";
-import sunIcon from "../../assets/images/sun.webp";
+
 import BottomSheetWrapper from "../../common/BottomSheetWrapper";
-import closeIcon from "../../assets/images/close-black-bg.svg";
+
 import PatientInfoCard from "./patientInfoCard";
 import ImageUpload from "./imageUpload/ImageUpload";
-import cameraIcon from "../../assets/images/camera.webp";
-import scanIcon from "../../assets/images/scanner.webp";
+
 import { useDispatch } from "react-redux";
 import { useSelector } from "react-redux";
 import { getFilesOnMobile } from "../../redux/snapRxDigitizationSlice";
@@ -21,7 +18,17 @@ import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 import { trackEvent } from "../../utils/utils";
 import { EVENTS } from "../../utils/events";
 import FullPageLoader from "../vaccination/components/Loader";
-import warningIcon from "../../assets/images/warningIcon.webp";
+import { ASSETS } from "../../assets";
+const websiteLogo = ASSETS.images.websiteImages.logo;
+const {
+  aiAgent,
+  scanUploadRx,
+  sun: sunIcon,
+  closeBlackBg: closeIcon,
+  camera: cameraIcon,
+  scanner: scanIcon,
+  warningicon: warningIcon,
+} = ASSETS.images;
 
 const UPLOAD_RX_TEXT = {
   aiPoweredHeader: "AI-Powered Rx Digitisation",

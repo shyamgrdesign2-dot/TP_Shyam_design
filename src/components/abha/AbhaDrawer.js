@@ -12,9 +12,7 @@ import BiometricCapturePopup from "./common/BiometricCapturePopup";
 import AbhaSuccessScreen from "./common/AbhaSuccessScreen";
 import OtpVerificationCode from "./common/OtpVerificationCode";
 import AbhaDrawerHeader from "./common/AbhaDrawerHeader";
-import AbhaHeadingSVG from "../../assets/images/abha-svg.svg";
-import visitEnd from "../../assets/images/check-badge.svg";
-import imgCloseVisit from "../../assets/images/close-visit.svg";
+
 import useAbhaScreens, { ABHA_SCREENS } from "./hooks/useAbhaScreens";
 import ApiAbha from "../../api/services/ApiAbha";
 import config from "../../config";
@@ -22,6 +20,12 @@ import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 import "./AbhaDrawer.scss";
 import { useDispatch } from "react-redux";
 import { setAbhaDetails } from "../../redux/abhaSlice";
+import { ASSETS } from "../../assets";
+const {
+  abhaSvg: AbhaHeadingSVG,
+  checkBadge: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 const AbhaDrawer = ({
   onClose,

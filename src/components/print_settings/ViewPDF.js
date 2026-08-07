@@ -1,80 +1,102 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence, calculateFollowUpText } from '../../utils/utils'
-import { EXTRA_OPTIONS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP } from '../../utils/constants';
+import { EXTRA_OPTIONS, EXTERNAL_HOSPITAL_BUSINESS_IDS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
+import { useIsDentalEnabled } from '../../hooks/useIsDentalEnabled';
 import moment from 'moment';
+import {
+    getCvtExtHosPatientDataShowValue,
+} from '../../utils/cvtExtHosPatientPrint';
+import { getDecodedToken } from '../../utils/localStorage';
+import { ASSETS } from '../../assets';
+import { getUploadedFilePublicUrl } from '../../pages/smartSync/services/templateUtils';
 import ObsHistoryInlineView from './obsHistory/inline';
 import ObsHistoryListView from './obsHistory/list';
 import ObsHistoryTableView from './obsHistory/table';
+import GynecHistoryTableView from './gynec-history/table';
 import OphthalmologyInlineView from './ophthalmology/inline';
 import OphthalmologyListView from './ophthalmology/list';
 import OphthalmologyTableView from './ophthalmology/table';
 import ThenConnector from './ThenConnector';
+import { CrossConsult } from './crossConsult/CrossConsult';
+import { transformToothStateToApi } from '../dental/lib/examination-helpers';
+import {
+    DENTAL_EXAM_CASE_OPTION_ID,
+    ORAL_EXAM_CASE_OPTION_ID,
+} from '../../utils/dentalDefaultPrintSettings';
+import { resolveExamChartForPrint, hasOralExamChartData } from '../../utils/examChartStorage';
+import { renderOralExamPdf } from './oral/renderOralExamPdf';
+import { renderDentalExamPdf } from './dental/renderDentalExamPdf';
+import { toothHasDentalPrintData } from './dental/dentalPrintHelpers';
+import { normalizeCanvasIds } from '../../pages/drawingCanvas/utils/drawingCanvasPrintUtils';
 
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
+const FOOTER_CONTENT_GAP = PX_TO_PT * 5;
+const widthOfA4PageInPts = 595;
+const SOAP_PRINT_MODULE_ID = 90000101;
 
 // Roboto
 Font.register({
     family: 'Roboto',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/Roboto-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/Roboto-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/Roboto-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Arial
 Font.register({
     family: 'Arial',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/Arimo-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/Arimo-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/Arimo-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Arimo-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Arimo-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Arimo-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Times Roman
 Font.register({
     family: 'Times-Roman',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/EBGaramond-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/EBGaramond-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/EBGaramond-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/EBGaramond-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/EBGaramond-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/EBGaramond-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Verdana
 Font.register({
     family: 'Verdana',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/Jost-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/Jost-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/Jost-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Jost-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Jost-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Jost-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Calibri
 Font.register({
     family: 'Calibri',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/OpenSans-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/OpenSans-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/OpenSans-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Tahoma
 Font.register({
     family: 'Tahoma',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/Vazirmatn-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/Vazirmatn-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/Vazirmatn-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Vazirmatn-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Vazirmatn-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Vazirmatn-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
 Font.register({
     family: 'AnekDevanagari',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/AnekDevanagari-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/AnekDevanagari-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/AnekDevanagari-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekDevanagari-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekDevanagari-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekDevanagari-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -82,9 +104,9 @@ Font.register({
 Font.register({
     family: 'AnekBangla',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/AnekBangla-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/AnekBangla-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/AnekBangla-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -92,9 +114,9 @@ Font.register({
 Font.register({
     family: 'NotoSansTamil',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/NotoSansTamil-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/NotoSansTamil-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/NotoSansTamil-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTamil-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTamil-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTamil-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -102,9 +124,9 @@ Font.register({
 Font.register({
     family: 'NotoSansTelugu',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/NotoSansTelugu-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/NotoSansTelugu-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/NotoSansTelugu-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTelugu-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTelugu-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTelugu-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -112,9 +134,9 @@ Font.register({
 Font.register({
     family: 'NotoSansKannada',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/NotoSansKannada-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/NotoSansKannada-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/NotoSansKannada-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansKannada-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansKannada-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansKannada-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -122,9 +144,9 @@ Font.register({
 Font.register({
     family: 'NotoSansMalayalam',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/NotoSansMalayalam-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/NotoSansMalayalam-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/NotoSansMalayalam-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansMalayalam-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansMalayalam-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansMalayalam-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -132,9 +154,9 @@ Font.register({
 Font.register({
     family: 'BalooBhai2',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/BalooBhai2-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/BalooBhai2-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/BalooBhai2-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/BalooBhai2-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/BalooBhai2-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/BalooBhai2-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -142,9 +164,9 @@ Font.register({
 Font.register({
     family: 'NotoSansGurmukhi',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/NotoSansGurmukhi-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/NotoSansGurmukhi-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/NotoSansGurmukhi-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansGurmukhi-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansGurmukhi-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansGurmukhi-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -152,9 +174,9 @@ Font.register({
 Font.register({
     family: 'NotoSansOriya',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/NotoSansOriya-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/NotoSansOriya-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/NotoSansOriya-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansOriya-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansOriya-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansOriya-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -162,9 +184,9 @@ Font.register({
 Font.register({
     family: 'NotoNastaliqUrdu',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/NotoNastaliqUrdu-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/NotoNastaliqUrdu-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/NotoNastaliqUrdu-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoNastaliqUrdu-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoNastaliqUrdu-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoNastaliqUrdu-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -273,7 +295,6 @@ const styles = StyleSheet.create({
     dynamicModuleCell: {
         padding: 6,
         borderRight: '1px solid #171725',
-        height: "100%"
     },
     headerRow: {
         flexDirection: 'row',
@@ -312,10 +333,25 @@ const styles = StyleSheet.create({
     },
 });
 
-const module_id = process.env.REACT_APP_ENV !== "prod" ? '6874956bc1abf17f6932cb32' : '68624471353771e0a587fed6';
-const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
-
 const AI_FLOW_MEDICINE_UNIT_MAP = { 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: 'Capsule', 7: 'Sachet', 8: 'Injection', 9: 'Drop', 14: 'Drops' };
+const CUSTOM_MEDICINE_UNIT_MAP = {
+    1: 'Ampule(s)',
+    2: 'Tablet(s)',
+    4: 'ml',
+    5: 'unit(s)',
+    6: 'Capsule(s)',
+    7: 'Fingertip(s)',
+    8: 'Pea sized',
+    9: 'gm',
+    11: 'tsp',
+    14: 'Drop(s)',
+    24: 'Puff(s)',
+    27: 'tbsp(s)',
+};
+const MEDICINE_UNIT_FALLBACK_MAP = {
+    ...AI_FLOW_MEDICINE_UNIT_MAP,
+    ...CUSTOM_MEDICINE_UNIT_MAP,
+};
 
 function parseAiFrequencyLeadingPattern(fullRaw) {
     const m = (fullRaw || "").toString().trim().match(/^((?:\d+(?:\.\d+)?)(?:\s*-\s*(?:\d+(?:\.\d+)?)){1,3})(?:\s+(.*))?$/);
@@ -328,6 +364,43 @@ function parseAiFrequencyLeadingPattern(fullRaw) {
 
 const aiFrequencyNumericFromParsed = (p, dec) =>
     p && [p.morning, p.afternoon, p.evening, p.night].slice(0, p.slotCount).map((v) => (v ? medicine_freq_dosage_format(v, dec) : 0)).join(" - ");
+
+const normalizePdfText = (value) => (
+    value == null ? "" : String(value).replace(/\u00A0/g, " ")
+);
+
+const idsMatch = (left, right) => (
+    left != null && right != null && String(left) === String(right)
+);
+
+const normalizeModuleLabel = (value) => (
+    normalizePdfText(value).trim().replace(/:$/, '').toLowerCase()
+);
+
+const isSoapLabel = (value) => {
+    const label = normalizeModuleLabel(value);
+    return label === 'soap note' || label === 'soap';
+};
+
+const hasSoapBlocks = (content) => (
+    Array.isArray(content) &&
+    content.some((item) => (
+        Array.isArray(item?.blocks) &&
+        ['subjective', 'objective', 'assessment', 'plan'].includes(normalizeModuleLabel(item?.title))
+    ))
+);
+
+const isSoapPrintModule = (option, customModule) => (
+    idsMatch(option?.id, SOAP_PRINT_MODULE_ID) ||
+    idsMatch(customModule?.module_id, SOAP_PRINT_MODULE_ID) ||
+    idsMatch(customModule?.origin_id, SOAP_PRINT_MODULE_ID) ||
+    idsMatch(customModule?.id, SOAP_PRINT_MODULE_ID) ||
+    isSoapLabel(option?.title) ||
+    isSoapLabel(option?.name) ||
+    isSoapLabel(customModule?.module_name) ||
+    isSoapLabel(customModule?.name) ||
+    hasSoapBlocks(customModule?.content)
+);
 
 function mapMedicationListForPrintPdf(medicines, idPrefix) {
     if (!Array.isArray(medicines) || medicines.length === 0) return [];
@@ -391,12 +464,327 @@ function enrichCaseManagerAiMedicationForPrint(medicine) {
     });
 }
 
+const formatCustomModuleColumnTitle = (value = "") => {
+    return String(value || "")
+        .trim();
+};
+
+const getSmartSyncUploadedFileUri = (file) =>
+    getUploadedFilePublicUrl(file) ||
+    file?.fileUrl ||
+    file?.showFile ||
+    file?.smart_prescription_file ||
+    file?.url ||
+    file?.smart_prescription_file_url ||
+    null;
+
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData } = props
-    const isRxDigitizeBool = !!(caseManagerData?.isRxDigitize || isDigitisedPrintConfig);
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, dentalExaminationData: rawDentalData, onlyShowDental = false, toothImageMap = {}, examChart: examChartProp, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, isDentalEnabled: isDentalEnabledFromProps, drawingCanvases, crossConsultData } = props
+    const filteredDrawingCanvases = useMemo(() => {
+        const canvasFilename = caseManagerData?.canvas_filename;
+        const hasCanvasFilenameField =
+            Array.isArray(canvasFilename) || typeof canvasFilename === 'string';
+        if (!hasCanvasFilenameField) {
+            return [];
+        }
+        const selectedCanvasIds = normalizeCanvasIds(canvasFilename);
+        if (selectedCanvasIds.length === 0) {
+            return [];
+        }
+        if (!Array.isArray(drawingCanvases) || drawingCanvases.length === 0) {
+            return [];
+        }
+        const selectedSet = new Set(selectedCanvasIds.map(String));
+        return drawingCanvases.filter((canvas) => {
+            if (canvas?.id == null) return false;
+            return selectedSet.has(String(canvas.id));
+        });
+    }, [drawingCanvases, caseManagerData?.canvas_filename]);
+    let dentalExaminationData = rawDentalData || props.dentalExaminationData;
+    if (dentalExaminationData && dentalExaminationData.toothState && typeof dentalExaminationData.toothState === "object") {
+        try {
+            dentalExaminationData = {
+                ...dentalExaminationData,
+                tooth_states: transformToothStateToApi(dentalExaminationData.toothState),
+                dentition_type: dentalExaminationData.dentition_type || dentalExaminationData.dentitionType,
+            };
+        } catch (err) {
+            console.error("Failed to transform toothState inside ViewPDF:", err);
+        }
+    }
+    const isDentalEnabled =
+    isDentalEnabledFromProps ??
+        (onlyShowDental ||
+        Boolean(
+            dentalData ||
+            dentalExaminationData?.toothState ||
+            (Array.isArray(dentalExaminationData?.tooth_states) &&
+                dentalExaminationData.tooth_states.length > 0)
+    ));
+    const isRxDigitizeBool = !!(
+        caseManagerData?.isRxDigitize ||
+        isDigitisedPrintConfig
+    );
+    const isCvtExtHosAccessableFromGB =
+        isCvtExtHosFromProps ?? caseManagerData?.isCvtExtHosAccessableFromGB ?? false;
+    const tokenData = getDecodedToken()?.result;
+    const hospitalBusinessId =
+        tokenData?.hospital_business_id ?? caseManagerData?.hospital_business_id;
+    const isExternalHospitalBusinessId = Object.values(
+        EXTERNAL_HOSPITAL_BUSINESS_IDS,
+    ).includes(String(hospitalBusinessId));
+    const isCvtExtHosAccessableForPrint =
+        !!isCvtExtHosAccessableFromGB && isExternalHospitalBusinessId;
+    const cvtExtHosPatientMapEnabled =
+        !!isCvtExtHosAccessableFromGB && isExternalHospitalBusinessId;
+    const showMissionHospitalLogo = isCvtExtHosAccessableForPrint;
     const baseFontFamily = printSettings?.page_format?.font_family || 'Roboto';
     const baseFontSize = PX_TO_PT * (printSettings?.page_format?.font_size || 10);
+    const isNotDocumentedText = (value) => (
+        normalizePdfText(value).trim().toLowerCase() === 'not documented.'
+    );
+    const renderSoapBullet = (text, key) => {
+        const normalizedText = normalizePdfText(text).trim();
+        if (!normalizedText) return null;
+        return (
+            <View
+                key={key}
+                style={{
+                    flexDirection: 'row',
+                    marginTop: PX_TO_PT * 5,
+                    paddingLeft: PX_TO_PT * 24,
+                }}
+            >
+                <Text
+                    style={{
+                        color: '#000000',
+                        fontFamily: baseFontFamily,
+                        fontSize: PX_TO_PT * 14,
+                        fontWeight: 700,
+                        lineHeight: 1.45,
+                        width: PX_TO_PT * 18,
+                    }}
+                >
+                    {'\u2022'}
+                </Text>
+                <Text
+                    style={{
+                        color: '#000000',
+                        fontFamily: getIndianLanguageFont(normalizedText, baseFontFamily),
+                        fontSize: PX_TO_PT * 14,
+                        fontWeight: 400,
+                        lineHeight: 1.45,
+                        flex: 1,
+                    }}
+                >
+                    {normalizedText}
+                </Text>
+            </View>
+        );
+    };
+    const renderSoapPrintSections = (sections = []) => {
+        const headingFontSize = Math.max(baseFontSize + PX_TO_PT * 12, PX_TO_PT * 22);
+        const fallbackFontSize = Math.max(baseFontSize + PX_TO_PT * 4, PX_TO_PT * 14);
+        const getDocumentHeadingFontSize = (level) =>
+            Number(level) === 1
+                ? Math.max(baseFontSize + PX_TO_PT * 8, PX_TO_PT * 18)
+                : Math.max(baseFontSize + PX_TO_PT * 5, PX_TO_PT * 14);
+        const documentTextFontSize = Math.max(baseFontSize + PX_TO_PT * 2, PX_TO_PT * 12);
+        const getRunText = (run) => normalizePdfText(run?.text || "");
+        const getItalicFontFamily = (run) => run?.bold ? "Helvetica-BoldOblique" : "Helvetica-Oblique";
+        const renderRichRuns = (runs, fallbackText, baseStyle, keyPrefix) => {
+            const normalizedRuns = Array.isArray(runs)
+                ? runs
+                    .map((run) => ({ ...run, text: getRunText(run) }))
+                    .filter((run) => run.text)
+                : [];
+            if (!normalizedRuns.length) return normalizePdfText(fallbackText || "");
+            return normalizedRuns.map((run, index) => (
+                <Text
+                    key={`${keyPrefix}-run-${index}`}
+                    style={{
+                        ...baseStyle,
+                        fontFamily: run.italic
+                            ? getItalicFontFamily(run)
+                            : baseStyle.fontFamily,
+                        fontWeight: run.italic ? 400 : run.bold ? 700 : baseStyle.fontWeight,
+                    }}
+                >
+                    {run.text}
+                </Text>
+            ));
+        };
+
+        const renderSoapDocumentBlock = (block, key) => {
+            if (block?.type === "heading") {
+                const text = normalizePdfText(block?.text).trim();
+                if (!text) return null;
+                const level = Number(block?.level) || 2;
+                const headingStyle = {
+                    color: '#000000',
+                    fontFamily: getIndianLanguageFont(text, baseFontFamily),
+                    fontSize: getDocumentHeadingFontSize(level),
+                    fontWeight: 700,
+                    lineHeight: level === 1 ? 1.25 : 1.35,
+                    marginTop: level === 1 ? PX_TO_PT * 18 : PX_TO_PT * 13,
+                    marginBottom: level === 1 ? PX_TO_PT * 12 : PX_TO_PT * 8,
+                };
+                return (
+                    <Text
+                        key={key}
+                        style={headingStyle}
+                    >
+                        {renderRichRuns(block?.runs, text, headingStyle, key)}
+                    </Text>
+                );
+            }
+
+            if (block?.type === "list" || block?.type === "ordered-list") {
+                const items = Array.isArray(block.items) ? block.items : [];
+                return items.map((item, itemIndex) => {
+                    const itemText = typeof item === "string"
+                        ? item
+                        : item?.text || (Array.isArray(item?.runs) ? item.runs.map((run) => run?.text || "").join("") : "");
+                    const text = block?.type === "ordered-list"
+                        ? `${itemIndex + 1}. ${itemText}`
+                        : itemText;
+                    if (typeof item !== "string" && Array.isArray(item?.runs)) {
+                        const marker = block?.type === "ordered-list" ? `${itemIndex + 1}.` : "\u2022";
+                        const itemStyle = {
+                            color: '#000000',
+                            fontFamily: getIndianLanguageFont(itemText, baseFontFamily),
+                            fontSize: PX_TO_PT * 14,
+                            fontWeight: 400,
+                            lineHeight: 1.45,
+                            flex: 1,
+                        };
+                        return (
+                            <View
+                                key={`${key}-${itemIndex}`}
+                                style={{
+                                    flexDirection: "row",
+                                    marginTop: PX_TO_PT * 5,
+                                    paddingLeft: PX_TO_PT * 24,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        color: '#000000',
+                                        fontFamily: baseFontFamily,
+                                        fontSize: PX_TO_PT * 14,
+                                        fontWeight: 700,
+                                        lineHeight: 1.45,
+                                        width: PX_TO_PT * 18,
+                                    }}
+                                >
+                                    {marker}
+                                </Text>
+                                <Text style={itemStyle}>
+                                    {renderRichRuns(item.runs, itemText, itemStyle, `${key}-${itemIndex}`)}
+                                </Text>
+                            </View>
+                        );
+                    }
+                    return renderSoapBullet(text, `${key}-${itemIndex}`);
+                });
+            }
+
+            const text = normalizePdfText(block?.text).trim();
+            if (!text) return null;
+            const isLabel = /:\s*$/.test(text) && !text.includes("\n");
+            const paragraphStyle = {
+                color: block?.isFallback || isNotDocumentedText(text) ? '#6f6f76' : '#000000',
+                fontFamily: getIndianLanguageFont(text, baseFontFamily),
+                fontSize: documentTextFontSize,
+                fontWeight: isLabel ? 700 : 400,
+                lineHeight: 1.45,
+                marginTop: isLabel ? PX_TO_PT * 10 : PX_TO_PT * 4,
+                marginBottom: isLabel ? PX_TO_PT * 1 : PX_TO_PT * 7,
+            };
+            return (
+                <Text
+                    key={key}
+                    style={paragraphStyle}
+                >
+                    {renderRichRuns(block?.runs, text, paragraphStyle, key)}
+                </Text>
+            );
+        };
+
+        return (
+            <View style={{ marginTop: PX_TO_PT * 15 }}>
+                {sections.map((section, sectionIndex) => {
+                    const heading = normalizePdfText(section?.title).trim();
+                    const blocks = Array.isArray(section?.blocks) && section.blocks.length > 0
+                        ? section.blocks
+                        : [{ type: "paragraph", text: section?.notes || "", isFallback: false }];
+
+                    if (section?.renderMode === "document") {
+                        return (
+                            <View key={`soap-section-${sectionIndex}`}>
+                                {blocks.map((block, blockIndex) =>
+                                    renderSoapDocumentBlock(block, `soap-document-${sectionIndex}-${blockIndex}`)
+                                )}
+                            </View>
+                        );
+                    }
+
+                    return (
+                        <View
+                            key={`soap-section-${sectionIndex}`}
+                            style={{ marginTop: sectionIndex === 0 ? 0 : PX_TO_PT * 22 }}
+                        >
+                            <Text
+                                style={{
+                                    color: '#000000',
+                                    fontFamily: getIndianLanguageFont(heading, baseFontFamily),
+                                    fontSize: headingFontSize,
+                                    fontWeight: 700,
+                                    lineHeight: 1.15,
+                                    marginBottom: PX_TO_PT * 9,
+                                }}
+                            >
+                                {heading}
+                            </Text>
+                            {blocks.map((block, blockIndex) => {
+                                if (block?.type === "list" || block?.type === "ordered-list") {
+                                    const items = Array.isArray(block.items) ? block.items : [];
+                                    return items.map((item, itemIndex) => {
+                                        const text = block?.type === "ordered-list"
+                                            ? `${itemIndex + 1}. ${item}`
+                                            : item;
+                                        return renderSoapBullet(text, `soap-list-item-${sectionIndex}-${blockIndex}-${itemIndex}`);
+                                    });
+                                }
+
+                                const text = normalizePdfText(block?.text).trim();
+                                if (!text) return null;
+                                if (block?.isFallback || isNotDocumentedText(text)) {
+                                    return (
+                                        <Text
+                                            key={`soap-fallback-${sectionIndex}-${blockIndex}`}
+                                            style={{
+                                                color: '#6f6f76',
+                                                fontFamily: getIndianLanguageFont(text, baseFontFamily),
+                                                fontSize: fallbackFontSize,
+                                                fontWeight: 400,
+                                                lineHeight: 1.45,
+                                            }}
+                                        >
+                                            {text}
+                                        </Text>
+                                    );
+                                }
+
+                                return renderSoapBullet(text, `soap-paragraph-${sectionIndex}-${blockIndex}`);
+                            })}
+                        </View>
+                    );
+                })}
+            </View>
+        );
+    };
     const dentalPdfData = dentalData;
     const structuralTeethDiagramImgUrl =
         typeof dentalData?.structuralTeethDiagramImgUrl === "string"
@@ -543,6 +931,43 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         )
         : [];
     const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
+    const examChart =
+        examChartProp !== undefined
+            ? hasOralExamChartData(examChartProp)
+                ? examChartProp
+                : null
+            : resolveExamChartForPrint(caseManagerData, examChartProp);
+    const hasOralExaminationData = hasOralExamChartData(examChart);
+    const oralExamEnabledInCaseOptions = printSettings?.prescription?.case_option?.some(
+        (o) =>
+            o?.id === ORAL_EXAM_CASE_OPTION_ID &&
+            o?.enable === "Y" &&
+            o?.custom_status === "Y",
+    );
+    const oralPrintOption = printSettings?.prescription?.case_option?.find(
+        (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+    );
+    const isOralPrintOptionEnabled =
+        oralPrintOption?.enable === "Y" && oralPrintOption?.custom_status === "Y";
+    const shouldRenderOralInDentalBlock =
+        hasOralExaminationData &&
+        (onlyShowDental ? isOralPrintOptionEnabled : !oralExamEnabledInCaseOptions);
+
+    const hasDentalExaminationData =
+        Array.isArray(dentalExaminationData?.tooth_states) &&
+        dentalExaminationData.tooth_states.some((toothState) =>
+            toothHasDentalPrintData(toothState)
+        );
+
+    const dentalPrintOption = printSettings?.prescription?.case_option?.find(
+        (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID,
+    );
+    const shouldShowDentalChartOnly =
+        onlyShowDental &&
+        dentalPrintOption?.enable === "Y" &&
+        dentalPrintOption?.custom_status === "Y" &&
+        dentalPrintOption?.showDentalChart !== false;
+
     const hasDentalSectionData =
         dentalComplaintRowsFiltered.length > 0 ||
         dentalMedicationRowsFiltered.length > 0 ||
@@ -552,7 +977,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         hasToothDiagramNotes ||
         dentalWorkDoneRowsFiltered.length > 0 ||
         hasWorkDoneNotes;
-    const shouldHideMedicationModuleBecauseDentalMedicationShown =
+
+    const shouldHidePrimaryMedicationSection =
         isRxDigitizeBool && dentalMedicationRowsFiltered.length > 0;
     const dentalQuadrantSections = [
         { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
@@ -663,6 +1089,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const prescriptionVaccines = Array.isArray(caseManagerData?.vaccinations) ? caseManagerData.vaccinations : [];
 
     const patientDataShow = (id) => {
+        if (cvtExtHosPatientMapEnabled) {
+            return getCvtExtHosPatientDataShowValue(id, {
+                patient: caseManagerData?.patient_data,
+                doctorProfile: caseManagerData?.doctor_data,
+                genderAge,
+                abhaDetails,
+                caseManagerData,
+                isPediatricAccessable,
+            });
+        }
         var value = ''
         if (id == 1) {
             value = `${caseManagerData?.patient_data?.patient_salutation ? `${caseManagerData?.patient_data?.patient_salutation} ${caseManagerData?.patient_data?.patient_name}, ${caseManagerData?.patient_data?.patient_id}` : `${caseManagerData?.patient_data?.patient_name}, ${caseManagerData?.patient_data?.patient_id}`}`
@@ -699,6 +1135,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             value = abhaToken ? (abhaToken.length === 1 ? `0${abhaToken}` : abhaToken) : "-";
         } else if (id == 16) {
             value = `${abhaDetails?.abha_number ? abhaDetails?.abha_number : "-"}`;
+        } else if (id == 18) {
+            value = `${caseManagerData?.patient_data?.caseType ? caseManagerData?.patient_data?.caseType : "-"}`;
+        } else if (id == 19) {
+            value = `${caseManagerData?.patient_data?.patientCategory ? caseManagerData?.patient_data?.patientCategory : "-"}`;
         }
         return value
     }
@@ -838,22 +1278,40 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         return (item?.schedule || item?.when || item?.timing || item?.instruction || '').toString().trim();
     }
 
-    function getAiMedicationDoseDisplay(item, option) {
+    function getMedicationUnitTitle(item = {}, unitId) {
+        if (unitId === undefined || unitId === null || unitId === '') return '';
+        if (item.tmm_unit == unitId && item.tmm_unit_name) return item.tmm_unit_name;
+        const matchedUnit = Array.isArray(item.medicineUnit)
+            ? item.medicineUnit.find((x) => x.tmu_id == unitId)
+            : null;
+        if (matchedUnit?.tmu_title) return matchedUnit.tmu_title;
+        return MEDICINE_UNIT_FALLBACK_MAP[unitId] || '';
+    }
+
+    function getMedicationDoseDisplay(item = {}, option) {
         const doseVal =
             item?.tmm_dosage != null && String(item.tmm_dosage).trim() !== ''
                 ? item.tmm_dosage
-                : item?.dosage;
+                : item?.unitPerDose ?? item?.dosage ?? item?.unit_per_dose;
         if (doseVal == null || String(doseVal).trim() === '') {
-            return item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-';
+            return item?.tmm_dosage_unit_name || getMedicationUnitTitle(item, item.default_tmm_unit) || '-';
+        }
+        const doseText = String(doseVal).trim();
+        if (/\d/.test(doseText) && /[a-zA-Z]/i.test(doseText)) {
+            return item?.tmm_dosage_unit_name || doseText;
         }
         if (item.tmm_unit) {
-            const u = item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || '';
-            return u ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u}` : String(doseVal).trim();
+            const u = getMedicationUnitTitle(item, item.tmm_unit);
+            return u ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u}` : item?.tmm_dosage_unit_name || doseText;
         }
-        const s = String(doseVal).trim();
+        const s = doseText;
         if (/\d/.test(s) && /[a-zA-Z]/i.test(s)) return s;
-        const u0 = item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '';
-        return u0 ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u0}` : s;
+        const u0 = getMedicationUnitTitle(item, item.default_tmm_unit);
+        return u0 ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u0}` : item?.tmm_dosage_unit_name || s;
+    }
+
+    function getAiMedicationDoseDisplay(item, option) {
+        return getMedicationDoseDisplay(item, option);
     }
 
     function getAiMedicationDurationDisplay(item) {
@@ -917,9 +1375,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     let gynecListViewCounter = 1, medicalHistoryIndex = 1;
-    const getWrittenRxImageUrl = (item) =>
-        item?.smart_prescription_file || item?.fileUrl || item?.url || item?.smart_prescription_file_url || null;
-    const hasWrittenRxImages = Array.isArray(smartRxData) && smartRxData.some((item) => !!getWrittenRxImageUrl(item));
+    const hasWrittenRxImages =
+        Array.isArray(smartRxData) &&
+        smartRxData.some((item) => !!getSmartSyncUploadedFileUri(item));
     const isSmartSyncPrescription = hasWrittenRxImages;
     const isSnapRxWrittenPrescription =
         typeof caseManagerData?.smart_prescription_filename === "string" &&
@@ -1009,7 +1467,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     const getCustomModuleName = (id) => {
         // Safety check: ensure customModules is an array before calling .find()
-        const customModule = Array.isArray(customModules) ? customModules.find((module) => module.module_id === id) : null;
+        const customModule = Array.isArray(customModules)
+            ? customModules.find((module) => idsMatch(module?.module_id, id) || idsMatch(module?.origin_id, id) || idsMatch(module?.id, id))
+            : null;
         
         if (customModule?.name) {
             return customModule?.printConfig?.nameOverride !== undefined 
@@ -1019,21 +1479,28 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         
         // Fallback: try to get name from caseManagerData.moduleContents
         if (caseManagerData?.moduleContents && Array.isArray(caseManagerData.moduleContents)) {
-            const moduleContent = caseManagerData.moduleContents.find((module) => module.module_id === id);
+            const moduleContent = caseManagerData.moduleContents.find((module) => (
+                idsMatch(module?.module_id, id) ||
+                idsMatch(module?.origin_id, id) ||
+                idsMatch(module?.id, id)
+            ));
             return moduleContent?.module_name;
         }
         
         return undefined;
     }
 
-    const getMarginByFormat = (letterheadFormat, headerFooter, position, defaultValue) => {
+    const getMarginByFormat = (letterheadFormat, headerFooter, position) => {
         const marginType =
             letterheadFormat === 0 ? "custom_letterhead_margin" :
                 letterheadFormat === 1 ? "uploaded_letterhead_margin" :
                     letterheadFormat === 2 ? "margin" : null;
 
-        return marginType && headerFooter?.[marginType]?.[position] >= 0
-            ? (headerFooter?.[marginType]?.[position] || defaultValue) * CM_TO_PT
+        const rawMarginValue = headerFooter?.[marginType]?.[position];
+        const marginValue = rawMarginValue === "" ? NaN : Number(rawMarginValue);
+
+        return marginType && Number.isFinite(marginValue) && marginValue >= 0
+            ? marginValue * CM_TO_PT
             : PX_TO_PT * 30;
     };
 
@@ -1062,56 +1529,73 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       loadImage();
     }, [fileFooter?.showFile]);
     
-     const renderFooterImage = () => {
-       try {
-         if (fileFooter?.showFile && fileFooter?.imageShow) {
-           return (
-            <View>
-             <Image
-               src={fileFooter.showFile}
-               style={{
-                 width: "100%",
-                 height: fileFooter?.renderedFooterImageHeight,
-                 objectFit: "cover",
-               }}
-             />
-             </View>
-           );
-         }
-         return null;
-       } catch (error) {
-         console.error("Error rendering footer image:", error);
-         return null;
-       }
-     };
-
      const userBottomMargin = getMarginByFormat(printSettings?.letterhead_format, printSettings?.header_footer, "bottom", 1);
      const userTopMargin = getMarginByFormat(printSettings?.letterhead_format, printSettings?.header_footer, "top", 1);
      const standardMargin = 0.5 * 25; // 0.5 inches in points
     const extraTopSpace = Math.max(0, userTopMargin - standardMargin);
      const isOwnLetterheadFirstPageOnly = printSettings?.letterhead_format === 2 && showMode === 'first';
      
+     const getFooterTextRenderHeight = (footer) => {
+        if (!footer?.title) return 0;
+
+        const footerFontSize = PX_TO_PT * (footer?.font_size || 12);
+        return PX_TO_PT * 2 + PX_TO_PT * 8 + footerFontSize * 1.2;
+     };
+
+     const getFooterImageRenderHeightForWidth = (paddingLeft = 0, paddingRight = 0) => {
+       const footerWidth = Number(fileFooter?.footerWidth);
+       const footerHeight = Number(fileFooter?.footerHeight);
+       const availableWidth = Math.max(
+         0,
+         widthOfA4PageInPts - ((paddingLeft || 0) + (paddingRight || 0))
+       );
+
+       if (footerWidth > 0 && footerHeight > 0 && availableWidth > 0) {
+         return (footerHeight / footerWidth) * availableWidth;
+       }
+
+       return Number.isFinite(fileFooter?.renderedFooterImageHeight)
+         ? fileFooter.renderedFooterImageHeight
+         : 0;
+     };
+
      const calculatePadding = () => {
-        const widthOfA4PageInPts = 595;
         const { letterhead_format, header_footer, whatsapp_letterhead_format } = printSettings || {};
-        const renderedFooterImageHeight = Number.isFinite(fileFooter?.renderedFooterImageHeight)
-            ? fileFooter?.renderedFooterImageHeight
-            : 0;
-        const hasFooterDimensions =
-            Number.isFinite(fileFooter?.footerHeight) &&
-            Number.isFinite(fileFooter?.footerWidth) &&
-            fileFooter?.footerWidth > 0;
+        const footer = header_footer?.footer;
+
+        const getReservedBottomPadding = ({
+            letterheadFormat,
+            whatsappLetterheadFormat,
+            paddingLeft,
+            paddingRight,
+        }) => {
+            const bottomMargin = getMarginByFormat(letterheadFormat, header_footer, "bottom");
+            const footerHeight = mode !== NORMAL
+                ? whatsappLetterheadFormat === 1 && fileFooter?.imageShow
+                    ? getFooterImageRenderHeightForWidth(paddingLeft, paddingRight)
+                    : whatsappLetterheadFormat === 0
+                        ? getFooterTextRenderHeight(footer)
+                        : 0
+                : letterheadFormat === 1 && fileFooter?.imageShow
+                    ? getFooterImageRenderHeightForWidth(paddingLeft, paddingRight)
+                    : letterheadFormat === 0
+                        ? getFooterTextRenderHeight(footer)
+                        : 0;
+
+            return bottomMargin + footerHeight + FOOTER_CONTENT_GAP;
+        };
 
         if (mode !== NORMAL) {
             return {
                 paddingTop: PX_TO_PT * 30,
-                paddingBottom: whatsapp_letterhead_format === 1
-                    ? fileFooter?.imageShow
-                        ? renderedFooterImageHeight + (PX_TO_PT * 30)
-                        : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5
-                        : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5,
                 paddingLeft: PX_TO_PT * 30,
                 paddingRight: PX_TO_PT * 30,
+                paddingBottom: getReservedBottomPadding({
+                    letterheadFormat: letterhead_format,
+                    whatsappLetterheadFormat: whatsapp_letterhead_format,
+                    paddingLeft: PX_TO_PT * 30,
+                    paddingRight: PX_TO_PT * 30,
+                }),
                 display: 'flex',
                 flexDirection: 'column',
             };
@@ -1131,14 +1615,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         : PX_TO_PT * 30;
 
         const paddingBottom = letterhead_format === 2
-        ? (isOwnLetterheadFirstPageOnly ? userBottomMargin : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5)
-        : letterhead_format === 1
-            ? fileFooter?.imageShow
-                ? (hasFooterDimensions
-                    ? ((fileFooter?.footerHeight / fileFooter?.footerWidth) * (widthOfA4PageInPts - (paddingLeft + paddingRight))) + paddingTop
-                    : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5)
-                : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5
-                : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5;
+            ? (isOwnLetterheadFirstPageOnly
+                ? userBottomMargin
+                : getReservedBottomPadding({
+                    letterheadFormat: letterhead_format,
+                    whatsappLetterheadFormat: whatsapp_letterhead_format,
+                    paddingLeft,
+                    paddingRight,
+                }))
+            : getReservedBottomPadding({
+                letterheadFormat: letterhead_format,
+                whatsappLetterheadFormat: whatsapp_letterhead_format,
+                paddingLeft,
+                paddingRight,
+            });
 
         return {
             paddingTop,
@@ -1150,13 +1640,43 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     const paddingStyles = calculatePadding();
 
+     const getFooterImageRenderHeight = () => {
+       return getFooterImageRenderHeightForWidth(
+         paddingStyles?.paddingLeft,
+         paddingStyles?.paddingRight
+       );
+     };
+
+     const renderFooterImage = () => {
+       try {
+         if (fileFooter?.showFile && fileFooter?.imageShow) {
+           return (
+            <View>
+             <Image
+               src={fileFooter.showFile}
+               style={{
+                 width: "100%",
+                 height: getFooterImageRenderHeight(),
+                 objectFit: "contain",
+               }}
+             />
+             </View>
+           );
+         }
+         return null;
+       } catch (error) {
+         console.error("Error rendering footer image:", error);
+         return null;
+       }
+     };
+
     if (caseManagerData?.moduleContents?.length && printSettings?.prescription?.case_option) {
         const existingModuleIds = new Set(
-            printSettings?.prescription?.case_option?.map(option => option?.id)
+            printSettings?.prescription?.case_option?.map(option => String(option?.id))
         );
         
         caseManagerData?.moduleContents
-            ?.filter(module => !existingModuleIds.has(module?.module_id))
+            ?.filter(module => !existingModuleIds.has(String(module?.module_id)))
             ?.forEach(module => {
                 printSettings?.prescription?.case_option?.push({
                     id: module?.module_id,
@@ -1189,7 +1709,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             }
 
             // Check if custom module data exists
-            let customModule = caseManagerData?.moduleContents?.find(e => e?.module_id === option?.id);
+            let customModule = caseManagerData?.moduleContents?.find(e => (
+                idsMatch(e?.module_id, option?.id) ||
+                idsMatch(e?.origin_id, option?.id) ||
+                idsMatch(e?.id, option?.id)
+            ));
             if(customModule) {
                 customModule = {...customModule, name: getCustomModuleName(option?.id)};
             }
@@ -1242,6 +1766,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     return caseManagerData?.visit_advice || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                 case 20: // Ophthalmology Module
                     return hasOphthalModuleData;
+                case 21: // Dental Examination
+                    return hasDentalExaminationData;
+                case 22: // Oral Examination
+                    return hasOralExaminationData;
                 default:
                     return false;
             }
@@ -1252,13 +1780,34 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         return (
             // Check custom module options (1-16, 18, 91)
             hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
-            // (zydusLabData?.data?.length > 0) ||
-            
             // Check smart sync data
-            (isSmartSyncPrescription && (caseManagerData.isCustomSSRX === "0" && smartRxData?.length > 0) && !isSnapRxWrittenPrescription)
-            
+            (isSmartSyncPrescription && (caseManagerData.isCustomSSRX === "0" && smartRxData?.length > 0) && !isSnapRxWrittenPrescription) ||
+            hasDentalExaminationData ||
+            hasOralExaminationData ||
+            shouldShowDentalChartOnly
         );
     };
+
+    const hasBlankSmartSyncCanvas =
+        caseManagerData?.isCustomSSRX === "0" &&
+        isSmartSyncPrescription &&
+        Array.isArray(smartRxData) &&
+        smartRxData.some((item) => !!getSmartSyncUploadedFileUri(item)) &&
+        !isSnapRxWrittenPrescription;
+
+    const baseHasPrescriptionContent =
+        hasAnyData(caseManagerData) ||
+        caseManagerData?.vitals?.length > 0 ||
+        caseManagerData?.patient_birth_weight ||
+        hasBlankSmartSyncCanvas;
+
+    const shouldRenderMainPrescriptionPage =
+        baseHasPrescriptionContent &&
+        (!isCvtExtHosAccessableForPrint ||
+            isRxDigitizeBool ||
+            caseManagerData?.vitals?.length > 0 ||
+            caseManagerData?.patient_birth_weight ||
+            hasBlankSmartSyncCanvas);
 
     return (
         <Document>
@@ -1276,7 +1825,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                         {/* Smart RX Images for Custom SSRX - Show at the beginning */}
                         {shouldRenderStandaloneWrittenFirstPage && (
                             smartRxData?.map((item, i) => {
-                                const writtenRxSrc = getWrittenRxImageUrl(item);
+                                const writtenRxSrc = getSmartSyncUploadedFileUri(item);
                                 if (!writtenRxSrc) {
                                     return null;
                                 }
@@ -1296,7 +1845,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     </>
                 </Page>
             }
-            {hasAnyData(caseManagerData) && (
+            {shouldRenderMainPrescriptionPage && (
                 <Page
                     size="A4"
                     style={[paddingStyles, {
@@ -1325,27 +1874,49 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 <Text style={styles.mainTitle}>
                                                     {printSettings?.header_footer?.header?.doctor_info?.place === 'L' ? printSettings?.header_footer?.header?.doctor_info?.header : printSettings?.header_footer?.header?.clinic_info?.header}
                                                 </Text>
-                                                <Text style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}>
-                                                    {printSettings?.header_footer?.header?.doctor_info?.place === 'L' ? printSettings?.header_footer?.header?.doctor_info?.subheader : printSettings?.header_footer?.header?.clinic_info?.subheader}
-                                                </Text>
+                                                {!cvtExtHosPatientMapEnabled && (
+                                                    <Text style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}>
+                                                        {printSettings?.header_footer?.header?.doctor_info?.place === 'L' ? printSettings?.header_footer?.header?.doctor_info?.subheader : printSettings?.header_footer?.header?.clinic_info?.subheader}
+                                                    </Text>
+                                                )}
                                             </View>
                                             {printSettings?.logo_enable === 'Y' && (
-                                                <View style={{ width: 82, height: 82, overflow: 'hidden', marginHorizontal: 16 }}>
-                                                    {fileLogo && fileLogo?.imageShow && (
+                                                <View style={{ width: isCvtExtHosAccessableForPrint ? 130 : 82, height: isCvtExtHosAccessableForPrint ? 90 : 82, overflow: 'hidden', marginHorizontal: 16 }}>
+                                                    {showMissionHospitalLogo ? (
                                                         <Image
                                                             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                                            src={fileLogo?.showFile}
+                                                            src={ASSETS.images.missionHospitalLogo}
                                                         />
+                                                    ) : (
+                                                        fileLogo && fileLogo?.imageShow && (
+                                                            <Image
+                                                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                                                src={fileLogo?.showFile}
+                                                            />
+                                                        )
                                                     )}
                                                 </View>
                                             )}
                                             <View style={{ flex: 1, textAlign: 'right' }}>
-                                                <Text style={styles.mainTitle}>
-                                                    {printSettings?.header_footer?.header?.doctor_info?.place === 'R' ? printSettings?.header_footer?.header?.doctor_info?.header : printSettings?.header_footer?.header?.clinic_info?.header}
-                                                </Text>
-                                                <Text style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}>
-                                                    {printSettings?.header_footer?.header?.doctor_info?.place === 'R' ? printSettings?.header_footer?.header?.doctor_info?.subheader : printSettings?.header_footer?.header?.clinic_info?.subheader}
-                                                </Text>
+                                                {showMissionHospitalLogo ? (
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                        <Image
+                                                            style={{ width: 140, height: 60, objectFit: 'contain' }}
+                                                            src={ASSETS.images.nabhLogos}
+                                                        />
+                                                    </View>
+                                                ) : (
+                                                    <View>
+                                                        <Text style={styles.mainTitle}>
+                                                            {printSettings?.header_footer?.header?.doctor_info?.place === 'R' ? printSettings?.header_footer?.header?.doctor_info?.header : printSettings?.header_footer?.header?.clinic_info?.header}
+                                                        </Text>
+                                                        {!cvtExtHosPatientMapEnabled && (
+                                                            <Text style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}>
+                                                                {printSettings?.header_footer?.header?.doctor_info?.place === 'R' ? printSettings?.header_footer?.header?.doctor_info?.subheader : printSettings?.header_footer?.header?.clinic_info?.subheader}
+                                                            </Text>
+                                                        )}
+                                                    </View>
+                                                )}
                                             </View>
                                         </View>
                                     ) : (
@@ -1595,6 +2166,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     return advanceReceipts?.length > 0;
                                 case 20:
                                     return hasOphthalModuleData;
+                                case 21:
+                                    return hasDentalExaminationData;
+                                case 22:
+                                    return hasOralExaminationData;
                                 default:
                                     if (option.is_custom_module) {
                                         const customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
@@ -1697,7 +2272,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             <View style={{ flex: dentalMedicationOption?.medicine_option?.length === 0 ? 0.25 : dentalMedicationOption?.medicine_option?.length === 1 ? 0.8 : dentalMedicationOption?.medicine_option?.length === 2 ? 1.2 : dentalMedicationOption?.medicine_option?.length === 3 ? 1.4 : 2.4, flexDirection: 'row' }}>
                                                                 {dentalMedicationOption?.medicine_option?.includes('dose') && (
                                                                     <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
-                                                                        {item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, dentalMedicationOption?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}` : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-')}
+                                                                        {getMedicationDoseDisplay(item, dentalMedicationOption)}
                                                                     </Text>
                                                                 )}
                                                                 {dentalMedicationOption?.medicine_option?.includes('frequency') && (
@@ -1733,37 +2308,63 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             </View>
                                         )}
 
+                                        {/* {hasDentalExaminationData
+                                            ? renderDentalExamPdf({
+                                                dentalExaminationData,
+                                                dentalOption: printSettings?.prescription?.case_option?.find(
+                                                    (o) => o?.id === DENTAL_EXAM_CASE_OPTION_ID,
+                                                ),
+                                                printSettings,
+                                                consultationDate:
+                                                    caseManagerData?.patient_data?.patient_consultaion_date,
+                                                PX_TO_PT,
+                                                toothImageMap,
+                                            })
+                                            : null}
+                                        {shouldRenderOralInDentalBlock
+                                            ? renderOralExamPdf({
+                                                examChart,
+                                                oralOption: printSettings?.prescription?.case_option?.find(
+                                                    (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+                                                ),
+                                                printSettings,
+                                                consultationDate:
+                                                    caseManagerData?.patient_data?.patient_consultaion_date,
+                                                PX_TO_PT,
+                                            })
+                                            : null} */}
+
                                         {hasTeethData && (
-                                            <View style={styles.dentalQuadrantGrid}>
-                                                {[0, 1].map((rowIndex) => (
-                                                    <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow} wrap={false}>
-                                                        {dentalQuadrantSections.slice(rowIndex * 2, rowIndex * 2 + 2).map((section, idx) => {
-                                                            const isLastCol = idx === 1;
-                                                            const isLastRow = rowIndex === 1;
-                                                            return (
-                                                                <View
-                                                                    key={section.key}
-                                                                    style={{
-                                                                        ...styles.dentalQuadrantCell,
-                                                                        borderRight: isLastCol ? "0px solid #171725" : styles.dentalQuadrantCell.borderRight,
-                                                                        borderBottom: isLastRow ? "0px solid #171725" : styles.dentalQuadrantCell.borderBottom,
-                                                                    }}
-                                                                >
-                                                                    <Text style={{ ...styles.dentalQuadrantTitle, fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>
-                                                                        {section.label}
-                                                                    </Text>
-                                                                    {(dentalTeethBySection?.[section.key] || []).map((tooth, i) => (
-                                                                        <Text key={`${section.key}-${i}`} style={{ ...styles.dentalListItem, fontFamily: baseFontFamily, fontSize: baseFontSize }}>
-                                                                            {`Tooth ${tooth?.toothNum ?? ""}: ${tooth?.diagnose ?? ""}`}
-                                                                        </Text>
-                                                                    ))}
-                                                                </View>
-                                                            );
-                                                        })}
+                                                    <View style={styles.dentalQuadrantGrid}>
+                                                        {[0, 1].map((rowIndex) => (
+                                                            <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow} wrap={false}>
+                                                                {dentalQuadrantSections.slice(rowIndex * 2, rowIndex * 2 + 2).map((section, idx) => {
+                                                                    const isLastCol = idx === 1;
+                                                                    const isLastRow = rowIndex === 1;
+                                                                    return (
+                                                                        <View
+                                                                            key={section.key}
+                                                                            style={{
+                                                                                ...styles.dentalQuadrantCell,
+                                                                                borderRight: isLastCol ? "0px solid #171725" : styles.dentalQuadrantCell.borderRight,
+                                                                                borderBottom: isLastRow ? "0px solid #171725" : styles.dentalQuadrantCell.borderBottom,
+                                                                            }}
+                                                                        >
+                                                                            <Text style={{ ...styles.dentalQuadrantTitle, fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>
+                                                                                {section.label}
+                                                                            </Text>
+                                                                            {(dentalTeethBySection?.[section.key] || []).map((tooth, i) => (
+                                                                                <Text key={`${section.key}-${i}`} style={{ ...styles.dentalListItem, fontFamily: baseFontFamily, fontSize: baseFontSize }}>
+                                                                                    {`Tooth ${tooth?.toothNum ?? ""}: ${tooth?.diagnose ?? ""}`}
+                                                                                </Text>
+                                                                            ))}
+                                                                        </View>
+                                                                    );
+                                                                })}
+                                                            </View>
+                                                        ))}
                                                     </View>
-                                                ))}
-                                            </View>
-                                        )}
+                                                )}
 
                                         {dentalDiagnosisRows.length > 0 && (
                                             <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
@@ -1910,10 +2511,73 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         )}
                                     </View>
                                 )}
+                                {onlyShowDental && (
+                                    <>
+                                        {(hasDentalExaminationData || shouldShowDentalChartOnly)
+                                            ? renderDentalExamPdf({
+                                                dentalExaminationData,
+                                                dentalOption: dentalPrintOption,
+                                                printSettings,
+                                                consultationDate:
+                                                    caseManagerData?.patient_data?.patient_consultaion_date,
+                                                PX_TO_PT,
+                                                toothImageMap,
+                                            })
+                                            : null}
+                                        {shouldRenderOralInDentalBlock
+                                            ? renderOralExamPdf({
+                                                examChart,
+                                                oralOption: printSettings?.prescription?.case_option?.find(
+                                                    (o) => o?.id === ORAL_EXAM_CASE_OPTION_ID,
+                                                ),
+                                                printSettings,
+                                                consultationDate:
+                                                    caseManagerData?.patient_data?.patient_consultaion_date,
+                                                PX_TO_PT,
+                                            })
+                                            : null}
+                                    </>
+                                )}
                                 {printSettings?.prescription?.case_option?.map((option, index) => {
-                            const customModule = caseManagerData?.moduleContents?.find(e => {
-                                return e.module_id === option?.id
-                            });
+                                    if (onlyShowDental) {
+                                        return null;
+                                    }
+                            if (
+                                isCvtExtHosAccessableForPrint &&
+                                !isRxDigitizeBool &&
+                                option?.id !== 7 &&
+                                option?.id !== 11
+                            ) {
+                                return null;
+                            }
+                            if (onlyShowDental) {
+                                return null;
+                            }
+                            let customModule = caseManagerData?.moduleContents?.find(e => (
+                                idsMatch(e?.module_id, option?.id) ||
+                                idsMatch(e?.origin_id, option?.id) ||
+                                idsMatch(e?.id, option?.id)
+                            ));
+
+                            if (!customModule && option?.is_custom_module && option?.title) {
+                                const optionTitle = normalizeModuleLabel(option?.title);
+                                customModule = caseManagerData?.moduleContents?.find(
+                                    (e) => normalizeModuleLabel(e?.module_name) === optionTitle ||
+                                        normalizeModuleLabel(e?.name) === optionTitle
+                                );
+                            }
+
+                            if (customModule) {
+                                const resolvedModuleName =
+                                    getCustomModuleName(option?.id) ||
+                                    customModule.module_name ||
+                                    customModule.name;
+                                customModule = {
+                                    ...customModule,
+                                    name: resolvedModuleName,
+                                    module_name: resolvedModuleName,
+                                };
+                            }
 
                             if (option?.type === "page_break") {
                                 const isLastPageBreak = index === printSettings?.prescription?.case_option?.length - 1;
@@ -1949,6 +2613,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 const dataKeys = Object.keys(item || {}).filter(k => k !== 'id' && k !== 'order');
                                 return dataKeys.some(k => item[k] != null && String(item[k]).trim() !== '');
                             });
+                            const isSoapPrintOption = isSoapPrintModule(option, customModule);
                             
                             // Skip rendering if it's a custom module with no data
                             if (option?.is_custom_module === true && !hasCustomModuleData) {
@@ -1986,8 +2651,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 <View key={option.id} style={{
                                     marginTop: index === 0 ? (printSettings?.header_footer?.show_patient_info === 'first' ||
                                         !printSettings?.header_footer?.show_patient_info) ? PX_TO_PT * 15 : 0 : 0
-                                }} break={option?.id == module_id && caseManagerData?.doctor_data?.um_id == um_id ? true : false}>
-                                {option?.id === 1 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                }}>
+                                {isSoapPrintOption && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                    renderSoapPrintSections(customModule?.content || [])
+                                ) : option?.id === 1 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
                                         {caseManagerData.symptoms.length > 0 && (
                                             option?.format === 'inline' ? (
@@ -2278,7 +2945,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             })()
                                         )}
                                     </>
-                                ) : option?.id === 4 && option?.enable === 'Y' && option?.custom_status === 'Y' && !shouldHideMedicationModuleBecauseDentalMedicationShown ? (
+                                ) : option?.id === 4 && option?.enable === 'Y' && option?.custom_status === 'Y' && !shouldHidePrimaryMedicationSection ? (
                                     <>
                                         {isAiFlowMedication && aiFlowMedicationList.length > 0 ? (
                                             <>
@@ -2572,13 +3239,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                                     modiGeneric: option?.medicine_with_generic && ii === 0 ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || "") : "",
 
                                                                                                     modiUnitPerDose: option?.medicine_option?.includes("dose")
-                                                                                                        ? item.tmm_dosage && item.tmm_unit
-                                                                                                            ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${
-                                                                                                                item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ""
-                                                                                                            }`
-                                                                                                            : `${
-                                                                                                                item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ""
-                                                                                                            }`
+                                                                                                        ? getMedicationDoseDisplay(item, option)
                                                                                                         : "",
 
                                                                                                     modiFrequency:option?.medicine_option?.includes("frequency")
@@ -2665,13 +3326,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                                     modiGeneric: option?.medicine_with_generic && ii === 0 ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || "") : "",
 
                                                                                                     modiUnitPerDose: option?.medicine_option?.includes("dose")
-                                                                                                        ? item.tmm_dosage && item.tmm_unit
-                                                                                                            ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${
-                                                                                                                item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ""
-                                                                                                            }`
-                                                                                                            : `${
-                                                                                                                item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ""
-                                                                                                            }`
+                                                                                                        ? getMedicationDoseDisplay(item, option)
                                                                                                         : "",
 
                                                                                                     modiFrequency:option?.medicine_option?.includes("frequency")
@@ -2794,7 +3449,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                             <View style={{ flexGrow: 1, flexDirection: 'row', borderBottom: ii != innerMedication(pItem.index)?.length - 1 ? '1px solid #171725' : '0px' }} key={ii}>
                                                                                 {option?.medicine_option?.includes('dose') && (
                                                                                   <>
-                                                                                    <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{`${item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit).tmu_title : ""}` : `${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit).tmu_title : ""}`}`}</Text>
+                                                                                    <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{getMedicationDoseDisplay(item, option)}</Text>
                                                                                     {isTapered && !isLastItem && (
                                                                                       <ThenConnector printSettings={printSettings} />
                                                                                     )}
@@ -3721,17 +4376,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             )}
                                         </>
                                     </>
-                                ) : option?.id === 11 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                ) : option?.id === 11 &&
+                                    ((option?.enable === 'Y' && option?.custom_status === 'Y') ||
+                                        hasBlankSmartSyncCanvas) ? (
                                     <>
-                                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0") && !isSnapRxWrittenPrescription && (
+                                        {/* SmartRx files render at case_option id 11 position so print-config order is respected */}
+                                        {isSmartSyncPrescription &&
+                                            caseManagerData?.isCustomSSRX === "0" &&
+                                            !isSnapRxWrittenPrescription &&
                                             smartRxData?.map((item, i) => {
-                                                const writtenRxSrc = getWrittenRxImageUrl(item);
+                                                const writtenRxSrc = getSmartSyncUploadedFileUri(item);
                                                 if (!writtenRxSrc) {
                                                     return null;
                                                 }
                                                 return (
                                                     <View key={i}>
-                                                        <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: '800' }}>
+                                                        <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: 800 }}>
                                                             <Image
                                                                 style={{ width: '100%', height: '100%' }}
                                                                 src={writtenRxSrc}
@@ -3740,8 +4400,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         </View>
                                                     </View>
                                                 );
-                                            })
-                                        )}
+                                            })}
                                     </>
                                 ) : option?.id === 12 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
@@ -5334,793 +5993,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     )}
                                                 </View>
                                             ) : (
-                                                <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                                    <Text
-                                                        style={{
-                                                            color: "#171725",
-                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                            fontWeight: 700,
-                                                        }}
-                                                        wrap={false}
-                                                        fixed
-                                                    >
-                                                        Menstrual details&nbsp;:&nbsp;
-                                                    </Text>
-                                                    <View wrap={false} style={{ break: "avoid" }}>
-                                                    <Text
-                                                        style={{
-                                                            color: "#000",
-                                                            marginTop: PX_TO_PT * 12,
-                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                            fontWeight: 500,
-                                                            padding: 6,
-                                                            borderTop: "1px solid #171725",
-                                                            borderLeft: "1px solid #171725",
-                                                            borderRight: "1px solid #171725",
-                                                            backgroundColor: "#E2E2EA",
-                                                        }}
-                                                    >
-                                                        LMP
-                                                    </Text>
-                                                    <View style={[styles.table, { marginTop: 0 }]}>
-                                                        <View
-                                                            style={[
-                                                                styles.headerRow,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Date
-                                                            </Text>
-                                                        </View>
-                                                        <View
-                                                            style={[
-                                                                styles.row,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.lmp ? moment(gynecHistoryData?.lmp).format("DD MMM YYYY") : `-`}
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                    </View>
-                                                    <View wrap={false} style={{ break: "avoid" }}>
-                                                    <Text
-                                                        style={{
-                                                            color: "#000",
-                                                            marginTop: PX_TO_PT * 12,
-                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                            fontWeight: 500,
-                                                            padding: 6,
-                                                            borderTop: "1px solid #171725",
-                                                            borderLeft: "1px solid #171725",
-                                                            borderRight: "1px solid #171725",
-                                                            backgroundColor: "#E2E2EA",
-                                                        }}
-                                                    >
-                                                        Cycle
-                                                    </Text>
-                                                    <View style={[styles.table, { marginTop: 0 }]}>
-                                                        <View
-                                                            style={[
-                                                                styles.headerRow,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Type
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Interval
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                        textTransform: 'capitalize'
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.cycle || `-`}
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.intervalOfCycle || ``}&nbsp;
-                                                                {gynecHistoryData?.intervalOfCycle ? Number(gynecHistoryData?.intervalOfCycle) > 1 ? `days` : `day` : `-`}
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell
-                                                                ]}
-                                                            >
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 500,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    Note&nbsp;:&nbsp;
-                                                                </Text>
-
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: getIndianLanguageFont(gynecHistoryData?.cycleNotes, printSettings?.page_format?.font_family),
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 400,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    {gynecHistoryData?.cycleNotes || `-`}&nbsp;
-                                                                </Text>
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                    </View>
-                                                    <View wrap={false} style={{ break: "avoid" }}>
-                                                    <Text
-                                                        style={{
-                                                            color: "#000",
-                                                            marginTop: PX_TO_PT * 12,
-                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                            fontWeight: 500,
-                                                            padding: 6,
-                                                            borderTop: "1px solid #171725",
-                                                            borderLeft: "1px solid #171725",
-                                                            borderRight: "1px solid #171725",
-                                                            backgroundColor: "#E2E2EA",
-                                                        }}
-                                                    >
-                                                        Flow
-                                                    </Text>
-                                                    <View style={[styles.table, { marginTop: 0 }]}>
-                                                        <View
-                                                            style={[
-                                                                styles.headerRow,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Volume
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Duration flow
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Clots
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Pads per day
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                        textTransform: 'capitalize'
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.flow || `-`}
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.durationOfMenstrualFlow || ``}&nbsp;
-                                                                {gynecHistoryData?.durationOfMenstrualFlow ? Number(gynecHistoryData?.durationOfMenstrualFlow) > 1
-                                                                    ? `days`
-                                                                    : `day` : `-`}
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {Boolean(gynecHistoryData?.clots) ? `Yes` : `No`}
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.numberOfPadsPerDay || `-`}
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell
-                                                                ]}
-                                                            >
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 500,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    Note&nbsp;:&nbsp;
-                                                                </Text>
-
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: getIndianLanguageFont(gynecHistoryData?.flowNotes, printSettings?.page_format?.font_family),
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 400,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    {gynecHistoryData?.flowNotes || `-`}&nbsp;
-                                                                </Text>
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                    </View>
-                                                    <View wrap={false} style={{ break: "avoid" }}>
-                                                    <Text
-                                                        style={{
-                                                            color: "#000",
-                                                            marginTop: PX_TO_PT * 12,
-                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                            fontWeight: 500,
-                                                            padding: 6,
-                                                            borderTop: "1px solid #171725",
-                                                            borderLeft: "1px solid #171725",
-                                                            borderRight: "1px solid #171725",
-                                                            backgroundColor: "#E2E2EA",
-                                                        }}
-                                                    >
-                                                        Pain
-                                                    </Text>
-                                                    <View style={[styles.table, { marginTop: 0 }]}>
-                                                        <View
-                                                            style={[
-                                                                styles.headerRow,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Level
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Occurrence
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                        textTransform: 'capitalize'
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.pain || `-`}
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                        textTransform: 'capitalize'
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.occurrenceOfPain || `-`}
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell
-                                                                ]}
-                                                            >
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 500,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    Note&nbsp;:&nbsp;
-                                                                </Text>
-
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: getIndianLanguageFont(gynecHistoryData?.painNotes, printSettings?.page_format?.font_family),
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 400,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    {gynecHistoryData?.painNotes || `-`}&nbsp;
-                                                                </Text>
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                </View>
-                                                <View wrap={false} style={{ break: "avoid" }}>
-                                                    <Text
-                                                        style={{
-                                                            color: "#000",
-                                                            marginTop: PX_TO_PT * 12,
-                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                            fontWeight: 500,
-                                                            padding: 6,
-                                                            borderTop: "1px solid #171725",
-                                                            borderLeft: "1px solid #171725",
-                                                            borderRight: "1px solid #171725",
-                                                            backgroundColor: "#E2E2EA",
-                                                        }}
-                                                    >
-                                                        Menarche
-                                                    </Text>
-                                                    <View style={[styles.table, { marginTop: 0 }]}>
-                                                        <View
-                                                            style={[
-                                                                styles.headerRow,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Age at
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.ageAtMenarche || ``} {gynecHistoryData?.ageAtMenarche ? `years` : `-`}
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell
-                                                                ]}
-                                                            >
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 500,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    Note&nbsp;:&nbsp;
-                                                                </Text>
-
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: getIndianLanguageFont(gynecHistoryData?.menarcheNotes, printSettings?.page_format?.font_family),
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 400,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    {gynecHistoryData?.menarcheNotes || `-`}&nbsp;
-                                                                </Text>
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                    </View>
-                                                    <View wrap={false} style={{ break: "avoid" }}>
-                                                    <Text
-                                                        style={{
-                                                            color: "#000",
-                                                            marginTop: PX_TO_PT * 12,
-                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                            fontWeight: 500,
-                                                            padding: 6,
-                                                            borderTop: "1px solid #171725",
-                                                            borderLeft: "1px solid #171725",
-                                                            borderRight: "1px solid #171725",
-                                                            backgroundColor: "#E2E2EA",
-                                                        }}
-                                                    >
-                                                        {gynecHistoryData?.reproductiveLifeStages?.toLowerCase() === 'menopause' ? 'Menopause' : gynecHistoryData?.reproductiveLifeStages?.toLowerCase() === 'perimenopause' ? 'Perimenopause' : 'Lactational amenorrhea'}
-                                                    </Text>
-                                                    <View style={[styles.table, { marginTop: 0 }]}>
-                                                        <View
-                                                            style={[
-                                                                styles.headerRow,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Age
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.headerCell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 500,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                Type of {gynecHistoryData?.reproductiveLifeStages?.toLowerCase() === 'menopause' ? 'menopause' : gynecHistoryData?.reproductiveLifeStages?.toLowerCase() === 'perimenopause' ? 'perimenopause' : 'lactational amenorrhea'}
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row,
-                                                                { alignItems: "center", justifyContent: "center" },
-                                                            ]}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.ageAtMenopause || ``} {gynecHistoryData?.ageAtMenopause ? `years` : `-`}
-                                                            </Text>
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell,
-                                                                    {
-                                                                        fontFamily: printSettings?.page_format?.font_family,
-                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                        fontWeight: 400,
-                                                                        color: "#000",
-                                                                        textAlign: "center",
-                                                                        textTransform: 'capitalize'
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                {gynecHistoryData?.typeOfMenopause || `-`}
-                                                            </Text>
-                                                        </View>
-
-                                                        <View
-                                                            style={[
-                                                                styles.row
-                                                            ]}
-                                                            wrap={false}
-                                                        >
-                                                            <Text
-                                                                style={[
-                                                                    styles.cell
-                                                                ]}
-                                                            >
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: printSettings?.page_format?.font_family,
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 500,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    Note&nbsp;:&nbsp;
-                                                                </Text>
-
-                                                                <Text
-                                                                    style={[
-                                                                        {
-                                                                            fontFamily: getIndianLanguageFont(gynecHistoryData?.reproductiveNotes, printSettings?.page_format?.font_family),
-                                                                            fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                            fontWeight: 400,
-                                                                            color: "#000",
-                                                                        }
-                                                                    ]}>
-                                                                    {gynecHistoryData?.reproductiveNotes || `-`}&nbsp;
-                                                                </Text>
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-
-                                                    {gynecHistoryData?.notes && (
-                                                        <View wrap={false} style={{ break: "avoid" }}>
-                                                            <Text
-                                                                style={{
-                                                                    color: "#000",
-                                                                    marginTop: PX_TO_PT * 12,
-                                                                    fontFamily: printSettings?.page_format?.font_family,
-                                                                    fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                    fontWeight: 500,
-                                                                    padding: 6,
-                                                                    borderTop: "1px solid #171725",
-                                                                    borderLeft: "1px solid #171725",
-                                                                    borderRight: "1px solid #171725",
-                                                                    backgroundColor: "#E2E2EA",
-                                                                }}
-                                                            >
-                                                                Menstruation note
-                                                            </Text>
-                                                            <View style={[styles.table, { marginTop: 0 }]}>
-                                                                <View
-                                                                    style={[
-                                                                        styles.headerRow
-                                                                    ]}
-                                                                >
-                                                                    <Text
-                                                                        style={[
-                                                                            styles.cell,
-                                                                            {
-                                                                                fontFamily: getIndianLanguageFont(gynecHistoryData?.notes, printSettings?.page_format?.font_family),
-                                                                                fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                                fontWeight: 400,
-                                                                                color: "#000",
-                                                                            },
-                                                                        ]}
-                                                                    >
-                                                                        {gynecHistoryData?.notes || `-`}&nbsp;
-                                                                    </Text>
-                                                                </View>
-                                                            </View>
-                                                        </View>
-                                                    )}
-                                                    </View>
-                                                </View>
+                                                <GynecHistoryTableView
+                                                    PX_TO_PT={PX_TO_PT}
+                                                    styles={styles}
+                                                    printSettings={printSettings}
+                                                    gynecHistoryData={gynecHistoryData}
+                                                />
                                             )
                                             )}
                                     </>
@@ -6486,6 +6364,32 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 </>
                                             ))
                                         }
+                                    </>
+                                ) : option?.id === DENTAL_EXAM_CASE_OPTION_ID && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                    <>
+                                        {hasDentalExaminationData ? renderDentalExamPdf({
+                                            dentalExaminationData,
+                                            dentalOption: option,
+                                            printSettings,
+                                            consultationDate:
+                                                caseManagerData?.patient_data?.patient_consultaion_date,
+                                            PX_TO_PT,
+                                            toothImageMap,
+                                        })
+                                        : null}
+                                    </>
+                                ) : option?.id === ORAL_EXAM_CASE_OPTION_ID && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                    <>
+                                        {hasOralExaminationData
+                                            ? renderOralExamPdf({
+                                                examChart,
+                                                oralOption: option,
+                                                printSettings,
+                                                consultationDate:
+                                                    caseManagerData?.patient_data?.patient_consultaion_date,
+                                                PX_TO_PT,
+                                            })
+                                            : null}
                                     </>
                                 ) : option?.id === 16 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
@@ -7011,6 +6915,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             if (!item || typeof item !== 'object') return [];
                                             return Object.keys(item).filter(key => key !== 'id' && key !== 'order');
                                         };
+
+                                        const normalizedCustomModules = Array.isArray(customModules)
+                                            ? customModules
+                                            : Array.isArray(customModules?.modules)
+                                                ? customModules.modules
+                                                : Array.isArray(customModules?.data)
+                                                    ? customModules.data
+                                                    : [];
+                                        const moduleDefinition = normalizedCustomModules.find(m =>
+                                            [m?.module_id, m?.origin_id, m?.id].some((id) =>
+                                                id != null && [customModule?.module_id, customModule?.origin_id, customModule?.id].some((moduleId) => String(moduleId) === String(id))
+                                            )
+                                        );
+                                        const namedFields = moduleDefinition?.namedFields || moduleDefinition?.fields || customModule?.namedFields || option?.namedFields || [];
+                                        const getFieldLabel = (fieldKey) => {
+                                            const field = namedFields.find((namedField) =>
+                                                [namedField?.fieldName, namedField?.name, namedField?.key].some((name) => String(name || "") === String(fieldKey || ""))
+                                            );
+                                            return formatCustomModuleColumnTitle(field?.fieldLabel || field?.label || field?.title || fieldKey);
+                                        };
                                         
                                         // Get field keys from first content item (for v2)
                                         const fieldKeys = isV2 && customModule?.content?.length > 0 
@@ -7018,7 +6942,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             : [];
                                         // When order === 0, render v2 as single-column table (header = field key, one column of values)
                                         const isV2SingleColumn = isV2 && fieldKeys.length > 0 && customModule?.content?.length > 0 &&
-                                            (customModule.content[0].order === 0 || customModule.content[0].order === '0');
+                                            (fieldKeys.length === 1 || namedFields.length === 1 ||
+                                            customModule.content[0].order === 0 || customModule.content[0].order === '0');
+                                        const normalizeCustomModuleTitle = (value) =>
+                                            String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+                                        const resolveCustomModuleDisplayName = () =>
+                                            getCustomModuleName(option?.id) ||
+                                            customModule?.name ||
+                                            customModule?.module_name ||
+                                            option?.title ||
+                                            '';
+                                        const isV2NameMatchesColumnTitle = isV2SingleColumn && fieldKeys.length > 0 && (() => {
+                                            const normalizedModuleName = normalizeCustomModuleTitle(resolveCustomModuleDisplayName());
+                                            if (!normalizedModuleName) return false;
+                                            const fieldKey = fieldKeys[0];
+                                            const fieldLabel = getFieldLabel(fieldKey);
+                                            return (
+                                                normalizedModuleName === normalizeCustomModuleTitle(fieldLabel) ||
+                                                normalizedModuleName === normalizeCustomModuleTitle(fieldKey)
+                                            );
+                                        })();
 
                                         // Helper to check if V2 content has any data
                                         const hasV2Content = (item) => {
@@ -7039,10 +6982,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
                                                     {customModule?.content?.map((item, i) => {
                                                         if (isV2) {
+                                                            if (isV2NameMatchesColumnTitle) {
+                                                                const value = item[fieldKeys[0]];
+                                                                if (!value?.trim?.().length > 0) return null;
+                                                                return (
+                                                                    <Text key={i}>
+                                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                            {normalizePdfText(value)}
+                                                                        </Text>
+                                                                        {i < customModule?.content.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}> | </Text>}
+                                                                    </Text>
+                                                                );
+                                                            }
                                                             // V2: Render all fields with their keys as labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
                                                             const fieldEntries = fieldKeys
                                                                 .map(fieldKey => ({
-                                                                    label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                                                    label: getFieldLabel(fieldKey),
                                                                     value: item[fieldKey]
                                                                 }))
                                                                 .filter(entry => entry.value?.trim?.().length > 0);
@@ -7058,7 +7013,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                 {entry.label}:&nbsp;
                                                                             </Text>
                                                                             <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
-                                                                                {entry.value}
+                                                                                {normalizePdfText(entry.value)}
                                                                             </Text>
                                                                             {idx < fieldEntries.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>, </Text>}
                                                                         </Text>
@@ -7071,11 +7026,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             // V1: Original rendering
                                                             return (
                                                                 <Text key={i}>
-                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
+                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(formatCustomModuleColumnTitle(item?.title), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{formatCustomModuleColumnTitle(item.title)}&nbsp;</Text>}
                                                                     {item.notes &&
                                                                         <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
                                                                             {`${item?.title ? '(' : ''}`}
-                                                                            {item.notes?.replace(/ /g, '\u00A0')}
+                                                                            {normalizePdfText(item.notes)}
                                                                             {`${item?.title ? ')' : ''}`}
                                                                         </Text>
                                                                     }
@@ -7093,10 +7048,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
                                                     {customModule?.content.map((item, i) => {
                                                         if (isV2) {
+                                                            if (isV2NameMatchesColumnTitle) {
+                                                                const value = item[fieldKeys[0]];
+                                                                if (!value?.trim?.().length > 0) return null;
+                                                                return (
+                                                                    <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
+                                                                        <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;&nbsp;&nbsp;{i + 1}.</Text>
+                                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                            {normalizePdfText(value)}
+                                                                        </Text>
+                                                                    </Text>
+                                                                );
+                                                            }
                                                             // V2: Render all fields with their keys as labels in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
                                                             const fieldEntries = fieldKeys
                                                                 .map(fieldKey => ({
-                                                                    label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                                                    label: getFieldLabel(fieldKey),
                                                                     value: item[fieldKey]
                                                                 }))
                                                                 .filter(entry => entry.value?.trim?.().length > 0);
@@ -7112,7 +7079,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                 {entry.label}:&nbsp;
                                                                             </Text>
                                                                             <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
-                                                                                {entry.value}
+                                                                                {normalizePdfText(entry.value)}
                                                                             </Text>
                                                                             {idx < fieldEntries.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>, </Text>}
                                                                         </Text>
@@ -7124,11 +7091,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             return (
                                                                 <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
                                                                     <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
-                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
+                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(formatCustomModuleColumnTitle(item?.title), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{formatCustomModuleColumnTitle(item.title)}&nbsp;</Text>}
                                                                     {item.notes &&
                                                                         <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
                                                                             {`${item?.title ? '(' : ''}`}
-                                                                            {item.notes?.replace(/ /g, '\u00A0')}
+                                                                            {normalizePdfText(item.notes)}
                                                                             {`${item?.title ? ')' : ''}`}
                                                                         </Text>
                                                                     }
@@ -7149,11 +7116,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         {customModule.module_version === "v2" ? (
                                                             // V2: When order === 0, single column (header = field key; rows = values). Else multi-column.
                                                             isV2SingleColumn ? (
+                                                                !isV2NameMatchesColumnTitle ? (
                                                                 <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
-                                                                    <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(fieldKeys[0], printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>
-                                                                        {fieldKeys[0].toUpperCase()}&nbsp;
+                                                                    <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(getFieldLabel(fieldKeys[0]), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }]}>
+                                                                        {getFieldLabel(fieldKeys[0])}&nbsp;
                                                                     </Text>
                                                                 </View>
+                                                                ) : null
                                                             ) : (
                                                                 <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
                                                                     {fieldKeys.map((fieldKey, idx) => {
@@ -7166,14 +7135,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     { 
                                                                                         flex: flexPerColumn, 
                                                                                         color: '#171725', 
-                                                                                        fontFamily: getIndianLanguageFont(fieldKey, printSettings?.page_format?.font_family), 
+                                                                                        fontFamily: getIndianLanguageFont(getFieldLabel(fieldKey), printSettings?.page_format?.font_family), 
                                                                                         fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
                                                                                         fontWeight: 700,
-                                                                                        textTransform: 'uppercase'
                                                                                     }
                                                                                 ]}
                                                                             >
-                                                                                {fieldKey.toUpperCase()}&nbsp;
+                                                                                {getFieldLabel(fieldKey)}&nbsp;
                                                                             </Text>
                                                                         );
                                                                     })}
@@ -7186,21 +7154,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 const notesStr = first?.notes && String(first.notes).trim();
                                                                 const colonIdx = notesStr && notesStr.includes(':') ? notesStr.indexOf(':') : -1;
                                                                 const isV1SingleColumn = customModule?.content?.length === 1 && colonIdx > 0 && colonIdx < notesStr.length - 1;
-                                                                const v1Label = isV1SingleColumn ? notesStr.slice(0, colonIdx).trim() : null;
+                                                                const v1Label = isV1SingleColumn ? formatCustomModuleColumnTitle(notesStr.slice(0, colonIdx).trim()) : null;
                                                                 const v1Value = isV1SingleColumn ? notesStr.slice(colonIdx + 1).trim() : null;
                                                                 if (isV1SingleColumn && v1Label != null && v1Value != null) {
                                                                     return (
                                                                         <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
-                                                                            <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(v1Label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>
-                                                                                {v1Label.toUpperCase()}&nbsp;
+                                                                            <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(v1Label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }]}>
+                                                                                {v1Label}&nbsp;
                                                                             </Text>
                                                                         </View>
                                                                     );
                                                                 }
                                                                 return (
                                                                     <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
-                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>NAME&nbsp;</Text>
-                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>VALUE&nbsp;</Text>
+                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }]}>NAME&nbsp;</Text>
+                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }]}>VALUE&nbsp;</Text>
                                                                     </View>
                                                                 );
                                                             })()
@@ -7249,7 +7217,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 const colonIdx = notesStr && notesStr.includes(':') ? notesStr.indexOf(':') : -1;
                                                                 const isV1SingleCol = customModule?.content?.length === 1 && colonIdx > 0 && colonIdx < (notesStr?.length ?? 0) - 1;
                                                                 if (isV1SingleCol) {
-                                                                    const val = notesStr.slice(colonIdx + 1).trim().replace(/ /g, '\u00A0') || '-';
+                                                                    const val = normalizePdfText(notesStr.slice(colonIdx + 1).trim()) || '-';
                                                                     return (
                                                                         <View style={styles.row} key={i} wrap={false}>
                                                                             <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(val, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{val}&nbsp;</Text>
@@ -7257,7 +7225,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     );
                                                                 }
                                                                 const col1 = (item?.title && String(item.title).trim()) ? item.title : (i + 1);
-                                                                const col2 = (item?.notes && String(item.notes).trim()) ? item.notes.replace(/ /g, '\u00A0') : '-';
+                                                                const col2 = (item?.notes && String(item.notes).trim()) ? normalizePdfText(item.notes) : '-';
                                                                 return (
                                                                     <View style={styles.row} key={i} wrap={false}>
                                                                         <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: getIndianLanguageFont(col1, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{col1}&nbsp;</Text>
@@ -7355,7 +7323,44 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             )
                                         )}
                                     </>
-                                ) : null}
+                                ) : option?.id === 25 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                    <>
+                                        {filteredDrawingCanvases.length > 0 && (
+                                            <View style={{ marginTop: PX_TO_PT * 15 }} wrap={true}>
+                                                {filteredDrawingCanvases.map((canvasObj, i) => (
+                                                    <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                                                        <Text
+                                                            style={{
+                                                                fontSize: PX_TO_PT * 14,
+                                                                fontWeight: 700,
+                                                                color: '#171725',
+                                                                marginBottom: PX_TO_PT * 10,
+                                                                fontFamily: 'Roboto',
+                                                            }}
+                                                        >
+                                                            {canvasObj.name}
+                                                        </Text>
+                                                        <Image
+                                                            src={canvasObj.imageUrl}
+                                                            style={{
+                                                                width: '100%',
+                                                                objectFit: 'contain',
+                                                            }}
+                                                        />
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+                                    </>
+                                ) : option?.id === 26 && option?.enable === 'Y' && option?.custom_status === 'Y' ?
+                                    <CrossConsult
+                                        option={option}
+                                        crossConsultData={crossConsultData}
+                                        PX_TO_PT={PX_TO_PT}
+                                        styles={styles}
+                                        printSettings={printSettings}
+                                    />
+                                : null}
                                 </View>
                             )
                         

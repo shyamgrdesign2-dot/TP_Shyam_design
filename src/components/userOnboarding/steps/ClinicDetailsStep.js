@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Input, message } from "antd";
 import styles from "../DoctorOnboarding.module.css";
-import currentLocation from "../../../assets/images/current-location.svg";
+
 import config from "../../../config";
 import { useLocation } from "react-router-dom";
+import { ASSETS } from "../../../assets";
+const currentLocation = ASSETS.images.currentLocation;
+
 const { TextArea } = Input;
 
 const ClinicDetailsStep = ({ formData, setFormData, clinicId }) => {

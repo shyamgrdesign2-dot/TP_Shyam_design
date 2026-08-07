@@ -7,12 +7,7 @@ import { updateDocument, uploadDocument, fetchAllPatientDocs } from '../../../me
 import { setAllUploadedDocs } from '../../../../redux/uploadDocSlice';
 import { mergeDocuments, generateUniqueFileName, getCorrectedFileName } from '../../../medicalRecords/utils/helper';
 import { MESSAGE_KEY } from '../../../../utils/constants';
-import visitEnd from '../../../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../../../assets/images/close-visit.svg';
-import emptyBg from '../../../../assets/images/empty-bg.svg';
-import emptyFile from '../../../../assets/images/empty-file.svg';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
-import alertIcon from '../../../../assets/images/alertIcon.svg';
+
 import { shortenText, isPdfFile, isVideoFile, isImageFile, loadPdf, loadVideoThumbnail, uploadDocURLtoFile } from '../../../medicalRecords/utils/helper';
 import {
   SUPPORTED_IMAGE_TYPES,
@@ -23,6 +18,15 @@ import {
   VIDEO_THUMBNAIL_TIME,
 } from '../../../../utils/constants';
 import './MobileUploadMedicalRecord.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  emptyBg,
+  emptyFile,
+} = ASSETS.images;
+const closeIcon = ASSETS.mobile.close2;
+const alertIcon = ASSETS.images.alerticon;
 
 const { TextArea } = Input;
 

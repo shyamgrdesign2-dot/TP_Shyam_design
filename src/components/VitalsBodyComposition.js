@@ -3,11 +3,17 @@ import Card from 'react-bootstrap/Card';
 import { Table, Spin } from 'antd';
 import moment from "moment";
 
-import vitals from '../assets/images/Vitals.svg';
-// import arrowright from '../assets/images/arrow-box-right.svg';
-// import graph from '../assets/images/Graph.svg';
-import heartBeat from '../assets/images/heartBeat.svg';
+// 
+// 
+
 import { useAccess } from '../pages/vaccination/useAccess';
+import { ASSETS } from "../assets";
+const {
+  vitals,
+  arrowBoxRight: arrowright,
+  graph,
+  heartbeat: heartBeat,
+} = ASSETS.images;
 
 const showDateFormat = 'DD MMM, YY'
 

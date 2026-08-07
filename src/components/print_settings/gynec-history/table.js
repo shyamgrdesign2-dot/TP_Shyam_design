@@ -9,6 +9,37 @@ function GynecHistoryTableView({
   printSettings,
   gynecHistoryData,
 }) {
+  const hasValue = (value) =>
+    value !== undefined &&
+    value !== null &&
+    !(typeof value === "string" && value.trim() === "");
+  const hasValidDate = (value) => hasValue(value) && moment(value).isValid();
+  const reproductiveLifeStage = gynecHistoryData?.reproductiveLifeStages?.toLowerCase();
+
+  const hasLmpData = hasValidDate(gynecHistoryData?.lmp);
+  const hasCycleData =
+    hasValue(gynecHistoryData?.cycle) ||
+    hasValue(gynecHistoryData?.intervalOfCycle) ||
+    hasValue(gynecHistoryData?.cycleNotes);
+  const hasFlowData =
+    hasValue(gynecHistoryData?.flow) ||
+    hasValue(gynecHistoryData?.durationOfMenstrualFlow) ||
+    hasValue(gynecHistoryData?.numberOfPadsPerDay) ||
+    typeof gynecHistoryData?.clots === "boolean" ||
+    hasValue(gynecHistoryData?.flowNotes);
+  const hasPainData =
+    hasValue(gynecHistoryData?.pain) ||
+    hasValue(gynecHistoryData?.occurrenceOfPain) ||
+    hasValue(gynecHistoryData?.painNotes);
+  const hasMenarcheData =
+    hasValue(gynecHistoryData?.ageAtMenarche) ||
+    hasValue(gynecHistoryData?.menarcheNotes);
+  const hasReproductiveData =
+    hasValue(gynecHistoryData?.reproductiveLifeStages) ||
+    hasValue(gynecHistoryData?.ageAtMenopause) ||
+    hasValue(gynecHistoryData?.typeOfMenopause) ||
+    hasValue(gynecHistoryData?.reproductiveNotes);
+
   return (
     <View style={{ marginTop: PX_TO_PT * 15 }}>
       <Text
@@ -22,7 +53,7 @@ function GynecHistoryTableView({
       >
         Menstrual details&nbsp;:&nbsp;
       </Text>
-      <View wrap={false} style={{ break: "avoid" }}>
+      {hasLmpData && <View wrap={false} style={{ break: "avoid" }}>
         <Text
           style={{
             color: "#000",
@@ -83,8 +114,8 @@ function GynecHistoryTableView({
             </Text>
           </View>
         </View>
-      </View>
-      <View wrap={false} style={{ break: "avoid" }}>
+      </View>}
+      {hasCycleData && <View wrap={false} style={{ break: "avoid" }}>
         <Text
           style={{
             color: "#000",
@@ -213,8 +244,8 @@ function GynecHistoryTableView({
             </Text>
           </View>
         </View>
-      </View>
-      <View wrap={false} style={{ break: "avoid" }}>
+      </View>}
+      {hasFlowData && <View wrap={false} style={{ break: "avoid" }}>
         <Text
           style={{
             color: "#000",
@@ -399,8 +430,8 @@ function GynecHistoryTableView({
             </Text>
           </View>
         </View>
-      </View>
-      <View wrap={false} style={{ break: "avoid" }}>
+      </View>}
+      {hasPainData && <View wrap={false} style={{ break: "avoid" }}>
         <Text
           style={{
             color: "#000",
@@ -525,8 +556,8 @@ function GynecHistoryTableView({
             </Text>
           </View>
         </View>
-      </View>
-      <View wrap={false} style={{ break: "avoid" }}>
+      </View>}
+      {hasMenarcheData && <View wrap={false} style={{ break: "avoid" }}>
         <Text
           style={{
             color: "#000",
@@ -620,8 +651,8 @@ function GynecHistoryTableView({
             </Text>
           </View>
         </View>
-      </View>
-      <View wrap={false} style={{ break: "avoid" }}>
+      </View>}
+      {hasReproductiveData && <View wrap={false} style={{ break: "avoid" }}>
         <Text
           style={{
             color: "#000",
@@ -636,10 +667,10 @@ function GynecHistoryTableView({
             backgroundColor: "#E2E2EA",
           }}
         >
-          {gynecHistoryData?.reproductiveLifeStages?.toLowerCase() ===
+          {reproductiveLifeStage ===
           "menopause"
             ? "Menopause"
-            : gynecHistoryData?.reproductiveLifeStages?.toLowerCase() ===
+            : reproductiveLifeStage ===
               "perimenopause"
             ? "Perimenopause"
             : "Lactational amenorrhea"}
@@ -678,10 +709,10 @@ function GynecHistoryTableView({
               ]}
             >
               Type of{" "}
-              {gynecHistoryData?.reproductiveLifeStages?.toLowerCase() ===
+              {reproductiveLifeStage ===
               "menopause"
                 ? "menopause"
-                : gynecHistoryData?.reproductiveLifeStages?.toLowerCase() ===
+                : reproductiveLifeStage ===
                   "perimenopause"
                 ? "perimenopause"
                 : "lactational amenorrhea"}
@@ -759,7 +790,7 @@ function GynecHistoryTableView({
             </Text>
           </View>
         </View>
-      </View>
+      </View>}
       {gynecHistoryData?.notes && (
         <View wrap={false} style={{ break: "avoid" }}>
           <Text

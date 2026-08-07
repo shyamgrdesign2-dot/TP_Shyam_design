@@ -1,10 +1,14 @@
 import React from "react";
-import genRxIcon from "../assets/images/receptionistIcon.svg";
-import genRxBgWebm from "../assets/images/gen-rx-bg.webm";
-import genRxBgMp4 from "../assets/images/gen-rx-bg.mp4";
+
 import styles from "./GenRxButton.module.scss";
 import { isMobile } from "react-device-detect";
 import LoopingVideo from "./common/LoopingVideo";
+import { ASSETS } from "../assets";
+const {
+  receptionisticon: genRxIcon,
+  genRxBg_2: genRxBgWebm,
+  genRxBg: genRxBgMp4,
+} = ASSETS.images;
 
 const AiReceptionistButton = ({ onClick, className = "", customText, agetnsData}) => {
   const defaultText = agetnsData ? "Your AI Receptionist" : "Setup Your AI Receptionist";

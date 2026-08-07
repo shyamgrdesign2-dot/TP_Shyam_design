@@ -9,17 +9,6 @@ const PATIENT_HISTORY_ROW_NAMES = [
   "Additional History",
 ];
 
-const GENERAL_EXAM_ROW_NAMES = [
-  "Temperature",
-  "BP",
-  "SpO2",
-  "RR",
-  "Pulse",
-  "Weight",
-  "Height",
-  "BMI",
-];
-
 const RADIOLOGY_ROW_NAMES = [
   "X ray Chest",
   "USG Whole Abdomen",
@@ -28,18 +17,6 @@ const RADIOLOGY_ROW_NAMES = [
   "CT Coronary Angio",
   "Carotid Colour Doppler",
   "MRI",
-];
-
-const CONSULTATIONS_DEPARTMENT_ROW_NAMES = [
-  "Ophthalmologist",
-  "Dentist",
-  "ENT Surgeon",
-  "Orthopaedic Surgeon",
-  "Gynaecology",
-  "Dermatology",
-  "Cardiologist",
-  "Paediatric",
-  "Physician",
 ];
 
 const GENERAL_RECOMMENDATIONS_TEXT =
@@ -124,36 +101,6 @@ function getPatientInfo(consultations, patient_data) {
   };
 }
 
-/** Maps API dp_name to one of CONSULTATIONS_DEPARTMENT_ROW_NAMES. */
-function getDepartmentRowName(consultation) {
-  const doc = consultation?.doctor_data || consultation?.doctorData || {};
-  const dp = (doc.dp_name ?? doc.department_name ?? doc.specialty ?? "").trim();
-  if (!dp) return null;
-  const lower = dp.toLowerCase();
-  if (lower.includes("ophthalm")) return "Ophthalmologist";
-  if (lower.includes("dental") || lower.includes("dentist")) return "Dentist";
-  if (/\bent\b/.test(lower) || lower.includes("ear nose throat")) return "ENT Surgeon";
-  if (lower.includes("orthopaed") || lower.includes("orthoped"))
-    return "Orthopaedic Surgeon";
-  if (
-    lower.includes("gynaec") ||
-    lower.includes("gynec") ||
-    lower.includes("obstet")
-  )
-    return "Gynaecology";
-  if (lower.includes("dermat")) return "Dermatology";
-  if (lower.includes("cardio")) return "Cardiologist";
-  if (
-    lower.includes("paediatr") ||
-    lower.includes("pediatr") ||
-    lower.includes("paediatric")
-  )
-    return "Paediatric";
-  if (lower.includes("physician") || lower.includes("general"))
-    return "Physician";
-  return null;
-}
-
 /**
  * Format one consultation as plain text (Symptoms, Examinations, Medical History, Diagnosis, Medicines, Advice).
  */
@@ -172,7 +119,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
         .join(", ");
       return extra ? `${name} (${extra})` : name;
     });
-    parts.push("Symptoms:\n" + lines.join(", "));
+    parts.push("SYMPTOMS:\n" + lines.join(", "));
   }
   const exams = consultation.examination ?? [];
   if (exams.length > 0) {
@@ -181,29 +128,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
       const note = item.note ?? "";
       return note ? `${name} (${note})` : name;
     });
-    parts.push("Examinations:\n" + lines.join(", "));
-  }
-  const mh = consultation.medical_history ?? [];
-  if (mh.length > 0) {
-    const lines = mh
-      .map((item) => {
-        const title = item.title ?? item.name ?? item.conditionName ?? "";
-        const tags = item.tags;
-        const remarks =
-          item.medical_history_remarks ?? item.remarks ?? "";
-        if (Array.isArray(tags) && tags.length > 0) {
-          return tags
-            .map(
-              (t) =>
-                (t.title ?? t.conditionName ?? t.name ?? "") +
-                (t.details ?? t.value ? ` (${t.details ?? t.value})` : "")
-            )
-            .join(", ");
-        }
-        return remarks || title;
-      })
-      .filter(Boolean);
-    if (lines.length) parts.push("Medical History:\n" + lines.join("\n"));
+    parts.push("EXAMINATIONS:\n" + lines.join(", "));
   }
   const diag = consultation.diagnosis ?? [];
   if (diag.length > 0) {
@@ -215,7 +140,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
         ? `${name} (${code})${note ? ` - ${note}` : ""}`
         : name + (note ? ` - ${note}` : "");
     });
-    parts.push("Diagnosis:\n" + lines.join(", "));
+    parts.push("DIAGNOSIS:\n" + lines.join(", "));
   }
   const meds = consultation.medicine ?? [];
   if (meds.length > 0) {
@@ -253,16 +178,16 @@ function formatConsultationAsPrintViewNotes(consultation) {
       ].filter(Boolean);
       return bits.join(", ");
     });
-    parts.push("Medicines:\n" + lines.join("\n"));
+    parts.push("MEDICINES:\n" + lines.join("\n"));
   }
   const adv = consultation.advice ?? [];
   if (adv.length > 0) {
     const lines = adv
       .map((a) =>
-        typeof a === "string" ? a : a?.value ?? a?.advice ?? a?.text ?? ""
+        typeof a === "string" ? a : a?.advice_name ?? a?.advice ?? a?.text ?? ""
       )
       .filter(Boolean);
-    if (lines.length) parts.push("Advice:\n" + lines.join("\n"));
+    if (lines.length) parts.push("ADVICE:\n" + lines.join("\n"));
   }
   const visitAdvice = consultation.visit_advice;
   if (
@@ -270,7 +195,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
     typeof visitAdvice === "string" &&
     visitAdvice.trim()
   ) {
-    parts.push("Visit Advice:\n" + visitAdvice.trim());
+    parts.push("VISIT ADVICE:\n" + visitAdvice.trim());
   }
 
   const moduleContents = consultation.moduleContents ?? [];
@@ -292,7 +217,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
           return Object.entries(item)
             .map(([key, val]) => {
               if (val === null || val === undefined || val === '') return null;
-              if (typeof val === 'object') return null;
+              if (typeof val === "object" && !Array.isArray(val)) return null;
               // Formatting key: e.g. "blood_pressure" -> "Blood Pressure"
               const formattedKey = key
                 .replace(/_/g, " ")
@@ -314,7 +239,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
 }
 
 function symptomsToHtmlList(symptoms) {
-  if (!symptoms || symptoms.length === 0) return "&nbsp;";
+  if (!symptoms || symptoms.length === 0) return "<p><br></p>";
 
   const seenIds = new Set();
   const seenFallback = new Set();
@@ -345,15 +270,14 @@ function symptomsToHtmlList(symptoms) {
       const notes = item.notes ?? item.remark ?? "";
       const details = [duration, severity, notes].filter(Boolean).join(", ");
       const detailStr = details ? ` (${escapeHtml(details)})` : "";
-      return `<li><strong>${name}</strong>${detailStr}</li>`;
+      return `<li>${name}${detailStr}</li>`;
     })
     .join("");
   return `<ul>${items}</ul>`;
 }
 
-function medicalHistoryToHtmlList(items) {
-  if (!items || items.length === 0) return "&nbsp;";
-
+export function medicalHistoryToHtmlList(items, rowName = "") {
+  if (!items || items.length === 0) return "<p><br></p>";
   const seenIds = new Set();
   const seenFallback = new Set();
 
@@ -426,11 +350,16 @@ function medicalHistoryToHtmlList(items) {
       if (seenFallback.has(fallbackKey)) return "";
       seenFallback.add(fallbackKey);
     }
-    return `&nbsp;`;
+    const titleHtml = (title && title.trim().toLowerCase() !== rowName.trim().toLowerCase()) 
+      ? `<strong>${escapeHtml(title)}</strong>` : "";
+    const detailHtml = details ? ` (${details})` : "";
+    if (!titleHtml && !detailHtml) return "";
+    return `<li>${titleHtml}${detailHtml}</li>`;
   };
 
   const lis = items.map(flatten).flat().join("");
-  return `<ul>${lis}</ul>`;
+  if (!lis) return "<p><br></p>";
+  return `<ol>${lis}</ol>`;
 }
 
 /**
@@ -456,8 +385,9 @@ export function buildReportContentFromGroupedData(
 
   const patientInfo = getPatientInfo(consultations, patient_data);
   const doctorName = profile?.um_name || profile?.name || profile?.doctorName || "";
+  const normalizedDoctorName = doctorName.trim().replace(/^Dr\.?\s*/i, "");
   const impressionText = doctorName
-    ? `Impression (Dr. ${escapeHtml(doctorName)})`
+    ? `Impression (Dr. ${escapeHtml(normalizedDoctorName)})`
     : "Impression (Dr. ______________)";
 
   const today = new Date();
@@ -467,7 +397,7 @@ export function buildReportContentFromGroupedData(
   // Patient info table
   const patientTable = `
   <table class="report-patient-table">
-  <tr><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
+  <tr style="height: 0px !important;"><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
   <tr>
     <td class="report-patient-left">
       <p>Patient Name: <strong>${escapeHtml(patientInfo.name)}</strong></p>
@@ -480,16 +410,34 @@ export function buildReportContentFromGroupedData(
       <p>Package Details: <strong>${escapeHtml(patientInfo.packageDetails)}</strong></p>
     </td>
   </tr>
-  <tr><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
+  <tr style="height: 0px !important;"><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
 </table>
 `;
 
-  // Chief Complaints
+  // Chief Complaints — show only symptoms entered by the Health Checkup doctor
+  const healthCheckupTcmIds = new Set(
+    consultations
+      .filter((c) => {
+        const doc = c.doctor_data || {};
+        const dp = (doc.dp_name ?? "").trim().toLowerCase();
+        return dp === "health check up";
+      })
+      .map((c) => c.tcm_id)
+      .filter(Boolean)
+  );
+  const healthCheckupSymptoms = healthCheckupTcmIds.size > 0
+    ? symptoms.filter((s) => healthCheckupTcmIds.has(s.tcm_id))
+    : [];
   const chiefHtml =
-    symptoms.length > 0 ? symptomsToHtmlList(symptoms) : "&#8203;";
+    healthCheckupSymptoms.length > 0 ? symptomsToHtmlList(healthCheckupSymptoms) : "<p><br></p>";
   const chiefSection = `
+<div class="print-section-group">
 <h2 class="report-section-title">Chief Complaints:</h2>
-<div class="report-section-box">${chiefHtml}</div>`;
+<table class="report-section-box"><tbody><tr><td>
+${chiefHtml}
+</td></tr></tbody></table>
+</div>
+`;
 
 
   // Patient History: aggregate by row name
@@ -504,7 +452,6 @@ export function buildReportContentFromGroupedData(
       : data && typeof data === "object"
         ? [data]
         : [];
-    let addedAdditionalForEntry = false;
     items.forEach((item) => {
       const title = (item?.title ?? item?.name ?? "").trim();
       if (!title && !item?.tags) return;
@@ -530,7 +477,6 @@ export function buildReportContentFromGroupedData(
             },
           ],
         });
-        addedAdditionalForEntry = true;
 
         const { medical_history_remarks: _, ...rest } = item || {};
         historyByRowName[rowName].push(rest);
@@ -544,17 +490,19 @@ export function buildReportContentFromGroupedData(
   const historyRows = PATIENT_HISTORY_ROW_NAMES.map((rowName) => {
     const items = historyByRowName[rowName] || [];
     const cellContent =
-      items.length > 0 ? medicalHistoryToHtmlList(items) : "&#8203;";
-    return `    <tr><td>${escapeHtml(rowName)}</td><td>${cellContent}</td></tr>`;
+      items.length > 0 ? medicalHistoryToHtmlList(items, rowName) : "<p><br></p>";
+    return `    <tr><td><p><strong>${escapeHtml(rowName)}</strong></p></td><td>${cellContent}</td></tr>`;
   }).join("\n");
 
   const patientHistorySection = `
+<div class="print-section-group">
 <h2 class="report-section-title">Patient History</h2>
 <table class="report-data-table">
   <tbody>
 ${historyRows}
   </tbody>
-</table>`;
+</table>
+</div>`;
 
   // General Examination vitals
   const latestVital =
@@ -567,47 +515,54 @@ ${historyRows}
   const v = typeof latestVital === "object" ? latestVital : {};
 
   const generalExaminationSection = `
+<div class="print-section-group">
 <h2 class="report-section-title">General Examination</h2>
 <table class="report-data-table report-general-exam-grid top-row-grid">
   <tbody>
     <tr>
-      <th>Temp</th><td>${escapeHtml(v.temp ?? "") || "&#8203;"}</td>
-      <th>BP</th><td>${escapeHtml(v.blood_press ?? "") || "&#8203;"}</td>
-      <th>SPO2</th><td>${escapeHtml(v.spo2 ?? "") || "&#8203;"}</td>
-      <th>RR</th><td>${escapeHtml(v.resp_rate ?? "") || "&#8203;"}</td>
-      <th>Pulse</th><td>${escapeHtml(v.pres ?? "") || "&#8203;"}</td>
+      <th><p>Temp</p></th><td><p>${escapeHtml(v.temp ?? "") || "<br>"}</p></td>
+      <th><p>BP</p></th><td><p>${escapeHtml(v.blood_press ?? "") || "<br>"}</p></td>
+      <th><p>SPO2</p></th><td><p>${escapeHtml(v.spo2 ?? "") || "<br>"}</p></td>
+      <th><p>RR</p></th><td><p>${escapeHtml(v.resp_rate ?? "") || "<br>"}</p></td>
+      <th><p>Pulse</p></th><td><p>${escapeHtml(v.pres ?? "") || "<br>"}</p></td>
     </tr>
   </tbody>
 </table>
 <table class="report-data-table report-general-exam-grid bottom-row-grid" style="margin-top: 24px;">
   <tbody>
     <tr>
-      <th>Weight</th><td>${escapeHtml(v.weight ?? "") || "&#8203;"}</td>
-      <th>Height</th><td>${escapeHtml(v.height ?? "") || "&#8203;"}</td>
-      <th>BMI</th><td>${escapeHtml(v.bmi ?? "") || "&#8203;"}</td>
+      <th><p>Weight</p></th><td><p>${escapeHtml(v.weight ?? "") || "<br>"}</p></td>
+      <th><p>Height</p></th><td><p>${escapeHtml(v.height ?? "") || "<br>"}</p></td>
+      <th><p>BMI</p></th><td><p>${escapeHtml(v.bmi ?? "") || "<br>"}</p></td>
     </tr>
   </tbody>
-</table>`;
+</table>
+</div>`;
 
   // Radiology table (static row names, empty notes for now unless we have a mapping)
   const radiologyRows = RADIOLOGY_ROW_NAMES.map(
-    (name) => `    <tr><td>${escapeHtml(name)}</td><td>&#8203;</td></tr>`
+    (name) => `    <tr><td><p><strong>${escapeHtml(name)}</strong></p></td><td><p><br></p></td></tr>`
   ).join("\n");
 
+  /* Wrapper keeps heading + table atomic for print iframe pagination (avoids h2 alone on prior page). */
   const radiologySection = `
-<h2 class="report-section-title print-page-break">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
+<div class="print-section-group print-page-break">
+<h2 class="report-section-title">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
 <table class="report-data-table">
-  <thead><tr><th>Modality</th><th>Impressions</th></tr></thead>
+  <thead><tr><th><p><strong>Modality</strong></p></th><th><p><strong>Impressions</strong></p></th></tr></thead>
   <tbody>
 ${radiologyRows}
   </tbody>
-</table>`;
+</table>
+</div>`;
 
   const consultationsByDept = {};
   consultations.forEach((c) => {
-    const docData = c.doctor_data || c.doctorData || {};
-    let dpName = (docData.dp_name ?? docData.department_name ?? docData.specialty ?? "").trim();
+    const docData = c.doctor_data || {};
+    let dpName = (docData.dp_name ?? "").trim();
     if (!dpName) dpName = "Consultation";
+    // Skip "Health Check Up" specialty from the Consultation table
+    if (dpName.toLowerCase() === "health check up") return;
     if (!consultationsByDept[dpName]) {
       consultationsByDept[dpName] = [];
     }
@@ -625,33 +580,37 @@ ${radiologyRows}
             )
             : null;
         let doctorName = "";
-        let notesCell = "&#8203;";
+        let notesCell = "<p><br></p>";
         if (latest) {
           const docData = latest.doctor_data || latest.doctorData || {};
           const docName =
             docData.doctor_name ?? docData.name ?? docData.doctorName ?? "";
           if (docName) doctorName = docName;
           const notes = formatConsultationAsPrintViewNotes(latest);
-          if (notes) notesCell = `${escapeHtml(notes).replace(/\n/g, "<br>")}`;
+          if (notes) notesCell = `<p>${escapeHtml(notes.toUpperCase()).replace(/\n/g, "<br>")}</p>`;
         }
-        return `<tr><td>${escapeHtml(deptName) + (doctorName ? " " + escapeHtml(doctorName) : "")}</td><td>${notesCell}</td></tr>`;
+        return `<tr><td><p><strong>${escapeHtml(deptName) + (doctorName ? "<br>" + escapeHtml(doctorName) : "")}</strong></p></td><td>${notesCell}</td></tr>`;
       }
     ).join("\n")
-    : `<tr><td>&#8203;</td><td>&#8203;</td></tr>`;
+    : `<tr><td><p><br></p></td><td><p><br></p></td></tr>`;
 
   const consultationsSection = `
-<h2 class="report-section-title print-page-break">Consultations</h2>
+<div class="print-section-group print-page-break">
+<h2 class="report-section-title">Consultations</h2>
 <table class="report-data-table">
-  <thead><tr><th>DEPARTMENT & DOCTOR NAME</th><th>NOTES</th></tr></thead>
+  <thead><tr><th><p><strong>DEPARTMENT & DOCTOR NAME</strong></p></th><th><p><strong>NOTES</strong></p></th></tr></thead>
   <tbody>
 ${consultationRows}
   </tbody>
-</table>`;
+</table>
+</div>`;
 
   // Impression
   const impressionSection = `
-<h2 class="report-section-title print-page-break">${impressionText}</h2>
-<div class="report-section-box">&nbsp;</div>`;
+<div class="print-section-group print-page-break">
+<h2 class="report-section-title">${impressionText}</h2>
+<table class="report-section-box"><tbody><tr><td><p><br></p></td></tr></tbody></table>
+</div>`;
 
   // Advice
   const adviceText = advice
@@ -659,13 +618,21 @@ ${consultationRows}
     .filter(Boolean)
     .join("\n\n");
   const adviceSection = `
+<div class="print-section-group">
 <h2 class="report-section-title">Advice</h2>
-<div class="report-section-box">${adviceText ? escapeHtml(adviceText).replace(/\n/g, "<br>") : "&nbsp;"}</div>`;
+<table class="report-section-box"><tbody><tr><td>
+${adviceText ? adviceText.split('\n').map(line => `<p>${escapeHtml(line)}</p>`).join('') : "<p><br></p>"}
+</td></tr></tbody></table>
+</div>`;
 
-  // General Recommendations (fixed text)
+  const generalRecHtml = formatReportText(GENERAL_RECOMMENDATIONS_TEXT) || "<p><br></p>";
   const generalRecSection = `
-<h2 class="report-section-title print-page-break">General Recommendations</h2>
-<div class="report-section-box">${formatReportText(GENERAL_RECOMMENDATIONS_TEXT)}</div>`;
+<div class="print-section-group print-page-break">
+<h2 class="report-section-title">General Recommendations</h2>
+<table class="report-section-box"><tbody><tr><td>
+${generalRecHtml}
+</td></tr></tbody></table>
+</div>`;
 
 
   // Prepared By / Verified By

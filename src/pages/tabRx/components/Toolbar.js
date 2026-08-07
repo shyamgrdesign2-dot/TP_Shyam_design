@@ -1,9 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CgClose } from 'react-icons/cg';
-import { GiAnticlockwiseRotation } from "react-icons/gi";
-import { LuPen, LuHighlighter, LuEraser, LuUndo2, LuRedo2, LuPlus, LuMinus } from 'react-icons/lu';
 import { CLINICAL_COLORS, HIGHLIGHTER_COLORS } from '../utils/constants';
+
 import './Toolbar.scss';
+import RotateLeftIcon from '../../snapRx/components/RotateLeftIcon';
+import { ASSETS } from "../../../assets";
+const {
+  luPen: LuPen,
+  luHighlighter: LuHighlighter,
+  luEraser: LuEraser,
+  luUndo: LuUndo2,
+  luRedo: LuRedo2,
+  luPlus: LuPlus,
+  luMinus: LuMinus,
+  closeBlack: CgClose,
+} = ASSETS.images;
 
 const Toolbar = ({
   toolSettings,
@@ -175,7 +185,7 @@ const Toolbar = ({
         onPointerUp={handlePointerUp}
         onClick={() => !isDragging && setIsMinimized(false)}
       >
-        <LuPen size={24} />
+        <img src={LuPen} alt="Pen" />
       </button>
     );
   }
@@ -197,7 +207,7 @@ const Toolbar = ({
       }}
       className={`tool-button ${toolSettings.activeTool === tool ? 'active' : ''}`}
     >
-      <Icon size={22} />
+      <img src={Icon} alt={tool} />
     </button>
   );
 
@@ -250,7 +260,7 @@ const Toolbar = ({
           disabled={!canUndo}
           className="action-button"
         >
-          <LuUndo2 size={20} />
+          <img src={LuUndo2} alt="Undo" />
         </button>
 
         <button
@@ -269,7 +279,7 @@ const Toolbar = ({
           disabled={!canRedo}
           className="action-button"
         >
-          <LuRedo2 size={20} />
+          <img src={LuRedo2} alt="Redo" />
         </button>
         
         <div className={`divider ${orientation}`} />
@@ -290,7 +300,7 @@ const Toolbar = ({
           className="action-button"
           title="Zoom Out"
         >
-          <LuMinus size={18} />
+          <img src={LuMinus} alt="Minus" />
         </button>
 
         <div className="zoom-level" title={`Zoom ${zoomPercent}%`}>
@@ -313,7 +323,7 @@ const Toolbar = ({
           className="action-button"
           title="Zoom In"
         >
-          <LuPlus size={18} />
+          <img src={LuPlus} alt="Plus" />
         </button>
 
         <button
@@ -332,9 +342,8 @@ const Toolbar = ({
           className="action-button"
           title="Fit to Screen"
         >
-          <GiAnticlockwiseRotation size={18} />
+          <RotateLeftIcon />
         </button>
-
 
         <div className={`divider ${orientation}`} />
 
@@ -353,7 +362,7 @@ const Toolbar = ({
           }}
           className="close-button"
         >
-          <CgClose size={20} />
+          <img src={CgClose} alt="Close" />
         </button>
 
         {/* Dynamic Drawer Settings Panel */}

@@ -1,7 +1,9 @@
 import React from "react";
-import SMS from "../../../assets/images/sms.svg";
+
 import { getClinicName, getDeviceSdkData, getTokenData } from "../../../utils/utils";
 import { useSelector } from "react-redux";
+import { ASSETS } from "../../../assets";
+const SMS = ASSETS.images.sms;
 
 function ContactSupport({ refs }) {
 

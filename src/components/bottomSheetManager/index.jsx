@@ -2,8 +2,10 @@ import React, { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "antd";
 import BottomSheetWrapper from "../../common/BottomSheetWrapper";
-import closeIcon from "../../assets/images/close-black-bg.svg";
+
 import "./styles.scss";
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.images.closeBlackBg;
 
 let triggerShow = null;
 let triggerHide = null;

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { notification } from "antd";
-import CallIcon from "../../../assets/images/call.svg";
+
 import ErrorText from "../common/ErrorText";
 import ApiAbha from "../../../api/services/ApiAbha";
+import { ASSETS } from "../../../assets";
+const CallIcon = ASSETS.images.call;
 
 const OTP_LENGTH = 6;
 const RESEND_TIMER = 30;

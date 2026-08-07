@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GradientProgressBar from '../GradientProgressbar';
-import genRxInputProcessing from '../../assets/lotties/genRxInputProcessing.lottie';
-import genRxConvertingData from '../../assets/lotties/genRxConvertingData.lottie';
-import genRxStructuringData from '../../assets/lotties/genRxStructuringData.lottie';
-import genRxFinalizingRx from '../../assets/lotties/genRxFinalizingRx.lottie';
-import genRxBgWebm from '../../assets/images/gen-rx-bg.webm';
-import genRxBgMp4 from '../../assets/images/gen-rx-bg.mp4';
+
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import LoopingVideo from '../common/LoopingVideo';
 import './MobileRxPadProcessing.scss';
+import { ASSETS } from "../../assets";
+const genRxInputProcessing = ASSETS.lotties.genrxinputprocessing;
+const genRxConvertingData = ASSETS.lotties.genrxconvertingdata;
+const genRxStructuringData = ASSETS.lotties.genrxstructuringdata;
+const genRxFinalizingRx = ASSETS.lotties.genrxfinalizingrx;
+const {
+  genRxBg_2: genRxBgWebm,
+  genRxBg: genRxBgMp4,
+} = ASSETS.images;
 
 const CREEP_START = 60;
 const CREEP_RATE = 1;

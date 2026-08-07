@@ -5,9 +5,11 @@ import dayjs from 'dayjs';
 import moment from 'moment';
 import { addObstetricDetails, obstetricDetailsUpdated, patientDiagnosisUpdated } from '../../redux/obstetricSlice';
 import { errorMessage } from '../../utils/utils';
-import closeIcon from '../../assets/mobile/close 2.svg';
-import alertIcon from '../../assets/images/alertIcon.svg';
+
 import './MobilePastPregnancyEdit.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
+const alertIcon = ASSETS.images.alerticon;
 
 const { TextArea } = Input;
 

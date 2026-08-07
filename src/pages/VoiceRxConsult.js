@@ -5,20 +5,8 @@ import GenRxKnowMore from "../components/GenRxKnowMore";
 import ProfilePopover from "../common/ProfilePopover";
 import PatientSummary from "../components/PatientSummary";
 import VoiceWaveVisualizer from "../components/WaveVisualizer";
-import tutorial from '../assets/images/tutorial.svg';
-import checkIcon from "../assets/images/check.svg";
-import closeIcon from "../assets/images/close.svg";
-import voiceModeDictation from "../assets/images/voice-mode-dictation.svg";
-import voiceMode2 from "../assets/images/voice-mode-2.svg";
-import dictateActiveIcon from "../assets/images/dictate-active.svg";
-import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
-import stopIcon from "../assets/images/stop-icon.svg";
-import muteIcon from "../assets/images/microphone-2.svg";
-import mutedMicrophoneIcon from "../assets/images/muted-microphone-icon.svg";
-import vitalsIcons from "../assets/images/vitals-icons.svg";
-import alertIcon from "../assets/images/alertIcon.svg";
+
 import styles from "./VoiceRxConsult.module.scss";
-import startConsultImg from "../assets/images/text-box.svg";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree, getSupportedMimeType, errorMessage, stopAllActiveRecorders } from "../utils/utils";
 import { useSelector, useDispatch } from "react-redux";
@@ -31,14 +19,32 @@ import SCPopup from "../components/SCPopup";
 import { getDecodedToken } from "../utils/localStorage";
 import CommonModal from "../common/CommonModal";
 import { checkCredits } from "../redux/monetizationSlice";
-import { services } from "../redux/doctorsSlice";
+import { services, setB2C_Profile } from "../redux/doctorsSlice";
+import { fetchSubscriptionDetails } from "../redux/subscriptionSlice";
 import { resetVitalsState } from "../redux/vitalsSlice";
+import { ASSETS } from "../assets";
+const {
+  tutorial,
+  check: checkIcon,
+  close: closeIcon,
+  voiceModeDictation,
+  voiceMode2,
+  dictateActive: dictateActiveIcon,
+  ambientModeActive: ambientActiveIcon,
+  stopIcon,
+  microphone2: muteIcon,
+  mutedMicrophoneIcon,
+  vitalsIcons,
+  alerticon: alertIcon,
+  textBox: startConsultImg,
+} = ASSETS.images;
 
 const VoiceRxConsult = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { profile, userId, servicesList } = useSelector((state) => state.doctors);
+  const { profile, userId, servicesList, servicesLoading } = useSelector((state) => state.doctors);
+  const { planDetails } = useSelector((state) => state.subscription);
   const { showSCPopup } = useSelector((state) => state.ddx);
   const AI_planDetails = servicesList?.find(e => e.service_name === S_VOICE_RX)
   
@@ -75,6 +81,8 @@ const VoiceRxConsult = () => {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tokenData = getTokenData();
   const clinic = getClinic(profile?.hospital_data);
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
 
   const isVoiceRxCreditExpired =
     !isFreeVoiceRxUser &&
@@ -83,7 +91,27 @@ const VoiceRxConsult = () => {
         VOICE_RX_planDetails?.credit_balance <= 0));
 
   useEffect(() => {
+    if (!planDetails && !isReceptionist) {
+      dispatch(fetchSubscriptionDetails());
+    }
+  }, [planDetails, dispatch]);
+
+  useEffect(() => {
+    if (profile && !profile?.b2c && planDetails?.profile_b2c && !isReceptionist) {
+      dispatch(setB2C_Profile(planDetails.profile_b2c));
+    }
+  }, [profile, profile?.b2c, planDetails?.profile_b2c, dispatch]);
+
+  useEffect(() => {
+    const b2c = profile?.b2c ?? planDetails?.profile_b2c;
+    if (b2c && !isReceptionist) {
+      dispatch(services(b2c));
+    }
+  }, [profile?.b2c, planDetails?.profile_b2c, dispatch]);
+
+  useEffect(() => {
     if (
+      !servicesLoading &&
       VOICE_RX_planDetails !== undefined &&
       (VOICE_RX_planDetails?.plan_tier === FREE ||
         VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
@@ -93,7 +121,7 @@ const VoiceRxConsult = () => {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [VOICE_RX_planDetails]);
+  }, [VOICE_RX_planDetails, servicesLoading]);
 
   const getSymptomsCollectorData = useCallback(async () => {
     if (!patient_data?.patient_unique_id || !userId || !clinicId) {
@@ -415,7 +443,7 @@ const VoiceRxConsult = () => {
     }
 
     let sendData = {
-      b2c_id: profile?.b2c,
+      b2c_id: profile?.b2c ?? planDetails?.profile_b2c,
       service_name: S_VOICE_RX,
     };
     const action = await dispatch(checkCredits(sendData));
@@ -507,6 +535,8 @@ const VoiceRxConsult = () => {
 
       const audioUrl = URL.createObjectURL(blob);
       const arrayBuffer = await blob.arrayBuffer();
+      const activeMicLabel =
+        audioStreamRef.current?.getAudioTracks?.()?.[0]?.label || "Unknown";
 
       navigate('/prescription', {
         state: {
@@ -514,6 +544,7 @@ const VoiceRxConsult = () => {
           fromVoiceRecording: true,
           audioBlob: blob,
           audioBlobUrl: audioUrl,
+          micBeingUsed: activeMicLabel,
           consent: consentRef.current,
           audioBlobArrayBuffer: arrayBuffer,
           mode: activeMode,

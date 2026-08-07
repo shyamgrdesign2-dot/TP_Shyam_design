@@ -3,8 +3,7 @@ import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList } from '../utils/slateHelpers';
 import './LabResultsRichTextEditor.scss';
-import labResultsIcon from '../assets/images/Lab.svg';
-import addEditIcon from '../assets/images/Icon.svg';
+
 import LabParams from './LabParams';
 import CashManagerContext from '../context/CashManagerContext';
 import styles from './ConsultationDrawer.module.css';
@@ -15,10 +14,16 @@ import {
   prescriptionLabResultsToResultsArray,
   extractUnitsFromValue,
   valueWithoutUnitsForApi,
+  buildLabResultsSavePayload,
 } from '../utils/labResultsUtils';
 import { addPatientLabReports } from '../api/services/ApiLabParams';
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
 import { jwtDecode } from 'jwt-decode';
+import { ASSETS } from "../assets";
+const {
+  lab: labResultsIcon,
+  icon: addEditIcon,
+} = ASSETS.images;
 
 /**
  * LabResultsRichTextEditor - Rich text editor for Lab Results section
@@ -163,7 +168,13 @@ const LabResultsRichTextEditor = ({
         try {
           const results = prescriptionLabResultsToResultsArray(finalResults);
           if (results.length > 0) {
-            await addPatientLabReports({ patientId, doctorId, results });
+            await addPatientLabReports(
+              buildLabResultsSavePayload({
+                patientId,
+                results,
+                tokenUserId: doctorId,
+              })
+            );
             const refetched = await fetchLabResultsTodayOnly(patient_data);
             if (refetched && refetched.length > 0) {
               const sig = JSON.stringify(refetched.map((r) => ({ testname: (r.testName || r.testname || r.name || '').trim(), value: (r.value || '').trim() })));

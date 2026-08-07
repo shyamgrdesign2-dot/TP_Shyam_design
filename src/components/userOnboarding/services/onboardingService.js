@@ -6,15 +6,17 @@ import config from "../../../config";
  * Initializes the onboarding process and gets any pre-existing user data
  * @param {string} phone_number - User's phone number
  * @param {Object} utmParams - UTM parameters
+ * @param {string} deviceSource - Normalized device source
  * @returns {Promise} Promise with the response containing user data
  */
-export const initOnboarding = async (phone_number, utmParams) => {
+export const initOnboarding = async (phone_number, utmParams, deviceSource) => {
   try {
     const response = await axios.post(
       `${config.central_auth_api_url}/api/v1/onBoarding/InIt`,
       {
         phone_number,
         ...utmParams,
+        ...(deviceSource ? { device_source: deviceSource } : {}),
       },
       {
         headers: {

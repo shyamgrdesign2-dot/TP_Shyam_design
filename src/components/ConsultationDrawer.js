@@ -21,16 +21,6 @@ import {
   AutoComplete,
 } from "antd";
 import styles from "./ConsultationDrawer.module.css";
-import deleteIcon from "../assets/images/delete-gen-rx.svg";
-import micIcon from "../assets/images/mic-gen-rx.svg";
-import pauseIcon from "../assets/images/pause.svg";
-import voiceRxButton from "../assets/images/voice-rx-button.svg";
-import voiceRxSendButton from "../assets/images/voice-rx-send-button.svg";
-import vitalsIcons from "../assets/images/vitals-icons.svg";
-import stopIcon from "../assets/images/stop-icon.svg";
-import muteIcon from "../assets/images/microphone-2.svg";
-import mutedMicrophoneIcon from "../assets/images/muted-microphone-icon-new.svg";
-import ellipse895 from "../assets/images/ellipse-895.svg";
 
 import {
   editGenRxDetails,
@@ -39,15 +29,18 @@ import {
   getAmbientRx,
   setAddToRx,
   uploadVoiceAudio,
+  createVoiceLog,
+  updateVoiceLog,
   generateRx,
   updateGenRx,
   generateAmbientRx,
   updateAmbientRx,
 } from "../api/services/ApiGenRx";
-import tutorialIcon from "../assets/images/tutorial-icon.svg";
+
 import { useLocation, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { getDecodedToken } from "../utils/localStorage";
+import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../context/CashManagerContext";
 import {
@@ -58,20 +51,19 @@ import {
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
-import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
-import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
-import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
-import alertIcon from "../assets/images/alertIcon.svg";
+import { vitalScalarString } from "../utils/symptomCollectorVitalsMerge";
+import {
+  ensureLabInvestigationMetadataForRxSave,
+  ensureMedicationGroundedForRxSave,
+  mergeVoiceApiPrescriptionWithPrior,
+  preparePreviousContextRxItems,
+} from "../utils/medicationRxPayload";
+
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
 import VoiceWaveVisualizer from "./WaveVisualizer";
-import zydusDataEngineIcon from "../assets/images/intersect.svg";
-import doctorAvatar from "../assets/images/doctor-avatar.webp";
-import arrowBoxDown from "../assets/images/arrow-box-down.svg";
-import dictateActiveIcon from "../assets/images/dictate-active.svg";
-import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
-import templateTimeIcon from "../assets/images/template-time-icon.svg";
+
 import DigitisedPrescription from "./DigitisedPrescription";
 import {
   ADD,
@@ -85,8 +77,7 @@ import {
   S_AMBIENT_VOICE_RX,
   GB_VOICE_RX_FREE,
 } from "../utils/constants";
-import visitEnd from "../assets/images/end-visit.svg";
-import imgCloseVisit from "../assets/images/close-visit.svg";
+
 import { checkCredits, updateCredits } from "../redux/monetizationSlice";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
@@ -94,13 +85,9 @@ import { services } from "../redux/doctorsSlice";
 import SCBanner from "./SCBanner";
 import GenRxKnowMore from "./GenRxKnowMore";
 import { setSelectAutofill } from "../redux/ddxSlice";
-import growIcon from "../assets/images/grow.svg";
-import accuracyIcon from "../assets/images/accuracy.svg";
-import healthIcon from "../assets/images/health-care.svg";
-import playIcons from "../assets/images/tube-icon.svg";
+
 import VideoModal from "../common/VideoModal";
-import tagNewWebm from "../assets/images/new-gif.webm";
-import tagNewMp4 from "../assets/images/new-gif.mp4";
+
 import LoopingVideo from "../components/common/LoopingVideo";
 import CustomMedicinePopup from "./CustomMedicinePopup";
 import {
@@ -111,7 +98,7 @@ import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import { addPatientLabReports } from "../api/services/ApiLabParams";
 import ApiVitals from "../api/services/ApiVitals";
-import { prescriptionLabResultsToResultsArray } from "../utils/labResultsUtils";
+import { prescriptionLabResultsToResultsArray, buildLabResultsSavePayload } from "../utils/labResultsUtils";
 import { prescriptionMedicalHistoryToContextFormat } from "../utils/medicalHistoryUtils";
 import { resolveMedicalHistoryForCaseManager } from "../utils/medicalHistoryUtils";
 import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
@@ -128,6 +115,36 @@ import {
 import config from "../config";
 import { isMobile } from "react-device-detect";
 import GenRXLoaders from "./GenRxLoaders";
+import { ASSETS } from "../assets";
+const {
+  deleteGenRx: deleteIcon,
+  micGenRx: micIcon,
+  pause: pauseIcon,
+  voiceRxButton,
+  voiceRxSendButton,
+  vitalsIcons,
+  stopIcon,
+  microphone2: muteIcon,
+  mutedMicrophoneIconNew: mutedMicrophoneIcon,
+  ellipse895,
+  tutorialIcon,
+  deleteIconBlue: deleteModuleIcon,
+  alerticon: alertIcon,
+  intersect: zydusDataEngineIcon,
+  doctorAvatar,
+  arrowBoxDown,
+  dictateActive: dictateActiveIcon,
+  ambientModeActive: ambientActiveIcon,
+  templateTimeIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  grow: growIcon,
+  accuracy: accuracyIcon,
+  healthCare: healthIcon,
+  tubeIcon: playIcons,
+  newGif_3: tagNewWebm,
+  newGif_2: tagNewMp4,
+} = ASSETS.images;
 
 const ConsultationDrawer = ({
   visible,
@@ -145,7 +162,7 @@ const ConsultationDrawer = ({
   const { useVoiceRx, setUseVoiceRx, useDDX, medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext);
 
   const { state } = useLocation();
-  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation, consent, noStayClickCount, crossButtonClickCount, mutePauseButtonClickCount } = state || {};
+  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation, micBeingUsed: micBeingUsedFromVoiceConsult, consent, noStayClickCount, crossButtonClickCount, mutePauseButtonClickCount } = state || {};
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -196,6 +213,23 @@ const ConsultationDrawer = ({
   const mutePauseButtonClickCountRef = useRef(mutePauseButtonClickCount || 0);
   const digitizationPadEditCountRef = useRef(0);
   const lastDigitizeDataRef = useRef(null);
+  const micBeingUsedRef = useRef((micBeingUsedFromVoiceConsult || "").trim() || "Unknown");
+  const voiceSessionIdRef = useRef(`voice-session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  // Session-level aggregation used for `TP_Voice_endVisit`
+  const voiceSessionStartTimeRef = useRef(null); // set on first submit click
+  const voiceApiSuccessRef = useRef(false);
+  const voiceApiFailedRef = useRef(false);
+  const prescriptionUrlsForSessionRef = useRef(new Set());
+  const editedModulesByUserRef = useRef(new Set());
+  const voiceCallCountRef = useRef(0);
+  useEffect(() => {
+    window.__TATVA_VOICE_SESSION_ID = voiceSessionIdRef.current;
+    return () => {
+      if (window.__TATVA_VOICE_SESSION_ID === voiceSessionIdRef.current) {
+        delete window.__TATVA_VOICE_SESSION_ID;
+      }
+    };
+  }, []);
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
     return activeService === S_AMBIENT_VOICE_RX;
@@ -297,7 +331,6 @@ const ConsultationDrawer = ({
     }
     return false;
   }, [queries, fullTranscript, genRxDetails?.source, typedInputText, isSymptomCollectorJSON]);
-
 
   useEffect(() => {
     if (mode === 'ambient') {
@@ -511,6 +544,7 @@ const ConsultationDrawer = ({
   const audioStreamRef = useRef(null);
 
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
 
   const { tcmId, consultationDate, pamId } = useContext(CashManagerContext);
 
@@ -932,7 +966,7 @@ const ConsultationDrawer = ({
             const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
             if (validatedPrescriptionData) {
               setPrescriptionData((prev) => {
-                const next = validatedPrescriptionData;
+                const next = mergeVoiceApiPrescriptionWithPrior(prev, validatedPrescriptionData);
                 const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
                   ? next.labResults
                   : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
@@ -1045,11 +1079,196 @@ const ConsultationDrawer = ({
       .padStart(2, "0")}`;
   };
 
+  const getBrowserNameForVoiceSubmit = () => {
+    const userAgent = navigator.userAgent || "";
+    if (userAgent.includes("Edg/")) return "Microsoft Edge";
+    if (userAgent.includes("Chrome/") && !userAgent.includes("Edg/")) return "Google Chrome";
+    if (userAgent.includes("Firefox/")) return "Mozilla Firefox";
+    if (userAgent.includes("Safari/") && !userAgent.includes("Chrome/")) return "Safari";
+    return "Unknown";
+  };
+
+  const getFilledRxModulesDetails = (prescription = {}) => {
+    if (!prescription || typeof prescription !== "object") {
+      return { rxModulesFilledCount: 0, filledModules: [] };
+    }
+    const hasArray = (value) => Array.isArray(value) && value.length > 0;
+    const hasObjectValues = (value) =>
+      value && typeof value === "object" && !Array.isArray(value) && Object.values(value).some((item) => {
+        if (item == null) return false;
+        if (typeof item === "string") return item.trim() !== "";
+        return true;
+      });
+
+    const filledModules = [];
+    if (hasArray(prescription.symptoms)) filledModules.push("symptoms");
+    if (hasArray(prescription.surgeries)) filledModules.push("surgeries");
+    if (hasArray(prescription.vaccinations)) filledModules.push("vaccinations");
+    if (hasArray(prescription.medicalHistory)) filledModules.push("medicalHistory");
+    if (hasArray(prescription.examinations)) filledModules.push("examinations");
+    if (hasArray(prescription.diagnosis)) filledModules.push("diagnosis");
+    if (hasArray(prescription.medications)) filledModules.push("medications");
+    if (hasArray(prescription.labResults)) filledModules.push("labResults");
+    if (hasArray(prescription.labInvestigation)) filledModules.push("labInvestigation");
+    if (hasArray(prescription.others)) filledModules.push("others");
+    if (hasObjectValues(prescription.vitalsAndBodyComposition)) filledModules.push("vitalsAndBodyComposition");
+    if (typeof prescription.followUp === "string" && prescription.followUp.trim()) filledModules.push("followUp");
+    if (typeof prescription.advice === "string" && prescription.advice.trim()) filledModules.push("advice");
+    if (hasArray(prescription.advice)) filledModules.push("advice");
+    if (prescription.dynamicFields && typeof prescription.dynamicFields === "object") {
+      const hasDynamicFields = Object.values(prescription.dynamicFields).some((value) =>
+        (Array.isArray(value) && value.length > 0) || (!!value && typeof value === "string" && value.trim())
+      );
+      if (hasDynamicFields) filledModules.push("dynamicFields");
+    }
+
+    return { rxModulesFilledCount: filledModules.length, filledModules };
+  };
+
+  const classifyVoiceApiErrorType = (error) => {
+    const statusCode = error?.response?.status;
+    const errorMessage = (error?.message || "").toLowerCase();
+    if (error?.code === "ECONNABORTED" || errorMessage.includes("timeout")) return "timeout";
+    if (!error?.response || error?.code === "ERR_NETWORK" || errorMessage.includes("network")) return "network";
+    if (typeof statusCode === "number" && statusCode >= 500) return "5xx";
+    if (typeof statusCode === "number" && statusCode >= 400) return "4xx";
+    return "parse";
+  };
+
+  const trackVoiceSubmitClickEvent = ({
+    voiceApiCalled = false,
+    prescriptionUrl = "",
+    network = "stable",
+    durationOfAudio = 0,
+    sessionId = "",
+    submitId = "",
+    requestId = "",
+    audioSizeBytes = 0,
+    audioMimeType = "",
+    modeForEvent = "dictation",
+    fromVoiceRecordingEvent = false,
+    uploadLatencyMs = null,
+    uploadFailed = false,
+    uploadErrorMessage = "",
+    voicecall = 0,
+  }) => {
+    const micTrackLabel =
+      audioStreamRef.current?.getAudioTracks?.()?.[0]?.label ||
+      micBeingUsedRef.current ||
+      "Unknown";
+    const eventPayload = {
+      doctorId: profile?.doctor_unique_id || "",
+      doctorName: profile?.um_name || "",
+      patientId: patient_data?.patient_unique_id || "",
+      patientName: patient_data?.pm_fullname || "",
+      hospitalId: clinic?.hm_id || "",
+      hospitalName: clinic?.hm_name || "",
+      prescriptionUrl,
+      network,
+      micBeingUsed: micTrackLabel,
+      browser: getBrowserNameForVoiceSubmit(),
+      durationOfAudioInSeconds: durationOfAudio,
+      voiceApiCalled,
+      sessionId,
+      submitId,
+      requestId,
+      audioSizeBytes,
+      audioMimeType,
+      mode: modeForEvent,
+      fromVoiceRecording: fromVoiceRecordingEvent,
+      upload_latency_ms: uploadLatencyMs,
+      upload_failed: uploadFailed,
+      upload_error_message: uploadErrorMessage,
+      voicecall,
+      timestamp: new Date().toISOString(),
+    };
+    trackEvent("TP_Voice_Submit_Click", eventPayload);
+    const submitLogPayload = {
+      correlationId: sessionId || submitId || requestId || "",
+      status: uploadFailed ? "failed" : "pending",
+      needConversation: modeForEvent === "ambient",
+      prescriptionUrls: prescriptionUrl ? [prescriptionUrl] : [],
+      ...eventPayload,
+    };
+    createVoiceLog(submitLogPayload, eventPayload.patientId).catch((err) => {
+      console.error("[voice/logs/create] Failed", err?.message || err);
+    });
+  };
+
+  const getVoiceRetryAttempts = () => {
+    const retryCount = Number(
+      window.__TATVA_VOICE_API_LAST_DIGITIZE_RETRY_ATTEMPT ??
+      window.__TATVA_VOICE_API_LAST_RETRY_ATTEMPT ??
+      0
+    );
+    return Number.isFinite(retryCount) ? retryCount : 0;
+  };
+
+  const trackVoiceApiResultEvent = ({
+    voiceFailed = false,
+    errorMessage = "",
+    retryAttempts = 1,
+    prescriptionUrl = "",
+    sessionId = "",
+    recordId = "",
+    isEmptyPrescription = false,
+    submitId = "",
+    requestId = "",
+    voiceApiLatencyMs = null,
+    httpStatus = null,
+    errorCode = "",
+    errorType = "",
+    rxModulesFilledCount = 0,
+    filledModules = [],
+    modeForEvent = "dictation",
+    voicecall = 0,
+  }) => {
+    const eventPayload = {
+      doctorId: profile?.doctor_unique_id || "",
+      doctorName: profile?.um_name || "",
+      patientId: patient_data?.patient_unique_id || "",
+      patientName: patient_data?.pm_fullname || "",
+      hospitalId: clinic?.hm_id || "",
+      hospitalName: clinic?.hm_name || "",
+      prescriptionUrl,
+      sessionId,
+      _id: recordId,
+      voice_failed: voiceFailed,
+      error_message: errorMessage,
+      retry_attempts: retryAttempts,
+      isemptyprescription: isEmptyPrescription,
+      submitId,
+      requestId,
+      voice_api_latency_ms: voiceApiLatencyMs,
+      http_status: httpStatus,
+      error_code: errorCode,
+      error_type: errorType,
+      rx_modules_filled_count: rxModulesFilledCount,
+      filled_modules: Array.isArray(filledModules) ? filledModules.join(",") : "",
+      voicecall,
+      timestamp: new Date().toISOString(),
+    };
+    trackEvent("TP_Voice_Api_Result", eventPayload);
+    const { _id, ...resultEventPayloadForApi } = eventPayload;
+    const resultLogPayload = {
+      correlationId: sessionId || submitId || requestId || "",
+      status: voiceFailed ? "failed" : "completed",
+      needConversation: modeForEvent === "ambient",
+      prescriptionUrls: prescriptionUrl ? [prescriptionUrl] : [],
+      ...resultEventPayloadForApi,
+    };
+    updateVoiceLog(resultLogPayload, eventPayload.patientId).catch((err) => {
+      console.error("[voice/logs/update] Failed", err?.message || err);
+    });
+  };
+
   const handleStartRecording = async () => {
     setRecordingTime(0);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
+      micBeingUsedRef.current =
+        stream?.getAudioTracks?.()?.[0]?.label || micBeingUsedRef.current;
       // Find the supported MIME type for this browser
       const mimeType = getSupportedMimeType();
       mediaRecorderRef.current = mimeType
@@ -1160,6 +1379,9 @@ const ConsultationDrawer = ({
           } else {
             if (!isRecording && !(inputText || editableQuery)) return;
             submitCountRef.current += 1;
+            if (!voiceSessionStartTimeRef.current) {
+              voiceSessionStartTimeRef.current = Date.now();
+            }
             // Increment typed messages count if it's a typed message (not recording)
             if (!isRecording && (inputText || editableQuery)) {
               typedMessagesCountRef.current += 1;
@@ -1258,23 +1480,25 @@ const ConsultationDrawer = ({
       return false;
     }
 
-    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'height', 'weight', 'BMI', 'BMR', 'BSA', 'general_rbs', 'fib4', 'waist_circumference'];
-    const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
-      if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
-      const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
-      const result = {};
-      CANONICAL_VITAL_KEYS.forEach((key) => {
-        const v = actual[key];
-        if (v !== undefined && v !== null && v !== '' && String(v).trim() !== '') {
-          result[key] = v;
+      const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'respiratoryRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'headCircumference', 'height', 'weight', 'BMI', 'BMR', 'BSA', 'general_rbs', 'generalRBS', 'fib4', 'waist_circumference', 'waistCircumference', 'randomBloodSugar'];
+      const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
+        if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
+        const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
+        const result = {};
+        CANONICAL_VITAL_KEYS.forEach((key) => {
+          const v = actual[key];
+          const s = vitalScalarString(v);
+          if (s !== '') {
+            result[key] = s;
+          }
+        });
+        const generalRBSVal = actual.generalRBS ?? actual.genralRBS ?? result.general_rbs ?? actual['General RBS'];
+        const grbs = vitalScalarString(generalRBSVal);
+        if (grbs !== '') {
+          result.general_rbs = grbs;
         }
-      });
-      const generalRBSVal = actual.generalRBS ?? actual.genralRBS ?? result.general_rbs ?? actual['General RBS'];
-      if (generalRBSVal !== undefined && generalRBSVal !== null && String(generalRBSVal).trim() !== '') {
-        result.general_rbs = String(generalRBSVal).trim();
-      }
-      return result;
-    };
+        return result;
+      };
 
     const deepClean = (obj) => {
       if (obj === null || typeof obj !== 'object') {
@@ -1372,7 +1596,7 @@ const ConsultationDrawer = ({
           } else if (item.metadata?.um_id !== undefined) {
             mappedItem.um_id = item.metadata.um_id;
           }
-          return mappedItem;
+          return ensureLabInvestigationMetadataForRxSave(mappedItem);
         })
       : [];
     
@@ -1479,7 +1703,7 @@ const ConsultationDrawer = ({
     if (!data || typeof data !== "object") return false;
     const hasArray = (arr) => Array.isArray(arr) && arr.length > 0;
     const hasVitals = (v) => v && typeof v === "object" && Object.keys(v).some((k) => !["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"].includes(k) && v[k] != null && String(v[k]).trim() !== "");
-    if (hasArray(data.symptoms) || hasArray(data.surgeries) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
+    if (hasArray(data.symptoms) || hasArray(data.surgeries) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labInvestigation) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
     if (hasVitals(data.vitalsAndBodyComposition)) return true;
     if (data.followUp && String(data.followUp).trim()) return true;
     if (hasArray(data.others) || (data.advice && (typeof data.advice === "string" ? data.advice.trim() : hasArray(data.advice)))) return true;
@@ -1487,9 +1711,14 @@ const ConsultationDrawer = ({
   };
 
   const mapPrescriptionDataToDigitizeData = (prescriptionData) => {
-    if (!prescriptionData || typeof prescriptionData !== "object") return prescriptionData;
-    const v = prescriptionData.vitalsAndBodyComposition;
-    if (!v || typeof v !== "object") return { ...prescriptionData };
+    if (!prescriptionData || typeof prescriptionData !== "object") {
+      return preparePreviousContextRxItems(prescriptionData);
+    }
+
+    const withRxItems = preparePreviousContextRxItems(prescriptionData);
+    const v = withRxItems.vitalsAndBodyComposition;
+    if (!v || typeof v !== "object") return withRxItems;
+
     const mapped = { ...v };
     if (mapped.respRate !== undefined) {
       mapped.respiratoryRate = mapped.respRate;
@@ -1510,7 +1739,7 @@ const ConsultationDrawer = ({
       delete mapped.general_rbs;
       delete mapped["General RBS"];
     }
-    return { ...prescriptionData, vitalsAndBodyComposition: mapped };
+    return { ...withRxItems, vitalsAndBodyComposition: mapped };
   };
 
   const handleVoiceDigitize = async (
@@ -1518,6 +1747,19 @@ const ConsultationDrawer = ({
     transcribedText,
     isFromSC = false
   ) => {
+    const voicecall = ++voiceCallCountRef.current;
+    let voiceApiAttempted = false;
+    let prescriptionUrlForApiResult = "";
+    let voiceApiRecordId = "";
+    let isEmptyPrescription = false;
+    let rxModulesFilledCount = 0;
+    let filledModules = [];
+    let voiceApiLatencyMs = null;
+    let voiceApiHttpStatus = null;
+    const submitId = `voice-submit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const requestId = submitId;
+    const modeForEvent = isAmbientMode || mode === "ambient" ? "ambient" : "dictation";
+    const fromVoiceRecordingEvent = !!fromVoiceRecording;
     try {
       let response;
 
@@ -1552,9 +1794,52 @@ const ConsultationDrawer = ({
           const sourceDuration = audioBuffer.duration;
           currentRecordingDuration = sourceDuration;
           let prescriptionUrl;
-          const uploadResponse = await uploadVoiceAudio(audioFile);
-          prescriptionUrl = uploadResponse?.data?.prescriptionUrl ?? uploadResponse?.prescriptionUrl;
+          const uploadStartedAt = Date.now();
+          try {
+            const uploadResponse = await uploadVoiceAudio(audioFile);
+            prescriptionUrl = uploadResponse?.data?.prescriptionUrl ?? uploadResponse?.prescriptionUrl;
+            if (prescriptionUrl) {
+              prescriptionUrlsForSessionRef.current.add(prescriptionUrl);
+            }
+          } catch (uploadError) {
+            trackVoiceSubmitClickEvent({
+              voiceApiCalled: false,
+              prescriptionUrl: "",
+              network: "unstable",
+              durationOfAudio: Math.round(sourceDuration || 0),
+              sessionId: voiceSessionIdRef.current,
+              submitId,
+              requestId,
+              audioSizeBytes: audioBlobParam?.size || 0,
+              audioMimeType: audioBlobParam?.type || "audio/webm",
+              modeForEvent,
+              fromVoiceRecordingEvent,
+              uploadLatencyMs: Date.now() - uploadStartedAt,
+              uploadFailed: true,
+              uploadErrorMessage: uploadError?.message || "upload_failed",
+              voicecall,
+            });
+            throw uploadError;
+          }
           if (!prescriptionUrl) throw new Error("Failed to upload audio file");
+          prescriptionUrlForApiResult = prescriptionUrl;
+          trackVoiceSubmitClickEvent({
+            voiceApiCalled: true,
+            prescriptionUrl,
+            network: "stable",
+            durationOfAudio: Math.round(sourceDuration || 0),
+            sessionId: voiceSessionIdRef.current,
+            submitId,
+            requestId,
+            audioSizeBytes: audioBlobParam?.size || 0,
+            audioMimeType: audioBlobParam?.type || "audio/webm",
+            modeForEvent,
+            fromVoiceRecordingEvent,
+            uploadLatencyMs: Date.now() - uploadStartedAt,
+            uploadFailed: false,
+            uploadErrorMessage: "",
+            voicecall,
+          });
           payload = {
             prescriptionUrls: [prescriptionUrl],
             sourceDuration: Math.round(sourceDuration),
@@ -1578,7 +1863,9 @@ const ConsultationDrawer = ({
           };
         }
 
+        const voiceApiStartedAt = Date.now();
         if (genRxDetails?._id) {
+          voiceApiAttempted = true;
           response = await updateAmbientRx(
             payload,
             genRxDetails._id,
@@ -1586,11 +1873,14 @@ const ConsultationDrawer = ({
             admissionId
           );
         } else {
+          voiceApiAttempted = true;
           response = await generateAmbientRx(payload, patientId, admissionId);
           if (transcribedText) {
             setFullTranscript(transcribedText);
           }
         }
+        voiceApiLatencyMs = Date.now() - voiceApiStartedAt;
+        voiceApiHttpStatus = response?.status ?? response?.data?.status ?? 200;
 
         // Handle response structure for ambient API (same as cvt_prod_final)
         const responseData = response?.data || response;
@@ -1620,6 +1910,32 @@ const ConsultationDrawer = ({
         
         if (isSuccess) {
           const finalResponseData = actualData || responseData;
+          voiceApiRecordId =
+            finalResponseData?._id ||
+            actualData?._id ||
+            responseData?.data?._id ||
+            responseData?._id ||
+            genRxDetails?._id ||
+            "";
+          const digitizeDataForEvent =
+            finalResponseData?.digitizeData ??
+            finalResponseData?.history?.[0]?.digitize ??
+            actualData?.digitizeData ??
+            responseData?.digitizeData ??
+            actualData?.digitize ??
+            responseData?.digitize ??
+            null;
+          if (digitizeDataForEvent) {
+            const mappedForEmptyCheck = mapDigitizeDataToPrescription(digitizeDataForEvent);
+            const modulesDetails = getFilledRxModulesDetails(mappedForEmptyCheck || {});
+            rxModulesFilledCount = modulesDetails.rxModulesFilledCount;
+            filledModules = modulesDetails.filledModules;
+            isEmptyPrescription = modulesDetails.rxModulesFilledCount === 0;
+          } else {
+            rxModulesFilledCount = 0;
+            filledModules = [];
+            isEmptyPrescription = true;
+          }
           
           if (!finalResponseData) {
             console.error('❌ Response data is null or undefined');
@@ -1831,8 +2147,9 @@ const ConsultationDrawer = ({
                 const labResults = (Array.isArray(finalPrescriptionData.labResults) && finalPrescriptionData.labResults.length > 0)
                   ? finalPrescriptionData.labResults
                   : (Array.isArray(prevData?.labResults) && prevData.labResults.length > 0 ? prevData.labResults : []);
+                const mergedPrescription = mergeVoiceApiPrescriptionWithPrior(prevData, finalPrescriptionData);
                 return {
-                  ...finalPrescriptionData,
+                  ...mergedPrescription,
                   labResults,
                   dynamicFields: mergedDynamicFields,
                 };
@@ -1942,9 +2259,52 @@ const ConsultationDrawer = ({
           const fileName = `voice-rx-recording-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
           const audioFile = new File([audioBlobParam], fileName, { type: audioBlobParam.type || "audio/webm" });
           let prescriptionUrl;
-          const uploadResponse = await uploadVoiceAudio(audioFile);
-          prescriptionUrl = uploadResponse?.data?.prescriptionUrl ?? uploadResponse?.prescriptionUrl;
+          const uploadStartedAt = Date.now();
+          try {
+            const uploadResponse = await uploadVoiceAudio(audioFile);
+            prescriptionUrl = uploadResponse?.data?.prescriptionUrl ?? uploadResponse?.prescriptionUrl;
+            if (prescriptionUrl) {
+              prescriptionUrlsForSessionRef.current.add(prescriptionUrl);
+            }
+          } catch (uploadError) {
+            trackVoiceSubmitClickEvent({
+              voiceApiCalled: false,
+              prescriptionUrl: "",
+              network: "unstable",
+              durationOfAudio: Math.round(sourceDuration || 0),
+              sessionId: voiceSessionIdRef.current,
+              submitId,
+              requestId,
+              audioSizeBytes: audioBlobParam?.size || 0,
+              audioMimeType: audioBlobParam?.type || "audio/webm",
+              modeForEvent,
+              fromVoiceRecordingEvent,
+              uploadLatencyMs: Date.now() - uploadStartedAt,
+              uploadFailed: true,
+              uploadErrorMessage: uploadError?.message || "upload_failed",
+              voicecall,
+            });
+            throw uploadError;
+          }
           if (!prescriptionUrl) throw new Error("Failed to upload audio file");
+          prescriptionUrlForApiResult = prescriptionUrl;
+          trackVoiceSubmitClickEvent({
+            voiceApiCalled: true,
+            prescriptionUrl,
+            network: "stable",
+            durationOfAudio: Math.round(sourceDuration || 0),
+            sessionId: voiceSessionIdRef.current,
+            submitId,
+            requestId,
+            audioSizeBytes: audioBlobParam?.size || 0,
+            audioMimeType: audioBlobParam?.type || "audio/webm",
+            modeForEvent,
+            fromVoiceRecordingEvent,
+            uploadLatencyMs: Date.now() - uploadStartedAt,
+            uploadFailed: false,
+            uploadErrorMessage: "",
+            voicecall,
+          });
           payload = {
             prescriptionUrls: [prescriptionUrl],
             sourceDuration: Math.round(sourceDuration),
@@ -1968,9 +2328,13 @@ const ConsultationDrawer = ({
           };
         }
 
+        const voiceApiStartedAt = Date.now();
+        voiceApiAttempted = true;
         response = genRxDetails?._id
           ? await updateGenRx(payload, genRxDetails._id, patientId, admissionId)
           : await generateRx(payload, patientId, admissionId);
+        voiceApiLatencyMs = Date.now() - voiceApiStartedAt;
+        voiceApiHttpStatus = response?.status ?? response?.data?.status ?? 200;
 
         const responseData = response?.data?.response ?? response?.data ?? response;
         const actualDataDictate = responseData?.response ?? responseData?.data ?? responseData;
@@ -1987,6 +2351,29 @@ const ConsultationDrawer = ({
 
         if (isSuccess) {
           const dataForParse = actualDataDictate || responseData;
+          voiceApiRecordId =
+            dataForParse?._id ||
+            responseData?.data?._id ||
+            responseData?._id ||
+            genRxDetails?._id ||
+            "";
+          const digitizeDataForEvent =
+            dataForParse?.digitizeData ??
+            dataForParse?.history?.[0]?.digitize ??
+            responseData?.digitizeData ??
+            responseData?.digitize ??
+            null;
+          if (digitizeDataForEvent) {
+            const mappedForEmptyCheck = mapDigitizeDataToPrescription(digitizeDataForEvent);
+            const modulesDetails = getFilledRxModulesDetails(mappedForEmptyCheck || {});
+            rxModulesFilledCount = modulesDetails.rxModulesFilledCount;
+            filledModules = modulesDetails.filledModules;
+            isEmptyPrescription = modulesDetails.rxModulesFilledCount === 0;
+          } else {
+            rxModulesFilledCount = 0;
+            filledModules = [];
+            isEmptyPrescription = true;
+          }
           if (!dataForParse) {
             throw new Error("No data received from API");
           }
@@ -2104,7 +2491,11 @@ const ConsultationDrawer = ({
                 }
 
                 setPrescriptionData((prev) => {
-                  return { ...validatedPrescriptionDataForDictate, labResults: labResultsToUse };
+                  const merged = mergeVoiceApiPrescriptionWithPrior(
+                    prev,
+                    validatedPrescriptionDataForDictate
+                  );
+                  return { ...merged, labResults: labResultsToUse };
                 });   
                 
                 // Convert API medicalHistory format to CashManagerContext format and populate it
@@ -2219,8 +2610,60 @@ const ConsultationDrawer = ({
           }
         }
       }
+      if (voiceApiAttempted) {
+        voiceApiSuccessRef.current = true;
+        voiceApiFailedRef.current = false;
+        if (prescriptionUrlForApiResult) {
+          prescriptionUrlsForSessionRef.current.add(prescriptionUrlForApiResult);
+        }
+        trackVoiceApiResultEvent({
+          voiceFailed: false,
+          errorMessage: "",
+          retryAttempts: getVoiceRetryAttempts(),
+          prescriptionUrl: prescriptionUrlForApiResult || window.__TATVA_VOICE_API_LAST_UPLOAD_URL || "",
+          sessionId: voiceSessionIdRef.current,
+          recordId: voiceApiRecordId,
+          isEmptyPrescription,
+          submitId,
+          requestId,
+          voiceApiLatencyMs,
+          httpStatus: voiceApiHttpStatus,
+          errorCode: "",
+          errorType: "",
+          rxModulesFilledCount,
+          filledModules,
+          modeForEvent,
+          voicecall,
+        });
+      }
     } catch (error) {
       console.error("Error in voice digitization:", error?.message || error);
+      if (voiceApiAttempted) {
+        voiceApiFailedRef.current = true;
+        voiceApiSuccessRef.current = false;
+        if (prescriptionUrlForApiResult) {
+          prescriptionUrlsForSessionRef.current.add(prescriptionUrlForApiResult);
+        }
+        trackVoiceApiResultEvent({
+          voiceFailed: true,
+          errorMessage: error?.message || "",
+          retryAttempts: getVoiceRetryAttempts(),
+          prescriptionUrl: prescriptionUrlForApiResult || window.__TATVA_VOICE_API_LAST_UPLOAD_URL || "",
+          sessionId: voiceSessionIdRef.current,
+          recordId: voiceApiRecordId || genRxDetails?._id || "",
+          isEmptyPrescription: true,
+          submitId,
+          requestId,
+          voiceApiLatencyMs,
+          httpStatus: error?.response?.status ?? voiceApiHttpStatus,
+          errorCode: error?.code || error?.response?.status || error?.message || "",
+          errorType: classifyVoiceApiErrorType(error),
+          rxModulesFilledCount: 0,
+          filledModules: [],
+          modeForEvent,
+          voicecall,
+        });
+      }
       if (error?.message?.includes("Cannot set properties of null")) {
         message.error("Data processing error - please try again");
       } else if (error?.response?.status === 401) {
@@ -2276,6 +2719,11 @@ const ConsultationDrawer = ({
 
           return ensureMedicationGroundedForRxSave({ ...item, quantity });
         }),
+        labInvestigation: Array.isArray(prescriptionData?.labInvestigation)
+          ? prescriptionData.labInvestigation.map((item) =>
+              ensureLabInvestigationMetadataForRxSave(item)
+            )
+          : [],
       };
 
       const editedDataForApi = { ...updatedPrescriptionData };
@@ -2403,6 +2851,7 @@ const ConsultationDrawer = ({
 
   const handleInputChange = (e) => {
     setEditableText(e.target.value);
+    editedModulesByUserRef.current.add("dynamicFields");
     setIsRxEdited(true);
   };
 
@@ -2429,6 +2878,7 @@ const ConsultationDrawer = ({
 
         return updatedData;
       });
+      editedModulesByUserRef.current.add("dynamicFields");
       setIsRxEdited(true);
     }
 
@@ -2725,6 +3175,7 @@ const ConsultationDrawer = ({
       ...prevData,
       symptoms: Array.isArray(symptomsArray) ? symptomsArray : [],
     }));
+    editedModulesByUserRef.current.add("symptoms");
     setIsRxEdited(true);
   }, []);
 
@@ -2733,6 +3184,7 @@ const ConsultationDrawer = ({
       ...prevData,
       vaccinations: Array.isArray(vaccinationsArray) ? vaccinationsArray : [],
     }));
+    editedModulesByUserRef.current.add("vaccinations");
     setIsRxEdited(true);
   }, []);
 
@@ -2741,6 +3193,7 @@ const ConsultationDrawer = ({
       ...prevData,
       examinations: Array.isArray(examinationsArray) ? examinationsArray : [],
     }));
+    editedModulesByUserRef.current.add("examinations");
     setIsRxEdited(true);
   }, []);
 
@@ -2749,6 +3202,7 @@ const ConsultationDrawer = ({
       ...prevData,
       diagnosis: Array.isArray(diagnosisArray) ? diagnosisArray : [],
     }));
+    editedModulesByUserRef.current.add("diagnosis");
     setIsRxEdited(true);
   }, []);
 
@@ -2757,6 +3211,7 @@ const ConsultationDrawer = ({
       ...prevData,
       labInvestigation: investigationArray,
     }));
+    editedModulesByUserRef.current.add("labInvestigation");
     setIsRxEdited(true);
   }, []);
 
@@ -2765,6 +3220,7 @@ const ConsultationDrawer = ({
       ...prevData,
       advice: Array.isArray(adviceArray) ? adviceArray : [],
     }));
+    editedModulesByUserRef.current.add("advice");
     setIsRxEdited(true);
   }, []);
 
@@ -2773,6 +3229,7 @@ const ConsultationDrawer = ({
       ...prevData,
       vitalsAndBodyComposition: vitalsObject && typeof vitalsObject === "object" ? vitalsObject : {},
     }));
+    editedModulesByUserRef.current.add("vitalsAndBodyComposition");
     setIsRxEdited(true);
   }, []);
 
@@ -2781,6 +3238,7 @@ const ConsultationDrawer = ({
       ...prevData,
       medicalHistory: Array.isArray(medicalHistoryArray) ? medicalHistoryArray : [],
     }));
+    editedModulesByUserRef.current.add("medicalHistory");
     setIsRxEdited(true);
     if (medicalHistoryArray && Array.isArray(medicalHistoryArray) && medicalHistoryArray.length > 0 && setMedicalHistoryData) {
       const convertedData = convertMedicalHistoryToContextFormat(medicalHistoryArray, medicalHistoryData);
@@ -2894,6 +3352,7 @@ const ConsultationDrawer = ({
       ...prevData,
       followUp: typeof followUpText === "string" ? followUpText : "",
     }));
+    editedModulesByUserRef.current.add("followUp");
     setIsRxEdited(true);
   }, []);
 
@@ -2902,6 +3361,7 @@ const ConsultationDrawer = ({
       ...prevData,
       labResults: Array.isArray(labResultsArray) ? labResultsArray : [],
     }));
+    editedModulesByUserRef.current.add("labResults");
     setIsRxEdited(true);
   }, []);
 
@@ -2910,6 +3370,7 @@ const ConsultationDrawer = ({
       ...prevData,
       others: Array.isArray(othersArray) ? othersArray : [],
     }));
+    editedModulesByUserRef.current.add("others");
     setIsRxEdited(true);
   }, []);
 
@@ -2918,6 +3379,7 @@ const ConsultationDrawer = ({
       ...prevData,
       medications: medicationsArray,
     }));
+    editedModulesByUserRef.current.add("medications");
     setIsRxEdited(true);
   }, []);
 
@@ -2928,6 +3390,88 @@ const ConsultationDrawer = ({
       stopAllActiveRecorders();
       const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
     const rxType = isAmbientRx ? "ambient" : "voice_rx";  
+      const prescriptionTypeForEvent = isAmbientRx ? "ambient" : "dictate";
+      const wholeSessionDurationMs = voiceSessionStartTimeRef.current
+        ? Date.now() - voiceSessionStartTimeRef.current
+        : 0;
+      const wholeSessionDurationSeconds = Math.round(wholeSessionDurationMs / 1000);
+
+      const modulesDetails = getFilledRxModulesDetails(prescriptionData || {});
+      const totalSubmitCount = submitCountRef.current;
+      const typedSubmitCount = typedMessagesCountRef.current;
+      const audioSubmitCount = Math.max(totalSubmitCount - typedSubmitCount, 0);
+
+      // Try to infer which modules were edited (best-effort).
+      const editedModulesFromFlags = new Set();
+      const checkEditedArray = (arr, moduleKey) => {
+        if (!Array.isArray(arr)) return;
+        if (arr.some((item) => item?.edited === true || item?.lineItem?.edited === true)) {
+          editedModulesFromFlags.add(moduleKey);
+        }
+      };
+      checkEditedArray(prescriptionData?.symptoms, "symptoms");
+      checkEditedArray(prescriptionData?.surgeries, "surgeries");
+      checkEditedArray(prescriptionData?.vaccinations, "vaccinations");
+      checkEditedArray(prescriptionData?.medicalHistory, "medicalHistory");
+      checkEditedArray(prescriptionData?.examinations, "examinations");
+      checkEditedArray(prescriptionData?.diagnosis, "diagnosis");
+      checkEditedArray(prescriptionData?.medications, "medications");
+      checkEditedArray(prescriptionData?.labResults, "labResults");
+      checkEditedArray(prescriptionData?.labInvestigation, "labInvestigation");
+      checkEditedArray(prescriptionData?.others, "others");
+
+      const editedModules = new Set([
+        ...editedModulesByUserRef.current,
+        ...editedModulesFromFlags,
+      ]);
+
+      const prescriptionUrlsUploadedInSession = Array.from(
+        prescriptionUrlsForSessionRef.current
+      );
+
+      window.Moengage.track_event("TP_Voice_endVisit", {
+        doctorId: profile?.doctor_unique_id || "",
+        doctorName: profile?.um_name || "",
+        patientId: patient_data?.patient_unique_id || "",
+        patientName: patient_data?.pm_fullname || "",
+        hospitalId: clinic?.hm_id || "",
+        hospitalName: clinic?.hm_name || "",
+
+        sessionId: voiceSessionIdRef.current,
+        timestamp: new Date().toISOString(),
+
+        prescription_type: prescriptionTypeForEvent, // dictate | ambient
+
+        duration_of_whole_session_ms: wholeSessionDurationMs,
+        duration_of_whole_session_seconds: wholeSessionDurationSeconds,
+
+        no_of_submit_ids_total: totalSubmitCount,
+        no_of_typed_submit_ids: typedSubmitCount,
+        no_of_audio_submit_ids: audioSubmitCount,
+
+        total_modules_filled: modulesDetails.rxModulesFilledCount,
+        filled_modules: Array.isArray(modulesDetails.filledModules)
+          ? modulesDetails.filledModules.join(",")
+          : "",
+
+        edited_modules: Array.from(editedModules).join(","),
+        is_empty_rx: modulesDetails.rxModulesFilledCount === 0 ? 1 : 0,
+
+        prescription_urls_uploaded: prescriptionUrlsUploadedInSession.join(","),
+        prescription_urls_uploaded_count: prescriptionUrlsUploadedInSession.length,
+
+        voice_api_failed: voiceApiFailedRef.current ? 1 : 0,
+        voice_api_success: voiceApiSuccessRef.current ? 1 : 0,
+        voice_api_status:
+          voiceApiFailedRef.current && !voiceApiSuccessRef.current
+            ? "failed"
+            : voiceApiSuccessRef.current
+            ? "successful"
+            : "unknown",
+
+        voicecall: voiceCallCountRef.current,
+      });
+
     const totalAudioDuration = queries
       .filter(query => query.isAudio && query.duration)
       .reduce((total, query) => {
@@ -2994,11 +3538,11 @@ const ConsultationDrawer = ({
       try {
         const results = prescriptionLabResultsToResultsArray(prescriptionData.labResults);
         if (results.length > 0) {
-          const payload = {
+          const payload = buildLabResultsSavePayload({
             patientId: labPatientId,
-            doctorId: labDoctorId,
             results,
-          };
+            tokenUserId: labDoctorId,
+          });
           const response = await addPatientLabReports(payload);
           const idFromResponse = response?.data?.labReportID ?? response?.data?.data?.labReportID;
           if (idFromResponse != null) {
@@ -3304,6 +3848,12 @@ const ConsultationDrawer = ({
           getInvestigationAndMedicine(sendInvestigationAndMedicine)
         );
         if (actionIM.meta.requestStatus === "fulfilled") {
+          const cmInvestigations = actionIM?.payload?.investigation ?? [];
+          const investigationList = cmInvestigations.map((item) => ({
+            serviceName: String(item?.investigation_name ?? "").trim(),
+            serviceCode: String(item?.service_code ?? "").trim(),
+          }));
+
           let zydusSendData = {
             action: tcmId == 0 ? "add" : "edit",
             tcmId: action?.payload?.tcm_id,
@@ -3315,9 +3865,7 @@ const ConsultationDrawer = ({
             doctorCode: patient_data?.employeeId,
             storeCode: storeCode,
             duplicateCheck: 1,
-            investigationList:
-              prescriptionData?.labInvestigation?.map((item) => item.name) ||
-              [],
+            investigationList,
             medicineList:
               sanitizedMedications.map(({ name, notes }, index) => {
                 const quantityValue =
@@ -3505,7 +4053,6 @@ const ConsultationDrawer = ({
       }
       setParentSearchOptions(data);
     }, [investigationParentOptionsList]);
-
 
   
   const handleAmbientItemClick = (type, index, item) => {
@@ -3734,13 +4281,8 @@ const ConsultationDrawer = ({
     } else {
       // If no prescription data, navigate directly based on mode
       if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
-        // Navigate to Voice Rx Consult page (mode selection) in ambient mode
-        navigate("/voice-rx-consult", {
-          replace: true,
-          state: {
-            patient_data,
-          },
-        });
+        // Return to the correct VoiceRx entry point for this feature flag state.
+        navigateVoiceRx({ patient_data }, { replace: true }, "consultation_drawer_ambient_back");
         onClose();
     } else {
       onClose();
@@ -3752,7 +4294,7 @@ const ConsultationDrawer = ({
     if (!(isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX)) {
       onClose();
     }
-    navigate("/voice-rx-consult", { replace: true, state: { patient_data } });
+    navigateVoiceRx({ patient_data }, { replace: true }, "consultation_drawer_back");
   };
 
   const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
@@ -4409,13 +4951,8 @@ const ConsultationDrawer = ({
                           onClick={() => {
                             // Check if we're in ambient mode
                             if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
-                              // Navigate to Voice Rx Consult page (mode selection) when leaving in ambient mode
-                              navigate("/voice-rx-consult", {
-                                replace: true,
-                                state: {
-                                  patient_data,
-                                },
-                              });
+                              // Return to the correct VoiceRx entry point for this feature flag state.
+                              navigateVoiceRx({ patient_data }, { replace: true }, "consultation_drawer_leave_ambient");
                             } else {
                               // For non-ambient mode, use the regular back handler
                               handleBack();

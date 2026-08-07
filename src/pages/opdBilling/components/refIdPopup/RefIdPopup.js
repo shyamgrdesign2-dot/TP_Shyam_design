@@ -1,9 +1,11 @@
 import { Button, Input } from "antd";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "./../../../../assets/images/alertIcon.svg";
+
 import { useCallback, useState } from "react";
 import { getClinic, trackEvent } from "../../../../utils/utils";
 import { useSelector } from "react-redux";
+import { ASSETS } from "../../../../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 const { TextArea } = Input;
 

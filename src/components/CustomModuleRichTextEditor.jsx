@@ -3,8 +3,11 @@ import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import styles from './ConsultationDrawer.module.css';
 import { Dropdown, Menu } from 'antd';
-import deleteModuleIcon from '../assets/images/delete-icon-blue.svg';
-import customModuleIcon from '../assets/images/custom-module.svg';
+import { ASSETS } from "../assets";
+const {
+  deleteIconBlue: deleteModuleIcon,
+  customModule: customModuleIcon,
+} = ASSETS.images;
 
 /**
  * CustomModuleRichTextEditor - Rich text editor for custom modules

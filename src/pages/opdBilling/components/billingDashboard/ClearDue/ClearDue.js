@@ -5,8 +5,7 @@ import "./ClearDue.scss";
 
 import { useSelector } from "react-redux";
 import { processClearDue } from "../../../service";
-import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
-import visitEnd from "../../../../../assets/images/end-visit.svg";
+
 import { MESSAGE_KEY } from "../../../../../utils/constants";
 import { PaymentOptions } from "../../../utils/constants";
 import { calculateTotalPaidAmount, formatDateWithOrdinal } from "../../../utils/helper";
@@ -16,6 +15,11 @@ import {
   onlyDecimalFormat,
   trackEvent,
 } from "../../../../../utils/utils";
+import { ASSETS } from "../../../../../assets";
+const {
+  closeVisit: imgCloseVisit,
+  endVisit: visitEnd,
+} = ASSETS.images;
 
 const { TextArea } = Input;
 const MAX_REMARKS_LENGTH = 400;

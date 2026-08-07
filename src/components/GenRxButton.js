@@ -1,9 +1,13 @@
 import React from "react";
-import genRxIcon from "../assets/images/gen-rx-btn.svg";
-import genRxBgWebm from "../assets/images/gen-rx-bg.webm";
-import genRxBgMp4 from "../assets/images/gen-rx-bg.mp4";
+
 import LoopingVideo from "./common/LoopingVideo";
 import styles from "./GenRxButton.module.scss";
+import { ASSETS } from "../assets";
+const {
+  genRxBtn: genRxIcon,
+  genRxBg_2: genRxBgWebm,
+  genRxBg: genRxBgMp4,
+} = ASSETS.images;
 
 const GenRxButton = ({ onClick, className = "" }) => {
   return (

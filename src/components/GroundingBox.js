@@ -1,14 +1,18 @@
 import { Collapse } from "antd";
-import arrow from "../assets/images/shaded-arrow.svg";
-import grounding from "../assets/images/grounding-purple.svg";
-import cdssWallpaperWebm from "../assets/images/cdss-wallpaper.webm";
-import cdssWallpaperMp4 from "../assets/images/cdss-wallpaper.mp4";
-import newTagWebm from "../assets/images/new-gif.webm";
-import newTagMp4 from "../assets/images/new-gif.mp4";
+
 import LoopingVideo from "./common/LoopingVideo";
 
 import { useState } from "react";
 import { isMobile } from "react-device-detect";
+import { ASSETS } from "../assets";
+const {
+  shadedArrow: arrow,
+  groundingPurple: grounding,
+  cdssWallpaper_2: cdssWallpaperWebm,
+  cdssWallpaper: cdssWallpaperMp4,
+  newGif_3: newTagWebm,
+  newGif_2: newTagMp4,
+} = ASSETS.images;
 
 const GroundingBox = ({ handleGroundingKnowMore }) => {
   const [isCollapseActive, setIsCollapseActive] = useState(true);

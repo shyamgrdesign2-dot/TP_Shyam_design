@@ -32,13 +32,16 @@ import {
 } from "../../redux/medicationSlice";
 import { addUpdateVitals, getPatientBirthWeight, updateList, updateTodayWeight } from "../../redux/vitalsSlice";
 
-import editIcon from "../../assets/images/edit.svg";
-import doseCalculatorImg from "../../assets/images/dose-calc.svg";
-import alertIcon from '../../assets/images/alertIcon.svg';
-import visitEnd from '../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../assets/images/close-visit.svg';
 import CommonModal from "../../common/CommonModal";
 import moment from "moment";
+import { ASSETS } from "../../assets";
+const {
+  edit: editIcon,
+  doseCalc: doseCalculatorImg,
+  alerticon: alertIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 const dateFormat = 'YYYY-MM-DD'
 
@@ -76,7 +79,6 @@ const DoseCalculator = ({ handleViewDoseCalcDrawer, activeTab, setActiveTab, sea
   const [deletedData, setDeletedData] = useState(null);
   const [doseLibrary, setDoseLibrary] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
 
   useEffect(() => {
     if (medicationData?.length > 0) {
@@ -210,31 +212,32 @@ const DoseCalculator = ({ handleViewDoseCalcDrawer, activeTab, setActiveTab, sea
 
         medicationLibrary?.map(e => {
           const findTmmId = medicationData.findIndex(e1 => e1.tmm_id == e.medicine_id)
+          if (findTmmId === -1) return e;
           // if (!medicationData[findTmmId].tmm_dosage) {
-          const tmm_unit = medicationData[findTmmId]?.tmm_unit;
-          const dose = calculateDose(e.dosage, todayWeight, e.concentration, medicationData[findTmmId]?.tmm_type)
+          const medicine = medicationData[findTmmId];
+          const medicineUnits = Array.isArray(medicine?.medicineUnit) ? medicine.medicineUnit : [];
+          const tmm_unit = medicine?.tmm_unit;
+          const dose = calculateDose(e.dosage, todayWeight, e.concentration, medicine?.tmm_type)
           if (isMobile) {
-            const unitObj = medicationData[findTmmId]?.medicineUnit.find((x) => x.value == tmm_unit) !== undefined ?
-              medicationData[findTmmId]?.medicineUnit.find((x) => x.value == tmm_unit) :
-              medicationData[findTmmId].medicineUnit[0];
+            const unitObj = medicineUnits.find((x) => x.value == tmm_unit) || medicineUnits[0];
+            const unitData = unitObj?.key ? JSON.parse(unitObj.key) : unitObj;
 
-            medicationData[findTmmId].tmm_dosage_unit_name = `${dose ? `${dose} ${unitObj && unitObj !== undefined ? JSON.parse(unitObj.key).tmu_title : ""}` : ""}`;
+            medicationData[findTmmId].tmm_dosage_unit_name = `${dose ? `${dose} ${unitData?.tmu_title || ""}` : ""}`;
             medicationData[findTmmId].tmm_dosage = dose ? dose : "";
-            medicationData[findTmmId].tmm_unit = unitObj && unitObj !== undefined ? JSON.parse(unitObj.key).tmu_id : "";
-            medicationData[findTmmId].tmm_unit_name = unitObj && unitObj !== undefined ? JSON.parse(unitObj.key).tmu_title : "";
-            medicationData[findTmmId].tmu_id = unitObj && unitObj !== undefined ? JSON.parse(unitObj.key).tmu_id : "";
+            medicationData[findTmmId].tmm_unit = unitData?.tmu_id || "";
+            medicationData[findTmmId].tmm_unit_name = unitData?.tmu_title || "";
+            medicationData[findTmmId].tmu_id = unitData?.tmu_id || "";
           } else {
-            const unitObj = medicationData[findTmmId]?.medicineUnit.find((x) => x.tmu_id == tmm_unit) !== undefined ?
-              medicationData[findTmmId]?.medicineUnit.find((x) => x.tmu_id == tmm_unit) :
-              medicationData[findTmmId]?.medicineUnit[0];
+            const unitObj = medicineUnits.find((x) => x.tmu_id == tmm_unit) || medicineUnits[0];
 
-            medicationData[findTmmId].tmm_dosage_unit_name = `${dose ? `${dose} ${unitObj && unitObj !== undefined ? unitObj.tmu_title : ""}` : ""}`;
+            medicationData[findTmmId].tmm_dosage_unit_name = `${dose ? `${dose} ${unitObj?.tmu_title || ""}` : ""}`;
             medicationData[findTmmId].tmm_dosage = dose ? dose : "";
-            medicationData[findTmmId].tmm_unit = unitObj && unitObj !== undefined ? unitObj.tmu_id : "";
-            medicationData[findTmmId].tmm_unit_name = unitObj && unitObj !== undefined ? unitObj.tmu_title : "";
-            medicationData[findTmmId].tmu_id = unitObj && unitObj !== undefined ? unitObj.tmu_id : "";
+            medicationData[findTmmId].tmm_unit = unitObj?.tmu_id || "";
+            medicationData[findTmmId].tmm_unit_name = unitObj?.tmu_title || "";
+            medicationData[findTmmId].tmu_id = unitObj?.tmu_id || "";
           }
           // }
+          return e;
         })
         setMedicationData((prev) => [...prev]);
 
@@ -443,7 +446,6 @@ const DoseCalculator = ({ handleViewDoseCalcDrawer, activeTab, setActiveTab, sea
   const showHideModal = useCallback(() => {
     setIsModalOpen(!isModalOpen);
   }, [isModalOpen]);
-
 
   //Mixed Tab
   const firstColumn = (text, record, index) => {

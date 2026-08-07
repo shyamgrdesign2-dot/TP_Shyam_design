@@ -5,8 +5,10 @@ import axios from "axios";
 import { env } from "../EnvironmentConfig";
 import { PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import CommonModal from "../common/CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
+
 import moment from "moment";
+import { ASSETS } from "../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 const ZydusLabParams = ({
     handleZydusTestReportDrawer,

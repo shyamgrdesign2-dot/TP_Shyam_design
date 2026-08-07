@@ -1,8 +1,10 @@
 import React from 'react';
 import { Drawer, Button } from 'antd';
-import closeIcon from '../../assets/mobile/close 2.svg';
-import noConditionImage from '../../assets/images/no-hypertension.webp';
+
 import './MobileNoConditionScreen.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
+const noConditionImage = ASSETS.images.noHypertension;
 
 function MobileNoConditionScreen({ 
   visible, 

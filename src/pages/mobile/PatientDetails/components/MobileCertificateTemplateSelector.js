@@ -7,14 +7,17 @@ import { Drawer } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import { MESSAGE_KEY } from "../../../../utils/constants";
 
-import alertIcon from '../../../../assets/images/alertIcon.svg';
-import visitEnd from '../../../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../../../assets/images/close-visit.svg';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
 import { listCertificate, deleteCertificate } from "../../../../redux/doctorsSlice";
 
 import { errorMessage } from "../../../../utils/utils";
 import './MobileCertificateTemplateSelector.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
+const closeIcon = ASSETS.mobile.close2;
 
 function MobileCertificateTemplateSelector({
   visible,
@@ -92,7 +95,6 @@ function MobileCertificateTemplateSelector({
       });
     }
   }, [onClose, navigate, replace, patient_data, onCustomCertificateClick]);
-
 
   const getInitials = (title) => {
     if (!title) return '';

@@ -2,16 +2,20 @@ import React, { useState, useEffect } from "react";
 import { Input, Button, Form, Spin } from "antd";
 import { isMobile } from "react-device-detect";
 import "./Onboarding.scss";
-import abdmLogo from "../../../assets/images/abdm-logo.svg";
-import nhaLogo from "../../../assets/images/nha-logo.svg";
-import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.webp";
-import leftGroup from "../../../assets/images/onboard-page-icons/Left-Group.svg";
-import rightGroup from "../../../assets/images/onboard-page-icons/Right-Group.svg";
+
 import { verifyAccessToken } from "../../auth/authService";
 import { loginWithPassword } from "../../auth/authService";
 import { useNavigate } from "react-router-dom";
 import { detectOperatingSystem } from "../../../utils/loginUtils";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
+import { ASSETS } from "../../../assets";
+const {
+  abdmLogo,
+  nhaLogo,
+} = ASSETS.images;
+const MicrosoftPartner = ASSETS.images.onboardPageIcons.microsoft;
+const leftGroup = ASSETS.images.onboardPageIcons.leftGroup;
+const rightGroup = ASSETS.images.onboardPageIcons.rightGroup;
 
 const VerifyOTP = ({
   onViewChange,

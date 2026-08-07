@@ -1,4 +1,4 @@
-@import '../../assets/scss/variables';
+@import '../../styles/variables';
 
 // Common CSS for Whole Message Component
 .text-delivered {
@@ -90,7 +90,7 @@
 
 // message Detailed View Drawer
 .bg-whatsup-message {
-    background-image: url(../../assets/images/bg-whatsup.svg);
+    background-image: url(#{$tp-assets-base}/images/bg-whatsup.svg);
     background-repeat: no-repeat;
     background-size: cover;
 }
@@ -290,7 +290,7 @@
     background-color: #EAECF0;
     height: 303px;
     .sms-preview-mobile {
-        background-image: url(../../assets/images/device-sms.webp);
+        background-image: url(#{$tp-assets-base}/images/device-sms.webp);
         background-size: cover;
         background-repeat: no-repeat;
         background-position: top;
@@ -302,7 +302,7 @@
             fill: #000;
         }
         &.whatsup-preview-mobile {
-            background-image: url(../../assets/images/device-whatsup.webp);
+            background-image: url(#{$tp-assets-base}/images/device-whatsup.webp);
             .sms-preview-message {
                 background-color: $white;
             }
@@ -405,7 +405,7 @@
 }
 
 .reedem-bg {
-    background-image: url(../../assets/images/redeem-bg.webp);
+    background-image: url(#{$tp-assets-base}/images/redeem-bg.webp);
     background-repeat: no-repeat;
     width: 356px;
     height: 137px;

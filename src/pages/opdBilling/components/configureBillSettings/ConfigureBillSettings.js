@@ -8,10 +8,7 @@ import {
 import { isMobile } from "react-device-detect";
 import { Container, Navbar } from "react-bootstrap";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "./../../../../assets/images/alertIcon.svg";
-import visitEnd from "./../../../../assets/images/end-visit.svg";
-import autofill from "./../../../../assets/images/autofill.svg";
-import imgCloseVisit from "./../../../../assets/images/close-visit.svg";
+
 import { Document, Page, pdfjs } from "react-pdf";
 import { pdf } from "@react-pdf/renderer";
 import BillPageFormatLayout from "./BillPageFormatLayout";
@@ -22,6 +19,14 @@ import { enrichPatientDataWithAbha } from "../../utils/helper";
 import { useSelector } from "react-redux";
 import { setBillPrintSettings, setIpdBillPrintSettings } from "../../../../redux/billingSlice";
 import { useDispatch } from "react-redux";
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  endVisit: visitEnd,
+  autofill,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
+
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
@@ -335,6 +340,7 @@ const ConfigureBillSettings = ({
       logo_enable,
       logo_image,
       header_image,
+      footer_image,
     } = defaultPrintSettings;
     const {
       custom_margin,
@@ -358,7 +364,7 @@ const ConfigureBillSettings = ({
             right: custom_margin?.right ? parseFloat(custom_margin?.right) : 2,
             top: custom_margin?.top ? parseFloat(custom_margin?.top) : 3,
           },
-          footer: { ...footer, fontSize: footer?.font_size },
+          footer: { ...footer, fontSize: footer?.font_size, file: footer_image },
           header: {
             clinicInfo: {
               enabled: clinic_info.enable === "Y",

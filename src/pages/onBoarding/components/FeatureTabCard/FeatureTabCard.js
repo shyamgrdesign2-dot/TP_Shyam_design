@@ -1,50 +1,54 @@
 import React, { useState, useEffect } from "react";
 
 import "./FeatureTabCard.scss";
-import Emr from "../../../../assets/images/Emr.svg";
-import Practice from "../../../../assets/images/Practice.svg";
-import Ai from "../../../../assets/images/AIsymbol.svg";
-import Abdm from "../../../../assets/images/website-images/LP_ABDM.webp";
-import AdminTasks from "../../../../assets/images/website-images/LP_AdminTasks.webp";
-import Analytics from "../../../../assets/images/website-images/LP_Analytics.webp";
-import ClinicCare from "../../../../assets/images/website-images/LP_ClinicCare.webp";
-import TatvaAssist from "../../../../assets/images/website-images/LP_Ddx.webp";
-import DigitalCare from "../../../../assets/images/website-images/LP_DigitalCare.webp";
-import RemoteCare from "../../../../assets/images/website-images/LP_RemoteCare.webp";
-import SmartSync from "../../../../assets/images/website-images/LP_SmartSync.webp";
-import TatvaAi from "../../../../assets/images/website-images/LP_TatvaAi.webp";
-import VoiceRx from "../../../../assets/images/website-images/LP_VoiceRx.webp";
 
 // Import all landing page icons for the feature tab cards
-import briefcase from "../../../../assets/images/onboard-page-icons/briefcase.svg";
-import clipboardText from "../../../../assets/images/onboard-page-icons/clipboard-text.svg";
-import ddx from "../../../../assets/images/onboard-page-icons/ddx.svg";
-import documentCloud from "../../../../assets/images/onboard-page-icons/document-cloud.svg";
-import documentText from "../../../../assets/images/onboard-page-icons/document-text.svg";
-import examination from "../../../../assets/images/onboard-page-icons/Examination.svg";
-import graph from "../../../../assets/images/onboard-page-icons/graph.svg";
-import health from "../../../../assets/images/onboard-page-icons/health.svg";
-import lampCharge from "../../../../assets/images/onboard-page-icons/lamp-charge.svg";
-import medication from "../../../../assets/images/onboard-page-icons/Medication.svg";
-import messages1 from "../../../../assets/images/onboard-page-icons/messages1.svg";
-import messages2 from "../../../../assets/images/onboard-page-icons/messages2.svg";
-import monitor from "../../../../assets/images/onboard-page-icons/monitor.svg";
-import note from "../../../../assets/images/onboard-page-icons/note.svg";
-import note1 from "../../../../assets/images/onboard-page-icons/note1.svg";
-import note2 from "../../../../assets/images/onboard-page-icons/note2.svg";
-import people from "../../../../assets/images/onboard-page-icons/people.svg";
-import profile2user from "../../../../assets/images/onboard-page-icons/profile-2user.svg";
-import receiptText from "../../../../assets/images/onboard-page-icons/receipt-text.svg";
-import statusUp from "../../../../assets/images/onboard-page-icons/status-up.svg";
-import statusUp1 from "../../../../assets/images/onboard-page-icons/status-up1.svg";
-import statusUp2 from "../../../../assets/images/onboard-page-icons/status-up2.svg";
-import taskSquare from "../../../../assets/images/onboard-page-icons/task-square.svg";
-import vitals from "../../../../assets/images/onboard-page-icons/Vitals.svg";
-import voiceSquare from "../../../../assets/images/onboard-page-icons/voice-square.svg";
-import wallet from "../../../../assets/images/onboard-page-icons/wallet.svg";
-import repeatCircle from "../../../../assets/images/onboard-page-icons/repeat-circle.svg";
-import webStructure from "../../../../assets/images/webStructure.svg";
+
 import { isMobile } from "react-device-detect";
+import { ASSETS } from "../../../../assets";
+const {
+  emr: Emr,
+  practice: Practice,
+  aisymbol: Ai,
+} = ASSETS.images;
+const Abdm = ASSETS.images.websiteImages.lpAbdm;
+const AdminTasks = ASSETS.images.websiteImages.lpAdmintasks;
+const Analytics = ASSETS.images.websiteImages.lpAnalytics;
+const ClinicCare = ASSETS.images.websiteImages.lpCliniccare;
+const TatvaAssist = ASSETS.images.websiteImages.lpDdx;
+const DigitalCare = ASSETS.images.websiteImages.lpDigitalcare;
+const RemoteCare = ASSETS.images.websiteImages.lpRemotecare;
+const SmartSync = ASSETS.images.websiteImages.lpSmartsync;
+const TatvaAi = ASSETS.images.websiteImages.lpTatvaai;
+const VoiceRx = ASSETS.images.websiteImages.lpVoicerx;
+const briefcase = ASSETS.images.onboardPageIcons.briefcase;
+const clipboardText = ASSETS.images.onboardPageIcons.clipboardText;
+const ddx = ASSETS.images.onboardPageIcons.ddx;
+const documentCloud = ASSETS.images.onboardPageIcons.documentCloud;
+const documentText = ASSETS.images.onboardPageIcons.documentText;
+const examination = ASSETS.images.onboardPageIcons.examination;
+const graph = ASSETS.images.onboardPageIcons.graph;
+const health = ASSETS.images.onboardPageIcons.health;
+const lampCharge = ASSETS.images.onboardPageIcons.lampCharge;
+const medication = ASSETS.images.onboardPageIcons.medication;
+const messages1 = ASSETS.images.onboardPageIcons.messages1;
+const messages2 = ASSETS.images.onboardPageIcons.messages2;
+const monitor = ASSETS.images.onboardPageIcons.monitor;
+const note = ASSETS.images.onboardPageIcons.note;
+const note1 = ASSETS.images.onboardPageIcons.note1;
+const note2 = ASSETS.images.onboardPageIcons.note2;
+const people = ASSETS.images.onboardPageIcons.people;
+const profile2user = ASSETS.images.onboardPageIcons.profile2user;
+const receiptText = ASSETS.images.onboardPageIcons.receiptText;
+const statusUp = ASSETS.images.onboardPageIcons.statusUp;
+const statusUp1 = ASSETS.images.onboardPageIcons.statusUp1;
+const statusUp2 = ASSETS.images.onboardPageIcons.statusUp2;
+const taskSquare = ASSETS.images.onboardPageIcons.taskSquare;
+const vitals = ASSETS.images.onboardPageIcons.vitals;
+const voiceSquare = ASSETS.images.onboardPageIcons.voiceSquare;
+const wallet = ASSETS.images.onboardPageIcons.wallet;
+const repeatCircle = ASSETS.images.onboardPageIcons.repeatCircle;
+const webStructure = ASSETS.images.webstructure;
 
 const featureCardConfig = {
   "EMR Features": {
@@ -314,9 +318,9 @@ const FeatureTabCard = ({ feature, title, subTitle, tabs }) => {
     if (isActive && !isBackground) {
       // Define gradients based on feature type
       const gradients = {
-        "EMR Features": "url('../../../../assets/images/webStructure.svg') right center/45% no-repeat,linear-gradient(92deg, #27276F -7.09%, #5C5BD6 46.98%, #27276F 107.96%)",
-        "Ai Features": "url('../../../../assets/images/webStructure.svg') right center/45% no-repeat,linear-gradient(92deg, #4558D0 -7.09%, #C95BC3 46.98%, #E0657B 107.96%)",
-        "Digital Features": "url('../../../../assets/images/webStructure.svg') right center/45% no-repeat,linear-gradient(92deg, #27276F -7.09%, #5C5BD6 46.98%, #27276F 107.96%)"
+        "EMR Features": `url(${webStructure}) right center/45% no-repeat,linear-gradient(92deg, #27276F -7.09%, #5C5BD6 46.98%, #27276F 107.96%)`,
+        "Ai Features": `url(${webStructure}) right center/45% no-repeat,linear-gradient(92deg, #4558D0 -7.09%, #C95BC3 46.98%, #E0657B 107.96%)`,
+        "Digital Features": `url(${webStructure}) right center/45% no-repeat,linear-gradient(92deg, #27276F -7.09%, #5C5BD6 46.98%, #27276F 107.96%)`
       };
 
       return {

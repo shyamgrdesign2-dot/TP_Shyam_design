@@ -15,12 +15,14 @@ import { uploadSnapRxFiles } from "../services/snapRxService";
 import { useOphthalSnapRxSession } from "../context/SnapRxSessionContext";
 import "./PreviewDrawer.scss";
 import CommonModal from "../../../common/CommonModal";
-import alertIcon from "../../../assets/images/alertIcon.svg";
+
 import { useDispatch, useSelector } from "react-redux";
 import { trackEvent } from "../../../utils/utils";
 import { EVENTS } from "../../../utils/events";
 import RotateLeftIcon from "./RotateLeftIcon";
 import { resetFileUploadToken } from "../../../redux/ophthalSnapRxDigitizationSlice";
+import { ASSETS } from "../../../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 const PreviewDrawer = forwardRef(
   (

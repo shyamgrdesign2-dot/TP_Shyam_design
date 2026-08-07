@@ -3,8 +3,10 @@ import { useSelector } from 'react-redux';
 import { message } from 'antd';
 import VisitMedicalRecords from '../../../medicalRecords/components/visitMedicalRecords/VisitMedicalRecords';
 import { generateUniqueFileName, getCorrectedFileName } from '../../../medicalRecords/utils/helper';
-import addMedRecordIcon from '../../../../assets/mobile/add_medRecord.svg';
+
 import './MedicalRecordsTab.scss';
+import { ASSETS } from "../../../../assets";
+const addMedRecordIcon = ASSETS.mobile.addMedrecord;
 
 // MOBILE OPTIMIZATION: Memoize component to prevent re-renders when props haven't changed
 // Parent now provides memoized handlers, so this component can safely skip re-renders

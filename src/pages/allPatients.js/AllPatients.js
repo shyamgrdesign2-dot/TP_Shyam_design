@@ -44,7 +44,7 @@ import { useDispatch } from "react-redux";
 import CommonModal from "../../common/CommonModal";
 import UploadDocPopup from "../medicalRecords/components/uploadDocPopup/UploadDocPopup";
 import UploadDocument from "../medicalRecords/UploadDocument";
-import alertIcon from "./../../assets/images/alertIcon.svg";
+
 import { debounce } from "lodash";
 import * as XLSX from "xlsx";
 import { handleInAppClick } from "../opdBilling/utils/helper";
@@ -55,8 +55,7 @@ import {
   trackEvent,
   handleAdmitToIpd,
 } from "../../utils/utils";
-import successIcon from "../../assets/images/end-visit.svg";
-import closeIcon from "../../assets/images/close-visit.svg";
+
 import CreateCertificate from "../../components/medical_certificate/CreateCertificate";
 import { getDecodedToken, useLocalStorage } from "../../utils/localStorage";
 import axios from "axios";
@@ -71,9 +70,18 @@ import { resetDDxState } from "../../redux/ddxSlice";
 import { EVENTS } from "../../utils/events";
 import AbhaDrawer from "../../components/abha/AbhaDrawer";
 import { clearAbhaDetails } from "../../redux/abhaSlice";
-import AbhaIcon from '../../assets/images/abha-svg.svg';
+import { useChikitsalay } from "../chikitsalay/useChikitsalay";
+
 import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
+import { ASSETS } from "../../assets";
+const {
+  alerticon: alertIcon,
+  endVisit: successIcon,
+  closeVisit: closeIcon,
+  abhaSvg: AbhaIcon,
+} = ASSETS.images;
+
 const { RangePicker } = DatePicker;
 
 const dateFormat = "YYYY-MM-DD";
@@ -81,6 +89,7 @@ const showDateFormat = "DD MMM YYYY";
 
 const AllPatients = () => {
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   const navigate = useNavigate();
   const location = useLocation();
   const decodedToken = getDecodedToken();
@@ -124,6 +133,8 @@ const AllPatients = () => {
   const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_NEW_IPD_HOS_BUSINESS_ID
   );
+  const isZydusAccount =
+    tokenData?.hospital_business_id == env.zydus_business_id;
 
   const fileInputRef = useRef(null);
   const observer = useRef();
@@ -252,7 +263,9 @@ const AllPatients = () => {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   const getAllPatients = async () => {
@@ -400,6 +413,8 @@ const AllPatients = () => {
   };
 
   const onPatientDetailsClick = (record) => {
+    const resolvedMrno =
+      record?.mrno || record?.pm_reference_id || record?.tpml_refrence_id;
     dispatch(resetVaccineState());
     dispatch(resetGrowthChartState());
     dispatch(resetObstetricState());
@@ -407,7 +422,11 @@ const AllPatients = () => {
     dispatch(resetDDxState());
     navigate("/patient_details", {
       state: {
-        patient_data: { ...record, pm_first_name: record?.pm_fullname },
+        patient_data: {
+          ...record,
+          pm_first_name: record?.pm_fullname,
+          mrno: resolvedMrno,
+        },
       },
     });
     trackEvent("TP_AllPatients_PatientDetailsView", {
@@ -431,7 +450,6 @@ const AllPatients = () => {
   };
 
   const getMenuItems = (record) => {
-    const isZydusAccount = tokenData?.hospital_business_id == env.zydus_business_id;
     const menuItems = [
       {
         label: (
@@ -441,14 +459,18 @@ const AllPatients = () => {
         ),
         key: "patientdetails",
       },
-      {
-        label: (
-          <span onClick={() => onEditPatientClick(record)}>
-            Edit Patient Details
-          </span>
-        ),
-        key: "labparams",
-      },
+      ...(!isZydusAccount
+        ? [
+            {
+              label: (
+                <span onClick={() => onEditPatientClick(record)}>
+                  Edit Patient Details
+                </span>
+              ),
+              key: "labparams",
+            },
+          ]
+        : []),
       // This will be added later
       // {
       //   label: <span onClick={() => {}}>Book Appointment</span>,
@@ -972,7 +994,6 @@ const AllPatients = () => {
     trackEvent("TP_AllPatients_AddNewPatient", doctorDetails);
   };
 
-
   return (
     <>
       <Header locationPath={locationPath} />
@@ -985,17 +1006,18 @@ const AllPatients = () => {
                 <div className="d-flex align-items-center">
                   <>
                     <div>
-                      <h1>All Patients</h1>
+                      <h1>All Patients </h1>
                     </div>
                     <img
-                      src={require("./../../assets/images/bg-welcome.webp")}
+                      src={ASSETS.images.bgWelcome}
                       className="welcomeig d-inline-block align-top"
                       alt="Welcome"
                     />
                   </>
                 </div>
                 <div className="d-flex gap-3 btn-manage-bill-all-patients">
-                  {dischargeSummery &&
+                  {!isZydusAccount &&
+                    dischargeSummery &&
                     Object.keys(dischargeSummery)?.length > 0 && (
                       <Button
                         className="btn-manage-bill"
@@ -1006,13 +1028,15 @@ const AllPatients = () => {
                         </span>
                       </Button>
                     )}
-                  <Button
-                    className="btn-create-bill gap-1"
-                    onClick={handleAddPatient}
-                    icon={<i className="icon-Add" style={{ fontSize: 20 }} />}
-                  >
-                    <span>Add New Patient</span>
-                  </Button>
+                  {!isZydusAccount && (
+                    <Button
+                      className="btn-create-bill gap-1"
+                      onClick={handleAddPatient}
+                      icon={<i className="icon-Add" style={{ fontSize: 20 }} />}
+                    >
+                      <span>Add New Patient</span>
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="pb-5">&nbsp;</div>

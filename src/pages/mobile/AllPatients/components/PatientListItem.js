@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import './PatientListItem.scss';
-import KebabIcon from '../../../../assets/mobile/more-vertical.svg';
+
 import PatientOptionsModal from './PatientOptionsModal';
 import { trackEvent } from '../../../../utils/utils';
 import moment from 'moment';
+import { ASSETS } from "../../../../assets";
+const KebabIcon = ASSETS.mobile.moreVertical;
 
 const getInitials = (name) => {
   if (!name) return 'P';
@@ -65,7 +67,7 @@ const PatientListItem = React.memo(({
   );
 
   const patientId = useMemo(() => 
-    patient.tpml_refrence_id || patient.pm_pid || patient.pm_patient_id,
+    patient.pm_pid || patient.tpml_refrence_id || patient.pm_patient_id,
     [patient.tpml_refrence_id, patient.pm_pid, patient.pm_patient_id]
   );
 

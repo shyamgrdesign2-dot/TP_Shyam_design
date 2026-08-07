@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import config from '../config';
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
-import syncNormalIcon from '../assets/images/sync-normal.svg';
-import syncingIcon from '../assets/images/syncing.svg';
-import syncedIcon from '../assets/images/synced.svg';
+import { ASSETS } from "../assets";
+const {
+  syncNormal: syncNormalIcon,
+  syncing: syncingIcon,
+  synced: syncedIcon,
+} = ASSETS.images;
 
 const AbhaSyncButton = ({ 
   abhaContextLink, 

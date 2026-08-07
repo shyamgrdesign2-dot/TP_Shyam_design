@@ -2,48 +2,49 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Button, Col, Row, Modal, Tooltip, Image } from "antd";
 import { useNavigate } from "react-router-dom";
 
-import "../assets/scss/website-custom.scss";
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
+import "../styles/website-custom.scss";
 
 import Slider from "react-slick";
 import moment from "moment";
 
-import LocationClinic from '../assets/images/website-images/location-clinic.svg'
-import Location from '../assets/images/website-images/location.svg'
-import locationGrey from '../assets/images/website-images/location-grey.svg'
-import Mail from '../assets/images/website-images/mail.svg'
-import Plus from '../assets/images/website-images/plus.svg'
-import Minus from '../assets/images/website-images/minus.svg'
-import BAPhoto from '../assets/images/website-images/book-appointment-photo.webp'
-import Direction from '../assets/images/website-images/direction.svg'
-import Call from '../assets/images/website-images/call.svg'
-import Clock from '../assets/images/website-images/clock.svg'
-import CheckIcon from '../assets/images/website-images/check.svg'
-import AboutIcon from '../assets/images/website-images/about-icon.svg'
-import ClinicIcon from '../assets/images/website-images/clinic-icon.svg'
-import EducationIcon from '../assets/images/website-images/education-icon.svg'
-import ServicecIcon from '../assets/images/website-images/service-icon.svg'
-import rewardsIcon from '../assets/images/website-images/rewards-icon.svg'
-import ExperienceIcon from '../assets/images/website-images/experience-icon.svg'
-import experianceSlideBottomRound from '../assets/images/website-images/experiance-slide-bottom-round.svg'
-import HospitalIcon from '../assets/images/website-images/hospital-icon.svg'
-import AboutImg from '../assets/images/website-images/about-img.svg'
-import MembershipsIcon from '../assets/images/website-images/membership.svg'
-import MembershipsImg from '../assets/images/website-images/membership-img.svg'
-import membershipSlide from '../assets/images/website-images/membership-slide.webp'
-import DoctorProfile from '../assets/images/website-images/doctor-img.webp'
-import DoctorDefault from '../assets/images/website-images/doctor-default.webp'
-import avatarDoctor from '../assets/images/website-images/avatar-doctor.svg'
-import websiteLogo from '../assets/images/website-images/logo.webp'
-import MenuImg from '../assets/images/website-images/menu.svg'
-import websiteFacebook from '../assets/images/website-images/website-facebook.svg'
-import websiteInstagram from '../assets/images/website-images/website-instagram.svg'
-import websiteLinkedin from '../assets/images/website-images/website-linkedin.svg'
-import websiteTwitter from '../assets/images/website-images/website-twitter.svg'
-import websiteYoutube from '../assets/images/website-images/website-youtube.svg'
 import { errorMessage, handleCopy, isValidMap, isValidWebsite, validateEmail } from '../utils/utils';
 import { isMobile, isChrome, isSafari } from 'react-device-detect';
+import { ASSETS } from "../assets";
+const LocationClinic = ASSETS.images.websiteImages.locationClinic;
+const Location = ASSETS.images.websiteImages.location;
+const locationGrey = ASSETS.images.websiteImages.locationGrey;
+const Mail = ASSETS.images.websiteImages.mail;
+const Plus = ASSETS.images.websiteImages.plus;
+const Minus = ASSETS.images.websiteImages.minus;
+const BAPhoto = ASSETS.images.websiteImages.bookAppointmentPhoto;
+const Direction = ASSETS.images.websiteImages.direction;
+const Call = ASSETS.images.websiteImages.call;
+const Clock = ASSETS.images.websiteImages.clock;
+const CheckIcon = ASSETS.images.websiteImages.check;
+const AboutIcon = ASSETS.images.websiteImages.aboutIcon;
+const ClinicIcon = ASSETS.images.websiteImages.clinicIcon;
+const EducationIcon = ASSETS.images.websiteImages.educationIcon;
+const ServicecIcon = ASSETS.images.websiteImages.serviceIcon;
+const rewardsIcon = ASSETS.images.websiteImages.rewardsIcon;
+const ExperienceIcon = ASSETS.images.websiteImages.experienceIcon;
+const experianceSlideBottomRound = ASSETS.images.websiteImages.experianceSlideBottomRound;
+const HospitalIcon = ASSETS.images.websiteImages.hospitalIcon;
+const AboutImg = ASSETS.images.websiteImages.aboutImg;
+const MembershipsIcon = ASSETS.images.websiteImages.membership;
+const MembershipsImg = ASSETS.images.websiteImages.membershipImg;
+const membershipSlide = ASSETS.images.websiteImages.membershipSlide;
+const DoctorProfile = ASSETS.images.websiteImages.doctorImg;
+const DoctorDefault = ASSETS.images.websiteImages.doctorDefault;
+const avatarDoctor = ASSETS.images.websiteImages.avatarDoctor;
+const websiteLogo = ASSETS.images.websiteImages.logo;
+const MenuImg = ASSETS.images.websiteImages.menu;
+const websiteFacebook = ASSETS.images.websiteImages.websiteFacebook;
+const websiteInstagram = ASSETS.images.websiteImages.websiteInstagram;
+const websiteLinkedin = ASSETS.images.websiteImages.websiteLinkedin;
+const websiteTwitter = ASSETS.images.websiteImages.websiteTwitter;
+const websiteYoutube = ASSETS.images.websiteImages.websiteYoutube;
 
 const slideData = [1, 2, 3, 4]
 const dateFormat = 'HH:mm:ss'

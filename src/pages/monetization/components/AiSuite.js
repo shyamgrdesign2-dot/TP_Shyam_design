@@ -8,14 +8,6 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { isChrome, isSafari } from "react-device-detect";
 
-import RxVoice from "../../../assets/images/microphone-voice-rx.webp";
-import AskTatvaIcon from "../../../assets/images/icon-ask-tatva.webp";
-import DDXIcon from "../../../assets/images/DDX-icon.webp";
-import supportwhite from "../../../assets/images/support.webp";
-import RECEPTIONISTIcon from "../../../assets/images/RECEPTIONIST-icon.webp";
-import smartSyncIcon from "../../../assets/images/smart-sync-icon.webp";
-import newGifWebm from "../../../assets/images/new-gif.webm";
-import newGifMp4 from "../../../assets/images/new-gif.mp4";
 import LoopingVideo from "../../../components/common/LoopingVideo";
 
 import { FREE, S_SMARTSYNC, S_VOICE_RX, S_DDX, S_ASK_TATVA, S_RX_DIGITIZATION, S_RECEPTIONIST_AGENT, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, FAILED_VERIFICATION, PENDING_VERIFICATION, GB_ZYDUS_USER } from "../../../utils/constants";
@@ -38,6 +30,17 @@ import { EVENTS } from "../../../utils/events";
 import GroundingKnowMore from "../../../components/GroundingKnowMore";
 import { env } from "../../../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { ASSETS } from "../../../assets";
+const {
+  microphoneVoiceRx: RxVoice,
+  iconAskTatva: AskTatvaIcon,
+  ddxIcon: DDXIcon,
+  support: supportwhite,
+  receptionistIcon: RECEPTIONISTIcon,
+  smartSyncIcon,
+  newGif_3: newGifWebm,
+  newGif_2: newGifMp4,
+} = ASSETS.images;
 
 function AiSuite({ aiModal, handleAiSuite }) {
 
@@ -70,7 +73,6 @@ function AiSuite({ aiModal, handleAiSuite }) {
     const isGroundingAccessableForZydus =
         tokenData?.hospital_business_id == env.zydus_business_id &&
         isZydusUserAccessableFromGB;
-
 
     const clickContactSupport = useCallback(() => {
         setIsModalOpen(!isModalOpen);

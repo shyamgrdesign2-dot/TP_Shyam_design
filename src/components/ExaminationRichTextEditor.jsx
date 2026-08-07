@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './ExaminationRichTextEditor.scss';
-import examinationIcon from '../assets/images/Examination.svg';
+import { ASSETS } from "../assets";
+const examinationIcon = ASSETS.images.examination;
 
 /**
  * ExaminationRichTextEditor - Rich text editor specifically for Examination section

@@ -2,7 +2,7 @@ export const WHATSAPP_HEALTH_CHECKUP_REPORT_TEMPLATE_ID = "tp_health_checkup_rep
 
 export const HEALTH_CHECKUP_REPORT_TEMPLATE_HTML = `<div class="report-doc-header">
   <img src="/ZydusLogo.png" alt="Hospital Logo" class="report-doc-header-logo" />
-  <p class="report-doc-header-title" contenteditable="true">HEALTH CHECK-UP SUMMARY</p>
+  <p class="report-doc-header-title">HEALTH CHECK-UP SUMMARY</p>
 </div>
 <table class="report-patient-table">
   <tr><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
@@ -22,7 +22,7 @@ export const HEALTH_CHECKUP_REPORT_TEMPLATE_HTML = `<div class="report-doc-heade
 </table>
 
 <h2 class="report-section-title">Chief Complaints:</h2>
-<div class="report-section-box"><p></p></div>
+<table class="report-section-box"><tbody><tr><td><p><br></p></td></tr></tbody></table>
 
 <h2 class="report-section-title">Patient History</h2>
 <table class="report-data-table">
@@ -89,13 +89,13 @@ export const HEALTH_CHECKUP_REPORT_TEMPLATE_HTML = `<div class="report-doc-heade
 </table>
 
 <h2 class="report-section-title">Impression (Dr. ______________)</h2>
-<div class="report-section-box"><p></p></div>
+<table class="report-section-box"><tbody><tr><td><p><br></p></td></tr></tbody></table>
 
 <h2 class="report-section-title">Advice</h2>
-<div class="report-section-box"><p></p></div>
+<table class="report-section-box"><tbody><tr><td><p><br></p></td></tr></tbody></table>
 
 <h2 class="report-section-title">General Recommendations</h2>
-<div class="report-section-box"><p>Regular health check ups can identify any early warning signs of major health issues. When you have a health check up, your doctor will talk to you about your and your family's medical history, enlisting your lifestyle and conditions including your diet, weight, physical activity, alcohol use and smoking habits etc. Your doctor may include health check up as an advice even if you are here for any other illnesses. Team of Zydus hospitals is grateful to you for your trust in us and we shall do our best to assure your complete well being.</p></div>
+<table class="report-section-box report-general-rec"><tbody><tr><td><p>Regular health check ups can identify any early warning signs of major health issues. When you have a health check up, your doctor will talk to you about your and your family's medical history, enlisting your lifestyle and conditions including your diet, weight, physical activity, alcohol use and smoking habits etc. Your doctor may include health check up as an advice even if you are here for any other illnesses. Team of Zydus hospitals is grateful to you for your trust in us and we shall do our best to assure your complete well being.</p></td></tr></tbody></table>
 
 <table class="report-data-table">
   <thead><tr><th><p>PREPARED BY</p></th><th><p>DATE</p></th></tr></thead>

@@ -1,17 +1,20 @@
 import React, { useState } from "react";
 import { Input, Button, Form } from "antd";
 import "./Onboarding.scss";
-import abdmLogo from "../../../assets/images/abdm-logo.svg";
-import nhaLogo from "../../../assets/images/nha-logo.svg";
-import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.webp";
-import leftGroup from "../../../assets/images/onboard-page-icons/Left-Group.svg";
-import rightGroup from "../../../assets/images/onboard-page-icons/Right-Group.svg";
+
 import { loginWithPassword, verifyAccessToken } from "../../auth/authService";
 import { isMobile } from "react-device-detect";
 import { EyeInvisibleOutlined } from "@ant-design/icons";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
 import { detectOperatingSystem } from "../../../utils/loginUtils";
-
+import { ASSETS } from "../../../assets";
+const {
+  abdmLogo,
+  nhaLogo,
+} = ASSETS.images;
+const MicrosoftPartner = ASSETS.images.onboardPageIcons.microsoft;
+const leftGroup = ASSETS.images.onboardPageIcons.leftGroup;
+const rightGroup = ASSETS.images.onboardPageIcons.rightGroup;
 
 const VerifyPassword = ({ onViewChange, mobileNumber }) => {
   const [password, setPassword] = useState("");

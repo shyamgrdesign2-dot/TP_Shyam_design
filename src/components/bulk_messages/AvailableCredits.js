@@ -2,19 +2,21 @@ import React, { useEffect, useCallback, useState } from "react";
 import { Button, Input, Radio, Modal, message, Select } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 
-import DiscountIcon from "../../assets/images/discount.svg"
-import CreditImg from "../../assets/images/credit_icon.svg"
-import TicketIcon from "../../assets/images/ticket.svg"
-import redeemVideo from "../../assets/images/redeem-video.mp4";
-import visitEnd from '../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../assets/images/close-visit.svg';
-import logoSm from '../../assets/images/logo-sm.svg';
-
 import { errorMessage, getClinicCity, onlyNumberFormat } from "../../utils/utils";
 import { MESSAGE_KEY } from "../../utils/constants";
 import { paymentOrder, verifyPayment, userRedeemCode, states } from "../../redux/bulkMessagesSlice";
 import { createCart } from "../../redux/monetizationSlice";
 import config from "../../config";
+import { ASSETS } from "../../assets";
+const {
+  discount: DiscountIcon,
+  creditIcon: CreditImg,
+  ticket: TicketIcon,
+  redeemVideo,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  logoSm,
+} = ASSETS.images;
 
 function AvailableCredits({ handleAvailableCredit }) {
     const dispatch = useDispatch();

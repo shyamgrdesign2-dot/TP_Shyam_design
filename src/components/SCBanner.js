@@ -1,5 +1,5 @@
 import { Button } from "antd";
-import scStrip from "../assets/images/sc-banner-strip.webp";
+
 import { useDispatch } from "react-redux";
 import { setShowSCPopup } from "../redux/ddxSlice";
 import { getClinicName, getTokenData, trackEvent } from "../utils/utils";
@@ -7,6 +7,8 @@ import { useSelector } from "react-redux";
 import { useContext } from "react";
 import CashManagerContext from "../context/CashManagerContext";
 import dayjs from "dayjs";
+import { ASSETS } from "../assets";
+const scStrip = ASSETS.images.scBannerStrip;
 
 const SCBanner = ({ handleBanner }) => {
   const dispatch = useDispatch();

@@ -1,10 +1,14 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import arrowLeft from '../../../../assets/mobile/arrow-left-white.svg';
-import moreVertical from '../../../../assets/mobile/more-vertical.svg';
-import voiceCircleIcon from '../../../../assets/mobile/Notification Container.svg';
+
 import { NEO_NATOLOGISTS_DP_ID } from '../../../../utils/constants';
 import './DetailsHeader.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  arrowLeftWhite: arrowLeft,
+  moreVertical,
+  notificationContainer: voiceCircleIcon,
+} = ASSETS.mobile;
 
 function DetailsHeader({ onBack, title, onEdit, profileSection, patient_data, onVoiceRxClick }) {
   const { profile } = useSelector((state) => state.doctors);

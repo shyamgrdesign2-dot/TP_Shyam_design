@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './AdditionalNotesRichTextEditor.scss';
-import additionalNotesIcon from '../assets/images/notes.svg';
+import { ASSETS } from "../assets";
+const additionalNotesIcon = ASSETS.images.notes;
 
 /**
  * AdditionalNotesRichTextEditor - Rich text editor specifically for Additional Notes section (previously "Others")

@@ -10,9 +10,13 @@ import { calculateAge, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils
 
 import { useDispatch, useSelector } from "react-redux";
 import { listSalutation } from "../redux/appointmentsSlice";
-import AbhaIcon from "../assets/images/abha-svg.svg";
-import GreenRight from "../assets/images/green-right.svg";
+
 import { getAbhaDomainSuffix } from "./abha/helpers";
+import { ASSETS } from "../assets";
+const {
+  abhaSvg: AbhaIcon,
+  greenRight: GreenRight,
+} = ASSETS.images;
 
 const { Option } = Select;
 

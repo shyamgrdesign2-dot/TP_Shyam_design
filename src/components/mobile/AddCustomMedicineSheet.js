@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { Drawer, Input, Select, Button, message } from 'antd';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import {
   addMedicine,
   editMedicine,
@@ -12,6 +12,8 @@ import {
 import { getMedicineType } from '../../redux/doctorsSlice';
 import { getClinic } from '../../utils/utils';
 import './AddCustomMedicineSheet.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 /**
  * Bottom sheet for Add / Edit Custom Medicine. Matches web CustomMedicinePopup.

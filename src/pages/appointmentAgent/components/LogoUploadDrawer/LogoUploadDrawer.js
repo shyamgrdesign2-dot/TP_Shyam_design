@@ -2,12 +2,16 @@ import React, { useState, useRef } from 'react';
 import { Drawer, Button } from 'antd';
 import { Cropper } from 'react-cropper';
 import { PlusOutlined, MinusOutlined, UploadOutlined, RedoOutlined, DeleteOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import uploadIcon from "../../../../assets/images/upload.svg";
-import reuploadIcon from "../../../../assets/images/reupload.svg";
-import alertIcon from "../../../../assets/images/alertIcon.svg";
+
 import { dataUrlToFileUsingFetch } from '../../../../utils/utils';
 import CommonModal from "../../../../common/CommonModal";
 import './LogoUploadDrawer.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  upload: uploadIcon,
+  reupload: reuploadIcon,
+  alerticon: alertIcon,
+} = ASSETS.images;
 
 const LogoUploadDrawer = ({ visible, onClose, onSave }) => {
   const [file, setFile] = useState(null);

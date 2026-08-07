@@ -1,27 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Carousel } from "antd";
 import "./Onboarding.scss";
-import smartSync from "../../../assets/images/website-images/SmartSyncBanner.webp";
-import practiceManagement from "../../../assets/images/website-images/PracticeManagementBanner.webp";
-import ddxBanner from "../../../assets/images/website-images/DdxBanner.webp";
-import emrBanner from "../../../assets/images/website-images/EMRBanner.webp";
-import tatvaAiBanner from "../../../assets/images/website-images/TatvaAiBanner.webp";
 
-import fastBackwardWebm from "../../../assets/images/onboard-page-icons/fast-backward.webm";
-import fastBackwardMp4 from "../../../assets/images/onboard-page-icons/fast-backward.mp4";
 import LoopingVideo from "../../../components/common/LoopingVideo";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
 import { detectOperatingSystem } from "../../../utils/loginUtils";
-
-
-// Lightweight AVIF versions sit in /public to bypass bundler hashing and shrink LCP
-const heroAvifs = {
-  smartSync: "/assets/images/website-images/SmartSyncBanner.avif",
-  practiceManagement: "/assets/images/website-images/PracticeManagementBanner.avif",
-  ddxBanner: "/assets/images/website-images/DdxBanner.avif",
-  tatvaAiBanner: "/assets/images/website-images/TatvaAiBanner.avif",
-  emrBanner: "/assets/images/website-images/EMRBanner.avif",
-};
+import { ASSETS } from "../../../assets";
+const doctorsDayBanner = ASSETS.images.offerings.doctorsDay;
+const smartSync = ASSETS.images.websiteImages.smartsyncbanner;
+const practiceManagement = ASSETS.images.websiteImages.practicemanagementbanner;
+const ddxBanner = ASSETS.images.websiteImages.ddxbanner;
+const emrBanner = ASSETS.images.websiteImages.emrbanner;
+const tatvaAiBanner = ASSETS.images.websiteImages.tatvaaibanner;
+const fastBackwardWebm = ASSETS.images.onboardPageIcons.fastBackward_2;
+const fastBackwardMp4 = ASSETS.images.onboardPageIcons.fastBackward;
 
 const OnboardingCarousel = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -33,11 +25,19 @@ const OnboardingCarousel = () => {
 
   const baseCarouselItems = [
     {
+      id: 0,
+      title: "Your care makes",
+      subtitle: "a big difference daily.",
+      image: doctorsDayBanner,
+      imageAvif: null,
+      utmKey: "doctorsday",
+    },
+    {
       id: 1,
       title: "Boost Your Practice with",
       subtitle: "Our AI-Powered Smart Sync",
       image: smartSync,
-      imageAvif: heroAvifs.smartSync,
+      imageAvif: null,
       utmKey: "smartsync",
     },
     {
@@ -45,7 +45,7 @@ const OnboardingCarousel = () => {
       title: "AI-Powered",
       subtitle: "Clinical Decision Support",
       image: ddxBanner,
-      imageAvif: heroAvifs.ddxBanner,
+      imageAvif: null,
       utmKey: "ddx",
     },
     {
@@ -53,7 +53,7 @@ const OnboardingCarousel = () => {
       title: "Build and Scale Your",
       subtitle: "Online Presence with Us",
       image: practiceManagement,
-      imageAvif: heroAvifs.practiceManagement,
+      imageAvif: null,
       utmKey: "practice",
     },
     {
@@ -69,7 +69,7 @@ const OnboardingCarousel = () => {
       title: "India's Best EMR",
       subtitle: "Trusted by 10,000+ Doctors",
       image: emrBanner,
-      imageAvif: heroAvifs.emrBanner,
+      imageAvif: null,
       utmKey: "emr",
     },
   ];
@@ -145,7 +145,7 @@ const OnboardingCarousel = () => {
     <div className="onboarding-carousel-wrapper">
       <div className="logo-container">
         <img
-          src={require("../../../assets/images/logo.webp")}
+          src={ASSETS.images.logo}
           className="d-inline-block align-top"
           width="150px"
           height="35px"

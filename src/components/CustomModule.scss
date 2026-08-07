@@ -59,7 +59,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  border: 1px dashed #BA7DE9;
+  border: 1px dashed #4b4ad5;
   background: #ffffff;
   border-radius: 12px;
   padding: 20px 16px;
@@ -69,7 +69,7 @@
 
 .add-custom-module-link {
   font-size: 16px;
-  color: #BA7DE9 !important; /* Ensures the text color applies */
+  color: #4b4ad5 !important; /* Ensures the text color applies */
   font-weight: 500;
   padding: 0 !important;
   margin: 0;
@@ -77,11 +77,11 @@
 }
 
 .add-custom-module-link > span {
-  color: #BA7DE9 !important; /* Targets the text specifically inside the button */
+  color: #4b4ad5 !important; /* Targets the text specifically inside the button */
 }
 
 .add-custom-module-link .anticon {
-  color: #BA7DE9 !important; /* Applies the color to the Ant Design icon */
+  color: #4b4ad5 !important; /* Applies the color to the Ant Design icon */
 }
 
 .add-custom-module-link:hover {
@@ -96,7 +96,7 @@
 }
 
 .module-count {
-  color: #BA7DE9 !important;
+  color: #4b4ad5 !important;
 }
 
 .info-icon {
@@ -199,4 +199,55 @@
   &.ant-tooltip .ant-tooltip-arrow {
     --antd-arrow-background-color: #FFF9E6 !important;
   }
+}
+
+@keyframes customModuleVoiceTargetShimmer {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(260%) skewX(-18deg);
+  }
+}
+
+.custom-module-voice-target-cell {
+  position: relative;
+}
+
+.custom-module-voice-target-cell::before {
+  content: "";
+  position: absolute;
+  inset: 8px 12px;
+  min-height: 32px;
+  border-radius: 4px !important;
+  background-color: #F3F4F6 !important;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.custom-module-voice-target-cell::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 12px;
+  width: 42%;
+  min-height: 32px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.88), transparent);
+  pointer-events: none;
+  z-index: 1;
+  animation: customModuleVoiceTargetShimmer 1.5s infinite;
+}
+
+.custom-module-voice-target-cell > * {
+  position: relative;
+  z-index: 2;
+}
+
+.custom-module-voice-target-cell textarea,
+.custom-module-voice-target-cell .ant-input,
+.custom-module-voice-target-cell .ant-select-selector,
+.custom-module-voice-target-cell .ant-select-selection-search-input {
+  background: transparent !important;
 }

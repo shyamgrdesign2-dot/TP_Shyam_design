@@ -17,7 +17,7 @@ import {
 } from "./service";
 import moment from "moment";
 import dayjs from "dayjs";
-import editIcon from "../../assets/images/edit.svg";
+
 import { isChrome, isMobile, isSafari } from "react-device-detect";
 import SidebarDoctor from "../../common/SidebarDoctor";
 import Header from "../../common/Header";
@@ -33,6 +33,8 @@ import { PAEDIATRIC_DP_ID } from "../../utils/constants";
 import { sendMessageToParent } from "../../utils/utils";
 import { EVENTS } from "../../utils/events";
 import { uploadDocsToAzure } from "../medicalRecords/service";
+import { ASSETS } from "../../assets";
+const editIcon = ASSETS.images.edit;
 
 const { Text } = Typography;
 

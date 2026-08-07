@@ -1,35 +1,38 @@
-import React, { useRef } from "react";
+import React from "react";
 import "./TabRxNavPanel.scss";
+import { ASSETS } from "../../../../assets";
+import { ReferralIcon } from "../../../snapRx/components/ReferralIcon";
+import { useCrossConsult } from "../../../../hooks/useCrossConsult";
+const {
+  ddxTabVector: ddxVector,
+  groundingWhite: groundingImgWhite,
+  groundingPurple: groundingImgDark,
+  genRxMic: genRxImg,
+  voiceRxDefault,
+  ddx: ddxImg,
+  tabDdxInactive: ddxInactiveImg,
+  vitalsPrimary: vitalsDark,
+  vitalsSecondary: vitalsWhite,
+  historyPrimary: medicalHistoryDark,
+  historySecondary: medicalHistoryWhite,
+  vaccinePrimary: vaccinationDark,
+  vaccineSecondary: vaccinationWhite,
+  personalNotesPrimary: privateNotesDark,
+  personalNotesSecondary: privateNotesWhite,
+  scalePrimary: growthChartDark,
+  scaleSecondary: growthChart,
+  obstetricPrimary: obstetricDark,
+  obstetricSecondary: obstetricWhite,
+  recordsPrimary: medicalRecordsDark,
+  recordsSecondary: medicalRecordsWhite,
+  labParameters: labParamsDark,
+  labParametersWhite: labParamsWhite,
+  carePlanActiveSolid: carePlanIconDark,
+  carePlan: carePlanIcon,
+} = ASSETS.images;
 
 // Reusing existing image path imports from TabRx.jsx
 // Ensure all correct paths are mapped (Vitals, Medical History, etc.)
-import ddxVector from "../../../../assets/images/ddx-tab-vector.svg";
-import groundingImgWhite from "../../../../assets/images/grounding-white.svg";
-import groundingImgDark from "../../../../assets/images/grounding-purple.svg";
-import genRxImg from "../../../../assets/images/gen-rx-mic.svg";
-import voiceRxDefault from "../../../../assets/images/voice-rx-default.svg";
-import ddxImg from "../../../../assets/images/ddx.svg";
-import ddxInactiveImg from "../../../../assets/images/tab-ddx-inactive.svg";
-
-import vitalsDark from "../../../../assets/images/vitals-primary.svg";
-import vitalsWhite from "../../../../assets/images/vitals-secondary.svg";
-import medicalHistoryDark from "../../../../assets/images/history-primary.svg";
-import medicalHistoryWhite from "../../../../assets/images/history-secondary.svg";
-import vaccinationDark from "../../../../assets/images/vaccine-primary.svg";
-import vaccinationWhite from "../../../../assets/images/vaccine-secondary.svg";
-import privateNotesDark from "../../../../assets/images/personal-notes-primary.svg";
-import privateNotesWhite from "../../../../assets/images/personal-notes-secondary.svg";
-import growthChartDark from "../../../../assets/images/scale-primary.svg";
-import growthChart from "../../../../assets/images/scale-secondary.svg";
-import obstetricDark from "../../../../assets/images/obstetric-primary.svg";
-import obstetricWhite from "../../../../assets/images/obstetric-secondary.svg";
-import medicalRecordsDark from "../../../../assets/images/records-primary.svg";
-import medicalRecordsWhite from "../../../../assets/images/records-secondary.svg";
-import labParamsDark from "../../../../assets/images/Lab-Parameters.svg";
-import labParamsWhite from "../../../../assets/images/lab-parameters-white.svg";
-import carePlanIconDark from "../../../../assets/images/Care plan_Active_solid.svg";
-import carePlanIcon from "../../../../assets/images/Care plan.svg";
-
 
 const TabRxNavPanel = ({
     isApexAISelected,
@@ -68,6 +71,7 @@ const TabRxNavPanel = ({
     handleAddLabParamsDrawer,
     isCarePlanEnabled,
 }) => {
+    const isCrossConsultEnabled = useCrossConsult();
     return (
         <div
             className={`tabrx-nav-panel ${isApexAISelected ? "ai-mode" : ""}`}
@@ -435,6 +439,30 @@ const TabRxNavPanel = ({
                                             />
                                         </div>
                                         <label className="item-label">Care Plan</label>
+                                    </div>
+                                </button>
+                            );
+                        }
+
+                        if (e.tmdpm_id === 25 && e.tmdpm_status === 0 && isCrossConsultEnabled) {
+                            return (
+                                <button
+                                    key={i}
+                                    type="button"
+                                    className={`nav-item ${collapsedFlag === 13 ? "active" : ""}`}
+                                    onClick={() => openCollapsed(13)}
+                                >
+                                    <div className="item-content">
+                                        <div className="icon-container">
+                                            <ReferralIcon
+                                                color={
+                                                    collapsedFlag === 13
+                                                        ? "rgba(49,48,151,1)"
+                                                        : "#fff"
+                                                }
+                                            />
+                                        </div>
+                                        <label className="item-label">Referral</label>
                                     </div>
                                 </button>
                             );

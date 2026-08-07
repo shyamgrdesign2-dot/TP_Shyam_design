@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import "../pages/smartSync/smartSync.css";
 import { Button, Drawer, message, Tooltip } from "antd";
 import { useLocation } from "react-router-dom";
@@ -26,6 +26,7 @@ import {
   NEO_NATOLOGISTS_DP_ID,
   GB_CARE_PLAN,
   GB_TELE_CONSULT,
+  GB_CVT_EXT_HOS,
 } from "../utils/constants";
 
 import ReconnectingWebSocket from "reconnectingwebsocket";
@@ -41,15 +42,15 @@ import MedicalHistoryList from "../components/MedicalHistoryList";
 import PrivateNotesBox from "../components/PrivateNotesBox";
 import PrivateNotesList from "../components/PrivateNotesList";
 
-import vitals from "../assets/images/Vitals.svg";
-import MedicalHistory from "../assets/images/Medical-History.svg";
-import privateNotes from "../assets/images/private-notes.svg";
 import SmartRxFollowUpBox from "../components/SmartRxFollowUpBox";
+import ReferralBox from "../components/ReferralBox";
+import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
+import { useCrossConsult } from "../hooks/useCrossConsult";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 import CarePlanDropdown from "../components/CarePlanDropdown";
 import CarePlanList from "../components/CarePlanList";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
 import { assignCarePlan } from "./smartSync/services/carePlanService";
-import carePlanIcon from "../assets/images/Care plan_Active.svg";
 
 import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
@@ -66,11 +67,9 @@ import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import { errorMessage } from "../utils/utils";
 import { MESSAGE_KEY } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import CommonModal from "../common/CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
-import textLogo from "../assets/images/text-logo.svg";
-import sparkleWebm from "../assets/images/aiSparkleLoader.webm";
-import sparkleMp4 from "../assets/images/aiSparkleLoader.mp4";
+
 import LoopingVideo from "../components/common/LoopingVideo";
 import FullPageLoader from "./vaccination/components/Loader";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -81,13 +80,7 @@ import CustomCanvasSelector from "./smartSync/components/CustomCanvasSelector";
 import EditTemplateModal from "./smartSync/components/EditTemplateModal";
 import { getCustomSyncPadTemplates } from "./smartSync/services/uploadService";
 import { Content } from "antd/es/layout/layout";
-import vaccinationImg from "../assets/images/Vaccination.svg";
-import growthChartImg from "../assets/images/growth-chart-dark.svg";
-import obstetricImg from "../assets/images/obstetric-dark.svg";
-import uploadDocImg from "../assets/images/upload-doc-dark.svg";
-import symptomsImg from "../assets/images/Symptoms.svg";
-import labResultImg from "../assets/images/Lab.svg";
-import others from "../assets/images/custom-module.svg";
+
 import Vaccination from "./vaccination/Vaccination";
 import GrowthChart from "./growthChart/GrowthChart";
 import { viewPatient } from "../redux/appointmentsSlice";
@@ -114,6 +107,7 @@ import {
   setUploadDocCategories,
 } from "../redux/uploadDocSlice";
 import UploadDocumentList from "./medicalRecords/components/uploadDocumentList/UploadDocumentList";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import {
   generateUniqueFileName,
   getCorrectedFileName,
@@ -128,19 +122,55 @@ import SCBanner from "../components/SCBanner";
 import SCPopup from "../components/SCPopup";
 import { getDecodedToken } from "../utils/localStorage";
 import CustomSSknowMore from "./smartSync/components/CustomSSknowMore";
-import visitEnd from '../assets/images/end-visit.svg';
-import imgCloseVisit from '../assets/images/close-visit.svg';
+
 import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT } from "../utils/constants";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
+import { generateMissionHosTemplateBackground } from "./smartSync/services/missionHosTemplateHelper";
+import {
+  configureCanvasContext,
+  hardwarePointToCanvas,
+} from "./smartSync/services/canvasUtils";
+import {
+  resolveSelectedTemplateById,
+  resolveTemplatePageSources,
+  isStandardTemplate,
+} from "./smartSync/services/templateUtils";
 import {
   setAppointmentTeleconsultStatus,
   setActiveTeleconsultAppointmentId,
   setActiveTeleconsultConsultationId,
   setJoinToken,
 } from "../redux/teleconsultNotificationSlice";
+import { ASSETS } from "../assets";
+import {
+  hasVitalsAndBodyCompositionData,
+  mapVitalsAndBodyCompositionToRowPatch,
+  mergeVitalsRowsWithSymptomCollectorPatch,
+  VITALS_ROW_DATE_FORMAT,
+} from "../utils/symptomCollectorVitalsMerge";
+import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
+const {
+  vitals,
+  medicalHistory: MedicalHistory,
+  privateNotes,
+  carePlanActive: carePlanIcon,
+  alerticon: alertIcon,
+  textLogo,
+  aisparkleloader_2: sparkleWebm,
+  aisparkleloader: sparkleMp4,
+  vaccination: vaccinationImg,
+  growthChartDark: growthChartImg,
+  obstetricDark: obstetricImg,
+  uploadDocDark: uploadDocImg,
+  symptoms: symptomsImg,
+  lab: labResultImg,
+  customModule: others,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 function SmartPrescription() {
   const {
@@ -178,6 +208,7 @@ function SmartPrescription() {
       item?.enablePrint)
   );
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
@@ -185,6 +216,7 @@ function SmartPrescription() {
   const { state } = useLocation();
   const { patient_data, send_path, caseManagerData, smartRxFilesData, pam_id, videoConsultData, fromRepeatRx } = state;
   const chartType = state?.chartType;
+
   // If fromRepeatRx is true, force tcmId to 0 to treat it as new consultation
   const tcmId = (fromRepeatRx || caseManagerData === undefined) ? 0 : (caseManagerData.tcm_id || 0);
   const pamId = fromRepeatRx ? 0 : pam_id ? pam_id : caseManagerData !== undefined ? caseManagerData.pam_id : 0;
@@ -203,12 +235,15 @@ function SmartPrescription() {
   const [followUpDate, setFollowUpDate] = useState(null);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [vitalsData, setVitalsData] = useState([]);
   const [medicalHistoryData, setMedicalHistoryData] = useState([]);
   const [addlabparamsDrawer, setAddlabparamsDrawer] = useState(false);
   const [viewlabparamsDrawer, setViewlabparamsDrawer] = useState(false);
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   // const [token, setToken] = useState(null);
@@ -229,6 +264,7 @@ function SmartPrescription() {
   const [selectedPage, setSelectedPage] = useState(null);
   const selectedPageRef = useRef(null); // Add a ref for selectedPage
   const canvasRefs = useRef([]);
+  const blankCanvasPreparedRef = useRef({});
   const [newPageText, setNewPageText] = useState("");
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [deletePopupMsg, setDeletePopupMsg] = useState("");
@@ -286,6 +322,7 @@ function SmartPrescription() {
         const list = Array.isArray(resp) ? resp : [];
 
         const match = list.find(x => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
@@ -330,6 +367,8 @@ function SmartPrescription() {
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     customModuleContents,
     setCustomModuleContents,
     startTime,
@@ -344,6 +383,8 @@ function SmartPrescription() {
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
 
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+
   const [vitalDrawer, setVitalDrawer] = useState(false);
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
@@ -371,6 +412,55 @@ function SmartPrescription() {
   const [templateToEdit, setTemplateToEdit] = useState(null);
   const [showAllSymptoms, setShowAllSymptoms] = useState(false);
   const [downloadingTemplateId, setDownloadingTemplateId] = useState(null);
+  const getSelectedTemplateById = useCallback((templateId) => {
+    return resolveSelectedTemplateById(templateId, templates);
+  }, [templates]);
+
+  const getTemplatePageSources = useCallback(async (template) => {
+    return resolveTemplatePageSources({
+      template,
+      profile,
+      patientData: patient_data,
+      generateMissionHosTemplateBackground,
+      forceBlankAddress: true,
+      outputWidth: 720,
+      outputHeight: 980,
+    });
+  }, [profile, patient_data]);
+
+  // When Mission / standard-style templates are active, regenerate pages if patient fields load or change.
+  const missionTemplatePatientKey = useMemo(() => {
+    const template = getSelectedTemplateById(selectedTemplateId);
+    if (!template || !isStandardTemplate(template)) {
+      return null;
+    }
+    return [
+      patient_data?.patient_unique_id,
+      patient_data?.pam_id,
+      patient_data?.pm_pid,
+      patient_data?.pm_fullname,
+      patient_data?.pm_contact_no,
+      patient_data?.pm_gender,
+      patient_data?.appointment_time,
+      patient_data?.patient_age,
+      patient_data?.ageYears,
+    ]
+      .map((v) => (v !== undefined && v !== null ? String(v) : ""))
+      .join("|");
+  }, [
+    selectedTemplateId,
+    templates,
+    getSelectedTemplateById,
+    patient_data?.patient_unique_id,
+    patient_data?.pam_id,
+    patient_data?.pm_pid,
+    patient_data?.pm_fullname,
+    patient_data?.pm_contact_no,
+    patient_data?.pm_gender,
+    patient_data?.appointment_time,
+    patient_data?.patient_age,
+    patient_data?.ageYears,
+  ]);
   
   // Track page metadata including template pages and blank pages
   // page_type can only be: "template" or "blank"
@@ -391,6 +481,11 @@ function SmartPrescription() {
     isGrowthChartAccessable,
     isGynaecHistoryAccessable,
   } = useAccess(patient_data?.ageYears);
+
+  const vitalsCalculate = useCallback(
+    (H, W) => computeRxPadVitalsDerivedMetrics(H, W, patient_data),
+    [patient_data]
+  );
 
   const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
   const baseUrlLabParams = env.lab_params_api_url;
@@ -419,7 +514,9 @@ function SmartPrescription() {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   const handleVideoConsult = async () => {
@@ -516,18 +613,26 @@ function SmartPrescription() {
     // }
   }, [smartRxFilesData]);
 
-  // Auto-load template images when selectedTemplateId changes
+  // Auto-load template images when selection changes, or when patient context updates for Mission-style templates
   useEffect(() => {
     // Only load template images if there are no smartRxFiles
     // smartRxFiles should take priority over templates
-    if (selectedTemplateId && selectedTemplateId !== 'none' && templates.length > 0 && 
+    if (selectedTemplateId && selectedTemplateId !== 'none' && 
         (!smartRxFiles || smartRxFiles.length === 0)) {
-      const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+      const selectedTemplate = getSelectedTemplateById(selectedTemplateId);
       if (selectedTemplate) {
-        loadTemplateImages(selectedTemplate);
+        void loadTemplateImages(selectedTemplate).catch((e) =>
+          console.error("Auto-load template images failed", e)
+        );
       }
     }
-  }, [selectedTemplateId, smartRxFiles.length]); // Only depend on length, not the array reference
+  }, [
+    selectedTemplateId,
+    smartRxFiles.length,
+    getSelectedTemplateById,
+    missionTemplatePatientKey,
+    templates.length,
+  ]);
 
   // Monitor changes to pagesMetaData for debugging
   useEffect(() => {
@@ -793,6 +898,7 @@ function SmartPrescription() {
         setInvestigationData(caseManagerData.investigation);
       }
       if (
+        !fromRepeatRx &&
         caseManagerData.follow_up_date &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 15 && e.tmdpm_status === 0
@@ -810,6 +916,28 @@ function SmartPrescription() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, isCrossConsultAccessable, patient_data]);
 
   useEffect(() => {
     getSymptomsCollectorData();
@@ -939,7 +1067,7 @@ function SmartPrescription() {
     if (templateData && templateData.id) {
       setSelectedTemplateId(templateData.id);
       // Load the template images immediately
-      loadTemplateImages(templateData);
+      await loadTemplateImages(templateData);
     }
     
     // Close the upload drawer
@@ -965,6 +1093,7 @@ function SmartPrescription() {
       setPages([newPageId]);
       setDataPresentInCanvas([false]);
       setSelectedPage(0);
+      blankCanvasPreparedRef.current = { [newPageId]: false };
       
       // Initialize pages metadata for blank page
       const blankPageMetadata = [{
@@ -1271,7 +1400,7 @@ function SmartPrescription() {
       if (updatedTemplateData && updatedTemplateData.id) {
         setSelectedTemplateId(updatedTemplateData.id);
         // Load the updated template images immediately
-        loadTemplateImages(updatedTemplateData);
+        await loadTemplateImages(updatedTemplateData);
       }
     
     // Reset edit state
@@ -1401,17 +1530,37 @@ function SmartPrescription() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
-      });
-      setVitalsData(updatedData);
-    }
-  }, [selectedVitalsList]);
+    if (!(caseManagerData === undefined || tcmId === 0)) return;
+    const updatedData = selectedVitalsList.map((e) => {
+      return {
+        ...e,
+        systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
+        diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
+      };
+    });
+    const patch = isAutofillSelected
+      ? mapVitalsAndBodyCompositionToRowPatch(
+          selectedSymptomsCollector?.vitalsAndBodyComposition,
+          vitalsCalculate
+        )
+      : null;
+    setVitalsData((prev) =>
+      mergeVitalsRowsWithSymptomCollectorPatch(
+        prev,
+        updatedData,
+        patch,
+        vitalsCalculate,
+        VITALS_ROW_DATE_FORMAT
+      )
+    );
+  }, [
+    selectedVitalsList,
+    caseManagerData,
+    tcmId,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+    vitalsCalculate,
+  ]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {
@@ -1537,7 +1686,7 @@ function SmartPrescription() {
           },
         }
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }
@@ -1626,33 +1775,6 @@ function SmartPrescription() {
     });
   };
 
-  // Function to get scale factors for X and Y axes
-  const getScaleFactors = () => {
-    // Canvas dimensions
-    const canvasWidth = 720;
-    const canvasHeight = 980;
-    
-    // Coordinate ranges from your system
-    const xMin = 3;
-    const xMax = 475;
-    const yMin = 0;
-    const yMax = 650;
-    
-    // Calculate scale factors
-    const xScaleFactor = canvasWidth / (xMax - xMin);
-    // const yScaleFactor = canvasHeight / (yMax - yMin);
-    const yScaleFactor = 1.5;
-    
-    return { xScaleFactor, yScaleFactor };
-  };
-
-  // Function to get scale factor (default for all templates) - keeping for backward compatibility
-  const getScaleFactor = () => {
-    const { xScaleFactor, yScaleFactor } = getScaleFactors();
-    // Return average scale factor for backward compatibility
-    return (xScaleFactor + yScaleFactor) / 2;
-  };
-
   // Function to check if there are unsaved changes on the current canvas
   const checkForUnsavedChanges = () => {
     // Check if there are any custom RX images loaded (indicating user has been working on canvas)
@@ -1676,9 +1798,16 @@ function SmartPrescription() {
   };
 
   // Function to load template images
-  const loadTemplateImages = (template) => {
-    
-    if (!template.uploaded_files || template.uploaded_files.length === 0) {
+  const loadTemplateImages = async (template) => {
+    let templatePageSources = [];
+    try {
+      templatePageSources = await getTemplatePageSources(template);
+    } catch (e) {
+      console.error("loadTemplateImages: failed to resolve template pages", e);
+      setLoading(false);
+      return;
+    }
+    if (templatePageSources.length === 0) {
       return;
     }
     
@@ -1692,13 +1821,13 @@ function SmartPrescription() {
       ctxGlobalRefs.current = {};
     }
     
-    const totalImages = template.uploaded_files.length;
+    const totalImages = templatePageSources.length;
     let loadedCount = 0;
 
     // Generate unique IDs for each template image page
-    const newPageIds = template.uploaded_files.map(() => uuidv4());
+    const newPageIds = templatePageSources.map(() => uuidv4());
     setPages(newPageIds);
-    setDataPresentInCanvas(Array(template.uploaded_files.length).fill(true));
+    setDataPresentInCanvas(Array(templatePageSources.length).fill(true));
     setSelectedPage(0); // Select the first page
     
     // Initialize pages metadata for template pages
@@ -1715,10 +1844,12 @@ function SmartPrescription() {
     // Clear previous custom RX images since we're loading templates
     setCustomRxImages([]);
     
-    template.uploaded_files.forEach((file, index) => {
+    templatePageSources.forEach((templateImageSrc, index) => {
       const img = new Image();
-      img.src = file.file_url;
-      img.crossOrigin = "anonymous";
+      if (templateImageSrc && !String(templateImageSrc).startsWith("data:")) {
+        img.crossOrigin = "anonymous";
+      }
+      img.src = templateImageSrc;
       img.onload = () => {
         setImageRefs((prevState) => ({
           ...prevState,
@@ -1748,6 +1879,8 @@ function SmartPrescription() {
 
   const CUSTOMIZED_PAD_LEFT_LIST = () => {
     return customizedPadLeftList?.map((e, i) => {
+      if (isCvtExtHosAccessableFromGB && e.tmdpm_id !== 1) return null;
+
       return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
         <div key={i} className="prescription-box-sm p-14">
           <div className="d-flex align-items-center justify-content-between">
@@ -1770,7 +1903,11 @@ function SmartPrescription() {
           </div>
           {(vitalsData.length > 0 ||
             vitalsPastList.length > 0 ||
-            patientBirthWeight) && (
+            patientBirthWeight ||
+            (isAutofillSelected &&
+              hasVitalsAndBodyCompositionData(
+                selectedSymptomsCollector?.vitalsAndBodyComposition
+              ))) && (
             <VitalsList mode={caseManagerData !== undefined ? EDIT : ADD} />
           )}
         </div>
@@ -2098,6 +2235,9 @@ function SmartPrescription() {
       loadRxImages();
       
 
+    } else {
+      // Prevent stale smartRx state from blocking template auto-load.
+      setSmartRxFiles([]);
     }
 
     if(selectedTemplateId === "none" || !selectedTemplateId ){
@@ -2115,15 +2255,18 @@ function SmartPrescription() {
     <canvas
       key={id}
       id={id}
-      width="720px"
-      height="980px"
+      width={720}
+      height={980}
       className={`canvas-style ${
         selectedPage === index ? "canvas-active" : ""
       }`}
       ref={(el) => {
         if (el) {
           canvasRefs.current[id] = el;
-          const ctx = el.getContext("2d");
+          if (blankCanvasPreparedRef.current[id] === undefined) {
+            blankCanvasPreparedRef.current[id] = false;
+          }
+          const ctx = configureCanvasContext(el.getContext("2d"));
           ctxGlobalRefs.current[id] = ctx;
         }
       }}
@@ -2222,6 +2365,7 @@ function SmartPrescription() {
     const newPageId = uuidv4();
     setPages([...pages, newPageId]);
     setDataPresentInCanvas([...dataPresentInCanvas, false]);
+    blankCanvasPreparedRef.current[newPageId] = false;
     
     // Add page metadata using simple function - add at the end of pages array
     addPageMetadata(newPageId, pages.length, "blank", null);
@@ -2277,6 +2421,7 @@ function SmartPrescription() {
     
     // Get the page ID that will be deleted
     const deletedPageId = pages[index];
+    delete blankCanvasPreparedRef.current[deletedPageId];
     
     const newPages = pages.filter((_, pageIndex) => pageIndex !== index);
     setDataPresentInCanvas(
@@ -2317,6 +2462,7 @@ function SmartPrescription() {
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      blankCanvasPreparedRef.current[pages[updatedIndex]] = true;
       ctx.beginPath();
       ctxGlobalRefs.current[pages[updatedIndex]] = ctx;
       canvasRefs.current[pages[updatedIndex]] = ctx;
@@ -2354,11 +2500,13 @@ function SmartPrescription() {
     ctxGlobalRefs.current = {};
     
     // Reload the selected template that was loaded on mount
-    if (selectedTemplateId && selectedTemplateId !== 'none' && templates.length > 0) {
-      const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+    if (selectedTemplateId && selectedTemplateId !== 'none') {
+      const selectedTemplate = getSelectedTemplateById(selectedTemplateId);
       if (selectedTemplate) {
         // Reload the template images - this will recreate pages and load template images
-        loadTemplateImages(selectedTemplate);
+        void loadTemplateImages(selectedTemplate).catch((e) =>
+          console.error("loadTemplateImages after clear all failed", e)
+        );
         return; // Exit early after reloading template
       }
     }
@@ -2385,12 +2533,13 @@ function SmartPrescription() {
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      blankCanvasPreparedRef.current[pages[0]] = true;
       ctx.beginPath();
     }
   };
 
   // Function to clear current page and reload template image
-  const handleClearCurrentPage = () => {
+  const handleClearCurrentPage = async () => {
 
     const currentPageId = pages[selectedPage];
     const canvas = canvasRefs.current[currentPageId];
@@ -2411,26 +2560,33 @@ function SmartPrescription() {
         // This is a template page - try to reload template image first
         if (isTemplateSelected(selectedTemplateId)) {
           // We have the template loaded, use it
-          const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
-          if (selectedTemplate && selectedTemplate.uploaded_files && selectedTemplate.uploaded_files.length > templateImageIndex) {
-            const templateImage = selectedTemplate.uploaded_files[templateImageIndex];
-            if (templateImage && templateImage.file_url) {
-              const img = new Image();
-              img.src = templateImage.file_url;
+          const selectedTemplate = getSelectedTemplateById(selectedTemplateId);
+          let templatePageSources = [];
+          try {
+            templatePageSources = await getTemplatePageSources(selectedTemplate);
+          } catch (e) {
+            console.error("handleClearCurrentPage: template sources failed", e);
+          }
+          const templateImage = templatePageSources[templateImageIndex || 0];
+          if (templateImage) {
+            const img = new Image();
+            if (!String(templateImage).startsWith("data:")) {
               img.crossOrigin = "anonymous";
-              img.onload = () => {
-                ctx.drawImage(img, 0, 0, 720, 980);
-                setImageRefs((prevState) => ({
-                  ...prevState,
-                  [currentPageId]: img,
-                }));
-                setImageLoaded((prevState) => ({
-                  ...prevState,
-                  [currentPageId]: true,
-                }));
-              };
-              return; // Exit early after loading template image
             }
+            img.src = templateImage;
+            img.onload = () => {
+              configureCanvasContext(ctx);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              setImageRefs((prevState) => ({
+                ...prevState,
+                [currentPageId]: img,
+              }));
+              setImageLoaded((prevState) => ({
+                ...prevState,
+                [currentPageId]: true,
+              }));
+            };
+            return; // Exit early after loading template image
           }
         }
         
@@ -2441,7 +2597,8 @@ function SmartPrescription() {
           img.src = smartRxImage;
           img.crossOrigin = "anonymous";
           img.onload = () => {
-            ctx.drawImage(img, 0, 0, 720, 980);
+            configureCanvasContext(ctx);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             setImageRefs((prevState) => ({
               ...prevState,
               [currentPageId]: img,
@@ -2460,6 +2617,7 @@ function SmartPrescription() {
         // Reset to blank white page
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        blankCanvasPreparedRef.current[currentPageId] = true;
       } else {
         // Fallback: if no metadata available, reload smartRx image if exists
         const smartRxImage = smartRxFiles[selectedPage]?.smart_prescription_file;
@@ -2468,7 +2626,8 @@ function SmartPrescription() {
           img.src = smartRxImage;
           img.crossOrigin = "anonymous";
           img.onload = () => {
-            ctx.drawImage(img, 0, 0, 720, 980);
+            configureCanvasContext(ctx);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             setImageRefs((prevState) => ({
               ...prevState,
               [currentPageId]: img,
@@ -2492,7 +2651,6 @@ function SmartPrescription() {
     }
   };
 
-
   function draw(t, n, a, c, pageIndex) {
     const canvas = canvasRefs.current[pageIndex];
     if (!canvas) return;
@@ -2505,18 +2663,23 @@ function SmartPrescription() {
     
     // Only fill with white if this is NOT a template page and has no smart RX images
     if (!hasSmartRxImages && !isTemplatePage) {
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Fill once per blank canvas to avoid full canvas repaint on every stroke.
+      if (!blankCanvasPreparedRef.current[pageIndex]) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        blankCanvasPreparedRef.current[pageIndex] = true;
+      }
     } 
     
-    // Get proper scale factors for X and Y axes
-    const { xScaleFactor, yScaleFactor } = getScaleFactors();
+    const p0 = hardwarePointToCanvas(t, n);
+    const p1 = hardwarePointToCanvas(a, c);
 
-    // Set consistent styles
-    ctx.strokeStyle = "#000"; // Example color for regular drawing
-
-    ctx.moveTo(t * xScaleFactor, n * yScaleFactor);
-    ctx.lineTo(a * xScaleFactor, c * yScaleFactor);
+    // Draw each incoming segment as an isolated path to avoid
+    // cumulative re-stroking artifacts (jagged/darker edges).
+    ctx.strokeStyle = "#000";
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
     ctx.lineJoin = ctx.lineCap = "round";
     ctx.stroke();
     if (!dataPresentInCanvas[selectedPage]) {
@@ -2529,13 +2692,13 @@ function SmartPrescription() {
   function editDraw(t, n, a, c, pageIndex) {
     const canvas = canvasRefs.current[pageIndex];
     if (!canvas) return;
-    // Get proper scale factors for X and Y axes
-    const { xScaleFactor, yScaleFactor } = getScaleFactors();
-    
+    const p0 = hardwarePointToCanvas(t, n);
+    const p1 = hardwarePointToCanvas(a, c);
+
     ctxGlobalRefs.current[pageIndex].strokeStyle = "#000";
     ctxGlobalRefs.current[pageIndex].beginPath();
-    ctxGlobalRefs.current[pageIndex].moveTo(t * xScaleFactor, n * yScaleFactor);
-    ctxGlobalRefs.current[pageIndex].lineTo(a * xScaleFactor, c * yScaleFactor);
+    ctxGlobalRefs.current[pageIndex].moveTo(p0.x, p0.y);
+    ctxGlobalRefs.current[pageIndex].lineTo(p1.x, p1.y);
     ctxGlobalRefs.current[pageIndex].lineJoin = ctxGlobalRefs.current[
       pageIndex
     ].lineCap = "round";
@@ -2751,7 +2914,7 @@ function SmartPrescription() {
       if (imageLoaded[pageId] && canvasRefs.current[pageId]) {
         // Only draw template images if they haven't been drawn before
         // This prevents overwriting user drawings when imageLoaded state changes
-        const ctx = canvasRefs.current[pageId].getContext("2d");
+        const ctx = configureCanvasContext(canvasRefs.current[pageId].getContext("2d"));
         
         // Check if this canvas already has content (user drawings)
         const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -2759,7 +2922,7 @@ function SmartPrescription() {
         
         if (!hasContent) {
           // Only draw template image if canvas is empty
-          ctx.drawImage(imageRefs[pageId], 0, 0, 720, 980);
+          ctx.drawImage(imageRefs[pageId], 0, 0, ctx.canvas.width, ctx.canvas.height);
           ctxGlobalRefs.current[pageId] = ctx;
         }
       }
@@ -2807,7 +2970,7 @@ function SmartPrescription() {
   };
 
   // Function to add same canvas page (with current template or RX type)
-  const handleAddSameCanvasPage = (pageIndex) => {
+  const handleAddSameCanvasPage = async (pageIndex) => {
     // Preserve canvas drawings for all existing pages before adding new page
     const preservedCanvasData = {};
     pages.forEach((pageId) => {
@@ -2855,15 +3018,23 @@ function SmartPrescription() {
     // Load the same image for the new page
     if (isTemplateSelected(selectedTemplateId) && currentPageMeta?.page_type === "template") {
       // For template images - use the same template image index as the current page
-      const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+      const selectedTemplate = getSelectedTemplateById(selectedTemplateId);
       const currentTemplateImageIndex = currentPageMeta?.template_page_index || 0;
-      
-      if (selectedTemplate && selectedTemplate.uploaded_files && selectedTemplate.uploaded_files.length > currentTemplateImageIndex) {
-        const imageToUse = selectedTemplate.uploaded_files[currentTemplateImageIndex].file_url;
-        
+
+      let templatePageSources = [];
+      try {
+        templatePageSources = await getTemplatePageSources(selectedTemplate);
+      } catch (e) {
+        console.error("handleAddSameCanvasPage: template sources failed", e);
+      }
+      if (templatePageSources.length > currentTemplateImageIndex) {
+        const imageToUse = templatePageSources[currentTemplateImageIndex];
+
         const img = new Image();
+        if (imageToUse && !String(imageToUse).startsWith("data:")) {
+          img.crossOrigin = "anonymous";
+        }
         img.src = imageToUse;
-        img.crossOrigin = "anonymous";
         img.onload = () => {
           setImageRefs((prevState) => ({
             ...prevState,
@@ -2967,6 +3138,7 @@ function SmartPrescription() {
     const newPages = [...pages];
     newPages.splice(pageIndex + 1, 0, newPageId);
     setPages(newPages);
+    blankCanvasPreparedRef.current[newPageId] = false;
     
     // Add data present flag for new page
     const newDataPresentInCanvas = [...dataPresentInCanvas];
@@ -2984,6 +3156,7 @@ function SmartPrescription() {
         // Fill with white background
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+        blankCanvasPreparedRef.current[newPageId] = true;
       }
       
       // Restore canvas drawings after the new page is added
@@ -3352,6 +3525,7 @@ function SmartPrescription() {
           selectedTemplateId={selectedTemplateId}
           prepareMetadataForSubmissionData={prepareMetadataForSubmission()}
           selectedCarePlan={selectedCarePlan}
+          hasExistingCarePlan={hasExistingCarePlan}
           setBuildNumber={setBuildNumber}
           handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
           isVideoConsultLoading={isInitiatingCall}
@@ -3589,9 +3763,16 @@ function SmartPrescription() {
                   </div>
                 </div>
               )}
-              <div className="prescription-box-sm p-14">
-                <SmartRxFollowUpBox />
-              </div>
+              { !isCvtExtHosAccessableFromGB &&
+                <div className="prescription-box-sm p-14">
+                  <SmartRxFollowUpBox />
+                </div>
+              }
+              {!isCvtExtHosAccessableFromGB && isCrossConsultAccessable && (
+                <div className="prescription-box-sm p-14">
+                  <ReferralBox />
+                </div>
+              )}
             </div>
             <div
               className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3"
@@ -3943,6 +4124,8 @@ function SmartPrescription() {
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
+            initialActiveKey={isGynaecHistoryAccessable ? "gynec" : "medical"}
+            hideMenstrualHistoryTab={!isGynaecHistoryAccessable}
           />
         </Drawer>
         <Drawer

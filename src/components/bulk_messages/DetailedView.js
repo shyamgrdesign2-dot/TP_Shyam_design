@@ -1,8 +1,9 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import moment from "moment";
+import { ASSETS } from "../../assets";
+const messageCorner = ASSETS.images.messageCorner;
 
-import messageCorner from '../../assets/images/message-corner.svg'
 // import "./messages.scss";
 
 const showDateFormat = 'DD MMM YYYY'

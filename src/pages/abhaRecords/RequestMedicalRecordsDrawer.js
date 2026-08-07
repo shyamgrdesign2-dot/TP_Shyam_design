@@ -13,8 +13,10 @@ import {
 import moment from "moment";
 import dayjs from "dayjs";
 import { requestInitialConsent } from "../../api/services/ApiAbha";
-import checkBadgeIcon from "../../assets/images/check-badge.svg";
+
 import "./RequestMedicalRecordsDrawer.scss";
+import { ASSETS } from "../../assets";
+const checkBadgeIcon = ASSETS.images.checkBadge;
 
 const showDateFormat = "DD-MM-YYYY";
 

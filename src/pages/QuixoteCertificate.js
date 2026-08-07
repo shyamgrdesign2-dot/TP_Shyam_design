@@ -2,12 +2,13 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { Spin } from "antd";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
 import PrintSettingsContext from '../context/PrintSettingsContext';
 
 import { NORMAL } from "../utils/constants";
 import ViewCertificatePDF from '../components/print_settings/ViewCertificatePDF';
+import { setCurrentSessionRx } from '../redux/obstetricSlice';
 import { pdfjs, Document, Page } from "react-pdf";
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
@@ -15,6 +16,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 function QuixoteCertificate({ mode = NORMAL, ...props }) {
 
     const { profile } = useSelector((state) => state.doctors);
+    const dispatch = useDispatch();
     const { divWidth, certificateData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature } = useContext(PrintSettingsContext);
 
     const [pdfUrl, setPdfUrl] = useState(null)
@@ -60,6 +62,7 @@ function QuixoteCertificate({ mode = NORMAL, ...props }) {
             }
             pdfUrlRef.current = url;
             setPdfUrl(url);
+            dispatch(setCurrentSessionRx(url));
         }
         certificateData && makePDFUrl()
         return () => {

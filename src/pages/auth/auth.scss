@@ -1,3 +1,5 @@
+@import '../../styles/variables.scss';
+
 .login-container {
   display: flex;
   justify-content: center;
@@ -6,7 +8,7 @@
   background-color: #f9f9f9;
 
   &.background-image{
-      background-image: url('../../assets/images/website-images/login-background.webp');
+      background-image: url('#{$tp-assets-base}/images/website-images/login-background.webp');
       background-size: cover; /* Adjusts the image to cover the entire element */
       background-repeat: no-repeat; /* Ensures the image doesn’t repeat */
       background-position: center; /* Centers the image */

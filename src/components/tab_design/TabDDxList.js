@@ -1,13 +1,7 @@
 import { Button, Divider, Spin, Card } from "antd";
-import arrow from "../../assets/images/shaded-arrow.svg";
-import selectedTick from "../../assets/images/tick.svg";
-import loadingWebm from "../../assets/images/loading.webm";
-import loadingMp4 from "../../assets/images/loading.mp4";
-import cdssWallpaperWebm from "../../assets/images/cdss-wallpaper.webm";
-import cdssWallpaperMp4 from "../../assets/images/cdss-wallpaper.mp4";
+
 import LoopingVideo from "../../components/common/LoopingVideo";
-import ddxIcon from "../../assets/images/ddxIcon.svg";
-import ddxTag from "../../assets/images/ddx-tag.svg";
+
 import {
   ImpressionText,
   WarningColor,
@@ -23,11 +17,23 @@ import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMone
 import { useNavigate, useLocation } from "react-router-dom";
 import { FAILED_VERIFICATION, FREE, S_DDX } from "../../utils/constants";
 import CampaignDiscount from "../../pages/monetization/components/CampaignDiscount";
-import crown from '../../assets/images/crown.svg'
-import SMS2 from "../../assets/images/sms-2.webp";
-import expiredInfographic2 from '../../assets/images/expired-infographic-2.svg'
+
 import { interest } from "../../redux/monetizationSlice";
 import { openModal } from "../../redux/doctorModalSlice";
+import { ASSETS } from "../../assets";
+const {
+  shadedArrow: arrow,
+  tick: selectedTick,
+  loading_2: loadingWebm,
+  loading: loadingMp4,
+  cdssWallpaper_2: cdssWallpaperWebm,
+  cdssWallpaper: cdssWallpaperMp4,
+  ddxicon: ddxIcon,
+  ddxTag,
+  crown,
+  sms2: SMS2,
+  expiredInfographic2,
+} = ASSETS.images;
 
 const TabDDxList = ({
   generatedDDx,

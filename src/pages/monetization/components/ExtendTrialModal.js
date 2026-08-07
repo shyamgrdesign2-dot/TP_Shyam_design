@@ -8,17 +8,20 @@ import { useSelector, useDispatch } from "react-redux";
 import { TRIAL, S_TATVA_PRACTICE } from "../../../utils/constants";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../../utils/utils";
 
-import listIcon from '../../../assets/images/list-icon.svg'
-import expiredInfographic from '../../../assets/images/expired-infographic.svg'
-import contactSupport from '../../../assets/images/messages-2.svg'
-import crown from '../../../assets/images/crown.svg'
-import planExpiredSandClock from '../../../assets/images/plan-expired-sand-clock.webp'
 import { extendFreeTrial, interest } from "../../../redux/monetizationSlice";
-import { services } from "../../../redux/doctorsSlice";
+import { services, setB2C_Profile } from "../../../redux/doctorsSlice";
 import { openModal } from "../../../redux/doctorModalSlice";
 import { fetchSubscriptionDetails } from "../../../redux/subscriptionSlice";
 import { deviceType, osName, isMobile, isTablet } from "react-device-detect";
 import "./ExtendTrialModal.scss";
+import { ASSETS } from "../../../assets";
+const {
+  listIcon,
+  expiredInfographic,
+  messages2: contactSupport,
+  crown,
+  planExpiredSandClock,
+} = ASSETS.images;
 
 function ExtendTrialModal() {
     const navigate = useNavigate();
@@ -32,10 +35,25 @@ function ExtendTrialModal() {
     const [isExpiredModalOpen, setIsExpiredModalOpen] = useState(false);
 
     const tp_monetization_enable = !shouldMonetizationDisabled();
+    const urlParams = new URLSearchParams(window.location.search);
+    const isReceptionist = urlParams.has("receptionist");
 
     useEffect(() => {
-        profile?.b2c !== null && profile?.b2c !== undefined && tp_monetization_enable && dispatch(services(profile?.b2c));
-    }, [profile?.b2c]);
+        if (!planDetails && !isReceptionist) {
+            dispatch(fetchSubscriptionDetails());
+        }
+    }, [planDetails, dispatch]);
+
+    useEffect(() => {
+        if (profile && !profile?.b2c && planDetails?.profile_b2c && !isReceptionist) {
+            dispatch(setB2C_Profile(planDetails.profile_b2c));
+        }
+    }, [profile, profile?.b2c, planDetails?.profile_b2c, dispatch]);
+
+    useEffect(() => {
+        const b2c = profile?.b2c ?? planDetails?.profile_b2c;
+        b2c !== null && b2c !== undefined && tp_monetization_enable && !isReceptionist && dispatch(services(b2c));
+    }, [profile?.b2c, planDetails?.profile_b2c]);
 
     useEffect(() => {
         service_mappings?.length > 0 && tp_monetization_enable && checkBillingPurchased()

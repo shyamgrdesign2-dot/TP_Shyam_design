@@ -1,8 +1,10 @@
-import closeFill from "../../../../assets/images/closeFill.svg";
+
 import "./GrowthGraph.scss";
 import { getAge } from "../../growthChartHelper";
 import moment from "moment";
 import { useSelector } from "react-redux";
+import { ASSETS } from "../../../../assets";
+const closeFill = ASSETS.images.closefill;
 
 const TooltipContent = ({ handleDrawerVital, handleCloseTooltip, data }) => {
   const { patients_details } = useSelector((state) => state.records);

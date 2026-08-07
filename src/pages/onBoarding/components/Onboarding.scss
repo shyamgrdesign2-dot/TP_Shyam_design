@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap');
+@import '../../../styles/variables.scss';
 
 .onboarding-container {
   display: flex;
@@ -46,7 +47,7 @@
     align-items: center;
     width: 50%;
     margin: 1rem 1.2rem 1rem 1rem;
-    background: url('/assets/images/webStructure.svg') center center/90% no-repeat,
+    background: url('#{$tp-assets-base}/images/webStructure.svg') center center/90% no-repeat,
       radial-gradient(128% 141.42% at 0% 0%, #5857DC 0%, #5950D7 22.62%, rgba(89, 72, 209, 0.95) 52.37%, #240EB5 95.67%);
     border-radius: 0 4rem 0 4rem;
     padding: 0;

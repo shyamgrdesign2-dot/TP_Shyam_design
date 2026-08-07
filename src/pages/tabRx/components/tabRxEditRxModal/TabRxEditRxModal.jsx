@@ -1,9 +1,13 @@
 import React from 'react';
 import { Modal, Button } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
-import alertIcon from '../../../../assets/images/alertIcon.svg';
-import closeIcon from '../../../../assets/images/close.svg';
+
 import './TabRxEditRxModal.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  close: closeIcon,
+} = ASSETS.images;
 
 const TabRxEditRxModal = ({ isOpen, onCancel, onConfirm }) => {
     return (

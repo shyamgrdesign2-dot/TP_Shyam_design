@@ -2,7 +2,8 @@ import React from "react";
 import { Card, Typography } from "antd";
 import ProfileIcon from "../../../common/ProfileIcon";
 import "./styles.scss";
-import theme from "../../../assets/scss/variables.scss";
+import { ASSETS } from "../../../assets";
+const theme = ASSETS.scss.variables;
 
 const { Text } = Typography;
 

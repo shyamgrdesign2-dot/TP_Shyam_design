@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Drawer } from 'antd';
 import moment from 'moment';
 import { TAB_QUEUE } from '../../../../utils/constants';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
+
 import './DateSelectorModal.scss';
+import { ASSETS } from "../../../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 function DateSelectorModal({ 
   visible, 

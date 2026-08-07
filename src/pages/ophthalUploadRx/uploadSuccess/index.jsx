@@ -2,10 +2,15 @@ import React from "react";
 import { Button } from "antd";
 import PatientInfoCard from "../patientInfoCard";
 import "./styles.scss";
-import websiteLogo from "../../../assets/images/website-images/logo.webp";
-import editIconWhite from "../../../assets/images/edit-white.webp";
+
 import { trackEvent } from "../../../utils/utils";
 import { EVENTS } from "../../../utils/events";
+import { ASSETS } from "../../../assets";
+const websiteLogo = ASSETS.images.websiteImages.logo;
+const {
+  editWhite: editIconWhite,
+  successAnimation_3: successAnimationWebp,
+} = ASSETS.images;
 
 const UPLOAD_SUCCESS_TEXT = {
   title: "Rx has been uploaded successfully.",
@@ -24,7 +29,7 @@ const UploadSuccess = ({ onAddEditClick = () => {}, patientData }) => {
       <div className="success-content">
         <div className="success-icon">
           <img
-            src={require("../../../assets/images/success-animation.webp")}
+            src={successAnimationWebp}
             alt="SUCCESS GIF"
           />
         </div>

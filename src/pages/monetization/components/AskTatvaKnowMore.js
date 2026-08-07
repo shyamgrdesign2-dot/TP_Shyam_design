@@ -1,7 +1,5 @@
 import React, { useCallback, useState } from "react";
 import { Button, Tabs } from "antd";
-import playIcons from "../../../assets/images/tube-icon.svg";
-import coinSmRed from "../../../assets/images/coin-sm-red.webp";
 
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "./ContactSupport";
@@ -9,6 +7,11 @@ import ExpiredText from "./ExpiredText";
 import { S_ASK_TATVA } from "../../../utils/constants";
 import FreeTrialButton from "./FreeTrialButton";
 import ExpiredSubModal from "./ExpiredSubModal";
+import { ASSETS } from "../../../assets";
+const {
+  tubeIcon: playIcons,
+  coinSmRed,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 

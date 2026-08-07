@@ -4,6 +4,7 @@ import TableView from "../tableView/TableView";
 import { Row } from "react-bootstrap";
 import moment from "moment";
 import { isBrowser } from "react-device-detect";
+import { ASSETS } from "../../../../assets";
 
 export default function GrowthChartPrint({
   dataSource,
@@ -35,7 +36,7 @@ export default function GrowthChartPrint({
               </div>
               <div className="details">
                 <img
-                  src={require("../../../../assets/images/babyImage.webp")}
+                  src={ASSETS.images.babyimage}
                   alt="Baby"
                   width={32}
                   height={32}

@@ -40,11 +40,22 @@ import fundusTemplateSlice from "./fundusTemplateSlice";
 import teleconsultNotificationReducer from "./teleconsultNotificationSlice";
 import healthCheckupReportSlice from "./healthCheckupReportSlice";
 import dentalRxSlice from "./dentalRxSlice";
+import dentalExaminationSlice from "./dentalExaminationSlice";
+import dentalMastersSlice from "./dentalMastersSlice";
+import dentalPlanSlice from "./dentalPlanSlice";
+import dentalQvrSlice from "./dentalQvrSlice";
+import dentalBillingSlice from "./dentalBillingSlice";
+import dentalTemplateSlice from "./dentalTemplateSlice";
+import dentalPlanTemplateSlice from "./dentalPlanTemplateSlice";
+import oralTemplateSlice from "./oralTemplateSlice";
+import oralExaminationSlice from "./oralExaminationSlice";
+import voiceDigitizationReducer from "./voiceDigitizationSlice";
+import pastVisitsReducer from "./pastVisitsSlice";
 
 const persistConfig = {
   key: "root",
   storage,
-  whitelist: ["doctors"],
+  whitelist: ["doctors", "dentalMasters"],
 };
 
 const rootReducer = combineReducers({
@@ -85,6 +96,17 @@ const rootReducer = combineReducers({
   teleconsultNotification: teleconsultNotificationReducer,
   healthCheckupReport: healthCheckupReportSlice,
   dentalRx: dentalRxSlice,
+  dentalExamination: dentalExaminationSlice,
+  dentalMasters: dentalMastersSlice,
+  dentalPlan: dentalPlanSlice,
+  dentalQvr: dentalQvrSlice,
+  dentalBilling: dentalBillingSlice,
+  dentalTemplate: dentalTemplateSlice,
+  dentalPlanTemplate: dentalPlanTemplateSlice,
+  oralTemplate: oralTemplateSlice,
+  oralExamination: oralExaminationSlice,
+  voiceDigitization: voiceDigitizationReducer,
+  pastVisits: pastVisitsReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -93,11 +115,15 @@ const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      immutableCheck: false,
-      serializableCheck: false,
+      immutableCheck: process.env.NODE_ENV !== "production",
+      serializableCheck: process.env.NODE_ENV !== "production",
     }),
 });
 
 const persistor = persistStore(store);
+
+if (process.env.NODE_ENV !== "production") {
+  window.__REDUX_STORE__ = store;
+}
 
 export { store, persistor };

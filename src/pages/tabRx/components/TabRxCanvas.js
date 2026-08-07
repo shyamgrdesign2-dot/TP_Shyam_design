@@ -11,9 +11,13 @@ import { getTemplates, setMetadata } from '../services/templateService';
 import { A4_BASE_WIDTH, A4_BASE_HEIGHT, ZOOM_CONSTRAINTS } from '../utils/constants';
 import { generateId } from '../utils/geometry';
 import { generateStandardTemplateBackground } from '../utils/standardTemplateHelper';
-import alertIcon from '../../../assets/images/alertIcon.svg';
-import deleteIcon from '../../../assets/images/delete-gen-rx.svg';
+
 import './TabRxCanvas.scss';
+import { ASSETS } from "../../../assets";
+const {
+  alerticon: alertIcon,
+  deleteGenRx: deleteIcon,
+} = ASSETS.images;
 
 const INITIAL_TOOL_SETTINGS = {
   activeTool: 'pen',
@@ -1219,7 +1223,6 @@ const TabRxCanvas = forwardRef(({
         onTemplatesUpdate={setTemplates}
         profile={profile}
       />
-
 
       <div className="canvas-wrapper-container">
         {/* Scrollable pages container - all pages stacked vertically */}

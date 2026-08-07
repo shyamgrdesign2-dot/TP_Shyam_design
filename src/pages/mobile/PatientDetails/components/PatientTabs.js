@@ -1,6 +1,8 @@
 import React, { useRef, useEffect } from 'react';
-import indicatorIcon from '../../../../assets/mobile/indicator.svg';
+
 import './PatientTabs.scss';
+import { ASSETS } from "../../../../assets";
+const indicatorIcon = ASSETS.mobile.indicator;
 
 function PatientTabs({ tabs, selectedTab, onTabChange, showProfile = false }) {
   const tabsContainerRef = useRef(null);

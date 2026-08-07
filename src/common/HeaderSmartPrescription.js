@@ -32,18 +32,8 @@ import CustomizeSetting from "./CustomizeSetting";
 import CashManagerContext from "../context/CashManagerContext";
 import ProfilePopover from "./ProfilePopover";
 import CommonModal from "./CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
-import reload from "../assets/images/ic_Reload.svg";
-import tutorial from "../assets/images/tutorial.svg";
-import playIcons from "../assets/images/tube-icon.svg";
+
 import api from "../api/services/axiosService";
-import devicePad from "../assets/images/device-pad.svg";
-import smartSyncConnected from "../assets/images/smart-sync-connected.svg";
-import smartSyncDisconnected from "../assets/images/smart-sync-disconnected.svg";
-import tagNew from '../assets/images/tag-new.svg';
-import Pillup from '../assets/images/pillup.svg';
-import EazyDoseLogo from '../assets/images/EazyDose Logo.webp';
-import videoSvg from "../assets/images/video.svg";
 
 import { errorMessage, removeBeforeWhiteSpace } from "../utils/utils";
 
@@ -59,14 +49,33 @@ import {
   WS_CONTROL_URL,
   MESSAGE_KEY,
   GB_PILLUP_MEDICINE,
+  GB_CVT_EXT_HOS,
 } from "../utils/constants";
 import ReconnectingWebSocket from "reconnectingwebsocket";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_SMARTSYNC_CONNECT } from "../utils/constants";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { setDefaultCustomSyncPadTemplate } from "../pages/smartSync/services/uploadService";
-import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
+import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
+import {
+  attachCrossConsultToCaseManagerPayload,
+  syncCrossConsultReferral,
+} from "../utils/crossConsultHelpers";
 import VideoConsultButton from "../components/VideoConsultButton";
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  icReload: reload,
+  tutorial,
+  tubeIcon: playIcons,
+  devicePad,
+  smartSyncConnected,
+  smartSyncDisconnected,
+  tagNew,
+  pillup: Pillup,
+  eazydoseLogo: EazyDoseLogo,
+  video: videoSvg,
+} = ASSETS.images;
 
 function HeaderPrescription({
   prescription,
@@ -81,6 +90,7 @@ function HeaderPrescription({
   selectedTemplateId,
   prepareMetadataForSubmissionData,
   selectedCarePlan,
+  hasExistingCarePlan = false,
   setBuildNumber,
   handleVideoConsult,
   isVideoConsultLoading,
@@ -114,6 +124,7 @@ function HeaderPrescription({
     followUpDate,
     setFollowUpDate,
     additionalNote,
+    referralData,
     pillupSwitch,
     setPillupSwitch,
     setMedicalHistoryData,
@@ -143,6 +154,8 @@ function HeaderPrescription({
     useFeatureIsOn(GB_SMARTSYNC_CONNECT);
 
   const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+
   const { isAutofillSelected, selectedSymptomsCollector } = useSelector(
     (state) => state.ddx
   );
@@ -530,6 +543,11 @@ function HeaderPrescription({
       custom_ss_data: prepareMetadataForSubmissionData?.custom_ss_data || null,
     };
 
+    attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+      referredBy: profile?.um_name,
+      pendingCrossConsult: patient_data,
+    });
+
     const action =
       tcmId == 0
         ? await dispatch(addCaseManager(sendData))
@@ -541,12 +559,6 @@ function HeaderPrescription({
         const decodedToken = getDecodedToken();
         const tokenData = decodedToken?.result;
         const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-
-        const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-          patient_data?.patient_unique_id,
-          generatedTcmId,
-          'smart-rx submit',
-        );
 
         if (generatedTcmId > 0 && selectedCarePlan) {
           if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
@@ -571,19 +583,13 @@ function HeaderPrescription({
         console.error('Care plan sync (assign/update) after SmartRx submit failed:', cpErr);
       }
 
-      // Fetch care plan assignments to include in print state
-      let carePlanAssignments = [];
       try {
-        if (patient_data?.patient_unique_id) {
-          const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
-          carePlanAssignments = Array.isArray(assignmentsResp?.data)
-            ? assignmentsResp.data
-            : Array.isArray(assignmentsResp)
-            ? assignmentsResp
-            : assignmentsResp?.assignments || [];
-        }
-      } catch (cpFetchErr) {
-        console.error('Failed to fetch care plan assignments for smart rx print state:', cpFetchErr);
+        await syncCrossConsultReferral({
+          tcmId: action?.payload?.tcm_id ?? tcmId,
+          pendingCrossConsult: patient_data,
+        });
+      } catch (error) {
+        console.error('Cross consult sync failed:', error);
       }
 
       navigate("/print-smart-rx", {
@@ -593,7 +599,6 @@ function HeaderPrescription({
           patient_data: patient_data,
           smartRxFile: (files && files.length > 0) ? files : smartRxFiles,
           page: "prescription",
-          carePlanAssignments,
         },
       });
     } else {
@@ -782,7 +787,7 @@ function HeaderPrescription({
               {isSmartSyncConnectAccessableFromGB && (
                 <Button
                   type="button"
-                  className="btn align-items-center d-flex btn-device-connect rounded-5 pe-3 bg-white shadow2"
+                  className="btn align-items-center d-flex btn-device-connect rounded-5 pe-3 bg-white shadow2 me-2"
                   onClick={
                     isConnected
                       ? handleDisconnectPopup
@@ -853,7 +858,7 @@ function HeaderPrescription({
                   </div>
                 </Button>
               )}
-              {isPillUpAccessableFromGB && (
+              {isPillUpAccessableFromGB && !isCvtExtHosAccessableFromGB && (
                 <div
                   ref={tourRef}
                   className="ms-2 border rounded-20px px-2 py-1 d-flex align-items-center"
@@ -923,13 +928,14 @@ function HeaderPrescription({
                   </>
                 }
               />
-
-              <button
-                className="btn d-flex align-items-center btn-text"
-                onClick={handleDrawerCustomize}
-              >
-                <i className="icon-setting me-2"></i> <span>Customize</span>
-              </button>
+              { !isCvtExtHosAccessableFromGB &&
+                <button
+                  className="btn d-flex align-items-center btn-text"
+                  onClick={handleDrawerCustomize}
+                >
+                  <i className="icon-setting me-2"></i> <span>Customize</span>
+                </button>
+              }
 
               <Drawer
                 placement="right"
@@ -941,44 +947,51 @@ function HeaderPrescription({
               >
                 {CUSTOMIZE_CONTENT_TAB}
               </Drawer>
-
-              <Popover
-                open={popOverVideo}
-                onOpenChange={showHideVideoListPopover}
-                content={VIDEO_CONTENT}
-                trigger="click"
-                overlayClassName="pop-430 pp-0 videoTutorial"
-                placement="bottom"
-              >
-                {/* <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'> */}
-                <span
-                  className="text-decoration-none rounded-5 mx-3"
-                  style={{ cursor: "pointer" }}
+              { !isCvtExtHosAccessableFromGB &&
+                <Popover
+                  open={popOverVideo}
+                  onOpenChange={showHideVideoListPopover}
+                  content={VIDEO_CONTENT}
+                  trigger="click"
+                  overlayClassName="pop-430 pp-0 videoTutorial"
+                  placement="bottom"
                 >
-                  <img height={42} src={tutorial} />
-                </span>
-                {/* </button> */}
-              </Popover>
-              {videoLink && (
+                  {/* <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'> */}
+                  <span
+                    className="text-decoration-none rounded-5 mx-3"
+                    style={{ cursor: "pointer" }}
+                  >
+                    <img height={42} src={tutorial} />
+                  </span>
+                  {/* </button> */}
+                </Popover>
+              }
+
+              {videoLink && !isCvtExtHosAccessableFromGB && (
                 <VideoModal
                   videoLink={videoLink}
                   onCancel={() => setVideoLink(null)}
                 />
               )}
-              <Button
-                type="button"
-                className="btn align-items-center d-flex btn-41 btn-clear me-20"
-                onClick={() => setIsClearModalOpen(!isClearModalOpen)}
-                loading={loading}
-                disabled={!prescription}
-              >
-                <img
-                  className="align-items-center d-flex"
-                  src={reload}
-                  alt="clear"
-                />
-                <span>Clear All</span>
-              </Button>
+
+
+              { !isCvtExtHosAccessableFromGB && 
+                (<Button
+                    type="button"
+                    className="btn align-items-center d-flex btn-41 btn-clear me-20"
+                    onClick={() => setIsClearModalOpen(!isClearModalOpen)}
+                    loading={loading}
+                    disabled={!prescription}
+                  >
+                    <img
+                      className="align-items-center d-flex"
+                      src={reload}
+                      alt="clear"
+                    />
+                    <span>Clear All</span>
+                  </Button>
+                )
+              }
 
               <CommonModal
                 isModalOpen={isClearModalOpen}

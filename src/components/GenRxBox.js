@@ -1,19 +1,23 @@
 import { Button, Collapse, Divider } from "antd";
-import arrow from "../assets/images/shaded-arrow.svg";
-import tryGenRxIcon from "../assets/images/try-gen-rx.svg";
-import genRxMic from "../assets/images/gen-rx-mic.svg";
 
 import { useState } from "react";
 import { getClinicName, trackEvent } from "../utils/utils";
 import { useSelector } from "react-redux";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { ASSETS } from "../assets";
+import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
+const {
+  shadedArrow: arrow,
+  tryGenRx: tryGenRxIcon,
+  genRxMic,
+} = ASSETS.images;
 
 const GenRxBox = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
   const [isCollapseActive, setIsCollapseActive] = useState(true);
   const { profile } = useSelector((state) => state.doctors);
   const { state } = useLocation();
-  const { patient_data } = state;
-  const navigate = useNavigate();
+  const { patient_data } = state || {};
+  const navigateVoiceRx = useVoiceRxNavigation();
 
   const handlePanelChange = () => {
     setIsCollapseActive((prev) => !prev);
@@ -77,14 +81,15 @@ const GenRxBox = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
                   doctor_unique_id: profile?.doctor_unique_id,
                   clinic_name,
                 });
-                // Navigate to VoiceRxConsult page with auto-open modal
-                navigate("/voice-rx-consult", {
-                  state: {
+                navigateVoiceRx(
+                  {
                     patient_data,
                     autoOpenModal: true,
                     fromPrescription: true,
                   },
-                });
+                  {},
+                  "gen_rx_box"
+                );
               }}
             >
               <img src={tryGenRxIcon} alt="genrx-icon" />

@@ -5,14 +5,17 @@ import { Col, Row } from "react-bootstrap";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 
-import arrowRight from '../../../assets/images/arrow-right.svg'
-import crown from '../../../assets/images/crown.svg'
-import support from '../../../assets/images/support.webp'
 import { FAILED_VERIFICATION, FREE, S_ASK_TATVA, S_IPD, S_PHARMACY, S_TATVA_PRACTICE, TRIAL } from "../../../utils/constants";
 import { interest } from "../../../redux/monetizationSlice";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../../utils/utils";
 import { openModal } from "../../../redux/doctorModalSlice";
 import ContactSupportModal from "../../../common/ContactSupportModal";
+import { ASSETS } from "../../../assets";
+const {
+  arrowRight,
+  crown,
+  support,
+} = ASSETS.images;
 
 function ExpiredText({ title, onRedirect }) {
 

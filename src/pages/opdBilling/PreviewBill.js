@@ -24,14 +24,18 @@ import { deleteDoc, doc, getDoc, onSnapshot } from "firebase/firestore";
 import { deleteDocsUploadedFromAndroid } from "../medicalRecords/service";
 import RefundBill from "./components/billingDashboard/RefundBill/RefundBill";
 import { getClinic, trackEvent } from "../../utils/utils";
-import wtsp from "./../../assets/images/wtsp.svg";
-import loadingImg from "./../../assets/images/loading.webp";
-import refundActive from "./../../assets/images/Refund_active.svg";
-import refundInactive from "./../../assets/images/Refund_inactive.svg";
+
 import { PERSISTANT_STORAGE_KEY_BILL_TOKEN } from "../../utils/constants";
 import { useLocalStorage } from "../../utils/localStorage";
 import config from "../../config";
 import { WhatsAppOpdBillTemplateId } from "./utils/constants";
+import { ASSETS } from "../../assets";
+const {
+  wtsp,
+  loading_3: loadingImg,
+  refundActive,
+  refundInactive,
+} = ASSETS.images;
 
 const PreviewBill = ({
   handleCreateBillDrawer,
@@ -106,6 +110,10 @@ const PreviewBill = ({
   const receptionistId = urlParams.get("receptionistId");
   const receptionistName = urlParams.get("receptionistName");
   const clinicName = urlParams.get("clinicName");
+  const isEditAccessRestricted =
+    isReceptionist &&
+    !isIpdBill &&
+    advancedSettings?.editBillAccessControlForReceptionist === false;
   const [buttonText, setButtonText] = useState("Send to WhatsApp");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -485,7 +493,10 @@ const PreviewBill = ({
                       <i className="icon-right iconrotate180 ms-auto"></i>
                     </Button>
                   )}
-                {!isEditDisabled && !isDepositReceipt && !isPreviewForm3c && (
+                {!isEditDisabled &&
+                  !isDepositReceipt &&
+                  !isPreviewForm3c &&
+                  !isEditAccessRestricted && (
                   <Button
                     type="text"
                     className={`btn btnicon20 align-items-center d-flex btn-41 w-100 mb-3 ${
@@ -497,7 +508,7 @@ const PreviewBill = ({
                     <span className="fw-semibold">Edit Bill</span>
                     <i className="icon-right iconrotate180 ms-auto"></i>
                   </Button>
-                )}
+                  )}
 
                 <div className="bg-body d-flex flex-column p-3 rounded-10px border">
                   <div className="d-flex">

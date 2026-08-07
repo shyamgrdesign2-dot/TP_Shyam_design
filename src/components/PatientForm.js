@@ -9,7 +9,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
-import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID, GB_VOICE_RX_FREE } from "../utils/constants";
+import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
 import { errorMessage, getClinic, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { useDeviceType } from "../utils/deviceDetection";
 
@@ -21,13 +22,19 @@ import UploadProfile from "../components/UploadProfile";
 import { viewPatient, addPatient, editPatient } from "../redux/appointmentsSlice";
 import { clearAbhaDetails } from "../redux/abhaSlice";
 import CommonModal from "../common/CommonModal";
-import saveIcon from '../assets/images/save.svg';
+
 import { updateDob } from "../pages/vaccination/service";
 import { getDecodedToken } from "../utils/localStorage";
 import ApiAbha from "../api/services/ApiAbha";
-import GreenTick from "../assets/images/green_tick.svg";
+
 import '../components/PatientForm.mobile.scss';
 import PrimaryActionButton from "./PrimaryActionButton";
+import { ASSETS } from "../assets";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
+const {
+  save: saveIcon,
+  greenTick: GreenTick,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 
@@ -46,6 +53,7 @@ function PatientForm({ mode = ADD, patient_data }) {
     } = abhaDetails || {};
     const { isMobile: isMobileDevice, isTablet } = useDeviceType();
     const isMobileOnly = isMobileDevice && !isTablet;
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isMobile = isMobileDevice;
 
     const [form] = Form.useForm();
@@ -110,7 +118,6 @@ function PatientForm({ mode = ADD, patient_data }) {
     const showHideModal = useCallback(() => {
         setIsModalOpen(!isModalOpen);
     }, [isModalOpen]);
-
 
     const onFinish = () => {
         const decodedToken = getDecodedToken();
@@ -274,10 +281,10 @@ function PatientForm({ mode = ADD, patient_data }) {
                                 state: { patient_data: mergedPatientForDetails }
                             });
                         } else if (fromWalkIn && isMobileOnly) {
-                            // Mobile + from Start Walk-in: redirect to Voice Rx consult (same as web flow)
-                            navigate("/voice-rx-consult", {
+                            // Mobile + Start Walk-in follows the normal consult prescription flow.
+                            navigate("/prescription", {
                                 replace: true,
-                                state: { patient_data: action.payload, isFromTabView: true }
+                                state: { patient_data: action.payload, fromWalkInMobile: true }
                             });
                         } else {
                             navigate("/prescription", {
@@ -372,10 +379,12 @@ function PatientForm({ mode = ADD, patient_data }) {
             clinic_name: clinic?.hm_name,
             source: "Add New Patient",
         });
-        navigate("/voice-rx-consult", {
-            state: { 
-                patient_data: patient,
-            },
+        navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+            state: getVoiceRxNavigationState(
+                isVoiceRxNewFromGB,
+                { patient_data: patient },
+                "add_new_patient"
+            ),
         });
     };
 
@@ -384,6 +393,9 @@ function PatientForm({ mode = ADD, patient_data }) {
     };
     const onTabRxClick = (patient) => {
         navigate("/tab-rx", { state: { patient_data: patient } });
+    };
+    const onTypeRxClick = (patient) => {
+        navigate(DENTAL_RX_PAD_ROUTE, { state: { patient_data: patient } });
     };
 
     return (
@@ -532,6 +544,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                                                         onSnapRxClick={onSnapRxClick}
                                                         onVoiceRxClick={onVoiceRxClick}
                                                         onTabRxClick={onTabRxClick}
+                                                        onTypeRxClick={onTypeRxClick}
                                                         onConsultClick={onConsultClick}
                                                         patient={patientData}
                                                         buttonStyle="walkin"

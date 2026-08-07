@@ -4,9 +4,12 @@ import { FileOutlined } from "@ant-design/icons";
 import styles from "../DoctorOnboarding.module.css";
 import { CloudUploadOutlined } from "@ant-design/icons";
 import CommonModal from "../../../common/CommonModal";
-import alertIcon from "../../../assets/images/alertIcon.svg";
-import govId from "../../../assets/images/gov-id.webp";
-import mrc from "../../../assets/images/certificate.webp";
+import { ASSETS } from "../../../assets";
+const {
+  alerticon: alertIcon,
+  govId,
+  certificate: mrc,
+} = ASSETS.images;
 
 const UploadProofStep = ({
   formData,

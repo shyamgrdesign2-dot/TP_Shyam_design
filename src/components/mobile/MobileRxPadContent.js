@@ -14,23 +14,9 @@ import { useAccess } from '../../pages/vaccination/useAccess';
 import { getDecodedToken } from '../../utils/localStorage';
 import { PATIENT_DETAILS_SIDEBAR_KEYS } from '../../utils/constants';
 import moment from 'moment';
-import examinationIcon from '../../assets/images/Examination.svg';
-import diagnosisIcon from '../../assets/images/Diagnosis.svg';
-import vitalsIcon from '../../assets/images/Vitals.svg';
-import medicationIcon from '../../assets/images/Medication.svg';
-import labIcon from '../../assets/images/Lab.svg';
-import medicalHistoryIcon from '../../assets/images/Medical-History.svg';
-import adviceIcon from '../../assets/images/advice.svg';
-import followUpIcon from '../../assets/images/followup.svg';
-import gynecHistoryIcon from '../../assets/images/obstetric-dark.svg';
-import obstetricHistoryIcon from '../../assets/images/obstetric-dark.svg';
-import surgeryIcon from '../../assets/images/surgery.svg';
-import vaccinationIcon from '../../assets/images/Vaccination.svg';
-import editIcon from '../../assets/images/edit-icon-blue.svg';
-// import editIcon from '../../assets/mobile/edit.svg';
-import deleteIcon from '../../assets/images/Delete.svg';
-import frameIcon from '../../assets/mobile/Frame_3.svg';
-import logoutIcon from '../../assets/mobile/logout.svg';
+
+// 
+
 // Rich Text Editor Components
 import VitalsRichTextEditorMobile from './VitalsRichTextEditorMobile';
 import MedicalHistoryRichTextEditor from '../MedicalHistoryRichTextEditor';
@@ -51,6 +37,27 @@ import MobileGynecHistoryEdit from './MobileGynecHistoryEdit';
 import MobileObstetricHistoryEdit from './MobileObstetricHistoryEdit';
 import { fetchObstetricDetails } from '../../pages/obstetric/service';
 import './MobileRxPadContent.scss';
+import { ASSETS } from "../../assets";
+const {
+  examination: examinationIcon,
+  diagnosis: diagnosisIcon,
+  vitals: vitalsIcon,
+  medication: medicationIcon,
+  lab: labIcon,
+  medicalHistory: medicalHistoryIcon,
+  advice: adviceIcon,
+  followup: followUpIcon,
+  obstetricDark: gynecHistoryIcon,
+  obstetricDark: obstetricHistoryIcon,
+  surgery: surgeryIcon,
+  vaccination: vaccinationIcon,
+} = ASSETS.images;
+const editIcon = ASSETS.mobile.edit;
+const deleteIcon = ASSETS.images.delete;
+const {
+  frame3: frameIcon,
+  logout: logoutIcon,
+} = ASSETS.mobile;
 
 // Inline vitals enrichment (BMI, BMR, BSA) – matches ConsultationDrawer / VitalsBox
 function enrichVitalsWithCalculations(vital, patientInfo = {}) {

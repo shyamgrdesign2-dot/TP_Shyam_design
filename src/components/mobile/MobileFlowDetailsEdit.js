@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, Button, Input } from 'antd';
 import { CLOTS_LIST } from '../../utils/gynec_constants';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import './MobileGynecDetailsEdit.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 const { TextArea } = Input;
 

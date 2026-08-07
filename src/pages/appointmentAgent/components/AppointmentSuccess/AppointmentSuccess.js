@@ -5,23 +5,28 @@ import { useSelector, useDispatch } from "react-redux";
 import { useQrPrintDownloadHandlers } from '../../../../common/qrPrintDownloadHelper';
 import "./AppointmentSuccess.scss";
 import SummaryPreview from "../preview/SummaryPreview";
-import ShareIcon from "../../../../assets/images/share.svg";
-import CopyIcon from "../../../../assets/images/copy.svg";
-import InfoIcon from "../../../../assets/images/cvt-info.svg";
-import MailIcon from "../../../../assets/images/mail.svg";
+
 import SetupPreview from '../preview/setupPreview';
 import BookingLinkKnowMore from "../knowMore/BookingLinkKnowMore";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "../../../../assets/images/alertIcon.svg";
-import tutorial from "../../../../assets/images/tutorial.svg";
-import playIcons from "../../../../assets/images/tube-icon.svg";
+
 import VideoModal from "../../../../common/VideoModal";
 import QrPrintDownloadModal from "../../../../common/QrPrintDownloadModal";
-import { ReactComponent as QrIcon } from '../../../../assets/images/qr-icon.svg';
-import logoIcom from '../../../../assets/images/text-logo.svg';
 import { getDecodedToken } from "../../../../utils/localStorage";
 import { fetchAgents } from "../../service";
 import { getClinic } from "../../../../utils/utils";
+import { ASSETS } from "../../../../assets";
+const {
+  share: ShareIcon,
+  copy: CopyIcon,
+  cvtInfo: InfoIcon,
+  mail: MailIcon,
+  alerticon: alertIcon,
+  tutorial,
+  tubeIcon: playIcons,
+  textLogo: logoIcom,
+  qrIcon,
+} = ASSETS.images;
 
 const AppointmentSuccess = () => {
   const location = useLocation();
@@ -328,7 +333,9 @@ const AppointmentSuccess = () => {
                   />
                 </button>
                 <button className="copy-button" onClick={handleShowQRCode}>
-                  <QrIcon
+                  <img
+                    src={qrIcon}
+                    alt=""
                     style={{ width: "1.5rem", height: "1.5rem", color:"#4b4ad5", filter:"invert(22%) sepia(79%) saturate(2418%) hue-rotate(228deg) brightness(90%) contrast(100%)"}}
                   />
                 </button>

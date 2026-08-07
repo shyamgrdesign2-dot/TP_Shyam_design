@@ -2,8 +2,8 @@ import moment from "moment";
 
 import config from "../config";
 import { message } from "antd";
-import { MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS_DP_ID, SNAP_RX_TOKENS_STORAGE_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
-import { browserName, deviceDetect, isBrowser } from "react-device-detect";
+import { MESSAGE_KEY, MEDICINE_STOCK_STATUS, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS_DP_ID, SNAP_RX_TOKENS_STORAGE_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { browserName, deviceDetect, isBrowser, isMobile } from "react-device-detect";
 import html2pdf from "html2pdf.js";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../src/firebase.js";
@@ -828,12 +828,45 @@ export const chunkArray = (array, size) => {
 };
 
 // Helper function to get indicator letter based on hm_type
-export const getHmTypeIndicator = (item) => {
+export const getHmTypeIndicator = (item, isChikitsalayAccessable = false) => {
   if (!item) return '';
   const hmType = item.tmm_hm_type || item.hm_type || item.metadata?.tmm_hm_type || item.metadata?.hm_type;
-  if (hmType == 1) return 'Z';
-  if (hmType == 2) return 'A';
+  const umId = item.um_id ?? item.metadata?.um_id;
+  if (hmType == 1 && Number(umId) === 0) return 'Z';
+  if (hmType == 2 ) return 'A';
+  if (hmType == 15 && isChikitsalayAccessable && Number(umId) === 0) {
+    const hasMedicineHmType =
+      item.tmm_hm_type != null || item.metadata?.tmm_hm_type != null;
+    if (hasMedicineHmType) return 'VC';
+    if (Number(item?.is_available ?? item.metadata?.is_available) === 1) return 'VC';
+  }
   return '';
+};
+
+export const getMedicineStockLabel = (med) => {
+  if (med?.stock_status === MEDICINE_STOCK_STATUS.NO_STOCK) {
+    return "Out of stock";
+  }
+  if (med?.stock_status === MEDICINE_STOCK_STATUS.LOW_STOCK) {
+    return `Qty: ${med?.quantity ?? 0}`;
+  }
+  return null;
+};
+
+export const hasMedicineFrequency = (medicine) => 
+  String(medicine?.tmm_freq_type_name ?? "").trim() !== "";
+
+export const hasMedicineDuration = (medicine) =>
+  String(medicine?.tmm_days_duration_type ?? "").trim() !== "";
+
+export const medicationsHaveFrequencyAndDuration = (medicationData = []) => {
+  if (!Array.isArray(medicationData) || medicationData.length === 0) {
+    return true;
+  }
+
+  return medicationData.every(
+    (medicine) => hasMedicineFrequency(medicine) && hasMedicineDuration(medicine)
+  );
 };
 
 export const getClinicName = (hospitalData) => {
@@ -936,8 +969,127 @@ export const isValidMongoId = (id) => {
 
 export const trackEvent = (eventName, attributes) => {
   if (typeof window !== "undefined" && window.Moengage?.track_event) {
-    window.Moengage.track_event(eventName, attributes);
+    window.Moengage.track_event(eventName, {
+      appEnv: process.env.REACT_APP_ENV || "prod",
+      hostname: window.location?.hostname || "",
+      ...attributes,
+    });
   }
+};
+
+/**
+ * Route-based Voice Rx surface for analytics (same event names; segment by `surface` + `platform`).
+ */
+const inferVoiceRxSurfaceFromRoute = (route = "") => {
+  if (route.includes("/voice-rx-consult")) return "voice_rx_consult";
+  if (route.includes("/voice-recording")) return "voice_recording";
+  if (route.includes("/prescription")) return "rx_pad";
+  return "";
+};
+
+/**
+ * Cross-platform segmentation for Voice Rx funnels (additive fields; safe for existing dashboards).
+ * - platform: web | mobile_web | android_app | ios_app
+ * - client_type: browser | native (WebView in hybrid app)
+ */
+export const getVoiceRxSegmentationContext = (overrides = {}) => {
+  const empty = {
+    platform: "web",
+    client_type: "browser",
+    route: "",
+    surface: "",
+    entry_point: "",
+    web_app_version: packageJson?.version || "",
+    device_os: "",
+  };
+
+  if (typeof window === "undefined") {
+    return { ...empty, ...overrides };
+  }
+
+  const ua = navigator.userAgent || "";
+  const route = window.location?.pathname || "";
+
+  let platform = "web";
+  let client_type = "browser";
+
+  if (isInNativeApp()) {
+    client_type = "native";
+    if (/Android/i.test(ua)) platform = "android_app";
+    else if (/iPhone|iPad|iPod/i.test(ua)) platform = "ios_app";
+    else platform = "mobile_web";
+  } else if (isMobile) {
+    platform = "mobile_web";
+  }
+
+  let device_os = "";
+  try {
+    const d = typeof deviceDetect === "function" ? deviceDetect() : {};
+    device_os = d?.os || d?.os_version || "";
+  } catch (e) {
+    device_os = "";
+  }
+
+  const inferredSurface = inferVoiceRxSurfaceFromRoute(route);
+  const surface =
+    overrides.surface !== undefined && overrides.surface !== ""
+      ? overrides.surface
+      : inferredSurface;
+
+  return {
+    ...overrides,
+    platform,
+    client_type,
+    route,
+    surface,
+    entry_point: overrides.entry_point || "",
+    web_app_version: packageJson?.version || "",
+    device_os,
+  };
+};
+
+/**
+ * Shared Voice Rx MoEngage identity payload.
+ * format:
+ * - "clinical": snake_case keys used in TP_AV_* events
+ * - "technical": camelCase keys used in TP_Voice_* telemetry events
+ * segmentation: optional overrides for getVoiceRxSegmentationContext (surface, entry_point, etc.)
+ */
+export const getVoiceRxMoengageBasePayload = ({
+  profile,
+  userId,
+  patientData,
+  clinic,
+  format = "clinical",
+  segmentation = {},
+}) => {
+  const seg = getVoiceRxSegmentationContext(segmentation);
+
+  if (format === "technical") {
+    return {
+      doctorId: profile?.doctor_unique_id || "",
+      doctorName: profile?.um_name || "",
+      patientId: patientData?.patient_unique_id || "",
+      patientName: patientData?.pm_fullname || "",
+      hospitalId: clinic?.hm_id || "",
+      hospitalName: clinic?.hm_name || "",
+      ...seg,
+    };
+  }
+
+  return {
+    patient_id: patientData?.patient_unique_id || "",
+    patient_name: patientData?.pm_fullname || "",
+    patient_mobile_number: patientData?.pm_contact_no || "",
+    doctor_id: profile?.doctor_unique_id || "",
+    user_id: userId,
+    doctor_name: profile?.um_name || "",
+    doctor_specialty: profile?.dp_name || "",
+    doctor_mobile_number: profile?.um_contact || "",
+    hm_id: clinic?.hm_id || "",
+    clinic_name: clinic?.hm_name || "",
+    ...seg,
+  };
 };
 
 export const getDraftMoengageDoctorAttributes = (profile, userId) => {
@@ -1504,6 +1656,62 @@ export const detectOperatingSystem = () => {
   return Object.keys(os).find((key) => os[key]) || "Unknown";
 };
 
+/**
+ * Normalized onboarding device label: os_formFactor
+ * Desktop uses OS-specific keys (mac_desktop, windows_desktop, linux_desktop).
+ */
+export const getOnboardingDeviceSource = () => {
+  if (typeof window === "undefined" || !window.navigator) {
+    return "other_desktop";
+  }
+
+  const ua = window.navigator.userAgent || "";
+  const maxTouchPoints = Number(window.navigator.maxTouchPoints || 0);
+  const innerWidth =
+    typeof window.innerWidth === "number" ? window.innerWidth : 0;
+
+  // iPad / iPadOS (Safari reports Macintosh + touch)
+  if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && maxTouchPoints > 1)) {
+    return "ios_tablet";
+  }
+  if (/iPhone|iPod/i.test(ua)) {
+    return "ios_phone";
+  }
+
+  const isAndroid = /Android/i.test(ua);
+  if (isAndroid) {
+    // Android phones generally include "Mobile" somewhere in UA
+    const hasAndroidMobileSegment = /Android/i.test(ua) && /Mobile/i.test(ua);
+    const looksLikeTablet =
+      /Tablet|SM-T\d|GT-P\d|KFAPWI|Kindle|Silk|Nexus\s(?:7|9|10)\b/i.test(
+        ua
+      );
+
+    if (hasAndroidMobileSegment || /Mobi/i.test(ua)) {
+      return "android_phone";
+    }
+    if (looksLikeTablet || maxTouchPoints > 1) {
+      return "android_tablet";
+    }
+    // Android UA without Mobile: TV, some WebViews, or desktop-like / emulator
+    const finePointer =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(pointer: fine)")?.matches;
+    if (finePointer && innerWidth >= 1024) {
+      return "android_desktop";
+    }
+    return "android_tablet";
+  }
+
+  const os = detectOperatingSystem();
+  if (os === "MacOS") return "mac_desktop";
+  if (os === "Windows") return "windows_desktop";
+  if (os === "Linux") return "linux_desktop";
+  if (os === "Android") return "android_desktop";
+  if (os === "iOS") return "ios_phone";
+  return "other_desktop";
+};
+
 export const sendMessageToParent = (eventName, data = {}) => {
   try {
     if (window.ReactNativeWebView) {
@@ -1677,6 +1885,50 @@ export const getImageDimensions = (url) => {
   });
 };
 
+const FOOTER_A4_WIDTH_IN_PTS = 595;
+const FOOTER_PAGE_X_PADDING = 0.75 * 60;
+
+export const computeFooterImageDimensions = (width, height) => ({
+  footerHeight: height || 0,
+  footerWidth: width || 0,
+  renderedFooterImageHeight:
+    width > 0
+      ? (height / width) * (FOOTER_A4_WIDTH_IN_PTS - FOOTER_PAGE_X_PADDING)
+      : 0,
+});
+
+export const resolveFooterImageDimensions = async (fileFooter) => {
+  if (!fileFooter?.imageShow || !fileFooter?.showFile) {
+    return fileFooter;
+  }
+
+  const footerWidth = Number(fileFooter.footerWidth);
+  const footerHeight = Number(fileFooter.footerHeight);
+  if (
+    footerWidth > 0 &&
+    footerHeight > 0 &&
+    Number.isFinite(fileFooter.renderedFooterImageHeight)
+  ) {
+    return fileFooter;
+  }
+
+  try {
+    const { width, height } = await getImageDimensions(fileFooter.showFile);
+    return {
+      ...fileFooter,
+      ...computeFooterImageDimensions(width, height),
+    };
+  } catch (err) {
+    console.error("Failed to resolve footer image dimensions:", err);
+    return {
+      ...fileFooter,
+      footerHeight: 0,
+      footerWidth: 0,
+      renderedFooterImageHeight: 0,
+    };
+  }
+};
+
 export const updateFooterImageHeight = (
   footerFile,
   setFileFooter,
@@ -1684,15 +1936,7 @@ export const updateFooterImageHeight = (
 ) => {
   getImageDimensions(footerFile?.showFile)
     .then(({ height, width }) => {
-      const widthOfA4PageInPts = 595;
-      const PX_TO_PT = 0.75;
-      const pageXPadding = PX_TO_PT * 60;
-      const footerImgDimensions = {
-        footerHeight: height || 0,
-        footerWidth: width || 0,
-        renderedFooterImageHeight:
-          (height / width) * (widthOfA4PageInPts - pageXPadding) || 0,
-      };
+      const footerImgDimensions = computeFooterImageDimensions(width, height);
       if (initialUpdate) {
         setFileFooter({
           imageShow: true,

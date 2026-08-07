@@ -1,4 +1,5 @@
 import styles from "./titleCard.scss";
+import { ASSETS } from "../../../../assets";
 
 const TitleCard = () => {
   return (
@@ -6,7 +7,7 @@ const TitleCard = () => {
       <img
         className={styles.frameChild}
         alt="Baby"
-        src={require("../../../../assets/images/babyImage.webp")}
+        src={ASSETS.images.babyimage}
       />
       <div className={styles.frameGroup}>
         <div className={styles.productsListParent}>

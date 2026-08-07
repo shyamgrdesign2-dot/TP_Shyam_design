@@ -1,7 +1,10 @@
 import React from 'react';
 import './DateBanner.scss';
-import CalendarIcon from '../../../../assets/images/calendar-2.svg';
-import CaretIcon from '../../../../assets/images/Caret.svg';
+import { ASSETS } from "../../../../assets";
+const {
+  calendar2: CalendarIcon,
+  caret: CaretIcon,
+} = ASSETS.images;
 
 function DateBanner({ date, onClick, showDropdown = true }) {
   return (

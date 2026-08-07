@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import styles from './ConsultationDrawer.module.css';
-import vaccinationIcon from '../assets/images/Vaccination.svg';
+import { ASSETS } from "../assets";
+const vaccinationIcon = ASSETS.images.vaccination;
 
 const VaccinationsRichTextEditor = ({
   vaccinations = [],

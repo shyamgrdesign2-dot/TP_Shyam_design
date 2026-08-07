@@ -5,9 +5,7 @@ import PastPregnancy from "./components/PastPregnancy/PastPregnancy";
 import PatientDiagnosis from "./components/patientDiagnosis/PatientDiagnosis";
 import PregnancyHistory from "./components/pregnancyHistory/PregnancyHistory";
 import AddExamination from "./components/AddExamination/AddExamination";
-import alertIcon from "./../../assets/images/alertIcon.svg";
-import tagNewWebm from "./../../assets/images/new-gif.webm";
-import tagNewMp4 from "./../../assets/images/new-gif.mp4";
+
 import LoopingVideo from "../../components/common/LoopingVideo";
 import { Button, Tabs } from "antd";
 import LmpPopup from "./components/lmpPopup/LmpPopup";
@@ -43,6 +41,12 @@ import { Container, Navbar } from "react-bootstrap";
 import ImmunisationHistory from "./components/immunisationHistory/ImmunisationHistory";
 import AncScheduler from "./components/ancScheduler/AncScheduler";
 import "./Obstetric.scss";
+import { ASSETS } from "../../assets";
+const {
+  alerticon: alertIcon,
+  newGif_3: tagNewWebm,
+  newGif_2: tagNewMp4,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 

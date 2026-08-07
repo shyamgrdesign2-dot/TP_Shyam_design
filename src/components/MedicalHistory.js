@@ -3,12 +3,15 @@ import Card from 'react-bootstrap/Card';
 import { Spin } from 'antd';
 import moment from 'moment';
 
-import MedicalHistoryicon from '../assets/images/Medical-History.svg';
-import heartBeat from '../assets/images/heartBeat.svg';
 import { useLocation } from 'react-router-dom';
 import { getGynecDetails } from '../api/services/ApiGynec';
 import { errorMessage } from '../utils/utils';
 import { useAccess } from '../pages/vaccination/useAccess';
+import { ASSETS } from "../assets";
+const {
+  medicalHistory: MedicalHistoryicon,
+  heartbeat: heartBeat,
+} = ASSETS.images;
 
 function MedicalHistory({ loading, medicalHistoryData, doctorId }) {
 

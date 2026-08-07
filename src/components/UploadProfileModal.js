@@ -1,11 +1,15 @@
 import React from 'react';
 import { Drawer } from 'antd';
-import cameraIcon from '../assets/mobile/camera.svg';
-import galleryIcon from '../assets/mobile/gallery.svg';
-import documentIcon from '../assets/mobile/document.svg';
-import arrowRightIcon from '../assets/mobile/arrow-right.svg';
-import closeIcon from '../assets/mobile/close 2.svg';
+
 import './UploadProfileModal.scss';
+import { ASSETS } from "../assets";
+const {
+  camera: cameraIcon,
+  gallery: galleryIcon,
+  document: documentIcon,
+  arrowRight: arrowRightIcon,
+  close2: closeIcon,
+} = ASSETS.mobile;
 
 function UploadProfileModal({ visible, onClose, onSelectCamera, onSelectGallery, onSelectFiles }) {
   // Trigger input first (same user gesture) so browser allows file dialog; then close modal.

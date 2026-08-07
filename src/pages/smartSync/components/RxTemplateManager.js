@@ -3,13 +3,17 @@ import { Button, Card, Dropdown, message, Drawer } from 'antd';
 import { Row, Col } from 'react-bootstrap';
 import './RxTemplateManager.scss';
 import './RxTemplateUploadDrawer.scss';
-import download from '../../../assets/images/document-download.svg';
-import edit from '../../../assets/images/document-edit.svg';
-import trash from '../../../assets/images/trash.svg';
-import alertIcon from '../../../assets/images/alertIcon.svg';
+
 import CommonModal from '../../../common/CommonModal';
 import { deleteCustomSyncPadTemplate } from '../services/uploadService';
 import TemplatePreviewModal from './TemplatePreviewModal';
+import { ASSETS } from "../../../assets";
+const {
+  documentDownload: download,
+  documentEdit: edit,
+  trash,
+  alerticon: alertIcon,
+} = ASSETS.images;
 
 const RxTemplateManager = ({
   onClose,

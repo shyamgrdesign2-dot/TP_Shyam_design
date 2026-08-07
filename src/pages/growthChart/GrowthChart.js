@@ -36,7 +36,7 @@ import { updatedMeasurement } from "../../redux/growthChartSlice";
 import { getClinicName } from "../../utils/utils";
 import dayjs from "dayjs";
 
-const GrowthChart = ({ handleDrawerVaccination }) => {
+const GrowthChart = ({ handleDrawerVaccination, onGrowthUpdated }) => {
   const dispatch = useDispatch();
   const { measurements, isMeasurementUpdated } = useSelector(
     (state) => state.growthChart
@@ -583,6 +583,7 @@ const GrowthChart = ({ handleDrawerVaccination }) => {
               getGrowthChartDetails={getGrowthChartDetails}
               setMeasurementsToEdit={setMeasurementsData}
               allGrowthChartParams={allGrowthChartParams}
+              onGrowthUpdated={onGrowthUpdated}
             />
           </Drawer>
         )}
@@ -593,6 +594,7 @@ const GrowthChart = ({ handleDrawerVaccination }) => {
             setShow={setShowUpdate}
             parentalDetails={parentalDetails}
             setParentalDetails={setParentalDetails}
+            onGrowthUpdated={onGrowthUpdated}
           />
         )}
         {shouldShowPrintPopup && (

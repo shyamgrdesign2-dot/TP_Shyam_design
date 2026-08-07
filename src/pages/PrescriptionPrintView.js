@@ -9,21 +9,23 @@ import { useReactToPrint } from 'react-to-print';
 
 // import { PDFReader } from 'reactjs-pdf-reader';
 
-import { errorMessage, getClinic, isIPad, sendMessageToParent, trackEvent } from "../utils/utils";
+import { errorMessage, getClinic, isIPad, isValidMongoId, sendMessageToParent, trackEvent } from "../utils/utils";
+import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
+import { DENTAL_RX_PAD_ROUTE } from "../utils/dentalRoutes";
+import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
+import { GB_HEALTH_CHECKUP_REPORT, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 
-import messageSent from '../assets/images/message-sent.svg';
-import wtsp from '../assets/images/wtsp.svg';
-import loadingImg from '../assets/images/loading.webp';
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../redux/dentalExaminationSlice";
 import { useAccess } from "./vaccination/useAccess";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { pdfjs, Document, Page } from "react-pdf";
 import { getGynecDetails } from "../api/services/ApiGynec";
-import { GB_HEALTH_CHECKUP_REPORT, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API, ZYDUS_WHATSAPP_ENABLED_DOCTORS } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import CreateBill from "./opdBilling/components/createBill/CreateBill";
 import RecentBills from "./opdBilling/components/recentBills/RecentBills";
@@ -38,9 +40,20 @@ import api from '../api/services/axiosService';
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import { EVENTS } from "../utils/events";
 import { uploadDocsToAzure } from "./medicalRecords/service";
-import HealthCheckupReportIcon from "../assets/images/health-checkup-report-outline.svg";
+
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
+import { useZydusWhatsapp } from "../hooks/useZydusWhatsapp";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { ASSETS } from "../assets";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+const {
+  messageSent,
+  wtsp,
+  loading_3: loadingImg,
+  healthCheckupReportOutline: HealthCheckupReportIcon,
+} = ASSETS.images;
+
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
 // pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -60,14 +73,22 @@ function PrescriptionPrintView() {
     } = useSelector((state) => state.caseManager);
     const { userId, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
     const { isOpdBillChecked } = useSelector((state) => state.billing);
+    const dentalExaminationData = useSelector(selectDentalExamination);
+    const oralExamination = useSelector((state) => state.oralExamination);
     const { isOpdBillingAccessable } = useOpdBilling();
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const navigate = useNavigate();
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
+    const isZydusWhatsappEnabled = useZydusWhatsapp();
 
     const { state } = useLocation();
-    const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID } = state;
+    const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID, isVoiceRxNewUiFlow } = state;
+    const isVoiceRxV2 = Boolean(isVoiceRxNewUiFlow);
+    const isDentalEnabled = useIsDentalEnabled(); // this isDentalEnabled is not required here(will remove it)
+    const isDental = state?.from === DENTAL_RX_PAD_ROUTE ;
 
     // Detect a hard refresh on the first mount after document load.
     const isFirstMountAfterLoad = ppvMountCount === 0;
@@ -102,7 +123,9 @@ function PrescriptionPrintView() {
     const [printBlob, setPrintBlob] = useState(null);
 
     const [gynecHistoryData, setGynecHistoryData] = useState(null);
-    const [labParamsData, setLabParamsData] = useState([]);
+    const [labParamsData, setLabParamsData] = useState(() =>
+        Array.isArray(passedLabParamsData) ? passedLabParamsData : []
+    );
     const [createBillDrawer, setCreateBillDrawer] = useState(false);
     const [recentBillDrawer, setRecentBillDrawer] = useState(false);
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
@@ -147,7 +170,7 @@ function PrescriptionPrintView() {
                     'Authorization': `Bearer ${cleanedToken}`,
                 },
             });
-            setLabParamsData(response.data?.data?.results || []);
+            setLabParamsData(normalizeLabResultsResponse(response));
         } catch (error) {
             console.error("Error fetching lab params:", error);
         }
@@ -173,7 +196,6 @@ function PrescriptionPrintView() {
       }
     }, [createBillDrawer]);
 
-
     useEffect(() => {
       if (!state?.print_url) {
         return;
@@ -197,6 +219,13 @@ function PrescriptionPrintView() {
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
         zydusSelectedLabParams,
+        labParamsData,
+        dentalExaminationData,
+        oralExamination,
+        patientUniqueId: patient_data?.patient_unique_id,
+        patientId: patient_data?.patient_unique_id,
+        tcmId: state?.tcm_id,
+        patientRecord: patient_data,
     });
 
     useEffect(() => {
@@ -472,11 +501,20 @@ function PrescriptionPrintView() {
         await syncCarePlanAssignmentIfNeeded();
         var sendData = {
             patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
-            tcm_id: state.tcm_id
-        }
+            tcm_id: state.tcm_id,
+            isChikitsalayAccessable,
+        };
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload } })
+            const caseManagerData = action.payload;
+            if (isDental) {
+                navigate(DENTAL_RX_PAD_ROUTE, { replace: true, state: { patient_data: patient_data, caseManagerData } })
+            } else {
+                const shouldReturnToNewPrescriptionUi =
+                    Boolean(isVoiceRxNewUiFlow) ||
+                    shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB);
+                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldReturnToNewPrescriptionUi ? { isVoiceRxNewUiFlow: true } : {}) } })
+            }
         } else {
             errorMessage(action.error)
         }
@@ -539,7 +577,8 @@ function PrescriptionPrintView() {
         const body = {
             patient_unique_id: parseInt(patient_data.patient_unique_id),
             pm_pid: String(pm_pid),
-            tcm_id: parseInt(state.tcm_id)
+            tcm_id: parseInt(state.tcm_id),
+            isVoiceRxV2
         };
         setIsWhatsAppLoading(true);
         setWhatsAppButtonText("Sending...");
@@ -641,7 +680,7 @@ function PrescriptionPrintView() {
 
     return (
         <>
-            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={pam_id} selectedLang={selectedLang} />
+            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={pam_id} selectedLang={selectedLang} isVoiceRxV2={isVoiceRxV2} />
             <div className={`${isMobile ? 'p-0' : ''} w-100 bg-body wrapper2 prescription-wrapper`}>
                 {/* <img src={hey} alt="Hey" className='me-3 hey' /> */}
                 <Row gutter={{ xl: 40, lg: 0 }} justify="center">
@@ -689,6 +728,7 @@ function PrescriptionPrintView() {
                                     type="text"
                                     className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                                     icon={<i className="icon-download"></i>}
+                                    data-testid="download-prescription"
                                     disabled={isPdfGenerating}
                                     onClick={() => (browserName == "Chrome WebView" || browserName == "WebKit") ? handleInAppDownload() : handleDownload()}
                                 >
@@ -720,11 +760,7 @@ function PrescriptionPrintView() {
                                     const decodedToken = getDecodedToken();
                                     const tokenData = decodedToken?.result;
                                     
-                                    // Check if current doctor has WhatsApp enabled
-                                    const currentDoctorPhone = profile?.um_contact?.toString().replace(/\D/g, '').slice(-10);
-                                    const isWhatsAppEnabled = ZYDUS_WHATSAPP_ENABLED_DOCTORS.includes(currentDoctorPhone);
-                                    
-                                    return tokenData?.hospital_business_id == env.zydus_business_id && isWhatsAppEnabled ? (
+                                    return tokenData?.hospital_business_id == env.zydus_business_id && isZydusWhatsappEnabled ? (
                                         <>
                                             <div className="bg-body d-flex p-3 rounded-10px border">
                                                 <img src={wtsp} alt="Whatsapp Icon" className='align-self-baseline me-3' />

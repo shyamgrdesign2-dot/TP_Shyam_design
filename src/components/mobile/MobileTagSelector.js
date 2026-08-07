@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Drawer, Input, Button, Spin } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
 import { searchTag, addTag } from '../../redux/medicalhistorySlice';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import './MobileTagSelector.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 /**
  * Mobile bottom sheet for searching and selecting medical history tags

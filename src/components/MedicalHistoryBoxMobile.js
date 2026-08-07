@@ -10,13 +10,6 @@ import { v4 as uuidv4 } from 'uuid';
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, removeBeforeWhiteSpace, onlyNumberFormat, hasNumber, capitalizeAfterSentence, isNumeric } from "../utils/utils";
 
-import noRecordFound from '../assets/images/no-record-round.svg';
-import verticleUpDown from '../assets/images/verticle-up-down.svg';
-import ActiveverticleUpDown from '../assets/images/active-verticle-up-down.svg';
-import InActiveverticleUpDown from '../assets/images/inactive-verticle-up-down.svg';
-import NoHypertension from '../assets/images/no-hypertension.webp';
-import playIcons from "../assets/images/tube-icon.svg";
-import tutorial2 from "../assets/images/tutorial2.webp";
 import moment from "moment";
 import dayjs from "dayjs";
 
@@ -34,6 +27,16 @@ import { useAccess } from "../pages/vaccination/useAccess";
 import { getClinicName } from "../utils/utils";
 import VideoModal from "../common/VideoModal";
 import TextArea from "antd/es/input/TextArea";
+import { ASSETS } from "../assets";
+const {
+  noRecordRound: noRecordFound,
+  verticleUpDown,
+  activeVerticleUpDown: ActiveverticleUpDown,
+  inactiveVerticleUpDown: InActiveverticleUpDown,
+  noHypertension: NoHypertension,
+  tubeIcon: playIcons,
+  tutorial2,
+} = ASSETS.images;
 
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD-MM-YYYY'
@@ -113,7 +116,7 @@ function MedicalHistoryBoxMobile(props) {
     const [inputCyclesDays, setInputCyclesDays] = useState(null);
     const [inputPadsNum, setInputPadsNum] = useState(null);
     const { state } = useLocation();
-    const { patient_data, caseManagerData } = state ;
+    const { patient_data, caseManagerData } = state || {};
     const [gynecLoading, setGynecLoading] = useState(false);
     const [gynecHistory, setGynecHistory] = useState({});
     const [expandRemarks,setExpandRemarks] = useState(true);
@@ -297,7 +300,6 @@ function MedicalHistoryBoxMobile(props) {
             console.error(e);
         }
     }, []);
-
 
     useEffect(() => {
       if (defaultList?.length > 0) {
@@ -563,7 +565,6 @@ function MedicalHistoryBoxMobile(props) {
         }
     }, [addEditData, selectData, cloneMedicalHistoryData]);
 
-
     const onAddEditClick = useCallback((e) => {
         let modifyData = JSON.parse(JSON.stringify(e))
         modifyData.tags.map((e) => {
@@ -809,7 +810,6 @@ function MedicalHistoryBoxMobile(props) {
         },
         [selectData, sinceOptions, cloneMedicalHistoryData]
     );
-
 
     const onChangeStatus = useCallback((key) => {
         if (key != cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.status) {
@@ -1801,10 +1801,9 @@ function MedicalHistoryBoxMobile(props) {
                                                         </div>
                                                         <div className="d-flex flex-wrap">
                                                             {!e?.no_know_history && !e?.isExpand && e?.tags?.map((e1, i1) => {
-                                                                const displayTitle = e1?.enable === "N" ? `${e1?.title} N` : e1?.title;
                                                                 return (
                                                                     <div key={Math.random()} className={`history-badge ${e1?.enable !== undefined ? e1?.enable === "Y" ? 'history-active' : e1?.enable === "N" ? 'history-inactive' : '' : ''}`}>
-                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{displayTitle}</div>
+                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.title}</div>
                                                                         <span onClick={() => onEnableClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.enable !== undefined ? e1?.enable : "-"}<img src={e1?.enable !== undefined ? e1?.enable === "Y" ? ActiveverticleUpDown : e1?.enable === "N" ? InActiveverticleUpDown : verticleUpDown : verticleUpDown} />
                                                                         </span>
                                                                     </div>
@@ -2147,6 +2146,5 @@ function MedicalHistoryBoxMobile(props) {
         </>
     );
 }
-
 
 export default React.memo(MedicalHistoryBoxMobile);

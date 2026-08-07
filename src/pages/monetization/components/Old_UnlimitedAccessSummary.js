@@ -6,12 +6,6 @@ import { useSelector, useDispatch } from "react-redux";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
 
-import yearlyPlan from '../../../assets/images/year-plan-corner.svg'
-
-import logoSm from '../../../assets/images/logo-sm.svg';
-import iconEdit from "../../../assets/images/edit.svg";
-import visitEnd from '../../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../../assets/images/close-visit.svg';
 import { currencyFormat, errorMessage, formatAmount, getClinic, getClinicName, getDeviceSdkData, getTokenData, isNumeric, isValidGST, onlyDecimalFormat, onlyNumberFormat, removeBeforeWhiteSpace } from "../../../utils/utils";
 import { createCart, kamList, otpSend, otpVerify, paymentOrder, purchaseDetails, verifyPayment } from "../../../redux/monetizationSlice";
 import { fetchSubscriptionDetails } from "../../../redux/subscriptionSlice";
@@ -22,6 +16,14 @@ import config from "../../../config";
 
 import "../GetUnlimitedAccess.scss";
 import { deviceType, osName } from "react-device-detect";
+import { ASSETS } from "../../../assets";
+const {
+  yearPlanCorner: yearlyPlan,
+  logoSm,
+  edit: iconEdit,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
 

@@ -5,6 +5,7 @@ import { Button } from 'antd';
 import { useSelector, useDispatch } from "react-redux";
 
 import { errorMessage, makeDefaultLogo, stopAllActiveRecorders } from "../utils/utils";
+import { GB_CVT_EXT_HOS, LANGUAGE_LIST } from "../utils/constants";
 import {
     sendCashsheetWhatsapp,
 } from "../redux/caseManagerSlice";
@@ -14,9 +15,12 @@ import { resetObstetricState } from '../redux/obstetricSlice';
 import { syncDigitizationStatus, updateVisitStatus } from '../api/services/VisitService';
 import { resetUploadDocState } from '../redux/uploadDocSlice';
 import { resetDDxState } from '../redux/ddxSlice';
-import { NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
+import { CLINIC_TARGET_STATUS, NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
+import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
+import { clinicTargetStatus } from '../pages/chikitsalay/service';
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
-function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang, isVoiceOrAmbientFlow }) {
+function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang, isVoiceOrAmbientFlow, isVoiceRxV2 }) {
     const navigate = useNavigate();
     const { state } = useLocation();
     const { profile } = useSelector((state) => state.doctors);
@@ -26,6 +30,9 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
     const dispatch = useDispatch();
     const urlParams = new URLSearchParams(window.location.search);
     const isReceptionist = urlParams.has("receptionist");
+    const isChikitsalayAccessable = useChikitsalay();
+
+    const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
     const onEndVisitClick = async () => {
         if (isVoiceOrAmbientFlow) {
@@ -41,8 +48,16 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
               pm_pid: patient_data !== undefined ? patient_data.pm_pid : 0,
               tcm_id: tcm_id,
               lg: selectedLang !== undefined && selectedLang !== "English" ? btoa(selectedLang.toString()) : '',
+              ...(isVoiceRxV2 !== undefined ? { isVoiceRxV2: Boolean(isVoiceRxV2) } : {}),
             };
+
+            if (!isChikitsalayAccessable) {
             const action = await dispatch(sendCashsheetWhatsapp(sendData));
+            } else if (isChikitsalayAccessable) {
+                clinicTargetStatus(pam_id, {
+                    targetStatus: CLINIC_TARGET_STATUS.COMPLETED,
+                });
+            }
             if (pam_id || tcm_id) {
               let sanitizedPrintUrl = printUrl;
               try {
@@ -73,16 +88,16 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
                 });
               }
             }
-            if (action.meta.requestStatus === "fulfilled") {
+            // if (action.meta.requestStatus === "fulfilled") {
               dispatch(resetVaccineState());
               dispatch(resetGrowthChartState());
               dispatch(resetObstetricState());
               dispatch(resetUploadDocState());
               dispatch(resetDDxState());
               navigate("/", { replace: true });
-            } else {
-              errorMessage(action.error);
-            }
+            // } else {
+            //   errorMessage(action.error);
+            // }
         }
     };
 
@@ -122,9 +137,10 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
                     </div>
                 </div>
                 {!isReceptionist && <Button onClick={onEndVisitClick}
+                    data-testid="go-to-appointment"
                     loading={loadingEndVisit}
                     className={`btn align-items-center d-flex btn-41 me-3 px-4 btn-primary3`}>
-                    Go to Appointment
+                    {isChikitsalayAccessable ? "Call Next Patient" : "Go to Appointment"}
                 </Button>}
             </div>
         </Navbar>

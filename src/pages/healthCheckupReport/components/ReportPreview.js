@@ -1,15 +1,15 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Drawer, Button } from "antd";
 import dayjs from "dayjs";
 
-import ZydusLogo from "../../../assets/images/website-images/ZydusLogo.webp";
 import HealthCheckupDocument from "./HealthCheckupDocument";
 import { printReportWithIframe } from "../utils/printReportWithIframe";
+import { normalizeHealthCheckupReportHtml } from "../utils/normalizeReportHtml";
 import "./HealthCheckupReportEditor.scss";
 
 import "./ReportPreview.scss";
-import editIconWhite from "../../../assets/images/edit-white.webp";
-import { MdChevronLeft } from "react-icons/md";
+import { ASSETS } from "../../../assets";
+const editIconWhite = ASSETS.images.editWhite;
 
 function ReportPreview({
   open,
@@ -30,11 +30,14 @@ function ReportPreview({
   const zoom = 100; // Fixed zoom for now
 
   // Extract document content and header
-  const headerLogo = report?.document?.content?.[0]?.attrs?.logoUrl || ZydusLogo;
   const headerTitle = report?.document?.content?.[0]?.attrs?.hospitalName || "HEALTH CHECK-UP SUMMARY";
   const reportDate = report?.createdAt || report?.created_at || report?.date;
   const formattedDate = reportDate ? dayjs(reportDate).format("DD MMM, YYYY") : "";
   const smartEditorRef = useRef(null);
+  const normalizedReportHtml = useMemo(
+    () => normalizeHealthCheckupReportHtml(report?.html ?? ""),
+    [report?.html]
+  );
 
   const handleDownloadClick = useCallback(() => {
     const paperEl = documentRef.current;
@@ -44,7 +47,7 @@ function ReportPreview({
     const htmlContent = paperEl.outerHTML;
     const title = headerTitle || "Health Check-up Report";
     printReportWithIframe(htmlContent, title, patient_data);
-  }, [headerTitle, report]);
+  }, [headerTitle, patient_data]);
 
   const handleEdit = useCallback(() => {
     if (typeof onEdit === "function") {
@@ -82,7 +85,7 @@ function ReportPreview({
               onClick={onClose}
               aria-label="Back"
             >
-              <MdChevronLeft />
+              <i className="icon-right" />
             </button>
             <div className="report-preview__header-info">
               <h2 className="report-preview__title">Health Check-up Report</h2>
@@ -115,7 +118,6 @@ function ReportPreview({
             >
               <i className="icon-download" />
             </button>
-
 
             <button
               type="button"
@@ -156,7 +158,7 @@ function ReportPreview({
                   editable={false}
                   showLogoControls={false}
                   useSmartEditor={true}
-                  smartEditorHtml={report?.html}
+                  smartEditorHtml={normalizedReportHtml}
                   smartEditorRef={smartEditorRef}
                   hideSmartToolbar
                 />

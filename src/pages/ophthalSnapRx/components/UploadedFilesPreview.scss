@@ -1,3 +1,5 @@
+@import '../../../styles/variables.scss';
+
 .uploaded-files-preview {
   display: flex;
   flex-direction: column;
@@ -13,7 +15,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url('../../../assets/images/snaprx-bg.webp');
+    background-image: url('#{$tp-assets-base}/images/snaprx-bg.webp');
     background-size: 40%;
     background-position: center;
     background-repeat: repeat;

@@ -28,10 +28,7 @@ import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../context/CashManagerContext";
 import ProfilePopover from "./ProfilePopover";
 import CommonModal from "./CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
-import reload from "../assets/images/ic_Reload.svg";
-import tutorial from "../assets/images/tutorial.svg";
-import playIcons from "../assets/images/tube-icon.svg";
+
 import api from "../api/services/axiosService";
 
 import { errorMessage, removeBeforeWhiteSpace } from "../utils/utils";
@@ -56,14 +53,22 @@ import {
   getTokenData,
 } from "../utils/utils";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import zydusDataEngineIcon from "../assets/images/intersect.svg";
-import growIcon from "../assets/images/grow.svg";
-import accuracyIcon from "../assets/images/accuracy.svg";
-import healthIcon from "../assets/images/health-care.svg";
-import tagNewWebm from "../assets/images/new-gif.webm";
-import tagNewMp4 from "../assets/images/new-gif.mp4";
+
 import LoopingVideo from "../components/common/LoopingVideo";
 import VideoConsultButton from "../components/VideoConsultButton";
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  icReload: reload,
+  tutorial,
+  tubeIcon: playIcons,
+  intersect: zydusDataEngineIcon,
+  grow: growIcon,
+  accuracy: accuracyIcon,
+  healthCare: healthIcon,
+  newGif_3: tagNewWebm,
+  newGif_2: tagNewMp4,
+} = ASSETS.images;
 
 function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmartRx = false, isDigitiseRxLoading = false, tcm_id, handleVideoConsult, isVideoConsultLoading, onBackToPreview, isSaveLoading = false }) {
   const { profile } = useSelector(

@@ -2,30 +2,45 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Drawer } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
-import { getProfile, services } from '../../../redux/doctorsSlice';
+import { getProfile, services, setB2C_Profile } from '../../../redux/doctorsSlice';
+import { fetchSubscriptionDetails } from '../../../redux/subscriptionSlice';
 import { isMobile } from 'react-device-detect';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree } from '../../../utils/utils';
+import {
+  getClinic,
+  getClinicName,
+  getDeviceSdkData,
+  getTokenData,
+  getVoiceRxMoengageBasePayload,
+  isVoiceRxFree,
+} from '../../../utils/utils';
 import { FAILED_VERIFICATION, FREE, GB_VOICE_RX_FREE, S_VOICE_RX } from '../../../utils/constants';
 import ExpiredSubModal from '../../monetization/components/ExpiredSubModal';
 import FreeTrialButton from '../../monetization/components/FreeTrialButton';
-import arrowLeftIcon from '../../../assets/mobile/arrow-left.svg';
-import userGrayIcon from '../../../assets/mobile/user_gray.svg';
-import imageBackground from '../../../assets/mobile/Image Background.svg';
-import ddxIcon from '../../../assets/mobile/ddx.svg';
-import startVoiceIcon from '../../../assets/mobile/start_voice.svg';
-import checkIcon from '../../../assets/images/check.svg';
-import closeIcon from '../../../assets/images/close.svg';
-import voiceModeDictation from '../../../assets/images/voice-mode-dictation.svg';
-import voiceMode2 from '../../../assets/images/voice-mode-2.svg';
+
 import PatientDetailsBottomSheet from '../../../components/mobile/PatientDetailsBottomSheet';
 import './MobileVoiceRxConsult.scss';
+import { ASSETS } from "../../../assets";
+const {
+  arrowLeft: arrowLeftIcon,
+  userGray: userGrayIcon,
+  imageBackground,
+  ddx: ddxIcon,
+  startVoice: startVoiceIcon,
+} = ASSETS.mobile;
+const {
+  check: checkIcon,
+  close: closeIcon,
+  voiceModeDictation,
+  voiceMode2,
+} = ASSETS.images;
 
 function MobileVoiceRxConsult() {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { profile, userId, servicesList, loading: profileLoading } = useSelector((state) => state.doctors);
+  const { profile, userId, servicesList, loading: profileLoading, servicesLoading } = useSelector((state) => state.doctors);
+  const { planDetails } = useSelector((state) => state.subscription);
   
   const { patient_data, isFromTabView } = location.state || {};
   
@@ -38,6 +53,8 @@ function MobileVoiceRxConsult() {
 
   const contentRef = useRef(null);
   const lastScrollTopRef = useRef(0);
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
 
   // Ensure profile is loaded - dispatch getProfile if missing
   useEffect(() => {
@@ -46,12 +63,24 @@ function MobileVoiceRxConsult() {
     }
   }, [dispatch, profile, profileLoading]);
 
-  // Refresh services list when component mounts to ensure credit balance is up to date
   useEffect(() => {
-    if (profile?.b2c) {
-      dispatch(services(profile.b2c));
+    if (!planDetails && !isReceptionist) {
+      dispatch(fetchSubscriptionDetails());
     }
-  }, [dispatch, profile?.b2c]);
+  }, [planDetails, dispatch]);
+
+  useEffect(() => {
+    if (profile && !profile?.b2c && planDetails?.profile_b2c && !isReceptionist) {
+      dispatch(setB2C_Profile(planDetails.profile_b2c));
+    }
+  }, [profile, profile?.b2c, planDetails?.profile_b2c, dispatch]);
+
+  useEffect(() => {
+    const b2c = profile?.b2c ?? planDetails?.profile_b2c;
+    if (b2c && !isReceptionist) {
+      dispatch(services(b2c));
+    }
+  }, [dispatch, profile?.b2c, planDetails?.profile_b2c]);
 
   // Use useMemo to recalculate clinic/clinicName when profile changes
   // This ensures values update when profile loads (critical on real mobile devices)
@@ -77,9 +106,9 @@ function MobileVoiceRxConsult() {
     VOICE_RX_planDetails?.service_type === 'ai' &&
     [0, 1, 2, 5].includes(VOICE_RX_planDetails?.credit_balance);
 
-  // Auto-open popup on page load when plan is FREE or FAILED_VERIFICATION (matches web)
   useEffect(() => {
     if (
+      !servicesLoading &&
       VOICE_RX_planDetails !== undefined &&
       (VOICE_RX_planDetails?.plan_tier === FREE ||
         VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
@@ -89,13 +118,13 @@ function MobileVoiceRxConsult() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [VOICE_RX_planDetails]);
+  }, [VOICE_RX_planDetails, servicesLoading]);
 
   const showHideSubModal = useCallback(() => {
     setIsSubModalOpen((prev) => !prev);
     const deviceSdkData = getDeviceSdkData();
     if (window.Moengage && profile && clinicName) {
-      window.Moengage.track_event('TP_voiceRx_FreeTrailInfo', {
+      window.Moengage.track_event('TP_App_voiceRx_FreeTrailInfo', {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -130,17 +159,13 @@ function MobileVoiceRxConsult() {
 
   const handleDictationMode = () => {
     if (window.Moengage && profile && clinic) {
-      window.Moengage.track_event('TP_AV_StartDictate', {
-        patient_id: patient_data?.patient_unique_id || '',
-        patient_name: patient_data?.pm_fullname || '',
-        patient_mobile_number: patient_data?.pm_contact_no || '',
-        doctor_id: profile?.doctor_unique_id,
-        user_id: userId,
-        doctor_name: profile?.um_name,
-        doctor_specialty: profile?.dp_name,
-        doctor_mobile_number: profile?.um_contact,
-        hm_id: clinic?.hm_id,
-        clinic_name: clinic?.hm_name,
+      window.Moengage.track_event('TP_App_AV_StartDictate', {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+        }),
       });
     }
     navigate('/voice-recording', {
@@ -159,17 +184,13 @@ function MobileVoiceRxConsult() {
       return;
     }
     if (window.Moengage && profile && clinic) {
-      window.Moengage.track_event('TP_AV_StartConversation', {
-        patient_id: patient_data?.patient_unique_id || '',
-        patient_name: patient_data?.pm_fullname || '',
-        patient_mobile_number: patient_data?.pm_contact_no || '',
-        doctor_id: profile?.doctor_unique_id,
-        user_id: userId,
-        doctor_name: profile?.um_name,
-        doctor_specialty: profile?.dp_name,
-        doctor_mobile_number: profile?.um_contact,
-        hm_id: clinic?.hm_id,
-        clinic_name: clinic?.hm_name,
+      window.Moengage.track_event('TP_App_AV_StartConversation', {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+        }),
       });
     }
 
@@ -391,17 +412,13 @@ function MobileVoiceRxConsult() {
                     onClick={() => {
                       setConsentChecked(!consentChecked);
                       if (window.Moengage && profile && clinic) {
-                        window.Moengage.track_event('TP_AV_StartDictate', {
-                          patient_id: patient_data?.patient_unique_id || '',
-                          patient_name: patient_data?.pm_fullname || '',
-                          patient_mobile_number: patient_data?.pm_contact_no || '',
-                          doctor_id: profile?.doctor_unique_id,
-                          user_id: userId,
-                          doctor_name: profile?.um_name,
-                          doctor_specialty: profile?.dp_name,
-                          doctor_mobile_number: profile?.um_contact,
-                          hm_id: clinic?.hm_id,
-                          clinic_name: clinic?.hm_name,
+                        window.Moengage.track_event('TP_App_AV_StartDictate', {
+                          ...getVoiceRxMoengageBasePayload({
+                            profile,
+                            userId,
+                            patientData: patient_data,
+                            clinic,
+                          }),
                           status: consentChecked ? 'enabled' : 'disabled',
                         });
                       }

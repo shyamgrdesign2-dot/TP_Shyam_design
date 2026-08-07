@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Card } from 'react-bootstrap';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import CarePlanList from './CarePlanList';
-import carePlanIcon from '../assets/images/Care plan_Active.svg';
+
 import { getCarePlanAssignments } from '../pages/smartSync/services/carePlanService';
 import { GB_CARE_PLAN } from '../utils/constants';
-
+import { ASSETS } from "../assets";
+const carePlanIcon = ASSETS.images.carePlanActive;
 
 const CarePlanBox = ({ patientId, selectedTcmId, readOnly = true }) => {
   const [carePlanCount, setCarePlanCount] = useState(0);
 
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
-
 
   useEffect(() => {
     const fetchCarePlanCount = async () => {

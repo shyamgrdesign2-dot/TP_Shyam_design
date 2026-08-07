@@ -3,17 +3,20 @@ import { Link } from "react-router-dom";
 import { Button, Checkbox, Popover } from "antd";
 import { useSelector } from "react-redux";
 
-import RxVoice from "../../../assets/images/microphone-voice-rx.webp";
-import AskTatvaIcon from "../../../assets/images/icon-ask-tatva.webp";
-import OPDBillingIcon from "../../../assets/images/OPD-billing-icon.webp";
-import PharmacyIcon from "../../../assets/images/pharmacy-icon.webp";
-import IPDIcon from "../../../assets/images/IPD-icon.webp";
-import DDXIcon from "../../../assets/images/DDX-icon.webp";
-import RECEPTIONISTIcon from "../../../assets/images/RECEPTIONIST-icon.webp";
-import aiPowered from "../../../assets/images/ai-powered.svg";
-import deviderIncludes from "../../../assets/images/includes-devider.svg";
 import { currencyFormat, formatAmount } from "../../../utils/utils";
 import { S_ASK_TATVA, S_BILLING, S_DDX, S_IPD, S_PHARMACY, S_RECEPTIONIST_AGENT, S_VOICE_RX } from "../../../utils/constants";
+import { ASSETS } from "../../../assets";
+const {
+  microphoneVoiceRx: RxVoice,
+  iconAskTatva: AskTatvaIcon,
+  opdBillingIcon: OPDBillingIcon,
+  pharmacyIcon: PharmacyIcon,
+  ipdIcon: IPDIcon,
+  ddxIcon: DDXIcon,
+  receptionistIcon: RECEPTIONISTIcon,
+  aiPowered,
+  includesDevider: deviderIncludes,
+} = ASSETS.images;
 
 function AddonServices({ item, addOrNot, handleAddRemove, clickKnowMore }) {
 

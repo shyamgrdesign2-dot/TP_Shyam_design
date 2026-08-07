@@ -28,18 +28,18 @@ const MedicalRecords = ({
     category_id: -1,
     category_name: "All",
   };
-  const newCategory1 = {
+  const zydusLabCategory = {
     category_id: -2,
     category_name: "Zydus Lab",
   };
-  const newCategory2 = {
+  const zydusRadioCategory = {
     category_id: -3,
     category_name: "Zydus Radio",
   };
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
-  const updatedCategory = tokenData?.hospital_business_id == env.zydus_business_id && isZydusUserAccessableFromGB ? [newCategory, newCategory1, newCategory2, ...uploadDocCategories] : [newCategory, ...uploadDocCategories];
+  const updatedCategory = tokenData?.hospital_business_id == env.zydus_business_id && isZydusUserAccessableFromGB ? [newCategory, zydusLabCategory, zydusRadioCategory, ...uploadDocCategories] : [newCategory, ...uploadDocCategories];
 
   const [activeCategory, setActiveCategory] = useState(-1);
   const [activeCategoryDocs, setActiveCategoryDocs] = useState(allUploadedDocs);
@@ -103,7 +103,7 @@ const handleFileUpload = (event) => {
             position: "sticky",
             top: "0px",
             zIndex: 2,
-            height: "90px",
+            height: "60px",
           }}
         >
           <div className="align-items-center d-flex">

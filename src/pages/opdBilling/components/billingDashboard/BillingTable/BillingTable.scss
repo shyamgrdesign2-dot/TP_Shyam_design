@@ -11,6 +11,43 @@
     width: 13rem;
   }
 
+  .download-split-btn {
+    display: flex;
+    padding: 0 !important;
+    overflow: hidden;
+
+    .main-btn {
+      flex: 1;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      background: transparent;
+      white-space: nowrap;
+      padding: 0 10px;
+      margin-left: 6px;
+      width: 280px;
+      justify-content: center;
+    }
+
+    .dropdown-btn {
+      width: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-left: 1px solid rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      
+      .icon-right {
+        display: block;
+        transform: rotate(270deg);
+        color: white;
+        font-size: 14px;
+      }
+    }
+  }
+
   .theme-color {
     color: #4b4ad5 !important;
   }
@@ -220,6 +257,28 @@
     z-index: 0;
     font-size: 1rem !important;
     font-weight: 400 !important;
+  }
+}
+
+.billing-action-dropdown {
+  &:where(.css-dev-only-do-not-override-1okl62o).ant-dropdown {
+    min-width: 280px !important;
+    width: 280px !important;
+  }
+
+  .ant-dropdown-menu {
+    min-width: 280px !important;
+    width: 280px !important;
+    margin-top: 16px;
+  }
+
+  .ant-dropdown-menu-item {
+    text-align: center !important;
+    white-space: nowrap;
+    display: flex;
+    justify-content: center;
+    // Align with main split-button label area (excluding 40px arrow section)
+    padding-right: 60px !important;
   }
 }
 

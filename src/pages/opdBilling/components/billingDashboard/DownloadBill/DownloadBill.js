@@ -15,6 +15,7 @@ const DownloadBill = ({
   omitPaymentSummary = false,
   omitBillsTable = false,
   hidePrintHeader = false,
+  doctors,
 }) => {
   const { profile } = useSelector((state) => state.doctors);
   const { doctorList } = useSelector((state) => state.bulkMessages);
@@ -25,27 +26,67 @@ const DownloadBill = ({
   const { hm_name, um_contact, um_email, hm_address, hm_address1, hm_state } =
     hospitalData;
 
-  const paymentSummaryWithTotal = paymentSummary
-    ? [
-        ...paymentSummary,
-        {
-          paymentMode: "Total",
-          receivedAmount: paymentSummary.reduce(
-            (sum, item) => sum + (Number(item.receivedAmount) || 0),
-            0
-          ),
-          refundedAmount: paymentSummary.reduce(
-            (sum, item) => sum + (Number(item.refundedAmount) || 0),
-            0
-          ),
-        },
-      ]
+  const doctorsForLookup = Array.isArray(doctors) && doctors.length > 0
+    ? doctors
+    : Array.isArray(doctorList)
+    ? doctorList
     : [];
 
-  function getDoctorNameById(um_id) {
-    const doctor = doctorList.find((doc) => doc.um_id === um_id);
-    return doctor ? doctor.um_name : "";
+  const paymentSummaryFiltered = Array.isArray(paymentSummary)
+    ? paymentSummary.filter(
+        (item) =>
+          (Number(item?.receivedAmount) || 0) !== 0 ||
+          (Number(item?.refundedAmount) || 0) !== 0
+      )
+    : [];
+
+  const paymentSummaryWithTotal =
+    paymentSummaryFiltered.length > 0
+      ? [
+          ...paymentSummaryFiltered,
+          {
+            paymentMode: "Total",
+            receivedAmount: paymentSummaryFiltered.reduce(
+              (sum, item) => sum + (Number(item.receivedAmount) || 0),
+              0
+            ),
+            refundedAmount: paymentSummaryFiltered.reduce(
+              (sum, item) => sum + (Number(item.refundedAmount) || 0),
+              0
+            ),
+          },
+        ]
+      : [];
+
+  function getDoctorNameById(um_id, record) {
+    if (record?.doctorName) return record.doctorName;
+    if (record?.doctor?.name) return record.doctor.name;
+    if (um_id == null || um_id === "") return "";
+
+    const doctor = doctorsForLookup.find(
+      (doc) => String(doc?.um_id) === String(um_id)
+    );
+    if (doctor?.um_name) return doctor.um_name;
+
+    if (
+      String(profile?.um_id) === String(um_id) ||
+      String(profile?.doctor_unique_id) === String(um_id) ||
+      String(profile?.user_id) === String(um_id)
+    ) {
+      return profile?.um_name || "";
+    }
+
+    return "";
   }
+
+  const CELL_FONT_SIZE = 9;
+  const cellTextStyle = {
+    fontSize: CELL_FONT_SIZE,
+    lineHeight: 1.25,
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
+    whiteSpace: "normal",
+  };
 
   // Define the columns
   const columns = [
@@ -55,9 +96,9 @@ const DownloadBill = ({
       key: "key",
       align: "center",
       height: 20,
-      width: "5%",
+      width: "4%",
       render: (text, record, index, { startIndex = 0 } = {}) => (
-        <div style={{ fontSize: 12 }}>{startIndex + index + 1}</div>
+        <div style={cellTextStyle}>{startIndex + index + 1}</div>
       ),
     },
     {
@@ -66,13 +107,11 @@ const DownloadBill = ({
       key: "billNo",
       align: "center",
       height: 20,
-      width: "13%",
+      width: isDoctorDashboard ? "14%" : "18%",
       render: (text, record) => (
-        <div>
-          <div style={{ fontSize: 12 }}>{record.billNumber}</div>
-          <div style={{ fontSize: 12 }}>
-            {moment(record.date).format("DD MMM YYYY")}
-          </div>
+        <div style={cellTextStyle}>
+          <div>{record.billNumber}</div>
+          <div>{moment(record.date).format("DD MMM YYYY")}</div>
         </div>
       ),
     },
@@ -83,9 +122,9 @@ const DownloadBill = ({
           key: "patientName",
           align: "left",
           height: 20,
-          width: "17%",
+          width: "13%",
           render: (text, record) => (
-            <div style={{ fontSize: 12 }}>{record?.patient?.name}</div>
+            <div style={cellTextStyle}>{record?.patient?.name}</div>
           ),
         }
       : undefined,
@@ -96,50 +135,76 @@ const DownloadBill = ({
           key: "doctorId",
           align: "left",
           height: 20,
-          width: "17%",
+          width: "13%",
           render: (text, record) => (
-            <div style={{ fontSize: 12 }}>
-              {getDoctorNameById(record?.doctorId)}
+            <div style={cellTextStyle}>
+              {getDoctorNameById(record?.doctorId, record)}
             </div>
           ),
         }
       : undefined,
     isDoctorDashboard
       ? {
-          title: "Mobile Number",
+          title: "Mobile",
           dataIndex: "patientDetails",
           key: "patientDetails",
           align: "center",
           height: 20,
-          width: "11%",
+          width: "10%",
           render: (text, record) => (
-            <div>
-              <span style={{ fontSize: 12 }}>{record?.patient?.phone}</span>
-            </div>
+            <div style={cellTextStyle}>{record?.patient?.phone}</div>
           ),
         }
       : undefined,
     {
-      title: "TOTAL AMOUNT",
+      title: "TOTAL",
       dataIndex: "payableAmount",
       key: "payableAmount",
       align: "center",
       height: 20,
-      width: "9%",
+      width: "8%",
       render: (text, record) => (
-        <div style={{ fontSize: 12 }}>₹{record?.payableAmount}</div>
+        <div style={cellTextStyle}>₹{record?.payableAmount}</div>
       ),
     },
     {
-      title: "PAID AMOUNT",
+      title: "GST",
+      dataIndex: "applicableGst",
+      key: "applicableGst",
+      align: "center",
+      height: 20,
+      width: "7%",
+      render: (text, record) => (
+        <div style={cellTextStyle}>₹{record?.applicableGst ?? 0}</div>
+      ),
+    },
+    {
+      title: "PAID",
       dataIndex: "paidAmount",
       key: "paidAmount",
       align: "center",
       height: 20,
-      width: "10%",
+      width: "8%",
       render: (text, record) => (
-        <div style={{ fontSize: 12 }}>₹{record?.paidAmount}</div>
+        <div style={cellTextStyle}>₹{record?.paidAmount}</div>
       ),
+    },
+    {
+      title: "MOP",
+      dataIndex: "mop",
+      key: "mop",
+      align: "center",
+      height: 20,
+      width: "10%",
+      render: (text, record) => {
+        const paymentModes = Array.isArray(record?.paymentModes)
+          ? record.paymentModes
+              .map((pm) => pm?.paymentMode)
+              .filter(Boolean)
+              .join(", ")
+          : "N/A";
+        return <span style={cellTextStyle}>{paymentModes}</span>;
+      },
     },
     {
       title: "STATUS",
@@ -147,9 +212,9 @@ const DownloadBill = ({
       key: "status",
       align: "center",
       height: 20,
-      width: "10%",
+      width: isDoctorDashboard ? "13%" : "16%",
       render: (text, record) => (
-        <span style={{ fontSize: 12 }}>{record?.paymentStatus}</span>
+        <span style={cellTextStyle}>{record?.paymentStatus}</span>
       ),
     },
   ]?.filter((item) => item);
@@ -355,9 +420,7 @@ const DownloadBill = ({
 
   const hasBills = Array.isArray(downloadData) && downloadData.length > 0;
   const showPaymentSummaryBlock =
-    !omitPaymentSummary &&
-    Array.isArray(paymentSummary) &&
-    paymentSummary.length > 0;
+    !omitPaymentSummary && Array.isArray(paymentSummaryFiltered) && paymentSummaryFiltered.length > 0;
 
   if (!hasBills && (!omitBillsTable || !showPaymentSummaryBlock)) {
     return (
@@ -419,13 +482,18 @@ const DownloadBill = ({
                   <th
                     key={colIndex}
                     style={{
-                      padding: "8px 6px",
+                      padding: "4px 3px",
                       textAlign: col.align || "center",
                       fontWeight: 600,
                       border: "1px solid #ddd",
-                      fontSize: "12px",
+                      fontSize: `${CELL_FONT_SIZE}px`,
+                      lineHeight: 1.25,
                       backgroundColor: "#fafafa",
                       width: col.width || "auto",
+                      wordBreak: "break-word",
+                      overflowWrap: "anywhere",
+                      whiteSpace: "normal",
+                      overflow: "hidden",
                     }}
                   >
                     {col.title}
@@ -446,11 +514,17 @@ const DownloadBill = ({
                     <td
                       key={colIndex}
                       style={{
-                        padding: "6px 8px",
+                        padding: "4px 3px",
                         border: "1px solid #d9d9d9",
-                        fontSize: "12px",
+                        fontSize: `${CELL_FONT_SIZE}px`,
+                        lineHeight: 1.25,
                         textAlign: col.align || "center",
                         width: col.width || "auto",
+                        wordBreak: "break-word",
+                        overflowWrap: "anywhere",
+                        whiteSpace: "normal",
+                        overflow: "hidden",
+                        verticalAlign: "middle",
                       }}
                     >
                       {renderCell(col, record, index)}

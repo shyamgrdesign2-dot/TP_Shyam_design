@@ -11,14 +11,14 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 
 import CommonModal from "../../common/CommonModal";
-import alertIcon from "../../assets/images/alertIcon.svg";
+
 import CashManagerContext from "../../context/CashManagerContext";
 import {
   errorMessage,
   removeBeforeWhiteSpace,
   capitalizeAfterSentence,
 } from "../../utils/utils";
-import surgeryIcon from "../../assets/images/surgery.svg";
+
 import {
   addTemplate,
   updateTemplate,
@@ -26,8 +26,13 @@ import {
   getExaminationTemplates,
 } from "../../redux/surgicalSlice";
 
-import { SortableContainer, SortableElement } from "react-sortable-hoc";
+import { SortableContainer, SortableElement } from "./sortableHocAdapter";
 import TabSurgicalSearch from "./TabSurgicalSearch";
+import { ASSETS } from "../../assets";
+const {
+  alerticon: alertIcon,
+  surgery: surgeryIcon,
+} = ASSETS.images;
 
 function TabSurgicalBox() {
   const { selectedSurgicalList, parentOptionsList, templates, loading } =

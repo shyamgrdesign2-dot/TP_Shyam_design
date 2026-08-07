@@ -5,10 +5,19 @@ import { useNavigate } from 'react-router-dom';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { viewCaseManager } from '../../../../redux/caseManagerSlice';
 import { S_VOICE_RX, GB_SNAP_RX } from '../../../../utils/constants';
+import { isChrome, isSafari } from 'react-device-detect';
+import {
+  getClinic,
+  getClinicName,
+  trackEvent,
+  getVoiceRxMoengageBasePayload,
+} from '../../../../utils/utils';
 import Cardiology from '../../../../components/Cardiology';
 import VisitActionButtons from '../../PatientDetails/components/VisitActionButtons';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
+
 import './RxPreviewModal.scss';
+import { ASSETS } from "../../../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 function RxPreviewModal({
   visible,
@@ -95,6 +104,31 @@ function RxPreviewModal({
   };
 
   const handlePrintRx = () => {
+    const currentClinic = getClinic(profile?.hospital_data);
+    const currentClinicName = getClinicName(profile?.hospital_data);
+    const printChannel = !isChrome && !isSafari ? 'in_app' : 'browser';
+    trackEvent('TP_App_PrintRx', {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: appointment,
+        clinic: currentClinic,
+        segmentation: {
+          surface: 'mobile_appointment_rx_preview',
+          entry_point: 'print_button',
+        },
+      }),
+      patient_contact: appointment?.pm_contact_no || '',
+      patient_id: appointment?.patient_unique_id || '',
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: currentClinicName,
+      PRINTPAGE: 'finished queue',
+      rx_id: viewCaseManagerData?.tcm_id || appointment?.tcm_id || '',
+      rx_type: 'standard',
+      print_channel: printChannel,
+    });
+
     if (cardiologyPrintHandlerRef.current?.printContent) {
       cardiologyPrintHandlerRef.current.printContent();
     }

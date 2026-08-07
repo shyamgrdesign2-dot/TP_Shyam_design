@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { Modal } from "antd";
-import closeFill from "../../../../assets/images/closeFill.svg";
+
 import { VaccinationCategoryEnum } from "../../VaccinationHelper";
 import "./Preview.scss";
 import VaccineTable from "../vaccineTable/VaccineTable";
+import { ASSETS } from "../../../../assets";
+const closeFill = ASSETS.images.closefill;
 
 const columns = [
   {

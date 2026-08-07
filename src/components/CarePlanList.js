@@ -5,9 +5,11 @@ import { useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { getCarePlanAssignments } from "../pages/smartSync/services/carePlanService";
 import { GB_CARE_PLAN } from "../utils/constants";
-import carePlanIcon from "../assets/images/onboard-page-icons/health.svg";
-import adviceIcon from "../assets/images/Care plan_Active.svg";
+
 import "./CarePlanList.scss";
+import { ASSETS } from "../assets";
+const carePlanIcon = ASSETS.images.onboardPageIcons.health;
+const adviceIcon = ASSETS.images.carePlanActive;
 
 const { Text } = Typography;
 

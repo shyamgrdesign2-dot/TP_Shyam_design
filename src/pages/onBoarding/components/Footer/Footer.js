@@ -2,10 +2,13 @@ import React from 'react';
 import { Row, Col } from 'antd';
 import { FacebookOutlined, TwitterOutlined, LinkedinOutlined, YoutubeOutlined, PhoneOutlined, MailOutlined, InstagramOutlined } from '@ant-design/icons';
 import "./Footer.scss";
-import Logo from '../../../../assets/images/website-images/tatvacare-logo.webp';
-import call from '../../../../assets/images/onboard-page-icons/call.svg';
-import emailIcon from '../../../../assets/images/onboard-page-icons/EmailIcon.svg';
-// import locationIcon from '../../../../assets/images/onboard-page-icons/LocationIcon.svg';
+import { ASSETS } from "../../../../assets";
+const Logo = ASSETS.images.websiteImages.tatvacareLogo;
+const call = ASSETS.images.onboardPageIcons.call;
+const emailIcon = ASSETS.images.onboardPageIcons.emailicon;
+const locationIcon = ASSETS.images.onboardPageIcons.locationicon;
+
+// 
 
 const Footer = () => {
   return (

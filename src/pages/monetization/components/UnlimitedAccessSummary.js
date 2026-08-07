@@ -6,10 +6,6 @@ import { useSelector, useDispatch } from "react-redux";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
 
-import yearlyPlan from '../../../assets/images/year-plan-corner.svg'
-import visitEnd from '../../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../../assets/images/close-visit.svg';
-import logoSm from '../../../assets/images/logo-sm.svg';
 import { currencyFormat, errorMessage, formatAmount, getClinic, getClinicName, getDeviceSdkData, getTokenData, isNumeric, isValidGST, onlyDecimalFormat, onlyNumberFormat, removeBeforeWhiteSpace } from "../../../utils/utils";
 import { createCart, discountCode, discountCodeValidate, paymentOrder, purchaseDetails, verifyPayment } from "../../../redux/monetizationSlice";
 import { searchPincode } from "../../../redux/appointmentsSlice";
@@ -18,6 +14,13 @@ import { S_SMARTSYNC, S_TATVA_PRACTICE, MESSAGE_KEY } from "../../../utils/const
 import config from "../../../config";
 
 import "../GetUnlimitedAccess.scss";
+import { ASSETS } from "../../../assets";
+const {
+  yearPlanCorner: yearlyPlan,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  logoSm,
+} = ASSETS.images;
 
 function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
 
@@ -27,7 +30,6 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
     const { clinic_b2c, profile_b2c } = planDetails || {};
     const dispatch = useDispatch();
     const navigate = useNavigate();
-
 
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [flag, setFlag] = useState(1);

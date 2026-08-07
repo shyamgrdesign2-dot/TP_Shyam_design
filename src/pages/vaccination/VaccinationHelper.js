@@ -73,6 +73,7 @@ export const mergeDataPatientDetails = (
           brandId: brandDetails?.tvc_id,
         }),
       dueDate: futureDate,
+      tvp_given_date
     };
   });
 };

@@ -23,9 +23,15 @@ import moment from "moment";
 import { NEO_NATOLOGISTS_DP_ID, PAEDIATRICS } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useAccess } from "../pages/vaccination/useAccess";
+import {
+    normalizeVitalsInputRow,
+    prepareVitalsRowForSave,
+    sortVitalsRowsForDisplay,
+} from "../utils/vitalsHelpers";
 
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD MMM, YY'
+
 function resolveVitalsIds(listVitalsTodayIds, patientUniqueId, firstRow) {
   const toId = (v) => (v != null && v !== '' && v !== 0 && v !== '0') ? Number(v) : null;
   const fromRow = firstRow
@@ -105,7 +111,7 @@ function VitalsBoxMobile(props) {
         if (typeof setVitalsData !== 'function') return; 
         if (selectedVitalsList.length > 0) {
             const updatedData = selectedVitalsList.map((e, i) => {
-                return { ...e, systolic: e.blood_press ? e.blood_press.split('/')[0] : '', diastolic: e.blood_press ? e.blood_press.split('/')[1] : '' };
+                return normalizeVitalsInputRow(e);
             });
             setVitalsData(updatedData);
         } else if(measurements.length) {
@@ -212,7 +218,7 @@ function VitalsBoxMobile(props) {
             return;
         }
         // Consult: sync from context when it has data; otherwise keep existing childVitalsData (don't overwrite with [])
-        setChildVitalsData((prev) => (Array.isArray(vitalsData) && vitalsData.length > 0 ? [...vitalsData] : prev));
+        setChildVitalsData((prev) => (Array.isArray(vitalsData) && vitalsData.length > 0 ? vitalsData.map(normalizeVitalsInputRow) : prev));
     }, [isVoiceAmbientSnapSmartFlow, vitalsData, rowFromInitialVitals, initialVitals, emptyVitalsRow, selectedVitalsList.length, setVitalsData]);
 
     useEffect(() => {
@@ -257,8 +263,8 @@ function VitalsBoxMobile(props) {
 
     useEffect(() => {
         if (scrollContainerRef.current) {
-            const data = childVitalsData.sort((a, b) => new Date(b.date) - new Date(a.date))
-            const index = data.findLastIndex(e => e.date == dateString)
+            const data = sortVitalsRowsForDisplay(childVitalsData)
+            const index = data.findLastIndex(({ row }) => row.date == dateString)
             if (index !== -1) {
                 inputRef.current[index].focus()
                 const scrollWidth = index;
@@ -344,7 +350,7 @@ function VitalsBoxMobile(props) {
                 const today = moment().format('YYYY-MM-DD');
                 const ids = resolveVitalsIds(listVitalsTodayIds, patient_data.patient_unique_id, childVitalsData[0]);
                 const dataWithIds = childVitalsData.map((row, i) => ({
-                    ...row,
+                    ...prepareVitalsRowForSave(row),
                     tcv_id: i === 0 ? ids.tcv_id : (row.tcv_id ?? 0),
                     tcbc_id: i === 0 ? ids.tcbc_id : (row.tcbc_id ?? 0),
                     dev_unique_id: i === 0 ? ids.dev_unique_id : (row.dev_unique_id ?? 0)
@@ -392,13 +398,14 @@ function VitalsBoxMobile(props) {
             "patient_number": patient_data?.pm_contact_no,
             "patient_id": patient_data?.patient_unique_id
         });
+        const vitalsRowsForSave = childVitalsData.map(prepareVitalsRowForSave);
         var sendData = {
             patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
             pm_pid: patient_data !== undefined ? patient_data.pm_pid : 0,
             pm_id: patient_data !== undefined ? patient_data.pm_id : 0,
             pam_id: patient_data !== undefined && patient_data.pam_id !== undefined ? patient_data.pam_id : 0,
             patient_birth_weight: patientBirthWeight,
-            data: childVitalsData,
+            data: vitalsRowsForSave,
         };
         const action = await dispatch(addUpdateVitals(sendData));
         if ((profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && patient_data?.ageMonths <= 12 && patient_data?.ageYears === 0) {
@@ -414,6 +421,13 @@ function VitalsBoxMobile(props) {
           );
         }
         if (action.meta.requestStatus === "fulfilled") {
+            const savedVitalsRows = Array.isArray(action.payload) && action.payload.length
+              ? action.payload.map(normalizeVitalsInputRow)
+              : vitalsRowsForSave.map(normalizeVitalsInputRow);
+            setChildVitalsData(savedVitalsRows);
+            if (typeof setVitalsData === 'function') {
+                setVitalsData(savedVitalsRows);
+            }
             handleCollapsed(1)
         } else {
             errorMessage(action.error)
@@ -423,55 +437,55 @@ function VitalsBoxMobile(props) {
     const TABLE_VITALS = useMemo(() => {
         return (
             childVitalsData.length > 0 &&
-            childVitalsData.sort((a, b) => new Date(b.date) - new Date(a.date)).map((item, i) => {
+            sortVitalsRowsForDisplay(childVitalsData).map(({ row: item, index: sourceIndex }, i) => {
                 return (
                     <div key={i} className='vitals-wrap-body w-100 vitals-child-width'>
                         <div className='vitals-head rounded-start-0 w-100'>{moment(item.date).format(showDateFormat)}</div>
                         {isPediatricAccessable && <><div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, i, 8)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 8)} />
                         </div>
                         <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.height} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 7)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.height} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 7)} />
                         </div>
                         {profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 9)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 9)} />
                         </div> : null}
                         </>}
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input ref={(el) => (inputRef.current[i] = el)} className='inputheight41-group focused' placeholder="Enter" inputMode="numeric" value={item.temp} addonAfter={'Frh'} onChange={(e) => onChangeInput(e.target.value, i, 1)} />
+                            <Input ref={(el) => (inputRef.current[i] = el)} className='inputheight41-group focused' placeholder="Enter" inputMode="numeric" value={item.temp} addonAfter={'Frh'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 1)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.pres} addonAfter={'/min'} onChange={(e) => onChangeInput(e.target.value, i, 2)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.pres} addonAfter={'/min'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 2)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.resp_rate} addonAfter={'/min'} onChange={(e) => onChangeInput(e.target.value, i, 3)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.resp_rate} addonAfter={'/min'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 3)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.systolic} addonAfter={'mmHg'} onChange={(e) => onChangeInput(e.target.value, i, 4)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.systolic} addonAfter={'mmHg'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 4)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.diastolic} addonAfter={'mmHg'} onChange={(e) => onChangeInput(e.target.value, i, 5)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.diastolic} addonAfter={'mmHg'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 5)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.spo2} addonAfter={'%'} onChange={(e) => onChangeInput(e.target.value, i, 6)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.spo2} addonAfter={'%'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 6)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.general_rbs} addonAfter={'mg/dl'} onChange={(e) => onChangeInput(e.target.value, i, 10)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.general_rbs} addonAfter={'mg/dl'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 10)} />
                         </div>
                          <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.fib4} addonAfter={<span style={{ width: "24px" }} />}  onChange={(e) => onChangeInput(e.target.value, i, 11)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.fib4} addonAfter={<span style={{ width: "24px" }} />}  onChange={(e) => onChangeInput(e.target.value, sourceIndex, 11)} />
                         </div>
                         <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.waist_circumference} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 12)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.waist_circumference} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 12)} />
                         </div>
                         {!isPediatricAccessable && <>{profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 9)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 9)} />
                         </div> : null}
                         <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.height} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 7)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.height} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 7)} />
                         </div>
                         <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, i, 8)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, sourceIndex, 8)} />
                         </div></>}
                         <div className='vitals-row vitals-row-40 d-flex align-items-center px-2 w-100'>
                             <div className='fs-14 '>{`${item.bmi != '' ? parseFloat(item.bmi).toFixed(2) : '--'} kg/m²`}</div>

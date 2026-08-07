@@ -4,9 +4,13 @@ import { useSelector, useDispatch } from 'react-redux';
 import { v4 as uuidv4 } from 'uuid';
 import { searchTag, addTag } from '../../redux/medicalhistorySlice';
 import { errorMessage, removeBeforeWhiteSpace } from '../../utils/utils';
-import closeIcon from '../../assets/mobile/close 2.svg';
-import chipCloseIcon from '../../assets/mobile/close.svg';
+
 import './MobileEditQuickList.scss';
+import { ASSETS } from "../../assets";
+const {
+  close2: closeIcon,
+  close: chipCloseIcon,
+} = ASSETS.mobile;
 
 function MobileEditQuickList({ 
   visible, 

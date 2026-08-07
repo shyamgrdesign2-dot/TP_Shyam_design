@@ -1,13 +1,14 @@
 import React, { useCallback, useState, useContext, useEffect } from "react";
 import { Button, Card, Input } from "antd";
 
-import alertIcon from "../../../../assets/images/alertIcon.svg";
 import CommonModal from "../../../../common/CommonModal";
 import {
   obstetricDetailsUpdated,
   patientDiagnosisUpdated,
 } from "../../../../redux/obstetricSlice";
 import { useDispatch } from "react-redux";
+import { ASSETS } from "../../../../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 const DiagnosisNotes = ({
   handleDrawerDiagnosisNotes,

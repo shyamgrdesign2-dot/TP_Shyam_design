@@ -1,445 +1,414 @@
-import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-
-// Smart UI default styles (required for toolbar and editor to display correctly)
-import "smart-webcomponents-react/source/styles/smart.default.css";
-
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState, useMemo } from "react";
+import JoditEditor from "jodit-react";
 import "./SmartHealthCheckupEditor.scss";
-import { HEALTH_CHECKUP_REPORT_TEMPLATE_HTML } from "../constants";
-import { Spin } from "antd";
-// Toolbar items matching current editor: format, font/size, color, case, block, alignment, lists, link, table, image, clear, code, fullscreen, undo/redo, sub/superscript, delete
+
+// Strips invisible Word break-hint characters AND converts Word's &nbsp; word
+// separators to regular spaces so that normal CSS word-wrap rules apply.
+// Runs on paste AND on initial load so existing saved reports are fixed too.
+const BREAK_HINTS_RE = /[­​‌‍]/g;
+const NBSP = '\u00A0';
+const FONT_FAMILY_OPTIONS = {
+  '': 'Default',
+  'Arial, Helvetica, sans-serif': 'Arial',
+  "'Courier New', Courier, monospace": 'Courier New',
+  'Georgia, Palatino, serif': 'Georgia',
+  "'Lucida Sans Unicode', 'Lucida Grande', sans-serif": 'Lucida Sans Unicode',
+  'Tahoma, Geneva, sans-serif': 'Tahoma',
+  "'Times New Roman', Times, serif": 'Times New Roman',
+  "'Trebuchet MS', Helvetica, sans-serif": 'Trebuchet MS',
+  'Helvetica, sans-serif': 'Helvetica',
+  'Impact, Charcoal, sans-serif': 'Impact',
+  'Verdana, Geneva, sans-serif': 'Verdana'
+};
+
+function stripBreakHints(html) {
+  if (!html) return html;
+
+  // 1. Remove invisible soft-hyphen / zero-width characters.
+  let result = html.replace(BREAK_HINTS_RE, '');
+
+  // 2. Convert &nbsp; word-separators to plain spaces.
+  //    Word exports every space as &nbsp;, turning entire sentences into one
+  //    unbreakable run — the browser then must split mid-word at the container edge.
+  //    We parse through DOM text nodes so we can preserve &nbsp; in nodes that
+  //    contain ONLY &nbsp; (e.g. <p>&nbsp;</p> empty-line spacers used by Jodit).
+  if (result.includes('&nbsp;') && typeof document !== 'undefined') {
+    const div = document.createElement('div');
+    div.innerHTML = result;
+    const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const text = node.textContent;
+      if (!text.includes(NBSP)) continue;
+      // Preserve &nbsp; in nodes whose content is ONLY &nbsp; — these are
+      // Jodit / Word empty-line spacers like <p>&nbsp;</p>. Converting them
+      // to plain spaces would collapse those paragraphs in the browser.
+      if (text.replace(/\u00A0/g, '').trim().length > 0) {
+        node.textContent = text.replace(/\u00A0/g, ' ');
+      }
+    }
+    result = div.innerHTML;
+  }
+
+  return result;
+}
+
+function getSelectedTextNodes(range, root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => {
+      if (!node.nodeValue || !range.intersectsNode(node)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  const nodes = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    const textLength = node.nodeValue.length;
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : textLength;
+
+    if (start < end) {
+      nodes.push({ node, start, end });
+    }
+  }
+
+  return nodes;
+}
+
+function applyCase(editor, fn) {
+  const range = editor.selection.range;
+  if (!range || range.collapsed) return;
+
+  const selectedNodes = getSelectedTextNodes(range, editor.editor);
+  if (selectedNodes.length === 0) return;
+
+  const transformedNodes = selectedNodes.map(({ node, start, end }) => {
+    const originalText = node.nodeValue;
+    const selectedText = originalText.slice(start, end);
+    const transformedText = fn(selectedText);
+
+    node.nodeValue =
+      originalText.slice(0, start) +
+      transformedText +
+      originalText.slice(end);
+
+    return {
+      node,
+      start,
+      end: start + transformedText.length,
+    };
+  });
+
+  const nextRange = document.createRange();
+  const firstNode = transformedNodes[0];
+  const lastNode = transformedNodes[transformedNodes.length - 1];
+  nextRange.setStart(firstNode.node, firstNode.start);
+  nextRange.setEnd(lastNode.node, lastNode.end);
+  editor.selection.selectRange(nextRange);
+  editor.synchronizeValues?.();
+}
+
+function wrapSelectedTextNode({ node, start, end }, fontFamily) {
+  const originalText = node.nodeValue;
+  const parent = node.parentNode;
+  if (!parent) return null;
+
+  const beforeText = originalText.slice(0, start);
+  const selectedText = originalText.slice(start, end);
+  const afterText = originalText.slice(end);
+  const selectedTextNode = document.createTextNode(selectedText);
+  const wrapper = document.createElement('span');
+  wrapper.style.fontFamily = fontFamily;
+  wrapper.appendChild(selectedTextNode);
+
+  if (beforeText) {
+    parent.insertBefore(document.createTextNode(beforeText), node);
+  }
+
+  parent.insertBefore(wrapper, node);
+
+  if (afterText) {
+    parent.insertBefore(document.createTextNode(afterText), node);
+  }
+
+  parent.removeChild(node);
+  return selectedTextNode;
+}
+
+function applyFontFamily(editor, fontFamily) {
+  if (!fontFamily) {
+    editor.execCommand('fontname', false, fontFamily);
+    return;
+  }
+
+  const range = editor.selection.range;
+  if (!range || range.collapsed) return;
+
+  const selectedNodes = getSelectedTextNodes(range, editor.editor);
+  if (selectedNodes.length === 0) return;
+
+  const wrappedTextNodes = selectedNodes
+    .map((selectionPart) => wrapSelectedTextNode(selectionPart, fontFamily))
+    .filter(Boolean);
+
+  if (wrappedTextNodes.length === 0) return;
+
+  const nextRange = document.createRange();
+  const firstNode = wrappedTextNodes[0];
+  const lastNode = wrappedTextNodes[wrappedTextNodes.length - 1];
+  nextRange.setStart(firstNode, 0);
+  nextRange.setEnd(lastNode, lastNode.nodeValue.length);
+  editor.selection.selectRange(nextRange);
+  editor.synchronizeValues?.();
+}
+
+function getFontFamilyLabel(fontFamily = '') {
+  const [firstFont] = fontFamily.split(',');
+  return firstFont.replace(/['"]/g, '');
+}
+
 const TOOLBAR_ITEMS = [
-  "Bold",
-  "Italic",
-  "Underline",
-  "StrikeThrough",
-  "FontName",
-  "FontSize",
-  "FontColor",
-  "BackgroundColor",
-  "LowerCase",
-  "UpperCase",
-  "|",
-  "Formats",
-  "Alignment",
-  "OrderedList",
-  "UnorderedList",
-  "Outdent",
-  "Indent",
-  "|",
-  "hyperlink",
-  "table",
-  "Image",
-  "|",
-  "ClearFormat",
-  "SourceCode",
-  "FullScreen",
-  "|",
-  "Undo",
-  "Redo",
-  "subscript",
-  "superscript",
-  "delete",
+  "Bold", "Italic", "Underline", "StrikeThrough", "FontName", "FontSize",
+  "FontColor", "BackgroundColor", "LowerCase", "UpperCase", "|",
+  "Formats", "Alignment", "OrderedList", "UnorderedList", "Outdent", "Indent", "|",
+  "hyperlink", "table", "Image", "|",
+  "ClearFormat", "SourceCode", "FullScreen", "|",
+  "Undo", "Redo", "subscript", "superscript", "delete"
 ];
 
 function SmartHealthCheckupEditor(
   { value = "", onChange, readonly = false, className = "", toolbarItems = TOOLBAR_ITEMS, hideToolbar = true },
   ref
 ) {
+  const joditRef = useRef(null);
   const containerRef = useRef(null);
-  const [EditorComponent, setEditorComponent] = useState(null);
-  const [loadError, setLoadError] = useState(null);
+  const onChangeRef = useRef(onChange);
+  const lastEditorValueRef = useRef(null);
+  const [internalValue, setInternalValue] = useState(stripBreakHints(value || ""));
+  const internalValueRef = useRef(value || "");
+  internalValueRef.current = internalValue;
 
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // Only react to externally-driven value changes. Skip if the new value came
+  // from the editor itself (via onChange or onBlur) to prevent jodit-react from
+  // replacing the editor DOM with an echoed-back string, which would destroy the
+  // current selection and break mid-flight toolbar operations like font-family.
+  useEffect(() => {
+    if (
+      value !== internalValueRef.current &&
+      value !== lastEditorValueRef.current
+    ) {
+      setInternalValue(stripBreakHints(value || ""));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  // onChange: only notify parent — do NOT update internalValue here.
+  // Updating state on every keystroke feeds the new value back into JoditEditor's
+  // `value` prop, which causes jodit-react's useEffect([value]) to fire and
+  // potentially replace the editor DOM (due to HTML normalisation differences),
+  // destroying the active selection before toolbar commands (e.g. font-family) complete.
+  const handleEditorChange = useCallback((newContent) => {
+    lastEditorValueRef.current = newContent;
+    if (onChangeRef.current) {
+      onChangeRef.current(newContent);
+    }
+  }, []);
+
+  // onBlur: safe to update state here — editor has already finished its operation.
+  const handleEditorBlur = useCallback((newContent) => {
+    lastEditorValueRef.current = newContent;
+    setInternalValue(newContent);
+    if (onChangeRef.current) {
+      onChangeRef.current(newContent);
+    }
+  }, []);
 
   useImperativeHandle(ref, () => ({
     getHtml: () => {
-      const container = containerRef.current;
-      if (!container) return "";
-      const native = container.querySelector?.("smart-editor") || container.firstElementChild;
-      if (!native) return "";
-      return native.value ?? native.innerHTML ?? "";
+      // Read directly from Jodit's live DOM — always current regardless of internalValue.
+      if (joditRef.current?.editor) {
+        return joditRef.current.editor.value;
+      }
+      return internalValueRef.current;
     },
     executeCommand: (commandName, valueArg) => {
-      const container = containerRef.current;
-      if (!container) return;
-      const native = container.querySelector?.("smart-editor") || container.firstElementChild;
-      if (native?.executeCommand) native.executeCommand(commandName, valueArg);
+      if (joditRef.current && joditRef.current.editor) {
+        joditRef.current.editor.execCommand(commandName, false, valueArg);
+      }
     },
     clearContent: () => {
-      const container = containerRef.current;
-      if (!container) return;
-      const native = container.querySelector?.("smart-editor") || container.firstElementChild;
-      if (native?.clearContent) native.clearContent();
+      setInternalValue("");
     },
-  }));
+  }), []);
 
-  useEffect(() => {
-    let cancelled = false;
-    import("smart-webcomponents-react/editor")
-      .then((mod) => {
-        if (cancelled) return;
-        setEditorComponent(() => mod.Editor);
-      })
-      .catch((err) => {
-        if (!cancelled) setLoadError(err);
-      });
-    return () => { cancelled = true; };
+  const safeListInsert = useCallback((editor, listType) => {
+    const current = editor.selection.current();
+    if (!current) {
+      editor.execCommand(listType === 'ul' ? 'insertUnorderedList' : 'insertOrderedList');
+      return;
+    }
+
+    let box = current.nodeType === 3 ? current.parentNode : current;
+    let tdNode = null;
+    while (box && box !== editor.editor) {
+      if (box.tagName === 'TD' || box.tagName === 'TH' || (box.classList && box.classList.contains('report-section-box'))) {
+        tdNode = box;
+        break;
+      }
+      box = box.parentNode;
+    }
+
+    if (tdNode) {
+      const hasList = tdNode.querySelector(listType);
+      if (hasList) {
+        // Toggle OFF: convert all LIs to Ps
+        const lis = Array.from(tdNode.querySelectorAll('li'));
+        if (lis.length > 0) {
+          tdNode.innerHTML = lis.map(li => `<p>${li.innerHTML}</p>`).join('');
+        } else {
+          tdNode.innerHTML = '<p><br></p>';
+        }
+      } else {
+        const otherListType = listType === 'ul' ? 'ol' : 'ul';
+        const hasOtherList = tdNode.querySelector(otherListType);
+        if (hasOtherList) {
+          // Switch type
+          const lis = Array.from(tdNode.querySelectorAll('li'));
+          tdNode.innerHTML = `<${listType}>${lis.map(li => `<li>${li.innerHTML}</li>`).join('')}</${listType}>`;
+        } else {
+          // Convert current content to list
+          const pTags = Array.from(tdNode.querySelectorAll('p, div'));
+          if (pTags.length > 0) {
+            tdNode.innerHTML = `<${listType}>${pTags.map(p => `<li>${p.innerHTML}</li>`).join('')}</${listType}>`;
+          } else {
+            let inner = tdNode.innerHTML.trim();
+            inner = inner.replace(/<span[^>]*data-jodit-selection_marker[^>]*>.*?<\/span>/gi, '');
+            if (inner === '' || inner === '<br>' || inner === '&#8203;' || inner === '&ZeroWidthSpace;') {
+              inner = '<br>';
+            }
+            tdNode.innerHTML = `<${listType}><li>${inner}</li></${listType}>`;
+          }
+        }
+      }
+
+      const target = tdNode.querySelector('li, p');
+      if (target) {
+        editor.selection.setCursorIn(target, false);
+      } else {
+        editor.selection.setCursorIn(tdNode, false);
+      }
+      return;
+    }
+
+    // Fallback
+    editor.execCommand(listType === 'ul' ? 'insertUnorderedList' : 'insertOrderedList');
   }, []);
 
-
-  const handleChange = useCallback(
-    (e) => {
-      if (!onChange) return;
-      const html = e?.detail?.value ?? e?.target?.value ?? e?.target?.innerHTML ?? "";
-      onChange(html);
+  const config = useMemo(() => ({
+    readonly: readonly,
+    toolbar: !hideToolbar,
+    showCharsCounter: false,
+    showWordsCounter: false,
+    showXPathInStatusbar: false,
+    disablePlugins: "resizer,table-keyboard-navigation,add-new-line",
+    cleanHTML: {
+      fillEmptyParagraph: false,
+      replaceNBSP: false,
     },
-    [onChange]
-  );
-
-  // Initial/controlled content (Editor supports value prop)
-  const initialContent = value || HEALTH_CHECKUP_REPORT_TEMPLATE_HTML;
-
-  // Fix Cmd+A / Ctrl+A collapsing styled content to plain text.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !EditorComponent) return;
-
-    const queryNative = () => container.querySelector("smart-editor");
-
-    const handleSelectAll = (e) => {
-      const isSelectAll = (e.metaKey || e.ctrlKey) && (e.key === "a" || e.keyCode === 65);
-      if (!isSelectAll) return;
-
-      const native = queryNative();
-      if (!native) return;
-
-      const editable = native.shadowRoot?.querySelector(".smart-editor-editable") ||
-                       native.querySelector(".smart-editor-editable") ||
-                       native.shadowRoot?.querySelector("[contenteditable='true']") ||
-                       native.querySelector("[contenteditable='true']");
-      
-      if (editable) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-
-        // Use text node boundaries instead of the container element.
-        // This makes the selection look like a manual mouse drag, bypassing the editor's 
-        // internal 'Select All' block-conversion logic which fires when anchorNode is the container.
-        const getFirstText = (node) => {
-          if (node.nodeType === 3 && node.textContent.trim().length > 0) return node;
-          for (let i = 0; i < (node.childNodes?.length || 0); i++) {
-             const res = getFirstText(node.childNodes[i]);
-             if (res) return res;
+    buttons: [
+      "bold", "italic", "underline", "strikethrough", "font", "fontsize", "brush", "eraser", "uppercase", "lowercase", "|",
+      "ul", "ol", "outdent", "indent", "align", "|",
+      "link", "table", "image", "|",
+      "source", "fullsize", "|",
+      "undo", "redo", "superscript", "subscript"
+    ],
+    width: '100%',
+    minHeight: 800,
+    height: 'auto',
+    style: {
+      background: "transparent",
+      wordBreak: "normal",
+      overflowWrap: "break-word",
+      hyphens: "none",
+    },
+    events: {
+      afterPaste: function() {
+        const inst = joditRef.current?.editor;
+        if (!inst) return;
+        // Word embeds soft hyphens (­) and zero-width chars (​/C/D)
+        // as invisible word-break hints. They cause text to split at unexpected
+        // positions inside Jodit. Strip them from the raw HTML string after paste.
+        setTimeout(() => {
+          if (!inst) return;
+          const current = inst.value;
+          if (!current) return;
+          const cleaned = stripBreakHints(current);
+          if (cleaned !== current) {
+            inst.value = cleaned;
           }
-          return null;
-        };
-
-        const getLastText = (node) => {
-          if (node.nodeType === 3 && node.textContent.trim().length > 0) return node;
-          for (let i = (node.childNodes?.length || 0) - 1; i >= 0; i--) {
-             const res = getLastText(node.childNodes[i]);
-             if (res) return res;
-          }
-          return null;
-        };
-
-        try {
-          editable.focus();
-          const firstText = getFirstText(editable) || editable;
-          const lastText = getLastText(editable) || editable;
-
-          const selection = window.getSelection();
-          const range = document.createRange();
-          
-          if (firstText === editable) {
-            range.selectNodeContents(editable);
-          } else {
-            range.setStart(firstText, 0);
-            range.setEnd(lastText, lastText.nodeType === 3 ? lastText.textContent.length : lastText.childNodes.length);
-          }
-          
-          selection.removeAllRanges();
-          selection.addRange(range);
-        } catch (err) {
-          console.error("Advanced manual selection failed", err);
+        }, 0);
+      }
+    },
+    controls: {
+      font: {
+        command: 'fontname',
+        tooltip: 'Font family',
+        list: FONT_FAMILY_OPTIONS,
+        textTemplate: (_, value) => getFontFamilyLabel(value),
+        childTemplate: (_, key, value) =>
+          `<span data-style="${key}" style="font-family: ${key};">${value}</span>`,
+        exec: (editor, current, { control }) => {
+          if (!control.args || typeof control.args[0] === 'undefined') return false;
+          applyFontFamily(editor, control.args[0]);
+          return undefined;
+        },
+        data: {
+          cssRule: 'font-family',
+          normalize: (value) =>
+            value
+              .toLowerCase()
+              .replace(/['"]+/g, '')
+              .replace(/[^a-z0-9-]+/g, ',')
         }
+      },
+      uppercase: {
+        tooltip: 'Upper Case',
+        exec: (editor) => applyCase(editor, s => s.toUpperCase())
+      },
+      lowercase: {
+        tooltip: 'Lower Case',
+        exec: (editor) => applyCase(editor, s => s.toLowerCase())
+      },
+      ul: {
+        command: 'insertUnorderedList',
+        tags: ['ul'],
+        tooltip: 'Insert Unordered List',
+        exec: (editor) => safeListInsert(editor, 'ul')
+      },
+      ol: {
+        command: 'insertOrderedList',
+        tags: ['ol'],
+        tooltip: 'Insert Ordered List',
+        exec: (editor) => safeListInsert(editor, 'ol')
       }
-    };
-
-    const tryPatchNative = () => {
-      const native = queryNative();
-      if (!native) return false;
-
-      const editable = native.shadowRoot?.querySelector(".smart-editor-editable") ||
-                       native.querySelector(".smart-editor-editable");
-      
-      if (editable) {
-        editable.addEventListener("keydown", handleSelectAll, { capture: true });
-        
-        const safeSelectAll = function() {
-           handleSelectAll({ 
-             metaKey: true, key: 'a', 
-             preventDefault: () => {}, stopPropagation: () => {}, stopImmediatePropagation: () => {} 
-           });
-        };
-
-        // Suppress editor's internal selectAll overrides completely
-        ['selectAll', '_selectAll', '_selectAllClick', '_selectAllHandler'].forEach(m => {
-          native[m] = safeSelectAll;
-        });
-        
-        // Also prevent the standard document.execCommand('selectAll') from bubbling into the editor
-        editable.addEventListener("selectall", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          safeSelectAll();
-        }, { capture: true });
-
-        return true;
-      }
-      return false;
-    };
-
-    let retryCount = 0;
-    const interval = setInterval(() => {
-      if (tryPatchNative() || retryCount > 50) {
-        clearInterval(interval);
-      }
-      retryCount++;
-    }, 150);
-
-    window.addEventListener("keydown", handleSelectAll, { capture: true });
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("keydown", handleSelectAll, { capture: true });
-    };
-  }, [EditorComponent]);
-
-  // Intercept ALL paste events to prevent the editor's native paste handler from
-  // restructuring the document and stripping CSS classes from the report template.
-  //
-  // KEY INSIGHT: The Smart editor registers its paste handler at window/document level
-  // with capture:true, so attaching to the element or shadow root fires too late.
-  // We must register at window capture to beat it, and use direct Range DOM insertion
-  // (not executeCommand / native.executeCommand) to bypass the editor's block-wrapping pipeline.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !EditorComponent) return;
-
-    const queryNative = () => container.querySelector("smart-editor");
-
-    // Tags that are safe to preserve in pasted content
-    const SAFE_TAGS = new Set([
-      'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del',
-      'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'a',
-      'sub', 'sup',
-    ]);
-    // Attributes that are safe to keep on pasted elements
-    const SAFE_ATTRS = new Set(['href', 'target', 'colspan', 'rowspan']);
-
-    /**
-     * Sanitize arbitrary clipboard HTML into clean, minimal markup:
-     * - Remove Word/Office comment blocks (<!--[if ...]>...<![endif]-->)
-     * - Unwrap vendor-specific wrapper elements (span, font, o:p, w:t, mso:*, etc.)
-     *   while preserving their text content.
-     * - Strip all inline styles, Word/Office classes, and non-essential attributes.
-     * - Flatten any unsupported tags to plain text.
-     */
-    const sanitizePastedHtml = (html) => {
-      if (!html) return "";
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-
-      // Step 1 – Remove comment nodes (Word <!--[if ...]>...<![endif]--> junk)
-      const removeComments = (node) => {
-        Array.from(node.childNodes).forEach((child) => {
-          if (child.nodeType === Node.COMMENT_NODE) {
-            node.removeChild(child);
-          } else {
-            removeComments(child);
-          }
-        });
-      };
-      removeComments(doc.body);
-
-      // Step 2 – Unwrap any element NOT in SAFE_TAGS, bottom-up loop handles nesting
-      let keepGoing = true;
-      while (keepGoing) {
-        keepGoing = false;
-        for (const el of Array.from(doc.body.querySelectorAll('*'))) {
-          if (!SAFE_TAGS.has(el.tagName.toLowerCase())) {
-            const parent = el.parentNode;
-            if (parent) {
-              while (el.firstChild) parent.insertBefore(el.firstChild, el);
-              parent.removeChild(el);
-              keepGoing = true;
-            }
-          }
-        }
-      }
-
-      // Step 3 – Strip all unsafe attributes from remaining elements
-      for (const el of Array.from(doc.body.querySelectorAll('*'))) {
-        const toRemove = Array.from(el.attributes)
-          .map((a) => a.name)
-          .filter((n) => !SAFE_ATTRS.has(n.toLowerCase()));
-        toRemove.forEach((a) => el.removeAttribute(a));
-      }
-
-      return doc.body.innerHTML;
-    };
-
-    /**
-     * Locate the shadow-DOM contenteditable surface and the host element.
-     */
-    const getEditorParts = () => {
-      const native = queryNative();
-      if (!native) return { native: null, editable: null };
-      const editable =
-        native.shadowRoot?.querySelector(".smart-editor-editable") ||
-        native.shadowRoot?.querySelector("[contenteditable='true']") ||
-        native.querySelector(".smart-editor-editable") ||
-        native.querySelector("[contenteditable='true']");
-      return { native, editable };
-    };
-
-    /**
-     * Returns true when focus / selection is inside our editor's editable surface.
-     * The editable lives in a shadow root, so document.activeElement == host element;
-     * shadowRoot.activeElement gives the actual focused node.
-     */
-    const isEditorFocused = () => {
-      const { native, editable } = getEditorParts();
-      if (!native || !editable) return false;
-      if (native.shadowRoot?.activeElement === editable) return true;
-      const sel = window.getSelection();
-      if (sel?.rangeCount > 0) {
-        return editable.contains(sel.getRangeAt(0).commonAncestorContainer);
-      }
-      return false;
-    };
-
-    /**
-     * Insert sanitized HTML at the current cursor position by directly manipulating
-     * the DOM via the Range API — completely bypassing the editor's paste pipeline
-     * which wraps content in its own <div data-block-id class="smart-editor-block">.
-     */
-    const insertAtCursor = (html) => {
-      const { editable } = getEditorParts();
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0 || !editable) return;
-
-      const range = sel.getRangeAt(0);
-      if (!editable.contains(range.commonAncestorContainer)) return;
-
-      range.deleteContents();
-
-      const frag = range.createContextualFragment(html);
-      const lastNode = frag.lastChild;
-      range.insertNode(frag);
-
-      // Place cursor just after inserted content
-      if (lastNode) {
-        try {
-          const newRange = document.createRange();
-          newRange.setStartAfter(lastNode);
-          newRange.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(newRange);
-        } catch (_) {
-          range.collapse(false);
-        }
-      }
-    };
-
-    /**
-     * Master paste handler registered at window-capture — fires before the Smart
-     * editor's own window/document-level capture listeners.
-     */
-    const handlePaste = (e) => {
-      if (!isEditorFocused()) return; // only intercept when inside our editor
-
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-
-      const htmlData = e.clipboardData?.getData("text/html") || "";
-      const textData = e.clipboardData?.getData("text/plain") || "";
-
-      let contentToInsert;
-      if (htmlData) {
-        contentToInsert = sanitizePastedHtml(htmlData);
-      } else if (textData) {
-        // Plain-text paste: escape HTML special chars and convert newlines to <br>
-        contentToInsert = textData
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\n/g, "<br>");
-      } else {
-        return; // Nothing in clipboard
-      }
-
-      // Insert directly via Range API — bypasses the editor's block-wrapping pipeline
-      insertAtCursor(contentToInsert);
-    };
-
-    /**
-     * Block `beforeinput` with inputType "insertFromPaste" — modern browsers fire this
-     * before the paste event and the Smart editor uses it to trigger its block-replace logic.
-     */
-    const handleBeforeInput = (e) => {
-      if (
-        e.inputType === "insertFromPaste" ||
-        e.inputType === "insertFromPasteAsQuotation"
-      ) {
-        if (isEditorFocused()) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-        }
-      }
-    };
-
-    // Register at window-capture level — fires before any element-level or
-    // document-level handler the Smart editor may have installed.
-    window.addEventListener("paste", handlePaste, { capture: true });
-    window.addEventListener("beforeinput", handleBeforeInput, { capture: true });
-
-    return () => {
-      window.removeEventListener("paste", handlePaste, { capture: true });
-      window.removeEventListener("beforeinput", handleBeforeInput, { capture: true });
-    };
-  }, [EditorComponent]);
-
-  if (loadError) {
-    return (
-      <div className={`smart-health-checkup-editor smart-health-checkup-editor--error ${className}`}>
-        <p>Smart Editor could not be loaded. Using fallback.</p>
-        <pre>{String(loadError.message)}</pre>
-      </div>
-    );
-  }
-
-  if (!EditorComponent || !initialContent) {
-    return (
-      <div className={`smart-health-checkup-editor smart-health-checkup-editor--loading ${className}`}>
-        <Spin size="large" />
-      </div>
-    );
-  }
+    }
+  }), [readonly, hideToolbar, safeListInsert]);
 
   return (
     <div ref={containerRef} className={`smart-health-checkup-editor ${className}`} style={{ height: "auto" }}>
-      <EditorComponent
-        toolbarItems={toolbarItems}
-        hideToolbar={hideToolbar}
-        toolbarViewMode="multiRow"
-        editMode="html"
-        readonly={readonly}
-        value={initialContent}
-        onChange={handleChange}
+      <JoditEditor
+        ref={joditRef}
+        value={internalValue}
+        config={config}
+        onBlur={handleEditorBlur}
+        onChange={handleEditorChange}
         className="health-checkup-editor__document-body"
       />
     </div>
@@ -447,4 +416,4 @@ function SmartHealthCheckupEditor(
 }
 
 export default React.forwardRef(SmartHealthCheckupEditor);
-export { TOOLBAR_ITEMS };
+export { TOOLBAR_ITEMS, applyCase, applyFontFamily };

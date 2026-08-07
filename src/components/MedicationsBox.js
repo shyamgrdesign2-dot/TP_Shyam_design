@@ -5,22 +5,15 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly } from "../utils/utils";
-import Medicationicon from "../assets/images/Medication.svg";
-import TimingInfo from "../assets/images/TimingInfo.svg";
-import noRecordFound from '../assets/images/no-record-round.svg';
-import calculatorIcon from '../assets/images/calculator.svg';
-import calculatorIconBlue from '../assets/images/calculator-blue.svg';
-import visitEnd from '../assets/images/end-visit.svg';
-import imgCloseVisit from '../assets/images/close-visit.svg';
+import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator, getMedicineStockLabel, hasMedicineFrequency, hasMedicineDuration } from "../utils/utils";
+
 import { MenuOutlined } from '@ant-design/icons';
-import tagNew from '../../src/assets/images/tag-new.svg';
-import Pillup from '../assets/images/pillup.svg';
-import EazyDoseLogo from '../assets/images/EazyDose Logo.webp';
 
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import { useTabletViewport } from "../hooks/useTabletViewport";
 
 import {
   addTemplate,
@@ -36,9 +29,11 @@ import {
   addMedicine,
   editMedicine,
   updateFrequentlyMedication,
-  getAllDoses
+  getAllDoses,
+  clearMedicineDetailsCache
 } from "../redux/medicationSlice";
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, MEDICINE_STOCK_STATUS, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import MedicineOutOfStockAlternatives from "./medications/MedicineOutOfStockAlternatives";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 
@@ -46,11 +41,284 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DoseCalculator from "./dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import FreeBadge from "../common/FreeBadge";
-
+import { ASSETS } from "../assets";
+import { Grid5, Trash } from "iconsax-reactjs";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  moduleRowsToPreviousContext,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import ApiMedication from "../api/services/ApiMedication";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "./tesseractCt";
+import {
+  hasInvalidChikitsalayMedication,
+  MEDICATION_INVENTORY_WARNING,
+} from "../utils/chikitsalayInventory";
+import {
+  normalizeCopiedMedicationRows,
+  resolveCopiedDoseFields,
+} from "../utils/medicationCopyNormalization";
+import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
+const {
+  alerticon: alertIcon,
+  medication: Medicationicon,
+  timinginfo: TimingInfo,
+  noRecordRound: noRecordFound,
+  calculator: calculatorIcon,
+  calculatorBlue: calculatorIconBlue,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  tagNew,
+  pillup: Pillup,
+  eazydoseLogo: EazyDoseLogo,
+} = ASSETS.images;
 
 const { TextArea } = Input;
+const PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS = "prescription-new-wide-dropdown";
 
-function MedicationsBox() {
+const hasMedicineMasterId = (tmmId) => (
+  tmmId !== undefined &&
+  tmmId !== null &&
+  String(tmmId).trim() !== "" &&
+  Number(tmmId) !== 0
+);
+
+const getMedicationGroupKey = (item) => {
+  if (hasMedicineMasterId(item?.tmm_id)) return `tmm:${item.tmm_id}`;
+  return `voice:${item?.voice_rx_group_id || item?.unique_id || ""}`;
+};
+
+const getMedicationRowGroups = (rows) => {
+  const medicationRows = Array.isArray(rows) ? rows : [];
+
+  return medicationRows.reduce((groups, row, index) => {
+    const previousGroup = groups[groups.length - 1];
+    const groupKey = getMedicationGroupKey(row);
+
+    if (!previousGroup || previousGroup.key !== groupKey) {
+      return [...groups, { key: groupKey, rows: [row], index }];
+    }
+
+    previousGroup.rows.push(row);
+    return groups;
+  }, []);
+};
+
+const isVoiceRxUngroundedMedication = (item) => (
+  !!item?.voice_rx_from_module && !hasMedicineMasterId(item?.tmm_id)
+);
+
+const isVoiceRxAutoGroundedMedication = (item) => (
+  !!item?.voice_rx_auto_grounded && hasMedicineMasterId(item?.tmm_id)
+);
+
+const normalizeMedicineNameForExactMatch = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+const isExactMedicineNameMatch = (sourceName, candidate = {}) => {
+  const normalizedSource = normalizeMedicineNameForExactMatch(sourceName);
+  if (!normalizedSource) return false;
+  return [
+    candidate?.tmm_medicine_name,
+    candidate?.medicine_name,
+    candidate?.name,
+  ].some((value) => normalizeMedicineNameForExactMatch(value) === normalizedSource);
+};
+
+const getPositiveId = (...values) => {
+  for (const value of values) {
+    const id = Number(value);
+    if (Number.isFinite(id) && id > 0) return value;
+  }
+  return 0;
+};
+
+const getDefaultMedicineUnitId = (medicine = {}) => getPositiveId(
+  medicine.default_tmm_unit,
+  medicine.tmm_unit,
+  medicine.tmu_id,
+  medicine.medicineUnit?.[0]?.tmu_id
+);
+
+const mergeSelectedMedicineForVoiceRow = (current = {}, selected = {}, keyParsed = {}) => {
+  const medicineUnits = Array.isArray(selected.medicineUnit) ? selected.medicineUnit : [];
+  const defaultUnitId = getDefaultMedicineUnitId(selected);
+  const doseFields = resolveCopiedDoseFields(current, medicineUnits, {
+    defaultIfMissing: true,
+    defaultUnitId,
+    defaultDose: "1",
+    includeCustomUnits: true,
+  });
+
+  return {
+    ...current,
+    ...selected,
+    objectID: keyParsed.objectID ?? selected.objectID ?? current.objectID,
+    reference_id: keyParsed.reference_id ?? selected.reference_id ?? current.reference_id,
+    quantity: keyParsed.quantity ?? selected.quantity ?? current.quantity,
+    stock_status: keyParsed.stock_status ?? selected.stock_status ?? current.stock_status,
+    tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type ?? current.tmm_hm_type,
+    um_id: selected.um_id ?? keyParsed.um_id ?? current.um_id,
+    ...doseFields,
+    default_tmm_unit: getPositiveId(selected.default_tmm_unit, doseFields.tmm_unit, current.default_tmm_unit),
+    tmm_freq_type_name: current.tmm_freq_type_name,
+    tmm_freq_type: current.tmm_freq_type,
+    tmf_block: current.tmf_block,
+    tmf_block_val: current.tmf_block_val,
+    tcm_tmm_freq_morning: current.tcm_tmm_freq_morning,
+    tcm_tmm_freq_afternoon: current.tcm_tmm_freq_afternoon,
+    tcm_tmm_freq_evening: current.tcm_tmm_freq_evening,
+    tcm_tmm_freq_night: current.tcm_tmm_freq_night,
+    tmm_time: current.tmm_time,
+    tmm_time_name: current.tmm_time_name,
+    tmm_days: current.tmm_days,
+    tmm_duration_type: current.tmm_duration_type,
+    tmm_days_duration_type: current.tmm_days_duration_type,
+    tmm_remarks: current.tmm_remarks,
+    voice_rx_requires_inventory_selection: false,
+    voice_rx_from_module: false,
+    voice_rx_auto_grounded: true,
+  };
+};
+
+const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
+  background: "#2f2e39",
+  borderRadius: 8,
+  color: "#fff",
+  fontSize: 14,
+  lineHeight: 1.35,
+  maxWidth: 360,
+  padding: "12px 16px",
+  textAlign: "center",
+};
+
+const FALLBACK_MEDICINE_UNITS = [
+  "Ampule(s)",
+  "Tablet(s)",
+  "mg",
+  "ml",
+  "unit(s)",
+  "Capsule(s)",
+  "Fingertip(s)",
+  "Pea sized",
+  "gm",
+  "palm sized",
+  "tsp",
+  "Kit(s)",
+  "Drop(s)",
+  "Spray",
+  "Sachet(s)",
+  "Cup(s)",
+  "Scoop(s)",
+  "Suppository(s)",
+  "Soap(s)",
+  "Bottle(s)",
+  "patch(s)",
+  "Respule(s)",
+  "Puff(s)",
+  "mcg",
+  "tbsp(s)",
+  "Globule(s)",
+  "Pill(s)",
+  "Containers",
+  "Liniment(s)",
+  "transcap(s)",
+  "I/V",
+  "I/M",
+].map((title, index) => ({ tmu_id: 0, tmu_title: title, fallbackIndex: index }));
+
+const getDoseUnitOptions = (medicine) => {
+  const medicineUnits = Array.isArray(medicine?.medicineUnit) ? medicine.medicineUnit : [];
+  if (medicineUnits.length > 0) return medicineUnits;
+
+  const currentUnitTitle = String(medicine?.tmm_unit_name || "").trim();
+  const currentUnit = currentUnitTitle
+    ? [{
+      tmu_id: medicine?.tmu_id || medicine?.tmm_unit || 0,
+      tmu_title: currentUnitTitle,
+      fallbackIndex: -1,
+    }]
+    : [];
+  const seen = new Set();
+  return [...currentUnit, ...FALLBACK_MEDICINE_UNITS].filter((unit) => {
+    const key = String(unit?.tmu_title || "").trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
+  const isChikitsalayAccessable = useChikitsalay();
+  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
+  const renderLowStockBadge = useCallback((med) => {
+    if (!isChikitsalayAccessable) return null;
+
+    const label = getMedicineStockLabel(med);
+    if (!label) return null;
+    const isQtyLabel = label.startsWith("Qty:");
+    return (
+      <h6
+        className="ms-2"
+        style={{
+          padding: "2px 8px",
+          borderRadius: 6,
+          background: isQtyLabel ? "#ED8A00" : "#FC5A5A",
+          color: "#fff",
+          fontSize: 12,
+          fontWeight: 600,
+          display: "inline-block",
+          lineHeight: "16px",
+        }}
+      >
+        {label}
+      </h6>
+    );
+  }, [isChikitsalayAccessable]);
+
+  const renderHmTypeBadge = useCallback(
+    (med, { hideZ = false } = {}) => {
+      const ind = getHmTypeIndicator(med, isChikitsalayAccessable);
+      if (hideZ && ind === "Z") return null;
+      if (!ind) return null;
+      const wide = ind.length > 1;
+      return (
+        <span
+          className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${
+            wide ? "rounded-pill" : "rounded-circle"
+          }`}
+          style={{
+            minWidth: wide ? 26 : 18,
+            height: 18,
+            padding: wide ? "0 6px" : "0 4px",
+            background: "#c44ea2",
+            lineHeight: "16px",
+          }}
+        >
+          {ind}
+        </span>
+      );
+    },
+    [isChikitsalayAccessable]
+  );
+
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
   const {
     dosesList,
@@ -59,11 +327,34 @@ function MedicationsBox() {
     templates,
     genericList,
     loading,
+    medicineDetailsById,
   } = useSelector((state) => state.medication);
   const { todayData } = useSelector((state) => state.vitals);
   const dispatch = useDispatch();
 
   const { patient_data, medicationData, setMedicationData, pillupSwitch, setPillupSwitch, tcmId } = useContext(CashManagerContext);
+  const applyVoiceMedication = useCallback((nextMedicines) => {
+    const normalizedMedicines = normalizeCopiedMedicationRows(nextMedicines, frequencyList, timingList);
+    if (normalizedMedicines.length > 0) {
+      setMedicationData(normalizedMedicines);
+    }
+  }, [frequencyList, setMedicationData, timingList]);
+  const medicationVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(medicationData, "medications"),
+    [medicationData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Medication (Rx)",
+    onApply: applyVoiceMedication,
+    successMessage: "Medication (Rx) filled from voice dictation",
+    copyPayloadKeys: ["medications"],
+  });
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -75,6 +366,9 @@ function MedicationsBox() {
 
   const [searchParentQuery, setSearchParentQuery] = useState("");
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
+  const [voiceMedicineEdit, setVoiceMedicineEdit] = useState({ index: null, query: "" });
+  const voiceMedicineSearchRequestRef = useRef(0);
+  const autoVoiceMedicineGroundingRef = useRef(new Set());
 
   const [unitPerDoseOptions, setUnitPerDoseOptions] = useState([]);
   const [frequencyOptions, setFrequencyOptions] = useState([]);
@@ -103,6 +397,11 @@ function MedicationsBox() {
   const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
   const [addCustom, setAddCustom] = useState(null);
   const [genericQuery, setGenericQuery] = useState('');
+  const createCustomMedicationRow = useCallback((medicineName) => ({
+    unique_id: uuidv4(),
+    tmm_id: 0,
+    tmm_medicine_name: medicineName,
+  }), []);
 
   //Dose Calculator
   const [activeTab, setActiveTab] = useState("1");
@@ -113,6 +412,52 @@ function MedicationsBox() {
   const [isModalOpen2, setIsModalOpen2] = useState(false);
 
   const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const tokenData = getDecodedToken()?.result;
+  const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isTablet = useTabletViewport();
+  const prescriptionNewTabletOverlayZIndex = isVoiceRxModuleEnabled && isTablet ? 1305 : undefined;
+  const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
+  const isMedicationInventorySelectionRequired = useCallback(
+    (item) =>
+      isVoiceRxUngroundedMedication(item) ||
+      (isChikitsalayAccessable && hasInvalidChikitsalayMedication(item)),
+    [isChikitsalayAccessable]
+  );
+  const isVoiceRxAutoGroundedEditable = useCallback(
+    (item) =>
+      isVoiceRxModuleEnabled &&
+      !isZydusAccount &&
+      !isChikitsalayAccessable &&
+      isVoiceRxAutoGroundedMedication(item),
+    [isChikitsalayAccessable, isVoiceRxModuleEnabled, isZydusAccount]
+  );
+  const canEditVoiceMedicineSelection = useCallback(
+    (item) =>
+      isVoiceRxModuleEnabled &&
+      (isMedicationInventorySelectionRequired(item) || isVoiceRxAutoGroundedEditable(item)),
+    [isMedicationInventorySelectionRequired, isVoiceRxAutoGroundedEditable, isVoiceRxModuleEnabled]
+  );
+  const hasUngroundedMedications = isVoiceRxModuleEnabled && medicationData.some(isMedicationInventorySelectionRequired);
+  const getMedicationPopupProps = useCallback(
+    (popupClassName = "") => {
+      if (!isPrescriptionNewContext) {
+        return popupClassName ? { popupClassName } : {};
+      }
+      return {
+        popupMatchSelectWidth: false,
+        popupClassName: [
+          PRESCRIPTION_NEW_WIDE_DROPDOWN_CLASS,
+          popupClassName,
+          isVoiceRxModuleEnabled ? voiceModuleStyles.medicationWideDropdown : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      };
+    },
+    [isPrescriptionNewContext, isVoiceRxModuleEnabled]
+  );
 
   const handleViewDoseCalcDrawer = (tab, value) => {
     setDoseCalculatorDrawer(!doseCalculatorDrawer)
@@ -129,40 +474,192 @@ function MedicationsBox() {
   }, []);
 
   useEffect(() => {
+    if (!isVoiceRxModuleEnabled) return undefined;
+    dispatch(clearMedicineDetailsCache());
+    return () => {
+      dispatch(clearMedicineDetailsCache());
+    };
+  }, [dispatch, isVoiceRxModuleEnabled]);
+
+  useEffect(() => {
     setMatchedTemplates(templates);
     setAllTemplates(templates);
   }, [templates]);
 
   //Parent AutoComplete
+  const activeVoiceMedicineQuery = voiceMedicineEdit.index !== null ? voiceMedicineEdit.query : "";
+  const activeVoiceMedicineItem = voiceMedicineEdit.index !== null ? medicationData[voiceMedicineEdit.index] : null;
+  const isVoiceMedicineFuzzySearchActive = (
+    isVoiceRxModuleEnabled &&
+    (
+      (isZydusAccount && isMedicationInventorySelectionRequired(activeVoiceMedicineItem)) ||
+      isVoiceRxAutoGroundedEditable(activeVoiceMedicineItem)
+    )
+  );
+
   useEffect(() => {
-    if (searchParentQuery || searchMLQuery) {
+    if (!isVoiceRxModuleEnabled || isZydusAccount || isChikitsalayAccessable) return;
+
+    const candidates = medicationData
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => isVoiceRxUngroundedMedication(item));
+
+    candidates.forEach(({ item, index }) => {
+      const medicineName = String(item?.tmm_medicine_name || item?.voice_rx_original_name || "").trim();
+      if (!medicineName) return;
+      const key = String(item?.voice_rx_group_id || item?.unique_id || medicineName).trim().toLowerCase();
+      if (!key || autoVoiceMedicineGroundingRef.current.has(key)) return;
+
+      autoVoiceMedicineGroundingRef.current.add(key);
+      (async () => {
+        try {
+          const result = await ApiMedication.getFuzzySearch(medicineName, 10, {
+            isChikitsalayAccessable: false,
+          });
+          const rows = Array.isArray(result) ? result : result ? [result] : [];
+          const topResult = rows[0];
+          if (!topResult?.tmm_id) return;
+          if (!isExactMedicineNameMatch(medicineName, topResult)) return;
+
+          let selected = medicineDetailsById?.[String(topResult.tmm_id)] || null;
+          if (!selected) {
+            const action = await dispatch(getMedicineDetails(topResult.tmm_id));
+            if (action.meta.requestStatus !== "fulfilled") return;
+            selected = action.payload?.[0] || topResult;
+          }
+          if (!isExactMedicineNameMatch(medicineName, selected)) return;
+
+          setMedicationData((prev) => {
+            const rowIndex = prev.findIndex((row) => {
+              const rowKey = String(row?.voice_rx_group_id || row?.unique_id || row?.tmm_medicine_name || "").trim().toLowerCase();
+              return rowKey === key;
+            });
+            if (rowIndex === -1 || !isVoiceRxUngroundedMedication(prev[rowIndex])) return prev;
+            const next = [...prev];
+            next[rowIndex] = mergeSelectedMedicineForVoiceRow(prev[rowIndex], selected, topResult);
+            return next;
+          });
+        } catch (error) {
+          // Keep the copied medicine as free text; the end-visit path will add it as custom.
+          console.warn("VoiceRx medicine auto-grounding failed", error);
+        }
+      })();
+    });
+  }, [
+    dispatch,
+    isChikitsalayAccessable,
+    isVoiceRxModuleEnabled,
+    isZydusAccount,
+    medicationData,
+    medicineDetailsById,
+    setMedicationData,
+  ]);
+
+  const buildMedicineSearchOption = useCallback(
+    (medicine) => {
+      if (!medicine) return null;
+      const medicineName = medicine.tmm_medicine_name || medicine.medicine_name || "";
+      if (!medicineName) return null;
+
+      return {
+        key: JSON.stringify({ ...medicine, unique_id: uuidv4() }),
+        value: medicineName,
+        label: (
+          <div data-testid="medicine-search-option">
+            <span className="fw-medium">{medicineName}</span>, <span>{medicine.tmm_generic || medicine.generic_name}</span>
+            {renderHmTypeBadge(medicine)}
+            <FreeBadge show={medicine?.is_free} />
+            {renderLowStockBadge(medicine)}
+          </div>
+        ),
+      };
+    },
+    [renderHmTypeBadge, renderLowStockBadge]
+  );
+
+  const performVoiceMedicineFuzzySearch = useCallback(
+    async (query) => {
+      const searchQuery = String(query || "").trim();
+      const requestId = voiceMedicineSearchRequestRef.current + 1;
+      voiceMedicineSearchRequestRef.current = requestId;
+
+      if (!searchQuery) {
+        setParentSearchOptions([]);
+        return;
+      }
+
+      try {
+        const result = await ApiMedication.getFuzzySearch(searchQuery, 10);
+        if (voiceMedicineSearchRequestRef.current !== requestId) return;
+
+        const rows = Array.isArray(result) ? result : result ? [result] : [];
+        setParentSearchOptions(rows.map(buildMedicineSearchOption).filter(Boolean));
+      } catch (error) {
+        if (voiceMedicineSearchRequestRef.current === requestId) {
+          setParentSearchOptions([]);
+        }
+      }
+    },
+    [buildMedicineSearchOption]
+  );
+
+  useEffect(() => {
+    if (isVoiceMedicineFuzzySearchActive) return;
+
+    if (searchParentQuery || searchMLQuery || activeVoiceMedicineQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: doseCalculatorDrawer ? searchMLQuery : searchParentQuery, type: "parent" })
+          searchMedication({
+            searchQuery: doseCalculatorDrawer
+              ? searchMLQuery
+              : activeVoiceMedicineQuery || searchParentQuery,
+            type: "parent",
+            isChikitsalayAccessable,
+          })
         );
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     } else {
-      dispatch(getFrequentlySearchedMedication());
+      dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
     }
-  }, [doseCalculatorDrawer, searchMLQuery, searchParentQuery]);
+  }, [activeVoiceMedicineQuery, doseCalculatorDrawer, isChikitsalayAccessable, isVoiceMedicineFuzzySearchActive, searchMLQuery, searchParentQuery]);
 
   useEffect(() => {
+    if (!isVoiceMedicineFuzzySearchActive) return;
+
+    const timeOutId = setTimeout(() => {
+      performVoiceMedicineFuzzySearch(activeVoiceMedicineQuery);
+    }, 500);
+
+    return () => {
+      clearTimeout(timeOutId);
+    };
+  }, [activeVoiceMedicineQuery, isVoiceMedicineFuzzySearchActive, performVoiceMedicineFuzzySearch]);
+
+  useEffect(() => {
+    if (isVoiceMedicineFuzzySearchActive) return;
+
     const data = [];
     parentOptionsList.map((e) => {
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-        value: e.tmm_medicine_name,
+        value: isChikitsalayAccessable ? String(e.reference_id) : e.tmm_medicine_name,
         label: (
-          <div>
-            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>  {(e?.tmm_hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2' }}>Z</span>}
+          <div data-testid="medicine-search-option">
+            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>
+            {renderHmTypeBadge(e)}
             <FreeBadge show={e?.is_free} />
+            {renderLowStockBadge(e)}
           </div>
         ),
       });
     });
+    const activeSearchQuery = doseCalculatorDrawer
+      ? searchMLQuery
+      : activeVoiceMedicineQuery || searchParentQuery;
+
     if (doseCalculatorDrawer) {
       if (searchMLQuery.length == 0) {
         data.unshift({
@@ -174,23 +671,23 @@ function MedicationsBox() {
           ),
         });
       } else {
-        searchMLQuery &&
-          data.push({
-            key: JSON.stringify({
+        searchMLQuery && !isChikitsalayAccessable &&
+        data.push({
+          key: JSON.stringify({
               unique_id: uuidv4(),
-              tmm_id: 0,
-              tmm_medicine_name: searchMLQuery
-            }),
+            tmm_id: 0,
+            tmm_medicine_name: searchMLQuery
+          }),
             value: `${searchMLQuery}${Math.random()}`,
-            label: (
-              <>
-                <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{searchMLQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
-              </>
-            ),
-          });
+          label: (
+            <>
+              <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{searchMLQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
+            </>
+          ),
+        });
       }
     } else {
-      if (searchParentQuery.length == 0) {
+      if (activeSearchQuery.length == 0) {
         data.unshift({
           key: -1,
           label: (
@@ -200,24 +697,24 @@ function MedicationsBox() {
           ),
         });
       } else {
-        searchParentQuery &&
-          data.push({
-            key: JSON.stringify({
+        activeSearchQuery && !isChikitsalayAccessable &&
+        data.push({
+          key: JSON.stringify({
               unique_id: uuidv4(),
-              tmm_id: 0,
-              tmm_medicine_name: searchParentQuery
-            }),
-            value: `${searchParentQuery}${Math.random()}`,
-            label: (
-              <>
-                <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{searchParentQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
-              </>
-            ),
-          });
+            tmm_id: 0,
+            tmm_medicine_name: activeSearchQuery
+          }),
+            value: `${activeSearchQuery}${Math.random()}`,
+          label: (
+            <>
+              <div className="text-primary fontroboto fs-16"> <i className="icon-Add mx-1 fs-6"></i> Add <span className="fw-medium fontroboto text-primary">"{activeSearchQuery}"</span> <a className="text-primary fontroboto">as a new medicine</a></div>
+            </>
+          ),
+        });
       }
     }
     setParentSearchOptions(data);
-  }, [doseCalculatorDrawer, parentOptionsList]);
+  }, [activeVoiceMedicineQuery, doseCalculatorDrawer, isVoiceMedicineFuzzySearchActive, parentOptionsList, renderHmTypeBadge, renderLowStockBadge, searchMLQuery, searchParentQuery]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -227,6 +724,34 @@ function MedicationsBox() {
     },
     [doseCalculatorDrawer, searchMLQuery, searchParentQuery]
   );
+
+  // Frequently-used chips (Tesseract shell only) — full medicine objects from
+  // the frequently-searched list; a chip click goes through onSelectParent so
+  // every column the medicine carries (dose/unit/frequency/when/duration) is
+  // prefilled exactly like a dropdown selection.
+  const [frequentMedicineChips, setFrequentMedicineChips] = useState([]);
+  useEffect(() => {
+    if (
+      !searchParentQuery &&
+      !doseCalculatorDrawer &&
+      Array.isArray(parentOptionsList) &&
+      parentOptionsList.length > 0
+    ) {
+      setFrequentMedicineChips(parentOptionsList.filter((e) => e?.tmm_medicine_name));
+    }
+  }, [parentOptionsList, searchParentQuery, doseCalculatorDrawer]);
+  const availableMedicineChips = useTesseractUi
+    ? frequentMedicineChips.filter(
+        (med) => !medicationData.some(
+          (row) => String(row.tmm_medicine_name || "").toLowerCase() === String(med.tmm_medicine_name).toLowerCase()
+        )
+      )
+    : [];
+  const onChipAdd = (med) => {
+    onSelectParent(med.tmm_medicine_name, {
+      key: JSON.stringify({ ...med, unique_id: uuidv4() }),
+    });
+  };
 
   const handleParentSearch = (value) => {
     onSearchParent(value);
@@ -244,6 +769,84 @@ function MedicationsBox() {
         dropdown.scrollTop = 0;
       }
     }, 0);
+  };
+
+  const handleVoiceMedicineClick = (item) => {
+    if (!isVoiceRxModuleEnabled) return;
+    if (!canEditVoiceMedicineSelection(item)) return;
+    const query = item.tmm_medicine_name || "";
+    setVoiceMedicineEdit({
+      index: item.index,
+      query,
+    });
+    if (isZydusAccount || isVoiceRxAutoGroundedEditable(item)) {
+      setParentSearchOptions([]);
+    } else {
+      dispatch(searchMedication({
+        searchQuery: query,
+        type: "parent",
+        isChikitsalayAccessable,
+      }));
+    }
+  };
+
+  const handleVoiceMedicineSearch = (query, index) => {
+    setVoiceMedicineEdit({ index, query: removeBeforeWhiteSpace(query) });
+  };
+
+  const handleVoiceMedicineBlur = () => {
+    voiceMedicineSearchRequestRef.current += 1;
+    window.setTimeout(() => {
+      setVoiceMedicineEdit({ index: null, query: "" });
+    }, 150);
+  };
+
+  const onSelectVoiceMedicine = async (data, item, index) => {
+    const keyParsed = JSON.parse(item.key);
+    if (keyParsed.tmm_id === 0) {
+      const current = medicationData[index];
+      showHideAddMedicineModal();
+      setAddCustom({
+        ...keyParsed,
+        voice_rx_replace_index: index,
+        voice_rx_replace_group_id: current?.voice_rx_group_id || "",
+      });
+      setVoiceMedicineEdit({ index: null, query: "" });
+      return;
+    }
+
+    window.Moengage.track_event("medicine_select", {
+      value: keyParsed.tmm_medicine_name
+    });
+
+    const current = medicationData[index];
+    const cachedSelected = medicineDetailsById?.[String(keyParsed.tmm_id)];
+    let selected = cachedSelected || null;
+    if (!selected) {
+      const action = await dispatch(getMedicineDetails(keyParsed.tmm_id));
+      if (action.meta.requestStatus !== "fulfilled") {
+        errorMessage(action.error);
+        return;
+      }
+      selected = action.payload?.[0] || keyParsed;
+    }
+    const shouldUseSelectedVoiceUnit =
+      isVoiceRxModuleEnabled &&
+      (current?.voice_rx_group_id || current?.voice_rx_from_module || current?.voice_rx_original_name);
+    medicationData[index] = shouldUseSelectedVoiceUnit
+      ? mergeSelectedMedicineForVoiceRow(current, selected, keyParsed)
+      : {
+        ...current,
+        ...selected,
+        objectID: keyParsed.objectID,
+        reference_id: keyParsed.reference_id,
+        quantity: keyParsed.quantity,
+        stock_status: keyParsed.stock_status,
+        tmm_hm_type: selected.tmm_hm_type ?? keyParsed.tmm_hm_type,
+        um_id: selected.um_id ?? keyParsed.um_id,
+      };
+    setMedicationData((prev) => [...prev]);
+    setVoiceMedicineEdit({ index: null, query: "" });
   };
 
   const onSelectParent = async (data, item) => {
@@ -278,7 +881,8 @@ function MedicationsBox() {
         }
       }
 
-      const action = await dispatch(getMedicineDetails(JSON.parse(item.key).tmm_id));
+      const keyParsed = JSON.parse(item.key);
+      const action = await dispatch(getMedicineDetails(keyParsed.tmm_id));
       if (action.meta.requestStatus === "fulfilled") {
         const updatedData = action.payload.map((e) => {
 
@@ -321,7 +925,12 @@ function MedicationsBox() {
 
           return {
             ...e,
-            objectID: JSON.parse(item.key).objectID,
+            objectID: keyParsed.objectID,
+            reference_id: keyParsed.reference_id,
+            quantity: keyParsed.quantity,
+            stock_status: keyParsed.stock_status,
+            tmm_hm_type: e.tmm_hm_type ?? keyParsed.tmm_hm_type,
+            um_id: e.um_id ?? keyParsed.um_id,
             // tmm_unit_name: unitObj && unitObj !== undefined ? unitObj.tmu_title : "",
             tmm_freq_type_name: tmm_freq_type_name,
             tmf_block_val: frequencyObj !== undefined ? frequencyObj.tmf_block_val : "",
@@ -329,6 +938,7 @@ function MedicationsBox() {
             // tmm_dosage_unit_name: `${e.tmm_dosage ? `${e.tmm_dosage} ${unitObj && unitObj !== undefined ? unitObj.tmu_title : ""}` : ""}`,
             tmm_days_duration_type: EXTRA_OPTIONS.some((x) => x.value == e.tmm_duration_type) ? e.tmm_duration_type : e.tmm_days ? `${e.tmm_days} ${e.tmm_duration_type}` : "",
             unique_id: uuidv4(),
+            voice_rx_requires_inventory_selection: false,
             ...doseCalData
           };
         });
@@ -370,8 +980,41 @@ function MedicationsBox() {
     }
   };
 
+  const onEmptyLineMedicationCommit = useCallback((medicineRow) => {
+    return onSelectParent(medicineRow?.tmm_medicine_name, {
+      key: JSON.stringify(medicineRow),
+    });
+  }, [onSelectParent]);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: medicationData,
+    setRows: setMedicationData,
+    showVoiceRxModule,
+    useTesseractUi,
+    nameField: "tmm_medicine_name",
+    rowKeyPrefix: "medication",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomMedicationRow,
+    commitRow: onEmptyLineMedicationCommit,
+    canCreateCustomRow: !isChikitsalayAccessable,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
+
   const onSearchUnitPerDoseChid = useCallback(
     (query, i) => {
+      if (!medicationData[i]) return;
       const updateQuery = onlyDecimalFormat(query);
       medicationData[i].tmm_dosage_unit_name = updateQuery;
       medicationData[i].tmm_dosage = '';
@@ -380,7 +1023,7 @@ function MedicationsBox() {
       medicationData[i].tmu_id = 0;
       setMedicationData((prev) => [...prev]);
       if (updateQuery) {
-        const options = medicationData[i].medicineUnit.map((e) => {
+        const options = getDoseUnitOptions(medicationData[i]).map((e) => {
           return {
             key: JSON.stringify({ ...e, tmm_dosage: updateQuery, unique_id: uuidv4() }),
             value: `${updateQuery} ${e.tmu_title}`,
@@ -397,6 +1040,7 @@ function MedicationsBox() {
 
   const onBlurUnitPerDoseChid = useCallback(
     async (i) => {
+      if (!medicationData[i]) return;
       if (!isAlphabetExit(medicationData[i].tmm_dosage_unit_name)) {
         setUnitPerDoseOptions([]);
         medicationData[i].tmm_dosage_unit_name = "";
@@ -412,6 +1056,7 @@ function MedicationsBox() {
 
   const onSelectUnitPerDoseChild = useCallback(
     (data, e, i) => {
+      if (!medicationData[i]) return;
       setUnitPerDoseOptions([]);
       const objParse = JSON.parse(e.key);
       medicationData[i].tmm_dosage_unit_name = data;
@@ -655,6 +1300,10 @@ function MedicationsBox() {
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     medicationData.splice(index, 1);
     setMedicationData((prev) => [...prev]);
   };
@@ -682,6 +1331,7 @@ function MedicationsBox() {
     var sendData = {
       patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
       tcm_id: tcmId,
+      isChikitsalayAccessable,
     };
     const action = await dispatch(getLoadPreviousRx(sendData));
     if (action.meta.requestStatus === "fulfilled") {
@@ -728,7 +1378,12 @@ function MedicationsBox() {
     window.Moengage.track_event("medication_template_used", {
       "template_name": tmtd_id.tmtd_template_name
     });
-    const action = await dispatch(singleTemplateDetails(tmtd_id));
+    const action = await dispatch(
+      singleTemplateDetails({
+        templateId: tmtd_id,
+        isChikitsalayAccessable,
+      })
+    );
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action.payload.map((e) => {
 
@@ -804,6 +1459,8 @@ function MedicationsBox() {
       errorMessage('At least 1 medication added')
     } else if (medicationData.filter((e) => e.tmm_medicine_name == "").length > 0) {
       errorMessage('Please fillup medication name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && medicationData.some(hasInvalidChikitsalayMedication)) {
+      errorMessage(MEDICATION_INVENTORY_WARNING)
     } else {
       var sendData = {
         tmtd_template_name: inputTemplateName,
@@ -833,6 +1490,8 @@ function MedicationsBox() {
       errorMessage('At least 1 medication added')
     } else if (medicationData.filter(e => e.tmm_medicine_name == "").length > 0) {
       errorMessage('Please fillup medication name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && medicationData.some(hasInvalidChikitsalayMedication)) {
+      errorMessage(MEDICATION_INVENTORY_WARNING)
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
@@ -910,7 +1569,7 @@ function MedicationsBox() {
   const innerMedication = (index) => {
     const mainArray = []
     for (let i = index; i < medicationData.length; i++) {
-      if (medicationData[i].tmm_id == medicationData[index].tmm_id) {
+      if (getMedicationGroupKey(medicationData[i]) === getMedicationGroupKey(medicationData[index])) {
         mainArray.push(medicationData[i])
       } else {
         break;
@@ -918,6 +1577,68 @@ function MedicationsBox() {
     }
     return mainArray
   }
+
+  const handleSelectMedicineAlternative = useCallback(
+    (medItem, alternative) => {
+      const groupIndexes = [];
+      for (let i = medItem.index; i < medicationData.length; i++) {
+        if (
+          getMedicationGroupKey(medicationData[i]) ===
+          getMedicationGroupKey(medicationData[medItem.index])
+        ) {
+          groupIndexes.push(i);
+        } else {
+          break;
+        }
+      }
+
+      groupIndexes.forEach((idx) => {
+        medicationData[idx] = {
+          ...medicationData[idx],
+          tmm_id: alternative.tmm_id,
+          tmm_medicine_name: alternative.tmm_medicine_name,
+          tmm_generic: alternative.tmm_generic,
+          quantity:
+            alternative.strip_quantity ?? alternative.quantity ?? 0,
+          stock_status: alternative.stock_status,
+          reference_id: alternative.reference_id,
+          objectID: alternative.objectID,
+          ...(alternative.tmm_hm_type != null && {
+            tmm_hm_type: alternative.tmm_hm_type,
+          }),
+          ...(alternative.um_id != null && { um_id: alternative.um_id }),
+          voice_rx_requires_inventory_selection: false,
+          voice_rx_from_module: false,
+        };
+      });
+      setMedicationData((prev) => [...prev]);
+    },
+    [medicationData, setMedicationData]
+  );
+
+  const renderSelectedMedicineStock = useCallback(
+    (med) => {
+      if (!isChikitsalayAccessable) return null;
+      if (med?.stock_status === MEDICINE_STOCK_STATUS.NO_STOCK || med?.stock_status === MEDICINE_STOCK_STATUS.LOW_STOCK) {
+        return (
+          <MedicineOutOfStockAlternatives
+            med={med}
+            renderHmTypeBadge={renderHmTypeBadge}
+            onSelectAlternative={(alternative) =>
+              handleSelectMedicineAlternative(med, alternative)
+            }
+          />
+        );
+      }
+      return renderLowStockBadge(med);
+    },
+    [
+      handleSelectMedicineAlternative,
+      isChikitsalayAccessable,
+      renderHmTypeBadge,
+      renderLowStockBadge,
+    ]
+  );
 
   const taperDoseAdd = async (item) => {
     const clinic_name = getClinicName(profile?.hospital_data);
@@ -958,31 +1679,22 @@ function MedicationsBox() {
     setMedicationData((prev) => [...prev]);
   };
 
-  const reorder = async (list, startIndex, endIndex) => {
-    const result = Array.from(list);
+  const reorder = (list, startIndex, endIndex) => {
+    const groupedRows = getMedicationRowGroups(list).map((group) => group.rows);
+    const [movedGroup] = groupedRows.splice(startIndex, 1);
 
-    const findMedicationIndex = medicationData.map((e, index) => ({ ...e, index: index })).reduce((acc, curr) => acc?.at(-1)?.tmm_id == curr.tmm_id ? acc : [...acc, curr], [])
-
-    const array = await innerMedication(findMedicationIndex[startIndex].index)
-    const array1 = await innerMedication(findMedicationIndex[endIndex].index)
-
-    const removedArray = result.filter(item => !array.some((x) => x.unique_id === item.unique_id));
-
-    if (findMedicationIndex[startIndex].index > findMedicationIndex[endIndex].index) {
-      const dragIndex = removedArray.findIndex(x => x.unique_id == array1.at(0).unique_id)
-      removedArray.splice(dragIndex, 0, ...array)
-    }
-    else {
-      const dragIndex = removedArray.findIndex(x => x.unique_id == array1.at(-1).unique_id)
-      removedArray.splice(dragIndex + 1, 0, ...array)
+    if (!movedGroup) {
+      return Array.isArray(list) ? list : [];
     }
 
-    return removedArray;
+    groupedRows.splice(endIndex, 0, movedGroup);
+    return groupedRows.reduce((nextRows, groupRows) => nextRows.concat(groupRows), []);
   };
 
-  const onDragEnd = async (result) => {
+  const onDragEnd = (result) => {
     if (!result.destination) return;
-    const reorderedItems = await reorder(
+    if (result.source.index === result.destination.index) return;
+    const reorderedItems = reorder(
       medicationData,
       result.source.index,
       result.destination.index
@@ -991,31 +1703,43 @@ function MedicationsBox() {
   };
 
   const TABLE_MEDICATION = useMemo(() => {
+    const medicationRows = Array.isArray(medicationData) ? medicationData : [];
+    const groupedMedicationRows = getMedicationRowGroups(medicationRows);
+
     return (
-      <>
-        {medicationData.length > 0 &&
+      <div
+        className={[isVoiceRxModuleEnabled ? voiceModuleStyles.medicationScrollWrap : "", useTesseractUi ? "tesseract-ct tesseract-ct-wide" : "", useTesseractUi && isVoiceRxModuleEnabled ? "tesseract-ct-voice" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
+        {(medicationRows.length > 0 || isNewEmptyLineUiEnabled) &&
           <Row
             gutter={[0]}
-            className={`mt-14 border-top align-items-center`}
+            className={`border-top border-bottom align-items-center ${useTesseractUi ? "tesseract-ct-med-head" : "mt-14"} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationTableRow : ""}`}
           >
-            <Col lg={1} md={1} sm={1} xs={1}>
+            <Col lg={1} md={1} sm={1} xs={1} className={[
+              isNewEmptyLineUiEnabled ? "border-end" : "",
+              isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDragCell : "",
+            ].filter(Boolean).join(" ") || undefined}>
               &nbsp;
             </Col>
-            <Col lg={5} md={5} sm={5} xs={5}>
+            <Col lg={5} md={5} sm={5} xs={5} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : undefined}>
               <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                 <label>MEDICINE</label>
               </div>
             </Col>
-            <Col lg={18} md={18} sm={18} xs={18}>
-              <Row>
-                <Col lg={5} md={5} sm={5} xs={5} className="border-end border-start">
+            <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined}>
+              <Row className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationInnerRow : undefined}>
+                <Col lg={5} md={5} sm={5} xs={5} className={`border-end border-start ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationUnitCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label>UNIT PER DOSE</label>
                   </div>
                 </Col>
-                <Col lg={4} md={4} sm={4} xs={4} className="border-end">
-                  <div className="fontroboto fw-medium p-2 fs-12 text-welcome d-flex align-items-center">
-                    <label>FREQUENCY </label>
+                <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationFrequencyCell : ""}`}>
+                  <div className="fontroboto fw-medium p-2 fs-12 text-welcome d-flex align-items-center flex-wrap">
+                    <label>
+                      FREQUENCY
+                      {isChikitsalayAccessable ? <span className="text-danger"> *</span> : null}
+                    </label>
                     <Popover
                       open={frequencyPopOver}
                       content={FREQUENCY_CONTENT}
@@ -1024,26 +1748,41 @@ function MedicationsBox() {
                       arrow={false}
                       onOpenChange={showHideFrequencyPopOver}
                       overlayClassName="pp-0">
-                      <i className='icon-info ms-1 fs-18'></i>
+                      <span
+                        aria-hidden="true"
+                        className="ms-1"
+                        style={{
+                          display: 'inline-block',
+                          width: 16,
+                          height: 16,
+                          flexShrink: 0,
+                          backgroundColor: 'currentColor',
+                          mask: 'url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/essential/info-circle.svg) center / contain no-repeat',
+                          WebkitMask: 'url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/essential/info-circle.svg) center / contain no-repeat',
+                        }}
+                      />
                     </Popover>
                   </div>
                 </Col>
-                <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationWhenCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label>WHEN</label>
                   </div>
                 </Col>
-                <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDurationCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
-                    <label>DURATION</label>
+                    <label>
+                      DURATION
+                      {isChikitsalayAccessable ? <span className="text-danger"> *</span> : null}
+                    </label>
                   </div>
                 </Col>
-                <Col lg={6} md={6} sm={6} xs={6} className="border-end">
+                <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label>NOTE</label>
                   </div>
                 </Col>
-                <Col lg={1} md={1} sm={2} xs={2} className="text-center">
+                <Col lg={1} md={1} sm={2} xs={2} className={`text-center ${useTesseractUi ? "tesseract-ct-sticky-action" : ""} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label></label>
                   </div>
@@ -1055,36 +1794,132 @@ function MedicationsBox() {
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="medication" direction="vertical">
             {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef}>
-                {medicationData.length > 0 &&
-                  medicationData.map((e, index) => ({ ...e, index: index })).reduce((acc, curr) => acc?.at(-1)?.tmm_id == curr.tmm_id ? acc : [...acc, curr], []).map((item, i) => (
-                    <Draggable key={i} draggableId={`medication-${i}`} index={i}>
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={isNewEmptyLineUiEnabled ? "prescription-empty-line-ui" : undefined}
+              >
+                {groupedMedicationRows.map(({ rows, index: medicationIndex }, i) => {
+                  const medicationRow = rows[0];
+                  const item = { ...medicationRow, index: medicationIndex };
+                  const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(medicationRow, medicationIndex) : `medication-${i}`;
+
+                  return (
+                    <Draggable key={rowKey} draggableId={rowKey} index={i}>
                       {(provided) => (
                         <Row
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          key={i}
+                          key={rowKey}
                           gutter={[0]}
-                          className={`taper-dose align-items-center ${i === 0 && "border-top"} border-bottom`}
+                          className={[
+                            "taper-dose align-items-center border-bottom",
+                            !isNewEmptyLineUiEnabled && i === 0 ? "border-top" : "",
+                            emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                            isVoiceRxModuleEnabled ? voiceModuleStyles.medicationTableRow : "",
+                          ].filter(Boolean).join(" ")}
                         >
-                          <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                            <MenuOutlined
-                              {...provided.dragHandleProps}
-                              className="drag-handle"
-                              style={{ cursor: 'grab' }}
-                            >
-                            </MenuOutlined>
+                          <Col lg={1} md={1} sm={1} xs={1} className={[
+                            "text-center d-flex flex-column align-self-stretch",
+                            isNewEmptyLineUiEnabled ? "border-end" : "",
+                            isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDragCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            <div className="d-flex align-items-center justify-content-center flex-grow-1 w-100">
+                              {isNewEmptyLineUiEnabled ? (
+                                <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                              ) : (
+                                <MenuOutlined
+                                  {...provided.dragHandleProps}
+                                  className="drag-handle"
+                                >
+                                </MenuOutlined>
+                              )}
+                            </div>
                           </Col>
-                          <Col lg={5} md={5} sm={5} xs={5}>
-                            <div className="fontroboto fw-medium p-2 pe-3">
-                              <label>{item.tmm_medicine_name}</label>
+                          <Col
+                            lg={5}
+                            md={5}
+                            sm={5}
+                            xs={5}
+                            className={[
+                              isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
+                              // Stretch so the cell spans every tapering row: the
+                              // "Tapering Dose" CTA is absolutely positioned inside
+                              // it, so a short cell left the CTA floating mid-row.
+                              (useTesseractUi || (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item))) ? "align-self-stretch" : ""
+                            ].filter(Boolean).join(" ") || undefined}
+                            data-testid={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
+                            onClick={() => {
+                              if (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) && voiceMedicineEdit.index !== item.index) {
+                                handleVoiceMedicineClick(item);
+                              }
+                            }}
+                            style={{ position: 'relative', ...(isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && isMedicationInventorySelectionRequired(item) ? { background: "#fff8ef" } : {}) }}
+                          >
+                            <div className={isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
+                              {isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? (
+                                <div className="d-flex align-items-center gap-1 w-100">
+                                  <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
+                                    {voiceMedicineEdit.index === item.index ? (
+                                      <AutoComplete
+                                        autoFocus
+                                        value={voiceMedicineEdit.query}
+                                        data-testid={`voice-rx-medication-search-${item.index}`}
+                                        placeholder="Medicine Name"
+                                        bordered={false}
+                                        defaultOpen
+                                        open
+                                        onSearch={(query) => handleVoiceMedicineSearch(query, item.index)}
+                                        onSelect={(data, e) => onSelectVoiceMedicine(data, e, item.index)}
+                                        onBlur={handleVoiceMedicineBlur}
+                                        options={parentSearchOptions}
+                                        className="autocomplete-custom w-100 inputborder"
+                                        {...getMedicationPopupProps("medicine-parent-autocomplete-dropdown")}
+                                        defaultActiveFirstOption
+                                      />
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2"
+                                        data-testid={`voice-rx-medication-name-${item.index}`}
+                                        onClick={() => handleVoiceMedicineClick(item)}
+                                        style={{ cursor: "pointer" }}
+                                      >
+                                        {item.tmm_medicine_name}
+                                      </button>
+                                    )}
+                                    {renderHmTypeBadge(item, { hideZ: !isPrescriptionNewContext })}
+                                  </div>
+                                  {shouldShowInventorySourceWarning && isMedicationInventorySelectionRequired(item) && (
+                                    <Tooltip
+                                      placement="top"
+                                      overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
+                                      title={MEDICATION_INVENTORY_WARNING}
+                                    >
+                                      <InfoCircleOutlined
+                                        className="fs-18"
+                                        style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
+                                      />
+                                    </Tooltip>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="d-flex align-items-center flex-wrap gap-1">
+                                  <span className="text-main2">{item.tmm_medicine_name}</span>
+                                  {renderHmTypeBadge(item, { hideZ: !isPrescriptionNewContext })}
+                                </div>
+                              )}
                               <Tooltip placement="bottom" title={item.tmm_generic}>
                                 <div className="text-truncate fw-normal me-1">{item.tmm_generic}</div>
                               </Tooltip>
+                              {renderSelectedMedicineStock(item)}
+                            </div>
+                            <div className="badge-tapper badge-tapper--taper" onClick={() => taperDoseAdd(item)}>
+                              <i className="icon-Add me-1"></i> Tapering Dose
                             </div>
                           </Col>
-                          <Col lg={18} md={18} sm={18} xs={18}>
-                            {!item.pms_default &&
+                          <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined} style={{ height: isChikitsalayAccessable ? "stretch" : undefined }}>
+                            {!item.pms_default && !(isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item)) &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
                                   const medicineType = medicineTypeList.find(x => x?.tmy_id == item?.tmm_type)
@@ -1103,8 +1938,8 @@ function MedicationsBox() {
                             }
                             {innerMedication(item.index).map(e1 => ({ ...e1, index: medicationData.findIndex(e => e.unique_id == e1.unique_id) })).map((item, ii) => {
                               return (
-                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'}`}>
-                                  <Col lg={5} md={5} sm={5} xs={5} className="border-end border-start">
+                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationInnerRow : ""}`} style={{ height: isChikitsalayAccessable ? "stretch" : undefined }}>
+                                  <Col lg={5} md={5} sm={5} xs={5} className={`border-end border-start ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationUnitCell : ""}`}>
                                     <AutoComplete
                                       defaultValue={item.tmm_dosage_unit_name}
                                       value={item.tmm_dosage_unit_name}
@@ -1116,6 +1951,7 @@ function MedicationsBox() {
                                       options={unitPerDoseOptions}
                                       // backfill={true}
                                       className="autocomplete-custom w-100 h-100 inputborder"
+                                      {...getMedicationPopupProps()}
                                       defaultActiveFirstOption={true}
                                       onSelect={(data, e) => onSelectUnitPerDoseChild(data, e, item?.index)}
                                       onClear={() => onSearchUnitPerDoseChid("", item?.index)}
@@ -1123,17 +1959,26 @@ function MedicationsBox() {
                                     />
                                     {ii === 0 && (profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
                                       dosesList.some((e1) => e1.medicine_id == item.tmm_id) ? (
-                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, left: 20 }} onClick={() => handleViewDoseCalcDrawer("1", item?.tmm_id)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> Edit Calculation</div>
+                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, right: 0 }} onClick={() => handleViewDoseCalcDrawer("1", item?.tmm_id)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Edit Calc." : "Edit Calculation"}</div>
                                       ) : (
-                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, left: 20 }} onClick={() => handleViewDoseCalcDrawer("1", 0)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> Dose Calculator</div>
+                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, right: 0 }} onClick={() => handleViewDoseCalcDrawer("1", 0)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Dose Calc." : "Dose Calculator"}</div>
                                       )
                                     )}
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationFrequencyCell : ""}`}>
                                     <Select
                                       showSearch
                                       className="autocomplete-custom w-100 h-100 inputborder"
-                                      placeholder="e.g 1-0-1"
+                                      placeholder={
+                                        isChikitsalayAccessable ? (
+                                          <span>
+                                            <span style={{ opacity: 0.6 }}>e.g 1-0-1</span>{" "}
+                                            <span className="text-danger">*</span>
+                                          </span>
+                                        ) : (
+                                          "e.g 1-0-1"
+                                        )
+                                      }
                                       defaultValue={item.tmm_freq_type_name != "" ? item.tmm_freq_type_name : null}
                                       value={item.tmm_freq_type_name != "" ? item.tmm_freq_type_name : null}
                                       onSearch={(query) => onSearchFrequencyChild(query, item?.index)}
@@ -1141,11 +1986,12 @@ function MedicationsBox() {
                                       onBlur={() => onBlurFrequencyChild(item?.index)}
                                       onSelect={(data) => onSelectFrequencyChild(data, item?.index)}
                                       options={frequencyOptions}
+                                      {...getMedicationPopupProps()}
                                       onClear={() => onSelectFrequencyChild("", item?.index)}
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationWhenCell : ""}`}>
                                     <Select
                                       className="autocomplete-custom w-100 h-100 inputborder"
                                       placeholder="e.g Before Food"
@@ -1158,49 +2004,60 @@ function MedicationsBox() {
                                           label: e.tmt_title,
                                         };
                                       })}
+                                      {...getMedicationPopupProps()}
                                       onClear={() => onSelectTimingChild("", item?.index)}
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end autofill">
+                                  <Col lg={4} md={4} sm={4} xs={4} className={`border-end autofill ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDurationCell : ""}`}>
                                     <AutoComplete
                                       defaultValue={item.tmm_days_duration_type}
                                       value={hasNumber(item.tmm_days_duration_type) ? item.tmm_days_duration_type : capitalize(item.tmm_days_duration_type, true)}
-                                      placeholder="e.g 1 Day"
+                                      placeholder={
+                                        isChikitsalayAccessable ? (
+                                          <span>
+                                            <span style={{ opacity: 0.6 }}>e.g 1 Day</span>{" "}
+                                            <span className="text-danger">*</span>
+                                          </span>
+                                        ) : (
+                                          "e.g 1 Day"
+                                        )
+                                      }
                                       bordered={false}
                                       defaultOpen={false}
                                       onSearch={(query) => onSearchSinceChid(query, item?.index)}
                                       options={sinceOptions}
                                       className="autocomplete-custom h-100 w-100 inputborder truncate-autocomplete"
-                                      popupClassName="option-truncate"
+                                      {...getMedicationPopupProps("option-truncate")}
                                       defaultActiveFirstOption={true}
                                       onSelect={(data, e) => onSelectSinceChild(data, e, item?.index)}
                                       onClear={() => onSearchSinceChid("", item?.index)}
                                       allowClear
                                     />
                                     {item?.tmm_days_duration_type && (
-                                      <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><i className="icon-copyIcon fs-12-1" />Autofill to all meds</div>
+                                      <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><span style={{ display: "inline-block", width: 14, height: 14, flexShrink: 0, backgroundColor: "currentColor", WebkitMask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/copy.svg) center / contain no-repeat", mask: "url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/design-tools/copy.svg) center / contain no-repeat", marginRight: 3 }} />Autofill to all meds</div>
                                     )}
                                   </Col>
-                                  <Col lg={6} md={6} sm={6} xs={6} className="border-end">
+                                  <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
                                     <TextArea
                                       className="notesinput border-0 h-100 align-self-center"
-                                      placeholder="Notes"
+                                      data-testid={`medicine-note-${item.index}`}
+                                      placeholder={isChikitsalayAccessable ? "" : "Notes"}
                                       defaultValue={item.tmm_remarks}
                                       value={item.tmm_remarks}
                                       autoSize={{
                                         minRows: 1,
-                                        maxRows: 2,
+                                        maxRows: isChikitsalayAccessable ? 3 : 2,
                                       }}
                                       onChange={(e) => onChangeNoteChild(e, item?.index)}
                                     />
                                   </Col>
-                                  <Col lg={1} md={1} sm={2} xs={2} className="d-flex align-items-center justify-content-center">
+                                  <Col lg={1} md={1} sm={2} xs={2} className={`d-flex align-items-center justify-content-center ${useTesseractUi ? "tesseract-ct-sticky-action" : ""} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`}>
                                     <Button
                                       className="btn py-0 btn-delete-prescription px-0"
                                       onClick={() => onRemoveRow(item?.index)}
                                     >
-                                      <i className="icon-delete"></i>
+                                      {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                                     </Button>
                                   </Col>
                                   {ii != 0 && (<div className="badge-then">Then</div>)}
@@ -1208,21 +2065,117 @@ function MedicationsBox() {
                               )
                             })}
                           </Col>
-                          <div className="badge-tapper" onClick={() => taperDoseAdd(item)}>
-                            <i className="icon-Add me-1"></i> Tapering Dose
-                          </div>
                         </Row>
                       )}
                     </Draggable>
-                  ))}
+                  );
+                })}
                 {provided.placeholder}
+                {isNewEmptyLineUiEnabled && (
+                  <Row
+                    gutter={[0]}
+                    className={[
+                      "taper-dose align-items-center border-bottom",
+                      "prescription-empty-line-row--animated",
+                      "prescription-empty-line-row--draft",
+                      isVoiceRxModuleEnabled ? voiceModuleStyles.medicationTableRow : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <Col lg={1} md={1} sm={1} xs={1} className={[
+                      "text-center d-flex flex-column align-self-stretch",
+                      "border-end",
+                      isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDragCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <div className="d-flex align-items-center justify-content-center flex-grow-1 w-100" />
+                    </Col>
+                    <Col lg={5} md={5} sm={5} xs={5} className={[
+                      "symptoms-table-cell prescription-empty-line-cell--draft-active",
+                      isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <PrescriptionEmptyLineDraftSearch
+                        inputRef={emptyLineDraftInputRef}
+                        inputClassName="fontroboto fw-medium w-100"
+                        value={emptyLineDraftName}
+                        options={parentSearchOptions}
+                        popupProps={getMedicationPopupProps("medicine-parent-autocomplete-dropdown")}
+                        onSearch={onEmptyLineDraftSearch}
+                        onSelect={onEmptyLineDraftSelect}
+                        onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                      />
+                    </Col>
+                    <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined}>
+                      <Row className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationInnerRow : undefined}>
+                        <Col lg={5} md={5} sm={5} xs={5} className={`border-end border-start ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationUnitCell : ""}`}>
+                          <AutoComplete
+                            value=""
+                            placeholder="e.g 1 Tablet"
+                            bordered={false}
+                            defaultOpen={false}
+                            disabled
+                            className="autocomplete-custom w-100 h-100 inputborder prescription-empty-line-draft-disabled-control"
+                          />
+                        </Col>
+                        <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationFrequencyCell : ""}`}>
+                          <Select
+                            className="autocomplete-custom w-100 h-100 inputborder prescription-empty-line-draft-disabled-control"
+                            placeholder="e.g 1-0-1"
+                            value={null}
+                            disabled
+                          />
+                        </Col>
+                        <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationWhenCell : ""}`}>
+                          <Select
+                            className="autocomplete-custom w-100 h-100 inputborder prescription-empty-line-draft-disabled-control"
+                            placeholder="e.g Before Food"
+                            value={null}
+                            disabled
+                          />
+                        </Col>
+                        <Col lg={4} md={4} sm={4} xs={4} className={`border-end autofill ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDurationCell : ""}`}>
+                          <AutoComplete
+                            value=""
+                            placeholder="e.g 1 Day"
+                            bordered={false}
+                            defaultOpen={false}
+                            disabled
+                            className="autocomplete-custom h-100 w-100 inputborder truncate-autocomplete prescription-empty-line-draft-disabled-control"
+                          />
+                        </Col>
+                        <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
+                          <TextArea
+                            className="notesinput border-0 h-100 align-self-center prescription-empty-line-draft-disabled-control"
+                            placeholder={isChikitsalayAccessable ? "" : "Notes"}
+                            value=""
+                            disabled
+                            autoSize={{
+                              minRows: 1,
+                              maxRows: isChikitsalayAccessable ? 3 : 2,
+                            }}
+                          />
+                        </Col>
+                        <Col lg={1} md={1} sm={2} xs={2} className={`d-flex align-items-center justify-content-center ${useTesseractUi ? "tesseract-ct-sticky-action" : ""} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`} />
+                      </Row>
+                    </Col>
+                  </Row>
+                )}
               </div>
             )}
           </Droppable>
         </DragDropContext>
-      </>
+      </div>
     );
-  }, [medicationData, frequencyPopOver]);
+  }, [
+    frequencyPopOver,
+    isMedicationInventorySelectionRequired,
+    isPrescriptionNewContext,
+    isVoiceRxModuleEnabled,
+    medicationData,
+    parentSearchOptions,
+    renderHmTypeBadge,
+    renderSelectedMedicineStock,
+    shouldShowInventorySourceWarning,
+    voiceMedicineEdit,
+  ]);
 
   //Child Component
   // const TABLE_MEDICATION = useMemo(() => {
@@ -1464,7 +2417,7 @@ function MedicationsBox() {
                     className="round-box"
                     onClick={() => onTemplateSelected(template.tmtd_id)}
                   >
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -1487,7 +2440,7 @@ function MedicationsBox() {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -1544,6 +2497,7 @@ function MedicationsBox() {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getMedicationPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -1557,7 +2511,7 @@ function MedicationsBox() {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box"><i className="icon-template"></i></div>
+                  <div className="round-box">{useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">{JSON.parse(option.data.key).medicine_name}</div>
@@ -1763,9 +2717,23 @@ function MedicationsBox() {
             exist: dosesList.some((e1) => e1.medicine_id == modifyData.tmm_id) ? true : false
           });
         } else {
-          medicationData.push({
-            ...updatedData[0],
-          });
+          const replaceIndex = Number(addCustom?.voice_rx_replace_index);
+          const replaceGroupId = String(addCustom?.voice_rx_replace_group_id || "").trim();
+          const replaceIndexMatches = Number.isInteger(replaceIndex) &&
+            replaceIndex >= 0 &&
+            (!replaceGroupId || String(medicationData[replaceIndex]?.voice_rx_group_id || "").trim() === replaceGroupId);
+          const targetIndex = replaceIndexMatches
+            ? replaceIndex
+            : (replaceGroupId ? medicationData.findIndex((item) => String(item?.voice_rx_group_id || "").trim() === replaceGroupId) : -1);
+          const targetRow = targetIndex >= 0 ? medicationData[targetIndex] : null;
+
+          if (targetRow) {
+            medicationData[targetIndex] = mergeSelectedMedicineForVoiceRow(targetRow, updatedData[0], updatedData[0]);
+          } else {
+            medicationData.push({
+              ...updatedData[0],
+            });
+          }
         }
       }
       if (doseCalculatorDrawer) {
@@ -1823,6 +2791,7 @@ function MedicationsBox() {
                   defaultValue={addCustom?.tmy_title !== undefined ? addCustom?.tmy_title : null}
                   value={addCustom?.tmy_title !== undefined ? addCustom?.tmy_title : null}
                   onSelect={onSelectMedicineType}
+                  {...getMedicationPopupProps()}
                   options={medicineTypeList.map((e) => {
                     return {
                       value: JSON.stringify({ ...e }),
@@ -1846,6 +2815,7 @@ function MedicationsBox() {
                   value={addCustom?.tmm_generic !== undefined ? addCustom?.tmm_generic : null}
                   onSearch={onSearchGeneric}
                   onSelect={onSelectGeneric}
+                  {...getMedicationPopupProps()}
                   options={[...genericList, { tmm_generic: genericQuery }].filter(e => e.tmm_generic).map((e, i) => {
                     return {
                       value: JSON.stringify({ ...e }),
@@ -1897,6 +2867,7 @@ function MedicationsBox() {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setMedicationData([])
     showHideClearData()
   };
@@ -2010,36 +2981,225 @@ function MedicationsBox() {
     setPillupSwitch(checked)
   };
 
+  // PillUp / eaZY Dose badge + toggle block (pillup flag only) — reused by
+  // both shells; sits next to the title classically, in headerMeta on Tesseract.
+  const PILLUP_META = isPillUpAccessableFromGB ? (
+    <div ref={tourRef} className="ms-2 border rounded-20px px-2 py-1 d-flex align-items-center" style={{ backgroundColor: 'rgb(226, 226, 234, 0.2)' }}>
+      {(() => {
+        const decodedToken = getDecodedToken();
+        const tokenData = decodedToken?.result;
+        const isZydusUser = tokenData?.hospital_business_id == env.zydus_business_id;
+        return isZydusUser ? <img src={EazyDoseLogo} alt="eaZY Dose" style={{ height: '20px' }} /> : <img src={Pillup} />;
+      })()}
+      <Popover
+        open={popOver3}
+        onOpenChange={showHidePillUpPopover}
+        content={profile?.userSettingFlag?.find(e => e?.type === 'pillup')?.status === 1 ? PILLUP_CONTENT() : null}
+        trigger="hover"
+        placement="bottom"
+      >
+        <i className="icon-info opacity-50 fs-18 mx-1"></i>
+      </Popover>
+      <Switch className="switch-custom" value={pillupSwitch} onChange={pillUpChange} />
+      <Tour placement="bottom" closeIcon={false} open={tourOpen} steps={steps} onClose={onTourHandle} />
+    </div>
+  ) : null;
+
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_MEDICATION}
+      {isAddMedicineOpen && ADD_MEDICINE_DATA}
+
+      {doseCalculatorDrawer &&
+        <Drawer
+          closeIcon={false}
+          className="modalWidth-800"
+          placement="right"
+          open={doseCalculatorDrawer}
+          onClose={showHideModal2}
+          width="auto"
+          zIndex={prescriptionNewTabletOverlayZIndex}
+          styles={{
+            body: {
+              backgroundColor: "white",
+            }
+          }}
+        >
+          <DoseCalculator
+            handleViewDoseCalcDrawer={handleViewDoseCalcDrawer}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            searchMLQuery={searchMLQuery}
+            setSearchMLQuery={setSearchMLQuery}
+            medicationLibrary={medicationLibrary}
+            setMedicationLibrary={setMedicationLibrary}
+            parentSearchOptions={parentSearchOptions}
+            onSearchParent={onSearchParent}
+            onSelectParent={onSelectParent}
+            showHideAddMedicineModal={showHideAddMedicineModal}
+            setAddCustom={setAddCustom}
+            editDoseId={editDoseId}
+            isModalOpen2={isModalOpen2}
+            showHideModal2={showHideModal2}
+          />
+        </Drawer>
+      }
+
+      {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        <div className={voiceModuleStyles.moduleSlot}>
+          <VoiceRxModuleCapture
+            moduleName="Medication (Rx)"
+            previousContext={medicationVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.medicine}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        </div>
+      ) : !isNewEmptyLineUiEnabled ? (
+        <div className="p-14">
+          <AutoComplete
+            value={searchParentQuery}
+            data-testid="medicine-parent-search"
+            onSearch={handleParentSearch}
+            options={parentSearchOptions}
+            className="autocomplete-custom w-100"
+            onSelect={onSelectParent}
+            defaultActiveFirstOption={true}
+            {...getMedicationPopupProps(`medicine-parent-autocomplete-dropdown ${
+              !searchParentQuery ? "boxpopup" : ""
+            }`)}
+          >
+            <Input
+              data-testid="medicine-parent-search-input"
+              placeholder="Search Medicines by Name"
+              prefix={<i className="icon-search"></i>}
+            />
+          </AutoComplete>
+        </div>
+      ) : null}
+      {useTesseractUi && availableMedicineChips.length > 0 && (
+        <div className="tesseract-rxpad-chips">
+          {availableMedicineChips.map((med) => (
+            <TesseractButton
+              key={med.tmm_id ?? med.tmm_medicine_name}
+              variant="tonal"
+              theme="neutral"
+              size="sm"
+              className="tesseract-rxpad-chip"
+              title={med.tmm_medicine_name}
+              onClick={() => onChipAdd(med)}
+            >
+              {med.tmm_medicine_name}
+            </TesseractButton>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-testid="medications-rx-section"
+        data-voice-rx-dictation-target="medications"
+        title={`${isPillUpAccessableFromGB ? 'Meds' : 'Medications'} (Rx)`}
+        icon="bulk/pills"
+        headerMeta={PILLUP_META}
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="medications"
+                label="Start Medication Rx voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            {(profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
+              <Tooltip placement="bottom" title="Dose calculator">
+                <span>
+                  {tesseractActionButton({ icon: "calculator", label: "Dose calculator", onClick: handleViewDoseCalcDrawer })}
+                </span>
+              </Tooltip>
+            )}
+            <Tooltip placement="bottom" title="Load previous Rx">
+              <span>
+                {tesseractActionButton({ icon: "refresh-arrow", label: "Load previous Rx", onClick: loadPreviousRxClick })}
+              </span>
+            </Tooltip>
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: "Browse medication templates" })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (medicationData.length > 0) && !hasUngroundedMedications && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : "Save as template"}>
+                  {tesseractActionButton({ icon: "ram", label: "Save medications as template", disabled: medicationData.length === 0 || hasUngroundedMedications })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: "Clear medications", onClick: showHideClearData, disabled: medicationData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
+
   return (
     <>
-      <div>
+      <div ref={sectionRef} data-testid="medications-rx-section" data-voice-rx-dictation-target="medications" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Medicationicon} alt="Medication" />
             <div className="title-common">{isPillUpAccessableFromGB ? 'Meds' : 'Medications'} (Rx)</div>
-            {isPillUpAccessableFromGB &&
-              <div ref={tourRef} className="ms-2 border rounded-20px px-2 py-1 d-flex align-items-center" style={{ backgroundColor: 'rgb(226, 226, 234, 0.2)' }}>
-                {(() => {
-                  const decodedToken = getDecodedToken();
-                  const tokenData = decodedToken?.result;
-                  const isZydusUser = tokenData?.hospital_business_id == env.zydus_business_id;
-                  return isZydusUser ? <img src={EazyDoseLogo} alt="eaZY Dose" style={{ height: '20px' }} /> : <img src={Pillup} />;
-                })()}
-                <Popover
-                  open={popOver3}
-                  onOpenChange={showHidePillUpPopover}
-                  content={profile?.userSettingFlag?.find(e => e?.type === 'pillup')?.status === 1 ? PILLUP_CONTENT() : null}
-                  trigger="hover"
-                  placement="bottom"
-                >
-                  <i className="icon-info opacity-50 fs-18 mx-1"></i>
-                </Popover>
-                <Switch className="switch-custom" value={pillupSwitch} onChange={pillUpChange} />
-                <Tour placement="bottom" closeIcon={false} open={tourOpen} steps={steps} onClose={onTourHandle} />
-              </div>
-            }
+            {PILLUP_META}
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="medications"
+                label="Start Medication Rx voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             {(profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
               <button
                 className="btn d-flex align-items-center btn-text"
@@ -2049,13 +3209,19 @@ function MedicationsBox() {
                 <img src={calculatorIcon} alt="Dose calcultor" className="svg-hovered me-2" /><span>{isPillUpAccessableFromGB ? 'Dose calc' : 'Dose calculator'}</span>
               </button>
             )}
-            <button
-              className="btn d-flex align-items-center btn-text"
-              onClick={loadPreviousRxClick}
-            >
-              {" "}
-              <i className="icon-reload me-2"></i> <span>{isPillUpAccessableFromGB ? 'Prev. Rx ' : 'Load Prev. Rx'}</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Load previous Rx">
+                <VoiceRxModuleActionButton type="reload" label="Load previous Rx" onClick={loadPreviousRxClick} />
+              </Tooltip>
+            ) : (
+              <button
+                className="btn d-flex align-items-center btn-text"
+                onClick={loadPreviousRxClick}
+              >
+                {" "}
+                <i className="icon-reload me-2"></i> <span>{isPillUpAccessableFromGB ? 'Prev. Rx ' : 'Load Prev. Rx'}</span>
+              </button>
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -2064,92 +3230,55 @@ function MedicationsBox() {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>{isPillUpAccessableFromGB ? 'Temp' : 'Templates'}</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse medication templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse medication templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>{isPillUpAccessableFromGB ? 'Temp' : 'Templates'}</span>
+                </button>
+              )}
             </Popover>
-            <Tooltip placement="bottom" title={(medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
+            <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
               <Popover
                 open={popOver2}
-                onOpenChange={() => (medicationData.length > 0) && showHideSaveTemplatePopOver()}
+                onOpenChange={() => (medicationData.length > 0) && !hasUngroundedMedications && showHideSaveTemplatePopOver()}
                 // onOpenChange={showHideSaveTemplatePopOver}
                 content={SAVE_CONTENT}
                 trigger="click"
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton type="save" label="Save medications as template" disabled={medicationData.length === 0 || hasUngroundedMedications} />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
 
               </Popover>
             </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={medicationData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> {!isPillUpAccessableFromGB && <span>Clear</span>}
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton type="clear" label="Clear medications" onClick={showHideClearData} disabled={medicationData.length === 0} />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={medicationData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> {!isPillUpAccessableFromGB && <span>Clear</span>}
+              </button>
+            )}
           </div>
         </div>
 
-        {DELETE_MODAL}
-        {REMOVE_ALL_ROWS}
-        {TABLE_MEDICATION}
-        {isAddMedicineOpen && ADD_MEDICINE_DATA}
-
-        {doseCalculatorDrawer &&
-          <Drawer
-            closeIcon={false}
-            className="modalWidth-800"
-            placement="right"
-            open={doseCalculatorDrawer}
-            onClose={showHideModal2}
-            width="auto"
-            styles={{
-              body: {
-                backgroundColor: "white",
-              }
-            }}
-          >
-            <DoseCalculator
-              handleViewDoseCalcDrawer={handleViewDoseCalcDrawer}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              searchMLQuery={searchMLQuery}
-              setSearchMLQuery={setSearchMLQuery}
-              medicationLibrary={medicationLibrary}
-              setMedicationLibrary={setMedicationLibrary}
-              parentSearchOptions={parentSearchOptions}
-              onSearchParent={onSearchParent}
-              onSelectParent={onSelectParent}
-              showHideAddMedicineModal={showHideAddMedicineModal}
-              setAddCustom={setAddCustom}
-              editDoseId={editDoseId}
-              isModalOpen2={isModalOpen2}
-              showHideModal2={showHideModal2}
-            />
-          </Drawer>
-        }
-
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={handleParentSearch}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={`medicine-parent-autocomplete-dropdown ${
-              !searchParentQuery ? "boxpopup" : ""
-            }`}
-          >
-            <Input
-              placeholder="Search Medicines by Name"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
-        </div>
+        {BODY_CONTENT}
       </div>
     </>
   );

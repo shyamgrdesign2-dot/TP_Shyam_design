@@ -1,11 +1,25 @@
-import { useEffect, useState } from "react";
-import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
+import { useMemo } from "react";
+import { Tooltip } from "antd";
+import { ArrowUpOutlined, ArrowDownOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
-import axios from 'axios';
-import { env } from "../EnvironmentConfig";
+import { getDecodedToken } from "../utils/localStorage";
 
 const LabParametersList = ({ labParamsData }) => {
+  const loggedInDoctorId = useMemo(() => {
+    try {
+      return getDecodedToken()?.result?.user_id;
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  const isOtherDoctorEntry = (entry) => {
+    const entryDoctorId = entry?.doctorId;
+    if (entryDoctorId == null || entryDoctorId === "") return false;
+    if (loggedInDoctorId == null || loggedInDoctorId === "") return false;
+    return String(entryDoctorId) !== String(loggedInDoctorId);
+  };
+
   const transformData = (data) => {
     const result = {};
 
@@ -18,7 +32,16 @@ const LabParametersList = ({ labParamsData }) => {
           if (!result[key]) {
             result[key] = [];
           }
-          result[key].push({ date: entry.date, value, arrowDirection, units, testName, reportName });
+          result[key].push({
+            date: entry.date,
+            value,
+            arrowDirection,
+            units,
+            testName,
+            reportName,
+            doctorId: entry.doctorId,
+            receptionistId: entry.receptionistId,
+          });
         }
       });
     });
@@ -30,7 +53,9 @@ const LabParametersList = ({ labParamsData }) => {
 
   const renderTableHeader = () => {
     // Sort labParamsData by date (descending) and take the first two dates
-    const recentLabParamsData = labParamsData?.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 2);
+    const recentLabParamsData = [...(labParamsData || [])]
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 2);
 
     return (
       <tr>
@@ -46,7 +71,7 @@ const LabParametersList = ({ labParamsData }) => {
         </th>
         {recentLabParamsData?.map((entry, index) => (
           <th
-            key={index}
+            key={`${entry?.date}-${entry?.doctorId ?? ""}-${index}`}
             className="obstetricTcell"
             style={{
               width: "25%", // Adjust width if needed
@@ -56,7 +81,20 @@ const LabParametersList = ({ labParamsData }) => {
               borderRight: index === recentLabParamsData.length - 1 ? "1px solid white" : "none",
             }}
           >
-            {dayjs(entry?.date).format("DD MMM, YYYY")}
+            <div className="d-flex align-items-center gap-1">
+              <span>{dayjs(entry?.date).format("DD MMM, YYYY")}</span>
+              {isOtherDoctorEntry(entry) ? (
+                <Tooltip title="Data added by another doctor" placement="top">
+                  <InfoCircleOutlined
+                    style={{
+                      fontSize: 14,
+                      color: "#696974",
+                      cursor: "pointer",
+                    }}
+                  />
+                </Tooltip>
+              ) : null}
+            </div>
           </th>
         ))}
       </tr>
@@ -64,8 +102,8 @@ const LabParametersList = ({ labParamsData }) => {
   };
 
   const renderTableData = () => {
-    const recentLabParamsData = labParamsData
-      ?.sort((a, b) => new Date(b.date) - new Date(a.date))
+    const recentLabParamsData = [...(labParamsData || [])]
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
       .slice(0, 2);
 
     return (
@@ -84,14 +122,18 @@ const LabParametersList = ({ labParamsData }) => {
 
               {/* Render values for each date in the same row */}
               {recentLabParamsData?.map((dateEntry, dataIndex) => {
-                // Find the data for this testName and reportName for the current date
-                const dataForDate = groupedData[key].find(
-                  (entry) => entry.date === dateEntry.date
-                );
+                // Prefer same date+doctor match when multi-doctor rows exist
+                const dataForDate =
+                  groupedData[key].find(
+                    (entry) =>
+                      entry.date === dateEntry.date &&
+                      String(entry.doctorId ?? "") === String(dateEntry.doctorId ?? "")
+                  ) ||
+                  groupedData[key].find((entry) => entry.date === dateEntry.date);
 
                 return (
                   <td
-                    key={dataIndex}
+                    key={`${dateEntry?.date}-${dateEntry?.doctorId ?? ""}-${dataIndex}`}
                     style={{ width: "25%", color: "#454551 !important" }}
                     className={`labParamsTcell ${
                       dataForDate?.arrowDirection !== ""

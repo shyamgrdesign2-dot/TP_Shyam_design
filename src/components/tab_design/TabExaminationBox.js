@@ -6,10 +6,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../../common/CommonModal';
-import alertIcon from '../../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../../context/CashManagerContext';
 import { errorMessage, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../../utils/utils";
-import Examinationicon from "../../assets/images/Examination.svg";
+
 import {
     addTemplate,
     updateTemplate,
@@ -20,8 +20,13 @@ import {
 } from "../../redux/examinationSlice";
 
 import TabExaminationSearch from "../../components/tab_design/TabExaminationSearch";
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import { setIsDDxReadyToGenerate } from "../../redux/ddxSlice";
+import { ASSETS } from "../../assets";
+const {
+  alerticon: alertIcon,
+  examination: Examinationicon,
+} = ASSETS.images;
 
 function TabExaminationBox() {
     const {
@@ -608,6 +613,5 @@ function TabExaminationBox() {
         </>
     );
 }
-
 
 export default React.memo(TabExaminationBox);

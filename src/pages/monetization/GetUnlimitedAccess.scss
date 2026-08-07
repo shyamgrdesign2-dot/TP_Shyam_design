@@ -1,10 +1,10 @@
-@import '../../assets/scss/variables';
+@import '../../styles/variables';
 
 .unlimited-access-wrapper {
     display: flex;
     flex-direction: column;
     .bg-unlimited-access {
-        background-image: url(../../assets/images/bg-unlimited-access.svg);
+        background-image: url(#{$tp-assets-base}/images/bg-unlimited-access.svg);
         background-repeat: no-repeat;
         background-position: top center;
         padding: 32px 35px 0;
@@ -21,7 +21,7 @@
         &:after {
             position: absolute;
             content: '';
-            background-image: url(../../assets/images/add-square.svg);
+            background-image: url(#{$tp-assets-base}/images/add-square.svg);
             left: 50%;
             bottom: -26px;
             width: 42px;
@@ -111,7 +111,7 @@
                         left: 50%;
                         top: -8px;
                         transform: translate(-50%, 0px);
-                        background-image: url(../../assets/images/pro-incudes.svg);
+                        background-image: url(#{$tp-assets-base}/images/pro-incudes.svg);
                     }
                 }
                 &.after-receptionist {
@@ -123,7 +123,7 @@
                         left: 50%;
                         top: -8px;
                         transform: translate(-50%, 0px);
-                        background-image: url(../../assets/images/pro-incudes.svg);
+                        background-image: url(#{$tp-assets-base}/images/pro-incudes.svg);
                     }
                 }
                 .include-checkbox {
@@ -220,7 +220,7 @@
         height: 4px;
         bottom: -3px;
         left: 0;
-        background-image: url(../../assets/images/tag-recommend.svg);
+        background-image: url(#{$tp-assets-base}/images/tag-recommend.svg);
         background-repeat: no-repeat;
     }
 }
@@ -324,7 +324,7 @@
                         content: ">";
                         border-radius: 16px;
                         color: #fff;
-                        background-image: url(../../assets/images/right-arrow.svg);
+                        background-image: url(#{$tp-assets-base}/images/right-arrow.svg);
                         background-repeat: no-repeat;
                         display: block;
                         background-position: center;

@@ -8,10 +8,14 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import TabGynecHistoryList from "./TabGynecHistoryList";
 import { useAccess } from "../../pages/vaccination/useAccess";
 import { useSelector } from "react-redux";
-import genRxBgWebm from "../../assets/images/gen-rx-bg.webm";
-import genRxBgMp4 from "../../assets/images/gen-rx-bg.mp4";
+
 import LoopingVideo from "../common/LoopingVideo";
 import TabSiderEmptyState from "./TabSiderEmptyState";
+import { ASSETS } from "../../assets";
+const {
+  genRxBg_2: genRxBgWebm,
+  genRxBg: genRxBgMp4,
+} = ASSETS.images;
 
 // Read More content
 const ReadMore = ({ children }) => {
@@ -257,6 +261,5 @@ function TabMedicalHistoryList(props) {
         </>
     );
 }
-
 
 export default React.memo(TabMedicalHistoryList);

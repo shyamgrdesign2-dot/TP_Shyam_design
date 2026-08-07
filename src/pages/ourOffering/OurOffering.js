@@ -1,17 +1,18 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import ShethoscopeImg from "../../assets/images/offerings/Shethoscope.webp"
-import TatvaShotsImg from "../../assets/images/offerings/Tatvashots.webp"
-import TatvaPediaImg from "../../assets/images/offerings/Tatvapedia.webp"
-import RemoteCareImg from "../../assets/images/offerings/Remote_Care.webp"
-import AskTatvaImg from "../../assets/images/offerings/Ask_Tatva.webp"
-import GenerateDDxImg from "../../assets/images/offerings/DDx.webp"
-import WhiteGridImg from "../../assets/images/offerings/white_grid.svg"
-import TatvaCareLogo from "../../assets/images/Tatvacare.webp"
 import "./OurOffering.scss"
 import { useLocalStorage } from '../../utils/localStorage'
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_MEDECO_TOKEN } from '../../utils/constants'
 import config from '../../config'
 import { useSelector } from 'react-redux'
+import { ASSETS } from "../../assets";
+const ShethoscopeImg = ASSETS.images.offerings.shethoscope;
+const TatvaShotsImg = ASSETS.images.offerings.tatvashots;
+const TatvaPediaImg = ASSETS.images.offerings.tatvapedia;
+const RemoteCareImg = ASSETS.images.offerings.remoteCare;
+const AskTatvaImg = ASSETS.images.offerings.askTatva;
+const GenerateDDxImg = ASSETS.images.offerings.ddx;
+const WhiteGridImg = ASSETS.images.offerings.whiteGrid;
+const TatvaCareLogo = ASSETS.images.tatvacare;
 
 const OurOffering = () => {
     const [searchParams] = useSearchParams();

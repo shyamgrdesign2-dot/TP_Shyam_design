@@ -43,8 +43,7 @@ import dayjs from "dayjs";
 // import MenuDivider from "antd/es/menu/MenuDivider";
 import Form3cPrint from "./Form3cPrint.js";
 import { MESSAGE_KEY, PERSISTANT_STORAGE_KEY_BILL_TOKEN } from "../../../../utils/constants.js";
-import visitEnd from "../../../../assets/images/end-visit.svg";
-import imgCloseVisit from "../../../../assets/images/close-visit.svg";
+
 import {
   fetchBillingDashboard,
   fetchPatientWalletBalance,
@@ -65,6 +64,11 @@ import config from "../../../../config.js";
 import { browserName } from "react-device-detect";
 import { EVENTS } from "../../../../utils/events.js";
 import { useLocalStorage } from "../../../../utils/localStorage.js";
+import { ASSETS } from "../../../../assets";
+const {
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 const { RangePicker } = DatePicker;
 const dateFormat = "YYYY-MM-DD";

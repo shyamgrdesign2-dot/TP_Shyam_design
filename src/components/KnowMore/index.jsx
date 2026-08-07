@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tabs } from "antd";
 import "./styles.scss";
-import playIcons from "../../assets/images/tube-icon.svg";
+
 import { Col, Row } from "react-bootstrap";
 import VideoModal from "../../common/VideoModal";
+import { ASSETS } from "../../assets";
+const playIcons = ASSETS.images.tubeIcon;
 
 const { TabPane } = Tabs;
 

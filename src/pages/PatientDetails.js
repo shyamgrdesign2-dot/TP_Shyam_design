@@ -8,11 +8,10 @@ import Welcome1 from '../common/Welcome1'
 import VitalsBodyComposition from '../components/VitalsBodyComposition';
 // import LabParameters from '../components/LabParameters';
 import MedicalHistory from '../components/MedicalHistory';
+import DentalOralExaminationHistory from '../components/DentalOralExaminationHistory';
 import CarePlanBox from '../components/CarePlanBox';
 // import Vaccination from '../components/Vaccination';
 import Cardiology from '../components/Cardiology';
-import variables from '../assets/scss/variables.scss'
-import alertIcon from "../assets/images/alertIcon.svg";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -31,7 +30,14 @@ import VisitObstetric from "./obstetric/components/visitObstetric/VisitObstetric
 import { getClinicName } from "../utils/utils";
 import VisitMedicalRecords from "./medicalRecords/components/visitMedicalRecords/VisitMedicalRecords";
 import { PATIENT_DETAILS_SIDEBAR_KEYS } from "../utils/constants";
-import { setAllUploadedDocs, setPatientUploadedDocs } from "../redux/uploadDocSlice";
+import { GB_ZYDUS_USER } from "../utils/constants";
+import {
+    setAllUploadedDocs,
+    setPatientUploadedDocs,
+    resetUploadDocState,
+    zydusDocsList,
+    zydusRadioList,
+} from "../redux/uploadDocSlice";
 import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from "./medicalRecords/service";
 import { mergeDocuments } from "./medicalRecords/utils/helper";
 import VisitLabParameters from "../components/VisitLabParameters";
@@ -47,7 +53,17 @@ import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
 import { lazyRetry } from "../utils/lazyRetry";
 import { searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
-import { errorMessage } from "../utils/utils";
+import { errorMessage, trackEvent } from "../utils/utils";
+import { getDecodedToken } from "../utils/localStorage";
+import { env } from "../EnvironmentConfig";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
+import { ASSETS } from "../assets";
+import VisitDrawingCanvases from "./drawingCanvas/components/VisitDrawingCanvases";
+import { TreatmentPlanEmbed } from "../components/dental/plan/TreatmentPlanPage";
+
+const variables = ASSETS.scss.variables;
+const alertIcon = ASSETS.images.alerticon;
 const BillingDashboard = React.lazy(() =>
   lazyRetry(() => import("./opdBilling/components/billingDashboard/BillingDashboard"))
 );
@@ -63,24 +79,32 @@ function PatientDetails() {
         loading,
         consultations: consultationsFromRedux,
     } = useSelector((state) => state.caseManager);
-    const { allUploadedDocs } = useSelector(
-      (state) => state.uploadDoc
-    );
       const { billPrintSettings, ipdBillPrintSettings } = useSelector(
         (state) => state.billing
       );
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const location = useLocation();
     const navigate = useNavigate();
     const locationState = location.state || {};
     const { patient_data, sidebarKey: initialSidebarKey } = locationState || {};
+    const resolvedMrno =
+      patient_data?.mrno ||
+      patient_data?.pm_reference_id ||
+      patient_data?.tpml_refrence_id ||
+      null;
     const stateMrnNo = locationState?.mrnNo;
     const queryMrnNo = new URLSearchParams(location.search).get("mrnNo");
     const mrnNo = queryMrnNo || stateMrnNo;
     const { isVaccinationAccessable, isGrowthChartAccessable } = useAccess(
       patient_data?.ageYears
     );
+    const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+    const tokenData = getDecodedToken()?.result;
+    const isZydusUser =
+      tokenData?.hospital_business_id == env.zydus_business_id &&
+      isZydusUserAccessableFromGB;
 
     const [sidebarKey, setSidebarKey] = useState(initialSidebarKey || PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY);
 
@@ -235,33 +259,43 @@ function PatientDetails() {
             });
             var sendData = {
                 patient_unique_id: patient_data?.patient_unique_id,
-                tcm_id: currentConsultation.tcm_id
+                tcm_id: currentConsultation.tcm_id,
+                isChikitsalayAccessable,
             };
             dispatch(viewCaseManager(sendData));
         }
-    }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch]);
+    }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch, isChikitsalayAccessable]);
 
     useEffect(() => {
         const tcmId = viewCaseManagerData?.tcm_id;
-        if (!tcmId) {
+        const patientId = patient_data?.patient_unique_id;
+        
+        if (!tcmId || !patientId) {
             return;
         }
+        
         let isMounted = true;
+        const abortController = new AbortController();
+        
         const fetchOpthalPrescription = async () => {
             try {
                 const response = await getOpthalPrescriptionDetails({
                     tcm_id: tcmId,
-                    patientId: patient_data?.patient_unique_id,
+                    patientId: patientId,
+                    signal: abortController.signal,
                 });
-                const data = response?.data ?? response;
-                const payload = Array.isArray(data) ? data[0] : data;
+                
                 if (!isMounted) {
                     return;
                 }
+                
+                const data = response?.data ?? response;
+                const payload = Array.isArray(data) ? data[0] : data;
+                
                 setOpthalPrescriptionHistory((prev) => {
                     const next = Array.isArray(prev) ? [...prev] : [];
                     const index = next.findIndex((item) => item?.tcm_id === tcmId);
-                    const entry = { tcm_id: tcmId, data: payload || null };
+                    const entry = { tcm_id: tcmId, data: payload || null, timestamp: Date.now() };
                     if (index >= 0) {
                         next[index] = entry;
                     } else {
@@ -270,14 +304,19 @@ function PatientDetails() {
                     return next;
                 });
             } catch (error) {
-                console.error("Error fetching opthal prescription details:", error);
+                if (error.name !== 'AbortError') {
+                    console.error("Error fetching opthal prescription details:", error);
+                }
             }
         };
+        
         fetchOpthalPrescription();
+        
         return () => {
             isMounted = false;
+            abortController.abort();
         };
-    }, [viewCaseManagerData?.tcm_id]);
+    }, [viewCaseManagerData?.tcm_id, patient_data?.patient_unique_id]);
 
     useEffect(() => {
         return () => {
@@ -288,20 +327,20 @@ function PatientDetails() {
     }, []);
 
     useEffect(() => {
-    if (patient_data?.patient_unique_id && allUploadedDocs.length === 0) {
-        getAllPatientDocs();
-    }
-    if (
-      (billPrintSettings && Object.keys(billPrintSettings).length === 0)
-    ) {
-      getBillPrintSettings();
-    }
-    if (
-      (ipdBillPrintSettings && Object.keys(ipdBillPrintSettings).length === 0)
-    ) {
-      getIpdBillPrintSettings();
-    }
-    }, []);
+        if (patient_data?.patient_unique_id) {
+            getAllPatientDocs();
+        }
+        if (
+          (billPrintSettings && Object.keys(billPrintSettings).length === 0)
+        ) {
+          getBillPrintSettings();
+        }
+        if (
+          (ipdBillPrintSettings && Object.keys(ipdBillPrintSettings).length === 0)
+        ) {
+          getIpdBillPrintSettings();
+        }
+    }, [patient_data?.patient_unique_id, resolvedMrno, isZydusUserAccessableFromGB]);
 
     // Check patient admission status on mount
     useEffect(() => {
@@ -358,6 +397,26 @@ function PatientDetails() {
             mergeDocuments(doctorUploadedDocs, patientUploadedDocs)
           )
         );
+
+        const tokenData = getDecodedToken()?.result;
+        if (
+            tokenData?.hospital_business_id == env.zydus_business_id &&
+            isZydusUserAccessableFromGB &&
+            resolvedMrno != null
+        ) {
+            dispatch(
+                zydusDocsList({
+                    mrno: resolvedMrno,
+                    um_id: tokenData?.user_id,
+                })
+            );
+            dispatch(
+                zydusRadioList({
+                    mrno: resolvedMrno,
+                    um_id: tokenData?.user_id,
+                })
+            );
+        }
     };
 
     const nextPress = () => {
@@ -379,6 +438,18 @@ function PatientDetails() {
     const onClickSidebarHandle = useCallback((key) => {
         setSidebarKey(key)
     }, [sidebarKey])
+
+    useEffect(() => {
+        if (sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES) {
+            trackEvent("drawing_canvas_patient_history_viewed", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: patient_data?.patient_unique_id,
+            });
+        }
+    }, [sidebarKey, profile, patient_data?.patient_unique_id]);
 
     const handleUploadDocPopup = () => {
         setShowUploadDocPopup((prev) => !prev);
@@ -435,8 +506,8 @@ function PatientDetails() {
                 </Sider>
 
                 <Content>
-                    <div className='w-100 vh-100 overflow-y-auto'>
-                        { sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT &&
+                    <div className={`w-100 vh-100 ${sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+                        { sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT && sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN &&
                             <Welcome1
                                 locationPath={locationPath}
                                 isMobile={isMobile}
@@ -449,6 +520,7 @@ function PatientDetails() {
                                 handleDrawerUploadDoc={handleDrawerUploadDoc}
                                 abhaHeaderActions={abhaHeaderActions}
                                 patientAdmissionStatus={patientAdmissionStatus}
+                                isZydusUser={isZydusUser}
                                 handleGenerateHealthCheckupReport={handleGenerateHealthCheckupReport}
                             />
                         }
@@ -461,6 +533,7 @@ function PatientDetails() {
                                         )}
                                         
                                         <MedicalHistory loading={loading} medicalHistoryData={viewCaseManagerData?.medical_history} doctorId={viewCaseManagerData?.doctor_data?.um_id} />
+                                        <DentalOralExaminationHistory />
                                         
                                         {isVaccinationAccessable && <VisitVaccination />}
                                         {isGrowthChartAccessable && <VisitGrowthChart />}
@@ -526,6 +599,21 @@ function PatientDetails() {
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? (
                             <div className="appointment-wrap PatientDetailswrap">
                                 <HealthCheckupReport patient_data={patient_data} showHealthCheckupReportDrawer={showHealthCheckupReportDrawer} setShowHealthCheckupReportDrawer={setShowHealthCheckupReportDrawer} />
+                            </div>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES ? (
+                            <VisitDrawingCanvases 
+                                patientId={patient_data?.patient_unique_id}
+                                trackingAttrs={{
+                                    specialty: profile?.dp_name,
+                                    specialty_id: profile?.dp_id,
+                                    doctor_unique_id: profile?.doctor_unique_id,
+                                    doctor_name: profile?.um_name,
+                                    patient_id: patient_data?.patient_unique_id,
+                                }}
+                            />
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN ? (
+                            <div className="treatment-plan" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
+                                <TreatmentPlanEmbed patientId={patient_data?.patient_unique_id} />
                             </div>
                         ) : null}
                     </div>

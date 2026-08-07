@@ -35,6 +35,7 @@ import {
   GB_VOICE_RX_FREE,
 } from "../../utils/constants";
 import { FETCH_SMART_RX } from "../../utils/constants";
+import { normalizeLabResultsResponse } from "../../utils/labResultsUtils";
 
 import {
   getPatientBirthWeight,
@@ -56,38 +57,14 @@ import MedicalHistoryBox from "../../components/MedicalHistoryBox";
 import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
+import TabReferralPanel from "../../components/tab_design/TabReferralPanel";
+import { EMPTY_REFERRAL_DATA } from "../../components/referral/ReferralPanelForm";
+import { fetchReferralDataForCaseManager } from "../../utils/crossConsultHelpers";
+import { useCrossConsult } from "../../hooks/useCrossConsult";
 
-import vitalsWhite from "../../assets/images/vitals-white.svg";
-import vitalsDark from "../../assets/images/vitals-dark.svg";
-import medicalHistoryWhite from "../../assets/images/medical-history-white.svg";
-import medicalHistoryDark from "../../assets/images/medical-history-dark.svg";
-import vaccinationWhite from "../../assets/images/vaccination-white.svg";
-import vaccinationDark from "../../assets/images/Vaccination.svg";
-import alertIcon from "../../assets/images/alertIcon.svg";
-import growthChart from "../../assets/images/growth-chart.svg";
-import growthChartDark from "../../assets/images/growth-chart-dark.svg";
-import privateNotesWhite from "../../assets/images/private-notes-white.svg";
-import privateNotesDark from "../../assets/images/private-notes-dark.svg";
-import apexAIImg from "../../assets/images/apexAI.svg";
-import blinkingDot from "../../assets/images/blinkingDot.gif";
-import ddxVector from "../../assets/images/ddx-tab-vector.svg";
-import ddxImg from "../../assets/images/ddx.svg";
-import ddxInactiveImg from "../../assets/images/tab-ddx-inactive.svg";
-import genRxImg from "../../assets/images/gen-rx-mic.svg";
-import voiceRxDefault from "../../assets/images/voice-rx-default.svg";
-import obstetricWhite from "../../assets/images/obstetric-white.svg";
-import obstetricDark from "../../assets/images/obstetric-dark.svg";
-import medicalRecordsWhite from "../../assets/images/upload-doc-white.svg";
-import medicalRecordsDark from "../../assets/images/upload-doc-dark.svg";
-import labParamsWhite from "../../assets/images/lab-parameters-white.svg";
-import labParamsDark from "../../assets/images/Lab-Parameters.svg";
-import groundingImgWhite from "../../assets/images/grounding-white.svg";
-import groundingImgDark from "../../assets/images/grounding-purple.svg";
-import carePlanIcon from "../../assets/images/Care plan.svg";
-import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
-// import labParametersWhite from '../../assets/images/lab-parameters-white.svg';
-// import notesWhite from '../../assets/images/notes-white.svg';
-// import docsWhite from '../../assets/images/docs-white.svg';
+// 
+// 
+// 
 import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
 import Vaccination from "../vaccination/Vaccination";
@@ -135,6 +112,8 @@ import CommonModal from "../../common/CommonModal";
 import DDxKnowMore from "../../components/DDxKnowMore";
 import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
+import { useChikitsalay } from "../chikitsalay/useChikitsalay";
+import { useVoiceRxNavigation } from "../../utils/voiceRxNavigation";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
   errorMessage,
@@ -183,6 +162,39 @@ import {
   setActiveTeleconsultConsultationId,
   setJoinToken,
 } from "../../redux/teleconsultNotificationSlice";
+import { ASSETS } from "../../assets";
+const {
+  vitalsWhite,
+  vitalsDark,
+  medicalHistoryWhite,
+  medicalHistoryDark,
+  vaccinationWhite,
+  vaccination: vaccinationDark,
+  alerticon: alertIcon,
+  growthChart,
+  growthChartDark,
+  privateNotesWhite,
+  privateNotesDark,
+  apexai: apexAIImg,
+  blinkingdot: blinkingDot,
+  ddxTabVector: ddxVector,
+  ddx: ddxImg,
+  tabDdxInactive: ddxInactiveImg,
+  genRxMic: genRxImg,
+  voiceRxDefault,
+  obstetricWhite,
+  obstetricDark,
+  uploadDocWhite: medicalRecordsWhite,
+  uploadDocDark: medicalRecordsDark,
+  labParametersWhite: labParamsWhite,
+  labParameters: labParamsDark,
+  groundingWhite: groundingImgWhite,
+  groundingPurple: groundingImgDark,
+  carePlan: carePlanIcon,
+  carePlanActiveSolid: carePlanIconDark,
+  notesWhite,
+  docsWhite,
+} = ASSETS.images;
 
 function TabRx() {
   const {
@@ -221,6 +233,7 @@ function TabRx() {
   const { examinationHistory = [] } = obstetricDetails || [];
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
+  const isCrossConsultAccessable = useCrossConsult();
   const shouldShowAncHistory = obstetricDetails?.ancHistory?.find(
     (item) =>
       !item?.deleted &&
@@ -259,9 +272,11 @@ function TabRx() {
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
 
   const location = useLocation();
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const { state } = location;
 
   // Create a combined module list that includes both user's modules and hospital-wide modules
@@ -302,7 +317,6 @@ function TabRx() {
     fromEditRx,
     smartRxFilesData,
   } = state || {};
-
 
   const chartType = state?.chartType;
   const tcmId =
@@ -524,6 +538,7 @@ function TabRx() {
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [isGrowthChart, setIsGrowthChart] = useState(false);
@@ -554,6 +569,7 @@ function TabRx() {
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
@@ -839,14 +855,12 @@ function TabRx() {
     try {
       const { files, blobs } = await canvasRef.current.exportToImages();
 
-
       if (files.length > 0) {
 
         // Upload files using tab-rx service
         const uploadResult = await uploadTabRxFiles(files, (progress) => {
           // console.log('📊 [TabRx] Upload progress:', progress + '%');
         });
-
 
         if (uploadResult.success) {
 
@@ -866,12 +880,10 @@ function TabRx() {
             return file;
           });
 
-
           // Store the updated files with API-returned names
           setSmartRxFiles(updatedFiles);
 
           const canvasData = canvasRef.current.getCanvasData();
-
 
           if (canvasData.selectedTemplateId && canvasData.selectedTemplateId !== 'blank') {
             setIsCustomSSRX(true);
@@ -968,6 +980,8 @@ function TabRx() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
+    referralData,
+    setReferralData,
   };
 
   const [collapsed, setCollapsed] = useState(false);
@@ -1048,7 +1062,9 @@ function TabRx() {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   // Fetch custom modules on component mount
@@ -1307,6 +1323,34 @@ function TabRx() {
     }
   }, []);
 
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    const isReferralModuleEnabled =
+      customizedPadLeftList.findIndex(
+        (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0,
+      ) !== -1;
+    if (!isReferralModuleEnabled) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, customizedPadLeftList, patient_data, isCrossConsultAccessable]);
+
   // Separate useEffect to handle customModuleContents after customModules are loaded
   useEffect(() => {
     if (caseManagerData?.moduleContents?.length) {
@@ -1469,7 +1513,7 @@ function TabRx() {
           },
         },
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }
@@ -1946,6 +1990,7 @@ function TabRx() {
         const list = Array.isArray(resp) ? resp : [];
 
         const match = list.find((x) => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
@@ -1989,13 +2034,15 @@ function TabRx() {
       clinic_name,
     });
 
-    navigate("/voice-rx-consult", {
-      state: {
+    navigateVoiceRx(
+      {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
       },
-    });
+      {},
+      "tab_rx_header"
+    );
   };
 
   const handleVideoConsult = async () => {
@@ -2048,8 +2095,6 @@ function TabRx() {
       setIsInitiatingCall(false);
     }
   };
-
-
 
   const handleTeleconsultClick = async () => {
     if (joinToken) return;
@@ -2133,6 +2178,7 @@ function TabRx() {
             labParamsData={labParamsData}
             handleGenRx={handleGenRx}
             selectedCarePlan={selectedCarePlan}
+            hasExistingCarePlan={hasExistingCarePlan}
             handleVideoConsult={
               isVideoConsultAvailable ? handleVideoConsult : null
             }
@@ -2285,6 +2331,13 @@ function TabRx() {
                     userId={userId}
                     clinicId={decodedToken?.result?.clinic_id}
                     carePlanPlaceholder={carePlanPlaceholder}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 13 && isCrossConsultAccessable ? (
+                  <TabReferralPanel
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    referralData={referralData}
+                    onReferralChange={setReferralData}
                     isTabRx={true}
                   />
                 ) : (

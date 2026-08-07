@@ -8,12 +8,16 @@ import { addModule } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { getClinic } from "../../utils/utils";
 import { getDecodedToken } from "../../utils/localStorage";
-import editIcon from "../../assets/images/edit-icon-blue.svg";
-import deleteIcon from "../../assets/images/delete-icon-blue.svg";
-import alertIcon from "../../assets/images/alertIcon.svg";
-import stethoscopeIcon from '../../assets/images/stethoscope.svg';
+
 import DisabledModuleTooltip from "./DisabledModuleTooltip";
 import CommonModal from "../../common/CommonModal";
+import { ASSETS } from "../../assets";
+const {
+  editIconBlue: editIcon,
+  deleteIconBlue: deleteIcon,
+  alerticon: alertIcon,
+  stethoscope: stethoscopeIcon,
+} = ASSETS.images;
 
 /**
  * ModuleListItem Component

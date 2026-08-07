@@ -1,23 +1,33 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { message } from 'antd';
-import arrowLeftIcon from '../../assets/mobile/arrow-left.svg';
-import userGrayIcon from '../../assets/mobile/user_gray.svg';
-import imageBackground from '../../assets/mobile/Image Background.svg';
-import ddxIcon from '../../assets/mobile/ddx.svg';
-import dictateActiveIcon from '../../assets/images/dictate-active.svg';
-import ambientActiveIcon from '../../assets/images/ambient-mode-active.svg';
-import startVoiceIcon from '../../assets/mobile/start_voice.svg';
-import doctorAvatar from '../../assets/images/doctor-avatar.webp';
-import genRxSendCta from '../../assets/images/genRxSendCta.svg';
-import fullScreenIcon from '../../assets/mobile/Full Screen.svg';
+
 import { S_AMBIENT_VOICE_RX } from '../../utils/constants';
+import { useVoiceRxNavigation } from '../../utils/voiceRxNavigation';
 import PatientDetailsBottomSheet from './PatientDetailsBottomSheet';
 import './MobileConsultationSummary.scss';
+import { ASSETS } from "../../assets";
+const {
+  arrowLeft: arrowLeftIcon,
+  userGray: userGrayIcon,
+  imageBackground,
+  ddx: ddxIcon,
+} = ASSETS.mobile;
+const {
+  dictateActive: dictateActiveIcon,
+  ambientModeActive: ambientActiveIcon,
+} = ASSETS.images;
+const startVoiceIcon = ASSETS.mobile.startVoice;
+const {
+  doctorAvatar,
+  genrxsendcta: genRxSendCta,
+} = ASSETS.images;
+const fullScreenIcon = ASSETS.mobile.fullScreen;
 
 function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxClick, mobileRxData, queries = [] }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
 
   const { state } = location;
   // Merge mobileRxData (from Rx Pad) with location.state
@@ -39,7 +49,6 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
   const conversations = mobileRxData?.conversations || stateConversations;
   const prescriptionData = mobileRxData?.prescriptionData || statePrescriptionData;
 
-
   const [showPatientSummary, setShowPatientSummary] = useState(true);
   const [typedInput, setTypedInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -52,9 +61,7 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
   const isAmbientMode = mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
 
   const handleBack = () => {
-    navigate('/voice-rx-consult', {
-      state: { patient_data }
-    });
+    navigateVoiceRx({ patient_data }, {}, "mobile_consultation_summary_back");
   };
 
   const getPatientAge = () => {
@@ -98,7 +105,6 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
       setTypedInput(''); // Clear input after sending
     }
   };
-
 
   const handleVoiceRxClick = () => {
     // Use parent callback if provided (for passing existing data), otherwise navigate directly
@@ -369,4 +375,3 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
 }
 
 export default MobileConsultationSummary;
-

@@ -20,11 +20,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import rxUploadIllustration from '../../../assets/images/rx-upload-illustration.svg';
-import uploadIcon from '../../../assets/images/upload.svg';
-import alertIcon from '../../../assets/images/alertIcon.svg';
-import ArrowLeft from '../../../assets/images/Arrow-left.svg';
-import reuploadIcon from "../../../assets/images/reupload.svg";
+
 import { dataUrlToFileUsingFetch } from '../../../utils/utils';
 import { validateCanvasFile } from '../services/fileUtils';
 import { 
@@ -35,10 +31,19 @@ import {
 } from '../services/uploadService';
 import CommonModal from "../../../common/CommonModal";
 import './RxTemplateUploadDrawer.scss';
-import tutorialIcon from '../../../assets/images/tutorial.svg';
+
 import { useSelector } from 'react-redux';
 import { getDecodedToken } from '../../../utils/localStorage';
 import { CUSTOM_CANVAS_DOCTORS_USER_ID } from '../../../utils/constants';
+import { ASSETS } from "../../../assets";
+const {
+  rxUploadIllustration,
+  upload: uploadIcon,
+  alerticon: alertIcon,
+  arrowLeft: ArrowLeft,
+  reupload: reuploadIcon,
+  tutorial: tutorialIcon,
+} = ASSETS.images;
 
 // Optional `source` prop allows callers (e.g. tabRx) to tag uploads with a source,
 // which will be forwarded to the upload API (added to FormData).

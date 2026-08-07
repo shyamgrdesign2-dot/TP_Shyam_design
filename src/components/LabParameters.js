@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import Card from 'react-bootstrap/Card';
 import { Table } from 'antd';
-
-import LabParametersicon from '../assets/images/Lab-Parameters.svg';
-import arrowright from '../assets/images/arrow-box-right.svg';
-import graph from '../assets/images/Graph.svg';
+import { ASSETS } from "../assets";
+const {
+  labParameters: LabParametersicon,
+  arrowBoxRight: arrowright,
+  graph,
+} = ASSETS.images;
 
 function LabParameters() {
 

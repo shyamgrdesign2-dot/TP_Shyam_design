@@ -52,37 +52,36 @@
   transform: rotate(180deg);
 }
 
-.panelCollapse :global(.ant-collapse-icon-position-start) {
-  border-radius: 16px;
-}
+.panelCollapse {
+  border: none !important;
+  border-radius: 20px !important;
+  background: white !important;
 
-.panelCollapse :global(.ant-collapse-item) {
-  border: none;
-  background: transparent;
-}
+  :global(.ant-collapse-item) {
+    border: none !important;
+    background: transparent;
+  }
 
-.panelCollapse :global(.ant-collapse-header) {
-  padding: 0;
-  border-radius: 16px;
-}
+  :global(.ant-collapse-header) {
+    padding: 12px 16px !important;
+    border-radius: 20px !important;
+  }
 
-.panelCollapse :global(.ant-collapse-content) {
-  border: none;
-  background: transparent;
-}
+  :global(.ant-collapse-content) {
+    border: none !important;
+    background: transparent;
+  }
 
-.panelCollapse :global(.ant-collapse-content-box) {
-  padding: 0;
-}
-
-.panelCollapse :global(.ant-collapse) {
-  border-radius: 16px;
+  :global(.ant-collapse-content-box) {
+    padding: 0;
+  }
 }
 
 .sectionCard {
   background: #ffffff;
-  border-radius: 20px;
-  box-shadow: 0 12px 40px rgba(33, 33, 54, 0.06);
+  border-radius: 16px;
+  border: 0.5px solid var(--tp-slate-200, #e2e2ea);
+  box-shadow: none;
   padding: 18px 18px 22px;
   display: flex;
   flex-direction: column;
@@ -132,32 +131,44 @@
 .headerActions {
   display: flex;
   align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
+  gap: 6px;
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 
 .headerAction {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   border: none;
-  background: transparent;
-  color: #6f6f7c;
-  font-size: 14px;
-  font-weight: 500;
+  background: var(--tp-slate-100, #f1f1f5);
+  color: var(--tp-slate-600, #71717a);
+  font-size: 0;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  transition: background-color 150ms;
+
+  &:hover {
+    background: var(--tp-slate-200, #e2e2ea);
+  }
+
+  i {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  span {
+    display: none;
+  }
 }
 
 .headerAction:disabled {
-  color: #b1b1be;
+  color: var(--tp-slate-400, #a1a1aa);
   cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.headerAction:disabled .headerActionUnderline {
-  text-decoration: none;
+  opacity: 0.5;
 }
 
 .headerAction:disabled .actionIcon {
@@ -165,8 +176,7 @@
 }
 
 .headerActionUnderline {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  display: none;
 }
 
 .sectionCollapseToggle {
@@ -268,8 +278,8 @@
 .inlineRowField {
   display: grid;
   grid-template-columns: 120px 1fr;
-  border: 1px solid #ececf3;
-  border-radius: 16px;
+  border: 0.5px solid var(--tp-slate-100, #f1f1f5);
+  border-radius: 10px;
   overflow: hidden;
   background: #ffffff;
 }
@@ -281,8 +291,8 @@
   font-size: 14px;
   font-weight: 500;
   color: #3b3b48;
-  border-right: 1px solid #ececf3;
-  background: #fcfcfe;
+  border-right: 0.5px solid var(--tp-slate-100, #f1f1f5);
+  background: var(--tp-slate-50, #f8f8fc);
 }
 
 .inlineRowInput {
@@ -296,8 +306,8 @@
 }
 
 .tableWrapper {
-  border-radius: 16px;
-  border: 1px solid #ececf3;
+  border-radius: 10px;
+  border: 0.5px solid var(--tp-slate-100, #f1f1f5);
   overflow: hidden;
   background: #ffffff;
 }
@@ -318,19 +328,23 @@
 
 .table th {
   text-align: left;
-  font-size: 14px;
-  font-weight: 500;
-  color: #4d4d5c;
-  background: #fafafb;
-  padding: 12px 14px;
-  border-bottom: 1px solid #ececf3;
-  border-right: 1px solid #ececf3;
+  font-family: 'Inter', 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--tp-slate-500, #71717a);
+  background: var(--tp-slate-50, #f8f8fc);
+  padding: 8px 12px;
+  min-height: 38px;
+  border-bottom: 0.5px solid var(--tp-slate-200, #e2e2ea);
+  border-right: 0.5px solid var(--tp-slate-100, #f1f1f5);
 }
 
 .table td {
   padding: 10px 12px;
-  border-bottom: 1px solid #ececf3;
-  border-right: 1px solid #ececf3;
+  border-bottom: 0.5px solid var(--tp-slate-100, #f1f1f5);
+  border-right: 0.5px solid var(--tp-slate-100, #f1f1f5);
 }
 
 .table td:last-child,
@@ -344,6 +358,71 @@
   color: #3b3b48;
   background: #fcfcfe;
   width: 100px;
+}
+
+.rowLabelContent {
+  position: relative;
+}
+
+.rowLabelAutofill .rowAutofillCta {
+  display: none;
+}
+
+.rowLabelAutofill:hover .rowAutofillCta {
+  display: inline-flex;
+}
+
+.rowAutofillCta {
+  position: absolute;
+  left: 0;
+  top: 65%;
+  transform: translateY(4px);
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: #ffffff;
+  color: #4e4bb8;
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(33, 33, 54, 0.16);
+  white-space: nowrap;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.columnHeaderContent {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+
+.columnHeaderAutofill .columnAutofillCta {
+  display: none;
+}
+
+.columnHeaderAutofill:hover .columnAutofillCta {
+  display: flex;
+}
+
+.columnAutofillCta {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  // transform: translateY(0);
+  transform: translateY(4px);
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: #ffffff;
+  color: #4e4bb8;
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(33, 33, 54, 0.16);
+  // padding: 2px 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  z-index: 2;
 }
 
 .autoComplete {
@@ -362,8 +441,8 @@
 }
 
 .input:focus {
-  border-color: #7a71ff;
-  box-shadow: 0 0 0 3px rgba(122, 113, 255, 0.15);
+  border-color: var(--tp-blue-500, #4B4AD5);
+  box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5);
   background: #ffffff;
 }
 
@@ -373,6 +452,11 @@
   padding: 0 !important;
   height: auto !important;
   background: transparent !important;
+}
+
+.autoComplete:global(.ant-select-focused) :global(.ant-select-selector) {
+  border-radius: 6px !important;
+  box-shadow: inset 0 0 0 1.5px var(--tp-blue-500, #4B4AD5) !important;
 }
 
 .autoComplete :global(.ant-select-selection-search-input) {

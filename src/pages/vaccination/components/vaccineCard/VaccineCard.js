@@ -1,9 +1,11 @@
 import React from "react";
 import { Card, Checkbox, Row, Col } from "antd";
-import cardWave from "../../../../assets/images/cardWave.svg";
+
 import "./VaccineCard.scss";
 import { dateFormatter } from "../../VaccinationHelper";
 import moment from "moment";
+import { ASSETS } from "../../../../assets";
+const cardWave = ASSETS.images.cardwave;
 
 const VaccineCard = ({
   vaccineData,

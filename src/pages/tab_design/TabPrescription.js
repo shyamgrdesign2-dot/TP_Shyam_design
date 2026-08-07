@@ -10,6 +10,7 @@ import { env } from "../../EnvironmentConfig";
 import { useSelector, useDispatch } from "react-redux";
 
 import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_VIDEO_CONSULT, GB_TELE_CONSULT, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE, GB_VOICE_RX_FREE } from "../../utils/constants";
+import { normalizeLabResultsResponse } from "../../utils/labResultsUtils";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../../redux/vitalsSlice";
 import { getPatientLastHistory, listPrivateNotes } from "../../redux/medicalhistorySlice";
@@ -33,41 +34,8 @@ import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistory
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
 
-import vitalsWhite from "../../assets/images/vitals-white.svg";
-import vitalsDark from "../../assets/images/vitals-dark.svg";
-import medicalHistoryWhite from "../../assets/images/medical-history-white.svg";
-import medicalHistoryDark from "../../assets/images/medical-history-dark.svg";
-import vaccinationWhite from "../../assets/images/vaccination-white.svg";
-import vaccinationDark from "../../assets/images/Vaccination.svg";
-import alertIcon from "../../assets/images/alertIcon.svg";
-import growthChart from "../../assets/images/growth-chart.svg";
-import growthChartDark from "../../assets/images/growth-chart-dark.svg";
-import privateNotesWhite from "../../assets/images/private-notes-white.svg";
-import privateNotesDark from "../../assets/images/private-notes-dark.svg";
-import apexAIImg from "../../assets/images/apexAI.svg";
-import blinkingDotWebm from "../../assets/images/blinkingDot.webm";
-import blinkingDotMp4 from "../../assets/images/blinkingDot.mp4";
+import { ASSETS } from "../../assets";
 import LoopingVideo from "../../components/common/LoopingVideo";
-import ddxVector from "../../assets/images/ddx-tab-vector.svg";
-import ddxImg from "../../assets/images/ddx.svg";
-import ddxInactiveImg from "../../assets/images/tab-ddx-inactive.svg";
-import genRxImg from "../../assets/images/gen-rx-mic.svg";
-import voiceRxDefault from "../../assets/images/voice-rx-default.svg";
-import obstetricWhite from "../../assets/images/obstetric-white.svg";
-import obstetricDark from "../../assets/images/obstetric-dark.svg";
-import medicalRecordsWhite from "../../assets/images/upload-doc-white.svg";
-import medicalRecordsDark from "../../assets/images/upload-doc-dark.svg";
-import labParamsWhite from "../../assets/images/lab-parameters-white.svg";
-import labParamsDark from "../../assets/images/Lab-Parameters.svg";
-import groundingImgWhite from "../../assets/images/grounding-white.svg";
-import groundingImgDark from "../../assets/images/grounding-purple.svg";
-import genRxBgWebm from "../../assets/images/gen-rx-bg.webm";
-import genRxBgMp4 from "../../assets/images/gen-rx-bg.mp4";
-import carePlanIcon from "../../assets/images/Care plan.svg";
-import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
-// import labParametersWhite from '../../assets/images/lab-parameters-white.svg';
-// import notesWhite from '../../assets/images/notes-white.svg';
-// import docsWhite from '../../assets/images/docs-white.svg';
 import Sider from "antd/es/layout/Sider";
 import Vaccination from "../vaccination/Vaccination";
 import GrowthChart from "../growthChart/GrowthChart";
@@ -97,8 +65,9 @@ import CommonModal from "../../common/CommonModal";
 import DDxKnowMore from "../../components/DDxKnowMore";
 import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
+import { useVoiceRxNavigation } from "../../utils/voiceRxNavigation";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree, isValidMongoId } from "../../utils/utils";
 import VideoConsultModal from "../../components/VideoConsultModal";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import {
@@ -131,6 +100,11 @@ import CarePlanDropdown from "../../components/CarePlanDropdown";
 import CarePlanList from "../../components/CarePlanList";
 import { getCarePlanNames, getCarePlanAssignments } from "../smartSync/services/carePlanService";
 import TabCarePlanList from "../../components/tab_design/TabCarePlanList";
+import TabReferralPanel from "../../components/tab_design/TabReferralPanel";
+import { EMPTY_REFERRAL_DATA } from "../../components/referral/ReferralPanelForm";
+import { fetchReferralDataForCaseManager } from "../../utils/crossConsultHelpers";
+import { useCrossConsult } from "../../hooks/useCrossConsult";
+import { ReferralIcon } from "../snapRx/components/ReferralIcon";
 import GroundingBox from "../../components/GroundingBox";
 import GroundingKnowMore from "../../components/GroundingKnowMore";
 import { AddCustomModuleDrawer, AddCustomModuleV2, CustomModuleV2 } from "../../components/customModulesV2";
@@ -142,8 +116,58 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../../redux/ophthalmologyExamSlice";
+import { listPatientCanvasMapping } from "../drawingCanvas/service";
+import DrawingCanvas from "../drawingCanvas/DrawingCanvas";
+import CanvasSidebarIcon, {
+  CANVAS_ICON_ACTIVE_COLOR,
+  CANVAS_ICON_INACTIVE_COLOR,
+} from "../drawingCanvas/components/CanvasSidebarIcon";
+import {
+  hasVitalsAndBodyCompositionData,
+  mapVitalsAndBodyCompositionToRowPatch,
+  mergeVitalsRowsWithSymptomCollectorPatch,
+  VITALS_ROW_DATE_FORMAT,
+} from "../../utils/symptomCollectorVitalsMerge";
+import { computeRxPadVitalsDerivedMetrics } from "../../utils/vitalsCalculations";
+import { useChikitsalay } from "../chikitsalay/useChikitsalay";
+
+const CANVAS_SIDEBAR_FLAG = 24;
 
 function TabPrescription() {
+  const {
+    vitalsWhite,
+    vitalsDark,
+    medicalHistoryWhite,
+    medicalHistoryDark,
+    vaccinationWhite,
+    vaccination: vaccinationDark,
+    alerticon: alertIcon,
+    growthChart,
+    growthChartDark,
+    privateNotesWhite,
+    privateNotesDark,
+    apexai: apexAIImg,
+    blinkingdot_3: blinkingDotWebm,
+    blinkingdot_2: blinkingDotMp4,
+    ddxTabVector: ddxVector,
+    ddx: ddxImg,
+    tabDdxInactive: ddxInactiveImg,
+    genRxMic: genRxImg,
+    voiceRxDefault,
+    obstetricWhite,
+    obstetricDark,
+    uploadDocWhite: medicalRecordsWhite,
+    uploadDocDark: medicalRecordsDark,
+    labParametersWhite: labParamsWhite,
+    labParameters: labParamsDark,
+    groundingWhite: groundingImgWhite,
+    groundingPurple: groundingImgDark,
+    genRxBg_2: genRxBgWebm,
+    genRxBg: genRxBgMp4,
+    carePlan: carePlanIcon,
+    carePlanActiveSolid: carePlanIconDark,
+  } = ASSETS.images;
+
   const { isMobile: isMobileDevice, isTablet } = useDeviceType();
   const {
     customizedPadLeftList,
@@ -174,6 +198,7 @@ function TabPrescription() {
   const obstetricDetails = allObstetricDetails?.currentPregnancy || {};
   const { examinationHistory = [] } = obstetricDetails || [];
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
+  const isCrossConsultAccessable = useCrossConsult();
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const shouldShowAncHistory = obstetricDetails?.ancHistory?.find(
     (item) =>
@@ -209,9 +234,11 @@ function TabPrescription() {
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
 
   const location = useLocation();
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const { state } = location;
 
   // Create a combined module list that includes both user's modules and hospital-wide modules
@@ -240,12 +267,34 @@ function TabPrescription() {
   const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path, teleconsultAutoJoin, isEditRx, fromRepeatRx} = state || {};
   const chartType = state?.chartType;
 
+  const isPrescriptionVoiceOrGenRxFlow =
+    Boolean(fromVoiceRecording) ||
+    (typeof inputText === "string" && inputText.trim().length > 0) ||
+    (caseManagerData?.smart_prescription_filename &&
+      isValidMongoId(caseManagerData.smart_prescription_filename));
+
+  const shouldApplyZydusVisibleRepeatEditFilter =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    (Boolean(fromRepeatRx) || Boolean(isEditRx)) &&
+    !isPrescriptionVoiceOrGenRxFlow;
+
   const tcmId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.tcm_id;
   const pamId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.pam_id;
   const consultationDate =
     caseManagerData != null
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
+
+  const vitalsCalculate = useCallback(
+    (H, W) => computeRxPadVitalsDerivedMetrics(H, W, patient_data),
+    [patient_data]
+  );
+
+  const showVitalsFromScAutofill =
+    isAutofillSelected &&
+    hasVitalsAndBodyCompositionData(
+      selectedSymptomsCollector?.vitalsAndBodyComposition
+    );
 
   useEffect(() => {
     dispatch(resetVitalsState());
@@ -426,7 +475,9 @@ function TabPrescription() {
   const [useVoiceRx, setUseVoiceRx] = useState(false);
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
@@ -492,6 +543,22 @@ function TabPrescription() {
     setIsSubModalOpen(!isSubModalOpen);
   }
 
+  const normalizeCanvasIds = React.useCallback((value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      return value
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, []);
+
+  const [drawingCanvases, setDrawingCanvases] = useState([]);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState(() =>
+    normalizeCanvasIds(caseManagerData?.canvas_filename)
+  );
+
   const contextApi = {
     patient_data,
     tcmId,
@@ -545,7 +612,11 @@ function TabPrescription() {
     useDDX,
     setUseDDX,
     selectedCarePlan,
-    setSelectedCarePlan
+    setSelectedCarePlan,
+    referralData,
+    setReferralData,
+    isDraft: caseManagerData?.is_draft,
+    rxDrawingCanvasIds,
   };
 
   const [collapsed, setCollapsed] = useState(false);
@@ -558,6 +629,7 @@ function TabPrescription() {
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
+  const [drawingCanvasDrawer, setDrawingCanvasDrawer] = useState(false);
   const [labReportID, setLabReportID] = useState(null);
   const [labParamsDrawer, setLabParamsDrawer] = useState(false);
   const [viewlabparamsDrawer, setViewlabparamsDrawer] = useState(false);
@@ -589,6 +661,82 @@ function TabPrescription() {
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
   const [showShimmer, setShowShimmer] = useState(false);
   const [mobileRxData, setMobileRxData] = useState(null);
+
+  const fetchPatientCanvases = async () => {
+    const pId = patient_data?.patient_unique_id;
+    if (pId) {
+      const res = await listPatientCanvasMapping(pId, tcmId);
+      if (res.status && res.records) {
+        const mapped = res.records.map((r) => ({
+          id: r.mapping_id,
+          name: r.canvas_name,
+          url: r.canvas_url,
+          created_at: r.created_at || r.createdAt || r.canvas_created_at,
+          scene: null,
+        }));
+        setDrawingCanvases(mapped);
+      }
+    }
+  };
+
+  const canvasDrawerOpenTimeRef = useRef(null);
+  const canvasModuleViewedRef = useRef(false);
+  const getCanvasTrackingAttrs = useCallback(() => ({
+    specialty: profile?.dp_name,
+    specialty_id: profile?.dp_id,
+    user_id: tokenData?.user_id,
+    doctor_unique_id: profile?.doctor_unique_id,
+    doctor_name: profile?.um_name,
+    patient_id: patient_data?.patient_unique_id,
+    consultation_id: tcmId,
+    prescription_type: "tab_rx",
+  }), [profile, tokenData, patient_data, tcmId]);
+
+  useEffect(() => {
+    fetchPatientCanvases();
+  }, [patient_data?.patient_unique_id, tcmId]);
+
+  // Track module viewed once when canvas module becomes available in the pad
+  useEffect(() => {
+    const isCanvasModuleVisible = customizedPadLeftList?.some(
+      (e) => (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0
+    );
+    if (isCanvasModuleVisible && !canvasModuleViewedRef.current) {
+      canvasModuleViewedRef.current = true;
+      trackEvent("drawing_canvas_module_viewed", {
+        ...getCanvasTrackingAttrs(),
+        has_existing_canvas: drawingCanvases.length > 0,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customizedPadLeftList, drawingCanvases.length]);
+
+  const handleSaveDrawingCanvas = (updatedCanvases, meta) => {
+    if (updatedCanvases && Array.isArray(updatedCanvases)) {
+      setDrawingCanvases(updatedCanvases);
+      const knownIds = new Set(
+        updatedCanvases.map((c) => String(c?.id)).filter(Boolean)
+      );
+      setRxDrawingCanvasIds((prev) =>
+        prev.filter((id) => knownIds.has(String(id)))
+      );
+    } else {
+      fetchPatientCanvases();
+    }
+    if (meta && meta.mappingId != null && meta.mappingId !== "") {
+      setRxDrawingCanvasIds((prev) => {
+        if (meta.showInRx !== false) {
+          return [...new Set([...prev, meta.mappingId])];
+        }
+        return prev.filter((id) => String(id) !== String(meta.mappingId));
+      });
+    }
+  };
+
+  useEffect(() => {
+    const next = caseManagerData?.canvas_filename;
+    setRxDrawingCanvasIds(normalizeCanvasIds(next));
+  }, [tcmId, pamId, normalizeCanvasIds]);
   
   // Initialize mobileQueries from location.state to persist across navigation
   // IMPORTANT: This only runs on component MOUNT, not on re-renders
@@ -677,7 +825,9 @@ function TabPrescription() {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   // Fetch custom modules on component mount
@@ -733,6 +883,19 @@ function TabPrescription() {
   }, []);
 
   useEffect(() => {
+    const clinic_name = getClinicName(profile?.hospital_data);
+    tcmId == 0
+      ? window.Moengage.track_event("TP_App_Consultation_Started", {
+          clinic_name,
+          patient_number: patient_data?.pm_contact_no,
+          patient_id: patient_data?.patient_unique_id,
+          tcm_id: tcmId,
+        })
+      : window.Moengage.track_event("TP_App_Consultation_edit_started", {
+          clinic_name,
+          patient_number: patient_data?.pm_contact_no,
+          patient_id: patient_data?.patient_unique_id,
+        });
     const sendData = {
       patient_unique_id: patient_data?.patient_unique_id,
     };
@@ -850,13 +1013,25 @@ function TabPrescription() {
       ) {
         setDiagnosisData(caseManagerData.diagnosis);
       }
+      const medicineListForHydration = (() => {
+        const list = caseManagerData.medicine;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (m) =>
+            !Object.prototype.hasOwnProperty.call(m, "visible") ||
+            m.visible === undefined ||
+            m.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.medicine?.length > 0 &&
+        medicineListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 12 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        const updatedData = caseManagerData.medicine.map((e) => {
+        const updatedData = medicineListForHydration.map((e) => {
           const medicineUnit = e?.medicineUnit.map((e1) => {
             return {
               key: JSON.stringify({ ...e1 }),
@@ -899,13 +1074,25 @@ function TabPrescription() {
       ) {
         setAdviceData(caseManagerData.advice);
       }
+      const investigationListForHydration = (() => {
+        const list = caseManagerData.investigation;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (row) =>
+            !Object.prototype.hasOwnProperty.call(row, "visible") ||
+            row.visible === undefined ||
+            row.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.investigation?.length > 0 &&
+        investigationListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 14 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        setInvestigationData(caseManagerData.investigation);
+        setInvestigationData(investigationListForHydration);
       }
       if (
         caseManagerData.follow_up_date &&
@@ -926,6 +1113,34 @@ function TabPrescription() {
       setPillupSwitch(caseManagerData?.pillup_fulfilment == 1 ? true : false)
     }
   }, []);
+
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    const isReferralModuleEnabled =
+      customizedPadLeftList.findIndex(
+        (e) => e.tmdpm_id === 25 && e.tmdpm_status === 0
+      ) !== -1;
+    if (!isReferralModuleEnabled) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, customizedPadLeftList, isCrossConsultAccessable, patient_data]);
 
   // Separate useEffect to handle customModuleContents after customModules are loaded
   useEffect(() => {
@@ -1015,31 +1230,39 @@ function TabPrescription() {
     }
   };
 
+  const dismissDrawingCanvasModule = useCallback(() => {
+    setDrawingCanvasDrawer(false);
+  }, []);
+
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(1);
     setVitalDrawer(!vitalDrawer);
-  }, [collapsedFlag, vitalDrawer]);
+  }, [collapsedFlag, vitalDrawer, dismissDrawingCanvasModule]);
 
   // Drawer Medical History
   const handleDrawerMedicalHistory = useCallback(() => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(2);
     setMedicalHistoryDrawer(!medicalHistoryDrawer);
-  }, [collapsedFlag, medicalHistoryDrawer]);
+  }, [collapsedFlag, medicalHistoryDrawer, dismissDrawingCanvasModule]);
 
   // Drawer Private Notes
   const handleDrawerPrivateNotes = useCallback((data) => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(4);
     setSelectPrivateNotes(data)
     setPrivateNotesDrawer(!privateNotesDrawer);
-  }, [privateNotesDrawer, selectPrivateNotes]);
+  }, [privateNotesDrawer, selectPrivateNotes, dismissDrawingCanvasModule]);
 
   // Drawer Vaccination
   const handleDrawerVaccination = (chartType) => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(3);
     setVaccinationDrawer(!vaccinationDrawer);
     if (!vaccinationDrawer) {
-      trackEvent("TP_Vac_Module", {
+      trackEvent("TP_App_Vac_Module", {
         patientName: patient_data?.pm_fullname || "",
         patientId: patient_data?.patient_unique_id || "",
         doctorSpeciality: profile?.dp_name,
@@ -1053,6 +1276,7 @@ function TabPrescription() {
 
   // Drawer Growth Chart
   const handleDrawerGrowth = () => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(5);
     setGrowthDrawer(!growthDrawer);
     setIsGrowthChart(!isGrowthChart);
@@ -1060,6 +1284,7 @@ function TabPrescription() {
 
   // Drawer Obstetric
   const handleDrawerObstetric = (obstetricKey) => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(6);
     setObstetricDrawer(typeof obstetricKey === "string" ? obstetricKey : !obstetricDrawer);
   };
@@ -1073,7 +1298,7 @@ function TabPrescription() {
           'Authorization': `Bearer ${cleanedToken}`,
         },
       });
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       // Error fetching lab params
     }
@@ -1094,6 +1319,7 @@ function TabPrescription() {
 
   // Drawer Medical History
   const handleAddLabParamsDrawer = () => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(8);
     setLabParamsDrawer(!labParamsDrawer);
   }
@@ -1143,6 +1369,7 @@ function TabPrescription() {
 
   // Drawer Upload Document
   const handleDrawerUploadDoc = () => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(7);
     setUploadDocDrawer(!uploadDocDrawer);
   };
@@ -1159,6 +1386,32 @@ function TabPrescription() {
   const handleDrawerMedicalReport = () => {
     setMedicalReportDrawer(!medicalReportDrawer);
   };
+
+  // Drawer Drawing Canvas
+  const handleDrawerDrawingCanvas = useCallback(() => {
+    const opening = !drawingCanvasDrawer;
+    if (opening) {
+      canvasDrawerOpenTimeRef.current = Date.now();
+      setCollapsedFlag(CANVAS_SIDEBAR_FLAG);
+      setCollapsed(false);
+      trackEvent("drawing_canvas_drawer_opened", {
+        ...getCanvasTrackingAttrs(),
+        entry_point: "rx_pad",
+        existing_canvas_count: drawingCanvases.length,
+      });
+    } else {
+      const timeSpent = canvasDrawerOpenTimeRef.current
+        ? Math.round((Date.now() - canvasDrawerOpenTimeRef.current) / 1000)
+        : 0;
+      trackEvent("drawing_canvas_drawer_closed", {
+        ...getCanvasTrackingAttrs(),
+        time_spent_seconds: timeSpent,
+      });
+      canvasDrawerOpenTimeRef.current = null;
+      setCollapsedFlag((prev) => (prev === CANVAS_SIDEBAR_FLAG ? null : prev));
+    }
+    setDrawingCanvasDrawer(opening);
+  }, [drawingCanvasDrawer, drawingCanvases.length, getCanvasTrackingAttrs]);
 
   useEffect(() => {
     if (chartType === "vaccination") {
@@ -1183,10 +1436,11 @@ function TabPrescription() {
   //Handle Sider
   const openCollapsed = useCallback(
     (flag) => {
+      dismissDrawingCanvasModule();
       setCollapsedFlag(flag);
       setCollapsed(true);
     },
-    [collapsedFlag, collapsed]
+    [dismissDrawingCanvasModule]
   );
 
   const handleCollapsed = useCallback(
@@ -1280,17 +1534,37 @@ function TabPrescription() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
-      });
-      setVitalsData(updatedData);
-    }
-  }, [selectedVitalsList]);
+    if (!(caseManagerData === undefined || tcmId === 0)) return;
+    const updatedData = selectedVitalsList.map((e) => {
+      return {
+        ...e,
+        systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
+        diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
+      };
+    });
+    const patch = isAutofillSelected
+      ? mapVitalsAndBodyCompositionToRowPatch(
+          selectedSymptomsCollector?.vitalsAndBodyComposition,
+          vitalsCalculate
+        )
+      : null;
+    setVitalsData((prev) =>
+      mergeVitalsRowsWithSymptomCollectorPatch(
+        prev,
+        updatedData,
+        patch,
+        vitalsCalculate,
+        VITALS_ROW_DATE_FORMAT
+      )
+    );
+  }, [
+    selectedVitalsList,
+    caseManagerData,
+    tcmId,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+    vitalsCalculate,
+  ]);
 
   useEffect(() => {
     if (caseManagerData != null) {
@@ -1305,7 +1579,7 @@ function TabPrescription() {
     if (fromVoiceRecording && audioBlob) {
       setIsGenRxDrawerVisible(true);
       const clinic_name = getClinicName(profile?.hospital_data);
-      trackEvent("TP_VoiceRx_Start", {
+      trackEvent("TP_App_VoiceRx_Start", {
         patient_contact: patient_data?.pm_contact_no || "",
         patient_id: patient_data?.patient_unique_id || "",
         doctor_speciality: profile?.dp_name,
@@ -1320,7 +1594,7 @@ function TabPrescription() {
     if (inputText && typeof inputText === 'string' && inputText.trim().length > 0) {
       setIsGenRxDrawerVisible(true);
       const clinic_name = getClinicName(profile?.hospital_data);
-      trackEvent("TP_VoiceRx_Start", {
+      trackEvent("TP_App_VoiceRx_Start", {
         patient_contact: patient_data?.pm_contact_no || "",
         patient_id: patient_data?.patient_unique_id || "",
         doctor_speciality: profile?.dp_name,
@@ -1359,7 +1633,7 @@ function TabPrescription() {
   const handleDDxDrawer = (field) => {
     setDDxDrawer((prev) => !prev);
     if (!ddxDrawer) {
-      window.Moengage.track_event("TP_CDSS_Ddx_reviewed", {
+      window.Moengage.track_event("TP_App_CDSS_Ddx_reviewed", {
         clinic_name: getClinicName(profile?.hospital_data),
         doctor_id: profile?.doctor_unique_id,
         patient_number: patient_data?.pm_contact_no,
@@ -1422,7 +1696,7 @@ function TabPrescription() {
           } else {
             setIsDDxLoading(true);
             setIsDDxGenerated(true);
-            window.Moengage.track_event("TP_CDSS_Ack_GenDx", {
+            window.Moengage.track_event("TP_App_CDSS_Ack_GenDx", {
               clinic_name: getClinicName(profile?.hospital_data),
               doctor_id: profile?.doctor_unique_id,
               patient_number: patient_data?.pm_contact_no,
@@ -1472,7 +1746,7 @@ function TabPrescription() {
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData(); 
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_GenerateDDX", {
+    window.Moengage.track_event("TP_App_Monetization_GenerateDDX", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -1509,12 +1783,13 @@ function TabPrescription() {
         const list = Array.isArray(resp) ? resp : [];
   
         const match = list.find(x => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
       }
     };
-  
+
     resolvePlaceholder();
   }, [isCarePlanEnabled, patient_data?.patient_unique_id, tcmId]);
 
@@ -1527,7 +1802,7 @@ function TabPrescription() {
   const handleApexAI = () => {
     dispatch(setIsApexAISelected(true));
     openCollapsed(isGroundingAccessableForZydus ? 12 : (isFreeVoiceRxUser || tp_monetization_enable) ? 10 : 9);
-    window.Moengage.track_event("TP_Apex_AI_Ack", {
+    window.Moengage.track_event("TP_App_Apex_AI_Ack", {
       clinic_name: getClinicName(profile?.hospital_data),
       doctor_id: profile?.doctor_unique_id,
       patient_number: patient_data?.pm_contact_no,
@@ -1538,21 +1813,37 @@ function TabPrescription() {
   const handleGenRx = () => {
     setIsGenRxDrawerVisible(true);
     const clinic_name = getClinicName(profile?.hospital_data);
-    trackEvent("TP_VoiceRx_Start", {
+    trackEvent("TP_App_VoiceRx_Start", {
       patient_contact: patient_data?.pm_contact_no || "",
       patient_id: patient_data?.patient_unique_id || "",
       doctor_speciality: profile?.dp_name,
       doctor_unique_id: profile?.doctor_unique_id,
       clinic_name,
     });
+    if (tcmId == 0) {
+      const tokenData = getTokenData();
+      const deviceSdkData = getDeviceSdkData();
+      window.Moengage.track_event("TP_App_VoiceRx", {
+        doctor_name: profile?.um_name,
+        doctor_number: profile?.um_contact,
+        doctor_unique_id: profile?.doctor_unique_id,
+        doctor_specialty: profile?.dp_name,
+        clinic_id: tokenData?.clinic_id,
+        um_id: tokenData?.user_id,
+        clinic_Name: clinic_name,
+        ...deviceSdkData,
+      });
+    }
 
-    navigate("/voice-rx-consult", {
-      state: {
+    navigateVoiceRx(
+      {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
       },
-    });
+      {},
+      "tab_prescription_header"
+    );
   };
 
   const handleVideoConsult = async () => {
@@ -1580,7 +1871,16 @@ function TabPrescription() {
           message.info(response.data.displayMessage || "Audio call initiated successfully");
         }
         
-        trackEvent("TP_VideoConsult_Started_TabPrescription", {
+        trackEvent("TP_App_VideoConsult_Started_TabPrescription", {
+          patient_contact: patient_data?.pm_contact_no || "",
+          patient_id: patient_data?.patient_unique_id || "",
+          doctor_speciality: profile?.dp_name,
+          doctor_unique_id: profile?.doctor_unique_id,
+          clinic_name: getClinicName(profile?.hospital_data),
+          page: "Tab Prescription",
+          call_type: response.data.action,
+        });
+        trackEvent("TP_App_VideoConsult_Started", {
           patient_contact: patient_data?.pm_contact_no || "",
           patient_id: patient_data?.patient_unique_id || "",
           doctor_speciality: profile?.dp_name,
@@ -1617,7 +1917,7 @@ function TabPrescription() {
           dispatch(setActiveTeleconsultConsultationId(data.consultationId));
         }
 
-        window.Moengage.track_event("TP_TC_StartCall", {
+        window.Moengage.track_event("TP_App_TC_StartCall", {
           doctor_name: profile?.um_name,
           doctor_number: profile?.um_contact,
           doctor_specialty: profile?.dp_name,
@@ -1804,7 +2104,7 @@ function TabPrescription() {
         )}
         {!showOnlyDrawer && (
       <>
-        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={(isNormalConsultFlow || (isEditRx && send_path === "patient_details")) && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!joinToken} isTabPrescription hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2} />
+        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} hasExistingCarePlan={hasExistingCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={(isNormalConsultFlow || (isEditRx && send_path === "patient_details")) && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!joinToken} isTabPrescription hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2} />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
           <Layout>
             <div
@@ -1938,7 +2238,32 @@ function TabPrescription() {
                     </button>
                   )}
                   {customizedPadLeftList?.map((e, i) => {
-                    return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
+                    return (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0 ? (
+                      <button
+                        key={i}
+                        type="button"
+                        className="mb-3 text-center btn btn-action"
+                        onClick={() => {
+                          trackEvent("drawing_canvas_cta_clicked", {
+                            ...getCanvasTrackingAttrs(),
+                            cta_type: drawingCanvases.length > 0 ? "view_all" : "add",
+                            existing_canvas_count: drawingCanvases.length,
+                          });
+                          handleDrawerDrawingCanvas();
+                        }}
+                      >
+                        <div
+                          className={`prescription-tab-button rounded-10px ${collapsedFlag === CANVAS_SIDEBAR_FLAG ? "active" : ""}`}
+                          style={{ position: "relative" }}
+                        >
+                          <CanvasSidebarIcon
+                            color={collapsedFlag === CANVAS_SIDEBAR_FLAG ? CANVAS_ICON_ACTIVE_COLOR : CANVAS_ICON_INACTIVE_COLOR}
+                            size={20}
+                          />
+                        </div>
+                        <label className="text-white mt-1">Canvas</label>
+                      </button>
+                    ) : e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
                       <button
                         key={i}
                         type="button"
@@ -1946,7 +2271,8 @@ function TabPrescription() {
                         onClick={() =>
                           vitalsData.length === 0 &&
                             vitalsPastList.length === 0 &&
-                            !patientBirthWeight
+                            !patientBirthWeight &&
+                            !showVitalsFromScAutofill
                             ? handleDrawerVital()
                             : openCollapsed(1)
                         }
@@ -2196,6 +2522,30 @@ function TabPrescription() {
                         </div>
                         <label className="text-white mt-1">Care Plan</label>
                       </button>
+                    ) : e.tmdpm_id === 25 &&
+                      e.tmdpm_status === 0 &&
+                      isCrossConsultAccessable ? (
+                      <button
+                        type="button"
+                        className="mb-3 text-center btn btn-action"
+                        style={{ padding: "0px" }}
+                        onClick={() => openCollapsed(13)}
+                      >
+                        <div
+                          className={`prescription-tab-button rounded-10px ${collapsedFlag === 13 && "active"
+                            }`}
+                        >
+                          <ReferralIcon
+                            size={24}
+                            color={
+                              collapsedFlag === 13
+                                ? "rgba(49,48,151,1)"
+                                : "#fff"
+                            }
+                          />
+                        </div>
+                        <label className="text-white mt-1">Referral</label>
+                      </button>
                     ) : null;
                   })}
                 </>
@@ -2307,6 +2657,13 @@ function TabPrescription() {
                         userId={userId}
                         clinicId={decodedToken?.result?.clinic_id}
                         carePlanPlaceholder={carePlanPlaceholder}
+                    />
+                  ) : collapsedFlag === 13 && isCrossConsultAccessable ? (
+                    <TabReferralPanel
+                      handleCollapsed={() => setCollapsed(!collapsed)}
+                      referralData={referralData}
+                      onReferralChange={setReferralData}
+                      isTabRx={false}
                     />
                   ) : collapsedFlag === 12 && isGroundingAccessableForZydus && (
                     <GroundingBox handleGroundingKnowMore={handleGroundingKnowMore} />
@@ -2625,6 +2982,35 @@ function TabPrescription() {
               setIsEditDocument={setIsEditDocument}
               handleUploadDocPopup={handleUploadDocPopup}
               setUploadDocDrawer={setUploadDocDrawer}
+            />
+          </Drawer>
+        )}
+        {drawingCanvasDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            bodyStyle={{ backgroundColor: "white" }}
+            onClose={handleDrawerDrawingCanvas}
+            open={drawingCanvasDrawer}
+            width="60%"
+            push={false}
+          >
+            <DrawingCanvas
+              patientId={patient_data?.patient_unique_id}
+              tcmId={tcmId}
+              canvases={drawingCanvases}
+              rxDrawingCanvasIds={rxDrawingCanvasIds}
+              onToggleRx={(canvasId, checked) => {
+                setRxDrawingCanvasIds((prev) =>
+                  checked
+                    ? [...Array.from(new Set([...prev, canvasId]))]
+                    : prev.filter((id) => String(id) !== String(canvasId))
+                );
+              }}
+              onCreateCanvas={() => {}}
+              onSave={handleSaveDrawingCanvas}
+              onClose={handleDrawerDrawingCanvas}
+              trackingAttrs={getCanvasTrackingAttrs()}
             />
           </Drawer>
         )}

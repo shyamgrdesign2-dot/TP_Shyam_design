@@ -2,8 +2,10 @@ import React, { useCallback, useMemo } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './InvestigationRichTextEditor.scss';
-import investigationIcon from '../assets/images/Lab.svg';
+
 import { INVESTIGATION_TITLE } from '../utils/constants';
+import { ASSETS } from "../assets";
+const investigationIcon = ASSETS.images.lab;
 
 /**
  * InvestigationRichTextEditor - Rich text editor specifically for Investigation section

@@ -9,19 +9,14 @@ import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import { errorMessage, getTokenData, getClinicName, sendMessageToParent } from "../../utils/utils";
 import Form from "react-bootstrap/Form";
 import { DatePicker, Tabs, Select } from "antd";
-import tutorial from "../../assets/images/tutorial-icon.svg";
+
 import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import dayjs from "dayjs";
 import "./addAppointment.scss";
 import { listDoctor } from "../../redux/bulkMessagesSlice";
 import { getDecodedToken, useLocalStorage } from "../../utils/localStorage";
-import greenRightIcon from "../../assets/images/green-rounded-check.svg";
-import clockIcon from "../../assets/images/clock.svg";
-import visitEnd from "../../assets/images/end-visit.svg";
-import imgCloseVisit from "../../assets/images/close-visit.svg";
-import profileCircle from "../../assets/images/profile-circle.svg";
-import cvtInfoIcon from "../../assets/images/cvt-info.svg";
+
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { jwtDecode } from "jwt-decode";
 import {
@@ -30,18 +25,30 @@ import {
   GB_TELE_CONSULT,
 } from "../../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import hospitalSvg from "../../assets/images/hospital.svg";
-import hospitalWhiteSvg from "../../assets/images/hospital-white.svg";
-import videoSvg from "../../assets/images/video.svg";
-import videoWhiteSvg from "../../assets/images/video-white.svg";
+
 import { isChrome, isSafari } from "react-device-detect";
 import config from "../../config";
 import axios from "axios";
 import { upsertDoctorSettingFlag } from "../../redux/doctorsSlice";
 import { getCaseTypes, listCategories } from "../../redux/appointmentsSlice";
-import playIcons from "../../assets/images/tube-icon.svg";
+
 import VideoModal from "../../common/VideoModal";
 import { EVENTS } from "../../utils/events";
+import { ASSETS } from "../../assets";
+const {
+  tutorialIcon: tutorial,
+  greenRoundedCheck: greenRightIcon,
+  clock: clockIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  profileCircle,
+  cvtInfo: cvtInfoIcon,
+  hospital: hospitalSvg,
+  hospitalWhite: hospitalWhiteSvg,
+  video: videoSvg,
+  videoWhite: videoWhiteSvg,
+  tubeIcon: playIcons,
+} = ASSETS.images;
 
 const TIME_SECTIONS_CONFIG = [
   { key: 'MIDNIGHT', label: 'Midnight', timeRange: '12AM - 3AM' },

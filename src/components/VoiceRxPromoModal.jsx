@@ -2,22 +2,27 @@ import React, { useEffect, useState } from "react";
 import { Button, Drawer, Modal, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import "./VoiceRxPromoModal.scss";
-import couponSvg from "../assets/images/coupon.svg";
-import starBgTop from "../assets/images/star-bg-top.webp";
-import starBgBottom from "../assets/images/star-bg-bottom.webp";
-import christmasTree from "../assets/images/christmas-tree.webp";
-import checkIcon from "../assets/images/check-icon-purple.svg";
+
 import { useSelector, useDispatch } from "react-redux";
 import { services } from "../redux/doctorsSlice";
 import { FREE, GB_ZYDUS_USER, GB_VOICE_RX_FREE, S_VOICE_RX } from "../utils/constants";
 import { extendCredits } from "../redux/monetizationSlice";
-import contactSupport from "../assets/images/messages-secondary.svg";
-import arrowRight from "../assets/images/arrow-right-primary.svg";
+
 import GenRxKnowMore from "./GenRxKnowMore";
 import VideoModal from "../common/VideoModal";
 import { isMobile, isTablet } from "react-device-detect";
 import { getClinic, isVoiceRxFree, isZydus } from "../utils/utils";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { ASSETS } from "../assets";
+const {
+  coupon: couponSvg,
+  starBgTop,
+  starBgBottom,
+  christmasTree,
+  checkIconPurple: checkIcon,
+  messagesSecondary: contactSupport,
+  arrowRightPrimary: arrowRight,
+} = ASSETS.images;
 
 const voiceRxVideoLink = {
   link: "https://www.youtube.com/embed/vIeSUFJ7JgE",

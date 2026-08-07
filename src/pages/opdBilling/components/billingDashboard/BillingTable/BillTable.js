@@ -8,8 +8,7 @@ import {
   fetchPatientWalletBalance,
   generateBillToken,
 } from "../../../service";
-import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
-import visitEnd from "../../../../../assets/images/end-visit.svg";
+
 import {
   TRIAL,
   MESSAGE_KEY,
@@ -29,6 +28,11 @@ import { useLocalStorage } from "../../../../../utils/localStorage";
 import { EVENTS } from "../../../../../utils/events";
 import { sendMessageToParent } from "../../../../../utils/utils";
 import { EditBillDeployedDate } from "../../../utils/constants";
+import { ASSETS } from "../../../../../assets";
+const {
+  closeVisit: imgCloseVisit,
+  endVisit: visitEnd,
+} = ASSETS.images;
 
 const BillTable = ({
   createBillDrawer,
@@ -50,6 +54,8 @@ const BillTable = ({
   selectedCard,
   billType = "opd",
   isPreviewForm3c,
+  isReceptionistUser = false,
+  advancedSettings = {},
 }) => {
   const { profile, servicesList } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
@@ -358,6 +364,11 @@ const BillTable = ({
       render: (text, record) => {
         // Check if edit button should be disabled
         const { isEditDisabled, hasPaidDues, hasRefundedAmount } = isEditBillDisabled(record);
+        
+        // Check access control for reception users - only for OPD bills, default to Allow if setting doesn't exist
+        const isEditAccessRestricted = (isReceptionistUser || isReceptionist) && 
+          billType === "opd" &&
+          advancedSettings?.editBillAccessControlForReceptionist === false;
 
         return (
           <div
@@ -395,38 +406,40 @@ const BillTable = ({
             >
               <i className="icon-Print"></i>
             </button>
-            <Tooltip
-              title={
-                isEditDisabled
-                  ? hasRefundedAmount && hasPaidDues
-                    ? "A refund and due clearance have been processed for this bill, so editing isn’t allowed."
-                    : hasRefundedAmount
-                    ? "A refund has already been issued for this bill, so editing isn’t allowed."
-                    : hasPaidDues
-                    ? "The full due amount or some of the due amount has been cleared for this bill, so editing isn’t allowed."
-                    : "Cannot edit bill"
-                  : ""
-              }
-            >
-              <span>
-                <button
-                  className="btn p-0"
-                  disabled={isEditDisabled}
-                  onClick={() => {
-                    if (!isEditDisabled) {
-                      handleEditBillDrawer();
-                      setBillData(record);
-                    }
-                  }}
-                  style={{
-                    opacity: isEditDisabled ? 0.5 : 1,
-                    border: "none",
-                  }}
-                >
-                  <i className="icon-Edit"></i>
-                </button>
-              </span>
-            </Tooltip>
+            {!isEditAccessRestricted && (
+              <Tooltip
+                title={
+                  isEditDisabled
+                    ? hasRefundedAmount && hasPaidDues
+                      ? "A refund and due clearance have been processed for this bill, so editing isn’t allowed."
+                      : hasRefundedAmount
+                      ? "A refund has already been issued for this bill, so editing isn’t allowed."
+                      : hasPaidDues
+                      ? "The full due amount or some of the due amount has been cleared for this bill, so editing isn’t allowed."
+                      : "Cannot edit bill"
+                    : ""
+                }
+              >
+                <span>
+                  <button
+                    className="btn p-0"
+                    disabled={isEditDisabled}
+                    onClick={() => {
+                      if (!isEditDisabled) {
+                        handleEditBillDrawer();
+                        setBillData(record);
+                      }
+                    }}
+                    style={{
+                      opacity: isEditDisabled ? 0.5 : 1,
+                      border: "none",
+                    }}
+                  >
+                    <i className="icon-Edit"></i>
+                  </button>
+                </span>
+              </Tooltip>
+            )}
             <Dropdown
               className="cursor-pointer"
               menu={{

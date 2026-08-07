@@ -17,16 +17,19 @@ import CashManagerContext from "../../context/CashManagerContext";
 import { searchExamination } from "../../redux/surgicalSlice";
 import { updateDragDrop } from "../../redux/doctorsSlice";
 
-import dragChipsWebm from "../../../src/assets/images/drag-chips.webm";
-import dragChipsMp4 from "../../../src/assets/images/drag-chips.mp4";
 import LoopingVideo from "../common/LoopingVideo";
-import tagNew from "../../../src/assets/images/tag-new.svg";
 
 import TabSearchHeader from "./TabSearchHeader";
 
-import { SortableContainer, SortableElement } from "react-sortable-hoc";
+import { SortableContainer, SortableElement } from "./sortableHocAdapter";
 import { useLocation } from "react-router-dom";
 import { GB_APOLLO_DISABLE_FEATURE } from "../../utils/constants";
+import { ASSETS } from "../../assets";
+const {
+  dragChips_2: dragChipsWebm,
+  dragChips: dragChipsMp4,
+  tagNew,
+} = ASSETS.images;
 
 function TabSurgicalSearch({ passIndex, onClose }) {
   const { parentOptionsList, childOptionsList } = useSelector(
@@ -38,7 +41,6 @@ function TabSurgicalSearch({ passIndex, onClose }) {
 
   const { state } = useLocation();
   const { patient_data } = state;
-
 
   const { surgeriesData, setSurgeriesData,  } =
     useContext(CashManagerContext);

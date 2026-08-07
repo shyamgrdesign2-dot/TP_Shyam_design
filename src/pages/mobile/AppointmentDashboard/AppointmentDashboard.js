@@ -19,10 +19,19 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
 } from '../../../utils/constants';
-import { getClinic, getClinicName, getTokenData, errorMessage, sendMessageToParent } from '../../../utils/utils';
+import {
+  getClinic,
+  getClinicName,
+  getTokenData,
+  errorMessage,
+  sendMessageToParent,
+  trackEvent,
+  getVoiceRxMoengageBasePayload,
+} from '../../../utils/utils';
 import { EVENTS } from '../../../utils/events';
 import { isChrome, isSafari } from 'react-device-detect';
 import { getDecodedToken, useLocalStorage } from '../../../utils/localStorage';
+import { useVoiceRxNavigation } from '../../../utils/voiceRxNavigation';
 import { env } from '../../../EnvironmentConfig';
 import { jwtDecode } from 'jwt-decode';
 import { generateBillToken } from '../../opdBilling/service';
@@ -44,15 +53,17 @@ import WalkInConsultationModal from './components/WalkInConsultationModal';
 import MoreOptionsModal from './components/MoreOptionsModal';
 import EndVisitModal from './components/EndVisitModal';
 import RxPreviewModal from './components/RxPreviewModal';
-import PlusIcon from '../../../assets/mobile/Plus_Icon.svg';
 
 import './AppointmentDashboard.scss';
+import { ASSETS } from "../../../assets";
+const PlusIcon = ASSETS.mobile.plusIcon;
 
 const dateFormat = 'YYYY-MM-DD';
 const showDateFormat = 'DD-MM-YYYY';
 
 function AppointmentDashboard() {
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const dispatch = useDispatch();
   const { isMobile, isPWA } = useDeviceType();
   const scrollContainerRef = useRef(null);
@@ -435,13 +446,15 @@ function AppointmentDashboard() {
         patient_id: record?.patient_unique_id,
       });
     }
-    navigate('/voice-rx-consult', { 
-      state: { 
+    navigateVoiceRx(
+      {
         patient_data: record,
         isFromTabView: true 
-      } 
-    });
-  }, [navigate, profile]);
+      },
+      {},
+      "mobile_appointment_consult"
+    );
+  }, [navigateVoiceRx, profile]);
 
   // Handle patient details click
   const handlePatientDetailsClick = useCallback((record) => {
@@ -450,9 +463,31 @@ function AppointmentDashboard() {
 
   // Handle view Rx click
   const handleViewRxClick = useCallback((record) => {
+    const currentClinic = getClinic(profile?.hospital_data);
+    const currentClinicName = getClinicName(profile?.hospital_data);
+    trackEvent('TP_App_view_Rx', {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId: profile?.um_id || '',
+        patientData: record,
+        clinic: currentClinic,
+        segmentation: {
+          surface: 'mobile_appointment_dashboard',
+          entry_point: 'view_rx_button',
+        },
+      }),
+      patient_contact: record?.pm_contact_no || '',
+      patient_id: record?.patient_unique_id || '',
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: currentClinicName,
+      rx_id: record?.tcm_id || '',
+      appointment_tab: selectedTab,
+      pam_id: record?.pam_id || '',
+    });
     setSelectedRxAppointment(record);
     setShowRxPreviewModal(true);
-  }, []);
+  }, [profile, selectedTab]);
 
   // Handle cancel appointment
   const handleCancelAppointment = useCallback((record) => {
@@ -571,13 +606,43 @@ function AppointmentDashboard() {
         ? btoa(patientDefaultLanguage.toString()) 
         : "";
       const printUrl = await updateRxDigitizeInUrl();
-      
-      // Open URL directly (same as web version)
-      window.open(`${printUrl}&lg=${encodedData}`, '_blank');
+      const fullPrintUrl = `${printUrl}&lg=${encodedData}`;
+      const currentClinic = getClinic(profile?.hospital_data);
+      const currentClinicName = getClinicName(profile?.hospital_data);
+
+      const printChannel = !isChrome && !isSafari ? 'in_app' : 'browser';
+      trackEvent('TP_App_PrintRx', {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId: profile?.um_id || '',
+          patientData: record,
+          clinic: currentClinic,
+          segmentation: {
+            surface: 'mobile_appointment_more_options',
+            entry_point: 'print_rx_option',
+          },
+        }),
+        patient_contact: record?.pm_contact_no || '',
+        patient_id: record?.patient_unique_id || '',
+        doctor_speciality: profile?.dp_name,
+        doctor_unique_id: profile?.doctor_unique_id,
+        clinic_name: currentClinicName,
+        PRINTPAGE: 'finished queue',
+        rx_id: record?._id || record?.tcm_id || '',
+        rx_type: 'standard',
+        print_channel: printChannel,
+      });
+
+      if (!isChrome && !isSafari) {
+        sendMessageToParent(EVENTS.PRINT, { url: fullPrintUrl });
+        return;
+      }
+
+      window.open(fullPrintUrl, '_blank');
     } catch (error) {
       message.error('Failed to open prescription');
     }
-  }, [defaultPrintSettings]);
+  }, [defaultPrintSettings, profile]);
 
   // Handle download Rx (same URL and behavior as Rx Preview download icon: language, rxDigitize, in-app download)
   const handleDownloadRx = useCallback(async (record) => {
@@ -1014,4 +1079,3 @@ function AppointmentDashboard() {
 }
 
 export default AppointmentDashboard;
-

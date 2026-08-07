@@ -2,15 +2,19 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Drawer } from 'antd';
 import { PATIENT_DETAILS_SIDEBAR_KEYS } from '../../utils/constants';
-import closeIcon from '../../assets/mobile/close 2.svg';
-import profileIcon from '../../assets/mobile/profile.svg';
-import editIcon from '../../assets/mobile/Edit_2.svg';
-import visitSummaryIcon from '../../assets/mobile/VisitSummary.svg';
-import womanIcon from '../../assets/mobile/woman.svg';
-import personalcardIcon from '../../assets/mobile/personalcard.svg';
-import callIcon from '../../assets/mobile/call.svg';
-import bloodIcon from '../../assets/mobile/blood.svg';
+
 import './PatientDetailsBottomSheet.scss';
+import { ASSETS } from "../../assets";
+const {
+  close2: closeIcon,
+  profile: profileIcon,
+  edit2: editIcon,
+  visitsummary: visitSummaryIcon,
+  woman: womanIcon,
+  personalcard: personalcardIcon,
+  call: callIcon,
+  blood: bloodIcon,
+} = ASSETS.mobile;
 
 function PatientDetailsBottomSheet({ visible, onClose, patient_data, onBeforeNavigate }) {
   const navigate = useNavigate();

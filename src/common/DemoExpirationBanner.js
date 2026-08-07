@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 
-import crownIcon from "../assets/images/crown.svg";
-import supportwhite from "../assets/images/support.webp";
 import { openModal } from "../redux/doctorModalSlice";
 import { fetchSubscriptionDetails } from "../redux/subscriptionSlice";
 import {
@@ -25,6 +23,11 @@ import {
 import ContactSupportModal from "./ContactSupportModal";
 import { setB2C_Profile } from "../redux/doctorsSlice";
 import { isMobile, isTablet } from "react-device-detect";
+import { ASSETS } from "../assets";
+const {
+  x: crownIcon,
+  support: supportwhite,
+} = ASSETS.images;
 
 const DemoExpirationBanner = () => {
   const navigate = useNavigate();

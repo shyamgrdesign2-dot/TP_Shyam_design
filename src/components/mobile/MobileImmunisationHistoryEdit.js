@@ -7,9 +7,11 @@ import { addObstetricDetails, obstetricDetailsUpdated, patientDiagnosisUpdated }
 import { fetchSearchImmunisation } from '../../pages/obstetric/service';
 import { mergeDefaultAndDoctorList } from '../../pages/obstetric/utils/helper';
 import { errorMessage, removeBeforeWhiteSpace } from '../../utils/utils';
-import closeIcon from '../../assets/mobile/close 2.svg';
-import alertIcon from '../../assets/images/alertIcon.svg';
+
 import './MobileImmunisationHistoryEdit.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
+const alertIcon = ASSETS.images.alerticon;
 
 const { TextArea } = Input;
 

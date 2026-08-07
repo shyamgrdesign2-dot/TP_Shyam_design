@@ -4,8 +4,10 @@ import { CloudUploadOutlined } from "@ant-design/icons";
 import styles from "./IdProof.module.css";
 import { FileOutlined } from "@ant-design/icons";
 import CommonModal from "../../common/CommonModal";
-import alertIcon from "../../assets/images/alertIcon.svg";
+
 import { pdfjs, Document, Page } from "react-pdf";
+import { ASSETS } from "../../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;

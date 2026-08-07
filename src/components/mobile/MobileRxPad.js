@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useContext, useCallback, useMemo } from 'react';
 import { Drawer, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,6 +17,7 @@ import {
 } from '../../api/services/ApiGenRxMobile';
 import ApiMedication from '../../api/services/ApiMedication';
 import { addPatientLabReports } from '../../api/services/ApiLabParams';
+import { buildLabResultsSavePayload } from '../../utils/labResultsUtils';
 import { addCaseManager, editCaseManager, viewCaseManager } from '../../redux/caseManagerSlice';
 import { addUpdateVitals, getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday } from '../../redux/vitalsSlice';
 import { getPatientLastHistory } from '../../redux/medicalhistorySlice';
@@ -27,7 +28,16 @@ import ApiVitals from '../../api/services/ApiVitals';
 import { enrichVitalsWithCalculations } from '../../utils/vitalsCalculations';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
-import { errorMessage, isVoiceRxFree } from '../../utils/utils';
+import {
+  errorMessage,
+  getClinic,
+  getClinicName,
+  getDeviceSdkData,
+  getTokenData,
+  getVoiceRxMoengageBasePayload,
+  isVoiceRxFree,
+  trackEvent,
+} from '../../utils/utils';
 import CashManagerContext from '../../context/CashManagerContext';
 import MobileRxPadProcessing from './MobileRxPadProcessing';
 import MobileRxPadSkeleton from './MobileRxPadSkeleton';
@@ -36,12 +46,16 @@ import MobileEndVisitScreen from './MobileEndVisitScreen';
 import RxPadInfoBottomSheet from './RxPadInfoBottomSheet';
 import ExpiredSubModal from '../../pages/monetization/components/ExpiredSubModal';
 import FreeTrialButton from '../../pages/monetization/components/FreeTrialButton';
-import documentNormalSvg from '../../assets/mobile/document-normal.svg';
-import minimiseIcon from '../../assets/images/minimise.svg';
-import infoIcon from '../../assets/mobile/Icon (2).svg';
-import visitEndIcon from '../../assets/images/end-visit.svg';
-import closeVisitIcon from '../../assets/images/close-visit.svg';
+
 import './MobileRxPad.scss';
+import { ASSETS } from "../../assets";
+const documentNormalSvg = ASSETS.mobile.documentNormal;
+const minimiseIcon = ASSETS.images.minimise;
+const infoIcon = ASSETS.mobile.icon2;
+const {
+  endVisit: visitEndIcon,
+  closeVisit: closeVisitIcon,
+} = ASSETS.images;
 
 /** ensure voice BP (bloodPressure) populates Rx Pad by deriving Systolic/Diastolic when missing. */
 function normalizeVitalsBloodPressure(vitals) {
@@ -65,7 +79,8 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { profile, servicesList } = useSelector((state) => state.doctors);
+  const { profile, userId, servicesList } = useSelector((state) => state.doctors);
+  const clinic = useMemo(() => getClinic(profile?.hospital_data), [profile?.hospital_data]);
   const { listVitalsTodayIds } = useSelector((state) => state.vitals);
   const { medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext) || {};
 
@@ -715,6 +730,30 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       .filter((r) => r.inputs.length > 0);
   };
 
+  const getFilledModulesSummary = (data = {}) => {
+    const modules = [];
+    const hasArrayData = (value) => Array.isArray(value) && value.length > 0;
+    const hasObjectData = (value) =>
+      value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length > 0;
+    const hasStringData = (value) => typeof value === "string" && value.trim().length > 0;
+
+    if (hasArrayData(data?.symptoms)) modules.push("symptoms");
+    if (hasArrayData(data?.diagnosis)) modules.push("diagnosis");
+    if (hasArrayData(data?.medications)) modules.push("medications");
+    if (hasArrayData(data?.medicalHistory)) modules.push("medicalHistory");
+    if (hasArrayData(data?.labInvestigation)) modules.push("labInvestigation");
+    if (hasArrayData(data?.labResults)) modules.push("labResults");
+    if (hasArrayData(data?.advice) || hasStringData(data?.advice)) modules.push("advice");
+    if (hasArrayData(data?.others)) modules.push("others");
+    if (hasStringData(data?.followUp)) modules.push("followUp");
+    if (hasObjectData(data?.vitalsAndBodyComposition)) modules.push("vitalsAndBodyComposition");
+
+    return {
+      rxModulesFilledCount: modules.length,
+      filledModules: modules,
+    };
+  };
+
   const persistLabResultsToApi = async (labResultsDataForApi = []) => {
     if (!Array.isArray(labResultsDataForApi) || labResultsDataForApi.length === 0 || !patient_data?.patient_unique_id) return;
     const decodedToken = getDecodedToken();
@@ -722,17 +761,25 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     const doctorId = profile?.doctor_unique_id || fallbackDoctorId;
     if (!doctorId) return; // Avoid API call that would fail; labParamsData still sent to case manager
     try {
-      await addPatientLabReports({
-        patientId: patient_data.patient_unique_id,
-        doctorId,
-        results: labResultsDataForApi,
-      });
+      await addPatientLabReports(
+        buildLabResultsSavePayload({
+          patientId: patient_data.patient_unique_id,
+          results: labResultsDataForApi,
+          tokenUserId: doctorId,
+        })
+      );
     } catch (err) {
       console.error('Error saving lab results to API:', err);
     }
   };
 
   const handleVoiceDigitize = async (audioBlobParam, transcribedText) => {
+    let submitId = "";
+    let requestId = "";
+    let voiceApiStartMs = 0;
+    let modeForEvent = "dictation";
+    let didTrackVoiceApiSuccess = false;
+
     try {
       // Real-time credit check before voice processing (matches desktop ConsultationDrawer)
       if (!isFreeVoiceRxUser && (
@@ -776,6 +823,10 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         }
       }
 
+      voiceApiStartMs = Date.now();
+      submitId = `mobile-rxpad-voice-submit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      requestId = submitId;
+
       let response;
       const patientId = patient_data?.patient_unique_id || '';
       const admissionId = caseManagerData?.admission_id || null;
@@ -806,6 +857,70 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
       // Improved mode detection - matches web version
       const isAmbient = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient' || existingGenRxDetails?.type === 'ambient';
+
+      modeForEvent = isAmbient ? "ambient" : "dictation";
+      const fromVoiceRecordingEvent = !!fromVoiceRecording;
+      const audioSizeBytes = Number(audioBlobParam?.size || 0);
+      const audioMimeType = audioBlobParam?.type || "";
+      const isTypedTranscriptInput =
+        !audioBlobParam && typeof transcribedText === "string" && transcribedText.trim().length > 0;
+
+      if (isTypedTranscriptInput) {
+        trackEvent("TP_App_AV_TypeTranscript", {
+          patient_id: patient_data?.patient_unique_id || "",
+          patient_name: patient_data?.pm_fullname || "",
+          patient_mobile_number: patient_data?.pm_contact_no || "",
+          doctor_id: profile?.doctor_unique_id,
+          user_id: userId,
+          doctor_name: profile?.um_name,
+          doctor_specialty: profile?.dp_name,
+          doctor_mobile_number: profile?.um_contact,
+          hm_id: clinic?.hm_id,
+          clinic_name: clinic?.hm_name,
+        });
+      }
+
+      if (isUpdatingRx) {
+        const clinic_name = getClinicName(profile?.hospital_data);
+        trackEvent("TP_App_VoiceRx_editRx", {
+          patient_contact: patient_data?.pm_contact_no || "",
+          patient_id: patient_data?.patient_unique_id || "",
+          doctor_speciality: profile?.dp_name,
+          doctor_unique_id: profile?.doctor_unique_id,
+          clinic_name,
+          rx_id: existingRxId || genRxDetails?._id || "",
+        });
+      }
+
+      trackEvent("TP_App_Voice_Submit_Click", {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+          format: "technical",
+        }),
+        prescriptionUrl: "",
+        network:
+          navigator?.connection?.effectiveType ||
+          (typeof navigator?.onLine === "boolean" && !navigator.onLine ? "offline" : "stable"),
+        micBeingUsed: "Unknown",
+        browser: "mobile_web",
+        durationOfAudioInSeconds: currentRecordingDuration != null ? Math.round(currentRecordingDuration) : 0,
+        voiceApiCalled: true,
+        sessionId: genRxDetails?._id || "",
+        submitId,
+        requestId,
+        audioSizeBytes,
+        audioMimeType,
+        mode: modeForEvent,
+        fromVoiceRecording: fromVoiceRecordingEvent,
+        upload_latency_ms: null,
+        upload_failed: false,
+        upload_error_message: "",
+        voicecall: modeForEvent === "ambient" ? 1 : 0,
+        timestamp: new Date().toISOString(),
+      });
 
       if (isAmbient) {
         const formData = new FormData();
@@ -981,6 +1096,34 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       );
 
       if (isSuccess) {
+        const moduleSummary = getFilledModulesSummary(actualData || responseData || {});
+        trackEvent("TP_App_Voice_Api_Result", {
+          ...getVoiceRxMoengageBasePayload({
+            profile,
+            userId,
+            patientData: patient_data,
+            clinic,
+            format: "technical",
+          }),
+          prescriptionUrl: "",
+          _id: actualData?._id || responseData?._id || "",
+          voice_failed: false,
+          error_message: "",
+          retry_attempts: 0,
+          isemptyprescription: moduleSummary.rxModulesFilledCount === 0,
+          submitId,
+          requestId,
+          voice_api_latency_ms: Date.now() - voiceApiStartMs,
+          http_status: response?.statusCode || response?.status || null,
+          error_code: "",
+          error_type: "",
+          rx_modules_filled_count: moduleSummary.rxModulesFilledCount,
+          filled_modules: moduleSummary.filledModules.join(","),
+          voicecall: modeForEvent === "ambient" ? 1 : 0,
+          timestamp: new Date().toISOString(),
+        });
+        didTrackVoiceApiSuccess = true;
+
         const finalResponseData = actualData || responseData;
         
         if (!finalResponseData) {
@@ -1373,10 +1516,62 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           message.error('No prescription data received');
         }
       } else {
+        trackEvent("TP_App_Voice_Api_Result", {
+          ...getVoiceRxMoengageBasePayload({
+            profile,
+            userId,
+            patientData: patient_data,
+            clinic,
+            format: "technical",
+          }),
+          prescriptionUrl: "",
+          _id: "",
+          voice_failed: true,
+          error_message: "Voice API returned unsuccessful response",
+          retry_attempts: 0,
+          isemptyprescription: true,
+          submitId,
+          requestId,
+          voice_api_latency_ms: voiceApiStartMs ? Date.now() - voiceApiStartMs : 0,
+          http_status: response?.statusCode || response?.status || null,
+          error_code: "",
+          error_type: "api_error",
+          rx_modules_filled_count: 0,
+          filled_modules: "",
+          voicecall: modeForEvent === "ambient" ? 1 : 0,
+          timestamp: new Date().toISOString(),
+        });
         setIsProcessing(false);
         message.error('Failed to process. Please try again.');
       }
     } catch (error) {
+      if (!didTrackVoiceApiSuccess && voiceApiStartMs) {
+        trackEvent("TP_App_Voice_Api_Result", {
+          ...getVoiceRxMoengageBasePayload({
+            profile,
+            userId,
+            patientData: patient_data,
+            clinic,
+            format: "technical",
+          }),
+          prescriptionUrl: "",
+          _id: "",
+          voice_failed: true,
+          error_message: error?.message || "Voice API failed",
+          retry_attempts: 0,
+          isemptyprescription: true,
+          submitId,
+          requestId,
+          voice_api_latency_ms: Date.now() - voiceApiStartMs,
+          http_status: error?.response?.status || null,
+          error_code: error?.code || "",
+          error_type: error?.response ? "api_error" : "network",
+          rx_modules_filled_count: 0,
+          filled_modules: "",
+          voicecall: modeForEvent === "ambient" ? 1 : 0,
+          timestamp: new Date().toISOString(),
+        });
+      }
       setIsProcessing(false);
       message.error(error?.message || 'Failed to process. Please try again.');
     }
@@ -1551,6 +1746,44 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
     setIsEndingVisit(true);
     try {
+      // MoEngage: match web ConsultationDrawer onEndVisitClick (TP_AV_SaveRx before save; counts not tracked on mobile pad yet — use 0)
+      const isAmbientRx =
+        isAmbientMode ||
+        mode === 'ambient' ||
+        window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX ||
+        genRxDetails?.type === 'ambient';
+      const rxType = isAmbientRx ? 'ambient' : 'voice_rx';
+      const totalAudioDuration = queries
+        .filter((query) => query.isAudio && query.duration)
+        .reduce((total, query) => {
+          const duration =
+            typeof query.duration === 'number'
+              ? query.duration
+              : parseFloat(query.duration) || 0;
+          return total + duration;
+        }, 0);
+
+      trackEvent('TP_App_AV_SaveRx', {
+        patient_id: patient_data?.patient_unique_id || '',
+        patient_name: patient_data?.pm_fullname || '',
+        patient_mobile_number: patient_data?.pm_contact_no || '',
+        doctor_id: profile?.doctor_unique_id,
+        user_id: userId,
+        doctor_name: profile?.um_name,
+        doctor_specialty: profile?.dp_name,
+        doctor_mobile_number: profile?.um_contact,
+        hm_id: clinic?.hm_id,
+        clinic_name: clinic?.hm_name,
+        rx_type: rxType,
+        no_of_submits_count: 0,
+        no_of_typed_messages: 0,
+        no_of_times_user_clicked_no_stay: 0,
+        no_of_times_user_clicked_cross_button: 0,
+        no_of_times_user_clicked_mute_pause_button: 0,
+        total_audio_duration_seconds: totalAudioDuration || 0,
+        no_of_edits_in_digitization_pad: 0,
+      });
+
       // Step 1: Sanitize medications and get quantities (matches web version)
       const sanitizedMedications =
         prescriptionData?.medications?.map((item) => {
@@ -1874,6 +2107,22 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             </div>
           ),
           duration: 5,
+        });
+
+        const clinic_name = getClinicName(profile?.hospital_data);
+        const deviceSdkData = getDeviceSdkData();
+        const tokenData = getTokenData();
+        trackEvent('TP_App_Voice_Submit', {
+          doctor_name: profile?.um_name,
+          doctor_number: profile?.um_contact,
+          doctor_unique_id: profile?.doctor_unique_id,
+          doctor_specialty: profile?.dp_name,
+          clinic_id: tokenData?.clinic_id,
+          um_id: tokenData?.user_id,
+          clinic_Name: clinic_name,
+          patient_name: patient_data?.pm_first_name,
+          patient_unique_id: patient_data?.patient_unique_id,
+          ...deviceSdkData,
         });
         
         // Fetch updated case (viewCaseManager) then set endVisitCaseManagerData.

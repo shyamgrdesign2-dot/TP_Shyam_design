@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, Input, Button } from 'antd';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import './MobileAdditionalHistoryEdit.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 const { TextArea } = Input;
 

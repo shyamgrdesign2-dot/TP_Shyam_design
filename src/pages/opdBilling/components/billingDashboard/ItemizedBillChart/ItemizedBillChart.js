@@ -116,15 +116,17 @@ const ItemizedBillChart = ({
               <table className="bill-table">
                 <thead>
                   <tr>
-                    <th style={{ width: "5%" }}>#</th>
-                    <th style={{ width: "13%" }}>Created by</th>
-                    <th style={{ width: "10%" }}>Date</th>
-                    <th style={{ width: "12%" }}>Invoice No.</th>
-                    <th style={{ width: "10%" }}>Patient ID</th>
-                    <th style={{ width: "16%" }}>Patient Name</th>
-                    <th style={{ width: "10%" }}>Gender/Age</th>
-                    <th style={{ width: "10%" }}>Paid Amount</th>
-                    <th style={{ width: "14%" }}>MOP</th>
+                    <th style={{ width: "4%" }}>#</th>
+                    <th style={{ width: "11%" }}>Created by</th>
+                    <th style={{ width: "8%" }}>Date</th>
+                    <th style={{ width: "10%" }}>Invoice No.</th>
+                    <th style={{ width: "8%" }}>Patient ID</th>
+                    <th style={{ width: "13%" }}>Patient Name</th>
+                    <th style={{ width: "10%" }}>Patient Phone</th>
+                    <th style={{ width: "9%" }}>Gender/Age</th>
+                    <th style={{ width: "9%" }}>Paid Amount</th>
+                    <th style={{ width: "9%" }}>MOP</th>
+                    <th style={{ width: "9%" }}>Payment Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -136,9 +138,11 @@ const ItemizedBillChart = ({
                       <td>{bill.billNumber}</td>
                       <td>{bill.patientId}</td>
                       <td>{bill.patientName}</td>
+                      <td>{bill.patientPhone || "-"}</td>
                       <td>{formatGenderAge(bill.gender, bill.age)}</td>
                       <td>{formatAmount(bill.paidAmount)}</td>
                       <td>{formatPaymentModes(bill.paymentModes)}</td>
+                      <td>{bill.paymentStatus || "-"}</td>
                     </tr>
                   ))}
                 </tbody>

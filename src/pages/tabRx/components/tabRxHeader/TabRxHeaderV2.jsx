@@ -30,19 +30,12 @@ import CustomizeSetting from "../../../../common/CustomizeSetting";
 
 import ProfilePopover from "../../../../common/ProfilePopover";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "../../../../assets/images/alertIcon.svg";
-import tutorial2 from "../../../../assets/images/tutorial.svg";
+
 // import videoimg1 from '../assets/images/tutorial-img1.png';
 // import videoimg2 from '../assets/images/tutorial-img2.png';
-import playIcons from "../../../../assets/images/tube-icon.svg";
-import fullicon from "../../../../assets/images/full-icon.svg";
-import settingsIcon from "../../../../assets/images/settings-icon.svg";
+
 import VideoModal from "../../../../common/VideoModal";
 import TabVoiceRxButton from "../../../../components/tab_design/TabVoiceRxButton";
-import endIcon from "../../../../assets/images/end-icon.svg";
-import notesMultiple from "../../../../assets/images/notes-multiple.svg";
-import settingsNew from "../../../../assets/images/settings-new.svg";
-import videoSvg from "../../../../assets/images/video.svg";
 
 import {
     errorMessage,
@@ -66,13 +59,8 @@ import {
 } from "../../../../utils/constants";
 import {
     assignCarePlan,
-    getCarePlanAssignments,
-    hasExistingCarePlanForConsultation,
     updateCarePlanName,
 } from "../../../../pages/smartSync/services/carePlanService";
-
-import visitEnd from "../../../../assets/images/end-visit.svg";
-import imgCloseVisit from "../../../../assets/images/close-visit.svg";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -107,14 +95,34 @@ import {
     setTableValues as setOpthalTableValues,
 } from "../../../../redux/ophthalmologyExamSlice";
 import useTabletViewport from "../../../../hooks/useTabletViewport";
+import { useChikitsalay } from "../../../../pages/chikitsalay/useChikitsalay";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { getTabRxFiles, upsertTabRxRx } from "../../services/tabRxService";
+import {
+    attachCrossConsultToCaseManagerPayload,
+    syncCrossConsultReferral,
+} from "../../../../utils/crossConsultHelpers";
+import { normalizeLabResultsResponse } from "../../../../utils/labResultsUtils";
 import {
     getMetadata,
     setMetadata,
     getTemplates,
 } from "../../services/templateService";
 import { setDefaultCustomSyncPadTemplate } from "../../../smartSync/services/uploadService";
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  tutorial: tutorial2,
+  tubeIcon: playIcons,
+  fullIcon: fullicon,
+  settingsIcon,
+  endIcon,
+  notesMultiple,
+  settingsNew,
+  video: videoSvg,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 var oneClickCosultationTemplateId = 0;
 
@@ -127,6 +135,7 @@ function TabRxHeaderV2({
     handleGenRx,
     labReportID,
     selectedCarePlan,
+    hasExistingCarePlan = false,
     handleVideoConsult,
     isVideoConsultLoading,
     smartRxFiles = [],
@@ -164,6 +173,7 @@ function TabRxHeaderV2({
     const { isObstetricDetailsUpdated } = useSelector((state) => state.obstetric);
     const { templates, loading } = useSelector((state) => state.caseManager);
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const { customModules } = useSelector((state) => state.customModules);
 
@@ -199,6 +209,7 @@ function TabRxHeaderV2({
         setFollowUpDate,
         additionalNote,
         setAdditionalNote,
+        referralData,
         startTime,
         customModuleContents,
         setCustomModuleContents,
@@ -445,7 +456,12 @@ function TabRxHeaderV2({
         window.Moengage.track_event("one_click_template_select", {
             template_name: tmoc_template_name,
         });
-        const action = await dispatch(oneClickSingleTemplateDetails(tmoc_id));
+        const action = await dispatch(
+            oneClickSingleTemplateDetails({
+                templateId: tmoc_id,
+                isChikitsalayAccessable,
+            })
+        );
         if (action.meta.requestStatus === "fulfilled") {
             const data = action.payload;
             if (data !== undefined) {
@@ -738,12 +754,12 @@ function TabRxHeaderV2({
                     advice_name,
                     ...(change !== undefined && { change }),
                 })),
-                investigation: investigationData.map(
-                    ({ investigation_name, change }) => ({
-                        investigation_name,
-                        ...(change !== undefined && { change }),
-                    }),
-                ),
+                investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+                    investigation_name,
+                    ...(change !== undefined && { change }),
+                    ...(id != null && String(id).trim() !== "" && { id }),
+                    ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+                })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -897,12 +913,12 @@ function TabRxHeaderV2({
                     advice_name,
                     ...(change !== undefined && { change }),
                 })),
-                investigation: investigationData.map(
-                    ({ investigation_name, change }) => ({
-                        investigation_name,
-                        ...(change !== undefined && { change }),
-                    }),
-                ),
+                investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+                    investigation_name,
+                    ...(change !== undefined && { change }),
+                    ...(id != null && String(id).trim() !== "" && { id }),
+                    ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+                })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -1684,7 +1700,6 @@ function TabRxHeaderV2({
                 return;
             }
 
-
             var sendData = {
                 action: tcmId == 0 ? "add" : "edit",
                 tcm_id: tcmId,
@@ -1818,6 +1833,11 @@ function TabRxHeaderV2({
                 };
             }
 
+            attachCrossConsultToCaseManagerPayload(sendData, referralData, {
+                referredBy: profile?.um_name,
+                pendingCrossConsult: patient_data,
+            });
+
             const clinic_name = getClinicName(profile?.hospital_data);
             tcmId == 0
                 ? window.Moengage.track_event("TP_Consultation_ended", {
@@ -1846,12 +1866,6 @@ function TabRxHeaderV2({
                     const tokenData = decodedToken?.result;
                     const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
 
-                    const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-                        patient_data?.patient_unique_id,
-                        generatedTcmId,
-                        'submit',
-                    );
-
                     if (generatedTcmId > 0 && selectedCarePlan) {
                         if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
                             await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
@@ -1875,15 +1889,13 @@ function TabRxHeaderV2({
                     console.error('Care plan sync after submit failed:', error);
                 }
 
-                // Fetch care plan assignments to include in print state
-                let carePlanAssignments = [];
                 try {
-                    if (patient_data?.patient_unique_id) {
-                        const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
-                        carePlanAssignments = Array.isArray(assignmentsResp?.data) ? assignmentsResp.data : (Array.isArray(assignmentsResp) ? assignmentsResp : (assignmentsResp?.assignments || []));
-                    }
-                } catch (cpFetchErr) {
-                    console.error('Failed to fetch care plan assignments for print state:', cpFetchErr);
+                    await syncCrossConsultReferral({
+                        tcmId: parseInt(action?.payload?.tcm_id ?? tcmId),
+                        pendingCrossConsult: patient_data,
+                    });
+                } catch (error) {
+                    console.error('Cross consult sync failed:', error);
                 }
 
                 message.open({
@@ -1932,6 +1944,7 @@ function TabRxHeaderV2({
                         ...action.payload,
                         patient_data: patient_data,
                         page: "tabrx",
+                        labParamsData: normalizeLabResultsResponse(labParamsData),
                         // smartRxFilesData: canvasFiles.length > 0 ? canvasFiles : smartRxFiles,
                     },
                 });

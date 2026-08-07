@@ -1,15 +1,20 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Divider, Tabs } from "antd";
 import { isMobile, isTablet } from "react-device-detect";
-import playIcons from "../../../../assets/images/tube-icon.svg";
+
 import VideoModal from "../../../../common/VideoModal";
 import { S_RECEPTIONIST_AGENT, S_TATVA_PRACTICE } from "../../../../utils/constants";
 import { useNavigate } from "react-router-dom";
-import SMS from "../../../../assets/images/sms.svg";
+
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData } from "../../../../utils/utils";
 import { openModal } from "../../../../redux/doctorModalSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { getDecodedToken } from "../../../../utils/localStorage";
+import { ASSETS } from "../../../../assets";
+const {
+  tubeIcon: playIcons,
+  sms: SMS,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 

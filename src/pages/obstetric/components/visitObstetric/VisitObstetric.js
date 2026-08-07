@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import obstetricImg from "../../../../assets/images/obstetric-dark.svg";
+
 import { Card } from "react-bootstrap";
 import { Button } from "antd";
 import "./VisitObstetric.scss";
@@ -16,6 +16,8 @@ import { visitColumn } from "../../utils/constants";
 import { useAccess } from "../../../vaccination/useAccess";
 import PatientInfoList from "../obstetricList/PatientInfoList";
 import AncImmunisationList from "../obstetricList/AncImmunisationList";
+import { ASSETS } from "../../../../assets";
+const obstetricImg = ASSETS.images.obstetricDark;
 
 export default function VisitObstetric({ doctorId }) {
   const navigate = useNavigate();

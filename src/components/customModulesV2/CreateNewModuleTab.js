@@ -6,14 +6,18 @@ import {
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { customizedPad } from "../../redux/doctorsSlice";
-import alertIcon from '../../assets/images/alertIcon.svg';
-import stethoscopeIcon from '../../assets/images/stethoscope.svg';
-import Plus from '../../assets/images/website-images/plus.svg';
-import moduleLimitIcon from '../../assets/images/moduleLimitIcon.svg';
+
 import ModuleListItem from "./ModuleListItem";
 import { getDecodedToken } from "../../utils/localStorage";
 import config from "../../config";
 import "./CreateNewModuleTab.scss";
+import { ASSETS } from "../../assets";
+const {
+  alerticon: alertIcon,
+  stethoscope: stethoscopeIcon,
+} = ASSETS.images;
+const Plus = ASSETS.images.websiteImages.plus;
+const moduleLimitIcon = ASSETS.images.modulelimiticon;
 
 const MAX_MODULE_NAME_LENGTH = 30;
 const MAX_COLUMN_LABEL_LENGTH = 15;
@@ -164,11 +168,10 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange, editMode = false, in
   };
 
   const isFormValid = useMemo(() => {
-    return (
-      moduleName.trim().length > 0 &&
-      columnLabels.every((label) => label.trim().length > 0)
-    );
-  }, [moduleName, columnLabels]);
+    if (moduleName.trim().length === 0) return false;
+    if (columnCount === 1) return true;
+    return columnLabels.every((label) => label.trim().length > 0);
+  }, [moduleName, columnLabels, columnCount]);
 
   // Notify parent of form state changes
   // Use a ref to store previous values to prevent unnecessary updates
@@ -485,11 +488,20 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange, editMode = false, in
                 >
                   <div className="create-new-module-tab__column-label-header">
                     <span>
-                      Column {index + 1} <span className="required color-red">*</span>
+                      Column {index + 1}{" "}
+                      {columnCount === 1 ? (
+                        <span className="create-new-module-tab__optional-label">(optional)</span>
+                      ) : (
+                        <span className="required color-red">*</span>
+                      )}
                     </span>
                   </div>
                   <Input
-                    placeholder={`Eg., ${index === 0 ? "Diet" : "Notes"}`}
+                    placeholder={
+                      columnCount === 1
+                        ? "Defaults to module name if left empty"
+                        : `Eg., ${index === 0 ? "Diet" : "Notes"}`
+                    }
                     value={label}
                     onChange={(e) =>
                       handleColumnLabelChange(index, e.target.value)

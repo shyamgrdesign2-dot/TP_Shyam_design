@@ -10,15 +10,25 @@ import PropTypes from 'prop-types';
 // import VisitObstetric from '../../../obstetric/components/visitObstetric/VisitObstetric';
 // import VisitLabParameters from '../../../../components/VisitLabParameters';
 // import CarePlanBox from '../../../../components/CarePlanBox';
-// import medicalHistoryIcon from '../../../../assets/mobile/Medical History.svg';
-// import vitalsIcon from '../../../../assets/mobile/Vitals.svg';
-// import vaccinationIcon from '../../../../assets/mobile/Vaccination.svg';
-// import growthChartIcon from '../../../../assets/mobile/Growth Chart.svg';
-// import labIcon from '../../../../assets/mobile/Lab.svg';
-// import notesIcon from '../../../../assets/mobile/notes.svg';
-// import healthCareIcon from '../../../../assets/mobile/health care.svg';
+// 
+// 
+// 
+// 
+// 
+// 
+// 
 import { MESSAGE_KEY } from '../../../../utils/constants';
 import './PatientHistoryTab.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  medicalHistory: medicalHistoryIcon,
+  vitals: vitalsIcon,
+  vaccination: vaccinationIcon,
+  growthChart: growthChartIcon,
+  lab: labIcon,
+  notes: notesIcon,
+  healthCare: healthCareIcon,
+} = ASSETS.mobile;
 
 function PatientHistoryTab({
   patient_data,

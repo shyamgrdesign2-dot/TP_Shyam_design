@@ -1,10 +1,14 @@
 import React from "react";
 import { Card, Button } from "antd";
 import styles from "./ExpiredPlanCard.module.scss";
-import tagImg from "../assets/images/tag.webp";
-import checkIcon from "../assets/images/check-icon.svg";
-import sandClockIcon from "../assets/images/sand-clock.webp";
+
 import { useSelector } from "react-redux";
+import { ASSETS } from "../assets";
+const {
+  tag: tagImg,
+  checkIcon,
+  sandClock: sandClockIcon,
+} = ASSETS.images;
 
 const ExpiredPlanCard = () => {
   const { planDetails } = useSelector((state) => state.subscription);

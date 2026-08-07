@@ -358,10 +358,19 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
             .replace(/^[A-Z]/, (chr) => chr.toLowerCase());
         };
 
+        const moduleName = moduleData.moduleName.trim();
+        const resolvedColumnLabels = moduleData.columnLabels.map((label) => {
+          const trimmedLabel = label.trim();
+          if (moduleData.columnCount === 1 && !trimmedLabel) {
+            return moduleName;
+          }
+          return trimmedLabel;
+        });
+
         // Transform form data to V2 module format
-        const namedFields = moduleData.columnLabels.map((label, index) => ({
+        const namedFields = resolvedColumnLabels.map((label, index) => ({
           fieldName: toCamelCase(label),
-          fieldLabel: label.trim(),
+          fieldLabel: label,
           fieldType: "string",
           isRequired: false,
           order: index,
@@ -369,7 +378,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
 
         // Create new module payload (without module_id - DB will generate it)
         const newModulePayload = {
-          name: moduleData.moduleName.trim(),
+          name: moduleName,
           version: "v2",
           namedFields: namedFields,
         };

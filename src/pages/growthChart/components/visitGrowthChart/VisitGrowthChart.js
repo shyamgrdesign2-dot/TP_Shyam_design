@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { getAllGrowthChartParams } from "../../service";
 import { useLocation, useNavigate } from "react-router-dom";
-import growthChartImg from "../../../../assets/images/growth-chart-dark.svg";
+
 import { Card } from "react-bootstrap";
 import { Button } from "antd";
 import "./VisitGrowthChart.scss";
 import moment from "moment";
 import { UNITS, getAge } from "../../growthChartHelper";
 import { useSelector } from "react-redux";
+import { ASSETS } from "../../../../assets";
+import { useIsDentalEnabled } from "../../../../hooks/useIsDentalEnabled";
+import { DENTAL_RX_PAD_ROUTE } from "../../../../utils/dentalRoutes";
+const growthChartImg = ASSETS.images.growthChartDark;
 
 export default function VisitGrowthChart() {
   const navigate = useNavigate();
@@ -15,6 +19,8 @@ export default function VisitGrowthChart() {
   const locationState = location.state || {};
   const { patient_data } = locationState;
   const { patients_details } = useSelector((state) => state.records);
+  const isDentalEnabled = useIsDentalEnabled();
+  const consultRoute = isDentalEnabled ? DENTAL_RX_PAD_ROUTE : "/prescription";
 
   const [growthChartData, setGrowthChartData] = useState({});
 
@@ -72,7 +78,7 @@ export default function VisitGrowthChart() {
                 <Button
                   className="btn btn-input d-flex align-items-center gap-1"
                   onClick={() =>
-                    navigate("/prescription", {
+                    navigate(consultRoute, {
                       state: {
                         patient_data: patient_data,
                         chartType: "growthChart",

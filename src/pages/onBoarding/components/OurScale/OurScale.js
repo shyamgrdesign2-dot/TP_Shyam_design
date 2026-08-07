@@ -1,14 +1,17 @@
 import React from "react";
 import "./OurScale.scss";
-import Sparkle from "../../../../assets/images/Scale.svg";
-import Profile from "../../../../assets/images/LP-profile-2user.svg";
-import Clipboard from "../../../../assets/images/LP-clipboard-text.svg";
-import Doc from "../../../../assets/images/LP-Doc.svg";
-import Support from "../../../../assets/images/LP-Support.svg";
-import Vitals from "../../../../assets/images/LP-Vitals.svg";
-import Location from "../../../../assets/images/LP-Location.svg";
-import linesLeft from "../../../../assets/images/website-images/lines-left.svg";
-import linesRight from "../../../../assets/images/website-images/lines-right.svg";
+import { ASSETS } from "../../../../assets";
+const {
+  scale: Sparkle,
+  lpProfile2user: Profile,
+  lpClipboardText: Clipboard,
+  lpDoc: Doc,
+  lpSupport: Support,
+  lpVitals: Vitals,
+  lpLocation: Location,
+} = ASSETS.images;
+const linesLeft = ASSETS.images.websiteImages.linesLeft;
+const linesRight = ASSETS.images.websiteImages.linesRight;
 
 const OurScale = () => {
   const scaleData = [

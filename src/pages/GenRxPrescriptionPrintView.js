@@ -10,19 +10,20 @@ import {
   errorMessage,
   getClinicName,
   isApollo,
+  isValidMongoId,
   trackEvent,
   sendMessageToParent
 } from "../utils/utils";
 import api from "../api/services/axiosService";
 
-import wtsp from "../assets/images/wtsp.svg";
-import loadingImg from "../assets/images/loading.webp";
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST } from "../utils/constants";
+import { GB_VOICE_RX_NEW_UI, WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../redux/dentalExaminationSlice";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
@@ -31,6 +32,13 @@ import { pdfjs, Document, Page } from "react-pdf";
 import { env } from "../EnvironmentConfig";
 import { EVENTS } from "../utils/events";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { ASSETS } from "../assets";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
+const {
+  wtsp,
+  loading_3: loadingImg,
+} = ASSETS.images;
+
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
@@ -56,7 +64,10 @@ function GenRxPrescriptionPrintView() {
   const sessionRxUrlRef = useRef(null);
 
   const { loading } = useSelector((state) => state.caseManager);
+  const dentalExaminationData = useSelector(selectDentalExamination);
+  const oralExamination = useSelector((state) => state.oralExamination);
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
@@ -125,7 +136,6 @@ function GenRxPrescriptionPrintView() {
       }
     }
   }, []);
-
 
   const getPatientDefaultLanguage = async () => {
     const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
@@ -201,6 +211,12 @@ function GenRxPrescriptionPrintView() {
     selectedLang,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
+    dentalExaminationData,
+    oralExamination,
+    patientUniqueId: patient_data?.patient_unique_id,
+    patientId: patient_data?.patient_unique_id,
+    tcmId: state?.tcm_id,
+    patientRecord: patient_data,
   });
 
   useEffect(() => {
@@ -394,6 +410,9 @@ function GenRxPrescriptionPrintView() {
           state: {
             patient_data,
             caseManagerData: action.payload,
+            ...(isVoiceRxNewFromGB && isValidMongoId(action.payload?.smart_prescription_filename || rxId)
+              ? { isVoiceRxNewUiFlow: true }
+              : {}),
           },
         });
       } else {

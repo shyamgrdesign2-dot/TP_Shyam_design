@@ -6,10 +6,12 @@ import { LoadingOutlined } from "@ant-design/icons";
 import moment from "moment";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import ApiAppointments from "../api/services/ApiAppointments";
-import videoGreenIcon from "../assets/images/video-green.svg";
+
 import { removeWaitingBanner, setActiveTeleconsultAppointmentId, setActiveTeleconsultConsultationId, setJoinToken} from "../redux/teleconsultNotificationSlice";
 import { TAB_QUEUE, TAB_FINISHED, TAB_DRAFT_RX } from "../utils/constants";
 import "./TeleconsultWaitingBanner.scss";
+import { ASSETS } from "../assets";
+const videoGreenIcon = ASSETS.images.videoGreen;
 
 const DATE_FORMAT = "YYYY-MM-DD";
 

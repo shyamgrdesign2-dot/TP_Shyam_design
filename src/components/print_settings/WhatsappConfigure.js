@@ -10,10 +10,11 @@ import PrintSettingsContext from '../../context/PrintSettingsContext';
 import CommonModal from '../../common/CommonModal';
 import { WHATSAPP } from "../../utils/constants";
 import { errorMessage, dataUrlToFileUsingFetch, updateFooterImageHeight } from "../../utils/utils";
-
-import wtsp from '../../assets/images/wtsp.svg';
-
-import defaultprofile from "../../assets/images/default-profile.svg";
+import { ASSETS } from "../../assets";
+const {
+  wtsp,
+  defaultProfile: defaultprofile,
+} = ASSETS.images;
 
 const { TextArea } = Input;
 
@@ -42,7 +43,7 @@ const FONTS_SIZE_LIST = [
 
 function WhatsappConfigure(props) {
 
-    const { handleDrawerOwnLetterHead, todayVaccines, growthChartDetails, obstetricDetails, patientBills, advanceReceipts, patientWalletBalance } = props
+    const { handleDrawerOwnLetterHead, todayVaccines, growthChartDetails, obstetricDetails, patientBills, advanceReceipts, patientWalletBalance, crossConsultData } = props
 
     const inputHeaderFile = React.createRef();
     const cropperHeaderRef = React.createRef();
@@ -705,6 +706,7 @@ function WhatsappConfigure(props) {
                                         patientBills={patientBills}
                                         advanceReceipts={advanceReceipts}
                                         patientWalletBalance={patientWalletBalance}
+                                        crossConsultData={crossConsultData}
                                     />
                                 </div>
                             </div>

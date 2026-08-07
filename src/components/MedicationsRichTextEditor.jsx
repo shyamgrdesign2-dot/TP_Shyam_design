@@ -2,7 +2,8 @@ import React, { useCallback, useMemo } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './MedicationsRichTextEditor.scss';
-import medicationsIcon from '../assets/images/Medication.svg';
+import { ASSETS } from "../assets";
+const medicationsIcon = ASSETS.images.medication;
 
 /**
  * MedicationsRichTextEditor - Rich text editor specifically for Medications section

@@ -6,8 +6,7 @@ import {
   CloseOutlined,
 } from "@ant-design/icons";
 import "./CustomModule.scss";
-import CustomModuleIcon from "../assets/images/custom-module.svg";
-import infoCircleIcon from "../assets/images/info-circle.svg";
+
 import { useDispatch, useSelector } from "react-redux";
 import {
   addModule,
@@ -16,10 +15,16 @@ import {
 } from "../redux/customModuleSlice";
 import CashManagerContext from "../context/CashManagerContext";
 import { MESSAGE_KEY } from "../utils/constants";
-import visitEnd from "../assets/images/end-visit.svg";
-import imgCloseVisit from "../assets/images/close-visit.svg";
+
 import { customizedPad } from "../redux/doctorsSlice";
 import { savePrintsettings } from "../redux/doctorsSlice";
+import { ASSETS } from "../assets";
+const {
+  customModule: CustomModuleIcon,
+  infoCircle: infoCircleIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 const AddCustomModule = () => {
   const [showInput, setShowInput] = useState(false);

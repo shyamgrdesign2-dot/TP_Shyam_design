@@ -1,13 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { notification } from "antd";
-import CallIcon from "../../../assets/images/call.svg";
+
 import AbhaNavigationCard from "../common/AbhaNavigationCard";
-import GlobalIcon from "../../../assets/images/global-icon.svg";
-import PersonalCardIcon from "../../../assets/images/personal-card-icon.svg";
-import AdharIcon from "../../../assets/images/adhar-icon.svg";
+
 import ErrorText from "../common/ErrorText";
 import ApiAbha from "../../../api/services/ApiAbha";
 import { getAbhaDomainSuffix } from "../helpers";
+import { ASSETS } from "../../../assets";
+const {
+  call: CallIcon,
+  globalIcon: GlobalIcon,
+  personalCardIcon: PersonalCardIcon,
+  adharIcon: AdharIcon,
+} = ASSETS.images;
 
 const METHOD_CONFIG = {
   mobile: {

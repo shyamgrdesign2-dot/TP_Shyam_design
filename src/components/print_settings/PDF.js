@@ -1,7 +1,7 @@
 import React from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 import { isNumeric } from '../../utils/utils'
-import { NORMAL, WHATSAPP } from '../../utils/constants';
+import { NORMAL, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
 
 const PX_TO_PT = 0.75
 
@@ -9,54 +9,54 @@ const PX_TO_PT = 0.75
 Font.register({
     family: 'Roboto',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/Roboto-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/Roboto-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/Roboto-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Arial
 Font.register({
     family: 'Arial',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/Arimo-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/Arimo-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/Arimo-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Arimo-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Arimo-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Arimo-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Times Roman
 Font.register({
     family: 'Times-Roman',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/EBGaramond-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/EBGaramond-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/EBGaramond-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/EBGaramond-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/EBGaramond-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/EBGaramond-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Verdana
 Font.register({
     family: 'Verdana',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/Jost-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/Jost-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/Jost-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Jost-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Jost-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Jost-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Calibri
 Font.register({
     family: 'Calibri',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/OpenSans-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/OpenSans-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/OpenSans-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 // Tahoma
 Font.register({
     family: 'Tahoma',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/Vazirmatn-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/Vazirmatn-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/Vazirmatn-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Vazirmatn-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Vazirmatn-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/Vazirmatn-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 

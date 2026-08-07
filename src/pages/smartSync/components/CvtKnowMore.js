@@ -2,20 +2,7 @@ import React, { useCallback, useState } from "react";
 import { useSelector } from "react-redux";
 import "../smartSync.css";
 import { Card, Button, Tabs } from "antd";
-import knowMoreImage from "../../../assets/images/website-images/know-more.webp";
-import unstructuredRxImage from "../../../assets/images/website-images/unstructured-rx.webp";
-import dataInsightIcon from "../../../assets/images/data-insight.svg";
-import monetiseIcon from "../../../assets/images/monetise-ven.svg";
-import loyalityIcon from "../../../assets/images/loyality.svg";
-import playIcons from "../../../assets/images/tube-icon.svg";
-import redCrossIcon from "../../../assets/images/red-cross.svg";
-import greenRightIcon from "../../../assets/images/green-right.svg";
-import intersect from "../../../assets/images/intersect.svg";
-import healthIcon from "../../../assets/images/health-care.svg";
-import growIcon from "../../../assets/images/grow.svg";
-import accuracyIcon from "../../../assets/images/accuracy.svg";
-import structuredRxWebm from "../../../assets/images/structuredRx.webm";
-import structuredRxMp4 from "../../../assets/images/structuredRx.mp4";
+
 import LoopingVideo from "../../../components/common/LoopingVideo";
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "../../monetization/components/ContactSupport";
@@ -24,6 +11,23 @@ import { S_RX_DIGITIZATION } from "../../../utils/constants";
 import { isZydus } from "../../../utils/utils";
 import FreeTrialButton from "../../monetization/components/FreeTrialButton";
 import ExpiredSubModal from "../../monetization/components/ExpiredSubModal";
+import { ASSETS } from "../../../assets";
+const knowMoreImage = ASSETS.images.websiteImages.knowMore;
+const unstructuredRxImage = ASSETS.images.websiteImages.unstructuredRx;
+const {
+  dataInsight: dataInsightIcon,
+  monetiseVen: monetiseIcon,
+  loyality: loyalityIcon,
+  tubeIcon: playIcons,
+  redCross: redCrossIcon,
+  greenRight: greenRightIcon,
+  intersect,
+  healthCare: healthIcon,
+  grow: growIcon,
+  accuracy: accuracyIcon,
+  structuredrx_2: structuredRxWebm,
+  structuredrx: structuredRxMp4,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 
@@ -47,7 +51,6 @@ const CvtKnowMore = ({ handleCollapsed }) => {
     link: "https://www.youtube.com/embed//UgeyXlHItXI",
     thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.jpg",
   };
-  console.log(isZydus,"isZydus")
 
   return (
     <div className="drawer-container">

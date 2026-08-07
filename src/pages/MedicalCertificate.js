@@ -10,15 +10,17 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { MESSAGE_KEY } from "../utils/constants";
 
-import visitEnd from '../assets/images/end-visit.svg';
-import imgCloseVisit from '../assets/images/close-visit.svg';
-
 import { addPatientCertificate, editPatientCertificate } from "../redux/doctorsSlice";
 
-import alertIcon from '../assets/images/alertIcon.svg';
-import fontSizeIcon from '../assets/images/fontSizeIcon.svg';
 import CreateCertificate from "../components/medical_certificate/CreateCertificate";
 import { errorMessage, getClinicName, removeBeforeWhiteSpace } from "../utils/utils";
+import { ASSETS } from "../assets";
+const {
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  alerticon: alertIcon,
+  fontsizeicon: fontSizeIcon,
+} = ASSETS.images;
 
 function MedicalCertificate() {
 
@@ -454,7 +456,8 @@ function MedicalCertificate() {
             pam_id: patient_data?.pam_id !== undefined ? patient_data?.pam_id : 0,
             tcu_content_id: certificate_data !== undefined ? certificate_data?.id : 0,
             tcu_title: title,
-            tcu_content: editor.current?.value
+            tcu_content: editor.current?.value,
+            source: "opd"
         }
         if (certificate_data?.tcu_id !== undefined) {
             sendData['tcu_id'] = certificate_data?.tcu_id

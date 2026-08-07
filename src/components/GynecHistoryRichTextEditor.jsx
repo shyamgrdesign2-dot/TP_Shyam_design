@@ -2,12 +2,16 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import styles from './ConsultationDrawer.module.css';
-import gynecHistoryIcon from '../assets/images/Medical-History.svg';
-import addEditIcon from '../assets/images/Icon.svg';
+
 import MedicalHistoryBox from './MedicalHistoryBox';
 import MedicalHistoryBoxMobile from './MedicalHistoryBoxMobile';
 import { arrayToSlateBulletList } from '../utils/slateHelpers';
 import { isMobile, isTablet } from 'react-device-detect';
+import { ASSETS } from "../assets";
+const {
+  medicalHistory: gynecHistoryIcon,
+  icon: addEditIcon,
+} = ASSETS.images;
 
 const GynecHistoryRichTextEditor = ({
   gynecHistory = {},

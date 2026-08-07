@@ -16,14 +16,18 @@ import {
 import ReactCrop from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import "./styles.scss";
-import retakeIcon from "../../../assets/images/retake.webp";
-import rotateIcon from "../../../assets/images/rotate.webp";
-import deleteIcon from "../../../assets/images/delete.webp";
-import arrowIcon from "../../../assets/images/arrow-circle.webp";
+
 import { uploadFiles } from "../../../redux/snapRxDigitizationSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { trackEvent } from "../../../utils/utils";
 import { EVENTS } from "../../../utils/events";
+import { ASSETS } from "../../../assets";
+const {
+  retake: retakeIcon,
+  rotate: rotateIcon,
+  delete_2: deleteIcon,
+  arrowCircle: arrowIcon,
+} = ASSETS.images;
 
 const PreviewDrawerMobile = ({
   isOpen,
@@ -387,11 +391,8 @@ const PreviewDrawerMobile = ({
       return new Promise((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.92));
     };
 
-
   const asJpegName = (name = 'image') =>
     `${name.replace(/\.(pdf|png|webp|bmp|gif|jpg|jpeg)$/i, '')}.jpeg`;
-
-
 
   const handleRotateClick = async () => {
     const file = uploadedFiles?.[selectedFileIndex];

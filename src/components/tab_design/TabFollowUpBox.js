@@ -5,14 +5,14 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 import moment from "moment";
 import { isMobile } from 'react-device-detect';
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { Grid5, Trash } from "iconsax-reactjs";
 
 import CashManagerContext from '../../context/CashManagerContext';
 import { errorMessage, getFormattedDate, onlyNumberFormat, capitalizeAfterSentence, removeBeforeWhiteSpace, calculateFollowUpText } from "../../utils/utils";
 import dayjs from "dayjs";
-import Notes from "../../assets/images/notes.svg";
-import followUp from "../../assets/images/followup.svg";
+
 import CommonModal from '../../common/CommonModal';
-import alertIcon from '../../assets/images/alertIcon.svg';
 
 import {
     addFollowupTemplate,
@@ -20,10 +20,24 @@ import {
     deleteFollowupTemplate,
     listFollowupTemplate,
 } from "../../redux/followUpSlice";
+import { ASSETS } from "../../assets";
+import { GB_VOICE_RX_NEW_UI } from "../../utils/constants";
+import {
+    VoiceRxModuleActionButton,
+    useVoiceRxModuleCapture,
+} from "../dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+const {
+  notes: Notes,
+  followup: followUp,
+  alerticon: alertIcon,
+} = ASSETS.images;
 
 const dateFormat = 'YYYY-MM-DD'
 
 function TabFollowUpBox() {
+
+    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
 
     // const [messageApi, ] = message.useMessage();
     const {
@@ -34,6 +48,13 @@ function TabFollowUpBox() {
     const dispatch = useDispatch();
 
     const { followUpDate, setFollowUpDate, additionalNote, setAdditionalNote } = useContext(CashManagerContext);
+    const {
+        voiceUpdated,
+        sectionRef,
+    } = useVoiceRxModuleCapture({
+        moduleName: "Additional Notes",
+        copyPayloadKeys: ["follow_up", "followUp", "others", "additionalNotes", "additional_notes"],
+    });
     const [followUpInput, setFollowUpInput] = useState('');
     const [saveButton, setSaveButton] = useState(false);
     const [selectedDate, setSelectedDate] = useState(null); // New state for DatePicker value
@@ -89,6 +110,17 @@ function TabFollowUpBox() {
         setMatchedTemplates(templates);
         setAllTemplates(templates);
     }, [templates]);
+
+    useEffect(() => {
+        if (!followUpDate) return;
+
+        const selectedFollowUpDate = moment(followUpDate);
+        if (!selectedFollowUpDate.isValid()) return;
+
+        setFollowUpInput(calculateFollowUpText(selectedFollowUpDate, moment().format(dateFormat)));
+        setSelectedDate(selectedFollowUpDate.toDate());
+        setDateOptions([]);
+    }, [followUpDate]);
 
     const onChangeFollowUp = useCallback(
         (e) => {
@@ -357,7 +389,11 @@ function TabFollowUpBox() {
                                         className="round-box"
                                         onClick={() => onTemplateSelected(template)}
                                     >
-                                        <i className="icon-template"></i>
+                                        {isVoiceRxNewFromGB ? (
+                                            <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" />
+                                        ) : (
+                                            <i className="icon-template"></i>
+                                        )}
                                     </div>
                                     <div
                                         className="text-truncate w-100"
@@ -380,7 +416,7 @@ function TabFollowUpBox() {
                                                 }
                                             />
                                         ) : (
-                                            <i className="icon-delete"></i>
+                                            isVoiceRxNewFromGB ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                                         )}
                                     </Button>
                                 </div>
@@ -486,7 +522,13 @@ function TabFollowUpBox() {
                                 return (
                                     <div className="align-items-center d-flex justify-content-between medicine-templates" key={i}>
                                         <div className="align-items-center d-flex text-truncate w-100" onClick={() => onTemplateSelected(template)}>
-                                            <div className="round-box"><i className="icon-template"></i></div>
+                                            <div className="round-box">
+                                                {isVoiceRxNewFromGB ? (
+                                                    <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" />
+                                                ) : (
+                                                    <i className="icon-template"></i>
+                                                )}
+                                            </div>
                                             <div className="text-truncate w-100">
                                                 <div className="title text-main2">{template.template_name}</div>
                                                 <div className="text-truncate">{template.template_content}</div>
@@ -500,7 +542,7 @@ function TabFollowUpBox() {
                                                     }
                                                 />
                                             ) : (
-                                                <i className="icon-delete"></i>
+                                                isVoiceRxNewFromGB ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                                             )}
                                         </Button>
                                     </div>
@@ -588,7 +630,13 @@ function TabFollowUpBox() {
 
     return (
         <>
-            <div>
+            <div
+                ref={sectionRef}
+                className={[
+                    voiceModuleStyles.moduleRoot,
+                    isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+                ].filter(Boolean).join(" ")}
+            >
                 <div className="p-14-pb0">
                     <Row gutter={30}>
                         <Col md={8}>
@@ -635,10 +683,18 @@ function TabFollowUpBox() {
                                             overlayClassName="pop-350 pp-0"
                                             placement="bottom"
                                         >
-                                            <button className="btn d-flex align-items-center btn-text">
-                                                {" "}
-                                                <i className="icon-template me-2"></i> <span>Templates</span>
-                                            </button>
+                                            {isVoiceRxNewFromGB ? (
+                                                <span>
+                                                    <Tooltip placement="top" title="Browse additional notes templates">
+                                                        <VoiceRxModuleActionButton type="template" label="Browse additional notes templates" />
+                                                    </Tooltip>
+                                                </span>
+                                            ) : (
+                                                <button className="btn d-flex align-items-center btn-text">
+                                                    {" "}
+                                                    <i className="icon-template me-2"></i> <span>Templates</span>
+                                                </button>
+                                            )}
                                         </Popover>
                                         <Tooltip placement="bottom" title={(additionalNote.length > 0) ? "" : "Please enter some Additional Notes to save a template"}>
                                             <Popover
@@ -650,20 +706,45 @@ function TabFollowUpBox() {
                                                 overlayClassName="pop-450 pp-0"
                                                 placement="bottom"
                                             >
-                                                <button className="btn d-flex align-items-center btn-text">
-                                                    {" "}
-                                                    <i className="icon-save me-2"></i> <span>Save</span>
-                                                </button>
+                                                {isVoiceRxNewFromGB ? (
+                                                    <span>
+                                                        <VoiceRxModuleActionButton
+                                                            type="save"
+                                                            label="Save additional notes as template"
+                                                            disabled={additionalNote.length === 0}
+                                                        />
+                                                    </span>
+                                                ) : (
+                                                    <button className="btn d-flex align-items-center btn-text">
+                                                        {" "}
+                                                        <i className="icon-save me-2"></i> <span>Save</span>
+                                                    </button>
+                                                )}
                                             </Popover>
                                         </Tooltip>
                                     </div>
                                 ) : (
                                     <div className="d-flex align-items-center">
-                                        <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
-                                            <i className="icon-template me-2"></i> <span>Templates</span>
-                                        </button>
+                                        {isVoiceRxNewFromGB ? (
+                                            <Tooltip placement="top" title="Browse additional notes templates">
+                                                <VoiceRxModuleActionButton type="template" label="Browse additional notes templates" onClick={handleDrawerTemplate} />
+                                            </Tooltip>
+                                        ) : (
+                                            <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
+                                                <i className="icon-template me-2"></i> <span>Templates</span>
+                                            </button>
+                                        )}
                                         <Tooltip placement="bottom" title={(additionalNote.length > 0) ? "" : "Please enter some Additional Notes to save a template"}>
-                                            <button className='btn d-flex align-items-center btn-text' onClick={() => (additionalNote.length > 0) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
+                                            {isVoiceRxNewFromGB ? (
+                                                <VoiceRxModuleActionButton
+                                                    type="save"
+                                                    label="Save additional notes as template"
+                                                    disabled={additionalNote.length === 0}
+                                                    onClick={() => (additionalNote.length > 0) && handleDrawerSave()}
+                                                />
+                                            ) : (
+                                                <button className='btn d-flex align-items-center btn-text' onClick={() => (additionalNote.length > 0) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
+                                            )}
                                         </Tooltip>
                                     </div>
                                 )}
@@ -691,6 +772,5 @@ function TabFollowUpBox() {
         </>
     );
 }
-
 
 export default React.memo(TabFollowUpBox);

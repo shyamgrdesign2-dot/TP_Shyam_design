@@ -27,14 +27,9 @@ import {
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
-import ModuleIcon from "../../assets/images/custom-module.svg";
-import editIcon from "../../assets/images/edit-icon-blue.svg";
-import deleteIcon from "../../assets/images/delete-icon-blue.svg";
-import visitEnd from "../../assets/images/end-visit.svg";
-import imgCloseVisit from "../../assets/images/close-visit.svg";
 
 import CommonModal from "../../common/CommonModal";
-import alertIcon from "../../assets/images/alertIcon.svg";
+
 import CashManagerContext from "../../context/CashManagerContext";
 import {
   errorMessage,
@@ -44,9 +39,18 @@ import {
 import { addModule, searchModule, userPreModulesRX } from "../../redux/customModuleSlice";
 
 import TabCustomModuleSearch from "../../components/tab_design/TabCustomModuleSearch";
-import { SortableContainer, SortableElement } from "react-sortable-hoc";
+import { SortableContainer, SortableElement } from "./sortableHocAdapter";
 import { MESSAGE_KEY } from "../../utils/constants";
 import { getDecodedToken } from "../../utils/localStorage";
+import { ASSETS } from "../../assets";
+const {
+  customModule: ModuleIcon,
+  editIconBlue: editIcon,
+  deleteIconBlue: deleteIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  alerticon: alertIcon,
+} = ASSETS.images;
 
 function TabCustomModule({ module }) {
   const { customModules, latestSearchedModules, loading } = useSelector(

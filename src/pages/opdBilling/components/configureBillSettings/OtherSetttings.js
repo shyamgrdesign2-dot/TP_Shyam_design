@@ -4,8 +4,10 @@ import { Cropper } from "react-cropper";
 import SignatureCanvas from "react-signature-canvas";
 import { dataUrlToFileUsingFetch, errorMessage } from "../../../../utils/utils";
 import CommonModal from "../../../../common/CommonModal";
-import defaultprofile from "./../../../../assets/images/default-profile.svg";
+
 import { isMobile } from "react-device-detect";
+import { ASSETS } from "../../../../assets";
+const defaultprofile = ASSETS.images.defaultProfile;
 
 const OtherSetttings = ({ otherSettings, setPrintSettings }) => {
   const { TextArea } = Input;

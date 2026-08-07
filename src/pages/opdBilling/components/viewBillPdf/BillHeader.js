@@ -15,6 +15,7 @@ const BillHeader = ({
   profile,
   gstIn,
   isIpdBill,
+  documentTitle,
 }) => {
   const { headerFooter, pageFormat } = printSettings || {};
   const { header, otherSettings, patientInfo, billInfo } = headerFooter || {};
@@ -216,7 +217,10 @@ const BillHeader = ({
         }}
       >
         <Text style={[styles.subTitle, { fontWeight: 700 }]}>
-          {isDepositReceipt ? "Advance Deposit Receipt" : "Bill Cum Receipt"}
+          {documentTitle ||
+            (isDepositReceipt
+              ? "Advance Deposit Receipt"
+              : "Bill Cum Receipt")}
         </Text>
       </View>
 

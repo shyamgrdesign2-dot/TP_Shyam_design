@@ -10,9 +10,7 @@ import "./TemplatePreviewModal.scss";
 import { useEffect, useRef, useState } from "react";
 import { pageNavigationPlugin } from "@react-pdf-viewer/page-navigation";
 import { rotatePlugin } from "@react-pdf-viewer/rotate";
-import clockwise from "../../../assets/images/clockwise-direction.svg";
-import anticlockwise from "../../../assets/images/anticlockwise-direction.svg";
-import alertIcon from "../../../assets/images/alertIcon.svg";
+
 import {
   TransformWrapper,
   TransformComponent,
@@ -22,6 +20,12 @@ import dayjs from "dayjs";
 import CommonModal from "../../../common/CommonModal";
 import { deleteCustomSyncPadTemplate } from "../services/uploadService";
 import { message } from "antd";
+import { ASSETS } from "../../../assets";
+const {
+  clockwiseDirection: clockwise,
+  anticlockwiseDirection: anticlockwise,
+  alerticon: alertIcon,
+} = ASSETS.images;
 
 const TemplatePreviewModal = ({
   template,

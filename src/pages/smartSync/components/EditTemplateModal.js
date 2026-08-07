@@ -5,7 +5,7 @@ import 'cropperjs/dist/cropper.css';
 import { PlusOutlined, MinusOutlined, RedoOutlined, DeleteOutlined } from '@ant-design/icons';
 import { pdfjs } from "react-pdf";
 import CommonModal from "../../../common/CommonModal";
-import alertIcon from "../../../assets/images/alertIcon.svg";
+
 import {
   DndContext,
   closestCenter,
@@ -24,12 +24,17 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import reuploadIcon from "../../../assets/images/reupload.svg";
-import tutorialIcon from '../../../assets/images/tutorial.svg';
+
 import { dataUrlToFileUsingFetch } from '../../../utils/utils';
 import { validateCanvasFile } from '../services/fileUtils';
 import { updateCustomSyncPadTemplate } from '../services/uploadService';
 import './RxTemplateUploadDrawer.scss';
+import { ASSETS } from "../../../assets";
+const {
+  alerticon: alertIcon,
+  reupload: reuploadIcon,
+  tutorial: tutorialIcon,
+} = ASSETS.images;
 
 const EditTemplateModal = ({ visible, onClose, template, onSave }) => {
   const [file, setFile] = useState(null);
@@ -848,7 +853,6 @@ const EditTemplateModal = ({ visible, onClose, template, onSave }) => {
         title: file.name.trim(),
         files: filesForUpload
       };
-
 
       const result = await updateCustomSyncPadTemplate(
         file.id,

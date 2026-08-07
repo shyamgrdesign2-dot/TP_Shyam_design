@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import defaultprofile from "../assets/images/default-profile.svg";
+
 import { Form, message } from "antd";
 import { useSelector } from "react-redux";
 import { ADD, EDIT } from "../utils/constants";
 import UploadProfileModal from "./UploadProfileModal";
+import { ASSETS } from "../assets";
+const defaultprofile = ASSETS.images.defaultProfile;
 
 function UploadProfile({ form, mode = ADD, isMobile = false }) {
   const { patients_details } = useSelector((state) => state.records);
@@ -35,7 +37,12 @@ function UploadProfile({ form, mode = ADD, isMobile = false }) {
   }
 
   const handleUploadClick = () => {
-    setIsModalVisible(true);
+    if (isMobile) {
+      setIsModalVisible(true);
+    } else if (fileInputRef.current) {
+      fileInputRef.current.removeAttribute('capture');
+      fileInputRef.current.click();
+    }
   };
 
   const handleCameraSelect = () => {
@@ -110,14 +117,16 @@ function UploadProfile({ form, mode = ADD, isMobile = false }) {
         style={{ display: 'none' }}
       />
 
-      {/* Upload Profile Modal */}
-      <UploadProfileModal
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-        onSelectCamera={handleCameraSelect}
-        onSelectGallery={handleGallerySelect}
-        onSelectFiles={handleFilesSelect}
-      />
+      {/* Upload Profile bottom sheet — mobile only */}
+      {isMobile && (
+        <UploadProfileModal
+          visible={isModalVisible}
+          onClose={() => setIsModalVisible(false)}
+          onSelectCamera={handleCameraSelect}
+          onSelectGallery={handleGallerySelect}
+          onSelectFiles={handleFilesSelect}
+        />
+      )}
     </>
   );
 }

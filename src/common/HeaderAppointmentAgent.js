@@ -16,12 +16,15 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import CommonModal from "./CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
-import tutorial from "../assets/images/tutorial.svg";
-import playIcons from "../assets/images/tube-icon.svg";
 
 import { useSelector, useDispatch } from "react-redux";
 import VideoModal from "./VideoModal";
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  tutorial,
+  tubeIcon: playIcons,
+} = ASSETS.images;
 
 function HeaderAppointmentAgent({
   onSubmit,

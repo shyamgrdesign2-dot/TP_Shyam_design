@@ -1,17 +1,22 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Button } from "react-bootstrap";
-import AdharImg from "../../../assets/images/adhar.webp";
+
 import AbhaNavigationCard from "../common/AbhaNavigationCard";
-import LinkMobileIcon from "../../../assets/images/link-mobile-icon.svg";
-import GlobalIcon from "../../../assets/images/global-icon.svg";
-import PersonalCardIcon from "../../../assets/images/personal-card-icon.svg";
-import FingerScanIcon from "../../../assets/images/finger-scan.svg";
-import FingerScanWhiteIcon from "../../../assets/images/finger-scan-white.svg";
-import OtpIcon from "../../../assets/images/otp.svg";
+
 import ErrorText from "../common/ErrorText";
 import ApiAbha from "../../../api/services/ApiAbha";
 import { useFeatureValue } from "@growthbook/growthbook-react";
 import TermsAndConditionsPopup from "../common/TermsAndConditionsPopup";
+import { ASSETS } from "../../../assets";
+const {
+  adhar: AdharImg,
+  linkMobileIcon: LinkMobileIcon,
+  globalIcon: GlobalIcon,
+  personalCardIcon: PersonalCardIcon,
+  fingerScan: FingerScanIcon,
+  fingerScanWhite: FingerScanWhiteIcon,
+  otp: OtpIcon,
+} = ASSETS.images;
 
 const CreatePatientAbha = ({
   onLinkOptionSelect = () => {},

@@ -16,10 +16,9 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
-import Symptomsicon from "../assets/images/Symptoms.svg";
 import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
@@ -35,8 +34,43 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
 import TextArea from "antd/es/input/TextArea";
+import { ASSETS } from "../assets";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleButton,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import { Grid5, Trash } from "iconsax-reactjs";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "./tesseractCt";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
 
-function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
+const {
+  alerticon: alertIcon,
+  symptoms: Symptomsicon,
+} = ASSETS.images;
+
+function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule, useTesseractUi = false }) {
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  // Voice-mode table layout classes are legacy-only; the Tesseract shell uses
+  // the plain antd grid so header and body columns always align.
+  const useVoiceTableLayout = isVoiceRxModuleEnabled && !useTesseractUi;
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedSymptomsList,
     parentOptionsList,
@@ -47,6 +81,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   const { isAutofillSelected, selectedSymptomsCollector } = useSelector(
     (state) => state.ddx
   );
+  const isChikitsalayAccessable = useChikitsalay();
   const dispatch = useDispatch();
 
   const { symptomsData, setSymptomsData, examinationData } = useContext(CashManagerContext);
@@ -113,6 +148,120 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
   const [showShimmer, setShowShimmer] = useState(false);
 
+  const createCustomSymptomRow = useCallback((symptomName) => ({
+    unique_id: uuidv4(),
+    change: 1,
+    pms_default: 0,
+    symptom_name: symptomName,
+  }), []);
+
+  const createCommittedSymptomRow = useCallback((symptomRow, symptomName) => ({
+    ...symptomRow,
+    symptom_name: symptomName,
+    since: "",
+    severity: "",
+    note: "",
+  }), []);
+
+  const onEmptyLineSymptomCommit = useCallback((symptomName) => {
+    window.Moengage?.track_event("symptom_select", {
+      value: symptomName,
+    });
+    dispatch(setIsDDxReadyToGenerate(true));
+  }, [dispatch]);
+
+  const onEmptyLineSymptomRemove = useCallback((nextSymptoms) => {
+    if (nextSymptoms.length > 0) {
+      dispatch(setIsDDxReadyToGenerate(true));
+    } else if ((Array.isArray(examinationData) ? examinationData : []).length === 0) {
+      dispatch(setIsDDxReadyToGenerate(false));
+    }
+  }, [dispatch, examinationData]);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: symptomsData,
+    setRows: setSymptomsData,
+    showVoiceRxModule,
+    useTesseractUi,
+    nameField: "symptom_name",
+    rowKeyPrefix: "symptom",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomSymptomRow,
+    createCommittedRow: createCommittedSymptomRow,
+    onAfterCommit: onEmptyLineSymptomCommit,
+    onAfterRemove: onEmptyLineSymptomRemove,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetDraft: resetEmptyLineDraft,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
+
+  // Frequently-used chips (Tesseract shell only) — captured from the
+  // frequently-searched list; not overwritten by typed-search results.
+  const [frequentSymptomChips, setFrequentSymptomChips] = useState([]);
+  useEffect(() => {
+    if (!searchParentQuery && Array.isArray(parentOptionsList) && parentOptionsList.length > 0) {
+      setFrequentSymptomChips(parentOptionsList.map((e) => e.symptom_name).filter(Boolean));
+    }
+  }, [parentOptionsList, searchParentQuery]);
+  const availableSymptomChips = useTesseractUi
+    ? frequentSymptomChips.filter(
+        (name) => !symptomsData.some(
+          (row) => String(row.symptom_name || "").toLowerCase() === name.toLowerCase()
+        )
+      )
+    : [];
+  const onChipAdd = useCallback((name) => {
+    window.Moengage?.track_event("symptom_select", { value: name });
+    setSymptomsData((prev) => [
+      ...prev,
+      {
+        unique_id: uuidv4(),
+        change: 1,
+        pms_default: 0,
+        symptom_name: name,
+        since: "",
+        severity: "",
+        note: "",
+      },
+    ]);
+    dispatch(setIsDDxReadyToGenerate(true));
+  }, [dispatch, setSymptomsData]);
+
+  const applyVoiceSymptoms = useCallback((nextSymptoms) => {
+    if (Array.isArray(nextSymptoms) && nextSymptoms.length > 0) {
+      setSymptomsData(nextSymptoms);
+      resetEmptyLineDraft();
+    }
+  }, [resetEmptyLineDraft, setSymptomsData]);
+
+  const symptomsVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(symptomsData, "symptoms"),
+    [symptomsData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Symptoms",
+    onApply: applyVoiceSymptoms,
+    successMessage: "Symptoms filled from voice dictation",
+    copyPayloadKeys: ["symptoms"],
+  });
+
   useEffect(() => {
     if (isAutofillSelected) {
       setShowShimmer(true);
@@ -123,7 +272,6 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
       return () => clearTimeout(timer); // Cleanup timeout
     }
   }, [isAutofillSelected]);
-
 
   useEffect(() => {
     if (selectedSymptomsList.length > 0) {
@@ -195,7 +343,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, searchParentQuery]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -372,7 +520,6 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
     [symptomsData]
   );
 
-
   const onSelectSinceChild = useCallback(
     (data, i) => {
       setSinceOptions([]);
@@ -403,6 +550,10 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     symptomsData.splice(index, 1);
     setSymptomsData((prev) => [...prev]);
     if (symptomsData?.length > 0) {
@@ -475,14 +626,15 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   );
 
   const onAddTemplateClicked = async () => {
-    if (symptomsData.length === 0) {
+    const templateSymptoms = symptomsData;
+    if (templateSymptoms.length === 0) {
       errorMessage('At least 1 symptom added')
-    } else if (symptomsData.filter(e => e.symptom_name == "").length > 0) {
+    } else if (templateSymptoms.filter(e => String(e.symptom_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup symptom name')
     } else {
       var sendData = {
         tst_template_name: inputTemplateName,
-        symptoms: symptomsData,
+        symptoms: templateSymptoms,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -504,16 +656,17 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (symptomsData.length === 0) {
+    const templateSymptoms = symptomsData;
+    if (templateSymptoms.length === 0) {
       errorMessage('At least 1 symptom added')
-    } else if (symptomsData.filter(e => e.symptom_name == "").length > 0) {
+    } else if (templateSymptoms.filter(e => String(e.symptom_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup symptom name')
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         tst_id: data.tst_id,
         tst_template_name: data.tst_template_name,
-        symptoms: symptomsData,
+        symptoms: templateSymptoms,
       };
       const action = await dispatch(updateTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -661,110 +814,210 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   };
 
   const TABLE_SYMPTOMS = useMemo(() => {
-    return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="symptoms" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
-              {symptomsData.length > 0 &&
-                symptomsData.map((item, index) => (
-                  <Draggable key={index} draggableId={`symptom-${index}`} index={index}>
-                    {(provided) => (
-                      <Row
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        key={index}
-                        gutter={0}
-                        className="symptoms-table-row"
-                      >
-                        <Col lg={1} md={1} sm={1} xs={1} className="symptoms-table-cell center">
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: "grab" }}
-                          />
-                        </Col>
-                        <Col lg={6} md={6} sm={6} xs={6} className="symptoms-table-cell">
-                          <AutoComplete
-                            defaultValue={item.symptom_name}
-                            value={item.symptom_name}
-                            placeholder="Symptom Name"
-                            bordered={false}
-                            defaultOpen={false}
-                            disabled={item?.pms_default ? true : false}
-                            onSearch={(query) => onSearchChild(query, index)}
-                            onFocus={() => onFocusChid(index)}
-                            options={childSearchOptions}
-                            className="autocomplete-custom w-100"
-                            defaultActiveFirstOption={true}
-                            onSelect={(data, e) => onSelectChild(data, e, index)}
-                          />
-                        </Col>
-                        <Col lg={3} md={3} sm={3} xs={3} className="border-end">
-                          <AutoComplete
-                            defaultValue={item.since}
-                            value={item.since}
-                            placeholder="Since"
-                            bordered={false}
-                            defaultOpen={false}
-                            onSearch={(query) => onSearchSinceChid(query, index)}
-                            onBlur={() => onBlurSinceChid(index)}
-                            options={sinceOptions}
-                            className="autocomplete-custom w-100"
-                            defaultActiveFirstOption={true}
-                            onSelect={(data) => onSelectSinceChild(data, index)}
-                          />
-                        </Col>
-                        <Col lg={3} md={3} sm={3} xs={3} className="border-end">
-                          <Select
-                            className="autocomplete-custom w-100 symptoms-select-box"
-                            placeholder="Severity"
-                            defaultValue={item.severity !== "" ? item.severity : null}
-                            value={item.severity !== "" ? item.severity : null}
-                            onSelect={(data) => onSelectSeverityChild(data, index)}
-                            options={SEVERITY_LIST}
-                            onClear={() => onSelectSeverityChild("", index)}
-                            allowClear
-                          />
-                        </Col>
-                        <Col lg={10} md={10} sm={9} xs={9} className="border-end">
-                          <Input
-                            className="notesinput border-0"
-                            placeholder="Notes"
-                            defaultValue={item.note}
-                            value={item.note}
-                            onChange={(e) => onChangeNoteChild(e, index)}
-                            autoSize={{
-                              minRows: 1,
-                              maxRows: 3,
-                            }}
-                            style={{
-                              border: "none",
-                              boxShadow: "none",
-                              padding: "11px 12px",
-                            }}
-                          />
-                        </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="symptoms-table-cell center">
-                          <Button
-                            className="btn py-0 btn-delete-prescription px-0"
-                            onClick={() => onRemoveRow(index)}
-                          >
-                            <i className="icon-delete"></i>
-                          </Button>
-                        </Col>
-                      </Row>
-                    )}
-                  </Draggable>
-                ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
-    );
-  }, [symptomsData, childSearchOptions]);
+    const symptomRows = Array.isArray(symptomsData) ? symptomsData : [];
 
+    return (
+      <div
+        className={[useVoiceTableLayout ? voiceModuleStyles.symptomsTableScrollWrap : "", useTesseractUi ? "tesseract-ct" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
+        {useTesseractUi && (
+          <Row gutter={0} className="tesseract-ct-head">
+            <Col lg={1} md={1} sm={1} xs={1} className="tesseract-ct-th" />
+            <Col lg={6} md={6} sm={6} xs={6} className="tesseract-ct-th">Name</Col>
+            <Col lg={3} md={3} sm={3} xs={3} className="tesseract-ct-th">Since</Col>
+            <Col lg={3} md={3} sm={3} xs={3} className="tesseract-ct-th">Severity</Col>
+            <Col lg={10} md={10} sm={9} xs={9} className="tesseract-ct-th">Notes</Col>
+            <Col lg={1} md={1} sm={2} xs={2} className="tesseract-ct-th tesseract-ct-sticky-action" />
+          </Row>
+        )}
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="symptoms" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={[isNewEmptyLineUiEnabled ? "prescription-empty-line-ui" : "mt-2", useVoiceTableLayout ? voiceModuleStyles.symptomsTableBody : ""].filter(Boolean).join(" ")}
+              >
+                {symptomRows.map((item, index) => {
+                  const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(item, index) : `symptoms-${index}`;
+
+                  return (
+                    <Draggable key={rowKey} draggableId={rowKey} index={index}>
+                      {(provided) => (
+                        <Row
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          key={rowKey}
+                          gutter={0}
+                          className={[
+                            "symptoms-table-row",
+                            emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                            useVoiceTableLayout ? voiceModuleStyles.symptomsTableRow : ""
+                          ].filter(Boolean).join(" ")}
+                        >
+                          <Col lg={1} md={1} sm={1} xs={1} className={["symptoms-table-cell center", useVoiceTableLayout ? voiceModuleStyles.symptomsDragCell : ""].filter(Boolean).join(" ")}>
+                            {isNewEmptyLineUiEnabled ? (
+                              <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                            ) : (
+                              <MenuOutlined
+                                {...provided.dragHandleProps}
+                                className="drag-handle"
+                              />
+                            )}
+                          </Col>
+                          <Col lg={6} md={6} sm={6} xs={6} className={["symptoms-table-cell", useVoiceTableLayout ? voiceModuleStyles.symptomsNameCell : ""].filter(Boolean).join(" ")}>
+                            <AutoComplete
+                              defaultValue={item.symptom_name}
+                              value={item.symptom_name}
+                              placeholder="Symptom Name"
+                              bordered={false}
+                              defaultOpen={false}
+                              disabled={item?.pms_default ? true : false}
+                              onSearch={(query) => onSearchChild(query, index)}
+                              onFocus={() => onFocusChid(index)}
+                              options={childSearchOptions}
+                              className="autocomplete-custom w-100"
+                              {...getPrescriptionNewPopupProps()}
+                              defaultActiveFirstOption={true}
+                              onSelect={(data, e) => onSelectChild(data, e, index)}
+                            />
+                          </Col>
+                          <Col lg={3} md={3} sm={3} xs={3} className={["border-end", useVoiceTableLayout ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
+                            <AutoComplete
+                              defaultValue={item.since}
+                              value={item.since}
+                              placeholder={isChikitsalayAccessable ? <div><span style={{ opacity: 0.6}}>Since</span> <span className="text-danger">*</span></div> : "Since"}
+                              bordered={false}
+                              defaultOpen={false}
+                              onSearch={(query) => onSearchSinceChid(query, index)}
+                              onBlur={() => onBlurSinceChid(index)}
+                              options={sinceOptions}
+                              className="autocomplete-custom w-100"
+                              {...getPrescriptionNewPopupProps()}
+                              defaultActiveFirstOption={true}
+                              onSelect={(data) => onSelectSinceChild(data, index)}
+                            />
+                          </Col>
+                          <Col lg={3} md={3} sm={3} xs={3} className={["border-end", useVoiceTableLayout ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
+                            <Select
+                              className="autocomplete-custom w-100 symptoms-select-box"
+                              placeholder="Severity"
+                              defaultValue={item.severity !== "" ? item.severity : null}
+                              value={item.severity !== "" ? item.severity : null}
+                              onSelect={(data) => onSelectSeverityChild(data, index)}
+                              options={SEVERITY_LIST}
+                              {...getPrescriptionNewPopupProps()}
+                              onClear={() => onSelectSeverityChild("", index)}
+                              allowClear
+                            />
+                          </Col>
+                          <Col lg={10} md={10} sm={9} xs={9} className={["border-end", useVoiceTableLayout ? voiceModuleStyles.symptomsNotesCell : ""].filter(Boolean).join(" ")}>
+                            <Input
+                              className="notesinput border-0"
+                              placeholder="Notes"
+                              defaultValue={item.note}
+                              value={item.note}
+                              onChange={(e) => onChangeNoteChild(e, index)}
+                              autoSize={{
+                                minRows: 1,
+                                maxRows: 3,
+                              }}
+                              style={{
+                                border: "none",
+                                boxShadow: "none",
+                                padding: "11px 12px",
+                              }}
+                            />
+                          </Col>
+                          <Col lg={1} md={1} sm={2} xs={2} className={["symptoms-table-cell center", useTesseractUi ? "tesseract-ct-sticky-action" : "", useVoiceTableLayout ? voiceModuleStyles.symptomsActionCell : ""].filter(Boolean).join(" ")}>
+                            <Button
+                              className="btn py-0 btn-delete-prescription px-0"
+                              onClick={() => onRemoveRow(index)}
+                            >
+                              {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                            </Button>
+                          </Col>
+                        </Row>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
+                {isNewEmptyLineUiEnabled && (
+                  <Row
+                    gutter={0}
+                    className={[
+                      "symptoms-table-row",
+                      "prescription-empty-line-row--animated",
+                      "prescription-empty-line-row--draft",
+                      useVoiceTableLayout ? voiceModuleStyles.symptomsTableRow : ""
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <Col lg={1} md={1} sm={1} xs={1} className={["symptoms-table-cell center", useVoiceTableLayout ? voiceModuleStyles.symptomsDragCell : ""].filter(Boolean).join(" ")} />
+                    <Col lg={6} md={6} sm={6} xs={6} className={["symptoms-table-cell prescription-empty-line-cell--draft-active", useVoiceTableLayout ? voiceModuleStyles.symptomsNameCell : ""].filter(Boolean).join(" ")}>
+                      <PrescriptionEmptyLineDraftSearch
+                        inputRef={emptyLineDraftInputRef}
+                        value={emptyLineDraftName}
+                        options={parentSearchOptions}
+                        popupProps={getPrescriptionNewPopupProps()}
+                        onSearch={onEmptyLineDraftSearch}
+                        onSelect={onEmptyLineDraftSelect}
+                        onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                      />
+                    </Col>
+                    <Col lg={3} md={3} sm={3} xs={3} className={["border-end", useVoiceTableLayout ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
+                      <AutoComplete
+                        value=""
+                        placeholder={isChikitsalayAccessable ? <div><span className="prescription-empty-line-draft-placeholder">Since</span> <span className="text-danger">*</span></div> : "Since"}
+                        bordered={false}
+                        defaultOpen={false}
+                        disabled
+                        className="autocomplete-custom w-100 prescription-empty-line-draft-disabled-control"
+                      />
+                    </Col>
+                    <Col lg={3} md={3} sm={3} xs={3} className={["border-end", useVoiceTableLayout ? voiceModuleStyles.symptomsShortCell : ""].filter(Boolean).join(" ")}>
+                      <Select
+                        className="autocomplete-custom w-100 symptoms-select-box prescription-empty-line-draft-disabled-control"
+                        placeholder="Severity"
+                        value={null}
+                        options={SEVERITY_LIST}
+                        disabled
+                      />
+                    </Col>
+                    <Col lg={10} md={10} sm={9} xs={9} className={["border-end", useVoiceTableLayout ? voiceModuleStyles.symptomsNotesCell : ""].filter(Boolean).join(" ")}>
+                      <Input
+                        className="notesinput border-0 prescription-empty-line-draft-disabled-control"
+                        placeholder="Notes"
+                        value=""
+                        disabled
+                      />
+                    </Col>
+                    <Col lg={1} md={1} sm={2} xs={2} className={["symptoms-table-cell center", useTesseractUi ? "tesseract-ct-sticky-action" : "", isVoiceRxModuleEnabled ? "prescription-empty-line-draft-action-cell" : ""].filter(Boolean).join(" ")} />
+                  </Row>
+                )}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
+    );
+  }, [
+    symptomsData,
+    childSearchOptions,
+    isVoiceRxModuleEnabled,
+    isNewEmptyLineUiEnabled,
+    emptyLineDraftInputRef,
+    emptyLineDraftName,
+    emptyLineRemovingRowKeys,
+    getEmptyLineRowKey,
+    onEmptyLineDraftInputKeyDown,
+    onEmptyLineDraftSearch,
+    onEmptyLineDraftSelect,
+    parentSearchOptions,
+    isChikitsalayAccessable,
+    useTesseractUi,
+  ]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -802,7 +1055,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -827,7 +1080,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -884,6 +1137,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -897,7 +1151,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box"><i className="icon-template"></i></div>
+                  <div className="round-box">{useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -926,6 +1180,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setSymptomsData([])
     showHideClearData()
   };
@@ -987,15 +1242,148 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
     );
   };
 
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = showShimmer ? <TableShimmerLoader /> : (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_SYMPTOMS}
+      {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        <div className={voiceModuleStyles.moduleSlot}>
+          <VoiceRxModuleCapture
+            moduleName="Symptoms"
+            previousContext={symptomsVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.symptoms}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        </div>
+      ) : !isNewEmptyLineUiEnabled ? (
+        <div className="p-14">
+          <AutoComplete
+            value={searchParentQuery}
+            onSearch={onSearchParent}
+            options={parentSearchOptions}
+            className="autocomplete-custom w-100"
+            onSelect={onSelectParent}
+            defaultActiveFirstOption={true}
+            {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
+          >
+            <Input
+              placeholder="Search Symptoms"
+              prefix={<i className="icon-search"></i>}
+            />
+          </AutoComplete>
+        </div>
+      ) : null}
+      {useTesseractUi && availableSymptomChips.length > 0 && (
+        <div className="tesseract-rxpad-chips">
+          {availableSymptomChips.map((name) => (
+            <TesseractButton
+              key={name}
+              variant="tonal"
+              theme="neutral"
+              size="sm"
+              className="tesseract-rxpad-chip"
+              title={name}
+              onClick={() => onChipAdd(name)}
+            >
+              {name}
+            </TesseractButton>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    // Header quartet is rebuilt with tesseract atoms so the antd Popovers
+    // (templates / save-template) keep anchoring exactly as before.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target="symptoms"
+        title="Symptoms"
+        icon="bulk/virus"
+        headerMeta={isChikitsalayAccessable ? <span className="text-danger">*</span> : null}
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="symptoms"
+                label="Start Symptoms voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: "Browse symptoms templates" })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (symptomsData.length > 0) && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Save as template">
+                  {tesseractActionButton({ icon: "ram", label: "Save symptoms as template", disabled: symptomsData.length === 0 })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: "Clear symptoms", onClick: showHideClearData, disabled: symptomsData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
+
   return (
     <>
-      <div>
+      <div ref={sectionRef} data-voice-rx-dictation-target="symptoms" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Symptomsicon} alt="Symptoms" />
-            <div className="title-common">Symptoms</div>
+            <div className="title-common">Symptoms {isChikitsalayAccessable ? <span className="text-danger">*</span> : ""}</div>
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="symptoms"
+                label="Start Symptoms voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -1004,10 +1392,18 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse symptoms templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse symptoms templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip placement="bottom" title={(symptomsData.length > 0) ? "" : "Please enter some Symptoms to save a template"}>
               <Popover
@@ -1019,53 +1415,40 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton
+                      type="save"
+                      label="Save symptoms as template"
+                      disabled={symptomsData.length === 0}
+                    />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
 
               </Popover>
             </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={symptomsData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton
+                  type="clear"
+                  label="Clear symptoms"
+                  onClick={showHideClearData}
+                  disabled={symptomsData.length === 0}
+                />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={symptomsData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
-        {showShimmer ? <TableShimmerLoader /> : (
-          <>
-            {DELETE_MODAL}
-            {REMOVE_ALL_ROWS}
-            {TABLE_SYMPTOMS}
-
-        {/* {ddxOptionsList?.length > 0 && (
-          <div style={{ padding: "0 14px" }}>
-            <DifferentialDiagnosis
-              handleDDxDrawer={handleDDxDrawer}
-              ddxOptionsList={ddxOptionsList}
-              onSelectParent={onSelectDDx}
-              isSymptoms={true}
-            />
-          </div>
-        )} */}
-        <div className="p-14">
-         <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={!searchParentQuery && "boxpopup"}
-          >
-            <Input
-              placeholder="Search Symptoms"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>     
-        </div>
-        </>
-        )}
+        {BODY_CONTENT}
       </div>
     </>
   );

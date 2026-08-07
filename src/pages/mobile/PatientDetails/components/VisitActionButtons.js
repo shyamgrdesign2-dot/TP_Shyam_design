@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
-import editIcon from '../../../../assets/mobile/edit-2.svg';
-import downloadIcon from '../../../../assets/mobile/Arrow Download.svg';
-import printIcon from '../../../../assets/mobile/Print.svg';
-import repeatIcon from '../../../../assets/mobile/Repeat.svg';
+
 import { isValidMongoId } from '../../../../utils/utils';
 import PrintOptionsModal from './PrintOptionsModal';
 import './VisitActionButtons.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  edit2_2: editIcon,
+  arrowDownload: downloadIcon,
+  print: printIcon,
+  repeat: repeatIcon,
+} = ASSETS.mobile;
 
 function VisitActionButtons({
   onEdit,
   onDownload,
   onPrint,
+  onPrintIconClick,
   onRepeatRx,
   onPrintMedicinesOnly,
   showEdit = true,
@@ -44,6 +49,9 @@ function VisitActionButtons({
 
   const handlePrintClick = (e) => {
     e.preventDefault();
+    if (onPrintIconClick && typeof onPrintIconClick === 'function') {
+      onPrintIconClick();
+    }
     if (skipPrintModal) {
       if (onPrint && typeof onPrint === 'function') {
         onPrint();

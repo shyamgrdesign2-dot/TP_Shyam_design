@@ -19,10 +19,14 @@ import {
   trackEvent,
 } from "../../../../utils/utils";
 
-import wtsp from "../../../../assets/images/wtsp.svg";
-import loadingImg from "../../../../assets/images/loading.webp";
-
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../../../../redux/dentalExaminationSlice";
+import {
+  DENTAL_RX_PAD_ROUTE,
+  DENTAL_RX_PRINT_VIEW_ROUTE,
+  TAB_RX_PRESCRIPTION_ROUTE,
+  isDentalPrintViewPath,
+} from "../../../../utils/dentalRoutes";
 import { useAccess } from "../../../vaccination/useAccess";
 
 import { viewCaseManager } from "../../../../redux/caseManagerSlice";
@@ -32,6 +36,7 @@ import { getGynecDetails } from "../../../../api/services/ApiGynec";
 import {
   FAILED_VERIFICATION,
   FREE,
+  GB_CVT_EXT_HOS,
   LANGUAGE_LIST,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN,
@@ -39,9 +44,11 @@ import {
   WHATS_APP_API,
   WTSAP_ERR_MESSAGE,
   ZYDUS_WHATS_APP_API,
-  ZYDUS_WHATSAPP_ENABLED_DOCTORS,
   FETCH_SMART_RX,
 } from "../../../../utils/constants";
+import { normalizeLabResultsResponse } from "../../../../utils/labResultsUtils";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useZydusWhatsapp } from "../../../../hooks/useZydusWhatsapp";
 import { env } from "../../../../EnvironmentConfig";
 import CreateBill from "../../../opdBilling/components/createBill/CreateBill";
 import RecentBills from "../../../opdBilling/components/recentBills/RecentBills";
@@ -68,19 +75,28 @@ import { EVENTS } from "../../../../utils/events";
 import { uploadDocsToAzure } from "../../../medicalRecords/service";
 import { usePrintPayloadPdf } from "../../../../hooks/usePrintPayloadPdf";
 import HeaderPrintView from "./HeaderPrintView";
-import ReceiptText from "../../../../assets/images/navbar-icons/receipt-text.svg";
-import EditIconPrimary from "../../../../assets/images/edit-icon-blue.svg";
-import EditIcon from "../../../../assets/images/edit-white.webp";
-import ReceiptTextPrimary from "../../../../assets/images/receipt-text-white.svg";
-import DownloadIcon from "../../../../assets/images/download.svg";
-import printIcon from "../../../../assets/images/printer.svg";
-import successIcon from "../../../../assets/images/success-icon.svg";
+
 import { services } from "../../../../redux/doctorsSlice";
 import { checkCredits } from "../../../../redux/monetizationSlice";
 import { getTabRxFiles } from "../../services/tabRxService";
 import TabRxEditRxModal from "../tabRxEditRxModal/TabRxEditRxModal";
-import arrowRight from "../../../../assets/images/website-images/right-arrow-slider.svg";
+
 import CvtKnowMore from "../../../smartSync/components/CvtKnowMore";
+import { ASSETS } from "../../../../assets";
+const {
+  wtsp,
+  loading_3: loadingImg,
+} = ASSETS.images;
+const ReceiptText = ASSETS.images.navbarIcons.receiptText;
+const {
+  editIconBlue: EditIconPrimary,
+  editWhite: EditIcon,
+  receiptTextWhite: ReceiptTextPrimary,
+  download: DownloadIcon,
+  printer: printIcon,
+  successIcon,
+} = ASSETS.images;
+const arrowRight = ASSETS.images.websiteImages.rightArrowSlider;
 
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
@@ -133,6 +149,21 @@ const progressStyle = {
 };
 
 let tabRxMountCount = 0;
+
+const filterTodayLabParams = (labResults = []) => {
+  const now = new Date();
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  return (Array.isArray(labResults) ? labResults : []).filter((labResult) => {
+    const raw = labResult?.date || labResult?.createdAt;
+    if (!raw) return false;
+    return String(raw).slice(0, 10) === todayStr;
+  });
+};
+
 function TabRxPrescriptionPrintView() {
   const divRef = useRef(null);
   const printRef = useRef();
@@ -141,24 +172,31 @@ function TabRxPrescriptionPrintView() {
   const { userId, profile, defaultPrintSettings } = useSelector(
     (state) => state.doctors,
   );
+  const isZydusWhatsappEnabled = useZydusWhatsapp();
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const { servicesList } = useSelector((state) => state.doctors);
   const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
   const { isOpdBillChecked } = useSelector((state) => state.billing);
   const { isOpdBillingAccessable } = useOpdBilling();
-  const [showDigitalRx, setShowDigitalRx] = useState(false);
+
+  const { state, pathname } = useLocation();
+  const isDental =
+    state?.page === "dental" || isDentalPrintViewPath(pathname);
+  const [showDigitalRx, setShowDigitalRx] = useState(isDental);
 
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
 
-  const { state } = useLocation();
   const {
     patient_data,
     pam_id,
     zydusSelectedLabParams,
     smartRxFilesData,
   } = state || {};
-
+  // const dentalExaminationData = state?.dentalExaminationData || state?.dentalData || null;
+  const dentalExaminationData = useSelector(selectDentalExamination);
+  const oralExamination = useSelector((state) => state.oralExamination);
   const [selectedLang, setSelectedLang] = useState(
     defaultPrintSettings?.default_language &&
       defaultPrintSettings?.default_language !== "English"
@@ -172,6 +210,7 @@ function TabRxPrescriptionPrintView() {
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
   const [showProgressbar, setShowProgressbar] = useState(false);
+  // const [dentalExaminationData, setDentalExaminationData] = useState(null);
   const progressRef = useRef(null);
   const [printUrl, setPrintUrl] = useState(
     state !== undefined
@@ -216,7 +255,9 @@ function TabRxPrescriptionPrintView() {
   const [printBlob, setPrintBlob] = useState(null);
 
   const [gynecHistoryData, setGynecHistoryData] = useState(null);
-  const [labParamsData, setLabParamsData] = useState([]);
+  const [labParamsData, setLabParamsData] = useState(() =>
+    filterTodayLabParams(normalizeLabResultsResponse(state?.labParamsData)),
+  );
   const [createBillDrawer, setCreateBillDrawer] = useState(false);
   const [recentBillDrawer, setRecentBillDrawer] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
@@ -239,7 +280,6 @@ function TabRxPrescriptionPrintView() {
     setDivWidth(divRef.current?.offsetWidth);
   }, [divRef]);
 
-
   // Initialize smart Rx files when coming from flows that pass smartRxFilesData in navigation state
   useEffect(() => {
     if (Array.isArray(smartRxFilesData) && smartRxFilesData.length > 0) {
@@ -257,8 +297,9 @@ function TabRxPrescriptionPrintView() {
         setSmartRxFile([]);
       }
     };
-
+    if(!isDental){
     fetchTabRxFiles();
+    }
   }, [smartRxFilesData, state]);
 
   const getCaseManagerData = async () => {
@@ -326,6 +367,13 @@ function TabRxPrescriptionPrintView() {
   }, [showDigitalRx]);
 
   useEffect(() => {
+    if (isCvtExtHosAccessableFromGB) return;
+    setWhatsAppButtonText(
+      showDigitalRx ? "Send Digital Rx to WhatsApp" : "Send Written Rx to WhatsApp",
+    );
+  }, [showDigitalRx, isCvtExtHosAccessableFromGB]);
+
+  useEffect(() => {
     if (isGynaecHistoryAccessable) {
       fetchGynecHistory();
     }
@@ -363,16 +411,21 @@ function TabRxPrescriptionPrintView() {
   const getLabParams = async () => {
     try {
       const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-      const cleanedToken = token.replace(/['"]+/g, "");
+      const cleanedToken = token ? token.replace(/['"]+/g, "") : "";
+      if (!patient_data?.patient_unique_id || !baseUrl) {
+        return;
+      }
+      // Match Configure Print Settings: full fetch + today's rows (not ?today=true).
       const response = await axios.get(
-        `${baseUrl}/api/v1/lab-parameters/results/${patient_data?.patient_unique_id}?today=true`,
+        `${baseUrl}/api/v1/lab-parameters/results/${patient_data.patient_unique_id}`,
         {
           headers: {
             Authorization: `Bearer ${cleanedToken}`,
           },
         },
       );
-      setLabParamsData(response.data?.data?.results || []);
+      const labResults = normalizeLabResultsResponse(response);
+      setLabParamsData(filterTodayLabParams(labResults));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }
@@ -437,12 +490,21 @@ function TabRxPrescriptionPrintView() {
     printBlob: generatedPrintBlob,
     isGenerating: isPdfGenerating,
     error: printPayloadError,
+
   } = usePrintPayloadPdf({
     printUrl,
     selectedLang,
     isGynaecHistoryAccessable,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
+    labParamsData,
+    dentalExaminationData,
+    oralExamination,
+    patientUniqueId: patient_data?.patient_unique_id,
+    patientId: patient_data?.patient_unique_id,
+    tcmId: state?.tcm_id,
+    isCvtExtHosAccessableFromGB,
+    patientRecord: patient_data,
   });
 
 
@@ -684,6 +746,16 @@ function TabRxPrescriptionPrintView() {
   const onEditPrescriptionClick = async () => {
     // Best-effort: sync care plan assignment/update based on available info
     await syncCarePlanAssignmentIfNeeded();
+    if (isDental) {
+      navigate(DENTAL_RX_PAD_ROUTE, {
+        replace: true,
+        state: {
+          patient_data: patient_data,
+          caseManagerData: viewCaseManagerData || state?.caseManagerData || state
+        }
+      });
+      return;
+    }
     if (showDigitalRx) {
       navigate("/tabrx-digitization", {
         state: {
@@ -760,6 +832,40 @@ function TabRxPrescriptionPrintView() {
       // If we don't have sufficient info, skip silently
     } catch (err) {
       console.error("CarePlan sync (assign/update) failed:", err);
+    }
+  };
+
+  const handleSendToWhatsapp = async () => {
+    const decodedToken = getDecodedToken();
+    const tokenData = decodedToken?.result;
+    const body = {
+      tcm_id: state?.tcm_id,
+      pm_contact_no: patient_data?.pm_contact_no,
+      change_mobile_number: false,
+      patient_unique_id: patient_data?.patient_unique_id,
+      hospital_business_id: tokenData?.hospital_business_id,
+      um_id: tokenData?.user_id,
+      ...(showDigitalRx && { isRxDigitize: "true" }),
+    };
+
+    setIsWhatsAppLoading(true);
+    setWhatsAppButtonText("Sending...");
+    try {
+      const response = await api.post(WHATS_APP_API, body, {
+        customBaseUrl: env.casemanager_api_url,
+      });
+      if (response.message) {
+        setWhatsAppButtonText("Successfully Sent");
+        setTimeout(() => {
+          setWhatsAppButtonText("Send to WhatsApp again");
+        }, 3000);
+      } else {
+        setWhatsAppButtonText("Send to WhatsApp");
+      }
+    } catch (error) {
+      errorMessage(WTSAP_ERR_MESSAGE);
+    } finally {
+      setIsWhatsAppLoading(false);
     }
   };
 
@@ -894,7 +1000,8 @@ function TabRxPrescriptionPrintView() {
           },
           pam_id: pam_id,
           smartRxFile,
-          from: "/tab-rx-prescription",
+          dentalExaminationData,
+          from: isDental ? DENTAL_RX_PRINT_VIEW_ROUTE : TAB_RX_PRESCRIPTION_ROUTE,
         },
       });
     } else {
@@ -1077,20 +1184,14 @@ function TabRxPrescriptionPrintView() {
                     }
                   />
                 )}
-                {(() => {
+                {!isCvtExtHosAccessableFromGB && (() => {
                   const decodedToken = getDecodedToken();
                   const tokenData = decodedToken?.result;
+                  const isZydusWhatsapp =
+                    tokenData?.hospital_business_id ==
+                      env.zydus_business_id && isZydusWhatsappEnabled;
 
-                  // Check if current doctor has WhatsApp enabled
-                  const currentDoctorPhone = profile?.um_contact
-                    ?.toString()
-                    .replace(/\D/g, "")
-                    .slice(-10);
-                  const isWhatsAppEnabled =
-                    ZYDUS_WHATSAPP_ENABLED_DOCTORS.includes(currentDoctorPhone);
-
-                  return tokenData?.hospital_business_id ==
-                    env.zydus_business_id && isWhatsAppEnabled ? (
+                  return (
                     <>
                       <div className="bg-body d-flex p-3 rounded-10px border">
                         <img
@@ -1100,7 +1201,9 @@ function TabRxPrescriptionPrintView() {
                         />
                         <div className="fontroboto title-common">
                           <div className="fw-normal fontroboto mb-2">
-                            Send this Written Rx to
+                            {showDigitalRx
+                              ? "Send this Digital Rx to"
+                              : "Send this Written Rx to "}
                           </div>
                           {patient_data !== undefined
                             ? `WhatsApp +91 ${patient_data.pm_contact_no}`
@@ -1109,7 +1212,11 @@ function TabRxPrescriptionPrintView() {
                       </div>
                       <button
                         className="btn btn-send-to-wtsap btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
-                        onClick={handleZydusSendToWhatsapp}
+                        onClick={
+                          isZydusWhatsapp
+                            ? handleZydusSendToWhatsapp
+                            : handleSendToWhatsapp
+                        }
                       >
                         {isWhatsAppLoading ? (
                           <img
@@ -1123,7 +1230,7 @@ function TabRxPrescriptionPrintView() {
                         )}
                       </button>
                     </>
-                  ) : null;
+                  );
                 })()}
               </div>
 

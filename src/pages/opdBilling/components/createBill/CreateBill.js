@@ -14,9 +14,7 @@ import {
   Tooltip,
   message,
 } from "antd";
-import alertIcon from "./../../../../assets/images/alertIcon.svg";
-import imgCloseVisit from "./../../../../assets/images/close-visit.svg";
-import visitEnd from "./../../../../assets/images/end-visit.svg";
+
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import DiagnosisNotes from "../../../obstetric/components/diagnosisNotes/DiagnosisNotes";
 import {
@@ -70,20 +68,27 @@ import {
   clearSearch,
   searchPatients,
 } from "../../../../redux/appointmentsSlice";
-import waveImage from "../../../../assets/images/opd-billing-wave.svg";
-import addCircleIcon from "../../../../assets/images/add-circle.svg";
+
 import AddAdvance from "../advanceDeposit/AddAdvance";
 import { isMobile } from "react-device-detect";
 
-import playIcons from "../../../../assets/images/tube-icon.svg";
-import tutorial from "../../../../assets/images/tutorial-icon.svg";
-import videorotateWebm from "../../../../assets/images/videorotate.webm";
-import videorotateMp4 from "../../../../assets/images/videorotate.mp4";
 import LoopingVideo from "../../../../components/common/LoopingVideo";
 import VideoModal from "../../../../common/VideoModal";
 import { Popover } from "antd";
 import BillTemplate from "./BillTemplate";
 import dayjs from "dayjs";
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  closeVisit: imgCloseVisit,
+  endVisit: visitEnd,
+  opdBillingWave: waveImage,
+  addCircle: addCircleIcon,
+  tubeIcon: playIcons,
+  tutorialIcon: tutorial,
+  videorotate_2: videorotateWebm,
+  videorotate: videorotateMp4,
+} = ASSETS.images;
 
 const CreateBill = ({
   handleCreateBillDrawer,
@@ -333,9 +338,54 @@ const CreateBill = ({
     }
   }, [isEditingName]);
 
+  useEffect(() => {
+    if (selectedDoctor) return;
+
+    if (editBillData?.doctorId) {
+      if (editDoctorFromList) {
+        setSelectedDoctor(editDoctorFromList);
+        return;
+      }
+      const doctorId = editBillData.doctorId;
+      const lastVisitDoctor = patientData?.lastVisitDoctor;
+      if (
+        lastVisitDoctor?.um_name &&
+        String(lastVisitDoctor.um_id) === String(doctorId)
+      ) {
+        setSelectedDoctor({
+          value: parseInt(doctorId, 10),
+          label: lastVisitDoctor.um_name,
+        });
+      }
+      return;
+    }
+
+    if (!isReceptionist) return;
+    const doctorId = patientData?.lastVisitDoctor?.um_id;
+    const doctorName = patientData?.lastVisitDoctor?.um_name;
+    if (doctorId == null || doctorId === "") return;
+    const match = doctorsList.find((d) => String(d.value) === String(doctorId));
+    if (match) {
+      setSelectedDoctor(match);
+    } else if (doctorName) {
+      setSelectedDoctor({ value: parseInt(doctorId, 10), label: doctorName });
+    }
+  }, [
+    isReceptionist,
+    patientData,
+    doctorsList,
+    editBillData,
+    selectedDoctor,
+    editDoctorFromList,
+  ]);
+
   const getBillPrintSettings = async () => {
+    const receptionistDoctorId =
+      patientData?.lastVisitDoctor?.um_id ??
+      editBillData?.doctorId ??
+      urlParams.get("um_id")?.split(",")?.[0];
     const printSettingsResponse = await fetchPrintSetting(
-      isReceptionist ? urlParams.get("um_id") : userId
+      isReceptionist ? receptionistDoctorId : userId
     );
     if (printSettingsResponse) {
       dispatch(setBillPrintSettings(printSettingsResponse));
@@ -1859,7 +1909,7 @@ const CreateBill = ({
                   <div style={{ paddingBottom: "5px" }}>
                     Doctor Name <span className="lab-params-warning">*</span>
                   </div>
-                  {!isReceptionist || doctorsList.length === 1 || editBillData?.doctorId ? (
+                  {!isReceptionist || doctorsList.length === 1 || editBillData?.doctorId || selectedDoctor ? (
                     <Input
                       className="input-create-bill"
                       value={
@@ -1867,6 +1917,8 @@ const CreateBill = ({
                           ? doctorsList[0].label
                           : editDoctorFromList?.label
                           ? editDoctorFromList?.label
+                          : selectedDoctor?.label
+                          ? selectedDoctor?.label
                           : profile?.um_name
                           ? profile?.um_name
                           : ""
@@ -1880,6 +1932,7 @@ const CreateBill = ({
                   ) : (
                     <Select
                       style={{ width: 170, height: 40 }}
+                      value={selectedDoctor?.value}
                       onChange={(value, option) => setSelectedDoctor(option)}
                       options={doctorsList}
                       placeholder="Select"

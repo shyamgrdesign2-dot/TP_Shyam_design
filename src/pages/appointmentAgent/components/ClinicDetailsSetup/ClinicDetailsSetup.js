@@ -5,14 +5,18 @@ import "./ClinicDetailsSetup.scss";
 import ClinicPreview from "../preview/clinicPreview";
 import SetupPreview from "../preview/setupPreview";
 import SummaryPreview from "../preview/SummaryPreview";
-import Mail from "../../../../assets/images/website-images/mail.svg";
-import editIcon from "../../../../assets/images/edit-icon-blue.svg";
-import uploadIcon from "../../../../assets/images/upload.svg";
+
 import { fetchClinicDetails } from "../../service";
 import LogoUploadDrawer from "../LogoUploadDrawer/LogoUploadDrawer";
 import config from "../../../../config";
 import GoogleMapWithAutocomplete from "../../../../common/GoogleMapWithAutocomplete";
 import { isMobile } from "react-device-detect";
+import { ASSETS } from "../../../../assets";
+const Mail = ASSETS.images.websiteImages.mail;
+const {
+  editIconBlue: editIcon,
+  upload: uploadIcon,
+} = ASSETS.images;
 
 const ClinicDetailsSetup = ({
   onDataChange,

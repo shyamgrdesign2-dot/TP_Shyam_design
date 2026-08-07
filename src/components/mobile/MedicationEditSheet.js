@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AutoComplete, Input, Button, Drawer, Select } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import { searchMedication, getFrequentlySearchedMedication } from '../../redux/medicationSlice';
 import { showMedicineTime, showMedicineFrequency } from '../../redux/doctorsSlice';
 import { removeBeforeWhiteSpace, onlyNumberFormat, onlyDecimalFormat, frequencyFormat, frequencyCombination } from '../../utils/utils';
@@ -10,6 +10,8 @@ import { EXTRA_OPTIONS } from '../../utils/constants';
 import ApiMedication from '../../api/services/ApiMedication';
 import AddCustomMedicineSheet from './AddCustomMedicineSheet';
 import './MedicationEditSheet.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 const DURATION_UNITS = [
   { value: 'Day(s)', label: 'Days' },

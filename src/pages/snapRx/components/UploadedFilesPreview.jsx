@@ -3,8 +3,10 @@ import { Button, message } from "antd";
 
 import "./UploadedFilesPreview.scss";
 import CommonModal from "../../../common/CommonModal";
-import alertIcon from "../../../assets/images/alertIcon.svg";
+
 import PageIcon from "./PageIcon";
+import { ASSETS } from "../../../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 const UploadedFilesPreview = ({ uploadedFiles, onEdit, loading, onDelete }) => {
   const [deletingFile, setDeletingFile] = useState(null);

@@ -1,8 +1,12 @@
 import { Button } from "antd";
-import apexAI from "../assets/images/apexAI.svg";
-import newTagWebm from "../assets/images/new-gif.webm";
-import newTagMp4 from "../assets/images/new-gif.mp4";
+
 import LoopingVideo from "./common/LoopingVideo";
+import { ASSETS } from "../assets";
+const {
+  apexai: apexAI,
+  newGif_3: newTagWebm,
+  newGif_2: newTagMp4,
+} = ASSETS.images;
 
 const ApexAIPopup = ({ setShowApexPopup, handleDDxKnowMore }) => {
   return (

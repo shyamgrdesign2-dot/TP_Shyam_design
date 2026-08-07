@@ -1,9 +1,9 @@
 import React, { useCallback } from "react";
 import Button from "react-bootstrap/Button";
 
-import emptyFolderIcon from "../../../assets/images/empty-file.svg";
-
 import "./HealthCheckupEmptyState.scss";
+import { ASSETS } from "../../../assets";
+const emptyFolderIcon = ASSETS.images.emptyFile;
 
 function HealthCheckupEmptyState({ onGenerateReport, patientId, loading = false }) {
   const handleGenerateClick = useCallback(() => {

@@ -1,0 +1,825 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Quick Dictator — floating dynamic island bar
+   All classes prefixed `qd-` to avoid collisions.
+   Font: inherits Poppins from body; mono uses JetBrains Mono.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* ── Host + Scrim ─────────────────────────────────────────────────────── */
+.qd-host {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 36px;
+}
+
+/* ── Bar ──────────────────────────────────────────────────────────────── */
+.qd-bar {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 300px;
+  max-width: min(440px, calc(100vw - 28px));
+  padding: 12px 14px;
+  /* TP slate (#171725) surface with a faint frosted blur — kept mostly
+     opaque so the blur doesn't tint the brand colour. */
+  background: rgba(23, 23, 37, 0.94);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-radius: 22px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42),
+    0 6px 18px rgba(0, 0, 0, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: inherit;
+  opacity: 0;
+  transform: translateY(12px) scale(0.96);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.qd-bar-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.qd-bar-cancelled {
+  gap: 10px;
+}
+
+/* ── Action buttons (✕, ✓) ───────────────────────────────────────────── */
+.qd-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.qd-action:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.qd-action:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.qd-action-cancel {
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+}
+.qd-action-cancel:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.qd-action-accept {
+  background: #fff;
+  color: #0f172a;
+}
+.qd-action-accept:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.qd-action-accept:disabled {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.22);
+  opacity: 1;
+}
+
+/* ── TP CDN icons ─────────────────────────────────────────────────────
+   SVGs are served (white) from the TP icon CDN. We load them as CSS masks
+   and fill with `currentColor`, so each icon inherits its context colour
+   (white on the bar, orange when muted, dark on the accept button, red/green
+   on toasts, dark on the tutorial drawer). Recolour = set `color`. */
+.qd-ico {
+  display: inline-block;
+  flex-shrink: 0;
+  /* Inherit the parent's colour — the app has a global `span` colour rule that
+     would otherwise leak in and tint these mask icons dark. */
+  color: inherit;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+.qd-ico-xs {
+  width: 14px;
+  height: 14px;
+}
+.qd-ico-sm {
+  width: 16px;
+  height: 16px;
+}
+.qd-ico-md {
+  width: 18px;
+  height: 18px;
+}
+.qd-ico-check {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/check-mark---tick.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/check-mark---tick.svg);
+}
+.qd-ico-close {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/close.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/close.svg);
+}
+.qd-ico-chevron {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/arrow-short-down.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow2/arrow-short-down.svg);
+}
+.qd-ico-mic {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/video-audio-image/microphone.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/video-audio-image/microphone.svg);
+}
+.qd-ico-mic-slash {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/video-audio-image/microphone-slash.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/video-audio-image/microphone-slash.svg);
+}
+.qd-ico-undo {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/undo-arrow.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/arrow/undo-arrow.svg);
+}
+.qd-ico-close-square {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bold/essential/close-square.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bold/essential/close-square.svg);
+}
+.qd-ico-danger {
+  -webkit-mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/danger.svg);
+  mask-image: url(https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/danger.svg);
+}
+
+/* ── Mic switcher ────────────────────────────────────────────────────── */
+.qd-switcher-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+/* Split control: mic icon (mute/unmute) | divider | caret (device accordion) */
+.qd-mic-group {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  transition: background 0.15s;
+}
+.qd-mic-toggle,
+.qd-mic-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.qd-mic-toggle {
+  padding: 0 9px;
+}
+.qd-mic-caret {
+  padding: 0 7px;
+}
+.qd-mic-toggle:hover,
+.qd-mic-caret:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.qd-mic-toggle:disabled,
+.qd-mic-caret:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.qd-mic-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 8px 0;
+  background: rgba(255, 255, 255, 0.20);
+}
+/* Muted — orange accent */
+.qd-mic-group-muted {
+  background: rgba(245, 158, 11, 0.16);
+}
+.qd-mic-group-muted .qd-mic-toggle {
+  color: #f59e0b;
+}
+.qd-mic-group-muted .qd-mic-divider {
+  background: rgba(245, 158, 11, 0.3);
+}
+.qd-chev {
+  transition: transform 0.15s ease;
+}
+.qd-chev-open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown menu — white card */
+.qd-switcher-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 240px;
+  max-width: 320px;
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 10;
+}
+.qd-switcher-eyebrow {
+  padding: 6px 10px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: #94A3B8;
+}
+.qd-switcher-empty {
+  padding: 10px;
+  font-size: 12px;
+  color: #94A3B8;
+  text-align: center;
+}
+.qd-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.qd-switcher-item:hover {
+  background: #F1F5F9;
+}
+.qd-switcher-item-active {
+  background: #F1F5F9;
+  color: #0F172A;
+  font-weight: 600;
+}
+.qd-switcher-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #CBD5E1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.12s;
+}
+.qd-switcher-radio-inner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.12s;
+}
+.qd-switcher-item-active .qd-switcher-radio {
+  border-color: #3B82F6;
+}
+.qd-switcher-item-active .qd-switcher-radio-inner {
+  background: #3B82F6;
+}
+.qd-switcher-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Signal (wave + status) ──────────────────────────────────────────── */
+.qd-signal {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+/* Wave bars — rounded equalizer driven by live mic frequency bins. */
+.qd-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 22px;
+  width: 100%;
+}
+.qd-wave-bar {
+  width: 3px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fff;
+  transform: scaleY(var(--qd-scale, 0.35));
+  transform-origin: center;
+  opacity: calc(0.78 + var(--qd-level, 0) * 0.22);
+  transition: transform 80ms linear, opacity 80ms linear;
+}
+.qd-wave-bar:nth-child(1) {
+  animation-delay: 0s;
+}
+.qd-wave-bar:nth-child(2) {
+  animation-delay: 0.09s;
+}
+.qd-wave-bar:nth-child(3) {
+  animation-delay: 0.18s;
+}
+.qd-wave-bar:nth-child(4) {
+  animation-delay: 0.27s;
+}
+.qd-wave-bar:nth-child(5) {
+  animation-delay: 0.36s;
+}
+.qd-wave-bar:nth-child(6) {
+  animation-delay: 0.45s;
+}
+.qd-wave-bar:nth-child(7) {
+  animation-delay: 0.54s;
+}
+.qd-wave-bar:nth-child(8) {
+  animation-delay: 0.63s;
+}
+.qd-wave-bar:nth-child(9) {
+  animation-delay: 0.72s;
+}
+.qd-wave-bar-muted {
+  background: rgba(255, 255, 255, 0.16);
+  transform: scaleY(0.5);
+  opacity: 0.55;
+}
+
+/* Status line */
+.qd-status {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+.qd-status-listening {
+  color: rgba(255, 255, 255, 0.7);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+}
+.qd-status-error {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 400;
+}
+.qd-status-muted {
+  color: #f59e0b;
+  font-weight: 400;
+}
+
+/* ── Processing spinner ──────────────────────────────────────────────── */
+/* Shown in the signal area while transcribing; all controls stay visible
+   but disabled. */
+.qd-processing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+.qd-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: qd-spin 0.6s linear infinite;
+}
+@keyframes qd-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Cancel-undo row ─────────────────────────────────────────────────── */
+/* The discard button reuses `.qd-action.qd-action-cancel` so it matches the
+   cross in the active bar. */
+.qd-cancel-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.qd-cancel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.qd-undo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.qd-undo-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+/* Force white against the app's global button styles. */
+.qd-undo-btn,
+.qd-undo-btn span {
+  color: #fff;
+}
+.qd-undo-btn svg {
+  stroke: #fff;
+}
+
+/* Countdown track — pure CSS animation so it always runs the full window
+   and shrinks (reverses) toward the left over the undo period. Stuck flush
+   to the card's bottom edge (inset to clear the rounded corners). */
+.qd-undo-track {
+  position: absolute;
+  bottom: 0;
+  left: 22px;
+  right: 22px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px 999px 0 0;
+  overflow: hidden;
+}
+.qd-undo-fill {
+  height: 100%;
+  width: 100%;
+  background: #fff;
+  border-radius: 999px;
+  transform-origin: left center;
+  animation: qd-undo-countdown 5s linear forwards;
+}
+@keyframes qd-undo-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+/* ── Toast content ───────────────────────────────────────────────────── */
+.qd-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+}
+.qd-toast-content-error {
+  color: #dc6069;
+}
+.qd-toast-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.qd-toast-content-error .qd-toast-icon {
+  color: #dc6069;
+}
+.qd-toast-content:not(.qd-toast-content-error) .qd-toast-icon {
+  color: #52c41a;
+}
+.qd-toast-warning-icon {
+  flex-shrink: 0;
+  color: #f59e0b;
+}
+.qd-toast-text {
+  color: inherit;
+}
+.qd-toast-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.14);
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.qd-toast-close-error {
+  background: rgba(220, 96, 105, 0.12);
+}
+
+/* ── Coach mark ──────────────────────────────────────────────────────── */
+.qd-coach-card {
+  position: fixed;
+  left: var(--qd-coach-left);
+  top: var(--qd-coach-top);
+  z-index: 2147483647;
+  display: flex;
+  width: var(--qd-coach-width);
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-radius: 12px;
+  background: #0f172a;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.28), 0 6px 18px rgba(15, 23, 42, 0.18);
+  color: #fff;
+  font-family: Inter, sans-serif;
+}
+.qd-coach-arrow {
+  position: absolute;
+  left: 30px;
+  width: 12px;
+  height: 12px;
+  border-top-left-radius: 2px;
+  background: #0f172a;
+  transform: rotate(45deg);
+}
+.qd-coach-card-above .qd-coach-arrow {
+  bottom: -6px;
+}
+.qd-coach-card-below .qd-coach-arrow {
+  top: -6px;
+}
+.qd-coach-kicker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.qd-coach-kicker {
+  margin-right: 6px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.qd-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-family: "JetBrains Mono", "SF Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.qd-key-plus {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 600;
+}
+.qd-coach-copy {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.qd-coach-copy strong {
+  color: #fff;
+}
+.qd-link-button {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.qd-coach-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+.qd-coach-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  user-select: none;
+}
+.qd-coach-checkbox {
+  width: 14px;
+  height: 14px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+.qd-coach-got-it {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ── Tutorial drawer ─────────────────────────────────────────────────── */
+.qd-tutorial-drawer .ant-drawer-content-wrapper {
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
+}
+.qd-tutorial-drawer .ant-drawer-content {
+  border-left: 1px solid #e2e8f0;
+}
+body .qd-tutorial-drawer .ant-drawer-header {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 64px;
+  height: 64px;
+  padding: 0 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+body .qd-tutorial-drawer .ant-drawer-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+body .qd-tutorial-drawer .ant-drawer-close {
+  margin: 0;
+  padding: 0;
+}
+body .qd-tutorial-drawer .ant-drawer-body {
+  /* the portal sets `body .ant-drawer .ant-drawer-body { padding: 0 }`
+     globally — match that specificity so this drawer keeps its padding. */
+  padding: 24px;
+  background: #fff;
+}
+.qd-tutorial-title {
+  color: #0f172a;
+  font-family: Mulish, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+.qd-tutorial-close-icon {
+  width: 20px;
+  height: 20px;
+  color: #334155;
+}
+.qd-tutorial-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.qd-tutorial-heading {
+  margin: 0;
+  color: #0f172a;
+  font-family: Mulish, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+.qd-tutorial-steps {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qd-tutorial-step {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0 0 18px;
+}
+.qd-tutorial-step:last-child {
+  padding-bottom: 0;
+}
+.qd-tutorial-step-index-wrap {
+  display: flex;
+  align-self: stretch;
+  flex-direction: column;
+  align-items: center;
+}
+.qd-tutorial-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6938ef 0%, #4338ca 100%);
+  box-shadow: 0 6px 14px -6px rgba(105, 56, 239, 0.45);
+  color: #fff;
+  font-family: "JetBrains Mono", "SF Mono", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.qd-tutorial-step-line {
+  flex: 1;
+  width: 2px;
+  min-height: 20px;
+  margin-top: 6px;
+  margin-bottom: 2px;
+  background-image: linear-gradient(180deg, #cbd5e1 0%, #cbd5e1 50%, transparent 50%, transparent 100%);
+  background-repeat: repeat-y;
+  background-size: 2px 8px;
+}
+.qd-tutorial-step-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 3px;
+  min-width: 0;
+}
+.qd-tutorial-step-title {
+  margin: 0;
+  color: #0f172a;
+  font-family: Mulish, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.qd-tutorial-step-body {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.qd-tutorial-try {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-top: 4px;
+  border: 1px solid #e0d4ff;
+  border-radius: 12px;
+  background: #f4efff;
+}
+.qd-tutorial-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.qd-kbd-big {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+}
+.qd-key-plus-dark {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+}
+.qd-tutorial-try-text {
+  color: #2a1e5c;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.55;
+}

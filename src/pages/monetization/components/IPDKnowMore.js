@@ -1,13 +1,17 @@
 import React, { useCallback, useState } from "react";
 import { Button, Tabs } from "antd";
-import playIcons from "../../../assets/images/tube-icon.svg";
+
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "./ContactSupport";
 import ExpiredText from "./ExpiredText";
 import { S_IPD } from "../../../utils/constants";
 import FreeTrialButton from "./FreeTrialButton";
 import ExpiredSubModal from "./ExpiredSubModal";
-import ipd_thumbnail from '../../../assets/images/ipd_thumbnail.webp';
+import { ASSETS } from "../../../assets";
+const {
+  tubeIcon: playIcons,
+  ipdThumbnail: ipd_thumbnail,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 

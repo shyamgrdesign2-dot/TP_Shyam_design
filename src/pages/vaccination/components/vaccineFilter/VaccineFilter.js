@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button, Tooltip } from "antd";
-import chevron from "../../../../assets/images/arrow-box-right.svg";
-import closeFill from "../../../../assets/images/closeFill.svg";
+
 import { VaccinationCategoryEnum } from "../../VaccinationHelper";
 import "./VaccineFilter.scss";
+import { ASSETS } from "../../../../assets";
+const {
+  arrowBoxRight: chevron,
+  closefill: closeFill,
+} = ASSETS.images;
 
 const VaccineFilter = ({
   dateOptions,

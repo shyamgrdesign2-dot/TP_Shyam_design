@@ -1,9 +1,13 @@
 import React from 'react';
 import moment from 'moment';
-import arrowBoxLeft from '../../../../assets/mobile/arrow-box-left.svg';
-import arrowBoxRight from '../../../../assets/mobile/arrow-box-right.svg';
-import calendarIcon from '../../../../assets/images/calendar-2.svg';
+
 import './VisitDateSelector.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  arrowBoxLeft,
+  arrowBoxRight,
+} = ASSETS.mobile;
+const calendarIcon = ASSETS.images.calendar2;
 
 function VisitDateSelector({ 
   consultationDate, 

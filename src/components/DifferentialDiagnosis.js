@@ -1,11 +1,7 @@
 import { Button, Collapse, Divider } from "antd";
-import apexAI from "../assets/images/apexAI.svg";
-import arrow from "../assets/images/shaded-arrow.svg";
-import ddxIcon from "../assets/images/ddxIcon.svg";
-import loadingWebm from "../assets/images/loading.webm";
-import loadingMp4 from "../assets/images/loading.mp4";
+
 import LoopingVideo from "../components/common/LoopingVideo";
-import ddxBg from "../assets/images/ddx-bg.webp";
+
 import { useSelector } from "react-redux";
 import {
   IS_DDX_DIAGNOSIS_OPEN,
@@ -19,6 +15,15 @@ import { WarningColor, WarningRank } from "./DifferentialDiagnosisDrawer";
 import { getClinicName, getDeviceSdkData, getTokenData } from "../utils/utils";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
 import CashManagerContext from "../context/CashManagerContext";
+import { ASSETS } from "../assets";
+const {
+  apexai: apexAI,
+  shadedArrow: arrow,
+  ddxicon: ddxIcon,
+  loading_2: loadingWebm,
+  loading: loadingMp4,
+  ddxBg,
+} = ASSETS.images;
 
 const DifferentialDiagnosis = ({
   handleDDxDrawer,
@@ -37,21 +42,11 @@ const DifferentialDiagnosis = ({
   const { showHideSubModal } = useContext(CashManagerContext);
 
   const { state } = useLocation();
-  const { patient_data } = state;
+  const { patient_data } = state || {};
 
   const { isGynaecHistoryAccessable } = useAccess(patient_data?.ageYears);
 
-  const [isCollapseActive, setIsCollapseActive] = useState(
-    localStorage.getItem(
-      isDiagnosis ? IS_DDX_DIAGNOSIS_OPEN : IS_DDX_LAB_INVESTIGATION_OPEN
-    )
-      ? JSON.parse(
-        localStorage.getItem(
-          isDiagnosis ? IS_DDX_DIAGNOSIS_OPEN : IS_DDX_LAB_INVESTIGATION_OPEN
-        )
-      )
-      : true
-  );
+  const [isCollapseActive, setIsCollapseActive] = useState(false);
 
   const accordionItems = [
     {
@@ -323,10 +318,10 @@ const DifferentialDiagnosis = ({
 
   return (
     <>
-      <div className="d-flex" style={{ padding: "20px 0" }}>
+      <div className="d-flex" style={{ padding: "4px 0 0", alignItems: "flex-start" }}>
         <div>
           <img
-            style={{ backgroundColor: "#22003C", borderRadius: "10px 10px 0px" }}
+            style={{ backgroundColor: "#22003C", borderRadius: "10px 10px 0px", width: 42, height: 42 }}
             className="me-3"
             src={apexAI}
             alt="apex-AI"

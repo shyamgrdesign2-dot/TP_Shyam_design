@@ -1,8 +1,10 @@
 import React from 'react';
 import moment from 'moment';
 import { TAB_QUEUE, TAB_FINISHED, TAB_CANCELLED } from '../../../../utils/constants';
-import moreVerticalIcon from '../../../../assets/mobile/more-vertical.svg';
+
 import './AppointmentCard.scss';
+import { ASSETS } from "../../../../assets";
+const moreVerticalIcon = ASSETS.mobile.moreVertical;
 
 function AppointmentCard({
   appointment,

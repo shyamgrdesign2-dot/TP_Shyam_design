@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useContext,
 } from "react";
+import { v4 as uuidv4 } from 'uuid';
 import {
   AutoComplete,
   Input,
@@ -22,7 +23,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import CommonModal from "../common/CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
+
 import CashManagerContext from "../context/CashManagerContext";
 import {
   errorMessage,
@@ -30,7 +31,7 @@ import {
   capitalizeAfterSentence,
   getClinicName,
 } from "../utils/utils";
-import surgeryIcon from "../assets/images/surgery.svg";
+
 import { MenuOutlined } from "@ant-design/icons";
 import {
   addTemplate,
@@ -40,14 +41,44 @@ import {
   searchExamination,
   createSurgery,
 } from "../redux/surgicalSlice";
+import ApiSurgical from "../api/services/ApiSurgical";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useLocation } from "react-router-dom";
 import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
+import { ASSETS } from "../assets";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import { Grid5, Trash } from "iconsax-reactjs";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "./tesseractCt";
+const {
+  alerticon: alertIcon,
+  surgery: surgeryIcon,
+} = ASSETS.images;
 
 const { TextArea } = Input;
 
-function SurgicalBox() {
+function SurgicalBox({ showVoiceRxModule, useTesseractUi = false }) {
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedSurgicalList,
     parentOptionsList,
@@ -59,9 +90,109 @@ function SurgicalBox() {
   const { profile } = useSelector((state) => state.doctors);
 
   const { state } = useLocation();
-  const { patient_data } = state;
+  const { patient_data } = state || {};
 
   const { surgeriesData, setSurgeriesData } = useContext(CashManagerContext);
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  // Voice-mode table layout classes are legacy-only; the Tesseract shell uses
+  // the plain antd grid so header and body columns always align.
+  const useVoiceTableLayout = isVoiceRxModuleEnabled && !useTesseractUi;
+  const mapSurgeryMasterRecord = useCallback((record) => {
+    if (typeof record === "string" || typeof record === "number") {
+      return { masterId: record };
+    }
+    if (!record || typeof record !== "object") return null;
+    const { id, ...rest } = record;
+    return {
+      masterId: record.masterId || id,
+      ...rest,
+    };
+  }, []);
+  const findLocalSurgeryMaster = useCallback((name) => {
+    const normalizedName = String(name || "").trim().toLowerCase();
+    if (!normalizedName) return null;
+    const match = [...(parentOptionsList || []), ...(childOptionsList || [])].find((item) => (
+      String(item?.name || "").trim().toLowerCase() === normalizedName
+    ));
+    return match ? mapSurgeryMasterRecord(match) : null;
+  }, [childOptionsList, mapSurgeryMasterRecord, parentOptionsList]);
+  const findSurgeryMasterByName = useCallback(async (name) => {
+    const normalizedName = String(name || "").trim().toLowerCase();
+    if (!normalizedName) return null;
+
+    const localMatch = findLocalSurgeryMaster(name);
+    if (localMatch) return localMatch;
+
+    const result = await ApiSurgical.searchExamination(name);
+    const exactMatch = Array.isArray(result)
+      ? result.find((item) => String(item?.name || "").trim().toLowerCase() === normalizedName)
+      : null;
+    return exactMatch ? mapSurgeryMasterRecord(exactMatch) : null;
+  }, [findLocalSurgeryMaster, mapSurgeryMasterRecord]);
+  const createCustomSurgeryRecord = useCallback(async (name) => {
+    const created = await ApiSurgical.createSurgery({ name });
+    const createdRecord = mapSurgeryMasterRecord(created) || { masterId: created?.id, name };
+    const masterRecord = await findSurgeryMasterByName(name).catch(() => null);
+    return {
+      ...createdRecord,
+      ...masterRecord,
+      masterId: masterRecord?.masterId || createdRecord.masterId,
+      name: masterRecord?.name || createdRecord.name || name,
+      change: createdRecord.change ?? 1,
+    };
+  }, [findSurgeryMasterByName, mapSurgeryMasterRecord]);
+  const enrichVoiceSurgeryRows = useCallback(async (rows) => {
+    const enrichedRows = [];
+
+    for (const row of rows) {
+      const name = String(row?.name || row?.surgery_name || row?.procedure_name || "").trim();
+      if (!name) continue;
+
+      let resolvedMaster;
+      try {
+        const masterRecord = await findSurgeryMasterByName(name);
+        resolvedMaster = masterRecord || await createCustomSurgeryRecord(name);
+      } catch (error) {
+        console.error("VoiceRx surgery master enrichment failed:", error);
+        resolvedMaster = {
+          masterId: row?.masterId || uuidv4(),
+          name,
+          change: row?.change ?? 1,
+        };
+      }
+      enrichedRows.push({
+        ...row,
+        ...resolvedMaster,
+        masterId: resolvedMaster?.masterId || row?.masterId || uuidv4(),
+        name: resolvedMaster?.name || name,
+        notes: row?.notes ?? row?.note ?? "",
+      });
+    }
+
+    return enrichedRows;
+  }, [createCustomSurgeryRecord, findSurgeryMasterByName]);
+  const applyVoiceSurgeries = useCallback(async (nextSurgeries) => {
+    if (nextSurgeries.length > 0) {
+      const enrichedSurgeries = await enrichVoiceSurgeryRows(nextSurgeries);
+      setSurgeriesData(enrichedSurgeries);
+    }
+  }, [enrichVoiceSurgeryRows, setSurgeriesData]);
+  const surgeriesVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(surgeriesData, "surgery"),
+    [surgeriesData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Surgeries/Procedures",
+    onApply: applyVoiceSurgeries,
+    successMessage: "Surgeries/Procedures filled from voice dictation",
+    copyPayloadKeys: ["surgery", "surgeries"],
+  });
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
 
@@ -89,6 +220,12 @@ function SurgicalBox() {
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
+
+  const createCustomSurgeryRow = useCallback((surgeryName) => ({
+    change: 1,
+    name: surgeryName,
+    isCustom: true,
+  }), []);
 
   useEffect(() => {
     if (selectedSurgicalList?.length > 0) {
@@ -206,6 +343,38 @@ function SurgicalBox() {
     },
     [searchParentQuery, surgeriesData]
   );
+
+  const onEmptyLineSurgeryCommit = useCallback((surgeryRow) => {
+    return onSelectParent(surgeryRow?.name, {
+      key: JSON.stringify(surgeryRow),
+    });
+  }, [onSelectParent]);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: surgeriesData,
+    setRows: setSurgeriesData,
+    showVoiceRxModule,
+    useTesseractUi,
+    nameField: "name",
+    rowKeyPrefix: "surgery",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomSurgeryRow,
+    commitRow: onEmptyLineSurgeryCommit,
+    canCreateCustomRow: !isApolloHosBusinessIdAccessableFromGB,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
 
   //Child AutoComplete
   useEffect(() => {
@@ -336,6 +505,10 @@ function SurgicalBox() {
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     surgeriesData.splice(index, 1);
     setSurgeriesData((prev) => [...prev]);
   };
@@ -399,14 +572,15 @@ function SurgicalBox() {
   );
 
   const onAddTemplateClicked = async () => {
-    if (surgeriesData.length === 0) {
+    const templateSurgeries = surgeriesData;
+    if (templateSurgeries.length === 0) {
       errorMessage("At least 1 surgeries/procedures added");
-    } else if (surgeriesData.filter((e) => e.name == "").length > 0) {
+    } else if (templateSurgeries.filter((e) => String(e.name ?? "").trim() === "").length > 0) {
       errorMessage("Please fillup surgeries/procedures name");
     } else {
       var sendData = {
         name: inputTemplateName,
-        surgeries: surgeriesData,
+        surgeries: templateSurgeries,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -428,15 +602,16 @@ function SurgicalBox() {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (surgeriesData.length === 0) {
+    const templateSurgeries = surgeriesData;
+    if (templateSurgeries.length === 0) {
       errorMessage("At least 1 surgeries/procedures added");
-    } else if (surgeriesData.filter((e) => e.name == "").length > 0) {
+    } else if (templateSurgeries.filter((e) => String(e.name ?? "").trim() === "").length > 0) {
       errorMessage("Please fillup surgeries/procedures name");
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         name: data.name,
-        surgeries: surgeriesData,
+        surgeries: templateSurgeries,
       };
       const action = await dispatch(
         updateTemplate({ template: sendData, templateId: data.id })
@@ -516,104 +691,219 @@ function SurgicalBox() {
   };
 
   const TABLE_EXAMINATION = useMemo(() => {
+    const surgeryRows = Array.isArray(surgeriesData) ? surgeriesData : [];
+    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled && !useTesseractUi;
+
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="surgeries" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
-              {surgeriesData.length > 0 &&
-                surgeriesData.map((item, index) => (
-                  <Draggable
-                    key={index}
-                    draggableId={`surgeries-${index}`}
-                    index={index}
-                  >
-                    {(provided) => (
-                      <Row
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        key={index}
-                        gutter={[0]}
-                        className={`${
-                          index === 0 && "mt-14 border-top"
-                        } align-items-center border-bottom`}
-                      >
-                        <Col
-                          lg={1}
-                          md={1}
-                          sm={1}
-                          xs={1}
-                          className="text-center"
+      <div
+        className={[shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : "", useTesseractUi ? "tesseract-ct" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
+        {useTesseractUi && (
+          <Row gutter={0} className="tesseract-ct-head">
+            <Col lg={1} md={1} sm={1} xs={1} className="tesseract-ct-th" />
+            <Col lg={8} md={8} sm={8} xs={8} className="tesseract-ct-th">Name</Col>
+            <Col lg={14} md={14} sm={13} xs={13} className="tesseract-ct-th">Notes</Col>
+            <Col lg={1} md={1} sm={2} xs={2} className="tesseract-ct-th tesseract-ct-sticky-action" />
+          </Row>
+        )}
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="surgeries" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={[
+                  isNewEmptyLineUiEnabled ? "prescription-empty-line-ui" : "mt-2",
+                  shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableBody : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {surgeryRows.map((item, index) => {
+                  const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(item, index) : `surgeries-${index}`;
+
+                  return (
+                    <Draggable
+                      key={rowKey}
+                      draggableId={rowKey}
+                      index={index}
+                    >
+                      {(provided) => (
+                        <Row
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          key={rowKey}
+                          gutter={[0]}
+                          className={isNewEmptyLineUiEnabled ? [
+                            "symptoms-table-row",
+                            emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                          ].filter(Boolean).join(" ") : [
+                            index === 0 && "mt-14 border-top",
+                            "align-items-center border-bottom",
+                            useVoiceTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                          ].filter(Boolean).join(" ")}
                         >
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: "grab" }}
-                          ></MenuOutlined>
-                        </Col>
-                        <Col lg={8} md={8} sm={8} xs={8} className="border-end">
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.name}
-                              value={item.name}
-                              placeholder="Surgeries/Procedures Name"
-                              bordered={false}
-                              defaultOpen={false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) =>
-                                onSelectChild(data, e, index)
-                              }
-                            />
-                          </div>
-                        </Col>
-                        <Col
-                          lg={14}
-                          md={14}
-                          sm={13}
-                          xs={13}
-                          className="border-end"
-                        >
-                          <TextArea
-                            className="notesinput border-0"
-                            placeholder="Notes"
-                            defaultValue={item.notes}
-                            value={item.notes}
-                            autoSize={{
-                              minRows: 1,
-                              maxRows: 2,
-                            }}
-                            onChange={(e) => onChangeNoteChild(e, index)}
-                          />
-                        </Col>
-                        <Col
-                          lg={1}
-                          md={1}
-                          sm={2}
-                          xs={2}
-                          className="text-center"
-                        >
-                          <Button
-                            className="btn py-0 btn-delete-prescription px-0"
-                            onClick={() => onRemoveRow(index)}
+                          <Col
+                            lg={1}
+                            md={1}
+                            sm={1}
+                            xs={1}
+                            className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                            ].filter(Boolean).join(" ")}
                           >
-                            <i className="icon-delete"></i>
-                          </Button>
-                        </Col>
-                      </Row>
-                    )}
-                  </Draggable>
-                ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                            {isNewEmptyLineUiEnabled ? (
+                              <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                            ) : (
+                              <MenuOutlined
+                                {...provided.dragHandleProps}
+                                className="drag-handle"
+                              ></MenuOutlined>
+                            )}
+                          </Col>
+                          <Col lg={8} md={8} sm={8} xs={8} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            <div className="fontroboto fw-medium w-100">
+                              <AutoComplete
+                                defaultValue={item.name}
+                                value={item.name}
+                                placeholder="Surgeries/Procedures Name"
+                                bordered={false}
+                                defaultOpen={false}
+                                onSearch={(query) => onSearchChild(query, index)}
+                                onFocus={() => onFocusChid(index)}
+                                options={childSearchOptions}
+                                className="autocomplete-custom w-100 inputborder"
+                                {...getPrescriptionNewPopupProps()}
+                                defaultActiveFirstOption={true}
+                                onSelect={(data, e) =>
+                                  onSelectChild(data, e, index)
+                                }
+                              />
+                            </div>
+                          </Col>
+                          <Col
+                            lg={14}
+                            md={14}
+                            sm={13}
+                            xs={13}
+                            className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                            ].filter(Boolean).join(" ")}
+                          >
+                            <TextArea
+                              className="notesinput border-0"
+                              placeholder="Notes"
+                              defaultValue={item.notes}
+                              value={item.notes}
+                              autoSize={{
+                                minRows: 1,
+                                maxRows: 2,
+                              }}
+                              onChange={(e) => onChangeNoteChild(e, index)}
+                            />
+                          </Col>
+                          <Col
+                            lg={1}
+                            md={1}
+                            sm={2}
+                            xs={2}
+                            className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                              useTesseractUi ? "tesseract-ct-sticky-action" : "",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                            ].filter(Boolean).join(" ")}
+                          >
+                            <Button
+                              className="btn py-0 btn-delete-prescription px-0"
+                              onClick={() => onRemoveRow(index)}
+                            >
+                              {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                            </Button>
+                          </Col>
+                        </Row>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
+                {isNewEmptyLineUiEnabled && (
+                  <Row
+                    gutter={[0]}
+                    className={[
+                      "symptoms-table-row",
+                      "prescription-empty-line-row--animated",
+                      "prescription-empty-line-row--draft",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <Col lg={1} md={1} sm={1} xs={1} className={[
+                      "symptoms-table-cell center",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                    ].filter(Boolean).join(" ")} />
+                    <Col lg={8} md={8} sm={8} xs={8} className={[
+                      "symptoms-table-cell prescription-empty-line-cell--draft-active",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <PrescriptionEmptyLineDraftSearch
+                        inputRef={emptyLineDraftInputRef}
+                        inputClassName="fontroboto fw-medium w-100"
+                        value={emptyLineDraftName}
+                        options={parentSearchOptions}
+                        popupProps={getPrescriptionNewPopupProps()}
+                        onSearch={onEmptyLineDraftSearch}
+                        onSelect={onEmptyLineDraftSelect}
+                        onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                      />
+                    </Col>
+                    <Col lg={14} md={14} sm={13} xs={13} className={[
+                      "symptoms-table-cell",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <TextArea
+                        className="notesinput border-0 prescription-empty-line-draft-disabled-control"
+                        placeholder="Notes"
+                        value=""
+                        disabled
+                        autoSize={{
+                          minRows: 1,
+                          maxRows: 2,
+                        }}
+                      />
+                    </Col>
+                    <Col lg={1} md={1} sm={2} xs={2} className={[
+                      "symptoms-table-cell center",
+                      useTesseractUi ? "tesseract-ct-sticky-action" : "",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                    ].filter(Boolean).join(" ")} />
+                  </Row>
+                )}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [surgeriesData, childSearchOptions]);
+  }, [
+    surgeriesData,
+    childSearchOptions,
+    isVoiceRxModuleEnabled,
+    isNewEmptyLineUiEnabled,
+    emptyLineDraftInputRef,
+    emptyLineDraftName,
+    emptyLineRemovingRowKeys,
+    getEmptyLineRowKey,
+    getPrescriptionNewPopupProps,
+    onEmptyLineDraftInputKeyDown,
+    onEmptyLineDraftSearch,
+    onEmptyLineDraftSelect,
+    parentSearchOptions,
+    useTesseractUi,
+  ]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -651,7 +941,7 @@ function SurgicalBox() {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -682,7 +972,7 @@ function SurgicalBox() {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -749,7 +1039,7 @@ function SurgicalBox() {
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
                   <div className="round-box">
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
@@ -788,6 +1078,7 @@ function SurgicalBox() {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setSurgeriesData([]);
     showHideClearData();
   };
@@ -833,15 +1124,127 @@ function SurgicalBox() {
     );
   }, [isModalOpen1]);
 
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_EXAMINATION}
+      {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        <div className={voiceModuleStyles.moduleSlot}>
+          <VoiceRxModuleCapture
+            moduleName="Surgeries/Procedures"
+            previousContext={surgeriesVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.surgeries}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        </div>
+      ) : !isNewEmptyLineUiEnabled ? (
+        <div className="p-14">
+          <AutoComplete
+            value={searchParentQuery}
+            onSearch={onSearchParent}
+            options={parentSearchOptions}
+            className="autocomplete-custom w-100"
+            onSelect={onSelectParent}
+            defaultActiveFirstOption={true}
+          >
+            <Input
+              placeholder="Search Surgeries/Procedures"
+              prefix={<i className="icon-search"></i>}
+            />
+          </AutoComplete>
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target="surgeries"
+        title="Surgeries/Procedures"
+        icon="bulk/health"
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="surgeries"
+                label="Start Surgeries Procedures voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: "Browse surgery templates" })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (surgeriesData.length > 0) && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Save as template">
+                  {tesseractActionButton({ icon: "ram", label: "Save surgery as template", disabled: surgeriesData.length === 0 })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: "Clear surgery", onClick: showHideClearData, disabled: surgeriesData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
+
   return (
     <>
-      <div className="">
+      <div ref={sectionRef} data-voice-rx-dictation-target="surgeries" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={surgeryIcon} alt="surgery-icon" />
             <div className="title-common">Surgeries/Procedures</div>
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="surgeries"
+                label="Start Surgeries Procedures voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -850,10 +1253,18 @@ function SurgicalBox() {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse surgery templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse surgery templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip
               placement="bottom"
@@ -874,42 +1285,35 @@ function SurgicalBox() {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton type="save" label="Save surgery as template" disabled={surgeriesData.length === 0} />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button
-              onClick={showHideClearData}
-              className="btn btn-text clear-text d-flex align-items-center"
-              disabled={surgeriesData.length > 0 ? false : true}
-            >
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton type="clear" label="Clear surgery" onClick={showHideClearData} disabled={surgeriesData.length === 0} />
+              </Tooltip>
+            ) : (
+              <button
+                onClick={showHideClearData}
+                className="btn btn-text clear-text d-flex align-items-center"
+                disabled={surgeriesData.length > 0 ? false : true}
+              >
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {DELETE_MODAL}
-        {REMOVE_ALL_ROWS}
-        {TABLE_EXAMINATION}
-
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-          >
-            <Input
-              placeholder="Search Surgeries/Procedures"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
-        </div>
+        {BODY_CONTENT}
       </div>
     </>
   );

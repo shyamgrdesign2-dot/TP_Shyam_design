@@ -1,15 +1,19 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import crownIcon from "../../assets/images/crown-purple.svg";
-import crownRedIcon from "../../assets/images/crown-red.svg";
-import crownOrangeIcon from "../../assets/images/crown-orange.svg";
-import billingsIcon from "../../assets/images/billings.svg";
+
 import { Col, Row } from "react-bootstrap";
 import moment from "moment";
 import BillingHistory from "./BillingHistory";
 import { openModal } from "../../redux/doctorModalSlice";
 import { Divider } from "antd";
 import { getClinicName } from "../../utils/utils";
+import { ASSETS } from "../../assets";
+const {
+  crownPurple: crownIcon,
+  crownRed: crownRedIcon,
+  crownOrange: crownOrangeIcon,
+  billings: billingsIcon,
+} = ASSETS.images;
 
 function Subscription() {
   const { planDetails } = useSelector((state) => state.subscription);

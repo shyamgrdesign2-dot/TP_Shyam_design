@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 import { useSelector } from "react-redux";
 
-import { getClinicName, makeDefaultLogo } from "../utils/utils";
+import { getClinicName, makeDefaultLogo, trackEvent } from "../utils/utils";
 import { getDecodedToken } from '../utils/localStorage';
 import config from '../config';
 import { useOpdBilling } from '../pages/opdBilling/useOpdBilling';
@@ -15,22 +15,30 @@ import { checkToShowOpdBilling } from '../pages/opdBilling/service';
 import { useDispatch } from 'react-redux';
 import moment from 'moment';
 import {
+    GB_CVT_EXT_HOS,
+    GB_DENTAL_MODULE,
     GB_HEALTH_CHECKUP_REPORT,
     NEO_NATOLOGISTS_DP_ID,
     PAEDIATRIC_DP_ID,
     PATIENT_DETAILS_SIDEBAR_KEYS,
 } from "../utils/constants";
-import BloodIcon from '../assets/images/blood.svg';
-import AbhaIcon from '../assets/images/abha-svg.svg'
-import LeftArrow from '../assets/images/left-arrow.svg'
+
 import AbhaDrawer from '../components/abha/AbhaDrawer';
 import { getAbhaDomainSuffix } from '../components/abha/helpers';
 import { handleAdmitToIpd } from '../utils/utils';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
-import HospitalBedIcon from "../assets/images/bed-with-h.svg"
-import HealthCheckupReportIcon from "../assets/images/health-checkup-report-primary.svg";
-import HealthCheckupReportIconSecondary from "../assets/images/health-checkup-report-secondary.svg";
+import { ASSETS } from "../assets";
+import { useIsDentalEnabled } from '../hooks/useIsDentalEnabled';
+const {
+  blood: BloodIcon,
+  abhaSvg: AbhaIcon,
+  leftArrow: LeftArrow,
+  bedWithH: HospitalBedIcon,
+  healthCheckupReportPrimary: HealthCheckupReportIcon,
+  healthCheckupReportSecondary: HealthCheckupReportIconSecondary,
+  scissors: Scissors
+} = ASSETS.images;
 
 function SidebarPatient({
     collapsed,
@@ -59,7 +67,9 @@ function SidebarPatient({
     const isIPDAccessible = isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB;
     const isAdmitted = patientAdmissionStatus?.alreadyAdmitted === true;
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
+    const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
+    const isDentalDoctor = useIsDentalEnabled();
     const menu = [
         {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY,
@@ -100,11 +110,29 @@ function SidebarPatient({
             short_title: "Health Checkup",
             long_title: "Health Checkup Report",
         },
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES,
+            icon_name: "icon-Edit",
+            short_title: "Canvases",
+            long_title: "Canvases",
+        },
+        isDentalDoctor && {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.DENTAL_PLAN,
+            icon_image: Scissors,
+            short_title: "Dental",
+            long_title: "Dental Plan",
+        },
         // { icon_name: 'icon-Discharge-Summary', short_title: 'Discharge', long_title: 'Discharge Summary' },
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },
         // { icon_name: 'icon-billings', short_title: 'Add Bill', long_title: 'Add Bill/Payment' },
         // { icon_name: 'icon-More', short_title: '', long_title: 'More Options' }
-    ]?.filter((item) => item);
+    ]?.filter((item) => {
+        if (!item) return false;
+        if (isCvtExtHosAccessableFromGB) {
+            return item.key === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY;
+        }
+        return true;
+    });
 
     let patientDOB = ''
 
@@ -142,7 +170,11 @@ function SidebarPatient({
                     <div className="round-box bg-body-secondary"><i className="icon-Id fs-21"></i></div>
                     <div className="text-truncate">
                         <div className="fontroboto letterspacing">Patient Id</div>
-                        <div className="fontroboto letterspacing fw-medium">{patient_data !== undefined ? patient_data.pm_pid : "000000"}</div>
+                        <div className="fontroboto letterspacing fw-medium">
+                            {isCvtExtHosAccessableFromGB
+                                ? (patients_details?.pm_reference_id || patient_data?.pm_reference_id || patient_data?.tpml_refrence_id || "000000")
+                                : (patient_data !== undefined ? patient_data.pm_pid : "000000")}
+                        </div>                    
                     </div>
                 </div>
             )}
@@ -181,7 +213,8 @@ function SidebarPatient({
                 </div>
             )}
             <div>
-                {tokenData?.hospital_business_id != config.zydus_business_id && (
+                {tokenData?.hospital_business_id != config.zydus_business_id &&
+                    !isCvtExtHosAccessableFromGB && (
                     <Link to="/edit_patient" replace={true} state={{ patient_data: patient_data }}>
                         <Button className='btn btn-primary2 d-flex justify-content-center align-items-center w-100 mt-3 btn-41'
                             onClick={() => {
@@ -256,7 +289,19 @@ function SidebarPatient({
                     return (
                         <div key={index}>
                             <Nav.Item className={collapsed && 'text-center'}>
-                                <Nav.Link className={`${item.key == sidebarKey && 'active'} ${!collapsed && 'd-flex align-items-center'}`} onClick={() => onClickSidebarHandle(item?.key)}>
+                                <Nav.Link className={`${item.key == sidebarKey && 'active'} ${!collapsed && 'd-flex align-items-center'}`} onClick={() => {
+                                        if (item?.key === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES) {
+                                            trackEvent("drawing_canvas_module_viewed", {
+                                                specialty: profile?.dp_name,
+                                                specialty_id: profile?.dp_id,
+                                                doctor_unique_id: profile?.doctor_unique_id,
+                                                doctor_name: profile?.um_name,
+                                                patient_id: patient_data?.patient_unique_id,
+                                                entry_point: "patient_details_sidebar",
+                                            });
+                                        }
+                                        onClickSidebarHandle(item?.key);
+                                    }}>
                                     {item.icon_image ? (
                                         <img src={item.icon_image} alt={item.long_title} style={{ width: '21px', height: '21px' }} />
                                     ) : (

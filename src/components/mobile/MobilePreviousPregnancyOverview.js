@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Drawer, Button, Tabs } from 'antd';
 import moment from 'moment';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import './MobilePreviousPregnancyOverview.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 const { TabPane } = Tabs;
 

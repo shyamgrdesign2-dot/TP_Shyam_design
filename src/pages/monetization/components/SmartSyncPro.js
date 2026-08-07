@@ -2,9 +2,12 @@ import React from "react";
 import { Button, Checkbox, Popover } from "antd";
 import { useSelector } from "react-redux";
 
-import smartSyncIcon from "../../../assets/images/smart-sync-icon.webp";
-import deviderIncludes from "../../../assets/images/includes-devider.svg";
 import { formatAmount, currencyFormat } from "../../../utils/utils";
+import { ASSETS } from "../../../assets";
+const {
+  smartSyncIcon,
+  includesDevider: deviderIncludes,
+} = ASSETS.images;
 
 function SmartSyncPro({ data, addOrNot, handleSmartSyncAddRemove, checked, setChecked, selectedServices, setSelectedServices, clickKnowMore }) {
 

@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import "./Testimonials.scss";
-import testimonialIcon from "../../../../assets/images/onboard-page-icons/LP-Testimonial-icon.svg";
-import profile from "../../../../assets/images/default-profile.svg";
-import Dr_Nisheet from "../../../../assets/images/onboard-page-icons/Doc_Nisheet_Dave.webp";
-import Dr_Kautuk from "../../../../assets/images/onboard-page-icons/Doc_Kautuk_Patel.webp";
-import Dr_Amit from "../../../../assets/images/onboard-page-icons/Doc_Amit_Madan.webp";
-import Dr_Pratibha from "../../../../assets/images/onboard-page-icons/Doc_Pratibha_Singh.webp";
-import Dr_Sneha from "../../../../assets/images/onboard-page-icons/Doc_Sneha_Jhadhav.webp";
-import Dr_Deep from "../../../../assets/images/onboard-page-icons/Doc_Deep_Fultera.webp";
-import Dr_Garima from "../../../../assets/images/onboard-page-icons/Doc_Garima.webp";
+import { ASSETS } from "../../../../assets";
+const testimonialIcon = ASSETS.images.onboardPageIcons.lpTestimonialIcon;
+const profile = ASSETS.images.defaultProfile;
+const Dr_Nisheet = ASSETS.images.onboardPageIcons.docNisheetDave;
+const Dr_Kautuk = ASSETS.images.onboardPageIcons.docKautukPatel;
+const Dr_Amit = ASSETS.images.onboardPageIcons.docAmitMadan;
+const Dr_Pratibha = ASSETS.images.onboardPageIcons.docPratibhaSingh;
+const Dr_Sneha = ASSETS.images.onboardPageIcons.docSnehaJhadhav;
+const Dr_Deep = ASSETS.images.onboardPageIcons.docDeepFultera;
+const Dr_Garima = ASSETS.images.onboardPageIcons.docGarima;
 
 const Testimonials = () => {
   const testimonials = [

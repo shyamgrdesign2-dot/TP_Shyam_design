@@ -4,10 +4,11 @@ import { Button, Card, Input } from 'antd';
 import { useSelector, useDispatch } from "react-redux";
 import { addEditPrivateNotes, deletePrivateNotes } from "../redux/medicalhistorySlice";
 
-import alertIcon from '../assets/images/alertIcon.svg';
 import CashManagerContext from '../context/CashManagerContext';
 import CommonModal from '../common/CommonModal';
 import { errorMessage, getClinicName } from "../utils/utils";
+import { ASSETS } from "../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 function PrivateNotesBox(props) {
     const { handleDrawerPrivateNotes, handleCollapsed, selectPrivateNotes } = props
@@ -134,6 +135,5 @@ function PrivateNotesBox(props) {
         </>
     );
 }
-
 
 export default React.memo(PrivateNotesBox);

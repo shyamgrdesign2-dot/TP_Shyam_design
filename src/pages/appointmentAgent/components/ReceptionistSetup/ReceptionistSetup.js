@@ -3,8 +3,9 @@ import { Input, Radio } from 'antd';
 import './ReceptionistSetup.scss';
 import SetupPreview from "../preview/setupPreview";
 import { fetchAvatars } from '../../service';
-import CheckRadioIcon from "../../../../assets/images/check-radio.svg"
 import { isMobile } from 'react-device-detect';
+import { ASSETS } from "../../../../assets";
+const CheckRadioIcon = ASSETS.images.checkRadio;
 
 const ReceptionistSetup = ({ onDataChange, initialData, clinicName, triggerValidation }) => {
   const [name, setName] = useState(initialData?.name || '');

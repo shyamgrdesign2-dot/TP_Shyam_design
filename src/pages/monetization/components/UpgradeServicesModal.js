@@ -8,12 +8,6 @@ import moment from "moment";
 import axios from "axios";
 import { isChrome, isSafari } from "react-device-detect";
 
-import upgradedLogo from '../../../assets/images/upgraded-logo.svg'
-import medcoIcon from "../../../assets/images/medco-icon.svg";
-import listIcon from '../../../assets/images/list-icon.svg'
-import aiPowered from '../../../assets/images/ai-powered.svg'
-import vaccinationImg from "../../../assets/images/Vaccination.svg";
-import iconEdit from "../../../assets/images/edit.svg";
 import { S_TATVA_PRACTICE, S_SMARTSYNC, S_VOICE_RX, S_DDX, S_RX_DIGITIZATION, S_IPD, S_ASK_TATVA, S_PHARMACY, S_BILLING, S_RECEPTIONIST_AGENT, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, FREE, FAILED_VERIFICATION } from "../../../utils/constants";
 import { QRCodeSVG } from "qrcode.react";
 import GenRxKnowMore from "../../../components/GenRxKnowMore";
@@ -34,6 +28,15 @@ import config from "../../../config";
 import { useLocalStorage } from "../../../utils/localStorage";
 import ExpiredSubModal from "./ExpiredSubModal";
 import { EVENTS } from "../../../utils/events";
+import { ASSETS } from "../../../assets";
+const {
+  upgradedLogo,
+  medcoIcon,
+  listIcon,
+  aiPowered,
+  vaccination: vaccinationImg,
+  edit: iconEdit,
+} = ASSETS.images;
 
 function UpgradeServicesModal({ isUpgradeModal, upgradeList, handleUpgradeModal }) {
 
@@ -323,7 +326,7 @@ function UpgradeServicesModal({ isUpgradeModal, upgradeList, handleUpgradeModal 
                             {/* <div className='upgraded-premium-box w-92'>
                                 <div className="w-100 mx-auto px-3">
                                     <div className="fs-18 fw-semibold"> Scan the Below QR to Download MedEco App</div>
-                                    <QRCodeSVG className="rounded-3 my-4" value={"https://pm-doctor-tatva-pwa-prod.tatvacare.in/"} size={150}
+                                    <QRCodeSVG className="rounded-3 my-4" value={config.MEDECO_WEBVIEW_URL} size={150}
                                     // imageSettings={{
                                     //     src: medcoIcon,
                                     //     x: undefined,

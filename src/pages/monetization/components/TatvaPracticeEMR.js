@@ -4,11 +4,14 @@ import { Link } from "react-router-dom";
 import { deviceType, isMobile, osName } from "react-device-detect";
 import { useSelector } from "react-redux";
 
-import tatvaEMR from '../../../assets/images/logo-tatva-emr.svg'
-import growingClinic from '../../../assets/images/growing-clinic.svg'
-import listIcon from '../../../assets/images/list-icon.svg'
-import medcoIcon from '../../../assets/images/medco-icon.svg'
 import { currencyFormat, formatAmount, getClinicName, getDeviceSdkData, getTokenData } from "../../../utils/utils";
+import { ASSETS } from "../../../assets";
+const {
+  logoTatvaEmr: tatvaEMR,
+  growingClinic,
+  listIcon,
+  medcoIcon,
+} = ASSETS.images;
 
 function TatvaPracticeEMR({ item,clickKnowMore }) {
 

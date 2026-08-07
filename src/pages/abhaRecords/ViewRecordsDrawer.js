@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Drawer, Button, Spin, message } from "antd";
-import arrowBoxIcon from "../../assets/images/arrow-box-right 2.svg";
+
 import { viewConsentRecord } from "../../api/services/ApiAbha";
-import SymptomsIcon from "../../assets/images/Symptoms.svg";
-import MedicationIcon from "../../assets/images/Medication.svg";
+
 import "./ViewRecordsDrawer.scss";
+import { ASSETS } from "../../assets";
+const {
+  arrowBoxRight2: arrowBoxIcon,
+  symptoms: SymptomsIcon,
+  medication: MedicationIcon,
+} = ASSETS.images;
 
 const formatDate = (value) => {
   if (!value) return "";

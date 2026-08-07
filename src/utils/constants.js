@@ -1,12 +1,18 @@
 import { v4 as uuidv4 } from "uuid";
-import codeIcon from "../assets/images/code.svg";
-import validateHealthcareIcon from "../assets/images/validate-heathcare.svg";
-import clinicalStudyIcon from "../assets/images/clinical-study.svg";
-import apexAI from "../assets/images/apexAI.svg";
-import scannerIcon from "../assets/images/scanner.webp";
-import sunIcon from "../assets/images/sun.webp";
-import cameraIcon from "../assets/images/camera.webp";
-import cropIcon from "../assets/images/crop.webp";
+import { env } from "../EnvironmentConfig";
+
+/** Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js */
+export const TP_ASSETS_BASE =
+  "https://pmdoctorportal.tatvacare.in/tp-assets/assets";
+
+const codeIcon = `${TP_ASSETS_BASE}/images/code.svg`;
+const validateHealthcareIcon = `${TP_ASSETS_BASE}/images/validate-heathcare.svg`;
+const clinicalStudyIcon = `${TP_ASSETS_BASE}/images/clinical-study.svg`;
+const apexAI = `${TP_ASSETS_BASE}/images/apexAI.svg`;
+const scannerIcon = `${TP_ASSETS_BASE}/images/scanner.webp`;
+const sunIcon = `${TP_ASSETS_BASE}/images/sun.webp`;
+const cameraIcon = `${TP_ASSETS_BASE}/images/camera.webp`;
+const cropIcon = `${TP_ASSETS_BASE}/images/crop.webp`;
 
 export const PERSISTANT_STORAGE_KEY_AUTH_TOKEN =
   "persistant.storage.key.auth-token";
@@ -32,6 +38,8 @@ export const PATIENT_DETAILS_SIDEBAR_KEYS = {
   BILL_PAYMENT: 4,
   ABHA_RECORDS: 5,
   HEALTH_CHECKUP_REPORT: 6,
+  CANVASES: 7,
+  DENTAL_PLAN: 8,
 };
 
 export const TAB_QUEUE = 0;
@@ -40,6 +48,10 @@ export const TAB_FINISHED = 3;
 export const TAB_CANCELLED = 4;
 export const TAB_ZYDUS_ENCOUNTER = 11;
 export const TAB_ZYDUS_APPOINTMENT = 12;
+export const TAB_CLINIC_APPOINTMENT = 0;
+export const TAB_CLINIC_QUEUE = 7;
+export const TAB_REFERRAL = 13;
+export const TAB_REFERRAL_AP_STATUS = 8;
 
 export const TAB_CAMPAIGN = 0;
 export const TAB_DRAFT = 1;
@@ -94,6 +106,24 @@ export const GB_OPTHAL_MODULE = "opthal-module";
 export const GB_SAVE_AS_DRAFT_RX = "save-as-draft-rx";
 export const GB_HEALTH_CHECKUP_REPORT = "health-checkup-report";
 export const GB_VOICE_RX_FREE = "free-voice-rx";
+export const GB_ZYDUS_WHATSAPP = "zydus-doctor-whatsapp-enablement";
+export const GB_ZYDUS_ACCOUNT_USERS = "zydus-account-users";
+export const GB_CHIKITSALAY = "chikitsalay";
+export const GB_CROSS_CONSULT = "cross-consult";
+export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
+export const GB_VOICE_RX_MAX_SESSION_MINUTES = "VOICE_RX_MAX_SESSION_MINUTES";
+export const GB_VOICE_OLD_UI_NEW_PIPELINE = "voice-old-ui-new-pipeline";
+export const GB_LIMS = "lims";
+export const CLINIC_TARGET_STATUS = {
+  SERVING: "SERVING",
+  COMPLETED: "COMPLETED",
+}
+
+export const MEDICINE_STOCK_STATUS = {
+  AVAILABLE: "AVAILABLE",
+  NO_STOCK: "NO_STOCK",
+  LOW_STOCK: "LOW_STOCK",
+};
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,
@@ -101,8 +131,7 @@ export const OPTHAL_PAD_MODULE = {
   tmdpm_name: "Opthal",
   tmdpm_short_name: "Opthal",
   tmdpm_status: 0,
-  tmdpm_icon_url:
-    "https://practice.tatvacare.in/img/microservices/right/opthal.svg",
+  tmdpm_icon_url: `${env.php_base_url}/img/microservices/right/opthal.svg`,
 };
 
 export const GYNAECOLOGY = "Gynaecology";
@@ -118,6 +147,13 @@ export const GB_VIDEO_CONSULT = "video-consult";
 export const GB_TELE_CONSULT = "tele-consult";
 export const GB_TAB_RX = "tab-rx";
 export const GB_TAB_RX_CVT = "tab-rx-cvt";
+export const GB_DENTAL_MODULE = "dental-module";
+export const GB_CVT_EXT_HOS = "cvt-external-hospitals";
+export const EXTERNAL_HOSPITAL_BUSINESS_IDS = {
+  MISSION_HOSPITAL: String(env.mission_hospital_business_id),
+};
+
+export const MISSION_HOSPITAL_ADDRESS = "THE MISSION HOSPITAL Plot No. 219(P), IMMON KALYAN SARANI, SECTOR-2C, Bidhannagar, Durgapur -713212, West Bengal - Ph No: 8687500500";
 
 export const FREE = "FREE";
 export const TRIAL = "TRIAL";
@@ -153,6 +189,16 @@ export const MAX_DOCUMENT_FILE_SIZE = 15728640; // 15 MB
 export const MAX_VIDEO_FILE_SIZE = 31457280; // 30 MB
 export const MAX_FILES_PER_UPLOAD = 5;
 export const VIDEO_THUMBNAIL_TIME = 1; // Extract thumbnail at 1 second
+export const CLINIC_UPLOAD_CATEGORIES = [
+  { category_id: 7, category_name: "Clinics_Pathology" },
+  { category_id: 8, category_name: "Clinics_Radiology" },
+];
+
+export const isClinicUploadCategory = (category_name) =>
+  CLINIC_UPLOAD_CATEGORIES.some(
+    (category) =>
+      category.category_name === category_name
+  );
 
 export const EXTRA_OPTIONS = [
   {
@@ -446,25 +492,9 @@ export const SNAP_RX_KNOW_MORE_DATA = {
 
 export const HIDE_ROUTES = {
   BANNER: ["/snap-rx"],
-  TALKATIVE: ["/snap-rx"],
+  TALKATIVE: ["/snap-rx", "/prescription"],
 };
 
-// WhatsApp enabled doctors for Zydus Hospital
-export const ZYDUS_WHATSAPP_ENABLED_DOCTORS = [
-  "9825181439",
-  "9925179799", 
-  "9537045169",
-  "9925560870",
-  "9742639958",
-  "9825337281",
-  "9825023998",
-  "9978957799",
-  "9167437770",
-  "8980019439",
-  "9574850310",
-  "9825334682",
-  "9377034673"
-];
 
 // Custom Canvas Size Increased upto 20 
 export const CUSTOM_CANVAS_DOCTORS_USER_ID = [

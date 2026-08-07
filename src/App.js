@@ -9,13 +9,14 @@ import {
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { isMobile, isTablet, isChrome, isSafari } from "react-device-detect";
-import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
+import { GrowthBookProvider, useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useDeviceType } from "./utils/deviceDetection";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "./config";
 import {
   FROM_NATIVE_APP,
+  GB_VOICE_RX_NEW_UI,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
   PERSISTANT_STORAGE_KEY_MEDECO_TOKEN,
@@ -23,20 +24,36 @@ import {
 import { useLocalStorage } from "./utils/localStorage";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./common/ErrorFallback";
+import GrowthBookPhoneSync from "./components/GrowthBookPhoneSync";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import { useTncConsent } from "./hooks/useTncConsent";
 import FullPageLoader from "./pages/vaccination/components/Loader";
 import { lazyRetry } from "./utils/lazyRetry";
+import useRouteTracking from "./hooks/useRouteTracking";
+import { isProdEnv } from "./utils/environment";
+import {
+  getNormalizedPhoneNumber,
+  syncPhoneAndCheckZydusAccountUser,
+} from "./utils/zydusAccountRouting";
+import { useVersionCheck } from "./hooks/useVersionCheck";
+import UpdateBanner from "./common/UpdateBanner";
+import { clearSentryContext } from "./utils/sentryContext";
+import { growthbook } from "./utils/growthbook";
+import {
+  clearReceptionistSession,
+  isReceptionistSession,
+} from "./utils/receptionistSession";
+import { useVoiceRxNewUiFlag, useNewPointClickUiFlag } from "./utils/voiceRxNavigation";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
 );
-const PatientDetails = React.lazy(() =>
-  lazyRetry(() => import("./pages/PatientDetails"))
-);
 const Prescription = React.lazy(() =>
   lazyRetry(() => import("./pages/Prescription"))
+);
+const PrescriptionNew = React.lazy(() =>
+  lazyRetry(() => import("./pages/PrescriptionNew"))
 );
 const SmartPrescription = React.lazy(() =>
   lazyRetry(() => import("./pages/SmartPrescription"))
@@ -164,9 +181,6 @@ const BottomSheetManager = React.lazy(() =>
 const UpgradeServicesModal = React.lazy(() =>
   lazyRetry(() => import("./pages/monetization/components/UpgradeServicesModal"))
 );
-const MobilePatientDetails = React.lazy(() =>
-  lazyRetry(() => import("./pages/mobile/PatientDetails/PatientDetails"))
-);
 const MobileAllPatients = React.lazy(() =>
   lazyRetry(() => import("./pages/mobile/AllPatients/AllPatients"))
 );
@@ -191,12 +205,44 @@ const TabRxPrescriptionPrintView = React.lazy(() =>
 const TabRxDigitization = React.lazy(() =>
   lazyRetry(() => import("./pages/tabRx/components/Digitization"))
 );
+const PatientDetails = React.lazy(() =>
+  lazyRetry(() => import("./pages/PatientDetails"))
+);
+const MobilePatientDetails = React.lazy(() =>
+  lazyRetry(() => import("./pages/mobile/PatientDetails/PatientDetails"))
+);
+const ConsultationLayout = React.lazy(() =>
+  lazyRetry(() => import("./components/ConsultationLayout"))
+);
+const LimsPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/LimsPage"))
+);
+const LimsPrintPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/LimsPrintPage"))
+);
+const LimsPrintConfig = React.lazy(() =>
+  lazyRetry(() => import("./pages/lims/LimsPrintConfig"))
+);
 
-const growthbook = new GrowthBook({
-  apiHost: "https://cdn.growthbook.io",
-  clientKey: config?.GROWTHBOOK_CLIENTKEY,
-  enableDevMode: process.env.REACT_APP_ENV !== "prod",
-});
+function PrescriptionRouteElement() {
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
+  const isNewPointClickUi = useNewPointClickUiFlag();
+  const location = useLocation();
+  const isVoiceRxNewUiFlow = Boolean(location.state?.isVoiceRxNewUiFlow);
+
+  if (isVoiceRxNewFromGB && isVoiceRxNewUiFlow) {
+    return <PrescriptionNew />;
+  }
+
+  // Point-n-click rollout: every /prescription entry (fresh, edit, repeat,
+  // draft) renders PrescriptionNew in voice-less mode. Phones and opted-out
+  // doctors are excluded inside the hook.
+  if (isNewPointClickUi) {
+    return <PrescriptionNew />;
+  }
+
+  return isMobile ? <TabPrescription /> : <Prescription />;
+}
 
 function App() {
   const SentryRoutes = useMemo(
@@ -226,11 +272,28 @@ function App() {
 
   const isLoginPage = location.pathname === "/login";
   const isRootPath = location.pathname === "/";
+  const shouldShowPlanBanners = location.pathname === "/";
   const token = getToken();
   const isMobileOrPWA = isMobileDevice || isPWA;
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const isReceptionist = urlParams.has("receptionist");
+  // Persist ?receptionist for the tab so dropping the query on internal
+  // navigations does not re-enable doctor-only boot checks / logout.
+  const isReceptionist = isReceptionistSession(location.search);
+
+  useEffect(() => {
+    if (isLoginPage) {
+      clearReceptionistSession();
+    }
+  }, [isLoginPage]);
+
+  useRouteTracking();
+  const { updateAvailable } = useVersionCheck();
+
+  useEffect(() => {
+    if (isLoginPage) {
+      clearSentryContext();
+    }
+  }, [isLoginPage]);
 
   const openUrlsSilently = async (urls) => {
     return Promise.all(
@@ -277,11 +340,13 @@ function App() {
 
       localStorage.clear();
       sessionStorage.clear();
+      clearReceptionistSession();
       window.location.href = "/login";
     } catch (error) {
       console.error("Error during logout:", error);
       localStorage.clear();
       sessionStorage.clear();
+      clearReceptionistSession();
       window.location.href = "/login";
     } finally {
       window.isLoggingOut = false;
@@ -327,7 +392,7 @@ function App() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [location.pathname]);
+  }, [location.pathname, isReceptionist, isLoginPage]);
 
   useEffect(() => {
     const isUserLocked = async () => {
@@ -373,17 +438,46 @@ function App() {
     if (token) {
       try {
         const decodedToken = jwtDecode(token);
+        const phoneNumber = decodedToken?.result?.mobile_no;
         growthbook?.setAttributes({
           doctorId: decodedToken?.result?.doctor_unique_id,
           id: `${decodedToken?.result?.user_id}`,
           hos_business_id: `${decodedToken?.result?.hospital_business_id}`,
           clinic_id: `${decodedToken?.result?.clinic_id}`,
+          doctor_phone: phoneNumber,
+          doctor_phone_normalized: getNormalizedPhoneNumber(phoneNumber),
         });
       } catch (e) {
         console.log(e);
       }
     }
   }, []);
+
+  useEffect(() => {
+    const logoutZydusUserFromNormalProd = async () => {
+      if (!isProdEnv() || isLoginPage || isReceptionist) return;
+
+      const token = authToken || getToken();
+      if (!token) return;
+
+      try {
+        const decodedToken = jwtDecode(token);
+        const phoneNumber = decodedToken?.result?.mobile_no;
+        if (!phoneNumber) return;
+
+        const isZydusAccountUser =
+          await syncPhoneAndCheckZydusAccountUser(growthbook, phoneNumber);
+
+        if (isZydusAccountUser) {
+          handleLogout();
+        }
+      } catch (error) {
+        console.error("Error checking Zydus account user:", error);
+      }
+    };
+
+    logoutZydusUserFromNormalProd();
+  }, [authToken, isLoginPage, isReceptionist, location.pathname]);
 
   useEffect(() => {
     // Handle authToken in URL (e.g. from Medeco redirect)
@@ -652,7 +746,7 @@ function App() {
           />
           <Route
             path="prescription"
-            element={isMobile ? <TabPrescription /> : <Prescription />}
+            element={<PrescriptionRouteElement />}
           />
           <Route
             path="prescription_print_view"
@@ -672,6 +766,7 @@ function App() {
             element={<SmartPrescription />}
           />
           <Route path="tab-rx-prescription" element={<TabRxPrescriptionPrintView />} />
+          <Route path="dentalrx-print-view" element={<TabRxPrescriptionPrintView />} />
           <Route path="print-smart-rx" element={<SmartRxPreview />} />
           <Route path="doctor_profile" element={<DoctorProfile />} />
           <Route
@@ -735,6 +830,12 @@ function App() {
             path="tabrx-digitization"
             element={<TabRxDigitization />}
           />
+          <Route path="dental-rx-pad" element={<ConsultationLayout />} />
+
+          <Route path="lims" element={<LimsPage />} />
+          <Route path="lims/print/:patientId" element={<LimsPrintPage />} />
+          <Route path="lims/print-settings" element={<LimsPrintConfig />} />
+          {/* <Route path="dental-rx-pad" element={<DentalModuleShell />} /> */}
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />
       </SentryRoutes>
@@ -744,6 +845,7 @@ function App() {
 
   return (
     <GrowthBookProvider growthbook={growthbook}>
+      <UpdateBanner updateAvailable={updateAvailable} />
       <ErrorBoundary
         FallbackComponent={ErrorFallback}
         onError={(error) => {
@@ -769,6 +871,7 @@ function App() {
         ) : (
           <Suspense fallback={<FullPageLoader />}>
             <AppStoreProvider>
+              <GrowthBookPhoneSync />
               <Suspense fallback={null}>
                 <AppTeleconsultBootstrap />
               </Suspense>
@@ -780,7 +883,7 @@ function App() {
                     zIndex: 199,
                   }}
                 >
-                  {!isMobileOrPWA && (
+                  {!isMobileOrPWA && shouldShowPlanBanners && (
                     <>
                       <DemoExpirationBanner />
                       <PlanExpirationBanner />
@@ -804,6 +907,9 @@ function App() {
             </AppStoreProvider>
           </Suspense>
         )}
+        <div className="no-print app-version-tag">
+          v2.1.17
+        </div>
       </ErrorBoundary>
     </GrowthBookProvider>
   );

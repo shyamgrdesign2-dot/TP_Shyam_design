@@ -22,14 +22,18 @@ import {
   patientDiagnosisUpdated,
   resetUpdatedPatientDiagnosis,
 } from "../../../../redux/obstetricSlice";
-import alertIcon from "./../../../../assets/images/alertIcon.svg";
-import imgCloseVisit from "./../../../../assets/images/close-visit.svg";
-import visitEnd from "./../../../../assets/images/check-badge.svg";
+
 import { isDecimalCheck, isNumberCheck } from "../../utils/helper";
 import CommonModal from "../../../../common/CommonModal";
 import { upsertObstetricDetails } from "../../service";
 import { errorMessage, getClinicName } from "../../../../utils/utils";
 import { getOrdinalSuffix } from "../../../growthChart/growthChartHelper";
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  closeVisit: imgCloseVisit,
+  checkBadge: visitEnd,
+} = ASSETS.images;
 
 function PastPregnancy({
   close,

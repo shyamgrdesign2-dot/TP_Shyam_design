@@ -8,8 +8,7 @@ import { isChrome, isSafari, deviceDetect } from 'react-device-detect';
 import { useQrPrintDownloadHandlers } from '../../common/qrPrintDownloadHelper';
 
 import Homepage from '../../website/Homepage';
-import stopPublishing from '../../assets/images/stop-publishing.svg';
-import LinkIcon from '../../assets/images/Link.svg';
+
 import './HeaderDoctorWebsite.scss';
 
 import DoctorWebsiteSettingsContext from '../../context/DoctorWebsiteSettingsContext';
@@ -19,12 +18,18 @@ import { updateWebsitePublish } from "../../redux/doctorsSlice";
 import { errorMessage, handleCopy, validateEmail, trackEvent, getTokenData, sendMessageToParent } from '../../utils/utils';
 import CommonModal from '../../common/CommonModal';
 import QrPrintDownloadModal from '../../common/QrPrintDownloadModal';
-import alertIcon from '../../assets/images/alertIcon.svg';
-import logoIcom from '../../assets/images/text-logo.svg';
-import ShareIcon from "../../assets/images/share.svg";
-import CopyIcon from "../../assets/images/copy.svg";
-import { ReactComponent as QrIcon } from '../../assets/images/qr-icon.svg';
+
 import { EVENTS } from '../../utils/events';
+import { ASSETS } from "../../assets";
+const {
+  stopPublishing,
+  link: LinkIcon,
+  alerticon: alertIcon,
+  textLogo: logoIcom,
+  share: ShareIcon,
+  copy: CopyIcon,
+  qrIcon,
+} = ASSETS.images;
 
 function HeaderDoctorWebsite() {
 
@@ -57,7 +62,6 @@ function HeaderDoctorWebsite() {
     const [isQRCodeVisible, setQRCodeVisible] = useState(false);
     const cancelTokenSource = useRef(null);
     const printRef = useRef();
-
 
     async function onSaveWebsiteClick() {
         // Track mixpanel event for website save and publish
@@ -230,7 +234,6 @@ function HeaderDoctorWebsite() {
             key: 'UnPublish',
         },
     ];
-
 
     const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
 
@@ -507,7 +510,9 @@ function HeaderDoctorWebsite() {
                                                         className="copy-button" 
                                                         onClick={handleShowQRCode}
                                                     >
-                                                        <QrIcon
+                                                        <img
+                                                            src={qrIcon}
+                                                            alt=""
                                                             style={{ color:"#4b4ad5", filter:"invert(22%) sepia(79%) saturate(2418%) hue-rotate(228deg) brightness(90%) contrast(100%)"}}
                                                         />
                                                     </button>

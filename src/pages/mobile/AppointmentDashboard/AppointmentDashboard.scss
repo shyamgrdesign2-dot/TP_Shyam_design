@@ -1,3 +1,5 @@
+@import '../../../styles/variables.scss';
+
 .mobile-appointment-dashboard {
   display: flex;
   flex-direction: column;
@@ -8,8 +10,8 @@
 
   .dashboard-header-wrapper {
     background: 
-      url('../../../assets/mobile/Right Vector.svg') left top no-repeat,
-      url('../../../assets/mobile/Left Vector.svg') right top no-repeat,
+      url('#{$tp-assets-base}/mobile/Right%20Vector.svg') left top no-repeat,
+      url('#{$tp-assets-base}/mobile/Left%20Vector.svg') right top no-repeat,
       linear-gradient(135deg, #603795 0%, #3A225D 15%, #2F1D58 30%, #241852 45%, #131038 60%, #121229 75%, #10101E 100%);
     background-size: auto, auto, 100% 100%;
     position: relative;

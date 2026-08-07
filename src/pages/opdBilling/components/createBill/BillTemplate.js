@@ -20,7 +20,8 @@ import {
 } from "../../../../redux/billingPackageSlice";
 import { LoadingOutlined } from "@ant-design/icons";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "./../../../../assets/images/alertIcon.svg";
+import { ASSETS } from "../../../../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 const BillTemplate = ({ setDataSource, dataSource, totalBillAmount }) => {
   const TAB_ADD_PACKAGE = 1;
@@ -545,7 +546,6 @@ const BillTemplate = ({ setDataSource, dataSource, totalBillAmount }) => {
       />
     );
   }, [isModalOpen1, showHideClearData, onRemoveRows]);
-
 
   // Count valid billing items (rows with masterId and name)
   const validItemsCount = useMemo(() => {

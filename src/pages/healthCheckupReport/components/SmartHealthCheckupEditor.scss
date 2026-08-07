@@ -1,5 +1,3 @@
-
-
 /* ─── Reset / Base scoped to Editor ───────────────────────────────────────── */
 .health-checkup-editor__smart-editor-wrap {
 
@@ -199,41 +197,41 @@
     }
 
     /* ─── Chief Complaints, Impression, Advice, General Recommendations boxes ─────── */
-    /* Using div.report-section-box so Enter key creates new p children INSIDE the box */
-    /* (bare p elements get split by Enter, pushing the cursor outside the styled border) */
-    div.report-section-box {
-        min-height: 52px;
-        height: auto;
-        overflow: visible;
-        padding: 6px 12px;
+    /* Using table.report-section-box so Jodit never deletes or splits the box natively */
+    table.report-section-box {
+        width: 100%;
+        border-collapse: collapse;
         margin: 0 0 12px;
         background: rgba(255, 255, 255, 0.5);
-        border: 1px solid #f1f1f5;
+        border: 1px solid #f1f1f5 !important;
         border-radius: 0;
-    }
 
-    div.report-section-box p {
-        font-family: 'Poppins', sans-serif;
-        font-size: 15px;
-        line-height: 18px;
-        letter-spacing: 0.0607px;
-        color: #454551;
-        margin: 0;
-    }
+        td {
+            overflow: visible;
+            padding: 6px 12px;
+            border: none;
+            height: 52px;
+            word-break: normal;
+            overflow-wrap: normal;
+            vertical-align: top;
 
-    /* CSS placeholder — shows when p is empty, disappears on typing */
-    // div.report-section-box p:empty::before {
-    //     content: 'Type here...';
-    //     color: #A2A2A8;
-    //     pointer-events: none;
-    //     font-style: italic;
-    // }
+            p {
+                font-family: 'Poppins', sans-serif;
+                font-size: 15px;
+                line-height: 18px;
+                letter-spacing: 0.0607px;
+                color: #454551;
+                margin: 0;
+                word-break: normal;
+                overflow-wrap: normal;
+            }
+        }
+    }
 
     /* General Recommendations: taller default empty-box height */
-    div.report-section-box.report-general-rec {
+    table.report-section-box.report-general-rec td {
         min-height: 154px;
     }
-
 
     /* ─── Data Tables (Patient History, General Exam, Radiology, etc.) ─────────── */
 
@@ -282,7 +280,7 @@
         border: 0.607px solid #f1f1f5;
         white-space: normal;
         overflow-wrap: break-word;
-        word-break: break-word;
+        word-break: normal;
     }
 
     .report-data-table thead tr th p {
@@ -293,7 +291,7 @@
         letter-spacing: 0.0607px;
         color: #454551;
         overflow-wrap: break-word;
-        word-break: break-word;
+        word-break: normal;
     }
 
     /* ── Table: Body rows ── */
@@ -311,11 +309,10 @@
         padding: 6px 6.681px;
         border: 0.607px solid #f1f1f5;
         min-height: 40px;
-        /* minimum row height, will expand with content */
         height: auto;
-        overflow: hidden;
+        overflow: visible;
         overflow-wrap: break-word;
-        word-break: break-word;
+        word-break: normal;
     }
 
     .report-data-table tbody tr td p {
@@ -326,7 +323,7 @@
         letter-spacing: 0.0607px;
         color: #454551;
         overflow-wrap: break-word;
-        word-break: break-word;
+        word-break: normal;
     }
 
     /* ── Column widths: 2-column tables (NAME | NOTE/NOTES) ── */
@@ -365,11 +362,6 @@
     .report-data-table+h2,
     .report-data-table+.report-section-title {
         margin-top: 12px;
-    }
-
-    .report-section-box+h2,
-    .report-section-box+.report-section-title {
-        margin-top: 0;
     }
 
     /* ─── Utility: lists inside tables ─────────────────────────────────────────── */
@@ -436,21 +428,51 @@
     gap: 19px;
 }
 
-.smart-editor-content-container {
+/* Jodit Editor Styles */
+.health-checkup-editor__document-body.jodit-container {
+    background: #FAFAFB !important;
+    border: none !important;
+    height: auto !important;
+}
+
+.health-checkup-editor__document-body .jodit-toolbar__box {
+    background: #FAFAFB !important;
+    border: none !important;
+    border-bottom: 1px solid #e2e2ea !important;
+    padding: 10px 40px !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 90 !important;
+}
+
+.health-checkup-editor__document-body .jodit-workplace {
+    background: transparent !important;
+    padding-top: 19px !important;
+    height: auto !important;
+    min-height: 800px !important;
+    overflow: visible !important;
+}
+
+.health-checkup-editor__document-body .jodit-wysiwyg {
     width: 595px !important;
     max-width: 100% !important;
-    margin: 0 auto;
+    margin: 0 auto !important;
     background: #FFF !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
+    overflow: visible !important;
+    min-height: 800px !important;
+    height: auto !important;
+    padding: 20px !important;
+    box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
-.smart-editor[toolbar-view-mode=multiRow] .smart-editor-toolbar-items-primary,
-.smart-editor[toolbar-view-mode=scroll] .smart-editor-toolbar-items-primary {
-    padding: 0 40px 5px 40px;
+.health-checkup-editor__smart-editor-wrap .jodit-wysiwyg {
+    height: auto !important;
+    min-height: 800px !important;
+    overflow: visible !important;
 }
 
-.smart-editor .smart-editor-toolbar-items-primary,
-.smart-editor .smart-editor-toolbar-items-secondary {
-    gap: 2px;
+.jodit-context table tr,
+.jodit-wysiwyg table tr {
+    min-height: 32px;
 }

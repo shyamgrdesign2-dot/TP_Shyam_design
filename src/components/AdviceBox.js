@@ -19,11 +19,17 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
-import Adviceicon from "../assets/images/advice.svg";
+
 import { MenuOutlined } from '@ant-design/icons';
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
 import {
   addTemplate,
   updateTemplate,
@@ -34,9 +40,28 @@ import {
 } from "../redux/adviceSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { PrescriptionEmptyLineDragHandle } from "./PrescriptionEmptyLineUi";
 import { classNames } from "@react-pdf-viewer/core";
+import { ASSETS } from "../assets";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import { Grid5, Trash } from "iconsax-reactjs";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+const {
+  alerticon: alertIcon,
+  advice: Adviceicon,
+} = ASSETS.images;
 
-function AdviceBox() {
+const MAX_ADVICE_CHIPS = 7;
+
+function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const inputRef = useRef();
   const {
     selectedAdviceList,
@@ -50,6 +75,27 @@ function AdviceBox() {
   const { adviceData, setAdviceData } = useContext(CashManagerContext);
   // const [adviceData, setAdviceData] = useState([]);
   const [adviceDataCheck, setAdviceDataCheck] = useState([]);
+  const applyVoiceAdvice = useCallback((nextAdvice) => {
+    if (nextAdvice.length > 0) {
+      setAdviceData(nextAdvice);
+    }
+  }, [setAdviceData]);
+  const adviceVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(adviceData, "advice"),
+    [adviceData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Advices",
+    onApply: applyVoiceAdvice,
+    successMessage: "Advices filled from voice dictation",
+    copyPayloadKeys: ["advice"],
+  });
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -61,6 +107,43 @@ function AdviceBox() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
+
+  // Frequently-used chips (Tesseract shell only) — captured from the
+  // frequently-searched list; not overwritten by typed-search results.
+  const [frequentAdviceChips, setFrequentAdviceChips] = useState([]);
+  useEffect(() => {
+    if (!searchQuery && Array.isArray(parentOptionsList) && parentOptionsList.length > 0) {
+      // The frequently-searched API can return the same advice more than once;
+      // dedupe so the chip keys stay unique.
+      setFrequentAdviceChips([
+        ...new Set(parentOptionsList.map((e) => e.advice_name).filter(Boolean)),
+      ]);
+    }
+  }, [parentOptionsList, searchQuery]);
+  // Chips are a shortcut, not the full list — the dropdown still shows every
+  // frequently-used advice. Slice after filtering so a fresh one backfills as
+  // rows get added.
+  const availableAdviceChips = useTesseractUi
+    ? frequentAdviceChips
+        .filter(
+          (name) => !adviceData.some(
+            (row) => String(row.advice_name || "").toLowerCase() === name.toLowerCase()
+          )
+        )
+        .slice(0, MAX_ADVICE_CHIPS)
+    : [];
+  const onChipAdd = useCallback((name) => {
+    setAdviceData((prev) => [
+      ...prev,
+      {
+        unique_id: uuidv4(),
+        change: 1,
+        pms_default: 0,
+        advice_name: name,
+      },
+    ]);
+  }, [setAdviceData]);
+
 
   const [autoCompleteFlag, setAutoCompleteFlag] = useState(false);
   const [childDrawer, setChildDrawer] = useState(false);
@@ -416,12 +499,16 @@ function AdviceBox() {
                         className="advicecheck-row align-items-center"
                       >
                         <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: 'grab' }}
-                          >
-                          </MenuOutlined>
+                          {useTesseractUi ? (
+                            <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                          ) : (
+                            <MenuOutlined
+                              {...provided.dragHandleProps}
+                              className="drag-handle"
+                              style={{ cursor: 'grab' }}
+                            >
+                            </MenuOutlined>
+                          )}
                         </Col>
                         <Col lg={23} md={23} sm={23} xs={23} className='px-2 d-flex justify-content-between align-items-center'>
                           <Checkbox checked onClick={() => onRemoveRow(index)}><div className="text-truncate-twolines">{item.advice_name}</div></Checkbox>
@@ -437,7 +524,7 @@ function AdviceBox() {
         </Droppable>
       </DragDropContext>
     );
-  }, [adviceData]);
+  }, [adviceData, useTesseractUi]);
 
   // Handle Child Drawer
   const handleDrawerChild = useCallback((item) => {
@@ -481,7 +568,7 @@ function AdviceBox() {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -511,7 +598,7 @@ function AdviceBox() {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -581,7 +668,7 @@ function AdviceBox() {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box"><i className="icon-template"></i></div>
+                  <div className="round-box">{useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -700,61 +787,27 @@ function AdviceBox() {
     );
   }, [isModalOpen1]);
 
-  return (
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
     <>
-      <div className="">
-        <div className="d-flex align-items-center justify-content-between p-14-pb0">
-          <div className="d-flex align-items-center">
-            <img className="me-2" src={Adviceicon} alt="Advice" />
-            <div className="title-common">Advices</div>
-          </div>
-          <div className="d-flex align-items-center">
-            <Popover
-              open={popOver1}
-              onOpenChange={showHideTemplatesListPopover}
-              content={TEMPLATE_CONTENT}
-              trigger="click"
-              overlayClassName="pop-350 pp-0"
-              placement="bottom"
-            >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
-            </Popover>
-            <Tooltip placement="bottom" title={(adviceData.length > 0) ? "" : "Please enter some Advices to save a template"}>
-              <Popover
-                open={popOver2}
-                onOpenChange={() => (adviceData.length > 0) && showHideSaveTemplatePopOver()}
-                // onOpenChange={showHideSaveTemplatePopOver}
-                content={SAVE_CONTENT}
-                trigger="click"
-                overlayClassName="pop-450 pp-0"
-                placement="bottom"
-              >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
-              </Popover>
-            </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={adviceData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
-          </div>
-        </div>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_ADVICE}
+      <Drawer closeIcon={false} placement="right" onClose={handleDrawerChild} open={childDrawer} className="modalWidth-563" width="auto">
+        {CHILD_DRAWER_DATA}
+      </Drawer>
 
-        {DELETE_MODAL}
-        {REMOVE_ALL_ROWS}
-        {TABLE_ADVICE}
-        <Drawer closeIcon={false} placement="right" onClose={handleDrawerChild} open={childDrawer} className="modalWidth-563" width="auto">
-          {CHILD_DRAWER_DATA}
-        </Drawer>
-
-        <div className="p-14">
+      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : (useTesseractUi ? "" : "p-14")}>
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+          <VoiceRxModuleCapture
+            moduleName="Advices"
+            previousContext={adviceVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.advice}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        ) : (
           <AutoComplete
             ref={inputRef}
-            // defaultValue={searchParentQuery}
             value={searchQuery}
             onSearch={onSearchParent}
             onFocus={onFocusParent}
@@ -770,7 +823,171 @@ function AdviceBox() {
               prefix={<i className="icon-search"></i>}
             />
           </AutoComplete>
+        )}
+      </div>
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — outer skin only; body (dropdown,
+    // checkbox rows) stays exactly as the classic UI renders it.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target="advice"
+        title="Advices"
+        icon="bulk/clipboard-check"
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="advice"
+                label="Start Advices voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: "Browse advice templates" })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (adviceData.length > 0) && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Save as template">
+                  {tesseractActionButton({ icon: "ram", label: "Save advice as template", disabled: adviceData.length === 0 })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: "Clear advice", onClick: showHideClearData, disabled: adviceData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+        {availableAdviceChips.length > 0 && (
+          <div className="tesseract-rxpad-chips">
+            {availableAdviceChips.map((name) => (
+              <TesseractButton
+                key={name}
+                variant="tonal"
+                theme="neutral"
+                size="sm"
+                className="tesseract-rxpad-chip"
+                title={name}
+                onClick={() => onChipAdd(name)}
+              >
+                {name}
+              </TesseractButton>
+            ))}
+          </div>
+        )}
+      </RxPadSection>
+    );
+  }
+
+  return (
+    <>
+      <div ref={sectionRef} data-voice-rx-dictation-target="advice" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+        <div className="d-flex align-items-center justify-content-between p-14-pb0">
+          <div className="d-flex align-items-center">
+            <img className="me-2" src={Adviceicon} alt="Advice" />
+            <div className="title-common">Advices</div>
+          </div>
+          <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="advice"
+                label="Start Advices voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottom"
+            >
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse advice templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse advice templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
+            </Popover>
+            <Tooltip placement="bottom" title={(adviceData.length > 0) ? "" : "Please enter some Advices to save a template"}>
+              <Popover
+                open={popOver2}
+                onOpenChange={() => (adviceData.length > 0) && showHideSaveTemplatePopOver()}
+                // onOpenChange={showHideSaveTemplatePopOver}
+                content={SAVE_CONTENT}
+                trigger="click"
+                overlayClassName="pop-450 pp-0"
+                placement="bottom"
+              >
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton type="save" label="Save advice as template" disabled={adviceData.length === 0} />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
+              </Popover>
+            </Tooltip>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton type="clear" label="Clear advice" onClick={showHideClearData} disabled={adviceData.length === 0} />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={adviceData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {BODY_CONTENT}
       </div>
     </>
   );

@@ -7,12 +7,7 @@ import React, {
   useState,
 } from "react";
 import { Button, Spin, Tabs } from "antd";
-import genRxIcon from "../assets/images/gen-rx-icon.svg";
-import growIcon from "../assets/images/grow.svg";
-import accuracyIcon from "../assets/images/accuracy.svg";
-import healthIcon from "../assets/images/health-care.svg";
-import intersect from "../assets/images/intersect.svg";
-import playIcons from "../assets/images/tube-icon.svg";
+
 import VideoModal from "../common/VideoModal";
 import ExpiredText from "../pages/monetization/components/ExpiredText";
 import ContactSupport from "../pages/monetization/components/ContactSupport";
@@ -23,6 +18,15 @@ import "./GenRxKnowMore.scss";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { env } from "../EnvironmentConfig";
 import { getTokenData } from "../utils/utils";
+import { ASSETS } from "../assets";
+const {
+  genRxIcon,
+  grow: growIcon,
+  accuracy: accuracyIcon,
+  healthCare: healthIcon,
+  intersect,
+  tubeIcon: playIcons,
+} = ASSETS.images;
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 

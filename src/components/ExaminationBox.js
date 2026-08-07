@@ -16,10 +16,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
-import Examinationicon from "../assets/images/Examination.svg";
+
 import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
@@ -33,8 +33,41 @@ import {
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
+import { ASSETS } from "../assets";
+import { Grid5, Trash } from "iconsax-reactjs";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleButton,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "./tesseractCt";
+const {
+  alerticon: alertIcon,
+  examination: Examinationicon,
+} = ASSETS.images;
 
-function ExaminationBox() {
+function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  // Voice-mode table layout classes are legacy-only; the Tesseract shell uses
+  // the plain antd grid so header and body columns always align.
+  const useVoiceTableLayout = isVoiceRxModuleEnabled && !useTesseractUi;
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedExaminationList,
     parentOptionsList,
@@ -71,6 +104,83 @@ function ExaminationBox() {
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
+
+  const createCustomExaminationRow = useCallback((examinationName) => ({
+    unique_id: uuidv4(),
+    change: 1,
+    pms_default: 0,
+    examination_name: examinationName,
+  }), []);
+
+  const createCommittedExaminationRow = useCallback((examinationRow, examinationName) => ({
+    ...examinationRow,
+    examination_name: examinationName,
+    note: "",
+  }), []);
+
+  const onEmptyLineExaminationCommit = useCallback(() => {
+    dispatch(setIsDDxReadyToGenerate(true));
+  }, [dispatch]);
+
+  const onEmptyLineExaminationRemove = useCallback((nextExaminations) => {
+    if (nextExaminations.length > 0) {
+      dispatch(setIsDDxReadyToGenerate(true));
+    } else if ((Array.isArray(symptomsData) ? symptomsData : []).length === 0) {
+      dispatch(setIsDDxReadyToGenerate(false));
+    }
+  }, [dispatch, symptomsData]);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: examinationData,
+    setRows: setExaminationData,
+    showVoiceRxModule,
+    useTesseractUi,
+    nameField: "examination_name",
+    rowKeyPrefix: "examination",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomExaminationRow,
+    createCommittedRow: createCommittedExaminationRow,
+    onAfterCommit: onEmptyLineExaminationCommit,
+    onAfterRemove: onEmptyLineExaminationRemove,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetDraft: resetEmptyLineDraft,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
+
+  const applyVoiceExaminations = useCallback((nextExaminations) => {
+    if (Array.isArray(nextExaminations) && nextExaminations.length > 0) {
+      setExaminationData(nextExaminations);
+      resetEmptyLineDraft();
+    }
+  }, [resetEmptyLineDraft, setExaminationData]);
+
+  const examinationsVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(examinationData, "examinations"),
+    [examinationData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Examinations",
+    onApply: applyVoiceExaminations,
+    successMessage: "Examinations filled from voice dictation",
+    copyPayloadKeys: ["examinations"],
+  });
 
   useEffect(() => {
     if (selectedExaminationList.length > 0) {
@@ -142,7 +252,7 @@ function ExaminationBox() {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, searchParentQuery]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -151,6 +261,35 @@ function ExaminationBox() {
     },
     [searchParentQuery]
   );
+
+  // Frequently-used chips (Tesseract shell only) — captured from the
+  // frequently-searched list; not overwritten by typed-search results.
+  const [frequentExaminationChips, setFrequentExaminationChips] = useState([]);
+  useEffect(() => {
+    if (!searchParentQuery && Array.isArray(parentOptionsList) && parentOptionsList.length > 0) {
+      setFrequentExaminationChips(parentOptionsList.map((e) => e.examination_name).filter(Boolean));
+    }
+  }, [parentOptionsList, searchParentQuery]);
+  const availableExaminationChips = useTesseractUi
+    ? frequentExaminationChips.filter(
+        (name) => !examinationData.some(
+          (row) => String(row.examination_name || "").toLowerCase() === name.toLowerCase()
+        )
+      )
+    : [];
+  const onChipAdd = useCallback((name) => {
+    setExaminationData((prev) => [
+      ...prev,
+      {
+        unique_id: uuidv4(),
+        change: 1,
+        pms_default: 0,
+        examination_name: name,
+        note: "",
+      },
+    ]);
+    dispatch(setIsDDxReadyToGenerate(true));
+  }, [dispatch, setExaminationData]);
 
   const onSelectParent = useCallback(
     (data, e) => {
@@ -254,6 +393,10 @@ function ExaminationBox() {
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     examinationData.splice(index, 1);
     setExaminationData((prev) => [...prev]);
     if (examinationData?.length > 0) {
@@ -323,14 +466,15 @@ function ExaminationBox() {
   );
 
   const onAddTemplateClicked = async () => {
-    if (examinationData.length === 0) {
+    const templateExamination = examinationData;
+    if (templateExamination.length === 0) {
       errorMessage('At least 1 examination added')
-    } else if (examinationData.filter(e => e.examination_name == "").length > 0) {
+    } else if (templateExamination.filter(e => String(e.examination_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup examination name')
     } else {
       var sendData = {
         tet_template_name: inputTemplateName,
-        examination: examinationData,
+        examination: templateExamination,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -352,16 +496,17 @@ function ExaminationBox() {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (examinationData.length === 0) {
+    const templateExamination = examinationData;
+    if (templateExamination.length === 0) {
       errorMessage('At least 1 examination added')
-    } else if (examinationData.filter(e => e.examination_name == "").length > 0) {
+    } else if (templateExamination.filter(e => String(e.examination_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup examination name')
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         tet_id: data.tet_id,
         tet_template_name: data.tet_template_name,
-        examination: examinationData,
+        examination: templateExamination,
       };
       const action = await dispatch(updateTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -431,77 +576,185 @@ function ExaminationBox() {
   };
 
   const TABLE_EXAMINATION = useMemo(() => {
+    const examinationRows = Array.isArray(examinationData) ? examinationData : [];
+    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled && !useTesseractUi;
+
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="examination" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
-              {examinationData.length > 0 &&
-                examinationData.map((item, index) => (
-                  <Draggable key={index} draggableId={`examination-${index}`} index={index}>
-                    {(provided) => (
-                      <Row
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        key={index}
-                        gutter={[0]}
-                        className={`${index === 0 && 'mt-14 border-top'
+      <div
+        className={[shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : "", useTesseractUi ? "tesseract-ct" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
+        {useTesseractUi && (
+          <Row gutter={0} className="tesseract-ct-head">
+            <Col lg={1} md={1} sm={1} xs={1} className="tesseract-ct-th" />
+            <Col lg={8} md={8} sm={8} xs={8} className="tesseract-ct-th">Name</Col>
+            <Col lg={14} md={14} sm={13} xs={13} className="tesseract-ct-th">Notes</Col>
+            <Col lg={1} md={1} sm={2} xs={2} className="tesseract-ct-th tesseract-ct-sticky-action" />
+          </Row>
+        )}
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="examination" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={[
+                  isNewEmptyLineUiEnabled ? "prescription-empty-line-ui" : "mt-2",
+                  shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableBody : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {examinationRows.map((item, index) => {
+                  const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(item, index) : `examination-${index}`;
+
+                  return (
+                    <Draggable key={rowKey} draggableId={rowKey} index={index}>
+                      {(provided) => (
+                        <Row
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          key={rowKey}
+                          gutter={[0]}
+                          className={isNewEmptyLineUiEnabled ? [
+                            "symptoms-table-row",
+                            emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                          ].filter(Boolean).join(" ") : `${index === 0 && 'mt-14 border-top'
                           } align-items-center border-bottom`}
-                      >
-                        <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: 'grab' }}
-                          >
-                          </MenuOutlined>
-                        </Col>
-                        <Col lg={8} md={8} sm={8} xs={8} className="border-end">
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.examination_name}
-                              value={item.examination_name}
-                              placeholder="Examination Name"
-                              bordered={false}
-                              defaultOpen={false}
-                              disabled={item?.pms_default ? true : false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) => onSelectChild(data, e, index)}
+                        >
+                          <Col lg={1} md={1} sm={1} xs={1} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            {isNewEmptyLineUiEnabled ? (
+                              <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                            ) : (
+                              <MenuOutlined
+                                {...provided.dragHandleProps}
+                                className="drag-handle"
+                              >
+                              </MenuOutlined>
+                            )}
+                          </Col>
+                          <Col lg={8} md={8} sm={8} xs={8} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            <div className="fontroboto fw-medium w-100">
+                              <AutoComplete
+                                defaultValue={item.examination_name}
+                                value={item.examination_name}
+                                placeholder="Examination Name"
+                                bordered={false}
+                                defaultOpen={false}
+                                disabled={item?.pms_default ? true : false}
+                                onSearch={(query) => onSearchChild(query, index)}
+                                onFocus={() => onFocusChid(index)}
+                                options={childSearchOptions}
+                                className="autocomplete-custom w-100 inputborder"
+                                {...getPrescriptionNewPopupProps()}
+                                defaultActiveFirstOption={true}
+                                onSelect={(data, e) => onSelectChild(data, e, index)}
+                              />
+                            </div>
+                          </Col>
+                          <Col lg={14} md={14} sm={13} xs={13} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-end",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            <Input
+                              className="notesinput border-0"
+                              placeholder="Notes"
+                              defaultValue={item.note}
+                              value={item.note}
+                              onChange={(e) => onChangeNoteChild(e, index)}
                             />
-                          </div>
-                        </Col>
-                        <Col lg={14} md={14} sm={13} xs={13} className="border-end">
-                          <Input
-                            className="notesinput border-0"
-                            placeholder="Notes"
-                            defaultValue={item.note}
-                            value={item.note}
-                            onChange={(e) => onChangeNoteChild(e, index)}
-                          />
-                        </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="text-center">
-                          <Button
-                            className="btn py-0 btn-delete-prescription px-0"
-                            onClick={() => onRemoveRow(index)}
-                          >
-                            <i className="icon-delete"></i>
-                          </Button>
-                        </Col>
-                      </Row>
-                    )}
-                  </Draggable>
-                ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                          </Col>
+                          <Col lg={1} md={1} sm={2} xs={2} className={[
+                            isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                            useTesseractUi ? "tesseract-ct-sticky-action" : "",
+                            shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                          ].filter(Boolean).join(" ")}>
+                            <Button
+                              className="btn py-0 btn-delete-prescription px-0"
+                              onClick={() => onRemoveRow(index)}
+                            >
+                              {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                            </Button>
+                          </Col>
+                        </Row>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
+                {isNewEmptyLineUiEnabled && (
+                  <Row
+                    gutter={[0]}
+                    className={[
+                      "symptoms-table-row",
+                      "prescription-empty-line-row--animated",
+                      "prescription-empty-line-row--draft",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <Col lg={1} md={1} sm={1} xs={1} className={[
+                      "symptoms-table-cell center",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                    ].filter(Boolean).join(" ")} />
+                    <Col lg={8} md={8} sm={8} xs={8} className={[
+                      "symptoms-table-cell prescription-empty-line-cell--draft-active",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <PrescriptionEmptyLineDraftSearch
+                        inputRef={emptyLineDraftInputRef}
+                        inputClassName="fontroboto fw-medium w-100"
+                        value={emptyLineDraftName}
+                        options={parentSearchOptions}
+                        popupProps={getPrescriptionNewPopupProps()}
+                        onSearch={onEmptyLineDraftSearch}
+                        onSelect={onEmptyLineDraftSelect}
+                        onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                      />
+                    </Col>
+                    <Col lg={14} md={14} sm={13} xs={13} className={[
+                      "symptoms-table-cell",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <Input
+                        className="notesinput border-0 prescription-empty-line-draft-disabled-control"
+                        placeholder="Notes"
+                        value=""
+                        disabled
+                      />
+                    </Col>
+                    <Col lg={1} md={1} sm={2} xs={2} className={[
+                      "symptoms-table-cell center",
+                      useTesseractUi ? "tesseract-ct-sticky-action" : "",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                    ].filter(Boolean).join(" ")} />
+                  </Row>
+                )}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [examinationData, childSearchOptions]);
+  }, [
+    examinationData,
+    childSearchOptions,
+    isNewEmptyLineUiEnabled,
+    isVoiceRxModuleEnabled,
+    emptyLineDraftInputRef,
+    emptyLineDraftName,
+    emptyLineRemovingRowKeys,
+    getEmptyLineRowKey,
+    onEmptyLineDraftInputKeyDown,
+    onEmptyLineDraftSearch,
+    onEmptyLineDraftSelect,
+    parentSearchOptions,
+    useTesseractUi,
+  ]);
 
   //Child Componet
   // const TABLE_EXAMINATION = useMemo(() => {
@@ -590,7 +843,7 @@ function ExaminationBox() {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -615,7 +868,7 @@ function ExaminationBox() {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -672,6 +925,7 @@ function ExaminationBox() {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -685,7 +939,7 @@ function ExaminationBox() {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box"><i className="icon-template"></i></div>
+                  <div className="round-box">{useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -714,6 +968,7 @@ function ExaminationBox() {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setExaminationData([])
     showHideClearData()
   };
@@ -753,15 +1008,145 @@ function ExaminationBox() {
     );
   }, [isModalOpen1]);
 
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_EXAMINATION}
+      {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        <div className={voiceModuleStyles.moduleSlot}>
+          <VoiceRxModuleCapture
+            moduleName="Examinations"
+            previousContext={examinationsVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.examination}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        </div>
+      ) : !isNewEmptyLineUiEnabled ? (
+        <div className="p-14">
+          <AutoComplete
+            value={searchParentQuery}
+            onSearch={onSearchParent}
+            options={parentSearchOptions}
+            className="autocomplete-custom w-100"
+            onSelect={onSelectParent}
+            defaultActiveFirstOption={true}
+            {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
+          >
+            <Input
+              placeholder="Search Examinations"
+              prefix={<i className="icon-search"></i>}
+            />
+          </AutoComplete>
+        </div>
+      ) : null}
+      {useTesseractUi && availableExaminationChips.length > 0 && (
+        <div className="tesseract-rxpad-chips">
+          {availableExaminationChips.map((name) => (
+            <TesseractButton
+              key={name}
+              variant="tonal"
+              theme="neutral"
+              size="sm"
+              className="tesseract-rxpad-chip"
+              title={name}
+              onClick={() => onChipAdd(name)}
+            >
+              {name}
+            </TesseractButton>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target="examinations"
+        title="Examinations"
+        icon="bulk/stethoscope"
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="examinations"
+                label="Start Examinations voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: "Browse examination templates" })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (examinationData.length > 0) && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Save as template">
+                  {tesseractActionButton({ icon: "ram", label: "Save examination as template", disabled: examinationData.length === 0 })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: "Clear examinations", onClick: showHideClearData, disabled: examinationData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
+
   return (
     <>
-      <div className="">
+      <div ref={sectionRef} data-voice-rx-dictation-target="examinations" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Examinationicon} alt="Examination" />
             <div className="title-common">Examinations</div>
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="examinations"
+                label="Start Examinations voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -771,10 +1156,18 @@ function ExaminationBox() {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse examination templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse examination templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip placement="bottom" title={(examinationData.length > 0) ? "" : "Please enter some Examination to save a template"}>
               <Popover
@@ -786,39 +1179,40 @@ function ExaminationBox() {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton
+                      type="save"
+                      label="Save examination as template"
+                      disabled={examinationData.length === 0}
+                    />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={examinationData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton
+                  type="clear"
+                  label="Clear examinations"
+                  onClick={showHideClearData}
+                  disabled={examinationData.length === 0}
+                />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={examinationData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {DELETE_MODAL}
-        {REMOVE_ALL_ROWS}
-        {TABLE_EXAMINATION}
-
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={!searchParentQuery && "boxpopup"}
-          >
-            <Input
-              placeholder="Search Examinations"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
-        </div>
+        {BODY_CONTENT}
       </div>
     </>
   );

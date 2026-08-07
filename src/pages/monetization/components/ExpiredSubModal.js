@@ -5,15 +5,19 @@ import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 import CampaignDiscount from "./CampaignDiscount";
-import expiredInfographic2 from '../../../assets/images/expired-infographic-2.svg'
-import coinLg from "../../../assets/images/coin-lg.webp";
-import crown from '../../../assets/images/crown.svg'
-import SMS2 from "../../../assets/images/sms-2.webp";
-import planExpiredSandClock from '../../../assets/images/plan-expired-sand-clock.webp'
+
 import { interest } from "../../../redux/monetizationSlice";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../../utils/utils";
 import { openModal } from "../../../redux/doctorModalSlice";
 import { FAILED_VERIFICATION, FREE, S_IPD, S_PHARMACY, S_TATVA_PRACTICE, TRIAL } from "../../../utils/constants";
+import { ASSETS } from "../../../assets";
+const {
+  expiredInfographic2,
+  coinLg,
+  crown,
+  sms2: SMS2,
+  planExpiredSandClock,
+} = ASSETS.images;
 
 function ExpiredSubModal({ title, styles, isSubModalOpen, showHideSubModal }) {
 

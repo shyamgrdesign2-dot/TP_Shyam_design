@@ -2,11 +2,15 @@ import React, { useCallback } from "react";
 import { Dropdown } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import download from "../../../assets/images/document-download.svg";
-import edit from "../../../assets/images/document-edit.svg";
-import preview from "../../../assets/images/preview.svg";
-import send from "../../../assets/images/whatsapp-purple.svg";
+
 import "./ReportCard.scss";
+import { ASSETS } from "../../../assets";
+const {
+  documentDownload: download,
+  documentEdit: edit,
+  preview,
+  whatsappPurple: send,
+} = ASSETS.images;
 
 function ReportCard({
   report,
@@ -58,7 +62,7 @@ function ReportCard({
     },
     {
       key: "download",
-      label: "Download",
+      label: "Print",
       icon: <img src={download} alt="download" />,
       disabled: isSending,
     },

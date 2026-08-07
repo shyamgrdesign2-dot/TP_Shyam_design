@@ -4,11 +4,13 @@ import "./billingHistory.scss";
 import { DownloadOutlined } from "@ant-design/icons";
 import moment from "moment";
 import { useDispatch, useSelector } from "react-redux";
-import billingsIcon from "../../assets/images/billings.svg";
+
 import { fetchSubscriptionDetails } from "../../redux/subscriptionSlice";
 import saveAs from "file-saver";
 import axios from "axios";
 import { getClinicName } from "../../utils/utils";
+import { ASSETS } from "../../assets";
+const billingsIcon = ASSETS.images.billings;
 
 const styles = {
   table: {

@@ -8,8 +8,7 @@ import axios from "axios";
 
 import config from "../config";
 import { useLocalStorage } from "../utils/localStorage";
-import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
-import LockIcon from "../assets/images/lock-icon.svg";
+import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, GB_CVT_EXT_HOS, GB_LIMS } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, sendMessageToParent, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import FullPageLoader from "../pages/vaccination/components/Loader";
@@ -22,50 +21,34 @@ import IPDKnowMore from "../pages/monetization/components/IPDKnowMore";
 import PharmacyKnowMore from "../pages/monetization/components/PharmacyKnowMore";
 import AskTatvaKnowMore from "../pages/monetization/components/AskTatvaKnowMore";
 import { EVENTS } from "../utils/events";
-import {
-  Calendar,
-  CalendarPrimary,
-  Profile2User,
-  Profile2UserPrimary,
-  Chart,
-  ChartPrimary,
-  PieChart,
-  PieChartPrimary,
-  Shop,
-  ShopPrimary,
-  ReceiptText,
-  ReceiptTextPrimary,
-  CalendarTick,
-  CalendarTickPrimary,
-  HospitalBed,
-  HospitalBedPrimary,
-  Message2,
-  Message2Primary,
-  MessageProgramming,
-  MessageProgrammingPrimary
-} from "../assets/images/navbar-icons";
+import { ASSETS } from "../assets";
 
-// Icon mapping constants - using icons from navbar-icons
+const {
+  lockIcon: LockIcon,
+  navbarIcons: ni,
+} = ASSETS.images;
+
+// Icon mapping constants — URLs from ASSETS (Azure)
 const ICON_MAP = {
   inactive: {
-    ipd: HospitalBed,
-    all_patients: Profile2User,
-    data_analytics: PieChart,
-    apollo_analytics: Chart,
-    pharmacy: Shop,
-    opd_billing: ReceiptText,
-    dr_followup_appointment: CalendarTick,
-    tatva_ai: Message2,
+    ipd: ni.hospitalBed,
+    all_patients: ni.profile2user,
+    data_analytics: ni.pieChart,
+    apollo_analytics: ni.chart,
+    pharmacy: ni.shop,
+    opd_billing: ni.receiptText,
+    dr_followup_appointment: ni.calendarTick,
+    tatva_ai: ni.message2,
   },
   active: {
-    ipd: HospitalBedPrimary,
-    all_patients: Profile2UserPrimary,
-    data_analytics: PieChartPrimary,
-    apollo_analytics: ChartPrimary,
-    pharmacy: ShopPrimary,
-    opd_billing: ReceiptTextPrimary,
-    dr_followup_appointment: CalendarTickPrimary,
-    tatva_ai: Message2Primary,
+    ipd: ni.hospitalBedPrimary,
+    all_patients: ni.profile2userPrimary,
+    data_analytics: ni.pieChartPrimary,
+    apollo_analytics: ni.chartPrimary,
+    pharmacy: ni.shopPrimary,
+    opd_billing: ni.receiptTextPrimary,
+    dr_followup_appointment: ni.calendarTickPrimary,
+    tatva_ai: ni.message2Primary,
   },
 };
 
@@ -93,6 +76,9 @@ function SidebarDoctor() {
   const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_NEW_IPD_HOS_BUSINESS_ID
   );
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const isLimsAccessableFromGB = useFeatureIsOn(GB_LIMS);
+
   const dispatch = useDispatch();
   const { servicesList } = useSelector((state) => state.doctors);
   const ASK_TATVA_planDetails = servicesList?.find(e => e.service_name === S_ASK_TATVA)
@@ -253,7 +239,6 @@ function SidebarDoctor() {
     //   check_SSO(moduleName);
     // }
 
-
     // if (tp_monetization_enable && (moduleName === S_PHARMACY || moduleName === S_IPD)) {
     //   setSubModalData({ service_name: moduleName })
     //   if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier !== TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) {
@@ -400,7 +385,6 @@ function SidebarDoctor() {
     }
   };
 
-
   const checkTatvaAiPurchased = async () => {
     setSubModalData({ service_name: S_ASK_TATVA })
     if (ASK_TATVA_planDetails?.plan_tier === FREE && ASK_TATVA_planDetails?.credit_balance <= 0) {
@@ -501,8 +485,8 @@ function SidebarDoctor() {
                   location.pathname !== "/apollo-consultations" &&
                   location.pathname !== "/bulk_messages")) || 
                 isAppointmentHovered
-                  ? CalendarPrimary
-                  : Calendar
+                  ? ni.calendarPrimary
+                  : ni.calendar
               }
               alt="appointment"
             />
@@ -515,6 +499,9 @@ function SidebarDoctor() {
             </div>
           </NavLink>
 
+          {!isCvtExtHosAccessableFromGB && (
+          <>
+          
           <NavLink
             replace={true}
             className={({ isActive, isPending }) =>
@@ -691,8 +678,8 @@ function SidebarDoctor() {
               <img
                 src={
                   location.pathname === "/bulk_messages" || isMessagesHovered
-                    ? MessageProgrammingPrimary
-                    : MessageProgramming
+                    ? ni.messageProgrammingPrimary
+                    : ni.messageProgramming
                 }
                 alt="messages"
               />
@@ -704,6 +691,25 @@ function SidebarDoctor() {
                 )}
               </div>
             </NavLink>
+          )}
+          {/* {isLimsAccessableFromGB && ( */}
+            {/* <NavLink
+              to="/lims"
+              replace={true}
+              className={({ isActive, isPending }) =>
+                isPending ? "pending" : isActive || location.pathname.startsWith("/lims") ? "active" : ""
+              }
+              onMouseEnter={() => setHoveredItem("lims")}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9.5 2v6.4L4.7 18.2A2 2 0 006.5 21h11a2 2 0 001.8-2.8L14.5 8.4V2" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 2h6M7.5 15h9" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <div className="mt-1 px-2">LIMS</div>
+            </NavLink> */}
+          {/* )} */}
+          </>
           )}
         {/* </div> */}
 

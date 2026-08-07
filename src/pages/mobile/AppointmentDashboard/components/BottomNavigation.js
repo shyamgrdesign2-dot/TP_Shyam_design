@@ -4,10 +4,13 @@ import { useLocalStorage } from '../../../../utils/localStorage';
 import { PERSISTANT_STORAGE_KEY_MEDECO_TOKEN } from '../../../../utils/constants';
 import config from '../../../../config';
 import './BottomNavigation.scss';
-import HomeIcon from '../../../../assets/mobile/arrow-up.svg';
-import AppointmentsIcon from '../../../../assets/mobile/Frame.svg';
-import PatientsIcon from '../../../../assets/mobile/profile-2user.svg';
-import PatientsIconActive from '../../../../assets/mobile/profile-2user2.svg';
+import { ASSETS } from "../../../../assets";
+const {
+  arrowUp: HomeIcon,
+  frame: AppointmentsIcon,
+  profile2user: PatientsIcon,
+  profile2user2: PatientsIconActive,
+} = ASSETS.mobile;
 
 function BottomNavigation({ activeTab = 'appointments' }) {
   const navigate = useNavigate();

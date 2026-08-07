@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Button, Tabs } from "antd";
-import apexAI from "../assets/images/apexAI.svg";
-import codeIcon from "../assets/images/code.svg";
-import clinicalStudyIcon from "../assets/images/clinical-study.svg";
-import compliantIcon from "../assets/images/compliant.svg";
-import validateHealthcareIcon from "../assets/images/validate-heathcare.svg";
-import playIcons from "../assets/images/tube-icon.svg";
+
 import { Col, Row } from "react-bootstrap";
 import VideoModal from "../common/VideoModal";
 import ContactSupport from "../pages/monetization/components/ContactSupport";
@@ -13,6 +8,15 @@ import ExpiredText from "../pages/monetization/components/ExpiredText";
 import { S_DDX } from "../utils/constants";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
+import { ASSETS } from "../assets";
+const {
+  apexai: apexAI,
+  code: codeIcon,
+  clinicalStudy: clinicalStudyIcon,
+  compliant: compliantIcon,
+  validateHeathcare: validateHealthcareIcon,
+  tubeIcon: playIcons,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 

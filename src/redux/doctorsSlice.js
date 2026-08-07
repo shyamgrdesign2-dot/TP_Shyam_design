@@ -170,6 +170,15 @@ export const getDefaultPrintsettings = createAsyncThunk(
     if (result.status) {
       const patientInfo = result?.data?.header_footer?.patient_info;
       if (Array.isArray(patientInfo)) {
+        const consultationTypeIndex = patientInfo.findIndex(
+          (item) =>
+            item?.id === 8 ||
+            (item?.title && String(item.title).trim() === "Consultation Type")
+        );
+        if (consultationTypeIndex !== -1) {
+          patientInfo.splice(consultationTypeIndex, 1);
+        }
+
         const ensureItem = (id, title) => {
           const exists = patientInfo.some(
             (item) =>
@@ -183,6 +192,8 @@ export const getDefaultPrintsettings = createAsyncThunk(
         ensureItem(15, "ABHA ID");
         ensureItem(17, "ABHA Token");
         ensureItem(16, "ABHA Registration Number");
+        ensureItem(18, "Case Type");
+        ensureItem(19, "Patient Category");
       }
       return result.data;
     } else {
@@ -482,7 +493,7 @@ const doctorsSlice = createSlice({
       })
       .addCase(customizedPad.fulfilled, (state, action) => {
         state.loading = false;
-        state.customizedPadLeftList = action.payload.left != undefined ? action.payload.left : []
+        state.customizedPadLeftList = action.payload.left != undefined ? action.payload.left : [];
         state.customizedPadRightList = action.payload.right != undefined ? action.payload.right : []
         state.opthalModuleAutoAdded = false;
       })

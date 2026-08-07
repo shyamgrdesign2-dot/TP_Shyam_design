@@ -24,8 +24,7 @@ import "./RefundBill.scss";
 
 import { useSelector, useDispatch } from "react-redux";
 import { processBillRefund } from "../../../service";
-import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
-import visitEnd from "../../../../../assets/images/end-visit.svg";
+
 import { MESSAGE_KEY } from "../../../../../utils/constants";
 import { PaymentOptions } from "../../../utils/constants";
 import {
@@ -38,6 +37,11 @@ import {
   onlyDecimalFormat,
   trackEvent,
 } from "../../../../../utils/utils";
+import { ASSETS } from "../../../../../assets";
+const {
+  closeVisit: imgCloseVisit,
+  endVisit: visitEnd,
+} = ASSETS.images;
 
 const dateFormat = "YYYY-MM-DD";
 const showDateFormat = "DD MMM, YY";

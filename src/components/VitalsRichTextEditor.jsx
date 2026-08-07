@@ -3,10 +3,14 @@ import { Drawer } from 'antd';
 import moment from 'moment';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import styles from './ConsultationDrawer.module.css';
-import vitalsIcon from '../assets/images/Vitals.svg';
-import addEditIcon from '../assets/images/Icon.svg';
+
 import VitalsBox from './VitalsBox';
 import { enrichVitalsWithCalculations } from '../utils/vitalsCalculations';
+import { ASSETS } from "../assets";
+const {
+  vitals: vitalsIcon,
+  icon: addEditIcon,
+} = ASSETS.images;
 
 const VitalsRichTextEditor = ({
   vitalsAndBodyComposition = {},
@@ -237,7 +241,6 @@ const VitalsRichTextEditor = ({
     if (typeof onUpdate !== 'function' || vitalsObject == null) return;
     onUpdate(vitalsObject);
   }, [onUpdate]);
-
 
   const hasVitalsToDisplay = !isProcessing && mergedVitals &&
     Object.values(mergedVitals).some(value => {

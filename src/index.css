@@ -57,7 +57,7 @@ body.drawer-open-blur #root > *:not(.ant-drawer-root) {
   z-index: 1000;
   display: flex;
   justify-content: flex-end;
-  background-image: url('./assets/images/blur-bg.webp');
+  background-image: url('https://pmdoctorportal.tatvacare.in/tp-assets/assets/images/blur-bg.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -139,4 +139,21 @@ body.drawer-open-blur #root > *:not(.ant-drawer-root) {
 
 .attach-drawer .ant-drawer-content-wrapper {
   box-shadow: 0px -4px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+.app-version-tag {
+  position: fixed;
+  bottom: 4px;
+  left: 12px;
+  font-size: 10px;
+  color: #DCDCDC !important;
+  z-index: 9999;
+  pointer-events: none;
+  user-select: none;
 }

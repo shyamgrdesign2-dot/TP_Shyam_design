@@ -1,8 +1,12 @@
 import { Button } from "antd";
-import grounding from "../assets/images/grounding.svg";
-import newTagWebm from "../assets/images/new-gif.webm";
-import newTagMp4 from "../assets/images/new-gif.mp4";
+
 import LoopingVideo from "./common/LoopingVideo";
+import { ASSETS } from "../assets";
+const {
+  grounding,
+  newGif_3: newTagWebm,
+  newGif_2: newTagMp4,
+} = ASSETS.images;
 
 const GroundingBanner = ({
   setShowGroundingPopup,

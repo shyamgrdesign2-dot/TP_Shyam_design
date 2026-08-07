@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from "react";
 import {
   AutoComplete,
   Input,
@@ -11,16 +11,16 @@ import {
   Spin,
   Tooltip
 } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils/utils";
-import Investigationicon from "../assets/images/Lab.svg";
+import { errorMessage, getHmTypeIndicator, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils/utils";
+
 import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
@@ -28,7 +28,8 @@ import {
   deleteTemplate,
   getInvestigationTemplates,
   getFrequentlySearchedInvestigation,
-  searchInvestigation
+  searchInvestigation,
+  singleTemplateDetails,
 } from "../redux/investigationSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -36,10 +37,60 @@ import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import { ASSETS } from "../assets";
+import { Grid5, Trash } from "iconsax-reactjs";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
+  VoiceRxModuleActionButton,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import ApiInvestigation from "../api/services/ApiInvestigation";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { usePrescriptionNewPopupProps } from "./usePrescriptionNewPopupProps";
+import {
+  PrescriptionEmptyLineDraftSearch,
+  PrescriptionEmptyLineDragHandle,
+  usePrescriptionNewEmptyLineUi,
+} from "./PrescriptionEmptyLineUi";
+import {
+  hasInvalidChikitsalayInvestigation,
+  INVESTIGATION_INVENTORY_WARNING,
+  isChikitsalayInvestigationRow,
+} from "../utils/chikitsalayInventory";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "./tesseractCt";
+const {
+  alerticon: alertIcon,
+  lab: Investigationicon,
+} = ASSETS.images;
 
 const { TextArea } = Input;
 
-function InvestigationBox({handleDDxDrawer, generatedDDx}) {
+const isVoiceRxModuleInvestigation = (item) => !!item?.voice_rx_from_module;
+const isFrequentlyUsedHeaderOption = (option) => option?.key === -1 || option?.key === "-1";
+const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
+  background: "#2f2e39",
+  borderRadius: 8,
+  color: "#fff",
+  fontSize: 14,
+  lineHeight: 1.35,
+  maxWidth: 360,
+  padding: "12px 16px",
+  textAlign: "center",
+};
+
+function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule, useTesseractUi = false}) {
+  const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
+  const isChikitsalayAccessable = useChikitsalay();
   const {
     selectedInvestigationList,
     parentOptionsList,
@@ -52,6 +103,87 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   const { investigationData, setInvestigationData, diagnosisData } =
     useContext(CashManagerContext);
   // const [ investigationData, setInvestigationData] = useState([]);
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  // Voice-mode table layout classes are legacy-only; the Tesseract shell uses
+  // the plain antd grid so header and body columns always align.
+  const useVoiceTableLayout = isVoiceRxModuleEnabled && !useTesseractUi;
+
+  const [searchParentQuery, setSearchParentQuery] = useState("");
+  const [parentSearchOptions, setParentSearchOptions] = useState([]);
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const decodedToken = getDecodedToken();
+  const tokenData = decodedToken?.result;
+  const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
+  const shouldShowInventorySourceWarning = isZydusAccount || isChikitsalayAccessable;
+  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
+  const canAddCustomInvestigation =
+    tokenData?.hospital_business_id != env.zydus_business_id &&
+    !isZydusUserAccessableFromGB &&
+    !isApolloHosBusinessIdAccessableFromGB &&
+    !isChikitsalayAccessable;
+
+  const createCustomInvestigationRow = useCallback((investigationName) => ({
+    unique_id: uuidv4(),
+    change: 1,
+    investigation_name: investigationName,
+  }), []);
+
+  const createCommittedInvestigationRow = useCallback((investigationRow, investigationName) => ({
+    ...investigationRow,
+    investigation_name: investigationName,
+    note: "",
+  }), []);
+
+  const emptyLineUi = usePrescriptionNewEmptyLineUi({
+    rows: investigationData,
+    setRows: setInvestigationData,
+    showVoiceRxModule,
+    useTesseractUi,
+    nameField: "investigation_name",
+    rowKeyPrefix: "investigation",
+    searchOptions: parentSearchOptions,
+    setSearchQuery: setSearchParentQuery,
+    createCustomRow: createCustomInvestigationRow,
+    createCommittedRow: createCommittedInvestigationRow,
+    canCreateCustomRow: canAddCustomInvestigation,
+  });
+  const {
+    draftInputRef: emptyLineDraftInputRef,
+    draftName: emptyLineDraftName,
+    getRowKey: getEmptyLineRowKey,
+    isEnabled: isNewEmptyLineUiEnabled,
+    onDraftInputKeyDown: onEmptyLineDraftInputKeyDown,
+    onDraftSearch: onEmptyLineDraftSearch,
+    onDraftSelect: onEmptyLineDraftSelect,
+    removingRowKeys: emptyLineRemovingRowKeys,
+    removeRow: removeEmptyLineRow,
+    resetDraft: resetEmptyLineDraft,
+    resetRowsUi: resetEmptyLineRowsUi,
+  } = emptyLineUi;
+
+  const applyVoiceInvestigation = useCallback((nextInvestigation) => {
+    if (Array.isArray(nextInvestigation) && nextInvestigation.length > 0) {
+      setInvestigationData(nextInvestigation);
+      resetEmptyLineDraft();
+    }
+  }, [resetEmptyLineDraft, setInvestigationData]);
+
+  const investigationVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(investigationData, "lab_investigations"),
+    [investigationData]
+  );
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+    sectionRef,
+  } = useVoiceRxModuleCapture({
+    moduleName: INVESTIGATION_TITLE,
+    onApply: applyVoiceInvestigation,
+    successMessage: `${INVESTIGATION_TITLE} filled from voice dictation`,
+    copyPayloadKeys: ["labInvestigations", "investigations", "lab_investigation", "labInvestigation"],
+  });
 
   const [ddxInvestigationOptionsList, setDdxInvestigationOptionsList] =
     useState([]);
@@ -63,12 +195,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
           e.investigation_name
         )
     );
-
-  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
-  const decodedToken = getDecodedToken();
-  const tokenData = decodedToken?.result;
-
-  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
 
   useEffect(() => {
     if (diagnosisData?.length > 0 && generatedDDx?.length > 0) {
@@ -103,11 +229,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   const [isModalOpen1, setIsModalOpen1] = useState(false);
   const [removeTemplateId, setRemoveTemplateId] = useState(null);
 
-  const [searchParentQuery, setSearchParentQuery] = useState("");
-  const [parentSearchOptions, setParentSearchOptions] = useState([]);
-
   const [searchChildQuery, setSearchChildQuery] = useState(null);
   const [childSearchOptions, setChildSearchOptions] = useState([]);
+  const [activeVoiceInvestigationIndex, setActiveVoiceInvestigationIndex] = useState(null);
+  const voiceInvestigationSearchRequestRef = useRef(0);
+  const voiceInvestigationBlurTimeoutRef = useRef(null);
 
   //PopOver2
   const [popOver2, setPopOver2] = useState(false);
@@ -134,6 +260,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (voiceInvestigationBlurTimeoutRef.current) {
+        window.clearTimeout(voiceInvestigationBlurTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     setMatchedTemplates(templates);
     setAllTemplates(templates);
   }, [templates]);
@@ -156,16 +290,52 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   useEffect(() => {
     const data = [];
-    parentOptionsList.map((e) => {
-      return data.push({
+    parentOptionsList.forEach((e) => {
+      let supplementaryIndicator = "";
+      if (isChikitsalayAccessable) {
+        const raw = getHmTypeIndicator(e, true);
+        // Legacy label only shows Z when hm_type === 1 && um_id === 0; never add Z via helper (avoids widening Z to all hm_type===1).
+        if (raw && raw !== "Z") supplementaryIndicator = raw;
+      }
+      const isWideSupplementary = supplementaryIndicator.length > 1;
+      data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.investigation_name,
-        label: <div>{e.investigation_name} {(e?.hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2'}}>Z</span>}</div>,
+        label: (
+          <div>
+            {e.investigation_name}{" "}
+            {(e?.hm_type === 1 && e?.um_id === 0) && (
+              <span
+                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                style={{ width: 18, height: 18, background: "#c44ea2" }}
+              >
+                Z
+              </span>
+            )}
+            {supplementaryIndicator && (
+              <span
+                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${
+                  isWideSupplementary ? "rounded-pill" : "rounded-circle"
+                }`}
+                style={{
+                  minWidth: isWideSupplementary ? 26 : 18,
+                  height: 18,
+                  padding: isWideSupplementary ? "0 6px" : "0 4px",
+                  background: "#c44ea2",
+                  lineHeight: "16px",
+                }}
+              >
+                {supplementaryIndicator}
+              </span>
+            )}
+          </div>
+        ),
       });
     });
     if (searchParentQuery.length === 0) {
       data.unshift({
         key: -1,
+        disabled: true,
         label: (
           <>
             <div>FREQUENTLY USED</div>
@@ -174,7 +344,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
       });
     }
     else {
-      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB &&
+      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && canAddCustomInvestigation &&
         data.push({
           key: JSON.stringify({
             unique_id: uuidv4(),
@@ -190,7 +360,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [parentOptionsList, isChikitsalayAccessable, searchParentQuery, canAddCustomInvestigation]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -199,8 +369,43 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
     [searchParentQuery]
   );
 
+  // Frequently-used chips (Tesseract shell only) — captured from the
+  // frequently-searched list; not overwritten by typed-search results.
+  const [frequentInvestigationChips, setFrequentInvestigationChips] = useState([]);
+  useEffect(() => {
+    if (!searchParentQuery && Array.isArray(parentOptionsList) && parentOptionsList.length > 0) {
+      setFrequentInvestigationChips(parentOptionsList.map((e) => e.investigation_name).filter(Boolean));
+    }
+  }, [parentOptionsList, searchParentQuery]);
+  const availableInvestigationChips = useTesseractUi
+    ? frequentInvestigationChips.filter(
+        (name) => !investigationData.some(
+          (row) => String(row.investigation_name || "").toLowerCase() === name.toLowerCase()
+        )
+      )
+    : [];
+  const onChipAdd = useCallback((name) => {
+    window.Moengage.track_event("investigation_select", {
+      "value": name
+    });
+    setInvestigationData((prev) => [
+      ...prev,
+      {
+        unique_id: uuidv4(),
+        change: 1,
+        pms_default: 0,
+        investigation_name: name,
+        note: "",
+      },
+    ]);
+  }, [setInvestigationData]);
+
   const onSelectParent = useCallback(
     (data, e) => {
+      if (isFrequentlyUsedHeaderOption(e)) {
+        return;
+      }
+
       window.Moengage.track_event("investigation_select", {
         "value": data
       });
@@ -224,30 +429,137 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   };
 
   //Child AutoComplete
+  const activeVoiceInvestigationItem = activeVoiceInvestigationIndex !== null ? investigationData[activeVoiceInvestigationIndex] : null;
+  const isVoiceInvestigationFuzzySearchActive = (
+    isVoiceRxModuleEnabled &&
+    isZydusAccount &&
+    isVoiceRxModuleInvestigation(activeVoiceInvestigationItem)
+  );
+
+  const buildInvestigationSearchOption = useCallback(
+    (investigation) => {
+      if (!investigation?.investigation_name) return null;
+      if (isChikitsalayAccessable && !isChikitsalayInvestigationRow(investigation)) return null;
+
+      return {
+        key: JSON.stringify({ ...investigation, unique_id: uuidv4() }),
+        value: investigation.investigation_name,
+        label: (
+          <div>
+            {investigation.investigation_name}{" "}
+            {isZydusAccount && (investigation?.hm_type === 1 && investigation?.um_id === 0) && (
+              <span
+                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                style={{ width: 18, height: 18, background: "#c44ea2" }}
+              >
+                Z
+              </span>
+            )}
+            {isChikitsalayAccessable && getHmTypeIndicator(investigation, true) && (
+              <span
+                className="align-items-center small fs-12-1 d-inline-flex justify-content-center text-white rounded-pill"
+                style={{
+                  minWidth: 26,
+                  height: 18,
+                  padding: "0 6px",
+                  background: "#c44ea2",
+                  lineHeight: "16px",
+                }}
+              >
+                {getHmTypeIndicator(investigation, true)}
+              </span>
+            )}
+          </div>
+        ),
+      };
+    },
+    [isChikitsalayAccessable, isZydusAccount]
+  );
+
+  const performVoiceInvestigationFuzzySearch = useCallback(
+    async (query) => {
+      const searchQuery = String(query || "").trim();
+      const requestId = voiceInvestigationSearchRequestRef.current + 1;
+      voiceInvestigationSearchRequestRef.current = requestId;
+
+      if (!searchQuery) {
+        setChildSearchOptions([]);
+        return;
+      }
+
+      try {
+        const result = await ApiInvestigation.getFuzzySearch(searchQuery, 10);
+        if (voiceInvestigationSearchRequestRef.current !== requestId) return;
+
+        const rows = Array.isArray(result) ? result : result ? [result] : [];
+        setChildSearchOptions(rows.map(buildInvestigationSearchOption).filter(Boolean));
+      } catch (error) {
+        if (voiceInvestigationSearchRequestRef.current === requestId) {
+          setChildSearchOptions([]);
+        }
+      }
+    },
+    [buildInvestigationSearchOption]
+  );
+
   useEffect(() => {
+    if (isVoiceInvestigationFuzzySearchActive) return;
+
     if (searchChildQuery) {
+      const requestId = voiceInvestigationSearchRequestRef.current + 1;
+      voiceInvestigationSearchRequestRef.current = requestId;
+      const query = searchChildQuery.query;
+      const index = searchChildQuery.index;
       const timeOutId = setTimeout(() => {
         dispatch(
           searchInvestigation({
-            searchQuery: searchChildQuery.query,
+            searchQuery: query,
             type: "child",
           })
-        );
+        ).then((action) => {
+          if (
+            voiceInvestigationSearchRequestRef.current !== requestId ||
+            activeVoiceInvestigationIndex !== index ||
+            action.meta.requestStatus !== "fulfilled"
+          ) {
+            return;
+          }
+
+          const data = [];
+          const rows = Array.isArray(action.payload) ? action.payload : [];
+          rows.forEach((e) => {
+            const option = buildInvestigationSearchOption(e);
+            if (option) data.push(option);
+          });
+          setChildSearchOptions(data);
+        });
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     }
-  }, [searchChildQuery]);
+  }, [activeVoiceInvestigationIndex, buildInvestigationSearchOption, dispatch, isVoiceInvestigationFuzzySearchActive, searchChildQuery]);
 
   useEffect(() => {
+    if (!isVoiceInvestigationFuzzySearchActive) return;
+
+    const timeOutId = setTimeout(() => {
+      performVoiceInvestigationFuzzySearch(searchChildQuery?.query);
+    }, 500);
+
+    return () => {
+      clearTimeout(timeOutId);
+    };
+  }, [isVoiceInvestigationFuzzySearchActive, performVoiceInvestigationFuzzySearch, searchChildQuery]);
+
+  useEffect(() => {
+    if (isVoiceInvestigationFuzzySearchActive) return;
+    if (activeVoiceInvestigationIndex !== null) return;
+
     const data = [];
     childOptionsList.map((e) => {
-      return data.push({
-        key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-        value: e.investigation_name,
-        label: <div>{e.investigation_name}</div>,
-      });
+      const option = buildInvestigationSearchOption(e);
+      if (option) data.push(option);
     });
     // if (searchChildQuery?.query) {
     //   data.push({
@@ -266,13 +578,36 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
     //   });
     // }
     setChildSearchOptions(data);
-  }, [childOptionsList]);
+  }, [activeVoiceInvestigationIndex, buildInvestigationSearchOption, childOptionsList, isVoiceInvestigationFuzzySearchActive]);
 
   const onFocusChid = (i) => {
+    voiceInvestigationSearchRequestRef.current += 1;
+    setChildSearchOptions([]);
+    if (isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(investigationData[i])) {
+      setSearchChildQuery({ query: investigationData[i].investigation_name, index: i });
+      return;
+    }
     setSearchChildQuery({ query: investigationData[i].investigation_name, index: i });
     dispatch(
       searchInvestigation({ searchQuery: investigationData[i].investigation_name, type: "child" })
     );
+  };
+
+  const handleVoiceInvestigationClick = (i) => {
+    if (voiceInvestigationBlurTimeoutRef.current) {
+      window.clearTimeout(voiceInvestigationBlurTimeoutRef.current);
+      voiceInvestigationBlurTimeoutRef.current = null;
+    }
+    setActiveVoiceInvestigationIndex(i);
+    onFocusChid(i);
+  };
+
+  const handleVoiceInvestigationBlur = (i) => {
+    voiceInvestigationSearchRequestRef.current += 1;
+    voiceInvestigationBlurTimeoutRef.current = window.setTimeout(() => {
+      setActiveVoiceInvestigationIndex((currentIndex) => currentIndex === i ? null : currentIndex);
+      voiceInvestigationBlurTimeoutRef.current = null;
+    }, 150);
   };
 
   const onSearchChild = useCallback(
@@ -291,9 +626,19 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   const onSelectChild = useCallback(
     (data, e, i) => {
-      investigationData[i] = { ...investigationData[i], ...JSON.parse(e.key) };
+      if (isFrequentlyUsedHeaderOption(e)) {
+        return;
+      }
+
+      investigationData[i] = {
+        ...investigationData[i],
+        ...JSON.parse(e.key),
+        voice_rx_from_module: false,
+      };
       setInvestigationData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).investigation_name, index: i });
+      setActiveVoiceInvestigationIndex(null);
+      setChildSearchOptions([]);
     },
     [searchChildQuery, investigationData]
   );
@@ -307,6 +652,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   );
 
   const onRemoveRow = (index) => {
+    if (removeEmptyLineRow(index)) {
+      return;
+    }
+
     investigationData.splice(index, 1);
     setInvestigationData((prev) => [...prev]);
   };
@@ -330,15 +679,23 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
     }
   };
 
-  const onTemplateSelected = (template) => {
+  const onTemplateSelected = async (template) => {
     window.Moengage.track_event("investigation_template_used", {
       "template_name": template.tit_template_name
     });
-    const updatedData = template.investigation.map(e => {
-      return { ...e, unique_id: uuidv4(), note: e.note ? e.note : "" }
-    })
-    setInvestigationData([...investigationData, ...updatedData]);
-    showHideTemplatesListPopover();
+    const action = await dispatch(singleTemplateDetails(template.tit_id));
+    if (action.meta.requestStatus === "fulfilled") {
+      const rows = Array.isArray(action.payload) ? action.payload : [];
+      const updatedData = rows.map((e) => ({
+        ...e,
+        unique_id: uuidv4(),
+        note: e.note ? e.note : "",
+      }));
+      setInvestigationData([...investigationData, ...updatedData]);
+      showHideTemplatesListPopover();
+    } else {
+      errorMessage(action.error);
+    }
   };
 
   const onDeleteTemplateClicked = async (tit_id) => {
@@ -371,14 +728,17 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   );
 
   const onAddTemplateClicked = async () => {
-    if (investigationData.length === 0) {
+    const templateInvestigation = investigationData;
+    if (templateInvestigation.length === 0) {
       errorMessage('At least 1 investigation added')
-    } else if (investigationData.filter(e => e.investigation_name == "").length > 0) {
+    } else if (templateInvestigation.filter(e => String(e.investigation_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup investigation name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateInvestigation.some(hasInvalidChikitsalayInvestigation)) {
+      errorMessage(INVESTIGATION_INVENTORY_WARNING)
     } else {
       var sendData = {
         tit_template_name: inputTemplateName,
-        investigation: investigationData,
+        investigation: templateInvestigation,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -400,16 +760,19 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (investigationData.length === 0) {
+    const templateInvestigation = investigationData;
+    if (templateInvestigation.length === 0) {
       errorMessage('At least 1 investigation added')
-    } else if (investigationData.filter(e => e.investigation_name == "").length > 0) {
+    } else if (templateInvestigation.filter(e => String(e.investigation_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup investigation name')
+    } else if (isVoiceRxModuleEnabled && isChikitsalayAccessable && templateInvestigation.some(hasInvalidChikitsalayInvestigation)) {
+      errorMessage(INVESTIGATION_INVENTORY_WARNING)
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         tit_id: data.tit_id,
         tit_template_name: data.tit_template_name,
-        investigation: investigationData,
+        investigation: templateInvestigation,
       };
       const action = await dispatch(updateTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -535,81 +898,260 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   };
 
   const TABLE_INVESTIGATION = useMemo(() => {
+    const investigationRows = Array.isArray(investigationData) ? investigationData : [];
+    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled && !useTesseractUi;
+
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="investigation" direction="vertical">
-          {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
-              {investigationData.length > 0 &&
-                investigationData.map((item, index) => (
-                  <Draggable key={index} draggableId={`investigation-${index}`} index={index}>
-                    {(provided) => (
-                      <Row
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        key={index}
-                        gutter={[0]}
-                        className={`${index === 0 && 'mt-14 border-top'
-                          } align-items-center border-bottom`}
-                      >
-                        <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: 'grab' }}
+      <div
+        className={[shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : "", useTesseractUi ? "tesseract-ct" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
+        {useTesseractUi && (
+          <Row gutter={0} className="tesseract-ct-head">
+            <Col lg={1} md={1} sm={1} xs={1} className="tesseract-ct-th" />
+            <Col lg={8} md={8} sm={8} xs={8} className="tesseract-ct-th">Name</Col>
+            <Col lg={14} md={14} sm={13} xs={13} className="tesseract-ct-th">Notes</Col>
+            <Col lg={1} md={1} sm={2} xs={2} className="tesseract-ct-th tesseract-ct-sticky-action" />
+          </Row>
+        )}
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="investigation" direction="vertical">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={[
+                  isNewEmptyLineUiEnabled ? "prescription-empty-line-ui" : "mt-2",
+                  shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableBody : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {investigationRows.map((item, index) => {
+                    const hasInvalidInventorySelection =
+                      isChikitsalayAccessable && hasInvalidChikitsalayInvestigation(item);
+                    let supplementaryIndicator = "";
+                    if (isChikitsalayAccessable) {
+                      const raw = getHmTypeIndicator(item, true);
+                      if (raw && raw !== "Z") supplementaryIndicator = raw;
+                    }
+                    const isWideSupplementary = supplementaryIndicator.length > 1;
+                    const rowKey = isNewEmptyLineUiEnabled ? getEmptyLineRowKey(item, index) : `investigation-${index}`;
+
+                    return (
+                      <Draggable key={rowKey} draggableId={rowKey} index={index}>
+                        {(provided) => (
+                          <Row
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            key={rowKey}
+                            gutter={[0]}
+                            className={isNewEmptyLineUiEnabled ? [
+                              "symptoms-table-row",
+                              emptyLineRemovingRowKeys.includes(rowKey) ? "prescription-empty-line-row--removing" : "",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                            ].filter(Boolean).join(" ") : `${index === 0 && 'mt-14 border-top'
+                            } align-items-center border-bottom`}
                           >
-                          </MenuOutlined>
-                        </Col>
-                        <Col lg={8} md={8} sm={8} xs={8}>
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.investigation_name}
-                              value={item.investigation_name}
-                              placeholder="Investigation Name"
-                              bordered={false}
-                              disabled={true}
-                              defaultOpen={false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) => onSelectChild(data, e, index)}
-                            />
-                          </div>
-                        </Col>
-                        <Col lg={14} md={14} sm={13} xs={13} className="border-start border-end">
-                          <TextArea
-                            className="notesinput border-0"
-                            placeholder="Instruction"
-                            defaultValue={item.note}
-                            value={item.note}
-                            autoSize={{
-                              minRows: 1,
-                              maxRows: 2,
-                            }}
-                            onChange={(e) => onChangeNoteChild(e, index)}
-                          />
-                        </Col>
-                        <Col lg={1} md={1} sm={2} xs={2} className="text-center">
-                          <Button
-                            className="btn py-0 btn-delete-prescription px-0"
-                            onClick={() => onRemoveRow(index)}
-                          >
-                            <i className="icon-delete"></i>
-                          </Button>
-                        </Col>
-                      </Row>
-                    )}
-                  </Draggable>
-                ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                            <Col lg={1} md={1} sm={1} xs={1} className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                            ].filter(Boolean).join(" ")}>
+                              {isNewEmptyLineUiEnabled ? (
+                                <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                              ) : (
+                                <MenuOutlined
+                                  {...provided.dragHandleProps}
+                                  className="drag-handle"
+                                >
+                                </MenuOutlined>
+                              )}
+                            </Col>
+                            <Col
+                              lg={8}
+                              md={8}
+                              sm={8}
+                              xs={8}
+                              className={[
+                                isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "",
+                                isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : "",
+                                shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                              ].filter(Boolean).join(" ")}
+                              onClick={() => {
+                                if (isVoiceRxModuleEnabled && (isVoiceRxModuleInvestigation(item) || hasInvalidInventorySelection) && activeVoiceInvestigationIndex !== index) {
+                                  handleVoiceInvestigationClick(index);
+                                }
+                              }}
+                              style={isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && (isVoiceRxModuleInvestigation(item) || hasInvalidInventorySelection) ? { background: "#fff8ef" } : undefined}
+                            >
+                              <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
+                                <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                                  {isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
+                                    <button
+                                      type="button"
+                                      className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2 text-truncate w-100"
+                                      onClick={() => handleVoiceInvestigationClick(index)}
+                                    >
+                                      {item.investigation_name}
+                                    </button>
+                                  ) : (
+                                    <AutoComplete
+                                      autoFocus={activeVoiceInvestigationIndex === index}
+                                      defaultValue={item.investigation_name}
+                                      value={item.investigation_name}
+                                      placeholder="Investigation Name"
+                                      bordered={false}
+                                      disabled={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? false : undefined}
+                                      defaultOpen={activeVoiceInvestigationIndex === index}
+                                      open={activeVoiceInvestigationIndex === index ? true : undefined}
+                                      onSearch={(query) => onSearchChild(query, index)}
+                                      onFocus={() => onFocusChid(index)}
+                                      onBlur={() => handleVoiceInvestigationBlur(index)}
+                                      options={childSearchOptions}
+                                      className="autocomplete-custom w-100 inputborder"
+                                      {...getPrescriptionNewPopupProps()}
+                                      defaultActiveFirstOption={true}
+                                      onSelect={(data, e) => onSelectChild(data, e, index)}
+                                    />
+                                  )}
+                                </div>
+                                {isVoiceRxModuleEnabled && shouldShowInventorySourceWarning && hasInvalidInventorySelection && (
+                                  <Tooltip
+                                    placement="top"
+                                    overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
+                                    title={INVESTIGATION_INVENTORY_WARNING}
+                                  >
+                                    <InfoCircleOutlined
+                                      className="fs-18 flex-shrink-0"
+                                      style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
+                                    />
+                                  </Tooltip>
+                                )}
+                                {supplementaryIndicator && (
+                                  <span
+                                    className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${
+                                      isWideSupplementary ? "rounded-pill me-2" : "rounded-circle"
+                                    }`}
+                                    style={{
+                                      minWidth: isWideSupplementary ? 26 : 18,
+                                      height: 18,
+                                      padding: isWideSupplementary ? "0 6px" : "0 4px",
+                                      background: "#c44ea2",
+                                      lineHeight: "16px",
+                                    }}
+                                  >
+                                    {supplementaryIndicator}
+                                  </span>
+                                )}
+                              </div>
+                            </Col>
+                            <Col lg={14} md={14} sm={13} xs={13} className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell" : "border-start border-end",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                            ].filter(Boolean).join(" ")}>
+                              <TextArea
+                                className="notesinput border-0"
+                                placeholder="Instruction"
+                                defaultValue={item.note}
+                                value={item.note}
+                                autoSize={{
+                                  minRows: 1,
+                                  maxRows: 2,
+                                }}
+                                onChange={(e) => onChangeNoteChild(e, index)}
+                              />
+                            </Col>
+                            <Col lg={1} md={1} sm={2} xs={2} className={[
+                              isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                              useTesseractUi ? "tesseract-ct-sticky-action" : "",
+                              shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                            ].filter(Boolean).join(" ")}>
+                              <Button
+                                className="btn py-0 btn-delete-prescription px-0"
+                                onClick={() => onRemoveRow(index)}
+                              >
+                                {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                              </Button>
+                            </Col>
+                          </Row>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                {provided.placeholder}
+                {isNewEmptyLineUiEnabled && (
+                  <Row
+                    gutter={[0]}
+                    className={[
+                      "symptoms-table-row",
+                      "prescription-empty-line-row--animated",
+                      "prescription-empty-line-row--draft",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableRow : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <Col lg={1} md={1} sm={1} xs={1} className={[
+                      "symptoms-table-cell center",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleDragCell : "",
+                    ].filter(Boolean).join(" ")} />
+                    <Col lg={8} md={8} sm={8} xs={8} className={[
+                      "symptoms-table-cell prescription-empty-line-cell--draft-active",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.modulePrimaryCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <PrescriptionEmptyLineDraftSearch
+                        inputRef={emptyLineDraftInputRef}
+                        inputClassName="fontroboto fw-medium w-100"
+                        value={emptyLineDraftName}
+                        options={parentSearchOptions}
+                        popupProps={getPrescriptionNewPopupProps()}
+                        onSearch={onEmptyLineDraftSearch}
+                        onSelect={onEmptyLineDraftSelect}
+                        onInputKeyDown={onEmptyLineDraftInputKeyDown}
+                      />
+                    </Col>
+                    <Col lg={14} md={14} sm={13} xs={13} className={[
+                      "symptoms-table-cell",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleWideNotesCell : "",
+                    ].filter(Boolean).join(" ")}>
+                      <TextArea
+                        className="notesinput border-0 prescription-empty-line-draft-disabled-control"
+                        placeholder="Instruction"
+                        value=""
+                        disabled
+                        autoSize={{
+                          minRows: 1,
+                          maxRows: 2,
+                        }}
+                      />
+                    </Col>
+                    <Col lg={1} md={1} sm={2} xs={2} className={[
+                      "symptoms-table-cell center",
+                      useTesseractUi ? "tesseract-ct-sticky-action" : "",
+                      shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
+                    ].filter(Boolean).join(" ")} />
+                  </Row>
+                )}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     );
-  }, [investigationData, childSearchOptions]);
+  }, [
+    activeVoiceInvestigationIndex,
+    childSearchOptions,
+    emptyLineDraftInputRef,
+    emptyLineDraftName,
+    emptyLineRemovingRowKeys,
+    getEmptyLineRowKey,
+    onEmptyLineDraftInputKeyDown,
+    onEmptyLineDraftSearch,
+    onEmptyLineDraftSelect,
+    investigationData,
+    isChikitsalayAccessable,
+    isNewEmptyLineUiEnabled,
+    isVoiceRxModuleEnabled,
+    parentSearchOptions,
+    shouldShowInventorySourceWarning,
+    useTesseractUi,
+  ]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -647,7 +1189,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -677,7 +1219,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -734,6 +1276,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getPrescriptionNewPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -747,7 +1290,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box"><i className="icon-template"></i></div>
+                  <div className="round-box">{useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -781,6 +1324,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
+    resetEmptyLineRowsUi();
     setInvestigationData([])
     showHideClearData()
   };
@@ -820,15 +1364,154 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
     );
   }, [isModalOpen1]);
 
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_INVESTIGATION}
+      {filteredDdxInvestigationOptionsList?.length > 0 && (
+        <div style={{ padding: "0 14px" }}>
+          <DifferentialDiagnosis
+            handleDDxDrawer={handleDDxDrawer}
+            ddxOptionsList={filteredDdxInvestigationOptionsList}
+            onSelectParent={onSelectDDx}
+          />
+        </div>
+      )}
+      {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        <div className={voiceModuleStyles.moduleSlot}>
+          <VoiceRxModuleCapture
+            moduleName={INVESTIGATION_TITLE}
+            previousContext={investigationVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.investigation}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        </div>
+      ) : !isNewEmptyLineUiEnabled ? (
+        <div className="p-14">
+          <AutoComplete
+            value={searchParentQuery}
+            onSearch={onSearchParent}
+            options={parentSearchOptions}
+            className="autocomplete-custom w-100"
+            onSelect={onSelectParent}
+            defaultActiveFirstOption={true}
+            {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
+          >
+            <Input
+              placeholder={`Search ${INVESTIGATION_TITLE}`}
+              prefix={<i className="icon-search"></i>}
+            />
+          </AutoComplete>
+        </div>
+      ) : null}
+      {useTesseractUi && availableInvestigationChips.length > 0 && (
+        <div className="tesseract-rxpad-chips">
+          {availableInvestigationChips.map((name) => (
+            <TesseractButton
+              key={name}
+              variant="tonal"
+              theme="neutral"
+              size="sm"
+              className="tesseract-rxpad-chip"
+              title={name}
+              onClick={() => onChipAdd(name)}
+            >
+              {name}
+            </TesseractButton>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target="investigation"
+        title={INVESTIGATION_TITLE}
+        icon="bulk/microscope"
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="investigation"
+                label={`Start ${INVESTIGATION_TITLE} voice input`}
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: `Browse ${INVESTIGATION_TITLE} templates` })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (investigationData.length > 0) && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Save as template">
+                  {tesseractActionButton({ icon: "ram", label: `Save ${INVESTIGATION_TITLE} as template`, disabled: investigationData.length === 0 })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: `Clear ${INVESTIGATION_TITLE}`, onClick: showHideClearData, disabled: investigationData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
+
   return (
     <>
-      <div className="">
+      <div ref={sectionRef} data-voice-rx-dictation-target="investigation" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Investigationicon} alt="Investigation" />
             <div className="title-common">{INVESTIGATION_TITLE}</div>
           </div>
           <div className="d-flex align-items-center">
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="investigation"
+                label={`Start ${INVESTIGATION_TITLE} voice input`}
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -837,10 +1520,18 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title={`Browse ${INVESTIGATION_TITLE} templates`}>
+                    <VoiceRxModuleActionButton type="template" label={`Browse ${INVESTIGATION_TITLE} templates`} />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip
               placement="bottom"
@@ -861,53 +1552,35 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton type="save" label={`Save ${INVESTIGATION_TITLE} as template`} disabled={investigationData.length === 0} />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button
-              onClick={showHideClearData}
-              className="btn btn-text clear-text d-flex align-items-center"
-              disabled={investigationData.length > 0 ? false : true}
-            >
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton type="clear" label={`Clear ${INVESTIGATION_TITLE}`} onClick={showHideClearData} disabled={investigationData.length === 0} />
+              </Tooltip>
+            ) : (
+              <button
+                onClick={showHideClearData}
+                className="btn btn-text clear-text d-flex align-items-center"
+                disabled={investigationData.length > 0 ? false : true}
+              >
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {DELETE_MODAL}
-        {REMOVE_ALL_ROWS}
-        {TABLE_INVESTIGATION}
-
-        {filteredDdxInvestigationOptionsList?.length > 0 && (
-          <div style={{ padding: "0 14px" }}>
-            <DifferentialDiagnosis
-              handleDDxDrawer={handleDDxDrawer}
-              ddxOptionsList={filteredDdxInvestigationOptionsList}
-              onSelectParent={onSelectDDx}
-            />
-          </div>
-        )}
-
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={!searchParentQuery && "boxpopup"}
-          >
-            <Input
-              placeholder="Search Investigation"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
-        </div>
+        {BODY_CONTENT}
       </div>
     </>
   );

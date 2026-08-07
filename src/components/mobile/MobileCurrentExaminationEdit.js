@@ -6,10 +6,14 @@ import moment from 'moment';
 import { addObstetricDetails, obstetricDetailsUpdated, patientDiagnosisUpdated } from '../../redux/obstetricSlice';
 import { fetchPrefillObstetricDetails } from '../../pages/obstetric/service';
 import { errorMessage } from '../../utils/utils';
-import closeIcon from '../../assets/mobile/close 2.svg';
-import deleteIcon from '../../assets/images/Delete.svg';
-import alertIcon from '../../assets/images/alertIcon.svg';
+
 import './MobileCurrentExaminationEdit.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
+const {
+  delete: deleteIcon,
+  alerticon: alertIcon,
+} = ASSETS.images;
 
 const { TextArea } = Input;
 

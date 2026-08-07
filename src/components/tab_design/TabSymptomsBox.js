@@ -6,10 +6,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../../common/CommonModal';
-import alertIcon from '../../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, hasNumber, capitalizeAfterSentence } from "../../utils/utils";
-import Symptomsicon from "../../assets/images/Symptoms.svg";
+
 import {
     addTemplate,
     updateTemplate,
@@ -21,9 +21,14 @@ import {
 
 import TabSymptomsSearch from "../../components/tab_design/TabSymptomsSearch";
 
-import { SortableContainer, SortableElement } from 'react-sortable-hoc';
+import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import DifferentialDiagnosis from "../DifferentialDiagnosis";
 import { setIsDDxReadyToGenerate, setIsSymptomsBox } from "../../redux/ddxSlice";
+import { ASSETS } from "../../assets";
+const {
+  alerticon: alertIcon,
+  symptoms: Symptomsicon,
+} = ASSETS.images;
 
 function TabSymptomsBox({ handleDDxDrawer, generatedDDx }) {
     const {
@@ -542,7 +547,6 @@ function TabSymptomsBox({ handleDDxDrawer, generatedDDx }) {
         );
     }, [tabChange, saveDrawer, inputTemplateName, loading, allTemplates]);
 
-
     useEffect(() => {
         if (sinceValue !== -1) {
             const options = SINCE_OPTIONS.map((option) => {
@@ -886,6 +890,5 @@ function TabSymptomsBox({ handleDDxDrawer, generatedDDx }) {
         </>
     );
 }
-
 
 export default React.memo(TabSymptomsBox);

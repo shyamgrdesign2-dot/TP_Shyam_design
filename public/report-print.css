@@ -15,7 +15,7 @@ body {
 
 body {
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -49,10 +49,11 @@ body {
   }
 
   .print-padding-wrapper {
-    padding: 0 15mm;
-    /* Restore standard 15mm side margins */
+    padding: 10mm 1cm 5mm 2cm;
     box-sizing: border-box;
     width: 100%;
+    max-width: 100%;
+    overflow: visible;
   }
 
   .page-top-margin {
@@ -113,7 +114,7 @@ body>*:not(.report-doc-header) {
 p {
   margin: 0 0 4px;
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -172,7 +173,7 @@ table.report-patient-table {
 
 .report-patient-table td p {
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #171725;
@@ -203,7 +204,7 @@ h2,
   position: relative;
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 15px;
   line-height: normal;
   letter-spacing: 0;
   color: #171725;
@@ -237,47 +238,63 @@ h2::before,
  * Using div.report-section-box so Enter key creates new <p> children INSIDE the box.
  * Bare <p> elements get split by Enter key, pushing the cursor outside the styled border.
  */
-div.report-section-box {
-  min-height: 52px;
-  height: auto;
-  overflow: visible;
-  padding: 6px 12px;
+table.report-section-box {
+  width: 100%;
+  border-collapse: collapse;
   margin: 0 0 16px;
   background: rgba(255, 255, 255, 0.5);
   border: 1px solid #f1f1f5;
   border-radius: 0;
-  cursor: text;
 }
 
-div.report-section-box p {
+table.report-section-box td {
+  height: 52px !important;
+  overflow: visible;
+  padding: 6px 12px;
+  border: none;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+table.report-section-box td p {
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
   margin: 0;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 
 /* When the whole box (including p) is focused, hide placeholder on the focused p */
-div.report-section-box:focus-within p:not(:only-child):empty::before {
+table.report-section-box:focus-within p:not(:only-child):empty::before {
   content: none;
 }
 
 /* General Recommendations: taller default empty-box height */
-div.report-section-box.report-general-rec {
+table.report-section-box.report-general-rec td {
   min-height: 154px;
 }
 
 /* ─── Data Tables ────────────────────────────────────────────────────────────── */
 table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   letter-spacing: 0.0607px;
   color: #454551;
   margin: 0;
+}
+
+.smart-editor-editable table:not(.report-patient-table):not(.report-section-box) td,
+.smart-editor-editable table:not(.report-patient-table):not(.report-section-box) th {
+  height: 32px !important;
+  min-height: 32px !important;
+  vertical-align: top;
 }
 
 .report-data-table {
@@ -287,7 +304,7 @@ table {
   background: rgba(255, 255, 255, 0.5);
   margin: 16px 0;
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   letter-spacing: 0.0607px;
   color: #454551;
 }
@@ -302,7 +319,7 @@ table {
   background: #fafafb;
   font-family: 'Poppins', sans-serif;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -312,12 +329,13 @@ table {
   border: 0.607px solid #f1f1f5;
   white-space: normal;
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .report-data-table thead tr th p {
   margin: 0;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -328,7 +346,7 @@ table {
   background: transparent;
   font-family: 'Poppins', sans-serif;
   font-weight: 400;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -339,12 +357,14 @@ table {
   min-height: 40px;
   height: auto;
   overflow: visible;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .report-data-table tbody tr td p {
   margin: 0;
   font-weight: 400;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -407,11 +427,13 @@ table.report-general-exam-grid.bottom-row-grid {
 table.report-general-exam-grid tbody tr th {
   background: #ffffff;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 15px;
   padding: 6px 8px;
   border: 0.607px solid #f1f1f5;
   /* Maintain visual unity */
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   text-align: left;
   vertical-align: middle;
 }
@@ -420,7 +442,9 @@ table.report-general-exam-grid tbody tr td {
   background: transparent;
   padding: 6px 8px;
   border: 0.607px solid #f1f1f5;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   text-align: left;
   vertical-align: middle;
   min-height: 28px;
@@ -433,7 +457,7 @@ ol {
   margin: 0;
   padding-left: 15px;
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -446,7 +470,7 @@ li {
 
 li p {
   margin: 0;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   display: inline;
 }
@@ -462,12 +486,31 @@ li p {
     break-after: avoid;
   }
 
-  .print-page-break {
+  /* Page break at section start (wrapper, not heading alone — keeps heading with following block/table). */
+  .print-section-group.print-page-break {
     page-break-before: always !important;
     break-before: page !important;
   }
 
-  .report-data-table {
-    break-inside: avoid;
+  /* Legacy: heading-only class still forces break if present without wrapper */
+  .print-page-break:not(.print-section-group) {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .print-section-group {
+    /* Prefer keeping heading + body together; allow break inside if section is taller than one sheet */
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  /*
+   * Break AFTER the first-page table so the repeat table's <thead> renders correctly on page 2.
+   * Using break-before on the repeat table itself triggers a Chrome bug where <thead> is skipped
+   * on the table's first page but repeats correctly from page 3 onward.
+   */
+  .print-first-page-table.has-rest-pages {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 }

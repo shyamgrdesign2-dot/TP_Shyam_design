@@ -13,11 +13,15 @@ import moment from "moment";
 import { useNavigate } from "react-router-dom";
 
 import { getAbhaConsentList, viewDetailsConsent } from "../../api/services/ApiAbha";
-import emptyIllustration from "../../assets/images/no-record-round.svg";
-import AbhaLogo from "../../assets/images/abha.svg";
+
 import RequestMedicalRecordsDrawer from "./RequestMedicalRecordsDrawer";
 
 import "./AbhaRecords.scss";
+import { ASSETS } from "../../assets";
+const {
+  noRecordRound: emptyIllustration,
+  abha: AbhaLogo,
+} = ASSETS.images;
 
 const DATE_TIME_FORMAT = "DD MMM YYYY, hh:mm A";
 const DATE_ONLY_FORMAT = "DD MMM YYYY";

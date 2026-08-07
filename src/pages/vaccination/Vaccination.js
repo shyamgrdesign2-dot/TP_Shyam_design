@@ -6,7 +6,7 @@ import VaccineHeader from "./components/vaccineHeader/VaccineHeader";
 import VaccineCard from "./components/vaccineCard/VaccineCard";
 import VaccineFilter from "./components/vaccineFilter/VaccineFilter";
 import SelectionPopup from "./components/selectionPopup/SelectionPopup";
-import closeFill from "../../assets/images/closeFill.svg";
+
 import { Row, Col } from "react-bootstrap";
 import UpdateVaccine from "./components/updateVaccine/UpdateVaccine";
 import VaccinationChart from "./components/vaccinationChart/vaccinationChart";
@@ -35,8 +35,10 @@ import { useSelector } from "react-redux";
 import FullPageLoader from "./components/Loader.js";
 import { handlePrintClick, trackEvent } from "../../utils/utils.js";
 import { getDecodedToken } from "../../utils/localStorage.js";
+import { ASSETS } from "../../assets";
+const closeFill = ASSETS.images.closefill;
 
-function Vaccination({ handleDrawerVaccination, source }) {
+function Vaccination({ handleDrawerVaccination, source, onVaccinationUpdated }) {
   const [isFixed, setIsFixed] = useState(false);
   const [selectAll, setSelectAll] = useState(false);
   const [selectedCards, setSelectedCards] = useState([]);
@@ -725,6 +727,7 @@ function Vaccination({ handleDrawerVaccination, source }) {
             printVaccineCategory={printVaccineCategory}
             setPrintVaccineCategory={setPrintVaccineCategory}
             source={source}
+            onVaccinationUpdated={onVaccinationUpdated}
           />
         )}
         <div
@@ -747,7 +750,7 @@ function Vaccination({ handleDrawerVaccination, source }) {
               </p>
             </div>
             <img
-              src={require("../../assets/images/vaccine.webp")}
+              src={ASSETS.images.vaccine}
               className="vaccineImg d-inline-block align-top ms-4"
               alt="Vaccine"
               width={220}

@@ -5,11 +5,15 @@ import {
   useRealtimeKitClient,
 } from "@cloudflare/realtimekit-react";
 import { RtkMeeting } from "@cloudflare/realtimekit-react-ui";
-import videoWhiteIcon from "../assets/images/video-white.svg";
-import pathIcon from "../assets/images/Path.svg";
-import minimseIcon from "../assets/images/Minimse.svg";
-import unionSvg from "../assets/images/Union.svg";
+
 import "./TeleconsultFloatingWindow.scss";
+import { ASSETS } from "../assets";
+const {
+  videoWhite: videoWhiteIcon,
+  path: pathIcon,
+  minimse: minimseIcon,
+  union: unionSvg,
+} = ASSETS.images;
 
 const CloseIcon = () => (
   <svg width={18} height={18} viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>

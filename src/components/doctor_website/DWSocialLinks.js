@@ -3,12 +3,15 @@ import { Row, Col, Form, Input } from 'antd';
 
 import DoctorWebsiteSettingsContext from '../../context/DoctorWebsiteSettingsContext';
 
-import Facebook from '../../assets/images/fb-img.svg';
-import Instagram from '../../assets/images/instagram-img.svg';
-import Linkedin from '../../assets/images/linkedin-img.svg';
-import XIcon from '../../assets/images/x-img.svg';
-import Youtube from '../../assets/images/youtube-img.svg';
 import { blockedEmoji } from '../../utils/utils';
+import { ASSETS } from "../../assets";
+const {
+  fbImg: Facebook,
+  instagramImg: Instagram,
+  linkedinImg: Linkedin,
+  xImg: XIcon,
+  youtubeImg: Youtube,
+} = ASSETS.images;
 
 function DWSocialLinks() {
 
@@ -21,7 +24,6 @@ function DWSocialLinks() {
         },
         [socialLinks]
     );
-
 
     return (
         <div className="bg-white p-20 overflow-auto" style={{ height: 'calc(100vh - 120px)' }}>

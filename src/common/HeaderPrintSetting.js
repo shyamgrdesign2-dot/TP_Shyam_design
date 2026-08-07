@@ -14,16 +14,21 @@ import {
 } from "../redux/doctorsSlice";
 
 import CommonModal from './CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
-import tutorial from '../assets/images/tutorial-icon.svg';
-import playIcons from '../assets/images/tube-icon.svg';
 
 import PrintSettingsContext from '../context/PrintSettingsContext';
 import { addModule } from '../redux/customModuleSlice';
+import { setCurrentSessionRx } from '../redux/obstetricSlice';
 import { getDecodedToken } from '../utils/localStorage';
 import { env } from '../EnvironmentConfig';
 import { GB_ZYDUS_USER } from '../utils/constants';
+import { isTabRxPrintViewRoute } from '../utils/dentalRoutes';
 import { updatePatientDefaultLanguage } from '../api/services/DefaultLanguageService';
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  tutorialIcon: tutorial,
+  tubeIcon: playIcons,
+} = ASSETS.images;
 
 function HeaderPrintSetting({ defaultPrintSettings }) {
     const navigate = useNavigate();
@@ -189,9 +194,9 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                             smartRxFile: state?.smartRxFile || state?.files
                         } 
                     });
-                } else if (previousPage === "/tab-rx-prescription") {
+                } else if (isTabRxPrintViewRoute(previousPage)) {
                     const updatedSelectedLang = printSettings?.default_language || selectedLang;
-                    navigate("/tab-rx-prescription", {
+                    navigate(previousPage, {
                         replace: true,
                         state: {
                             ...state,
@@ -261,8 +266,8 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
-            } else if (previousPage === "/tab-rx-prescription") {
-                navigate("/tab-rx-prescription", {
+            } else if (isTabRxPrintViewRoute(previousPage)) {
+                navigate(previousPage, {
                     replace: true,
                     state: {
                         ...state,
@@ -328,8 +333,8 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
-            } else if (previousPage === "/tab-rx-prescription") {
-                navigate("/tab-rx-prescription", {
+            } else if (isTabRxPrintViewRoute(previousPage)) {
+                navigate(previousPage, {
                     replace: true,
                     state: {
                         ...state,
@@ -349,13 +354,15 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
             }
         } else if (flag === 3) {
             // Hydrate blob URL to Blob so preview pages get a valid PDF (no revoked blob URL)
+            // Prefer live preview blob from redux (updated by Quixote/QuixoteCertificate).
+            // Route state is fallback only.
             let sessionRxToPass = currentSessionRx || state?.currentSessionRx;
             if (
-                typeof currentSessionRx === "string" &&
-                currentSessionRx.startsWith("blob:")
+                typeof sessionRxToPass === "string" &&
+                sessionRxToPass.startsWith("blob:")
             ) {
                 try {
-                    const res = await fetch(currentSessionRx);
+                    const res = await fetch(sessionRxToPass);
                     const blob = await res.blob();
                     sessionRxToPass = blob;
                 } catch (err) {
@@ -375,6 +382,9 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     console.error("Failed to hydrate session Rx blob from state", err);
                 }
             }
+            // Session blob is now passed through route state; clear global copy.
+            dispatch(setCurrentSessionRx(null));
+
             if (previousPage === "/gen-rx-print") {
                 const updatedSelectedLang = printSettings?.default_language || selectedLang;
                 navigate("/gen-rx-print", { 
@@ -415,9 +425,9 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
-            } else if (previousPage === "/tab-rx-prescription") {
+            } else if (isTabRxPrintViewRoute(previousPage)) {
                 const updatedSelectedLang = printSettings?.default_language || selectedLang;
-                navigate("/tab-rx-prescription", {
+                navigate(previousPage, {
                     replace: true,
                     state: {
                         ...state,

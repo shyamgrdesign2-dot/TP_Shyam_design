@@ -7,16 +7,19 @@ import moment from "moment";
 import { useSelector, useDispatch } from "react-redux";
 import { MESSAGE_KEY } from "../../../../utils/constants";
 
-import alertIcon from '../../../../assets/images/alertIcon.svg';
-import visitEnd from '../../../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../../../assets/images/close-visit.svg';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
-import fontSizeIcon from '../../../../assets/images/fontSizeIcon.svg';
 import MobileCertificateTemplateSelector from './MobileCertificateTemplateSelector';
 import { addPatientCertificate, editPatientCertificate, getProfile } from "../../../../redux/doctorsSlice";
 
 import { errorMessage, getClinicName, removeBeforeWhiteSpace } from "../../../../utils/utils";
 import './MobileCreateCertificate.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
+const closeIcon = ASSETS.mobile.close2;
+const fontSizeIcon = ASSETS.images.fontsizeicon;
 
 function MobileCreateCertificate({
   visible,

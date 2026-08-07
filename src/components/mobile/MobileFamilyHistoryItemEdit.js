@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, Input, Button } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import './MobileFamilyHistoryItemEdit.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 function MobileFamilyHistoryItemEdit({
   visible,

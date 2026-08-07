@@ -2,11 +2,15 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import "./SetupSummary.scss";
 import SummaryPreview from "../preview/SummaryPreview";
-import editIcon from "../../../../assets/images/edit-icon-blue.svg";
-import mailIcon from "../../../../assets/images/mail-purple.svg";
-import phoneIcon from "../../../../assets/images/call-purple.svg";
-import locationIcon from "../../../../assets/images/location-purple.svg";
+
 import { isMobile } from "react-device-detect";
+import { ASSETS } from "../../../../assets";
+const {
+  editIconBlue: editIcon,
+  mailPurple: mailIcon,
+  callPurple: phoneIcon,
+  locationPurple: locationIcon,
+} = ASSETS.images;
 
 const SetupSummary = ({ setupData, showSummaryOnly = false, enableEditMode = false }) => {
 

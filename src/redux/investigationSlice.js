@@ -62,11 +62,25 @@ export const getInvestigationTemplates = createAsyncThunk(
   }
 );
 
+export const singleTemplateDetails = createAsyncThunk(
+  "investigation/singleTemplateDetails",
+  async (templateId) => {
+    const result = await ApiInvestigation.singleTemplateDetails(templateId);
+    if (result.status) {
+      return result.data;
+    } else {
+      throw Error(result.error);
+    }
+  }
+);
+
 export const getFrequentlySearchedInvestigation = createAsyncThunk(
   "investigation/getFrequentlySearchedInvestigation",
-  async (_, { rejectWithValue }) => {
+  async (data, { rejectWithValue }) => {
     try {
-      const result = await ApiInvestigation.getFrequentlySearchedInvestigation();
+      const result = await ApiInvestigation.getFrequentlySearchedInvestigation({
+        isChikitsalayAccessable: data?.isChikitsalayAccessable,
+      });
       return result;
     } catch (error) {
       return rejectWithValue({ visible: false, message: error.response.data.message });
@@ -78,7 +92,9 @@ export const searchInvestigation = createAsyncThunk(
   "investigation/searchInvestigation",
   async (data, { rejectWithValue }) => {
     try {
-      const result = await ApiInvestigation.searchInvestigation(data.searchQuery);
+      const result = await ApiInvestigation.searchInvestigation(data.searchQuery, {
+        isChikitsalayAccessable: data?.isChikitsalayAccessable,
+      });
       return result;
     } catch (error) {
       return rejectWithValue({ visible: false, message: error.response.data.message });

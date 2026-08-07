@@ -14,24 +14,18 @@ import {
 import { LoadingOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
+import {
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
 import styles from "./OphthalmologyExamPanel.module.scss";
 import {
   OPHTHALMOLOGY_OPTIONS,
   OPHTHALMOLOGY_SECTIONS,
 } from "../../utils/ophthalmologyExamConstants";
-import visualAcuityIcon from "../../assets/images/visual-acuity-test.svg";
-import autoRefractionIcon from "../../assets/images/auto-refraction-test.svg";
-import lensometerIcon from "../../assets/images/lensometer-values.svg";
-import glassPrescriptionIcon from "../../assets/images/glass-prescription.svg";
-import iopIcon from "../../assets/images/intra-ocular-pressure.svg";
-import slitLampIcon from "../../assets/images/slit-lamp-examination.svg";
-import fundusIcon from "../../assets/images/fundus-examination.svg";
-import autoFillBlueIcon from "../../assets/images/autoFillBlue.svg";
-import opthalIcon from "../../assets/images/opthalIcon.svg";
-import arrowDownIcon from "../../assets/images/arrow-box-down.svg";
-import autofillArrowIcon from "../../assets/images/down-arrow-blue.svg";
+
 import CommonModal from "../../common/CommonModal";
-import alertIcon from "../../assets/images/alertIcon.svg";
+
 import { errorMessage, removeBeforeWhiteSpace } from "../../utils/utils";
 import {
   resetVisualAcuity,
@@ -57,6 +51,21 @@ import {
   deleteFundusTemplate,
   getFundusTemplates,
 } from "../../redux/fundusTemplateSlice";
+import { ASSETS } from "../../assets";
+const {
+  visualAcuityTest: visualAcuityIcon,
+  autoRefractionTest: autoRefractionIcon,
+  lensometerValues: lensometerIcon,
+  glassPrescription: glassPrescriptionIcon,
+  intraOcularPressure: iopIcon,
+  slitLampExamination: slitLampIcon,
+  fundusExamination: fundusIcon,
+  autofillblue: autoFillBlueIcon,
+  opthalicon: opthalIcon,
+  arrowBoxDown: arrowDownIcon,
+  downArrowBlue: autofillArrowIcon,
+  alerticon: alertIcon,
+} = ASSETS.images;
 
 const SECTION_ICONS = {
   visualAcuity: visualAcuityIcon,
@@ -207,6 +216,15 @@ const OphthalmologyTable = ({
   resetKey,
 }) => {
   const { columns, rows } = table;
+  const isAutoRefractionEyeTable =
+    table.id === "autoRefractionDilated" ||
+    table.id === "autoRefractionUndilated" ||
+    table.id === "visualAcuityTable" ||
+    table.id === "lensometerTable" ||
+    table.id === "glassPrescriptionTable" ||
+    table.id === "iopTable";
+  const isColumnEyeAutofillTable =
+    table.id === "slitLampTable" || table.id === "fundusTable";
   const inputColumnKeys = useMemo(
     () => columns.filter((column) => column.type !== "label").map((c) => c.key),
     [columns]
@@ -276,15 +294,89 @@ const OphthalmologyTable = ({
     return [];
   };
 
+  const handleEyeAutofill = (targetRowKey) => {
+    const sourceRowKey = targetRowKey === "od" ? "os" : "od";
+    const editableColumns = columns.filter((column) => column.type !== "label");
+    if (onChange) {
+      editableColumns.forEach((column) => {
+        const sourceCellKey = `${sourceRowKey}-${column.key}`;
+        const sourceValue = externalValues
+          ? externalValues[sourceCellKey] ?? ""
+          : values[sourceCellKey] ?? "";
+        onChange(targetRowKey, column.key, sourceValue);
+      });
+      return;
+    }
+    setValues((prev) => {
+      const nextValues = { ...prev };
+      editableColumns.forEach((column) => {
+        const sourceCellKey = `${sourceRowKey}-${column.key}`;
+        const targetCellKey = `${targetRowKey}-${column.key}`;
+        nextValues[targetCellKey] = prev[sourceCellKey] ?? "";
+      });
+      return nextValues;
+    });
+  };
+
+  const handleEyeColumnAutofill = (targetColumnKey) => {
+    const sourceColumnKey = targetColumnKey === "od" ? "os" : "od";
+    if (onChange) {
+      rows.forEach((row) => {
+        const sourceCellKey = `${row.key}-${sourceColumnKey}`;
+        const sourceValue = externalValues
+          ? externalValues[sourceCellKey] ?? ""
+          : values[sourceCellKey] ?? "";
+        onChange(row.key, targetColumnKey, sourceValue);
+      });
+      return;
+    }
+    setValues((prev) => {
+      const nextValues = { ...prev };
+      rows.forEach((row) => {
+        const sourceCellKey = `${row.key}-${sourceColumnKey}`;
+        const targetCellKey = `${row.key}-${targetColumnKey}`;
+        nextValues[targetCellKey] = prev[sourceCellKey] ?? "";
+      });
+      return nextValues;
+    });
+  };
+
   return (
     <div className={styles.tableWrapper}>
       {table.title && <div className={styles.tableTitle}>{table.title}</div>}
       <table className={styles.table}>
         <thead>
           <tr>
-            {columns.map((column) => (
-              <th key={column.key}>{column.label}</th>
-            ))}
+            {columns.map((column) => {
+              const showColumnAutofill =
+                isColumnEyeAutofillTable &&
+                (column.key === "od" || column.key === "os");
+              if (!showColumnAutofill) {
+                return <th key={column.key}>{column.label}</th>;
+              }
+
+              const sourceEyeLabel = column.key === "od" ? "OS" : "OD";
+              return (
+                <th
+                  key={column.key}
+                  className={styles.columnHeaderAutofill}
+                >
+                  <div className={styles.columnHeaderContent}>
+                    <span>{column.label}</span>
+                    <button
+                      type="button"
+                      className={styles.columnAutofillCta}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleEyeColumnAutofill(column.key);
+                      }}
+                    >
+                      Autofill from {sourceEyeLabel}
+                    </button>
+                  </div>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -292,9 +384,32 @@ const OphthalmologyTable = ({
             <tr key={row.key}>
               {columns.map((column) => {
                 if (column.type === "label") {
+                  const showEyeAutofill =
+                    isAutoRefractionEyeTable &&
+                    (row.key === "od" || row.key === "os");
+                  const sourceEyeLabel = row.key === "od" ? "OS" : "OD";
                   return (
-                    <td key={column.key} className={styles.rowLabel}>
-                      {row.label}
+                    <td
+                      key={column.key}
+                      className={`${styles.rowLabel} ${
+                        showEyeAutofill ? styles.rowLabelAutofill : ""
+                      }`}
+                    >
+                      <div className={styles.rowLabelContent}>
+                        <span>{row.label}</span>
+                        {showEyeAutofill && (
+                          <button
+                            type="button"
+                            className={styles.rowAutofillCta}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEyeAutofill(row.key);
+                            }}
+                          >
+                            Autofill from {sourceEyeLabel}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   );
                 }
@@ -397,46 +512,29 @@ const OphthalmologySectionCard = ({
             if (customAction) {
               return customAction;
             }
+            const ACTION_ICON_MAP = {
+              "Load from Prev.": "refresh-arrow",
+              "Clear": "eraser",
+              "Templates": "grid-5",
+              "Save": "ram",
+            };
+            const iconName = ACTION_ICON_MAP[action];
             return (
-            <button
-              key={action}
-              type="button"
-              className={styles.headerAction}
-              disabled={isDisabled}
-              title={isDisabled ? "No prev data found" : undefined}
-              onClick={() => {
-                if (!isDisabled) {
-                  onAction?.(section, action);
-                }
-              }}
-            >
-              {action === "Load from Prev." ? (
-                <>
-                  <i className="icon-reload"></i>
-                  <span className={styles.headerActionUnderline}>Load from Prev.</span>
-                </>
-              ) : action === "Clear" ? (
-                <>
-                  <i className="icon-eraser1"></i>
-                  <span>Clear</span>
-                </>
-              ) : action === "Templates" ? (
-                <>
-                  <i className="icon-template"></i>
-                  <span>Templates</span>
-                </>
-              ) : action === "Save" ? (
-                <>
-                  <i className="icon-save"></i>
-                  <span>Save</span>
-                </>
-              ) : (
-                <>
-                  <span className={styles.actionIcon} />
-                  {action}
-                </>
-              )}
-            </button>
+              <TesseractButton
+                key={action}
+                variant="tonal"
+                theme="neutral"
+                size="sm"
+                aria-label={action}
+                disabled={isDisabled}
+                title={isDisabled ? "No prev data found" : action}
+                onClick={() => {
+                  if (!isDisabled) {
+                    onAction?.(section, action);
+                  }
+                }}
+                icon={iconName ? <TPLibraryIcon name={iconName} variant="linear" size={18} /> : undefined}
+              />
             );
           })}
           {showCollapseToggle && (
@@ -1719,10 +1817,13 @@ const OphthalmologyExamPanel = ({
                   overlayClassName="pop-350 pp-0"
                   placement="bottom"
                 >
-                  <button type="button" className={styles.headerAction}>
-                    <i className="icon-template"></i>
-                    <span>Templates</span>
-                  </button>
+                  <TesseractButton
+                    variant="tonal"
+                    theme="neutral"
+                    size="sm"
+                    aria-label="Browse slit lamp templates"
+                    icon={<TPLibraryIcon name="grid-5" variant="linear" size={18} />}
+                  />
                 </Popover>
               );
             }
@@ -1747,10 +1848,14 @@ const OphthalmologyExamPanel = ({
                     overlayClassName="pop-450 pp-0"
                     placement="bottom"
                   >
-                    <button type="button" className={styles.headerAction}>
-                      <i className="icon-save"></i>
-                      <span>Save</span>
-                    </button>
+                    <TesseractButton
+                      variant="tonal"
+                      theme="neutral"
+                      size="sm"
+                      aria-label="Save slit lamp template"
+                      disabled={slitLampTemplateRows.length === 0}
+                      icon={<TPLibraryIcon name="ram" variant="linear" size={18} />}
+                    />
                   </Popover>
                 </Tooltip>
               );
@@ -1766,10 +1871,13 @@ const OphthalmologyExamPanel = ({
                   overlayClassName="pop-350 pp-0"
                   placement="bottom"
                 >
-                  <button type="button" className={styles.headerAction}>
-                    <i className="icon-template"></i>
-                    <span>Templates</span>
-                  </button>
+                  <TesseractButton
+                    variant="tonal"
+                    theme="neutral"
+                    size="sm"
+                    aria-label="Browse fundus templates"
+                    icon={<TPLibraryIcon name="grid-5" variant="linear" size={18} />}
+                  />
                 </Popover>
               );
             }
@@ -1794,10 +1902,14 @@ const OphthalmologyExamPanel = ({
                     overlayClassName="pop-450 pp-0"
                     placement="bottom"
                   >
-                    <button type="button" className={styles.headerAction}>
-                      <i className="icon-save"></i>
-                      <span>Save</span>
-                    </button>
+                    <TesseractButton
+                      variant="tonal"
+                      theme="neutral"
+                      size="sm"
+                      aria-label="Save fundus template"
+                      disabled={fundusTemplateRows.length === 0}
+                      icon={<TPLibraryIcon name="ram" variant="linear" size={18} />}
+                    />
                   </Popover>
                 </Tooltip>
               );

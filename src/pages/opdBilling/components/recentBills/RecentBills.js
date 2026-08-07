@@ -13,18 +13,19 @@ const RecentBills = ({
   setBillData,
   createBillDrawer,
   setCreateBillDrawer,
+  fromLims = false,
 }) => {
   const [sortConfig, setSortConfig] = useState({ field: null, order: null });
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
+  const showCloseButton = fromLims || !isReceptionist;
   
   const handleSortChange = useCallback(
     (field, order) => {
       setSortConfig({ field, order });
-      // Call getPatientBills with new sort parameters
-      getPatientBills(undefined, { field, order });
+      getPatientBills(patientData, { field, order });
     },
-    [getPatientBills]
+    [getPatientBills, patientData]
   );
 
   return (
@@ -39,7 +40,7 @@ const RecentBills = ({
         }}
       >
         <div className="align-items-center d-flex">
-          {!isReceptionist && (
+          {showCloseButton && (
             <Button
               type="text"
               className="btn btn-delete-prescription px-3 focus-none h-100"
@@ -48,7 +49,7 @@ const RecentBills = ({
               <i className="icon-Cross fs-3"></i>
             </Button>
           )}
-          <div className={`modal-title ${isReceptionist ? "px-4" : ""}`}>
+          <div className={`modal-title ${isReceptionist && !fromLims ? "px-4" : ""}`}>
             {patientData?.pm_fullname}'s Recent Bills
           </div>
         </div>

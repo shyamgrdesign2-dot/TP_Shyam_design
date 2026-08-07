@@ -22,8 +22,7 @@ import { Row, Col, ButtonGroup } from "react-bootstrap";
 import BillingTable from "./BillingTable/BillingTable";
 import AdvanceDeposit from "./AdvanceDepositTable/AdvanceDepositTable";
 import AdvanceDepositTable from "./AdvanceDepositTable/AdvanceDepositTable";
-import depositIcon from "./../../../../assets/images/deposit-icon.svg";
-import depositSelectedIcon from "./../../../../assets/images/deposit-selected-icon.svg";
+
 import {
   fetchAdvancedDepositDashboard,
   fetchBillingDashboard,
@@ -37,6 +36,11 @@ import { useDispatch } from "react-redux";
 import { deleteDocsUploadedFromAndroid } from "../../../medicalRecords/service";
 import { setLoadingStatus } from "../../../../redux/uploadDocSlice";
 import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../../../../utils/constants";
+import { ASSETS } from "../../../../assets";
+const {
+  depositIcon,
+  depositSelectedIcon,
+} = ASSETS.images;
 
 const dateFormat = "YYYY-MM-DD";
 const TableBillingDashboard = forwardRef(
@@ -60,6 +64,7 @@ const TableBillingDashboard = forwardRef(
     const dispatch = useDispatch();
     const { doctorList } = useSelector((state) => state.bulkMessages);
     const { userId } = useSelector((state) => state.doctors);
+    const { advancedSettings } = useSelector((state) => state.billing);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTab, setSelectedTab] = useState(1);
     const [isAdvanceDepositTab, setIsAdvanceDepositTab] = useState(false);
@@ -316,6 +321,8 @@ const TableBillingDashboard = forwardRef(
                 totalAdvanceBalance={totalAdvanceBalance}
                 showHideSubModal={showHideSubModal}
                 billType={"opd"}
+                isReceptionistUser={isReceptionist}
+                advancedSettings={advancedSettings}
               />
             ) : selectedTab === 2 ? (
               <BillingTable
@@ -335,6 +342,8 @@ const TableBillingDashboard = forwardRef(
                 totalAdvanceBalance={totalAdvanceBalance}
                 showHideSubModal={showHideSubModal}
                 billType={"ipd"}
+                isReceptionistUser={isReceptionist}
+                advancedSettings={advancedSettings}
               />
             ) : (
               <AdvanceDepositTable

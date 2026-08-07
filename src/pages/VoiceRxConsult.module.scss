@@ -1,3 +1,5 @@
+@import '../styles/variables.scss';
+
 :global {
   button.btn.btn-link[class*="quitButton"],
   .btn.btn-link[class*="quitButton"],
@@ -459,7 +461,7 @@
     position: absolute;
     width: 740px;
     height: 163px;
-    background: url('../assets/images/ellipse-895.svg') no-repeat center;
+    background: url('#{$tp-assets-base}/images/ellipse-895.svg') no-repeat center;
     background-size: contain;
     z-index: 1;
   }

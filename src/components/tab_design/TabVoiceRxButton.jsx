@@ -1,8 +1,12 @@
 import styles from "./TabVoiceRxButton.module.scss";
-import voiceRxIcon from "../../assets/images/voice-rx.svg";
-import genRxBgWebm from "../../assets/images/gen-rx-bg.webm";
-import genRxBgMp4 from "../../assets/images/gen-rx-bg.mp4";
+
 import LoopingVideo from "../common/LoopingVideo";
+import { ASSETS } from "../../assets";
+const {
+  voiceRx: voiceRxIcon,
+  genRxBg_2: genRxBgWebm,
+  genRxBg: genRxBgMp4,
+} = ASSETS.images;
 
 const TabVoiceRxButton = ({ onClick, className = "" }) => {
   return (

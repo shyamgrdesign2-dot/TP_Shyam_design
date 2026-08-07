@@ -11,20 +11,15 @@ import { errorMessage, sendMessageToParent } from "../utils/utils";
 import { EVENTS } from "../utils/events";
 import api from "../api/services/axiosService";
 
-import visitEnd from '../assets/images/end-visit.svg';
-import imgCloseVisit from '../assets/images/close-visit.svg';
-import wtsp from '../assets/images/wtsp.svg';
-import loadingImg from '../assets/images/loading.webp';
-import successIcon from '../assets/images/success-icon.svg';
-import cvtInfoIcon from '../assets/images/cvt-info.svg';
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { FAILED_VERIFICATION, FETCH_SMART_RX, FREE, GB_SMARTSYNC_CVT, MESSAGE_KEY, RX_DIGITIZATION, S_RX_DIGITIZATION, WHATS_APP_API, WTSAP_ERR_MESSAGE, LANGUAGE_LIST } from "../utils/constants";
+import { FAILED_VERIFICATION, FETCH_SMART_RX, FREE, GB_SMARTSYNC_CVT, MESSAGE_KEY, RX_DIGITIZATION, S_RX_DIGITIZATION, WHATS_APP_API, WTSAP_ERR_MESSAGE, LANGUAGE_LIST, GB_CVT_EXT_HOS } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import config from "../../src/config";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { useSelector, useDispatch } from "react-redux";
+import { selectDentalExamination } from "../redux/dentalExaminationSlice";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
@@ -38,10 +33,20 @@ import { checkCredits } from "../redux/monetizationSlice";
 import { services } from "../redux/doctorsSlice";
 import ExpiredSubModal from "./monetization/components/ExpiredSubModal";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import {
   getClinic,
   getTokenData,
 } from "../utils/utils";
+import { ASSETS } from "../assets";
+const {
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  wtsp,
+  loading_3: loadingImg,
+  successIcon,
+  cvtInfo: cvtInfoIcon,
+} = ASSETS.images;
 
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
@@ -58,6 +63,8 @@ function SmartRxPreview() {
     const {
         loading,
     } = useSelector((state) => state.caseManager);
+    const dentalExaminationData = useSelector(selectDentalExamination);
+    const oralExamination = useSelector((state) => state.oralExamination);
     const dispatch = useDispatch();
 
     const navigate = useNavigate();
@@ -144,6 +151,8 @@ function SmartRxPreview() {
     const showDigitalWrittenToggle = isRxDigitisedForTabs || isBackFromDigitise;
     const [showDigitalRx, setShowDigitalRx] = useState(false);
     const [cvtDrawer, setCvtDrawer] = useState(false);
+    // Same as Configure Print Settings / TabRx: print payload often omits labs for smart Rx.
+    const [labParamsData, setLabParamsData] = useState([]);
     const progressRef = useRef(null);
     const progressValue = useRef(0);
     const hasToggledRef = useRef(false);
@@ -156,6 +165,7 @@ function SmartRxPreview() {
     const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(
         GB_SMARTSYNC_CVT
     );
+    const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
     const containerStyle = {
         width: '100%',
@@ -256,6 +266,56 @@ function SmartRxPreview() {
         setPrintBlob(null);
         setNumPages(undefined);
     }, [showDigitalRx]);
+
+    useEffect(() => {
+        const patientUniqueId = patient_data?.patient_unique_id;
+        if (!patientUniqueId) {
+            setLabParamsData([]);
+            return;
+        }
+
+        let isCancelled = false;
+        const fetchLabParams = async () => {
+            try {
+                const labParamsBaseUrl = env.lab_params_api_url;
+                if (!labParamsBaseUrl) {
+                    if (!isCancelled) setLabParamsData([]);
+                    return;
+                }
+                const authToken = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+                const cleanedToken = authToken ? authToken.replace(/['"]+/g, "") : "";
+                // Match Configure Print Settings: fetch all, keep today's rows for Rx print.
+                const response = await axios.get(
+                    `${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientUniqueId}`,
+                    { headers: { Authorization: `Bearer ${cleanedToken}` } },
+                );
+                if (isCancelled) return;
+                const labResults = normalizeLabResultsResponse(response);
+                // Same intent as ConfigurePrintSetting.getTodayLabParams (local calendar day)
+                const now = new Date();
+                const todayStr = [
+                    now.getFullYear(),
+                    String(now.getMonth() + 1).padStart(2, "0"),
+                    String(now.getDate()).padStart(2, "0"),
+                ].join("-");
+                setLabParamsData(
+                    labResults.filter((labResult) => {
+                        const raw = labResult?.date || labResult?.createdAt;
+                        if (!raw) return false;
+                        return String(raw).slice(0, 10) === todayStr;
+                    }),
+                );
+            } catch (error) {
+                console.error("Error fetching lab params for smart rx print:", error);
+                if (!isCancelled) setLabParamsData([]);
+            }
+        };
+
+        fetchLabParams();
+        return () => {
+            isCancelled = true;
+        };
+    }, [patient_data?.patient_unique_id]);
 
     const fetchRxDigitisedData = async () => {
         try {
@@ -611,6 +671,14 @@ function SmartRxPreview() {
         selectedLang,
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
+        labParamsData,
+        dentalExaminationData,
+        oralExamination,
+        patientUniqueId: patient_data?.patient_unique_id,
+        patientId: patient_data?.patient_unique_id,
+        tcmId: state?.tcm_id,
+        isCvtExtHosAccessableFromGB,
+        patientRecord: patient_data,
     });
 
     useEffect(() => {
@@ -764,7 +832,7 @@ function SmartRxPreview() {
             <div className={`${isMobile ? 'p-0' : ''} w-100 bg-body wrapper2 prescription-wrapper`}>
                 <Row gutter={{ xl: 40, lg: 0 }} justify="center">
                     <Col md={7} lg={7} xl={7}>
-                        {isMobile ? '' : <div className="d-flex align-items-center justify-content-end h-38" onClick={configurePrintUrl}>
+                        {isMobile || isCvtExtHosAccessableFromGB ? '' : <div className="d-flex align-items-center justify-content-end h-38" onClick={configurePrintUrl}>
                             <i className="icon-setting me-2"></i>
                             <span className="text-decoration-underline fw-medium cursor-pointer"> Configure Print Setting </span>
                         </div>
@@ -772,7 +840,7 @@ function SmartRxPreview() {
                         <div className={`${!isMobile ? 'rounded-20px mt-20' : 'border-top-0 border-start-0 border-bottom-0'} border p-20 bg-white d-flex flex-column`}
                             style={{ height: !isMobile ? 'calc(100vh - 100px)' : 'calc(100vh - 60px)' }}>
                             <div>
-                                {!isMobile ? '' : <div className="d-flex align-items-center mb-14 h-38" onClick={configurePrintUrl}>
+                                {!isMobile || isCvtExtHosAccessableFromGB ? '' : <div className="d-flex align-items-center mb-14 h-38" onClick={configurePrintUrl}>
                                     <i className="icon-setting me-2"></i>
                                     <span className="text-decoration-underline fw-medium cursor-pointer"> Configure Print Setting </span>
                                 </div>
@@ -795,34 +863,41 @@ function SmartRxPreview() {
                                     <span className="fw-semibold">{showDigitalRx ? "Download Digital Rx" : "Download Written Rx"}</span>
                                     <i className="icon-right iconrotate180 ms-auto"></i>
                                 </Button>
-                                <Button
-                                        type="text"
-                                        className="btn btn-input btnicon20 align-items-center d-flex mb-3  btn-41 w-100"
-                                        icon={<i className="icon-Edit"></i>}
-                                        onClick={handleEditRxClick}
-                                        loading={loading}
-                                    >
-                                        <span className="fw-semibold">{showDigitalRx ? "Edit Digital Rx" : "Edit Written Rx"}</span>
-                                        <i className="icon-right iconrotate180 ms-auto"></i>
-                                </Button>
+                               {/* { !isCvtExtHosAccessableFromGB && */}
+                                    <Button
+                                            type="text"
+                                            className="btn btn-input btnicon20 align-items-center d-flex mb-3  btn-41 w-100"
+                                            icon={<i className="icon-Edit"></i>}
+                                            onClick={handleEditRxClick}
+                                            loading={loading}
+                                        >
+                                            <span className="fw-semibold">{showDigitalRx ? "Edit Digital Rx" : "Edit Written Rx"}</span>
+                                            <i className="icon-right iconrotate180 ms-auto"></i>
+                                    </Button>
+                               {/* } */}
+
                             </div>
-                            <div className="bg-body d-flex p-3 rounded-10px border">
+
+                            {!isCvtExtHosAccessableFromGB && <div className="bg-body d-flex p-3 rounded-10px border">
                                 <img src={wtsp} alt="Whatsapp Icon" className='align-self-baseline me-3' />
                                 <div className="fontroboto title-common">
                                     <div className="fw-normal fontroboto mb-2">{showDigitalRx ? "Send this Digital Rx to" : "Send this Written Rx to "}</div>
                                     {patient_data !== undefined ? `WhatsApp +91 ${patient_data.pm_contact_no}` : '-'}
                                 </div>
-                            </div>
-                            <button
-                            className="btn btn-send-to-wtsap btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
-                            onClick={handleSendToWhatsapp}
-                            >
-                                {isLoading ? (
-                                <img src={loadingImg} alt="Loading..." width="25px" height="25px"/>
-                                ) : (
-                                    buttonText
-                                )}
-                            </button>
+                            </div>}
+                            { !isCvtExtHosAccessableFromGB &&
+                                <button
+                                className="btn btn-send-to-wtsap btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
+                                onClick={handleSendToWhatsapp}
+                                >
+                                    {isLoading ? (
+                                    <img src={loadingImg} alt="Loading..." width="25px" height="25px"/>
+                                    ) : (
+                                        buttonText
+                                    )}
+                                </button>
+                            } 
+                            
                             { isSmartSyncCVTAccessableFromGB && (
                                 <>
                                     {showProgressbar && !isRxDigitiseComplete && (

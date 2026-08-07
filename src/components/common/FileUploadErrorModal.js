@@ -1,7 +1,8 @@
 import React from "react";
 import { Button } from "antd";
 import CommonModal from "../../common/CommonModal";
-import alertIcon from "../../assets/images/alertIcon.svg";
+import { ASSETS } from "../../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 const FileUploadErrorModal = ({
   isFileSizeError,

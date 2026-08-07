@@ -16,20 +16,24 @@ import AdvanceBillSettings from "./AdvanceSettings";
 import { useNavigate } from "react-router-dom";
 import ServiceItemPopup from "../serviceItemPopup/ServiceItemPopup";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "../../../../assets/images/alertIcon.svg";
+
 import { debounce } from "lodash";
 import { setAdvancedSettings } from "../../../../redux/billingSlice";
 import { useDispatch } from "react-redux";
 import { getClinic, trackEvent, getClinicName } from "../../../../utils/utils";
 import { useSelector } from "react-redux";
 
-import playIcons from "../../../../assets/images/tube-icon.svg";
-import tutorial from "../../../../assets/images/tutorial-icon.svg";
-import videorotateWebm from "../../../../assets/images/videorotate.webm";
-import videorotateMp4 from "../../../../assets/images/videorotate.mp4";
 import LoopingVideo from "../../../../components/common/LoopingVideo";
 import VideoModal from "../../../../common/VideoModal";
 import { Popover } from "antd";
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  tubeIcon: playIcons,
+  tutorialIcon: tutorial,
+  videorotate_2: videorotateWebm,
+  videorotate: videorotateMp4,
+} = ASSETS.images;
 
 const { Title } = Typography;
 

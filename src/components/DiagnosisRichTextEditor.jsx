@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './DiagnosisRichTextEditor.scss';
-import diagnosisIcon from '../assets/images/Diagnosis.svg';
+import { ASSETS } from "../assets";
+const diagnosisIcon = ASSETS.images.diagnosis;
 
 /**
  * DiagnosisRichTextEditor - Rich text editor specifically for Diagnosis section

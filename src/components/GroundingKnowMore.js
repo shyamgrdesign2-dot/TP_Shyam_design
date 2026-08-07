@@ -1,13 +1,17 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Button, Tabs } from "antd";
-import intersect from "../assets/images/intersect.svg";
-import playIcons from "../assets/images/tube-icon.svg";
-import growIcon from "../assets/images/grow.svg";
-import accuracyIcon from "../assets/images/accuracy.svg";
-import healthIcon from "../assets/images/health-care.svg";
+
 import VideoModal from "../common/VideoModal";
 import { S_DDX } from "../utils/constants";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
+import { ASSETS } from "../assets";
+const {
+  intersect,
+  tubeIcon: playIcons,
+  grow: growIcon,
+  accuracy: accuracyIcon,
+  healthCare: healthIcon,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 

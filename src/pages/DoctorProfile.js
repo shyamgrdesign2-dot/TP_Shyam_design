@@ -13,9 +13,7 @@ import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { uploadDocuments } from "../components/userOnboarding/services/onboardingService";
-
-import defaultprofile from "../assets/images/default-profile.svg";
-import Link1 from "../assets/images/link1.svg";
+import { ASSETS } from "../assets";
 
 import ProfilePersonalDetailsView from "../components/doctor_profile/ProfilePersonalDetailsView";
 import ProfileClinicView from "../components/doctor_profile/ProfileClinicView";
@@ -27,6 +25,10 @@ import IdProof from "../components/userOnboarding/IdProof";
 import config from "../config";
 
 function DoctorProfile() {
+  const {
+    defaultProfile: defaultprofile,
+    link1: Link1,
+  } = ASSETS.images;
   const navigate = useNavigate();
   const { profile } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);

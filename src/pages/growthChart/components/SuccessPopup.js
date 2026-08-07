@@ -1,8 +1,12 @@
 import { Modal } from "antd";
 import React from "react";
-import successWebm from "../../../assets/images/success-animation.webm";
-import successMp4 from "../../../assets/images/success-animation.mp4";
+
 import LoopingVideo from "../../../components/common/LoopingVideo";
+import { ASSETS } from "../../../assets";
+const {
+  successAnimation_2: successWebm,
+  successAnimation: successMp4,
+} = ASSETS.images;
 
 const SuccessPopup = ({ show, setShow }) => {
   return (

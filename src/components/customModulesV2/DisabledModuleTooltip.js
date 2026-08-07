@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { Tooltip } from "antd";
-import alertIcon from "../../assets/images/alertIcon.svg";
+import { ASSETS } from "../../assets";
+const alertIcon = ASSETS.images.alerticon;
 
 /**
  * DisabledModuleTooltip
@@ -83,5 +84,4 @@ const DisabledModuleTooltip = ({
 };
 
 export default DisabledModuleTooltip;
-
 

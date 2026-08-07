@@ -6,7 +6,8 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
@@ -18,12 +19,17 @@ import CashManagerContext from "../context/CashManagerContext";
 import HeaderPrescription from "../common/HeaderPrescription";
 import SymptomsBox from "../components/SymptomsBox";
 import ExaminationBox from "../components/ExaminationBox";
+import ReferralBox from "../components/ReferralBox";
+import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
+import { useCrossConsult } from "../hooks/useCrossConsult";
+import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 import OphthalmologyExamPanel from "../components/ophthalmology/OphthalmologyExamPanel";
 import DiagnosisBox from "../components/DiagnosisBox";
 import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
 import InvestigationBox from "../components/InvestigationBox";
 import TabFollowUpBox from "../components/tab_design/TabFollowUpBox";
+import { listPatientCanvasMapping } from "./drawingCanvas/service";
 
 import VitalsBox from "../components/VitalsBox";
 import VitalsList from "../components/VitalsList";
@@ -34,18 +40,7 @@ import MedicalHistoryList from "../components/MedicalHistoryList";
 import PrivateNotesBox from "../components/PrivateNotesBox";
 import PrivateNotesList from "../components/PrivateNotesList";
 
-import vitals from "../assets/images/Vitals.svg";
-import MedicalHistory from "../assets/images/Medical-History.svg";
-import privateNotes from "../assets/images/private-notes.svg";
-
-import hey from "../assets/images/bg-hey.webp";
-
 import { Content } from "antd/es/layout/layout";
-import vaccinationImg from "../assets/images/Vaccination.svg";
-import growthChartImg from "../assets/images/growth-chart-dark.svg";
-import obstetricImg from "../assets/images/obstetric-dark.svg";
-import uploadDocImg from "../assets/images/upload-doc-dark.svg";
-import labResultImg from "../assets/images/Lab.svg";
 import Vaccination from "./vaccination/Vaccination";
 import GrowthChart from "./growthChart/GrowthChart";
 import { viewPatient } from "../redux/appointmentsSlice";
@@ -55,9 +50,10 @@ import Obstetric from "./obstetric/Obstetric";
 import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails } from "../redux/obstetricSlice";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, isValidMongoId } from "../utils/utils";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
+import DrawingCanvas from "./drawingCanvas/DrawingCanvas";
 import {
   fetchAllDocumentCategories,
   fetchAllPatientDocs,
@@ -71,6 +67,7 @@ import {
   zydusRadioList,
 } from "../redux/uploadDocSlice";
 import UploadDocumentList from "./medicalRecords/components/uploadDocumentList/UploadDocumentList";
+import DrawingCanvasList from "./drawingCanvas/components/DrawingCanvasList";
 import {
   generateUniqueFileName,
   getCorrectedFileName,
@@ -84,9 +81,6 @@ import ViewLabParam from "../components/ViewLabParams";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import DDxKnowMore from "../components/DDxKnowMore";
 import TabPane from "antd/es/tabs/TabPane";
-import apexAIImg from "../assets/images/apexAI.svg";
-import blinkingDotWebm from "../assets/images/blinkingDot.webm";
-import blinkingDotMp4 from "../assets/images/blinkingDot.mp4";
 import LoopingVideo from "../components/common/LoopingVideo";
 import DifferentialDiagnosisDrawer from "../components/DifferentialDiagnosisDrawer";
 import {
@@ -98,7 +92,6 @@ import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
-import AddCustomModule from "../components/AddCustomModule";
 import CustomModule from "../components/CustomModule";
 import CarePlanDropdown from "../components/CarePlanDropdown";
 import CarePlanList from "../components/CarePlanList";
@@ -113,19 +106,10 @@ import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
-import genRxBgWebm from "../assets/images/gen-rx-bg.webm";
-import genRxBgMp4 from "../assets/images/gen-rx-bg.mp4";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
-import carePlanIcon from "../assets/images/Care plan_Active.svg";
-import TatvaAiBanner from "../components/TatvaAiBanner";
-import ApexAIPopup from "../components/ApexAIPopup";
-import GenRxBanner from "../components/GenRxBanner";
-import Carousel from "react-multi-carousel";
-import GroundingBanner from "../components/GroundingBanner";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
-import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../utils/constants";
 import {
@@ -150,6 +134,16 @@ import {
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
 import { GB_OPTHAL_MODULE } from "../utils/constants";
+import { ASSETS } from "../assets";
+import {
+  hasVitalsAndBodyCompositionData,
+  mapVitalsAndBodyCompositionToRowPatch,
+  mergeVitalsRowsWithSymptomCollectorPatch,
+  VITALS_ROW_DATE_FORMAT,
+} from "../utils/symptomCollectorVitalsMerge";
+import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
+import { useChikitsalay } from "./chikitsalay/useChikitsalay";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState, shouldUseVoiceRxNewUiNavigation } from "../utils/voiceRxNavigation";
 
 function Prescription() {
   const {
@@ -160,6 +154,29 @@ function Prescription() {
     timingList,
     opthalModuleAutoAdded,
   } = useSelector((state) => state.doctors);
+
+  const {
+    vitals,
+    medicalHistory: MedicalHistory,
+    privateNotes,
+    bgHey: hey,
+    vaccination: vaccinationImg,
+    growthChartDark: growthChartImg,
+    obstetricDark: obstetricImg,
+    uploadDocDark: uploadDocImg,
+    lab: labResultImg,
+    apexai: apexAIImg,
+    blinkingdot_3: blinkingDotWebm,
+    blinkingdot_2: blinkingDotMp4,
+    genRxBg_2: genRxBgWebm,
+    genRxBg: genRxBgMp4,
+    carePlanActive: carePlanIcon,
+  } = ASSETS.images;
+
+  const customizedPadLeftListForUI =
+    customizedPadLeftList && customizedPadLeftList.length > 0
+      ? customizedPadLeftList
+      : [];
   
   // Local state to manage customizedPadRightList with deleted modules for edit case
   const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
@@ -172,7 +189,6 @@ function Prescription() {
   const { privateNotesList } = useSelector((state) => state.medicalhistory);
   const {
     obstetricDetails: allObstetricDetails,
-    isObstetricDetailsFetched,
     isNavigateToObstetric,
   } = useSelector((state) => state.obstetric);
   const obstetricDetails = allObstetricDetails?.currentPregnancy || {};
@@ -199,13 +215,25 @@ function Prescription() {
   );
   const { customModules, hospitalSearchResults } = useSelector((state) => state.customModules);
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
 
   const { state } = useLocation();
   const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin, isEditRx, fromRepeatRx } = state || {};
-  
+
+  const isPrescriptionVoiceOrGenRxFlow =
+    Boolean(fromVoiceRecording) ||
+    (typeof inputText === "string" && inputText.trim().length > 0) ||
+    (caseManagerData?.smart_prescription_filename &&
+      isValidMongoId(caseManagerData.smart_prescription_filename));
+
+  const shouldApplyZydusVisibleRepeatEditFilter =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    (Boolean(fromRepeatRx) || Boolean(isEditRx)) &&
+    !isPrescriptionVoiceOrGenRxFlow;
+
   // Create a combined module list that includes both user's modules and hospital-wide modules
   // This ensures deleted modules are still available when editing a prescription
   const allAvailableModules = React.useMemo(() => {
@@ -399,6 +427,8 @@ function Prescription() {
   const [privateNotesData, setPrivateNotesData] = useState(null);
   const [followUpDate, setFollowUpDate] = useState(null);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [referralData, setReferralData] = useState(EMPTY_REFERRAL_DATA);
+  const isCrossConsultAccessable = useCrossConsult();
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
@@ -422,6 +452,7 @@ function Prescription() {
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
@@ -502,6 +533,22 @@ function Prescription() {
     setIsSubModalOpen(!isSubModalOpen);
   }
 
+  const normalizeCanvasIds = React.useCallback((value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      return value
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, []);
+
+  const [drawingCanvases, setDrawingCanvases] = useState([]);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState(() =>
+    normalizeCanvasIds(caseManagerData?.canvas_filename)
+  );
+
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
   const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
   const contextApi = {
@@ -534,6 +581,8 @@ function Prescription() {
     setFollowUpDate,
     additionalNote,
     setAdditionalNote,
+    referralData,
+    setReferralData,
     startTime,
     customModuleContents,
     setCustomModuleContents,
@@ -559,7 +608,8 @@ function Prescription() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
-    isDraft: caseManagerData?.is_draft
+    isDraft: caseManagerData?.is_draft,
+    rxDrawingCanvasIds,
   };
 
   const [vitalDrawer, setVitalDrawer] = useState(false);
@@ -572,6 +622,72 @@ function Prescription() {
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
+  const [drawingCanvasDrawer, setDrawingCanvasDrawer] = useState(false);
+
+  const fetchPatientCanvases = async () => {
+    const pId = patient_data?.patient_unique_id;
+    if (pId) {
+      const res = await listPatientCanvasMapping(pId, tcmId);
+      if (res.status && res.records) {
+        const mapped = res.records.map(r => ({
+          id: r.mapping_id,
+          name: r.canvas_name,
+          url: r.canvas_url,
+          created_at: r.created_at || r.createdAt || r.canvas_created_at,
+          scene: null
+        }));
+        setDrawingCanvases(mapped);
+      }
+    }
+  };
+
+  const canvasModuleViewedRef = useRef(false);
+  useEffect(() => {
+    fetchPatientCanvases();
+  }, [patient_data?.patient_unique_id, tcmId]);
+
+  // Track module viewed once when canvas module becomes available in the pad
+  useEffect(() => {
+    const isCanvasModuleVisible = customizedPadLeftListForUI?.some(
+      (e) => (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0
+    );
+    if (isCanvasModuleVisible && !canvasModuleViewedRef.current) {
+      canvasModuleViewedRef.current = true;
+      trackEvent("drawing_canvas_module_viewed", {
+        ...getCanvasTrackingAttrs(),
+        has_existing_canvas: drawingCanvases.length > 0,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customizedPadLeftListForUI, drawingCanvases.length]);
+
+  const handleSaveDrawingCanvas = (updatedCanvases, meta) => {
+    if (updatedCanvases && Array.isArray(updatedCanvases)) {
+      setDrawingCanvases(updatedCanvases);
+      const knownIds = new Set(
+        updatedCanvases.map((c) => String(c?.id)).filter(Boolean)
+      );
+      setRxDrawingCanvasIds((prev) =>
+        prev.filter((id) => knownIds.has(String(id)))
+      );
+    } else {
+      fetchPatientCanvases();
+    }
+    if (meta && meta.mappingId != null && meta.mappingId !== "") {
+      setRxDrawingCanvasIds((prev) => {
+        if (meta.showInRx !== false) {
+          return [...new Set([...prev, meta.mappingId])];
+        }
+        return prev.filter((id) => String(id) !== String(meta.mappingId));
+      });
+    }
+  };
+
+  // Session list: hydrate from case manager only when consultation identity changes (not on every CM patch).
+  useEffect(() => {
+    const next = caseManagerData?.canvas_filename;
+    setRxDrawingCanvasIds(normalizeCanvasIds(next));
+  }, [tcmId, pamId, normalizeCanvasIds]);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [filesData, setFilesData] = useState([]);
@@ -595,6 +711,7 @@ function Prescription() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
@@ -606,8 +723,15 @@ function Prescription() {
     isGrowthChartAccessable,
     isGynaecHistoryAccessable,
   } = useAccess(patient_data?.ageYears);
-  const { isDDxReadyToGenerate, showSCPopup, isAutofillSelected } = useSelector(
-    (state) => state.ddx
+  const {
+    isDDxReadyToGenerate,
+    showSCPopup,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+  } = useSelector((state) => state.ddx);
+  const vitalsCalculate = useCallback(
+    (H, W) => computeRxPadVitalsDerivedMetrics(H, W, patient_data),
+    [patient_data]
   );
   const [shouldShowGroundingBanner, setShowGroundingBanner] = useState(false);
 
@@ -654,7 +778,9 @@ function Prescription() {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   const handleVideoConsult = async () => {
@@ -844,16 +970,16 @@ function Prescription() {
     if (uploadDocCategories.length === 0) {
       getAllDocumentCategories();
     }
-    if (patient_data.patient_unique_id && allUploadedDocs.length === 0) {
+    if (patient_data?.patient_unique_id) {
       getAllPatientDocs();
     }
-  }, [isZydusUserAccessableFromGB]);
+  }, [patient_data?.patient_unique_id, patient_data?.mrno, isZydusUserAccessableFromGB]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {
       if (
         caseManagerData.vitals?.length > 0 &&
-        customizedPadLeftList.findIndex(
+        customizedPadLeftListForUI.findIndex(
           (e) => e.tmdpm_id === 1 && e.tmdpm_status === 0
         ) !== -1
       ) {
@@ -870,7 +996,7 @@ function Prescription() {
       }
       if (
         caseManagerData.medical_history?.length > 0 &&
-        customizedPadLeftList.findIndex(
+        customizedPadLeftListForUI.findIndex(
           (e) => e.tmdpm_id === 3 && e.tmdpm_status === 0
         ) !== -1
       ) {
@@ -910,13 +1036,25 @@ function Prescription() {
       ) {
         setDiagnosisData(caseManagerData.diagnosis);
       }
+      const medicineListForHydration = (() => {
+        const list = caseManagerData.medicine;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (m) =>
+            !Object.prototype.hasOwnProperty.call(m, "visible") ||
+            m.visible === undefined ||
+            m.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.medicine?.length > 0 &&
+        medicineListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 12 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        const updatedData = caseManagerData.medicine.map((e) => {
+        const updatedData = medicineListForHydration.map((e) => {
           const unitObj = e?.medicineUnit
             ? e?.medicineUnit.find((x) => x.tmu_id == e.tmm_unit)
             : null;
@@ -981,13 +1119,25 @@ function Prescription() {
       ) {
         setAdviceData(caseManagerData.advice);
       }
+      const investigationListForHydration = (() => {
+        const list = caseManagerData.investigation;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (row) =>
+            !Object.prototype.hasOwnProperty.call(row, "visible") ||
+            row.visible === undefined ||
+            row.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.investigation?.length > 0 &&
+        investigationListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 14 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        setInvestigationData(caseManagerData.investigation);
+        setInvestigationData(investigationListForHydration);
       }
       if (
         caseManagerData.follow_up_date &&
@@ -1018,6 +1168,34 @@ function Prescription() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (caseManagerData === undefined || !isCrossConsultAccessable) return;
+
+    const isReferralModuleEnabled =
+      customizedPadRightList.findIndex(
+        (e) => e.tmdpm_id === 26 && e.tmdpm_status === 0
+      ) !== -1;
+    if (!isReferralModuleEnabled) return;
+
+    let cancelled = false;
+
+    const loadReferralData = async () => {
+      const referral = await fetchReferralDataForCaseManager(
+        caseManagerData,
+        patient_data
+      );
+      if (!cancelled && referral) {
+        setReferralData(referral);
+      }
+    };
+
+    loadReferralData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseManagerData, customizedPadRightList, isCrossConsultAccessable, patient_data]);
 
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
@@ -1073,6 +1251,41 @@ function Prescription() {
   const handleDrawerMedicalReport = () => {
     setMedicalReportDrawer(!medicalReportDrawer);
   };
+
+  // Drawer Drawing Canvas
+  const canvasDrawerOpenTimeRef = useRef(null);
+  const getCanvasTrackingAttrs = useCallback(() => ({
+    specialty: profile?.dp_name,
+    specialty_id: profile?.dp_id,
+    user_id: tokenData?.user_id,
+    doctor_unique_id: profile?.doctor_unique_id,
+    doctor_name: profile?.um_name,
+    patient_id: patient_data?.patient_unique_id,
+    consultation_id: tcmId,
+    prescription_type: "normal_rx",
+  }), [profile, tokenData, patient_data, tcmId]);
+
+  const handleDrawerDrawingCanvas = useCallback(() => {
+    const opening = !drawingCanvasDrawer;
+    if (opening) {
+      canvasDrawerOpenTimeRef.current = Date.now();
+      trackEvent("drawing_canvas_drawer_opened", {
+        ...getCanvasTrackingAttrs(),
+        entry_point: "rx_pad",
+        existing_canvas_count: drawingCanvases.length,
+      });
+    } else {
+      const timeSpent = canvasDrawerOpenTimeRef.current
+        ? Math.round((Date.now() - canvasDrawerOpenTimeRef.current) / 1000)
+        : 0;
+      trackEvent("drawing_canvas_drawer_closed", {
+        ...getCanvasTrackingAttrs(),
+        time_spent_seconds: timeSpent,
+      });
+      canvasDrawerOpenTimeRef.current = null;
+    }
+    setDrawingCanvasDrawer(opening);
+  }, [drawingCanvasDrawer, drawingCanvases.length, getCanvasTrackingAttrs]);
 
   // Drawer Obstetric
   const handleDrawerObstetric = (obstetricKey) => {
@@ -1169,23 +1382,43 @@ function Prescription() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
-      });
-      setVitalsData(updatedData);
-    }
-  }, [selectedVitalsList]);
+    if (!(caseManagerData === undefined || tcmId === 0)) return;
+    const updatedData = selectedVitalsList.map((e) => {
+      return {
+        ...e,
+        systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
+        diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
+      };
+    });
+    const patch = isAutofillSelected
+      ? mapVitalsAndBodyCompositionToRowPatch(
+          selectedSymptomsCollector?.vitalsAndBodyComposition,
+          vitalsCalculate
+        )
+      : null;
+    setVitalsData((prev) =>
+      mergeVitalsRowsWithSymptomCollectorPatch(
+        prev,
+        updatedData,
+        patch,
+        vitalsCalculate,
+        VITALS_ROW_DATE_FORMAT
+      )
+    );
+  }, [
+    selectedVitalsList,
+    caseManagerData,
+    tcmId,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+    vitalsCalculate,
+  ]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {
       if (
         caseManagerData.private_notes &&
-        customizedPadLeftList.findIndex(
+        customizedPadLeftListForUI.findIndex(
           (e) => e.tmdpm_id === 8 && e.tmdpm_status === 0
         ) !== -1 &&
         privateNotesList.findIndex(
@@ -1230,6 +1463,7 @@ function Prescription() {
         const list = Array.isArray(resp) ? resp : [];
 
         const match = list.find(x => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
@@ -1264,7 +1498,7 @@ function Prescription() {
         })
       );
       setShowSCBanner(true);
-      if (patient_data?.pam_status === "0" && caseManagerData === undefined) {
+      if ((patient_data?.pam_status === "0" || patient_data?.pam_status === "7") && caseManagerData === undefined) {
         dispatch(setShowSCPopup(true));
       }
     }
@@ -1363,7 +1597,7 @@ function Prescription() {
           },
         }
       );
-      setLabParamsData(response.data?.data?.results || []);
+      setLabParamsData(normalizeLabResultsResponse(response));
     } catch (error) {
       console.error("Error fetching lab params:", error);
     }
@@ -1520,8 +1754,52 @@ function Prescription() {
   };
 
   const CUSTOMIZED_PAD_LEFT_LIST = () => {
-    const modules = customizedPadLeftList?.map((e, i) => {
-      return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
+    const modules = customizedPadLeftListForUI?.map((e, i) => {
+      return (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0 ? (
+        <div key={i} className="prescription-box-sm p-14">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              <img
+                src={"https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/brush-square.svg" || e?.tmdpm_icon_url}
+                alt="Canvas"
+                width={22}
+                height={22}
+                className="me-3"
+                style={{ flex: "0 0 auto" }}
+              />
+              <div className="title-common">Canvas</div>
+            </div>
+
+            <button
+              className="btn d-flex align-items-center btn-text"
+              style={{ paddingRight: drawingCanvases.length > 0 ? 0 : 12 }}
+              onClick={() => {
+                trackEvent("drawing_canvas_cta_clicked", {
+                  ...getCanvasTrackingAttrs(),
+                  cta_type: drawingCanvases.length > 0 ? "view_all" : "add",
+                  existing_canvas_count: drawingCanvases.length,
+                });
+                handleDrawerDrawingCanvas();
+              }}
+            >
+              {drawingCanvases.length === 0 && (
+                <i className="icon-Add me-1 fs-5" />
+              )}
+              <span>{`${
+                drawingCanvases.length > 0 ? "View All" : "Add"
+              }`}</span>
+              {drawingCanvases.length > 0 && (
+                <i className="icon-right iconrotate180 ms-auto me-1 fs-5" />
+              )}
+            </button>
+          </div>
+          <DrawingCanvasList
+            drawingCanvases={drawingCanvases}
+            setDrawingCanvases={setDrawingCanvases}
+            handleDrawerDrawingCanvas={handleDrawerDrawingCanvas}
+          />
+        </div>
+      ) : e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
         <div key={i} className="prescription-box-sm p-14">
           <div className="d-flex align-items-center justify-content-between">
             <div className="d-flex align-items-center">
@@ -1543,7 +1821,11 @@ function Prescription() {
           </div>
           {(vitalsData.length > 0 ||
             vitalsPastList.length > 0 ||
-            patientBirthWeight) && (
+            patientBirthWeight ||
+            (isAutofillSelected &&
+              hasVitalsAndBodyCompositionData(
+                selectedSymptomsCollector?.vitalsAndBodyComposition
+              ))) && (
             <VitalsList mode={caseManagerData !== undefined ? EDIT : ADD} />
           )}
         </div>
@@ -1925,12 +2207,19 @@ function Prescription() {
     }
     
 
-    navigate("/voice-rx-consult", {
-      state: {
-        patient_data,
-        autoOpenModal: false,
-        fromPrescription: true,
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        {
+          patient_data,
+          autoOpenModal: false,
+          fromPrescription: true,
+          ...(shouldUseVoiceRxNewUiNavigation(isVoiceRxNewFromGB) && {
+            caseManagerData: caseManagerData,
+          }),
+        },
+        "prescription_header"
+      ),
     });
   }
   // Auto-fetch Zydus lab params when labReportID is available (for ZydusLabParametersList display)
@@ -2037,6 +2326,7 @@ function Prescription() {
               isTeleconsultActive={!!joinToken}
               labReportID={labReportID}
               selectedCarePlan={selectedCarePlan}
+              hasExistingCarePlan={hasExistingCarePlan}
               hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
             />
             <div className="w-100 bg-body wrapper2 prescription-wrapper">
@@ -2120,35 +2410,6 @@ function Prescription() {
             </div>
             <div className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3">
               <Content>
-                {/* {(shouldShowGenRxPopup || shouldShowApexPopup || shouldShowTatvaAiPopup || shouldShowGroundingBanner) && 
-                  <Carousel
-                  responsive={responsive}
-                  infinite={true}
-                  autoPlay={true}
-                  showDots={true}
-                  autoPlaySpeed={2000}
-                  removeArrowOnDeviceType={["tablet", "mobile"]}
-                  arrows={false}
-                  // dotListClass=""
-                  >
-                  {shouldShowGenRxPopup && (
-                    <GenRxBanner key="genrx-banner" setShowGenRxPopup={setShowGenRxPopup} handleGenRxKnowMore={handleGenRxKnowMore} />
-                  )}
-                  {shouldShowTatvaAiPopup && (
-                    <TatvaAiBanner key="tatva-ai-banner" setShowTatvaAiPopup={setShowTatvaAiPopup} handleTatvaAiKnowMore={handleTatvaAiKnowMore} />
-                  )}
-                  {shouldShowApexPopup && (
-                    <ApexAIPopup
-                    key="apex-popup"
-                      setShowApexPopup={setShowApexPopup}
-                      handleDDxKnowMore={handleDDxKnowMore}
-                    />
-                  )}
-                  {shouldShowGroundingBanner && (
-                    <GroundingBanner key="grounding-banner" setShowGroundingPopup={setShowGroundingBanner} handleGroundingKnowMore={handleGroundingKnowMore} />
-                  )}
-                  </Carousel>
-                } */}
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
@@ -2216,9 +2477,9 @@ function Prescription() {
                       </div>
                     </div>
                   ) : e.tmdpm_id === 10 && e.tmdpm_status === 0 ? (
-                    <div key={i} className="prescription-box-sm">
-                      <ExaminationBox />
-                    </div>
+                      <div key={i} className="prescription-box-sm">
+                        <ExaminationBox />
+                      </div>
                   ) : e.tmdpm_id === 21 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <SurgicalBox />
@@ -2263,6 +2524,10 @@ function Prescription() {
                   ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <TabFollowUpBox />
+                    </div>
+                  ) : e.tmdpm_id === 26 && e.tmdpm_status === 0 && isCrossConsultAccessable ? (
+                    <div key={i} className="prescription-box-sm">
+                      <ReferralBox />
                     </div>
                   ) : (
                     e.is_custom_module &&
@@ -2314,6 +2579,8 @@ function Prescription() {
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
+            initialActiveKey={isGynaecHistoryAccessable ? "gynec" : "medical"}
+            hideMenstrualHistoryTab={!isGynaecHistoryAccessable}
           />
         </Drawer>
         <Drawer
@@ -2411,6 +2678,35 @@ function Prescription() {
               setFilesData={setFilesData}
               setIsEditDocument={setIsEditDocument}
               setUploadDocDrawer={setUploadDocDrawer}
+            />
+          </Drawer>
+        )}
+        {drawingCanvasDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            bodyStyle={{ backgroundColor: "white" }}
+            onClose={handleDrawerDrawingCanvas}
+            open={drawingCanvasDrawer}
+            width="60%"
+            push={false}
+          >
+            <DrawingCanvas
+              patientId={patient_data?.patient_unique_id}
+              tcmId={tcmId}
+              canvases={drawingCanvases}
+              rxDrawingCanvasIds={rxDrawingCanvasIds}
+              onToggleRx={(canvasId, checked) => {
+                 setRxDrawingCanvasIds(prev =>
+                   checked
+                     ? [...Array.from(new Set([...prev, canvasId]))]
+                     : prev.filter((id) => String(id) !== String(canvasId))
+                 );
+              }}
+              onCreateCanvas={() => {}}
+              onSave={handleSaveDrawingCanvas}
+              onClose={handleDrawerDrawingCanvas}
+              trackingAttrs={getCanvasTrackingAttrs()}
             />
           </Drawer>
         )}

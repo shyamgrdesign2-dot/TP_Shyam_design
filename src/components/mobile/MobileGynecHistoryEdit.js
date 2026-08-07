@@ -13,13 +13,15 @@ import {
   PAIN_LIST,
   REPRODUCTIVE_LIFE_STAGES_LIST,
 } from '../../utils/gynec_constants';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import MobileAgeAtMenarcheEdit from './MobileAgeAtMenarcheEdit';
 import MobileCycleDetailsEdit from './MobileCycleDetailsEdit';
 import MobileFlowDetailsEdit from './MobileFlowDetailsEdit';
 import MobilePainDetailsEdit from './MobilePainDetailsEdit';
 import MobileLifecycleHormonalChangesEdit from './MobileLifecycleHormonalChangesEdit';
 import './MobileGynecHistoryEdit.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 function MobileGynecHistoryEdit({
   visible,

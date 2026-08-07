@@ -12,12 +12,9 @@ import BiometricCapturePopup from "../../components/abha/common/BiometricCapture
 import AbhaSuccessScreen from "../../components/abha/common/AbhaSuccessScreen";
 import OtpVerificationCode from "../../components/abha/common/OtpVerificationCode";
 import AbhaDrawerHeader from "../../components/abha/common/AbhaDrawerHeader";
-import AbhaHeadingSVG from "../../assets/images/abha-svg.svg";
-import SuccessWebm from "../../assets/images/succcess-abha-animation.webm";
-import SuccessMp4 from "../../assets/images/succcess-abha-animation.mp4";
+
 import LoopingVideo from "../../components/common/LoopingVideo";
-import visitEnd from "../../assets/images/check-badge.svg";
-import imgCloseVisit from "../../assets/images/close-visit.svg";
+
 import { message, notification } from "antd";
 import useAbhaScreens, { ABHA_SCREENS } from "../../components/abha/hooks/useAbhaScreens";
 import ApiAbha from "../../api/services/ApiAbha";
@@ -28,6 +25,14 @@ import { useDispatch } from "react-redux";
 import { setAbhaDetails } from "../../redux/abhaSlice";
 import "../../components/abha/AbhaDrawer.scss";
 import "./AbhaStandalone.scss";
+import { ASSETS } from "../../assets";
+const {
+  abhaSvg: AbhaHeadingSVG,
+  succcessAbhaAnimation_2: SuccessWebm,
+  succcessAbhaAnimation: SuccessMp4,
+  checkBadge: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 const MESSAGE_TYPES = {
   ABHA_SUCCESS: "ABHA_SUCCESS",

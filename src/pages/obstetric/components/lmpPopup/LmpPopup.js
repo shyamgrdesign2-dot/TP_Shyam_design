@@ -3,8 +3,7 @@ import { useState } from "react";
 import dayjs from "dayjs";
 import "./LmpPopup.scss";
 import { isBrowser } from "react-device-detect";
-import imgCloseVisit from "./../../../../assets/images/close-visit.svg";
-import visitEnd from "./../../../../assets/images/check-badge.svg";
+
 import { MESSAGE_KEY } from "../../../../utils/constants";
 import { useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
@@ -13,6 +12,11 @@ import {
   obstetricDetailsUpdated,
 } from "../../../../redux/obstetricSlice";
 import { useSelector } from "react-redux";
+import { ASSETS } from "../../../../assets";
+const {
+  closeVisit: imgCloseVisit,
+  checkBadge: visitEnd,
+} = ASSETS.images;
 
 const LmpPopup = ({
   lmpDate,

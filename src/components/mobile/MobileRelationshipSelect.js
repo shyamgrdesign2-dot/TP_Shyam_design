@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, Checkbox, Button } from 'antd';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import './MobileRelationshipSelect.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 function MobileRelationshipSelect({
   visible,

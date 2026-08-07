@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { notification } from "antd";
 import ErrorText from "./ErrorText";
-import AbhaIcon from "../../../assets/images/abha-svg.svg";
+
 import ApiAbha from "../../../api/services/ApiAbha";
+import { ASSETS } from "../../../assets";
+const AbhaIcon = ASSETS.images.abhaSvg;
 
 const OTP_LENGTH = 6;
 const RESEND_TIMER = 30;

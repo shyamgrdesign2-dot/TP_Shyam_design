@@ -1,10 +1,14 @@
 import React, { useState } from "react";
-import CallIcon from "../../../assets/images/call.svg";
-import FingerScanIcon from "../../../assets/images/finger-scan.svg";
-import ReloadIcon from "../../../assets/images/ic_Reload.svg";
-import CheckIcon from "../../../assets/images/check-icon.svg";
-import RedAlertIcon from "../../../assets/images/red-alert.svg";
+
 import ErrorText from "../common/ErrorText";
+import { ASSETS } from "../../../assets";
+const {
+  call: CallIcon,
+  fingerScan: FingerScanIcon,
+  icReload: ReloadIcon,
+  checkIcon: CheckIcon,
+  redAlert: RedAlertIcon,
+} = ASSETS.images;
 
 const BiometricVerification = ({
   data = {},

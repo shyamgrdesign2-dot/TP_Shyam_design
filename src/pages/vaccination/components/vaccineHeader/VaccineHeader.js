@@ -8,17 +8,22 @@ import { VaccinationCategoryEnum } from "../../VaccinationHelper";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import ProfilePopover from "../../../../common/ProfilePopover";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "../../../../assets/images/alertIcon.svg";
+
 import Preview from "./../preview/Preview";
 import "./VaccineHeader.scss";
 import VideoModal from "../../../../common/VideoModal";
-import tutorial2 from "../../../../assets/images/tutorial2.webp";
-import playIcons from "../../../../assets/images/tube-icon.svg";
+
 import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import DemoExpirationBanner from "../../../../common/DemoExpirationBanner";
 import PlanExpirationBanner from "../../../../common/PlanExpirationBanner";
 import { trackEvent } from "../../../../utils/utils";
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  tutorial2,
+  tubeIcon: playIcons,
+} = ASSETS.images;
 
 function VaccineHeader({
   handleDrawerVaccination,

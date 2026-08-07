@@ -10,8 +10,7 @@ import "./DocumentPreview.scss";
 import { useEffect, useRef, useState } from "react";
 import { pageNavigationPlugin } from "@react-pdf-viewer/page-navigation";
 import { rotatePlugin } from "@react-pdf-viewer/rotate";
-import clockwise from "./../../../../assets/images/clockwise-direction.svg";
-import anticlockwise from "./../../../../assets/images/anticlockwise-direction.svg";
+
 import {
   TransformWrapper,
   TransformComponent,
@@ -23,6 +22,11 @@ import { isInNativeApp } from "../../../../utils/utils";
 import dayjs from "dayjs";
 import config from "../../../../config";
 import { PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from "../../../../utils/constants";
+import { ASSETS } from "../../../../assets";
+const {
+  clockwiseDirection: clockwise,
+  anticlockwiseDirection: anticlockwise,
+} = ASSETS.images;
 
 const DocumentPreview = ({
   onClose,

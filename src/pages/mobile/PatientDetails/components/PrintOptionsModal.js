@@ -1,9 +1,13 @@
 import React from 'react';
 import { Drawer } from 'antd';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
-import printIcon from '../../../../assets/mobile/Print.svg';
-import printRxIcon from '../../../../assets/mobile/PrintRx.svg';
+
 import './PrintOptionsModal.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  close2: closeIcon,
+  print: printIcon,
+  printrx: printRxIcon,
+} = ASSETS.mobile;
 
 function PrintOptionsModal({
   visible,

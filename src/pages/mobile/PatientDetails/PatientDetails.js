@@ -12,7 +12,15 @@ import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from '../../medicalRe
 import { mergeDocuments } from '../../medicalRecords/utils/helper';
 import { fetchPrintSetting } from '../../opdBilling/service';
 import { setBillPrintSettings } from '../../../redux/billingSlice';
-import { getClinicName, getClinic, errorMessage, sendMessageToParent } from '../../../utils/utils';
+import { useVoiceRxNavigation } from '../../../utils/voiceRxNavigation';
+import {
+  getClinicName,
+  getClinic,
+  errorMessage,
+  sendMessageToParent,
+  trackEvent,
+  getVoiceRxMoengageBasePayload,
+} from '../../../utils/utils';
 import { PATIENT_DETAILS_SIDEBAR_KEYS, GB_SNAP_RX, GB_ISCRIBE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../../../utils/constants';
 import { EVENTS } from '../../../utils/events';
 import { useAccess } from '../../vaccination/useAccess';
@@ -23,10 +31,7 @@ import { useFeatureIsOn } from '@growthbook/growthbook-react';
 // Components
 import DetailsHeader from './components/DetailsHeader';
 import PatientTabs from './components/PatientTabs';
-import PastVisitTabIcon from '../../../assets/mobile/past_visit_tab_icon.svg';
-import PatientHistoryTabIcon from '../../../assets/mobile/patient_history_tab_icon.svg';
-import CertificateTabIcon from '../../../assets/mobile/certificat_tab_icon.svg';
-import MedicalRecordsTabIcon from '../../../assets/mobile/medical_records_tab_icon.svg';
+
 import VisitDateSelector from './components/VisitDateSelector';
 import VisitSummaryTab from './components/VisitSummaryTab';
 import PatientHistoryTab from './components/PatientHistoryTab';
@@ -51,12 +56,20 @@ import UploadDocPopup from '../../medicalRecords/components/uploadDocPopup/Uploa
 import CommonModal from '../../../common/CommonModal';
 import UploadDocument from '../../medicalRecords/UploadDocument';
 import MobileUploadMedicalRecord from './components/MobileUploadMedicalRecord';
-import alertIcon from '../../../assets/images/alertIcon.svg';
 
 import './PatientDetails.scss';
+import { ASSETS } from "../../../assets";
+const {
+  pastVisitTabIcon: PastVisitTabIcon,
+  patientHistoryTabIcon: PatientHistoryTabIcon,
+  certificatTabIcon: CertificateTabIcon,
+  medicalRecordsTabIcon: MedicalRecordsTabIcon,
+} = ASSETS.mobile;
+const alertIcon = ASSETS.images.alerticon;
 
 function PatientDetails() {
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const dispatch = useDispatch();
   const location = useLocation();
   const { isMobile, isPWA } = useDeviceType();
@@ -125,15 +138,37 @@ function PatientDetails() {
     if (!patient_data?.patient_unique_id || hasTrackedLanding.current) return;
     
     // Track landing event only on initial mount or patient change (when tcm_id is 0)
-    if (window.Moengage && clinicName && tcmData.tcm_id === 0) {
-      window.Moengage.track_event('TP_Patient_detail_landing', {
+    if (clinicName && tcmData.tcm_id === 0) {
+      trackEvent("TP_App_Patient_detail_landing", {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+          segmentation: {
+            surface: "mobile_patient_details",
+            entry_point: "landing",
+          },
+        }),
         clinic_name: clinicName,
         patient_number: patient_data?.pm_contact_no,
         patient_id: patient_data?.patient_unique_id,
+        patient_contact: patient_data?.pm_contact_no || "",
+        doctor_speciality: profile?.dp_name,
+        doctor_unique_id: profile?.doctor_unique_id,
+        tcm_id: tcmData?.tcm_id ?? 0,
       });
       hasTrackedLanding.current = true;
     }
-  }, [patient_data?.patient_unique_id, clinicName, tcmData.tcm_id]);
+  }, [
+    patient_data?.patient_unique_id,
+    patient_data?.pm_contact_no,
+    clinicName,
+    tcmData.tcm_id,
+    profile,
+    userId,
+    clinic,
+  ]);
 
   // Fetch case manager data (separated from analytics to avoid unnecessary re-fetches)
   useEffect(() => {
@@ -182,29 +217,76 @@ function PatientDetails() {
     }
   };
 
-
   // Memoize navigation callbacks to prevent unnecessary child re-renders
   const nextPress = useCallback(() => {
-    window.Moengage?.track_event('patient_detail_prev', {
+    trackEvent("TP_App_Patient_detail_prev", {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: "mobile_patient_details",
+          entry_point: "visit_navigate_prev",
+        },
+      }),
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data?.patient_unique_id || 0,
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: clinicName,
+      patient_contact: patient_data?.pm_contact_no || "",
+      tcm_id_from: viewCaseManagerData?.tcm_id,
+      tcm_id_to: viewCaseManagerData?.next_tcm_id,
     });
     setTcmData((prevTcmData) => ({ 
       tcm_id: viewCaseManagerData?.next_tcm_id, 
       page: prevTcmData.page - 1 
     }));
-  }, [profile?.doctor_unique_id, patient_data?.patient_unique_id, viewCaseManagerData?.next_tcm_id]);
+  }, [
+    profile,
+    userId,
+    patient_data,
+    clinic,
+    clinicName,
+    viewCaseManagerData?.tcm_id,
+    viewCaseManagerData?.next_tcm_id,
+  ]);
 
   const prevPress = useCallback(() => {
-    window.Moengage?.track_event('patient_detail_next', {
+    trackEvent("TP_App_Patient_detail_next", {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: "mobile_patient_details",
+          entry_point: "visit_navigate_next",
+        },
+      }),
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data?.patient_unique_id || 0,
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: clinicName,
+      patient_contact: patient_data?.pm_contact_no || "",
+      tcm_id_from: viewCaseManagerData?.tcm_id,
+      tcm_id_to: viewCaseManagerData?.prev_tcm_id,
     });
     setTcmData((prevTcmData) => ({ 
       tcm_id: viewCaseManagerData?.prev_tcm_id, 
       page: prevTcmData.page + 1 
     }));
-  }, [profile?.doctor_unique_id, patient_data?.patient_unique_id, viewCaseManagerData?.prev_tcm_id]);
+  }, [
+    profile,
+    userId,
+    patient_data,
+    clinic,
+    clinicName,
+    viewCaseManagerData?.tcm_id,
+    viewCaseManagerData?.prev_tcm_id,
+  ]);
 
   const handleTabChange = useCallback((tabKey) => {
     setSelectedTab(tabKey);
@@ -257,14 +339,16 @@ function PatientDetails() {
   };
 
   const handleStartWalkInConsultation = () => {
-    // From patient details: go directly to voice-rx-consult (not patients listing)
-    navigate('/voice-rx-consult', {
-      state: {
+    // From patient details, return to the correct VoiceRx entry point for this flag state.
+    navigateVoiceRx(
+      {
         patient_data: patient_data,
         isFromTabView: true,
         from: 'patient_details_walk_in',
       },
-    });
+      {},
+      "mobile_patient_details_walk_in"
+    );
   };
 
   const handleEditPatient = () => {
@@ -298,13 +382,15 @@ function PatientDetails() {
         source: "Patient Details",
       });
     }
-    navigate('/voice-rx-consult', {
-      state: { 
+    navigateVoiceRx(
+      {
         patient_data: patient_data,
         isFromTabView: true
       },
-    });
-  }, [navigate, profile, patient_data, clinic]);
+      {},
+      "mobile_patient_details_voice_rx"
+    );
+  }, [navigateVoiceRx, profile, patient_data, clinic]);
 
   // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
   const handleEditRx = useCallback(async () => {
@@ -340,7 +426,7 @@ function PatientDetails() {
       }
       
       window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
-      
+
       navigate('/prescription', {
         state: {
           patient_data: patient_data,
@@ -379,6 +465,31 @@ function PatientDetails() {
   }, []);
 
   // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
+  const handlePrintIconClick = useCallback(() => {
+    const printChannel = !isChrome && !isSafari ? 'in_app' : 'browser';
+    trackEvent('TP_App_PrintRx', {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: 'mobile_patient_details_visit_summary',
+          entry_point: 'print_button',
+        },
+      }),
+      patient_contact: patient_data?.pm_contact_no || '',
+      patient_id: patient_data?.patient_unique_id || '',
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: clinicName,
+      PRINTPAGE: 'patient details page',
+      rx_id: viewCaseManagerData?.tcm_id || '',
+      rx_type: 'standard',
+      print_channel: printChannel,
+    });
+  }, [profile, userId, patient_data, clinic, clinicName, viewCaseManagerData?.tcm_id]);
+
   const handlePrintRx = useCallback(() => {
       if (cardiologyPrintHandlerRef.current?.printContent) {
         cardiologyPrintHandlerRef.current.printContent();
@@ -416,15 +527,17 @@ function PatientDetails() {
       rx_date: viewCaseManagerData?.consultation_date,
     });
 
+    const repeatedCaseManagerData = {
+      ...viewCaseManagerData,
+      tcm_id: 0,
+      consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'),
+    };
+
     navigate('/prescription', {
       state: {
         patient_data: patient_data,
         send_path: 'patient_details',
-        caseManagerData: {
-          ...viewCaseManagerData,
-          tcm_id: 0,
-          consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'),
-        },
+        caseManagerData: repeatedCaseManagerData,
       },
     });
   }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, navigate]);
@@ -514,6 +627,7 @@ function PatientDetails() {
             onEditRx={handleEditRx}
             onDownloadRx={handleDownloadRx}
             onPrintRx={handlePrintRx}
+            onPrintIconClick={handlePrintIconClick}
             onRepeatRx={handleRepeatRx}
             onPrintMedicinesOnly={handlePrintMedicinesOnly}
             onCardiologyPrintHandlersReady={handleCardiologyPrintHandlersReady}

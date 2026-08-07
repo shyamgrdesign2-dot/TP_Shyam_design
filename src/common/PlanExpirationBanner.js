@@ -1,10 +1,12 @@
 import React, { useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import crownIcon from "../assets/images/crown.svg";
+
 import { useLocation } from "react-router-dom";
 import { openModal } from "../redux/doctorModalSlice";
 import { HIDE_ROUTES } from "../utils/constants";
 import { useNavigate } from "react-router-dom";
+import { ASSETS } from "../assets";
+const crownIcon = ASSETS.images.crown;
 
 const PlanExpirationBanner = () => {
   const { planDetails } = useSelector((state) => state.subscription);

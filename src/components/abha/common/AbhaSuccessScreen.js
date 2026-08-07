@@ -1,6 +1,11 @@
-import SuccessWebm from "../../../assets/images/succcess-abha-animation.webm";
-import SuccessMp4 from "../../../assets/images/succcess-abha-animation.mp4";
+
+
 import LoopingVideo from "../../common/LoopingVideo";
+import { ASSETS } from "../../../assets";
+const {
+  succcessAbhaAnimation_2: SuccessWebm,
+  succcessAbhaAnimation: SuccessMp4,
+} = ASSETS.images;
 
 const AbhaSuccessScreen = () => {
   return (

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AutoComplete, Input, Button, Drawer } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
-import closeIcon from '../../assets/mobile/close 2.svg';
+
 import { searchInvestigation, getFrequentlySearchedInvestigation } from '../../redux/investigationSlice';
 import { removeBeforeWhiteSpace } from '../../utils/utils';
 import './LabInvestigationEditSheet.scss';
+import { ASSETS } from "../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 /**
  * Bottom sheet for Add / Edit Lab Investigation.

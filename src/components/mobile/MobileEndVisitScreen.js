@@ -8,20 +8,33 @@ import { saveAs } from 'file-saver';
 import { jwtDecode } from 'jwt-decode';
 import api from '../../api/services/axiosService';
 import { env } from '../../EnvironmentConfig';
-import { getClinicName, errorMessage, sendMessageToParent, trackEvent } from '../../utils/utils';
+import {
+  getClinic,
+  getClinicName,
+  getVoiceRxMoengageBasePayload,
+  errorMessage,
+  sendMessageToParent,
+  trackEvent,
+} from '../../utils/utils';
 import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, MESSAGE_KEY } from '../../utils/constants';
 import { EVENTS } from '../../utils/events';
 import { viewCaseManager } from '../../redux/caseManagerSlice';
 import { Document, Page } from 'react-pdf';
 import { pdfjs } from 'react-pdf';
-import editIcon from '../../assets/mobile/edit.svg';
-import downloadIcon from '../../assets/mobile/Arrow Download (1).svg';
-import whatsappIcon from '../../assets/mobile/WhatsApp.svg';
-import printIcon from '../../assets/mobile/printer.svg';
-import loadingImg from '../../assets/images/loading.webp';
-import visitEndIcon from '../../assets/images/end-visit.svg';
-import closeVisitIcon from '../../assets/images/close-visit.svg';
+
 import './MobileEndVisitScreen.scss';
+import { ASSETS } from "../../assets";
+const {
+  edit: editIcon,
+  arrowDownload1: downloadIcon,
+  whatsapp: whatsappIcon,
+  printer: printIcon,
+} = ASSETS.mobile;
+const {
+  loading_3: loadingImg,
+  endVisit: visitEndIcon,
+  closeVisit: closeVisitIcon,
+} = ASSETS.images;
 
 // Set up PDF.js worker (same as web version)
 const worker = require('pdfjs-dist/build/pdf.worker.min.js');
@@ -278,7 +291,7 @@ function MobileEndVisitScreen({
     const clinic_name = getClinicName(profile?.hospital_data);
     const rxId = genRxDetails?._id || tcm_id;
 
-    trackEvent('TP_VoiceRx_SendtoWhatsapp', {
+    trackEvent('TP_APP_VoiceRx_SendtoWhatsapp', {
       patient_contact: patient_data?.pm_contact_no || '',
       patient_id: patient_data?.patient_unique_id || '',
       doctor_speciality: profile?.dp_name,
@@ -346,6 +359,33 @@ function MobileEndVisitScreen({
       errorMessage('Print URL is missing.');
       return;
     }
+
+    const clinic = getClinic();
+    const clinic_name = getClinicName(profile?.hospital_data);
+    const rxId = genRxDetails?._id || viewCaseManagerData?.tcm_id || tcm_id || '';
+    const rxType = isAmbientRx ? 'ambient' : 'voice_rx';
+    const printChannel = !isChrome && !isSafari ? 'in_app' : 'browser';
+    trackEvent('TP_App_PrintRx', {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: 'mobile_end_visit_preview',
+          entry_point: 'print_icon',
+        },
+      }),
+      patient_contact: patient_data?.pm_contact_no || '',
+      patient_id: patient_data?.patient_unique_id || '',
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name,
+      PRINTPAGE: 'Rx print preview page after end consultation',
+      rx_id: rxId,
+      rx_type: rxType,
+      print_channel: printChannel,
+    });
 
     if (!isChrome && !isSafari) {
       // In-app print

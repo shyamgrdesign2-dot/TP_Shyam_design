@@ -21,17 +21,29 @@ const opts = {
 };
 
 const shuffle = [1, 3, 0, 4, 2];
+const ATTACK = 0.38;
+const RELEASE = 0.18;
+const SILENCE_HOLD_FRAMES = 10;
+const MIN_GATE = 0.075;
+const GATE_OFFSET = 0.055;
 
 function VoiceWaveVisualizer({ isRecording, isPaused }) {
   const canvasRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const freqsRef = useRef(null);
+  const timeDomainRef = useRef(null);
   const animationFrameRef = useRef(null);
   const initializedRef = useRef(false);
   const containerRef = useRef(null);
   const streamRef = useRef(null);
   const isPausedRef = useRef(isPaused);
+  const loudnessRef = useRef(0);
+  const smoothedLoudnessRef = useRef(0);
+  const noiseFloorRef = useRef(0);
+  const speakingLoudnessRef = useRef(0);
+  const speechActiveRef = useRef(false);
+  const silenceFramesRef = useRef(0);
 
   const range = (i) => Array.from(Array(i).keys());
 
@@ -43,7 +55,7 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
   const scale = (i) => {
     const x = Math.abs(2 - i);
     const s = 3 - x;
-    return (s / 3) * opts.amp;
+    return (s / 3) * speakingLoudnessRef.current * 1.2;
   };
 
   const path = (ctx, channel, canvasWidth) => {
@@ -119,6 +131,64 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
     isPausedRef.current = isPaused;
   }, [isPaused]);
 
+  const getNormalizedLoudness = useCallback(() => {
+    const analyser = analyserRef.current;
+    const timeDomain = timeDomainRef.current;
+
+    if (!analyser || !timeDomain) return 0;
+
+    analyser.getByteTimeDomainData(timeDomain);
+
+    // RMS loudness from waveform centered around 128.
+    let sumSquares = 0;
+    // Read only valid analyser frame length.
+    const frameLength = Math.min(timeDomain.length, analyser.fftSize);
+    for (let i = 0; i < frameLength; i++) {
+      const normalized = (timeDomain[i] - 128) / 128;
+      sumSquares += normalized * normalized;
+    }
+    const rms = Math.sqrt(sumSquares / frameLength);
+
+    // Typical speaking RMS usually stays in low range, amplify for UI.
+    const boosted = Math.min(rms * 5.2, 1);
+
+    // Smooth spikes so the wave feels natural.
+    smoothedLoudnessRef.current =
+      smoothedLoudnessRef.current * 0.82 + boosted * 0.18;
+
+    // Learn ambient mic noise floor while loudness is low.
+    if (smoothedLoudnessRef.current < 0.15) {
+      noiseFloorRef.current =
+        noiseFloorRef.current * 0.94 + smoothedLoudnessRef.current * 0.06;
+    }
+
+    // Noise gate: WhatsApp-like behavior (strict silence flat line).
+    const gateThreshold = Math.max(noiseFloorRef.current + GATE_OFFSET, MIN_GATE);
+    const openThreshold = gateThreshold + 0.02;
+    const closeThreshold = gateThreshold;
+
+    if (smoothedLoudnessRef.current >= openThreshold) {
+      speechActiveRef.current = true;
+      silenceFramesRef.current = 0;
+    } else if (smoothedLoudnessRef.current <= closeThreshold) {
+      silenceFramesRef.current += 1;
+      if (silenceFramesRef.current >= SILENCE_HOLD_FRAMES) {
+        speechActiveRef.current = false;
+      }
+    }
+
+    if (!speechActiveRef.current) {
+      return 0;
+    }
+
+    const gated =
+      smoothedLoudnessRef.current > gateThreshold
+        ? (smoothedLoudnessRef.current - gateThreshold) / (1 - gateThreshold)
+        : 0;
+
+    return Math.min(Math.max(gated, 0), 1);
+  }, []);
+
   const visualize = useCallback(() => {
     const canvas = canvasRef.current;
     const analyser = analyserRef.current;
@@ -136,13 +206,20 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
     canvas.width = canvasWidth;
     canvas.height = HEIGHT;
 
-    analyser.smoothingTimeConstant = opts.smoothing;
-    analyser.fftSize = Math.pow(2, opts.fft);
-    analyser.minDecibels = opts.minDecibels;
-    analyser.maxDecibels = 0;
-    
     // Get fresh frequency data
     analyser.getByteFrequencyData(freqs);
+    loudnessRef.current = getNormalizedLoudness();
+    if (loudnessRef.current === 0) {
+      speakingLoudnessRef.current =
+        speakingLoudnessRef.current * (1 - RELEASE);
+      if (speakingLoudnessRef.current < 0.008) speakingLoudnessRef.current = 0;
+    } else if (loudnessRef.current > speakingLoudnessRef.current) {
+      speakingLoudnessRef.current =
+        speakingLoudnessRef.current * (1 - ATTACK) + loudnessRef.current * ATTACK;
+    } else {
+      speakingLoudnessRef.current =
+        speakingLoudnessRef.current * (1 - RELEASE) + loudnessRef.current * RELEASE;
+    }
 
     ctx.clearRect(0, 0, canvasWidth, HEIGHT);
 
@@ -156,7 +233,7 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
     }
 
     // When not paused, check for audio and draw waves
-    const hasAudio = freqs.some((value) => value > 0);
+    const hasAudio = speakingLoudnessRef.current > 0.02;
 
     if (!hasAudio) {
       // If no audio detected, show the paused line
@@ -171,7 +248,7 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
     // Continue animation loop
     animationFrameRef.current = requestAnimationFrame(visualize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [getNormalizedLoudness]);
 
   const startVisualizer = useCallback(async () => {
     if (initializedRef.current || !isRecording) return;
@@ -186,16 +263,21 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const analyser = audioContext.createAnalyser();
+      analyser.smoothingTimeConstant = opts.smoothing;
+      analyser.fftSize = Math.pow(2, opts.fft);
+      analyser.minDecibels = opts.minDecibels;
+      analyser.maxDecibels = 0;
+
       const freqs = new Uint8Array(analyser.frequencyBinCount);
+      const timeDomain = new Uint8Array(analyser.fftSize);
 
       audioContextRef.current = audioContext;
       analyserRef.current = analyser;
       freqsRef.current = freqs;
+      timeDomainRef.current = timeDomain;
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      window.streamRef = streamRef;
-      window.audioContextRef = audioContextRef;
       const input = audioContext.createMediaStreamSource(stream);
       input.connect(analyser);
 
@@ -226,7 +308,6 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
-        window.streamRef = null;
       }
       
       // Close audio context only if it's not already closed
@@ -235,11 +316,17 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
           console.error('Error closing audio context:', err);
         });
         audioContextRef.current = null;
-        window.audioContextRef = null;
       }
       
       analyserRef.current = null;
       freqsRef.current = null;
+      timeDomainRef.current = null;
+      loudnessRef.current = 0;
+      smoothedLoudnessRef.current = 0;
+      noiseFloorRef.current = 0;
+      speakingLoudnessRef.current = 0;
+      speechActiveRef.current = false;
+      silenceFramesRef.current = 0;
       initializedRef.current = false;
     }
 
@@ -253,7 +340,6 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
-        window.streamRef = null;
       }
       
       // Close audio context only if it's not already closed
@@ -261,7 +347,7 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
         audioContextRef.current.close().catch((err) => {
           console.error('Error closing audio context:', err);
         });
-        window.audioContextRef = null;
+        audioContextRef.current = null;
       }
     };
   }, [isRecording, startVisualizer]);

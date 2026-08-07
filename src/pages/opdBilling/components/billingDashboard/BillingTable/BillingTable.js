@@ -23,19 +23,24 @@ import {
   fetchBillsByPatient,
   listAdvancedDepositByPatient,
   fetchItemizedBillData,
+  fetchAdvanceSetting,
 } from "../../../service.js";
 import BillTable from "./BillTable.js";
 import ItemizedBillChart from "../ItemizedBillChart/ItemizedBillChart.js";
 import { listDoctor } from "../../../../../redux/bulkMessagesSlice.js";
+import { setAdvancedSettings } from "../../../../../redux/billingSlice.js";
 import { useDispatch } from "react-redux";
 import { useSelector } from "react-redux";
 import { getDecodedToken } from "../../../../../utils/localStorage.js";
 import { setLoadingStatus } from "../../../../../redux/uploadDocSlice.js";
 import { handleDownload } from "../../../utils/helper.js";
 import html2pdf from "html2pdf.js";
+import * as XLSX from "xlsx";
 import { getClinic, trackEvent } from "../../../../../utils/utils.js";
 import { MESSAGE_KEY } from "../../../../../utils/constants.js";
-import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
+import { ASSETS } from "../../../../../assets";
+const imgCloseVisit = ASSETS.images.closeVisit;
+
 const { RangePicker } = DatePicker;
 
 const { Option } = Select;
@@ -107,6 +112,10 @@ async function mergePdfBlobs(blobs) {
 
 const PATIENT_PDF_ROW_CHUNK = 300;
 const ITEMIZED_PDF_ROW_CHUNK = 300;
+const DOWNLOAD_FORMAT_PDF = "pdf";
+const DOWNLOAD_FORMAT_EXCEL = "excel";
+const DOWNLOAD_SPLIT_WIDTH = "280px";
+const EXPORT_PAGE_SIZE = 200;
 
 function itemizedServiceKey(svc) {
   return `${svc.serviceName}__${svc.serviceId ?? ""}`;
@@ -319,6 +328,8 @@ export default function BillingTable({
   billData,
   setBillData,
   setBillingCount,
+  isReceptionistUser = false,
+  advancedSettings = {},
 }) {
   const decodedToken = getDecodedToken();
   const isAdmin = decodedToken?.result?.admin;
@@ -443,7 +454,7 @@ export default function BillingTable({
     if (checkedValues.length > 0) {
       dispatch(setLoadingStatus(true));
       try {
-        const allBills = await fetchAllData(checkedValues);
+        const allBills = await fetchAllData(checkedValues, EXPORT_PAGE_SIZE);
         setDownloadData([...allBills]);
       } catch (error) {
         console.error("Error fetching all bills for download:", error);
@@ -466,7 +477,392 @@ export default function BillingTable({
     setSortConfig({ field, order }); // Update state
   };
 
-  const handleDownloadData = async () => {
+  const getExportFileDate = () => moment().format("YYYYMMDD");
+  const hospitalData = profile?.hospital_data?.[0] || {};
+  const hospitalName = hospitalData?.hm_name || "";
+  const hospitalAddress = [
+    hospitalData?.hm_address,
+    hospitalData?.hm_address1,
+    hospitalData?.hm_state,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const billingDateRange = `Bill between ${moment(dateRange?.startDate).format(
+    "DD/MM/YYYY"
+  )} - ${moment(dateRange?.endDate).format("DD/MM/YYYY")}`;
+
+  const buildExcelHeaderRows = (reportTitle) => [
+    [reportTitle],
+    ["Hospital Name", hospitalName || "-"],
+    ["Address", hospitalAddress || "-"],
+    ["Billing Date Range", billingDateRange],
+    ["Generated On", moment().format("DD/MM/YYYY HH:mm")],
+    [],
+  ];
+
+  const buildSheetWithHeader = (reportTitle, rows, options = {}) => {
+    const headerRows = buildExcelHeaderRows(reportTitle);
+    const sheet = XLSX.utils.aoa_to_sheet(headerRows);
+    
+    if (options.skipHeader) {
+      XLSX.utils.sheet_add_aoa(sheet, rows, {
+        origin: `A${headerRows.length + 1}`,
+      });
+    } else {
+      XLSX.utils.sheet_add_json(sheet, rows, {
+        origin: `A${headerRows.length + 1}`,
+        ...options,
+      });
+    }
+    return sheet;
+  };
+
+  const exportPatientLevelExcel = (bills = []) => {
+    const isDoctorDashboard = !patientData;
+
+    const getDoctorNameByIdForExport = (um_id, bill) => {
+      if (bill?.doctorName) return bill.doctorName;
+      if (bill?.doctor?.name) return bill.doctor.name;
+      if (um_id == null || um_id === "") return "";
+      const doctor = (Array.isArray(finalDoctorList) ? finalDoctorList : []).find(
+        (doc) => String(doc?.um_id) === String(um_id)
+      );
+      if (doctor?.um_name) return doctor.um_name;
+      if (
+        String(profile?.um_id) === String(um_id) ||
+        String(profile?.doctor_unique_id) === String(um_id) ||
+        String(profile?.user_id) === String(um_id)
+      ) {
+        return profile?.um_name || "";
+      }
+      return "";
+    };
+
+    const billRows = bills.map((bill, index) => {
+      const billNoAndDate = [
+        bill?.billNumber || "",
+        bill?.date ? moment(bill.date).format("DD MMM YYYY") : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const paymentModes = Array.isArray(bill?.paymentModes)
+        ? bill.paymentModes.map(pm => pm?.paymentMode).filter(Boolean).join(", ")
+        : "N/A";
+
+      const base = {
+        "#": index + 1,
+        "BILL NO & DATE": billNoAndDate,
+        "TOTAL AMOUNT": Number(bill?.payableAmount || 0),
+        "Applicable GST": Number(bill?.applicableGst || 0),
+        // Match DownloadBill.js PDF: raw paidAmount, not paidDues rollup
+        "PAID AMOUNT": Number(bill?.paidAmount || 0),
+        "MOP": paymentModes,
+        STATUS: bill?.paymentStatus || "",
+      };
+
+      if (!isDoctorDashboard) {
+        return base;
+      }
+
+      return {
+        ...base,
+        "Patient Name": bill?.patient?.name || "",
+        "Doctor Name": getDoctorNameByIdForExport(bill?.doctorId, bill) || "",
+        "Mobile Number": bill?.patient?.phone || "",
+      };
+    });
+
+    // Column order matches patient-level PDF (DownloadBill): #, bill block, [patient, doctor, mobile], totals, gst, paid, mop, status
+    const billSheetColumnOrder = isDoctorDashboard
+      ? [
+          "#",
+          "BILL NO & DATE",
+          "Patient Name",
+          "Doctor Name",
+          "Mobile Number",
+          "TOTAL AMOUNT",
+          "Applicable GST",
+          "PAID AMOUNT",
+          "MOP",
+          "STATUS",
+        ]
+      : [
+          "#",
+          "BILL NO & DATE",
+          "TOTAL AMOUNT",
+          "Applicable GST",
+          "PAID AMOUNT",
+          "MOP",
+          "STATUS",
+        ];
+
+    const billSheet = buildSheetWithHeader("Patient-Level Bill Summary", billRows, {
+      header: billSheetColumnOrder,
+    });
+
+    const paymentModes = (data?.summary?.paymentModeSummary || []).filter(
+      (item) =>
+        (Number(item?.receivedAmount) || 0) !== 0 ||
+        (Number(item?.refundedAmount) || 0) !== 0
+    );
+    const paymentRows = paymentModes.map((item) => ({
+      "PAYMENT MODE": item?.paymentMode || "",
+      "RECEIVED AMOUNT": Number(item?.receivedAmount || 0),
+      "REFUNDED AMOUNT": Number(item?.refundedAmount || 0),
+      TOTAL:
+        (Number(item?.receivedAmount) || 0) -
+        (Number(item?.refundedAmount) || 0),
+    }));
+
+    if (paymentModes.length > 0) {
+      const receivedTotal = paymentModes.reduce(
+        (sum, item) => sum + (Number(item?.receivedAmount) || 0),
+        0
+      );
+      const refundedTotal = paymentModes.reduce(
+        (sum, item) => sum + (Number(item?.refundedAmount) || 0),
+        0
+      );
+      paymentRows.push({
+        "PAYMENT MODE": "Total",
+        "RECEIVED AMOUNT": receivedTotal,
+        "REFUNDED AMOUNT": refundedTotal,
+        TOTAL: receivedTotal - refundedTotal,
+      });
+    }
+
+    const paymentSheetColumnOrder = [
+      "PAYMENT MODE",
+      "RECEIVED AMOUNT",
+      "REFUNDED AMOUNT",
+      "TOTAL",
+    ];
+    const paymentSheet =
+      paymentRows.length > 0
+        ? buildSheetWithHeader("Payment Mode Summary", paymentRows, {
+            header: paymentSheetColumnOrder,
+          })
+        : null;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, billSheet, "Patient Level Bills");
+    if (paymentSheet) {
+      XLSX.utils.book_append_sheet(
+        workbook,
+        paymentSheet,
+        "Payment Mode Summary"
+      );
+    }
+
+    XLSX.writeFile(
+      workbook,
+      `billing_patient_level_${getExportFileDate()}.xlsx`
+    );
+  };
+
+  const exportItemLevelExcel = (response) => {
+    const allRows = [];
+    let globalRowIndex = 1;
+    const itemLevelHeaders = [
+      "#",
+      "Service/Item",
+      "Created by",
+      "Date",
+      "Invoice No.",
+      "Patient ID",
+      "Patient Name",
+      "Patient Phone",
+      "Gender/Age",
+      "Paid Amount",
+      "MOP",
+      "Payment Status",
+    ];
+    
+    allRows.push(itemLevelHeaders);
+    
+    (response?.billSummary || []).forEach((service) => {
+      (service?.bills || []).forEach((bill) => {
+        allRows.push([
+          globalRowIndex++,
+          service?.serviceName || "",
+          bill?.createdBy || "",
+          bill?.date ? moment(bill.date).format("YYYY-MM-DD") : "",
+          bill?.billNumber || "",
+          bill?.patientId || "",
+          bill?.patientName || "",
+          bill?.patientPhone || "",
+          bill?.gender && (bill?.age || bill?.age === 0) 
+            ? `${bill.gender}/${bill.age}` 
+            : bill?.gender || "",
+          Number(bill?.paidAmount || 0),
+          Array.isArray(bill?.paymentModes)
+            ? bill.paymentModes.join(", ")
+            : "N/A",
+          bill?.paymentStatus || "",
+        ]);
+      });
+    });
+
+    const workbook = XLSX.utils.book_new();
+    
+    const headerRows = buildExcelHeaderRows("Item-Level Bill Details");
+    const sheet = XLSX.utils.aoa_to_sheet([...headerRows, ...allRows]);
+    
+    XLSX.utils.book_append_sheet(workbook, sheet, "ItemizedBillDetails");
+
+    const discountRows = (response?.additionalDiscountSummary || []).map(
+      (discount, index) => ({
+        "#": index + 1,
+        "Service/Item": "Discount",
+        "Created by": discount?.createdBy || "",
+        Date: discount?.date ? moment(discount.date).format("YYYY-MM-DD") : "",
+        "Invoice No.": discount?.billNumber || "",
+        "Patient ID": discount?.patientId || "",
+        "Patient Name": discount?.patientName || "",
+        "Gender/Age":
+          discount?.gender && (discount?.age || discount?.age === 0)
+            ? `${discount.gender}/${discount.age}`
+            : discount?.gender || "",
+        "Paid Amount": Number(discount?.discountAmount || 0),
+        MOP: discount?.mop || "NA",
+      })
+    );
+
+    if (discountRows.length > 0) {
+      const totalDiscount = discountRows.reduce(
+        (sum, row) => sum + (Number(row["Paid Amount"]) || 0),
+        0
+      );
+      discountRows.push({
+        "#": "",
+        "Service/Item": "",
+        "Created by": "",
+        Date: "",
+        "Invoice No.": "",
+        "Patient ID": "",
+        "Patient Name": "Total Additional Discount:",
+        "Gender/Age": "",
+        "Paid Amount": totalDiscount,
+        MOP: "",
+      });
+    }
+
+    const paymentRows = (response?.paymentSummary || []).map(
+      (payment, index) => ({
+        "PAYMENT MODE": payment?.paymentMode || "",
+        "TOTAL": Number(payment?.amount || 0),
+      })
+    );
+
+    // Add additional discount sheet if data exists
+    if (discountRows.length > 0) {
+      XLSX.utils.book_append_sheet(
+        workbook,
+        buildSheetWithHeader("Additional Discount Summary", discountRows),
+        "AdditionalDiscounts"
+      );
+    }
+    
+    // Add payment summary sheet if data exists
+    if (paymentRows.length > 0) {
+      XLSX.utils.book_append_sheet(
+        workbook,
+        buildSheetWithHeader("Payment Summary", paymentRows),
+        "PaymentSummary"
+      );
+    }
+
+    XLSX.writeFile(
+      workbook,
+      `billing_item_level_${getExportFileDate()}.xlsx`
+    );
+  };
+
+  const handleDownloadExcel = async () => {
+    if (selectedSummaryType === "item-level") {
+      try {
+        setDownloading(true);
+        const response = await fetchItemizedBillData(
+          dateRange.startDate,
+          dateRange.endDate,
+          billType
+        );
+
+        if (response?.totalPaidAmount > 0) {
+          exportItemLevelExcel(response);
+        } else {
+          message.open({
+            key: MESSAGE_KEY,
+            type: "",
+            className: "message-appointment",
+            content: (
+              <div className="d-flex align-items-center">
+                <div className="title-common text-start fontroboto">
+                  {"No Data available"}
+                </div>
+                <img
+                  src={imgCloseVisit}
+                  alt="close-visit"
+                  className="ms-3"
+                  onClick={() => message.destroy()}
+                />
+              </div>
+            ),
+            duration: 5,
+          });
+        }
+      } catch (error) {
+        console.error("Error generating itemized Excel:", error);
+        message.error("Failed to generate Excel. Please try again.");
+      } finally {
+        setDownloading(false);
+      }
+      return;
+    }
+
+    try {
+      setDownloading(true);
+
+      let optionsToFetch = [...selectedOptions];
+      if (optionsToFetch.includes("Due")) {
+        optionsToFetch = ["CarriedForward", ...optionsToFetch];
+      }
+
+      const allBills = await fetchAllData(optionsToFetch, EXPORT_PAGE_SIZE);
+      if (!allBills || allBills.length === 0) {
+        message.open({
+          key: MESSAGE_KEY,
+          type: "",
+          className: "message-appointment",
+          content: (
+            <div className="d-flex align-items-center">
+              <div className="title-common text-start fontroboto">
+                {"No Data available"}
+              </div>
+              <img
+                src={imgCloseVisit}
+                alt="close-visit"
+                className="ms-3"
+                onClick={() => message.destroy()}
+              />
+            </div>
+          ),
+          duration: 5,
+        });
+        return;
+      }
+
+      exportPatientLevelExcel(allBills);
+    } catch (error) {
+      console.error("Error generating patient-level Excel:", error);
+      message.error("Failed to generate Excel. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
     if (selectedSummaryType === "item-level") {
       try {
         setDownloading(true);
@@ -672,8 +1068,8 @@ export default function BillingTable({
         }
         
         // Fetch all data for the selected options
-        const allBills = await fetchAllData(optionsToFetch);
-        
+        const allBills = await fetchAllData(optionsToFetch, EXPORT_PAGE_SIZE);
+
         if (!allBills || allBills.length === 0) {
           message.open({
             key: MESSAGE_KEY,
@@ -765,8 +1161,14 @@ export default function BillingTable({
                 )
               );
             }
-            const paymentModes = data?.summary?.paymentModeSummary;
-            if (paymentModes?.length > 0) {
+            const paymentModes = (
+              data?.summary?.paymentModeSummary || []
+            ).filter(
+              (item) =>
+                (Number(item?.receivedAmount) || 0) !== 0 ||
+                (Number(item?.refundedAmount) || 0) !== 0
+            );
+            if (paymentModes.length > 0) {
               flushSync(() => {
                 setPatientPdfUi({
                   rowStart: 0,
@@ -838,6 +1240,14 @@ export default function BillingTable({
     }
   };
 
+  const handleDownloadData = async (format = DOWNLOAD_FORMAT_PDF) => {
+    if (format === DOWNLOAD_FORMAT_EXCEL) {
+      await handleDownloadExcel();
+      return;
+    }
+    await handleDownloadPdf();
+  };
+
   const setStartLoader = () => {
     dispatch(setLoadingStatus(true));
   };
@@ -859,13 +1269,13 @@ export default function BillingTable({
     dispatch(setLoadingStatus(true));
     try {
       const allStatuses = ["FullyPaid", "CarriedForward", "Due", "Refunded"];
-      const allBills = await fetchAllData(allStatuses);
+      const allBills = await fetchAllData(allStatuses, EXPORT_PAGE_SIZE);
 
       setDownloadData([...allBills]);
 
       // Ensure handleDownload runs after state is updated
       setTimeout(() => {
-        handleDownloadData();
+        handleDownloadPdf();
       }, 50);
     } catch (error) {
       console.error("Error in downloading all data:", error);
@@ -950,7 +1360,28 @@ export default function BillingTable({
     }
   };
 
-  // Dropdown content
+  // Dropdown content - matching SmartRx style
+  const downloadFormatMenu = (
+    <div className="smart-rx-buttons-grp">
+      <div>
+        <button 
+          className="smart-rx-buttons top-br bottom-border"
+          onClick={() => handleDownloadData(DOWNLOAD_FORMAT_PDF)}
+        >
+          <span style={{ padding: "0 3.4rem" }}>Download as PDF ruchi</span>
+        </button>
+      </div>
+      <div>
+        <button 
+          className="smart-rx-buttons"
+          onClick={() => handleDownloadData(DOWNLOAD_FORMAT_EXCEL)}
+        >
+          <span style={{ padding: "0 3.4rem" }}>Download as Excel</span>
+        </button>
+      </div>
+    </div>
+  );
+
   const menu = (
     <div
       className="download-options-container billing-table-wrapper"
@@ -1036,23 +1467,46 @@ export default function BillingTable({
 
       {/* Download Button */}
       <Spin spinning={downloading}>
-        <Button
-          type="primary"
-          className="ant-btn-download"
+        <div
           style={{
-            width: "100%",
-            display: `${
+            width: DOWNLOAD_SPLIT_WIDTH,
+            display:
               selectedSummaryType === "item-level" || selectedOptions.length > 0
-                ? ""
-                : "none"
-            }`,
+                ? "flex"
+                : "none",
           }}
-          onClick={handleDownloadData}
-          disabled={downloading}
         >
-          Download
-          <i className="icon-download fs-18" style={{ paddingLeft: "8px" }} />
-        </Button>
+          <div className="download-split-btn d-flex btn btn-smart-rx-walkin">
+            <button
+              type="button"
+              className="main-btn btn btn-smartRx-text"
+              disabled={downloading}
+              onClick={() => handleDownloadData(DOWNLOAD_FORMAT_PDF)}
+            >
+              Download as PDF
+              <i className="icon-download fs-18" aria-hidden />
+            </button>
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: "excel",
+                    label: "Download as Excel",
+                    onClick: () => handleDownloadData(DOWNLOAD_FORMAT_EXCEL),
+                  },
+                ],
+              }}
+              trigger={["click"]}
+              placement="bottomRight"
+              overlayClassName="billing-action-dropdown"
+              getPopupContainer={() => document.body}
+            >
+              <div className="dropdown-btn">
+                <i className="icon-right" />
+              </div>
+            </Dropdown>
+          </div>
+        </div>
       </Spin>
     </div>
   );
@@ -1062,9 +1516,23 @@ export default function BillingTable({
     setForm3cTriggered((prev) => !prev); // Toggle state to trigger useEffect
   };
 
+  const refreshAdvancedSettingsIfNeeded = useCallback(async () => {
+    // Refresh receptionist edit-access control along with OPD table refresh.
+    if (billType !== "opd") return;
+    try {
+      const latestAdvancedSettings = await fetchAdvanceSetting();
+      if (latestAdvancedSettings) {
+        dispatch(setAdvancedSettings(latestAdvancedSettings));
+      }
+    } catch (error) {
+      console.error("Error refreshing advanced settings:", error);
+    }
+  }, [billType, dispatch]);
+
   const loadData = async (resetData = true) => {
     // setLoading(true);
     if (!hasMore && !resetData) return;
+    await refreshAdvancedSettingsIfNeeded();
     const params = {
       status:
         selectedCard === 1
@@ -1135,6 +1603,7 @@ export default function BillingTable({
 
   const patientBillingData = async (resetData = true) => {
     if (!hasMore && !resetData) return;
+    await refreshAdvancedSettingsIfNeeded();
 
     const params = {
       status:
@@ -1541,6 +2010,8 @@ export default function BillingTable({
             totalAdvanceBalance={totalAdvanceBalance}
             showHideSubModal={showHideSubModal}
             billType={billType}
+            isReceptionistUser={isReceptionistUser || isReceptionist}
+            advancedSettings={advancedSettings}
           />
         </Row>
 
@@ -1562,6 +2033,7 @@ export default function BillingTable({
                 omitPaymentSummary={patientPdfUi.omitPaymentSummary}
                 omitBillsTable={patientPdfUi.omitBillsTable}
                 hidePrintHeader={patientPdfUi.hidePrintHeader}
+                doctors={finalDoctorList}
               />
             </div>
           </div>

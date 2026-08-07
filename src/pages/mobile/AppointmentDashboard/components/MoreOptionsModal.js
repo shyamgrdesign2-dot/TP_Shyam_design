@@ -1,12 +1,16 @@
 import React from 'react';
 import { Drawer } from 'antd';
 import { TAB_QUEUE, TAB_FINISHED } from '../../../../utils/constants';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
-import endVisitIcon from '../../../../assets/mobile/EndVisit.svg';
-import cancelAppointmentIcon from '../../../../assets/mobile/CancelAppointment.svg';
-import printRxIcon from '../../../../assets/mobile/PrintRx.svg';
-import downloadIcon from '../../../../assets/mobile/download.svg';
+
 import './MoreOptionsModal.scss';
+import { ASSETS } from "../../../../assets";
+const {
+  close2: closeIcon,
+  endvisit: endVisitIcon,
+  cancelappointment: cancelAppointmentIcon,
+  printrx: printRxIcon,
+  download: downloadIcon,
+} = ASSETS.mobile;
 
 function MoreOptionsModal({
   visible,
