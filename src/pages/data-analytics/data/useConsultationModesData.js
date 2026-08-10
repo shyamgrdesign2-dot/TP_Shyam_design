@@ -62,6 +62,14 @@ function modeAllowed(enabledModes, label, hasData) {
 
 const BATCH_SIZE = 4;
 
+/** Read a single-doctor consultation-modes response's "Booked" value (its byDoctor has one row). */
+function bookedFromModesResponse(resp) {
+  const ds = resp?.byDoctor?.datasets;
+  if (!Array.isArray(ds)) return 0;
+  const booked = ds.find((d) => String(d?.label || "").toLowerCase() === "booked");
+  return toNum(booked?.data?.[0]);
+}
+
 async function buildStackedByDoctor(baseParams, doctorFilterCsv) {
   let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
   if (doctorFilterCsv) {
@@ -72,8 +80,9 @@ async function buildStackedByDoctor(baseParams, doctorFilterCsv) {
   if (!doctors.length) return null;
 
   // Batch in groups of BATCH_SIZE to avoid saturating the browser's
-  // per-origin connection limit (6 for HTTP/1.1).
-  const results = new Array(doctors.length);
+  // per-origin connection limit (6 for HTTP/1.1). Keep the full response
+  // (not just kpis) so we can also read each doctor's "Booked" count.
+  const respByDoctor = new Array(doctors.length);
   for (let i = 0; i < doctors.length; i += BATCH_SIZE) {
     const batch = doctors.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(
@@ -81,24 +90,36 @@ async function buildStackedByDoctor(baseParams, doctorFilterCsv) {
         cached(`modes-dr-${d.um_id}`, baseParams, () =>
           ApiReporting.clinicConsultationModes({ ...baseParams, doctorId: d.um_id })
         )
-          .then((r) => (r?.data ?? r)?.kpis ?? null)
+          .then((r) => (r?.data ?? r) ?? null)
           .catch(() => null)
       )
     );
-    batchResults.forEach((r, j) => { results[i + j] = r; });
+    batchResults.forEach((r, j) => { respByDoctor[i + j] = r; });
   }
 
   const rows = doctors
-    .map((d, i) => ({ name: d.um_name || `Doctor ${d.um_id}`, k: results[i] || { total: 0 } }))
+    .map((d, i) => {
+      const resp = respByDoctor[i];
+      return {
+        name: d.um_name || `Doctor ${d.um_id}`,
+        resp,
+        k: resp?.kpis ?? { total: 0 },
+      };
+    })
     .sort((a, b) => toNum(b.k.total) - toNum(a.k.total));
   if (!rows.length) return null;
 
   return {
     labels: rows.map((r) => r.name),
-    datasets: MODE_SERIES.map(([label, key]) => ({
-      label,
-      data: rows.map((r) => toNum(key === "typeRx" ? r.k.typeRx ?? r.k.keyboardRx : r.k[key])),
-    })),
+    // "Booked" first so buildDoctorComparison picks it up as the booked series
+    // (rest = consultations). Full names kept until after CVT join.
+    datasets: [
+      { label: "Booked", data: rows.map((r) => bookedFromModesResponse(r.resp)) },
+      ...MODE_SERIES.map(([label, key]) => ({
+        label,
+        data: rows.map((r) => toNum(key === "typeRx" ? r.k.typeRx ?? r.k.keyboardRx : r.k[key])),
+      })),
+    ],
   };
 }
 
@@ -162,7 +183,10 @@ export default function useConsultationModesData({ month, startDate, endDate, do
 
     // Always fan-out per-doctor so every clinic doctor appears (even with
     // zero data). The backend's byDoctor omits zero-data doctors.
+    // Keep full names through CVT join for doctorComparison; compact only
+    // for the Usage-by-doctor stacked chart (modes only, no Booked series).
     let byDoctor = null;
+    let doctorComparison = null;
     {
       const baseParams = {};
       if (month) baseParams.month = month;
@@ -172,11 +196,17 @@ export default function useConsultationModesData({ month, startDate, endDate, do
       }
       if (singleClinic) baseParams.clinicId = singleClinic;
       const stacked = await buildStackedByDoctor(baseParams, doctorId && doctorId !== "all" ? doctorId : null);
-      if (stacked) byDoctor = compactXY(seriesToXY(stacked), compactDoctorLabel);
+      if (stacked) {
+        doctorComparison = buildDoctorComparison(stacked, cvtByDoctorSeries);
+        const modesOnly = {
+          labels: stacked.labels,
+          datasets: (stacked.datasets || []).filter(
+            (ds) => String(ds.label || "").toLowerCase() !== "booked"
+          ),
+        };
+        byDoctor = compactXY(seriesToXY(modesOnly), compactDoctorLabel);
+      }
     }
-
-    // Doctor comparison: booked vs completed vs digitized (per doctor)
-    const doctorComparison = buildDoctorComparison(byDoctor, cvtByDoctorSeries);
 
     // Who uses it most — the doctor with the highest consultation volume
     // (summed across all modes from the stacked by-doctor data)
@@ -319,17 +349,27 @@ function buildVisitTrend(appointments, cvtDaily) {
   };
 }
 
-function buildDoctorComparison(byDoctor, cvtByDoctor) {
-  if (!byDoctor?.data?.length) return null;
+function buildDoctorComparison(byDoctorSeries, cvtByDoctor) {
+  if (!byDoctorSeries?.labels?.length) return null;
+  const doctors = byDoctorSeries.labels;
+  const datasets = byDoctorSeries.datasets || [];
   const digitizedMap = buildDigitizedByDoctor(cvtByDoctor);
-  const keys = (byDoctor.series || []).map((se) => se.key);
 
-  const data = byDoctor.data.map((row) => {
-    const consultations = keys.reduce((a, k) => a + (Number(row[k]) || 0), 0);
-    const digitized = toNum(digitizedMap.get(String(row.x)));
+  const data = doctors.map((name, i) => {
+    let booked = 0;
+    let consultations = 0;
+    datasets.forEach((ds) => {
+      if (String(ds.label || "").toLowerCase() === "booked") {
+        booked = toNum(ds.data?.[i]);
+      } else {
+        consultations += toNum(ds.data?.[i]);
+      }
+    });
+    // Merge CVT by full doctor name before compacting the x-axis label.
+    const digitized = toNum(digitizedMap.get(String(name)));
     return {
-      x: row.x,
-      booked: consultations,
+      x: compactDoctorLabel(name),
+      booked,
       consultations,
       digitized,
     };
