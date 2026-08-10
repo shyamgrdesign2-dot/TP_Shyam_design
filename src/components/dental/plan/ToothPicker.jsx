@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowDown2 } from "iconsax-reactjs";
 import styles from "./ToothPicker.module.scss";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 
 const ADULT_QUADRANTS = {
   UR: ["18", "17", "16", "15", "14", "13", "12", "11"],
@@ -39,6 +40,7 @@ export function ToothPicker({
   disabled,
   variant = "default",
 }) {
+  const isChikitsalayAccessable = useChikitsalay();
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState({});
   const [mounted, setMounted] = useState(false);
@@ -215,7 +217,7 @@ export function ToothPicker({
       <button
         ref={triggerRef}
         type="button"
-        disabled={disabled}
+        disabled={disabled || isChikitsalayAccessable}
         onClick={(e) => { e.stopPropagation(); open ? setOpen(false) : openDropdown(); }}
         className={isInline ? styles.triggerInline : styles.triggerDefault}
       >

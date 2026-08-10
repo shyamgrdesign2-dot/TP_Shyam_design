@@ -6,6 +6,18 @@ import {
 } from "../api/services/ApiOral";
 import { getDentalApiError, getDentalApiPayload } from "../utils/dentalApiMappers";
 
+function toBaselineOralProcedureEntries(procedures = []) {
+  return (Array.isArray(procedures) ? procedures : []).map((p) => ({
+    id: p.id,
+    kind: "procedure",
+    name: p.name,
+    surfaces: p.area || [],
+    since: p.procedure_date || "",
+    status: p.status,
+    note: p.notes || "",
+  }));
+}
+
 const initialState = {
   findings: [],
   procedures: [],
@@ -14,6 +26,8 @@ const initialState = {
   version: 0,
   canvasOralEntries: [],
   canvasOralNotes: "",
+  /** Snapshot of oral procedures already accounted for as plan pending (API load or End Visit). */
+  baselineOralEntries: [],
   loading: false,
   saving: false,
   error: null,
@@ -77,6 +91,11 @@ const oralExaminationSlice = createSlice({
       state.canvasOralEntries = action.payload.canvasOralEntries || [];
       state.canvasOralNotes = action.payload.canvasOralNotes || "";
     },
+    setBaselineOralEntries: (state, action) => {
+      state.baselineOralEntries = Array.isArray(action.payload)
+        ? action.payload
+        : [];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -88,6 +107,9 @@ const oralExaminationSlice = createSlice({
         state.treatmentHistory = [];
         state.overallNotes = "";
         state.version = 0;
+        state.baselineOralEntries = [];
+        state.canvasOralEntries = [];
+        state.canvasOralNotes = "";
       })
       .addCase(fetchOralExamination.fulfilled, (state, action) => {
         state.loading = false;
@@ -98,6 +120,7 @@ const oralExaminationSlice = createSlice({
         state.treatmentHistory = Array.isArray(payload.treatment_history) ? payload.treatment_history : [];
         state.overallNotes = payload.overall_notes || "";
         state.version = payload.version || 0;
+        state.baselineOralEntries = toBaselineOralProcedureEntries(state.procedures);
       })
       .addCase(fetchOralExamination.rejected, (state, action) => {
         state.loading = false;
@@ -136,6 +159,12 @@ const oralExaminationSlice = createSlice({
   },
 });
 
-export const { clearOralExamination, syncOralCanvasState } = oralExaminationSlice.actions;
+export const {
+  clearOralExamination,
+  syncOralCanvasState,
+  setBaselineOralEntries,
+} = oralExaminationSlice.actions;
 export const selectOralExamination = (state) => state.oralExamination;
+export const selectBaselineOralEntries = (state) =>
+  state.oralExamination.baselineOralEntries;
 export default oralExaminationSlice.reducer;

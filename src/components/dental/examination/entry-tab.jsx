@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { Add, Trash, SearchNormal1 } from "iconsax-reactjs";
 import { VISUAL_TYPE } from "../../../utils/dentalVisualTypes";
-import { getDefaultTreatmentSurfaces } from "./types";
+import { getDefaultTreatmentSurfaces, findProcedureCatalogItem, getProcedureLabel, resolveVisitProcedure } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { sortStringsForTypeahead } from "../lib/billing-catalog";
 import { SinceDropdown } from "./examination-shared-ui";
@@ -10,8 +10,10 @@ import { SurfaceMultiSelect } from "./surface-pickers";
 import { EditableNameCell, SurfaceCellDropdown } from "./entry-cells";
 import { DENTAL_SYMPTOM_CATALOG } from "./symptoms-panel";
 import ui from "./ExaminationTab.ui.module.scss";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 export function EntryTab({ state, kind }) {
-  const { activeSurfaceFindings, activeProcedures, activeSurfaces } = useDentalMasters();
+  const { activeSurfaceFindings, activeProcedures, activeSurfaces, procedureItems } = useDentalMasters();
+  const isChikitsalayAccessable = useChikitsalay();
   const [activeCell, setActiveCell] = useState(null);
   const [query, setQuery] = useState("");
   // Portal Dropdown Search States
@@ -82,12 +84,17 @@ export function EntryTab({ state, kind }) {
     "Periodontal maintenance"];
 
 
+  const usesProcedureCatalog = kind === "procedure" || kind === "planned";
   const catalog =
     kind === "finding" ?
       isGroupedScope ? groupedFindingCatalog : activeSurfaceFindings :
       kind === "symptom" ?
         DENTAL_SYMPTOM_CATALOG :
-        isGroupedScope ? groupedProcedureCatalog : activeProcedures;
+        isGroupedScope
+          ? groupedProcedureCatalog
+          : usesProcedureCatalog
+            ? procedureItems
+            : activeProcedures;
   const entries = state.currentToothEntries.filter((e) => e.kind === kind);
   const activeSurfaceRowId =
     activeCell?.colKey === "surfaces" ? activeCell.rowId : null;
@@ -163,16 +170,28 @@ export function EntryTab({ state, kind }) {
   const filteredCatalog = useMemo(() => {
     const q = query.toLowerCase().trim();
     const selected = new Set(entries.map((e) => e.name.toLowerCase()));
-    const pool = q ?
-      catalog.filter((c) => c.toLowerCase().includes(q)) :
-      catalog;
-    const filtered = pool.filter((c) => !selected.has(c.toLowerCase()));
+    const pool = usesProcedureCatalog && !isGroupedScope
+      ? (q
+        ? catalog.filter((c) => getProcedureLabel(c).toLowerCase().includes(q))
+        : catalog)
+      : (q
+        ? catalog.filter((c) => String(c).toLowerCase().includes(q))
+        : catalog);
+    const filtered = pool.filter(
+      (c) => !selected.has(getProcedureLabel(c).toLowerCase()),
+    );
+    if (usesProcedureCatalog && !isGroupedScope) {
+      const labels = filtered.map(getProcedureLabel);
+      const sortedLabels = sortStringsForTypeahead(labels, query);
+      const byLabel = new Map(filtered.map((item) => [getProcedureLabel(item), item]));
+      return sortedLabels.map((label) => byLabel.get(label)).filter(Boolean).slice(0, 12);
+    }
     const sorted = sortStringsForTypeahead(filtered, query);
     return sorted.slice(0, 12);
-  }, [query, catalog, entries]);
+  }, [query, catalog, entries, usesProcedureCatalog, isGroupedScope]);
   const queryTrim = query.trim();
   const catalogHasExactName = queryTrim.length > 0 &&
-    catalog.some((c) => c.toLowerCase() === queryTrim.toLowerCase());
+    catalog.some((c) => getProcedureLabel(c).toLowerCase() === queryTrim.toLowerCase());
 
   const quickSelectChips = useMemo(() => {
     const selected = new Set(entries.map((e) => e.name.toLowerCase()));
@@ -192,14 +211,18 @@ export function EntryTab({ state, kind }) {
       ];
       const matchedChips = [];
       for (const defName of defaults) {
-        const match = catalog.find((c) => c.toLowerCase() === defName.toLowerCase());
-        if (match && !selected.has(match.toLowerCase())) {
+        const match = catalog.find(
+          (c) => getProcedureLabel(c).toLowerCase() === defName.toLowerCase(),
+        );
+        if (match && !selected.has(getProcedureLabel(match).toLowerCase())) {
           matchedChips.push(match);
         }
       }
       if (matchedChips.length > 0) return matchedChips;
     }
-    return catalog.filter((name) => !selected.has(name.toLowerCase())).slice(0, 8);
+    return catalog
+      .filter((item) => !selected.has(getProcedureLabel(item).toLowerCase()))
+      .slice(0, 8);
   }, [catalog, entries, isGroupedScope, kind]);
   const pendingActivateRef = useRef(false);
   const prevCountRef = useRef(entries.length);
@@ -215,10 +238,19 @@ export function EntryTab({ state, kind }) {
     }
     prevCountRef.current = entries.length;
   }, [entries.length, entries]);
-  const addEntryFromName = (name) => {
+  const addEntryFromName = (nameOrItem) => {
+    const name = getProcedureLabel(nameOrItem);
+    const catalogItem = usesProcedureCatalog
+      ? (typeof nameOrItem === "object" && nameOrItem !== null
+        ? nameOrItem
+        : findProcedureCatalogItem(procedureItems, name))
+      : null;
     state.onClearMultiSelect();
     const surfaces = getDefaultTreatmentSurfaces(name);
     pendingActivateRef.current = true;
+    const visitProcedure = isChikitsalayAccessable
+      ? resolveVisitProcedure(catalogItem)
+      : undefined;
     state.onAddEntry({
       kind,
       name,
@@ -227,7 +259,8 @@ export function EntryTab({ state, kind }) {
       plannedDate: undefined,
       status:
         kind === "procedure" || kind === "planned" ? "PLANNED" : undefined,
-      notes: undefined
+      notes: undefined,
+      ...(visitProcedure ? { visitProcedure } : {}),
     });
     setQuery("");
     setSearchOpen(false);
@@ -363,10 +396,21 @@ export function EntryTab({ state, kind }) {
                           value={e.name}
                           catalog={catalog}
                           onCommit={(v) => {
-                            if (v.trim())
-                              state.onUpdateEntry(e.id, {
-                                name: v.trim()
-                              });
+                            const name = v.trim();
+                            if (!name) return;
+                            const match = usesProcedureCatalog
+                              ? findProcedureCatalogItem(procedureItems, name)
+                              : null;
+                            const visitProcedure =
+                              isChikitsalayAccessable && usesProcedureCatalog
+                                ? resolveVisitProcedure(match)
+                                : undefined;
+                            state.onUpdateEntry(e.id, {
+                              name,
+                              ...(usesProcedureCatalog
+                                ? { visitProcedure: visitProcedure || undefined }
+                                : {}),
+                            });
                           }}
                           onFocusActivate={() => setCellActive(e.id, "name")} />
 
@@ -521,9 +565,11 @@ export function EntryTab({ state, kind }) {
               onFocus={() => setSearchOpen(true)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && queryTrim) {
-                  const match = catalog.find(
-                    (c) => c.toLowerCase() === queryTrim.toLowerCase()
-                  );
+                  const match = usesProcedureCatalog
+                    ? findProcedureCatalogItem(procedureItems, queryTrim)
+                    : catalog.find(
+                      (c) => c.toLowerCase() === queryTrim.toLowerCase()
+                    );
                   if (match) {
                     addEntryFromName(match);
                     setSearchOpen(false);
@@ -553,6 +599,7 @@ export function EntryTab({ state, kind }) {
 
             {searchOpen &&
               pos &&
+              (!isChikitsalayAccessable || filteredCatalog.length > 0) &&
               typeof document !== "undefined" &&
               (filteredCatalog.length > 0 || query.trim()) &&
               createPortal(
@@ -574,10 +621,11 @@ export function EntryTab({ state, kind }) {
                   {filteredCatalog.map((c) =>
                     <button
                       type="button"
+                      key={getProcedureLabel(c)}
                       onClick={() => addEntryFromName(c)}
                       className={ui.popoverItem}>
 
-                      {c}
+                      {getProcedureLabel(c)}
                     </button>
                   )}
                   {queryTrim && !catalogHasExactName &&
@@ -605,10 +653,11 @@ export function EntryTab({ state, kind }) {
               {quickSelectChips.map((chip) =>
                 <button
                   type="button"
+                  key={getProcedureLabel(chip)}
                   onClick={() => addEntryFromName(chip)}
                   className={ui.chipBtn}>
 
-                  {chip}
+                  {getProcedureLabel(chip)}
                 </button>
               )}
             </div>}

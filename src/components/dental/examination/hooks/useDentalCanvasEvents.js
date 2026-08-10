@@ -761,6 +761,8 @@ export function useDentalCanvasEvents(s) {
         surfaces,
         since: extra?.since ?? "",
         note: extra?.note ?? "",
+        ...(extra?.status ? { status: extra.status } : {}),
+        ...(extra?.visitProcedure ? { visitProcedure: extra.visitProcedure } : {}),
       }];
     });
   }, []);
