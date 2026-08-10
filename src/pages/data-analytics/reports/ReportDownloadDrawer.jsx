@@ -25,11 +25,11 @@ import {
   IPD_FILTER_BY_OPTIONS,
   APPOINTMENT_REPORT_TYPE_OPTIONS,
   COLLECTION_REPORT_TYPE_OPTIONS,
-  INCENTIVE_REPORT_TYPE_OPTIONS,
   THREE_C_REPORT_TYPE_OPTIONS,
   IPD_REPORT_TYPE_OPTIONS,
 } from "./reportsCatalog";
 import { isoLocal } from "../filters/periods";
+import { getDecodedToken } from "../../../utils/localStorage";
 
 // Every report endpoint rejects ranges longer than this ("Date range must
 // not exceed 30 days", 400) — 31 days inclusive passes, so full calendar
@@ -78,14 +78,13 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const [billType, setBillType] = useState([]);
   const [threeCBillTypes, setThreeCBillTypes] = useState([]);
   const [issuedBy, setIssuedBy] = useState([]);
-  const [incentiveUser, setIncentiveUser] = useState([]);
   const [apptStatus, setApptStatus] = useState([]);
   const [caseType, setCaseType] = useState([]);
   const [ipdFilterIds, setIpdFilterIds] = useState([]);
 
   // Singles — gender is matched verbatim in SQL (`pm_gender = ?`), account
-  // is REQUIRED by 3C ("all" sentinel accepted).
-  const [clinicId, setClinicId] = useState(undefined);
+  // is REQUIRED by 3C ("all" sentinel accepted). Clinic is always the
+  // auth-token clinic (read-only).
   const [gender, setGender] = useState(undefined);
   const [account, setAccount] = useState("all");
   const [ageMin, setAgeMin] = useState("");
@@ -94,7 +93,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
 
   const [appointmentReportType, setAppointmentReportType] = useState("general");
   const [collectionReportType, setCollectionReportType] = useState("general");
-  const [incentiveReportType, setIncentiveReportType] = useState("detailed");
   const [threeCReportType, setThreeCReportType] = useState("summary");
   const [ipdReportType, setIpdReportType] = useState("admitting");
   const [billingOverallType, setBillingOverallType] = useState("revenue");
@@ -106,11 +104,9 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       setBillType([]);
       setThreeCBillTypes([]);
       setIssuedBy([]);
-      setIncentiveUser([]);
       setApptStatus([]);
       setCaseType([]);
       setIpdFilterIds([]);
-      setClinicId(undefined);
       setGender(undefined);
       setAccount("all");
       setAgeMin("");
@@ -118,7 +114,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       setIpdFilterBy(undefined);
       setAppointmentReportType("general");
       setCollectionReportType("general");
-      setIncentiveReportType("detailed");
       setThreeCReportType("summary");
       setIpdReportType("admitting");
       setBillingOverallType("revenue");
@@ -133,6 +128,16 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   // Same live doctor + clinic sources as the page FilterBar (Redux with API
   // fallback; hospital_data lives on the DOCTORS slice).
   const { doctorOptions, clinicOptions } = useFilterOptions();
+  const lockedClinicId = useMemo(() => {
+    const fromFilters = singleId(filters?.clinic);
+    if (fromFilters) return fromFilters;
+    const tokenClinic = getDecodedToken()?.result?.clinic_id;
+    return tokenClinic != null ? String(tokenClinic) : undefined;
+  }, [filters?.clinic]);
+  const lockedClinicLabel = useMemo(() => {
+    if (!lockedClinicId) return "Your clinic";
+    return clinicOptions.find((c) => String(c.value) === String(lockedClinicId))?.label || "Your clinic";
+  }, [lockedClinicId, clinicOptions]);
 
   const reportFilters = report?.filters || [];
 
@@ -146,11 +151,9 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const needsIpdFilter = reportFilters.includes("ipdFilterBy");
   const needsAppointmentReportType = reportFilters.includes("appointmentReportType");
   const needsCollectionReportType = reportFilters.includes("collectionReportType");
-  const needsIncentiveReportType = reportFilters.includes("incentiveReportType");
   const needsThreeCReportType = reportFilters.includes("threeCReportType");
   const needsIpdReportType = reportFilters.includes("ipdReportType");
   const needsBillingOverallType = reportFilters.includes("billingOverallType");
-  const needsIncentiveUser = reportFilters.includes("incentiveUser");
   const needsAccount = reportFilters.includes("account");
   const needsPaymentMode = reportFilters.includes("paymentMode");
   const needsDepartment = reportFilters.includes("department");
@@ -159,7 +162,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   // Per-tab field visibility, matched to what each endpoint's schema accepts:
   // • Collection: Bill Type / Issued By exist only on the Detailed endpoint.
   // • Billing Overall: Revenue takes Issued By; Cash Flow adds Bill Types.
-  // • 3C: Summary takes account + billTypes; Details takes incentive users.
+  // • 3C: Summary takes account + billTypes; Details does not expose user filter.
   // • Appointment Analytics: Detailed swaps to gender/age/status/case-type.
   const isCashFlow = needsBillingOverallType && billingOverallType === "cashflow";
   const isCollectionDetailed = !needsCollectionReportType || collectionReportType === "detailed";
@@ -168,7 +171,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const showPaymentMode = needsPaymentMode && isCollectionDetailed;
   const showThreeCBillTypes = needsThreeCBillTypes && threeCReportType === "summary";
   const showAccount = needsAccount && (!needsThreeCReportType || threeCReportType === "summary");
-  const showIncentiveUser = needsIncentiveUser && (!needsThreeCReportType || threeCReportType === "details");
   const showAppointmentDetail = hasAppointmentDetailFields && appointmentReportType === "detailed";
 
   // Mode of Payment (bpid), Account (tban_id), Department (dp_id) — pulled
@@ -228,39 +230,11 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
     };
   }, [open, showAppointmentDetail, caseTypeOptions.length]);
 
-  // Incentive users are tim_ids (NOT doctor um_ids) and have no lookup
-  // endpoint — the incentive OVERALL rows carry { timId, incentiveUser },
-  // so they double as the picker's option source.
-  const [incentiveUserOptions, setIncentiveUserOptions] = useState([]);
-  useEffect(() => {
-    if (!open || !showIncentiveUser || incentiveUserOptions.length) return;
-    let alive = true;
-    const { startDate, endDate } = resolveDates(range, filters);
-    if (!startDate || !endDate) return;
-    ApiReporting.financialIncentiveOverall({ startDate, endDate, limit: 100 })
-      .then((r) => {
-        const rows = (r?.data ?? r)?.rows || [];
-        if (alive && rows.length) {
-          setIncentiveUserOptions(
-            rows
-              .filter((u) => u?.timId != null)
-              .map((u) => ({ value: String(u.timId), label: u.incentiveUser || `User ${u.timId}` }))
-          );
-        }
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, showIncentiveUser, incentiveUserOptions.length]);
-
   const resolvedReport = useMemo(() => {
     if (!report?.subFetchers) return report;
     let key;
     if (needsAppointmentReportType) key = appointmentReportType;
     else if (needsCollectionReportType) key = collectionReportType;
-    else if (needsIncentiveReportType) key = incentiveReportType;
     else if (needsThreeCReportType) key = threeCReportType;
     else if (needsBillingOverallType) key = billingOverallType;
     else return report;
@@ -268,7 +242,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
     const sub = report.subFetchers[key];
     if (!sub) return report;
     return { ...report, fetcher: sub.fetcher, exportFetcher: sub.exportFetcher };
-  }, [report, appointmentReportType, collectionReportType, incentiveReportType, threeCReportType, billingOverallType, needsAppointmentReportType, needsCollectionReportType, needsIncentiveReportType, needsThreeCReportType, needsBillingOverallType]);
+  }, [report, appointmentReportType, collectionReportType, threeCReportType, billingOverallType, needsAppointmentReportType, needsCollectionReportType, needsThreeCReportType, needsBillingOverallType]);
 
   const canExport = typeof resolvedReport?.exportFetcher === "function";
 
@@ -302,15 +276,13 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         startDate,
         endDate,
         type,
-        // The page-level filters follow into the download: the drawer's own
-        // clinic pick wins, else the FilterBar selection. Multi-selects
-        // serialize to CSV lists; empty = all = omitted.
-        clinicId: clinicId || singleId(filters?.clinic),
+        // Clinic is always the auth-token / page-locked clinic (read-only).
+        // Multi-selects serialize to CSV lists; empty = all = omitted.
+        clinicId: lockedClinicId,
         doctorId: filters?.doctor || undefined,
         billType: csv(billType),
         threeCBillTypes: csv(threeCBillTypes),
         issuedBy: showIssuedBy ? csv(issuedBy) : undefined,
-        incentiveUser: showIncentiveUser ? csv(incentiveUser) : undefined,
         gender: showAppointmentDetail ? gender : undefined,
         // fromAge/toAge apply only as a pair (appointment.model.ts)
         ageMin: showAppointmentDetail && ageMin !== "" && ageMax !== "" ? Number(ageMin) : undefined,
@@ -391,18 +363,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             </Field>
           )}
 
-          {needsIncentiveReportType && (
-            <Field label="Report Type">
-              <SegmentedControl
-                size="sm"
-                theme="primary"
-                options={INCENTIVE_REPORT_TYPE_OPTIONS}
-                value={incentiveReportType}
-                onValueChange={setIncentiveReportType}
-              />
-            </Field>
-          )}
-
           {needsThreeCReportType && (
             <Field label="Report Type">
               <SegmentedControl
@@ -457,11 +417,12 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
           {needsClinic && (
             <Field label="Hospital">
               <Dropdown
-                placeholder="Select"
-                options={clinicOptions}
-                value={clinicId}
-                onChange={setClinicId}
-                searchable={clinicOptions.length > 5}
+                placeholder={lockedClinicLabel}
+                options={[]}
+                value={undefined}
+                disabled
+                chevron={false}
+                ariaLabel="Hospital (locked to logged-in clinic)"
               />
             </Field>
           )}
@@ -497,16 +458,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
               options={departmentOptions}
               value={ipdFilterIds}
               onChange={setIpdFilterIds}
-            />
-          )}
-
-          {showIncentiveUser && (
-            <MultiField
-              label="Incentive User"
-              placeholder="All users"
-              options={incentiveUserOptions}
-              value={incentiveUser}
-              onChange={setIncentiveUser}
             />
           )}
 

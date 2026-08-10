@@ -62,11 +62,6 @@ export const COLLECTION_REPORT_TYPE_OPTIONS = [
   { value: "daywise", label: "Day Wise Report" },
 ];
 
-export const INCENTIVE_REPORT_TYPE_OPTIONS = [
-  { value: "detailed", label: "Detailed Report" },
-  { value: "overall", label: "Overall Report" },
-];
-
 export const THREE_C_REPORT_TYPE_OPTIONS = [
   { value: "summary", label: "Summary" },
   { value: "details", label: "Details" },
@@ -78,6 +73,13 @@ export const IPD_REPORT_TYPE_OPTIONS = [
   { value: "discharged", label: "Discharged Report" },
 ];
 
+// roleId — the LEGACY role/right id (tbl_role_master.rm_id) that gates this
+// tile, mirroring the PHP in_array checks in data_analytics_reports.php:
+//   389 Daily Collection · 390 Collection Report · 392 3C ·
+//   393 Billing Overall · 387 Appointment Analytics · 388 Prescription/
+//   Medicine Analytics · 22 IPD reports/analytics.
+// usePermissions().canView(roleId) decides visibility; tiles with no roleId
+// are never gated. Grants come live from the admin panel's Role Assignment.
 export const REPORTS = [
   // --- Financial ---
   {
@@ -108,37 +110,21 @@ export const REPORTS = [
     buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment }),
   },
   {
-    id: "incentive-report", group: "Financial", dept: "opd",
-    icon: `${IC}money/money-add.svg`,
-    label: "Incentive Reports",
-    desc: "Per-user and service-level incentive payouts.",
-    // incentive.schema.ts: detailed takes `user` = CSV of incentive-user ids
-    // (tim_id, NOT um_id); overall takes only dates + type. No department
-    // dimension exists on this endpoint.
-    filters: ["incentiveReportType", "dateRange", "incentiveUser"],
-    subFetchers: {
-      detailed: { fetcher: ApiReporting.financialIncentiveDetailed, exportFetcher: ApiReporting.exportFinancialIncentiveDetailed },
-      overall: { fetcher: ApiReporting.financialIncentiveOverall, exportFetcher: ApiReporting.exportFinancialIncentiveOverall },
-    },
-    fetcher: ApiReporting.financialIncentiveDetailed,
-    exportFetcher: ApiReporting.exportFinancialIncentiveDetailed,
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", user: f?.incentiveUser }),
-  },
-  {
-    id: "3c-report", group: "Financial", dept: "opd",
+    id: "3c-report", roleId: 392, group: "Financial", dept: "opd",
     icon: `${IC}content-edit/bill.svg`,
     label: "3C Report",
     desc: "Cash, invoice and credit-note breakdown by account.",
     // threeC.schema.ts: summary takes REQUIRED `account` (tban_id; "all"
-    // passes) + `billTypes` CSV; details takes `user` (CSV of tim_id).
-    filters: ["threeCReportType", "dateRange", "threeCBillTypes", "account", "incentiveUser"],
+    // passes) + `billTypes` CSV; details takes date range only (incentive
+    // user filter is out of scope / not exposed in the UI).
+    filters: ["threeCReportType", "dateRange", "threeCBillTypes", "account"],
     subFetchers: {
       summary: { fetcher: ApiReporting.financialThreeC, exportFetcher: ApiReporting.exportFinancialThreeC },
       details: { fetcher: ApiReporting.financialThreeCDetails, exportFetcher: ApiReporting.exportFinancialThreeCDetails },
     },
     fetcher: ApiReporting.financialThreeC,
     exportFetcher: ApiReporting.exportFinancialThreeC,
-    buildParams: (f) => ({ ...dates(f), account: f?.account || "all", billTypes: f?.threeCBillTypes, user: f?.incentiveUser }),
+    buildParams: (f) => ({ ...dates(f), account: f?.account || "all", billTypes: f?.threeCBillTypes }),
   },
   {
     id: "billing-overall", group: "Financial", dept: "both",
@@ -222,36 +208,6 @@ export const REPORTS = [
     fetcher: ApiReporting.clinicalPrescriptionMedicineDetailed,
     exportFetcher: ApiReporting.exportClinicalPrescriptionMedicineDetailed,
     buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, doctorId: f?.doctorId }),
-  },
-  // --- Reference ---
-  {
-    id: "ref-patients", group: "Reference", dept: "opd",
-    icon: `${IC}users/profile-2user.svg`,
-    label: "Referred by Patients",
-    desc: "Patients who referred others, with referred-case counts.",
-    live: true,
-    filters: ["dateRange"],
-    fetcher: ApiReporting.referencePatients,
-    buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, doctorId: f?.doctorId }),
-  },
-  {
-    id: "ref-others", group: "Reference", dept: "opd",
-    icon: `${IC}users/profile-2user.svg`,
-    label: "Referred by Others",
-    desc: "External referrers with their referred-case counts.",
-    live: true,
-    filters: [],
-    fetcher: ApiReporting.referencesList,
-    buildParams: () => ({}),
-  },
-  {
-    id: "ref-inpatient", group: "Reference", dept: "ipd",
-    icon: `${IC}users/profile-2user.svg`,
-    label: "Inpatient References",
-    desc: "Inpatient referrers with their referred cases.",
-    filters: [],
-    fetcher: ApiReporting.referenceInpatientList,
-    buildParams: () => ({}),
   },
 ];
 

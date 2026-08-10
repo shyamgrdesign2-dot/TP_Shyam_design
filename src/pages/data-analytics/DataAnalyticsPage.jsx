@@ -160,6 +160,11 @@ export default function DataAnalyticsPage() {
   useEffect(() => {
     if (doctorLocked) setDoctors([caps.selfId]);
   }, [doctorLocked, caps.selfId]);
+
+  // Clinic is always locked to the logged-in clinic from the auth token.
+  useEffect(() => {
+    if (caps.selfClinicId) setClinics([caps.selfClinicId]);
+  }, [caps.selfClinicId]);
   const [refreshKey, setRefreshKey] = useState(0);
   const handleRefresh = useCallback(() => {
     trackAnalytics(EVENTS.REFRESH, { department, section });
@@ -260,16 +265,17 @@ export default function DataAnalyticsPage() {
 
   // Hooks consume `doctor`/`clinic` as a CSV id string (empty = all).
   // clinic/* hooks may still narrow via singleIdOnly(); analytics/* accept CSV.
+  // Clinic is always the auth-token clinic (even before the default effect runs).
   const filters = useMemo(
     () => ({
       ...dateRange,
       // A locked sub-doctor is always scoped to themselves, even on the very
       // first render before the default-selection effect has run.
       doctor: doctorLocked ? caps.selfId : doctors.length ? doctors.join(",") : undefined,
-      clinic: clinics.length ? clinics.join(",") : undefined,
+      clinic: caps.selfClinicId || (clinics.length ? clinics.join(",") : undefined),
       canCompare: isComparable(dateRange),
     }),
-    [dateRange, doctors, clinics, doctorLocked, caps.selfId]
+    [dateRange, doctors, clinics, doctorLocked, caps.selfId, caps.selfClinicId]
   );
 
   const close = () => {
@@ -292,18 +298,15 @@ export default function DataAnalyticsPage() {
     setSubTab(value === "reports" ? "opd" : "all");
   };
 
-  // Clear-all resets every filter to its default state (all doctors, all
-  // clinics, Past 7 days). The CTA only shows while something is active.
-  // A locked doctor (sub-doctor) and a single clinic never count as "active"
-  // and never reset away from themselves.
+  // Clear-all resets doctor + date to defaults. Clinic stays on the auth-token
+  // clinic (read-only) and never counts as an "active" filter.
   const hasActiveFilters =
     (!doctorLocked && doctors.length > 0) ||
-    (!caps.singleClinic && clinics.length > 0) ||
     dateValue !== DEFAULT_DATE_VALUE;
   const clearAllFilters = () => {
     trackAnalytics(EVENTS.FILTER_CLEARED, { department, section });
     setDoctors(doctorLocked ? [caps.selfId] : []);
-    setClinics([]);
+    if (caps.selfClinicId) setClinics([caps.selfClinicId]);
     setDateValue(DEFAULT_DATE_VALUE);
     setDateRange(periodToRange("7d"));
   };
@@ -472,7 +475,11 @@ export default function DataAnalyticsPage() {
                           clinicOptions={clinicOptions}
                           doctorLocked={doctorLocked}
                           lockedDoctorLabel={caps.selfName}
-                          singleClinic={caps.singleClinic}
+                          singleClinic
+                          lockedClinicLabel={
+                            caps.selfClinicName ||
+                            clinicOptions.find((c) => c.value === caps.selfClinicId)?.label
+                          }
                           hasActiveFilters={hasActiveFilters}
                           onClearAll={clearAllFilters}
                         />

@@ -17,7 +17,7 @@ import {
 //
 //   role            JWT `result.admin` (src/utils/localStorage getDecodedToken)
 //   self identity   JWT `result.user_id` + profile `um_name`
-//   clinics         profile `hospital_data` (already the clinic filter source)
+//   clinic          JWT `result.clinic_id` (+ profile `hospital_data` for name)
 //   IPD             profile `module_data` contains type "ipd"
 //   ABDM/ABHA       profile `abhaEnable`
 //   consult modes   GrowthBook flags (same flags that gate the live features):
@@ -40,12 +40,26 @@ export default function useCapabilities() {
     const isAdmin = Number(token.admin) === 1 || Number(profile.ownerDoctor) === 1;
     const clinics = Array.isArray(profile.hospital_data) ? profile.hospital_data : [];
     const modules = Array.isArray(profile.module_data) ? profile.module_data : [];
+    // Prefer the clinic on the auth token (active login clinic); fall back to
+    // the first hospital on the profile when the claim is missing.
+    const selfClinicId =
+      token.clinic_id != null
+        ? String(token.clinic_id)
+        : clinics[0]?.hm_id != null
+          ? String(clinics[0].hm_id)
+          : null;
+    const selfClinic =
+      clinics.find((h) => h?.hm_id != null && String(h.hm_id) === selfClinicId) || null;
 
     return {
       isAdmin,
       selfId: token.user_id != null ? String(token.user_id) : null,
       selfName: profile.um_name || null,
-      singleClinic: clinics.length <= 1,
+      selfClinicId,
+      selfClinicName: selfClinic?.hm_name || null,
+      // Clinic filter is read-only for everyone (token-scoped); keep the flag
+      // for callers that still check singleClinic for lock UI.
+      singleClinic: true,
       ipd: modules.some((m) => m?.type === "ipd"),
       abdm: profile.abhaEnable === true,
       gynecObstetric,

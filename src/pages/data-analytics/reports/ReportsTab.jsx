@@ -7,11 +7,10 @@ import { REPORTS } from "./reportsCatalog";
 import SectionBlock from "../sections/SectionBlock";
 import ReportDownloadDrawer from "./ReportDownloadDrawer";
 
-const GROUPS = ["Financial", "Clinical", "Reference"];
+const GROUPS = ["Financial", "Clinical"];
 const GROUP_ICON = {
   Financial: "dollar-circle",
   Clinical: "activity",
-  Reference: "circle-element",
 };
 
 export default function ReportsTab({ filters, department = "opd" }) {
