@@ -7,6 +7,7 @@ const ZERO_KPIS = [
   { key: "total", label: "Total footfall", kind: "number", value: 0, tooltip: "All appointments in the selected period" },
   { key: "completed", label: "Completed visits", kind: "number", value: 0, tooltip: "Appointments completed in the selected period" },
   { key: "inQueue", label: "In queue", kind: "number", value: 0, tooltip: "Appointments still waiting in the queue" },
+  { key: "draft", label: "Draft", kind: "number", value: 0, tooltip: "Consultations saved as a draft prescription" },
   { key: "cancelled", label: "Cancelled", kind: "number", value: 0, tooltip: "Appointments cancelled in the selected period" },
   { key: "bookedClinic", label: "In-clinic visits", kind: "number", value: 0, tooltip: "In-person clinic visits in the selected period" },
   { key: "bookedVideo", label: "Video consultations", kind: "number", value: 0, tooltip: "Teleconsultation visits in the selected period" },
@@ -37,6 +38,7 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
     const total = num(kpis.total);
     const completed = num(kpis.completed);
     const inQueue = num(kpis.inQueue);
+    const draft = num(kpis.draft);
     const cancelled = num(kpis.cancelled);
 
     const prevTotal = num(prev.total);
@@ -57,6 +59,7 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
         { key: "total", label: "Total footfall", kind: "number", value: total, tooltip: "All appointments in the selected period", ...(hasPrev ? { delta: pctDelta(total, prevTotal) } : {}) },
         { key: "completed", label: "Completed visits", kind: "number", value: completed, tooltip: "Appointments completed in the selected period", ...(hasPrev ? { delta: pctDelta(completed, prevCompleted) } : {}) },
         { key: "inQueue", label: "In queue", kind: "number", value: inQueue, tooltip: "Appointments still waiting in the queue" },
+        { key: "draft", label: "Draft", kind: "number", value: draft, tooltip: "Consultations saved as a draft prescription" },
         { key: "cancelled", label: "Cancelled", kind: "number", value: cancelled, invert: true, tooltip: "Appointments cancelled in the selected period" },
         { key: "bookedClinic", label: "In-clinic visits", kind: "number", value: bookedClinic, tooltip: "In-person clinic visits in the selected period" },
         { key: "bookedVideo", label: "Video consultations", kind: "number", value: bookedVideo, tooltip: "Teleconsultation visits in the selected period" },
@@ -64,6 +67,7 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
       statusDonut: [
         { label: "Completed", value: completed },
         { label: "In queue", value: inQueue },
+        { label: "Draft", value: draft },
         { label: "Cancelled", value: cancelled },
       ],
     });

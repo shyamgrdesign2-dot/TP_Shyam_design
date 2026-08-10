@@ -30,13 +30,14 @@ export const GENDER_OPTIONS = [
 ];
 
 // pam_status codes (appointment.constant.ts): 0=Queue, 1=Arrived, 2=Engaged,
-// 3=Finished, >=4=Cancelled. The `statuses` param is a CSV of these codes.
+// 3=Finished, 4=Cancelled, 6=Draft. The `statuses` param is a CSV of these codes.
 export const APPOINTMENT_STATUS_OPTIONS = [
   { value: "0", label: "In Queue" },
   { value: "1", label: "Arrived" },
   { value: "2", label: "Engaged" },
   { value: "3", label: "Completed" },
   { value: "4", label: "Cancelled" },
+  { value: "6", label: "Draft" },
 ];
 
 export const BILLING_OVERALL_TYPE_OPTIONS = [

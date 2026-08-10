@@ -89,7 +89,7 @@ export default function OverviewSection({ filters }) {
             iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/business/activity.svg"
             titleTooltip="Current status of every appointment in the selected period (same source as Appointments)"
           >
-            <DonutWithLegend data={appointments.statusDonut} centerLabel="Appointments" height={240} colors={["var(--tesseract-blue-400)", "var(--tesseract-violet-400)", "var(--tesseract-error-400)"]} />
+            <DonutWithLegend data={appointments.statusDonut} centerLabel="Appointments" height={240} colors={["var(--tesseract-blue-400)", "var(--tesseract-violet-400)", "var(--tesseract-warning-400)", "var(--tesseract-error-400)"]} />
           </ChartTile>
 
           <ChartTile
