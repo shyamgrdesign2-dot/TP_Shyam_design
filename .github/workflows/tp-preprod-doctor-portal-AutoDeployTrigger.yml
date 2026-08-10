@@ -20,7 +20,7 @@ jobs:
       contents: read
 
     env:
-      REACT_APP_ENV: preprod
+      REACT_APP_ENV: prod
       IMAGE_NAME: zydusdiginextml.azurecr.io/tp-preprod-doctor-portal:${{ github.sha }}
 
     steps:
@@ -52,7 +52,8 @@ jobs:
           set -euo pipefail
 
           docker build \
-            --build-arg REACT_APP_ENV=preprod \
+            --build-arg REACT_APP_ENV=prod \
+            --build-arg GENERATE_SOURCEMAP=true \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
             -t "${{ env.IMAGE_NAME }}" .
