@@ -234,6 +234,7 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
       const completed = toNum(liveKpis.completed);
       const scheduled = toNum(liveKpis.inQueue);
       const cancelled = toNum(liveKpis.cancelled);
+      const draft = toNum(liveKpis.draft);
 
       // Same period-over-period logic as useAppointmentsLive (Data Analytics Appointments).
       const prev = liveKpis.previous ?? {};
@@ -247,6 +248,7 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
       const statusDonut = [
         { label: "Completed", value: completed },
         { label: "In queue", value: scheduled },
+        { label: "Draft", value: draft },
         { label: "Cancelled", value: cancelled },
       ];
 
