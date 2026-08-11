@@ -702,11 +702,11 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           .map(tag => {
             // Format duration as "X yrs" if available
             let duration = "";
-            if (tag.since) {
-              // If since already contains "yr" or "year", use as is, otherwise add "yrs"
-              duration = tag.since.includes("yr") || tag.since.includes("year") 
-                ? tag.since 
-                : `${tag.since} yrs`;
+            if (tag.oldSince) {
+              // If oldSince already contains "yr" or "year", use as is, otherwise add "yrs"
+              duration = tag.oldSince.includes("yr") || tag.oldSince.includes("year") 
+                ? tag.oldSince 
+                : `${tag.oldSince} yrs`;
             }
             return {
               name: tag.title.trim(),
@@ -1918,8 +1918,8 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                             {e.tags?.filter(x => x.enable === 'Y').map((e1, i1) => {
                               const details = [];
                               
-                              if (e1.since && e?.tmmhs_id !== 5) {
-                                details.push(`Since: ${e1.since}`);
+                              if (e1.oldSince && e?.tmmhs_id !== 5) {
+                                details.push(`Since: ${e1.oldSince}`);
                               }
                               if (e1.date && e?.tmmhs_id === 5) {
                                 details.push(`Date of Surgery: ${e1.date}`);

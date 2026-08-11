@@ -57,6 +57,7 @@ const isRetryableTransientError = (error) => {
 
 const waitBeforeRetry = () => new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
 const applyRetryIfEligible = async (error, originalRequest = {}) => {
+    if (originalRequest.skipRetry) return null;
     if (!isRetryableTransientError(error)) return null;
     originalRequest.__retryCount = originalRequest.__retryCount || 0;
     window.__TATVA_VOICE_API_LAST_ERROR_MESSAGE =

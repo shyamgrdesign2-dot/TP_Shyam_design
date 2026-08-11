@@ -15,6 +15,7 @@ import { GB_CVT_EXT_HOS, GB_ZYDUS_USER } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import useTabletViewport from "../hooks/useTabletViewport";
 import { ASSETS } from "../assets";
+import { isMissionAnalyticsOnlyUser } from "../pages/data-analytics/data/analyticsAccess";
 const CreditImg = ASSETS.images.creditIcon;
 
 function Welcome(props) {
@@ -35,6 +36,10 @@ function Welcome(props) {
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const analyticsOnlyHome = isMissionAnalyticsOnlyUser(decodedToken?.result);
+  const isMissionAnalyticsView =
+    locationPath === "/mission-analytics" ||
+    (locationPath === "/" && analyticsOnlyHome);
 
 
   const isTablet = useTabletViewport();
@@ -100,7 +105,8 @@ function Welcome(props) {
               ) : (
                 <h1>Welcome Dr. {profile?.um_name?.split(/\s+/).filter(word => (word.toLowerCase() != "Dr".toLowerCase() && word.toLowerCase() != "Dr.".toLowerCase())).join(' ')}!</h1>
               )}
-              {locationPath == "/" && <p>{"Your Appointments"}</p>}
+              {locationPath == "/" && !isMissionAnalyticsView && <p>{"Your Appointments"}</p>}
+              {isMissionAnalyticsView && <p>{"OPD Analytics"}</p>}
               {locationPath == "/bulk_messages" && <p className="text-main fw-medium fs-14">{"Engage patients with timely updates and reminders"}</p>}
             </div>
           </div>

@@ -97,9 +97,9 @@ function ExpiredText({ title, onRedirect }) {
             case S_ASK_TATVA:
                 return `Try ${AI_planDetails?.service_display_name}`;
             case S_PHARMACY:
-                return `Try ${NonAI_planDetails?.service_display_name}`;
+                return `Try ${NonAI_planDetails?.service_display_name || NonAI_planDetails.service_name}`;
             case S_IPD:
-                return `Try ${NonAI_planDetails?.service_display_name}`;
+                return `Try ${NonAI_planDetails?.service_display_name || NonAI_planDetails.service_name}`;
             default:
                 return "";
         }

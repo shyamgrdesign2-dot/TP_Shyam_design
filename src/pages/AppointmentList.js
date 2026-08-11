@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 
 import Header from "../common/Header";
@@ -27,6 +27,21 @@ import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
 import VoiceRxPromoModal from "../components/VoiceRxPromoModal";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { isMissionAnalyticsOnlyUser } from "./data-analytics/data/analyticsAccess";
+import { lazyRetry } from "../utils/lazyRetry";
+import FullPageLoader from "./vaccination/components/Loader";
+
+const MissionAnalyticsPage = lazy(() =>
+  lazyRetry(() => import("./mission-analytics"))
+);
+
+function EmbeddedMissionAnalytics() {
+  return (
+    <Suspense fallback={<FullPageLoader />}>
+      <MissionAnalyticsPage embedded />
+    </Suspense>
+  );
+}
 
 function AppointmentList() {
   const dispatch = useDispatch();
@@ -42,6 +57,7 @@ function AppointmentList() {
   const { isMobile: isMobileDevice, isTablet } = useDeviceType();
   const shouldShowMobileDashboard = isMobileDevice && !isTablet && !isReceptionist;
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const analyticsOnlyHome = isMissionAnalyticsOnlyUser(getDecodedToken()?.result);
 
   
   useEffect(() => {
@@ -86,13 +102,27 @@ function AppointmentList() {
     }
   }, []);
 
+  const hideWelcomeForMissionAnalytics =
+    locationPath === "/mission-analytics" ||
+    (analyticsOnlyHome && (locationPath === "/" || locationPath === ""));
+
   return (
     <>
       {!shouldShowMobileDashboard && !isReceptionist && <Header locationPath={locationPath} />}
-      <div className="d-flex">
+      <div className={`d-flex${hideWelcomeForMissionAnalytics ? " ma-shell-row" : ""}`}>
         {!shouldShowMobileDashboard && !isReceptionist && <SidebarDoctor />}
-        <div className={`w-100 bg-body ${shouldShowMobileDashboard && locationPath === '/' ? '' : (shouldShowMobileDashboard && locationPath != '/' && locationPath != '/bulk_messages' ? 'vh-100' : 'wrapper')}`}>
-          {!shouldShowMobileDashboard && !isReceptionist && (
+        <div
+          className={`w-100 bg-body ${
+            hideWelcomeForMissionAnalytics
+              ? "ma-shell-content"
+              : shouldShowMobileDashboard && locationPath === "/"
+                ? ""
+                : shouldShowMobileDashboard && locationPath != "/" && locationPath != "/bulk_messages"
+                  ? "vh-100"
+                  : "wrapper"
+          }`}
+        >
+          {!shouldShowMobileDashboard && !isReceptionist && !hideWelcomeForMissionAnalytics && (
             <Welcome
               locationPath={locationPath}
               appointmentAgentsData={agentsData}
@@ -105,11 +135,14 @@ function AppointmentList() {
               element={
                 shouldShowMobileDashboard ? (
                   <AppointmentDashboardMobile />
+                ) : analyticsOnlyHome ? (
+                  <EmbeddedMissionAnalytics />
                 ) : (
                   <Appointment locationPath={locationPath} appointmentAgentsData={agentsData} />
                 )
               } 
             />
+            <Route path="mission-analytics" element={<EmbeddedMissionAnalytics />} />
             <Route 
               path="walk_in_consultation" 
               element={(isMobileDevice && !isTablet) ? <MobileWalkInConsultation /> : <WalkInConsultation />} 
