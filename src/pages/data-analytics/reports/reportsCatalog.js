@@ -13,14 +13,6 @@ export const BILL_TYPE_OPTIONS = [
   { value: "refund", label: "Refund" },
 ];
 
-// 3C bill types (threeC.schema.ts) — note "credite_notes" is the backend's
-// own token spelling; do not "fix" it client-side.
-export const THREE_C_BILL_TYPE_OPTIONS = [
-  { value: "cash_memo", label: "Cash Memo" },
-  { value: "invoice", label: "Invoice" },
-  { value: "credite_notes", label: "Credit Notes" },
-];
-
 // pm_gender is matched verbatim in SQL (appointment.model.ts) — capitalized,
 // single value (the column filter is `= ?`, not an IN list).
 export const GENDER_OPTIONS = [
@@ -43,6 +35,16 @@ export const APPOINTMENT_STATUS_OPTIONS = [
 export const BILLING_OVERALL_TYPE_OPTIONS = [
   { value: "revenue", label: "Revenue" },
   { value: "cashflow", label: "Cash Flow" },
+];
+
+// New OPD billing MOP labels — stored/filtered as these exact strings.
+export const PAYMENT_MODE_OPTIONS = [
+  { value: "Cash", label: "Cash" },
+  { value: "Credit Card", label: "Credit Card" },
+  { value: "UPI", label: "UPI" },
+  { value: "Cheque", label: "Cheque" },
+  { value: "Advance Deposit", label: "Advance Deposit" },
+  { value: "Others", label: "Others" },
 ];
 
 export const IPD_FILTER_BY_OPTIONS = [
@@ -83,7 +85,7 @@ export const IPD_REPORT_TYPE_OPTIONS = [
 export const REPORTS = [
   // --- Financial ---
   {
-    id: "daily-collection", group: "Financial", dept: "both",
+    id: "daily-collection", roleId: 389, group: "Financial", dept: "opd",
     icon: `${IC}money/receipt.svg`,
     label: "Daily Collection",
     desc: "Cash memo, receipt, advance and refund for a single day.",
@@ -94,7 +96,7 @@ export const REPORTS = [
     buildParams: (f) => ({ type: f?.type || "opd", date: f?.endDate, clinicId: f?.clinicId, doctorId: f?.doctorId }),
   },
   {
-    id: "collection-report", group: "Financial", dept: "both",
+    id: "collection-report", roleId: 390, group: "Financial", dept: "opd",
     icon: `${IC}money/money-recive.svg`,
     label: "Collection Report",
     desc: "Day-wise or detailed collection by date, bill type and payment mode.",
@@ -113,32 +115,31 @@ export const REPORTS = [
     id: "3c-report", roleId: 392, group: "Financial", dept: "opd",
     icon: `${IC}content-edit/bill.svg`,
     label: "3C Report",
-    desc: "Cash, invoice and credit-note breakdown by account.",
-    // threeC.schema.ts: summary takes REQUIRED `account` (tban_id; "all"
-    // passes) + `billTypes` CSV; details takes date range only (incentive
-    // user filter is out of scope / not exposed in the UI).
-    filters: ["threeCReportType", "dateRange", "threeCBillTypes", "account"],
+    desc: "Cash, invoice and credit-note breakdown.",
+    // threeC.schema.ts: summary still requires `account` ("all" sentinel);
+    // the Account picker is out of scope so we always send "all".
+    filters: ["threeCReportType", "dateRange", "billType"],
     subFetchers: {
       summary: { fetcher: ApiReporting.financialThreeC, exportFetcher: ApiReporting.exportFinancialThreeC },
       details: { fetcher: ApiReporting.financialThreeCDetails, exportFetcher: ApiReporting.exportFinancialThreeCDetails },
     },
     fetcher: ApiReporting.financialThreeC,
     exportFetcher: ApiReporting.exportFinancialThreeC,
-    buildParams: (f) => ({ ...dates(f), account: f?.account || "all", billTypes: f?.threeCBillTypes }),
+    buildParams: (f) => ({ ...dates(f), account: "all", billTypes: f?.billType }),
   },
   {
-    id: "billing-overall", group: "Financial", dept: "both",
+    id: "billing-overall", roleId: 393, group: "Financial", dept: "opd",
     icon: `${IC}essential/chart.svg`,
     label: "Billing Overall Reports",
     desc: "Revenue and cash-flow reports across the whole practice.",
-    filters: ["billingOverallType", "dateRange", "billType", "issuedBy", "paymentMode", "account"],
+    filters: ["billingOverallType", "dateRange", "billType", "issuedBy", "paymentMode"],
     subFetchers: {
       revenue: { fetcher: ApiReporting.financialBillingOverallRevenue, exportFetcher: ApiReporting.exportFinancialBillingOverallRevenue },
       cashflow: { fetcher: ApiReporting.financialBillingOverallCashFlow, exportFetcher: ApiReporting.exportFinancialBillingOverallCashFlow },
     },
     fetcher: ApiReporting.financialBillingOverallRevenue,
     exportFetcher: ApiReporting.exportFinancialBillingOverallRevenue,
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment, accountant: f?.account && f.account !== "all" ? f.account : undefined }),
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment }),
   },
   {
     id: "ipd-reports", roleId: 22, group: "Financial", dept: "ipd",

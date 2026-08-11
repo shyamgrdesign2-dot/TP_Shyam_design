@@ -18,7 +18,6 @@ import ApiReporting from "../../../api/services/ApiReporting";
 import ApiAppointments from "../../../api/services/ApiAppointments";
 import {
   BILL_TYPE_OPTIONS,
-  THREE_C_BILL_TYPE_OPTIONS,
   GENDER_OPTIONS,
   APPOINTMENT_STATUS_OPTIONS,
   BILLING_OVERALL_TYPE_OPTIONS,
@@ -27,6 +26,7 @@ import {
   COLLECTION_REPORT_TYPE_OPTIONS,
   THREE_C_REPORT_TYPE_OPTIONS,
   IPD_REPORT_TYPE_OPTIONS,
+  PAYMENT_MODE_OPTIONS,
 } from "./reportsCatalog";
 import { isoLocal } from "../filters/periods";
 import { getDecodedToken } from "../../../utils/localStorage";
@@ -77,7 +77,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   // Multi-selects (checkbox dropdowns): arrays of the backend's own tokens/
   // ids, empty = "all". Serialized to CSV at download time.
   const [billType, setBillType] = useState([]);
-  const [threeCBillTypes, setThreeCBillTypes] = useState([]);
   const [issuedBy, setIssuedBy] = useState([]);
   const [apptStatus, setApptStatus] = useState([]);
   const [caseType, setCaseType] = useState([]);
@@ -103,7 +102,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       setRange(null);
       setType(department);
       setBillType([]);
-      setThreeCBillTypes([]);
       setIssuedBy([]);
       setApptStatus([]);
       setCaseType([]);
@@ -147,7 +145,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const needsDateRange = reportFilters.includes("dateRange");
   const needsClinic = reportFilters.includes("clinic");
   const needsBillType = reportFilters.includes("billType");
-  const needsThreeCBillTypes = reportFilters.includes("threeCBillTypes");
   const needsIssuedBy = reportFilters.includes("issuedBy");
   const needsIpdFilter = reportFilters.includes("ipdFilterBy");
   const needsAppointmentReportType = reportFilters.includes("appointmentReportType");
@@ -163,20 +160,20 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   // Per-tab field visibility, matched to what each endpoint's schema accepts:
   // • Collection: Bill Type / Issued By exist only on the Detailed endpoint.
   // • Billing Overall: Revenue takes Issued By; Cash Flow adds Bill Types.
-  // • 3C: Summary takes account + billTypes; Details does not expose user filter.
+  // • 3C: both tabs take the same Bill Type list as Collection Detailed (account always "all").
   // • Appointment Analytics: Detailed swaps to gender/age/status/case-type.
   const isCashFlow = needsBillingOverallType && billingOverallType === "cashflow";
   const isCollectionDetailed = !needsCollectionReportType || collectionReportType === "detailed";
-  const showBillType = needsBillType && isCollectionDetailed && (!needsBillingOverallType || isCashFlow);
+  const showBillType =
+    needsBillType &&
+    (needsThreeCReportType || (isCollectionDetailed && (!needsBillingOverallType || isCashFlow)));
   const showIssuedBy = needsIssuedBy && isCollectionDetailed;
   const showPaymentMode = needsPaymentMode && isCollectionDetailed;
-  const showThreeCBillTypes = needsThreeCBillTypes && threeCReportType === "summary";
   const showAccount = needsAccount && (!needsThreeCReportType || threeCReportType === "summary");
   const showAppointmentDetail = hasAppointmentDetailFields && appointmentReportType === "detailed";
 
-  // Mode of Payment (bpid), Account (tban_id), Department (dp_id) — pulled
-  // from the new /reports/lookups endpoint.
-  const [paymentModeOptions, setPaymentModeOptions] = useState([]);
+  // Account / department still come from /reports/lookups when needed.
+  // Mode of Payment uses the static billing labels (PAYMENT_MODE_OPTIONS).
   const [accountOptions, setAccountOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [paymentMode, setPaymentMode] = useState([]);
@@ -184,7 +181,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
 
   useEffect(() => {
     if (!open) return;
-    const needsLookup = needsPaymentMode || needsAccount || needsDepartment || needsIpdFilter;
+    const needsLookup = needsAccount || needsDepartment || needsIpdFilter;
     if (!needsLookup) return;
     let alive = true;
 
@@ -195,10 +192,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       .then((r) => {
         const data = r?.data ?? r ?? {};
         if (!alive) return [];
-        const payments = Array.isArray(data.paymentOptions) ? data.paymentOptions : [];
-        if (payments.length) {
-          setPaymentModeOptions(payments.map((p) => ({ value: String(p.id), label: p.name || `Option ${p.id}` })));
-        }
         const accounts = Array.isArray(data.accounts) ? data.accounts : [];
         if (accounts.length) {
           setAccountOptions([
@@ -232,7 +225,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, needsPaymentMode, needsAccount, needsDepartment, needsIpdFilter]);
+  }, [open, needsAccount, needsDepartment, needsIpdFilter]);
 
   // Case types are ids (toct_id) — listCasetype returns { status, data: { case_type } }.
   const [caseTypeOptions, setCaseTypeOptions] = useState([]);
@@ -313,7 +306,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         clinicId: lockedClinicId,
         doctorId: filters?.doctor || undefined,
         billType: csv(billType),
-        threeCBillTypes: csv(threeCBillTypes),
         issuedBy: showIssuedBy ? csv(issuedBy) : undefined,
         gender: showAppointmentDetail ? gender : undefined,
         // fromAge/toAge apply only as a pair (appointment.model.ts)
@@ -554,16 +546,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             />
           )}
 
-          {showThreeCBillTypes && (
-            <MultiField
-              label="Bill Type"
-              placeholder="All types"
-              options={THREE_C_BILL_TYPE_OPTIONS}
-              value={threeCBillTypes}
-              onChange={setThreeCBillTypes}
-            />
-          )}
-
           {showIssuedBy && (
             <MultiField
               label="Issued By"
@@ -590,7 +572,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             <MultiField
               label="Mode of Payment"
               placeholder="All modes"
-              options={paymentModeOptions}
+              options={PAYMENT_MODE_OPTIONS}
               value={paymentMode}
               onChange={setPaymentMode}
             />
