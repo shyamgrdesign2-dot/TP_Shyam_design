@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
 import { toNum as num, pctDelta } from "./deltaUtils";
 import { cached } from "./apiCache";
+import { hourSeriesToXY } from "../charts/adapters";
 
 const ZERO_KPIS = [
   { key: "total", label: "Total footfall", kind: "number", value: 0, tooltip: "All appointments in the selected period" },
@@ -14,11 +15,11 @@ const ZERO_KPIS = [
 ];
 
 export default function useAppointmentsLive({ startDate, endDate, doctorId, clinicId } = {}) {
-  const [state, setState] = useState({ loading: true, kpis: ZERO_KPIS, statusDonut: [] });
+  const [state, setState] = useState({ loading: true, kpis: ZERO_KPIS, statusDonut: [], visitsByHour: null });
 
   const load = useCallback(async () => {
     if (!startDate || !endDate) {
-      setState({ loading: false, kpis: ZERO_KPIS, statusDonut: [] });
+      setState({ loading: false, kpis: ZERO_KPIS, statusDonut: [], visitsByHour: null });
       return;
     }
     setState((s) => ({ ...s, loading: true }));
@@ -106,6 +107,9 @@ export default function useAppointmentsLive({ startDate, endDate, doctorId, clin
         { label: "Draft", value: draft },
         { label: "Cancelled", value: cancelled },
       ],
+      // appointment/summary is the live source for hour buckets; the older
+      // analytics/appointment payload often omits visitsByHour.
+      visitsByHour: src.visitsByHour ? hourSeriesToXY(src.visitsByHour) : null,
     });
   }, [startDate, endDate, doctorId, clinicId]);
 

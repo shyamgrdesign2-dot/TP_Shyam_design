@@ -332,6 +332,14 @@ button[data-variant="link"][data-theme="warning"] * {
   box-shadow: 0 0 0 1px var(--tesseract-error-500, #ef4444) !important;
 }
 
+/* Single-select clear (X) sits after the label; trigger is space-between so
+   the X lands mid-field. Grow the label so X pins next to the chevron. */
+.da-report-drawer button[class*="_trigger_"] span[class*="_triggerText_"],
+.da-report-drawer button[class*="_trigger_"] span[class*="_placeholder_"] {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ── Chart colour palette ────────────────────────────────────────────────
    Remaps Tesseract chart-series tokens inside SVGs for bar / line fills.
    Keep amber as yellow so series index 2 (e.g. Digitized CVT) matches the

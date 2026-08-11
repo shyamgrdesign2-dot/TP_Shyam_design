@@ -20,7 +20,10 @@ export default function ReportsTab({ filters, department = "opd" }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {GROUPS.map((group) => {
         const items = REPORTS.filter(
-          (r) => r.group === group && (r.dept === "both" || r.dept === department)
+          (r) =>
+            r.group === group &&
+            r.dept !== "ipd" &&
+            (r.dept === "both" || r.dept === department)
         );
         if (!items.length) return null;
         return (

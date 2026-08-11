@@ -4,24 +4,18 @@ import SectionBlock from "./SectionBlock";
 import { ChartGrid, ChartTile, ScrollableChart } from "./ChartLayout";
 import { BarChartZ } from "../charts/EmptyAware";
 import DonutWithLegend from "../charts/DonutWithLegend";
-import { seriesToDonut } from "../charts/adapters";
+import { seriesToDonut, HOUR_LABELS_12H } from "../charts/adapters";
 import { rangeLengthDays } from "../filters/periods";
 import useAppointmentsLive from "../data/useAppointmentsLive";
 import useAppointmentsData from "../data/useAppointmentsData";
 import useCapabilities from "../data/useCapabilities";
 import KpiRow from "./KpiRow";
 
-const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => {
-  if (i === 0) return "12am";
-  if (i === 12) return "12pm";
-  return i < 12 ? `${i}am` : `${i - 12}pm`;
-});
-
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function AppointmentsSection({ filters }) {
   const caps = useCapabilities();
-  const { loading, kpis: rawKpis, statusDonut } = useAppointmentsLive({
+  const { loading, kpis: rawKpis, statusDonut, visitsByHour: liveHourly } = useAppointmentsLive({
     startDate: filters?.startDate,
     endDate: filters?.endDate,
     doctorId: filters?.doctor,
@@ -90,8 +84,9 @@ export default function AppointmentsSection({ filters }) {
   // Derived depth KPIs — computed live from data already on screen
   const totalKpi = kpis.find((k) => k.key === "total");
   const total = totalKpi?.value || 0;
+  const visitsByHour = liveHourly || analytics.visitsByHour;
   const busiestKpi = singleDay
-    ? busiestHour(analytics.visitsByHour)
+    ? busiestHour(visitsByHour)
     : busiestDay(analytics.visitsByWeekday);
   const enrichedKpis = [
     ...kpis,
@@ -166,11 +161,12 @@ export default function AppointmentsSection({ filters }) {
             <ChartTile title="Visits by hour" subtitle="Selected day" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/time/clock.svg" titleTooltip="Visits in each hour slot of the selected day, spot the peak hours">
               <ScrollableChart minWidth={800}>
                 <BarChartZ
-                  data={analytics.visitsByHour?.data}
-                  series={analytics.visitsByHour?.series}
-                  fallbackLabels={HOUR_LABELS}
+                  data={visitsByHour?.data}
+                  series={visitsByHour?.series}
+                  fallbackLabels={HOUR_LABELS_12H}
                   fallbackSeries={[{ key: "Visits", label: "Visits" }]}
                   height={240}
+                  showAverage={false}
                 />
               </ScrollableChart>
             </ChartTile>

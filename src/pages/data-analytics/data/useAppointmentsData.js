@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { anyToDonut, sumDatasetByLabel, seriesToXY } from "../charts/adapters";
+import { anyToDonut, sumDatasetByLabel, seriesToXY, hourSeriesToXY } from "../charts/adapters";
 import { cached } from "./apiCache";
 
 // Appointment charts (visit type, category mix, new vs returning, weekday, hour).
@@ -46,7 +46,7 @@ export default function useAppointmentsData({ days, startDate, endDate, doctorId
       categoryMix: src?.categoryMix || null,
       newVsReturning: anyToDonut(src?.newVsReturning),
       visitsByWeekday: src?.visitsByWeekday ? seriesToXY(src.visitsByWeekday) : null,
-      visitsByHour: src?.visitsByHour ? seriesToXY(src.visitsByHour) : null,
+      visitsByHour: src?.visitsByHour ? hourSeriesToXY(src.visitsByHour) : null,
       newVsReturningTrend: src?.newVsReturningTrend ? seriesToXY(src.newVsReturningTrend) : null,
     });
   }, [days, startDate, endDate, doctorId, clinicId]);

@@ -30,6 +30,7 @@ import {
 } from "./reportsCatalog";
 import { isoLocal } from "../filters/periods";
 import { getDecodedToken } from "../../../utils/localStorage";
+import { getSpecialityList } from "../data/doctorList";
 
 // Every report endpoint rejects ranges longer than this ("Date range must
 // not exceed 30 days", 400) — 31 days inclusive passes, so full calendar
@@ -186,43 +187,74 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
     const needsLookup = needsPaymentMode || needsAccount || needsDepartment || needsIpdFilter;
     if (!needsLookup) return;
     let alive = true;
+
+    // 1) Same lookups mapping that already showed Dept 8 / 7 / 110 / 9 / 31.
+    // 2) Speciality master (the list we previously dumped in full).
+    // Then keep only those lookup IDs and swap in displayName.
     ApiReporting.reportLookups()
       .then((r) => {
         const data = r?.data ?? r ?? {};
-        if (!alive) return;
-        if (Array.isArray(data.paymentOptions) && data.paymentOptions.length) {
-          setPaymentModeOptions(data.paymentOptions.map((p) => ({ value: String(p.id), label: p.name || `Option ${p.id}` })));
+        if (!alive) return [];
+        const payments = Array.isArray(data.paymentOptions) ? data.paymentOptions : [];
+        if (payments.length) {
+          setPaymentModeOptions(payments.map((p) => ({ value: String(p.id), label: p.name || `Option ${p.id}` })));
         }
-        if (Array.isArray(data.accounts) && data.accounts.length) {
+        const accounts = Array.isArray(data.accounts) ? data.accounts : [];
+        if (accounts.length) {
           setAccountOptions([
             { value: "all", label: "All accounts" },
-            ...data.accounts.map((a) => ({ value: String(a.id), label: a.name || `Account ${a.id}` })),
+            ...accounts.map((a) => ({ value: String(a.id), label: a.name || `Account ${a.id}` })),
           ]);
         }
-        if (Array.isArray(data.departments) && data.departments.length) {
-          setDepartmentOptions(data.departments.map((d) => ({ value: String(d.id), label: d.name || `Dept ${d.id}` })));
-        }
+        const departments = Array.isArray(data.departments) ? data.departments : [];
+        const mapped = departments
+          .filter((d) => d?.id != null)
+          .map((d) => ({ value: String(d.id), label: d.name || `Dept ${d.id}` }));
+        console.log("[DA depts] lookup ids", mapped);
+        if (mapped.length) setDepartmentOptions(mapped);
+        return mapped;
       })
-      .catch(() => {});
+      .then((mapped) => {
+        if (!alive || !mapped?.length) return;
+        return getSpecialityList().then((specialities) => {
+          if (!alive) return;
+          const named = mapped.map((opt) => {
+            const spec = findSpecialityForDeptId(specialities, opt.value);
+            return { ...opt, label: specName(spec) || opt.label };
+          });
+          console.log("[DA depts] specialities count", specialities?.length, specialities);
+          console.log("[DA depts] named options", named);
+          setDepartmentOptions(named);
+        });
+      })
+      .catch((err) => {
+        console.warn("[DA depts] failed", err);
+      });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, needsPaymentMode, needsAccount, needsDepartment, needsIpdFilter]);
 
-  // Case types are ids (toct_id) — pulled from the EMR's own case-type list.
+  // Case types are ids (toct_id) — listCasetype returns { status, data: { case_type } }.
   const [caseTypeOptions, setCaseTypeOptions] = useState([]);
   useEffect(() => {
     if (!open || !showAppointmentDetail || caseTypeOptions.length) return;
     let alive = true;
     ApiAppointments.getCaseTypes()
       .then((r) => {
-        const rows = Array.isArray(r) ? r : r?.data ?? r?.caseTypes ?? [];
-        if (alive && Array.isArray(rows) && rows.length) {
-          setCaseTypeOptions(
-            rows
-              .filter((c) => c?.toct_id != null)
-              .map((c) => ({ value: String(c.toct_id), label: c.toct_type || `Type ${c.toct_id}` }))
-          );
-        }
+        const rows = firstList(
+          r,
+          r?.data?.case_type,
+          r?.data?.caseTypes,
+          r?.data,
+          r?.case_type,
+          r?.caseTypes
+        );
+        if (!alive || !rows.length) return;
+        setCaseTypeOptions(
+          rows
+            .filter((c) => c?.toct_id != null)
+            .map((c) => ({ value: String(c.toct_id), label: c.toct_type || `Type ${c.toct_id}` }))
+        );
       })
       .catch(() => {});
     return () => {
@@ -338,7 +370,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         title={report?.label || "Download report"}
         description={report ? `${report.group} report` : ""}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: 4 }}>
+        <div className="da-report-drawer" style={{ display: "flex", flexDirection: "column", gap: 20, padding: 4 }}>
           {needsAppointmentReportType && (
             <Field label="Report Type">
               <SegmentedControl
@@ -683,6 +715,32 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
           )}
       </DrawerContent>
     </Drawer>
+  );
+}
+
+function firstList(...candidates) {
+  for (const c of candidates) {
+    if (Array.isArray(c) && c.length) return c;
+    if (c && typeof c === "object") {
+      if (Array.isArray(c.rows) && c.rows.length) return c.rows;
+      if (Array.isArray(c.list) && c.list.length) return c.list;
+      if (Array.isArray(c.items) && c.items.length) return c.items;
+    }
+  }
+  return [];
+}
+
+function specName(spec) {
+  if (!spec) return null;
+  return spec.displayName || spec.name || spec.dp_name || spec.speciality || null;
+}
+
+function findSpecialityForDeptId(specialities, deptId) {
+  const key = String(deptId);
+  return (specialities || []).find((s) =>
+    [s?.id, s?.pmMasterId, s?.code, s?.dp_id, s?.dpId, s?.departmentId].some(
+      (v) => v != null && String(v) === key
+    )
   );
 }
 
