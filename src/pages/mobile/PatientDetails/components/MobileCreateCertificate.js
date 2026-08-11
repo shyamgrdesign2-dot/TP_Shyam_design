@@ -118,7 +118,7 @@ function MobileCreateCertificate({
             insertHTMLContent(`<label class="mrn_no">${patient_data?.tpml_refrence_id || ''}</label>`);
             break;
           case 'option11':
-            insertHTMLContent(`<label class="date_of_birth">${patient_data?.DOB ? moment(patient_data.DOB, "Do MMMM YYYY").format("DD-MM-YYYY") : ''}</label>`);
+            insertHTMLContent(`<label class="date_of_birth">${patient_data?.pm_dob ? moment(patient_data.pm_dob).format("DD-MM-YYYY") : patient_data?.DOB ? moment(patient_data.DOB, "Do MMMM YYYY").format("DD-MM-YYYY") : ''}</label>`);
             break;
           default:
             break;
@@ -365,7 +365,7 @@ function MobileCreateCertificate({
     .replace(/{Patient ID}/g, `<label class="patient_id">${patient_data?.pm_pid}</label>`)
     .replace(/{Address}/g, `<label class="address">${patient_data?.patient_address ? patient_data?.patient_address : 'Address'}</label>`)
     .replace(/{Blood Group}/g, `<label class="blood_group">${patient_data?.pm_blood_group ? patient_data?.pm_blood_group : 'Blood Group'}</label>`)
-    .replace(/{Date of Birth}/g, `<label class="date_of_birth">${patient_data?.DOB ? moment(patient_data.DOB, "Do MMMM YYYY").format("DD-MM-YYYY") : ''}</label>`)
+    .replace(/{Date of Birth}/g, `<label class="date_of_birth">${patient_data?.pm_dob ? moment(patient_data.pm_dob).format("DD-MM-YYYY") : patient_data?.DOB ? moment(patient_data.DOB, "Do MMMM YYYY").format("DD-MM-YYYY") : ''}</label>`)
     .replace(/{MRN No\.}/g, `<label class="mrn_no">${patient_data?.tpml_refrence_id || ''}</label>`)
     .replace(/{Today Date}/g, `<label class="today_date">${moment().format('DD-MM-YYYY')}</label>`)
     .replace(/{Department}/g, `<label class="department">${profile?.dp_name}</label>`)
