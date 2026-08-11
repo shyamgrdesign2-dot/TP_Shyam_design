@@ -203,7 +203,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         const mapped = departments
           .filter((d) => d?.id != null)
           .map((d) => ({ value: String(d.id), label: d.name || `Dept ${d.id}` }));
-        console.log("[DA depts] lookup ids", mapped);
         if (mapped.length) setDepartmentOptions(mapped);
         return mapped;
       })
@@ -215,8 +214,6 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             const spec = findSpecialityForDeptId(specialities, opt.value);
             return { ...opt, label: specName(spec) || opt.label };
           });
-          console.log("[DA depts] specialities count", specialities?.length, specialities);
-          console.log("[DA depts] named options", named);
           setDepartmentOptions(named);
         });
       })
