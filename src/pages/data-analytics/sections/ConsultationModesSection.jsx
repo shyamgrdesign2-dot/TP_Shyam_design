@@ -2,7 +2,7 @@ import React from "react";
 import { Skeleton } from "@dhspl-tatvacare/tesseract-ui";
 import SectionBlock from "./SectionBlock";
 import { ChartGrid, ChartTile, MaybeScroll } from "./ChartLayout";
-import { StackedBarWithTotal } from "../charts/EmptyAware";
+import { BarChartZ, StackedBarWithTotal } from "../charts/EmptyAware";
 import DonutWithLegend from "../charts/DonutWithLegend";
 import useConsultationModesData from "../data/useConsultationModesData";
 import useCapabilities from "../data/useCapabilities";
@@ -10,7 +10,7 @@ import KpiRow from "./KpiRow";
 
 export default function ConsultationModesSection({ filters }) {
   const caps = useCapabilities();
-  const { loading, kpis, modeMix, modeTrend, byDoctor } = useConsultationModesData({
+  const { loading, kpis, modeMix, modeTrend, byDoctor, visitTrend, doctorComparison } = useConsultationModesData({
     month: filters?.month,
     startDate: filters?.startDate,
     endDate: filters?.endDate,
@@ -43,6 +43,22 @@ export default function ConsultationModesSection({ filters }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <KpiRow title="Key metrics" kpis={kpis} loading={false} />
+
+      <SectionBlock title="Digitization trends" count={2}>
+        <ChartGrid>
+          <ChartTile title="Visit trend" subtitle="Booked vs Completed vs Digitized, per day" icon="chart-square" titleTooltip="Booked vs completed vs digitized (CVT) per day">
+            <MaybeScroll count={visitTrend?.data?.length || 0} fit={7} perItem={80}>
+              <BarChartZ data={visitTrend?.data} series={visitTrend?.series} xKey="x" height={240} showAverage={false} />
+            </MaybeScroll>
+          </ChartTile>
+
+          <ChartTile title="Doctor-wise comparison" subtitle="Booked vs Completed vs Digitized, per doctor" icon="stethoscope" titleTooltip="Booked vs completed vs digitized (CVT) per doctor">
+            <MaybeScroll count={doctorComparison?.data?.length || 0} fit={5} perItem={110}>
+              <BarChartZ data={doctorComparison?.data} series={doctorComparison?.series} xKey="x" height={240} showAverage={false} />
+            </MaybeScroll>
+          </ChartTile>
+        </ChartGrid>
+      </SectionBlock>
 
       <SectionBlock title="More insights" count={2}>
         <ChartGrid>

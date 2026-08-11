@@ -1,4 +1,7 @@
 import { formatINR, formatNum } from "../charts/format";
+import { isInNativeApp, sendMessageToParent } from "../../../utils/utils";
+import { EVENTS } from "../../../utils/events";
+import { uploadDocsToAzure } from "../../medicalRecords/service";
 
 // Humanize a snake_case / camelCase key into a column header.
 export function humanize(key) {
@@ -56,16 +59,33 @@ export function normalizeTable(payload) {
   };
 }
 
-// Trigger a browser download for a CSV blob response.
-export function downloadBlob(blob, filename) {
-  const url = window.URL.createObjectURL(
-    blob instanceof Blob ? blob : new Blob([blob], { type: "text/csv" })
-  );
+// Trigger a CSV download. Browsers use a blob + <a download>; the in-app
+// WebView (tablet/phone) cannot start that download, so we upload the file
+// and hand the URL to the native shell — same path as billing / Rx / LIMS.
+export async function downloadBlob(payload, filename) {
+  const name = filename || "report.csv";
+  const blob =
+    payload instanceof Blob
+      ? payload
+      : new Blob([payload], { type: "text/csv;charset=utf-8" });
+
+  if (isInNativeApp()) {
+    const file = new File([blob], name, { type: blob.type || "text/csv" });
+    const formData = new FormData();
+    formData.append(file.name, file);
+    const res = await uploadDocsToAzure(formData);
+    const url = res?.[0]?.url;
+    if (!url) throw new Error("In-app download upload failed");
+    sendMessageToParent(EVENTS.DOWNLOAD, { url });
+    return;
+  }
+
+  const objectUrl = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = filename || "report.csv";
+  a.href = objectUrl;
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  window.URL.revokeObjectURL(url);
+  window.URL.revokeObjectURL(objectUrl);
 }

@@ -10,6 +10,12 @@ function shortenDateLabel(label) {
   return `${parseInt(m[3], 10)} ${SHORT_MONTHS[parseInt(m[2], 10) - 1]}`;
 }
 
+export const HOUR_LABELS_12H = Array.from({ length: 24 }, (_, i) => {
+  if (i === 0) return "12am";
+  if (i === 12) return "12pm";
+  return i < 12 ? `${i}am` : `${i - 12}pm`;
+});
+
 // LineChart / BarChart want: { data:[{x, <seriesKey>:n, ...}], series:[{key,label}], xKey }
 export function seriesToXY(chartSeries, { xKey = "x" } = {}) {
   const labels = chartSeries?.labels || [];
@@ -26,6 +32,25 @@ export function seriesToXY(chartSeries, { xKey = "x" } = {}) {
     return row;
   });
   return { data, series, xKey };
+}
+
+// Hour-of-day series ("00"…"23") → 12-hour labels the Appointments chart uses.
+export function hourSeriesToXY(chartSeries) {
+  const xy = seriesToXY(chartSeries);
+  if (!xy?.data?.length) return null;
+  const xKey = xy.xKey || "x";
+  return {
+    ...xy,
+    data: xy.data.map((row, i) => {
+      const raw = String(row[xKey] ?? "");
+      const hour = /^\d{1,2}$/.test(raw) ? Number(raw) : i;
+      return { ...row, [xKey]: HOUR_LABELS_12H[hour] ?? row[xKey] };
+    }),
+    series: (xy.series || []).map((s) => ({
+      ...s,
+      label: s.label === "Appointments" ? "Visits" : s.label,
+    })),
+  };
 }
 
 // DonutChart wants: [{ label, value }]

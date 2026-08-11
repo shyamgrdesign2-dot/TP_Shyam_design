@@ -241,13 +241,13 @@ export function StackedBarWithTotal({ data, series, xKey = "x", ...rest }) {
     if (total == null) return;
     const row = document.createElement("div");
     row.setAttribute("data-total-row", "1");
-    row.style.cssText =
-      "display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;" +
-      "border-top:1px solid var(--tesseract-border-neutral);margin-top:4px;padding-top:4px";
-    row.innerHTML =
-      '<span style="width:9px;height:9px;flex-shrink:0"></span>' +
-      '<span style="color:var(--tesseract-fg-secondary);margin-right:auto">Total</span>' +
-      `<strong style="color:var(--tesseract-fg-primary);font-weight:600">${total}</strong>`;
+    // row.style.cssText =
+    //   "display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;" +
+    //   "border-top:1px solid var(--tesseract-border-neutral);margin-top:4px;padding-top:4px";
+    // row.innerHTML =
+    //   '<span style="width:9px;height:9px;flex-shrink:0"></span>' +
+    //   '<span style="color:var(--tesseract-fg-secondary);margin-right:auto">Total</span>' +
+    //   `<strong style="color:var(--tesseract-fg-primary);font-weight:600">${total}</strong>`;
     tip.appendChild(row);
   }, []);
 

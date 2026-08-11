@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import ApiReporting from "../../../api/services/ApiReporting";
-import { anyToDonut, sumDatasetByLabel, seriesToXY } from "../charts/adapters";
+import { anyToDonut, sumDatasetByLabel, seriesToXY, hourSeriesToXY } from "../charts/adapters";
 import { cached } from "./apiCache";
 
-// Appointment charts (case type, new vs returning, weekday, hour).
+// Appointment charts (visit type, category mix, new vs returning, weekday, hour).
 // Prefer startDate/endDate so chart windows match live KPIs
 // (useAppointmentsLive). Sending the snapped filters.days (7/15/30) made
 // "Today" KPIs disagree with "last 7 days" charts. `days` is only a
@@ -15,6 +15,7 @@ export default function useAppointmentsData({ days, startDate, endDate, doctorId
     kpis: buildKpis(null),
     appointments: null,
     caseType: null,
+    categoryMix: null,
     newVsReturning: [],
     visitsByWeekday: null,
     visitsByHour: null,
@@ -42,9 +43,10 @@ export default function useAppointmentsData({ days, startDate, endDate, doctorId
       kpis: buildKpis(src),
       appointments: src?.appointments || null,
       caseType: src?.caseType || null,
+      categoryMix: src?.categoryMix || null,
       newVsReturning: anyToDonut(src?.newVsReturning),
       visitsByWeekday: src?.visitsByWeekday ? seriesToXY(src.visitsByWeekday) : null,
-      visitsByHour: src?.visitsByHour ? seriesToXY(src.visitsByHour) : null,
+      visitsByHour: src?.visitsByHour ? hourSeriesToXY(src.visitsByHour) : null,
       newVsReturningTrend: src?.newVsReturningTrend ? seriesToXY(src.newVsReturningTrend) : null,
     });
   }, [days, startDate, endDate, doctorId, clinicId]);

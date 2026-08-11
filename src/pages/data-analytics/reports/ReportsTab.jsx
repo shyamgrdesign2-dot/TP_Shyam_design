@@ -6,22 +6,30 @@ import {
 import { REPORTS } from "./reportsCatalog";
 import SectionBlock from "../sections/SectionBlock";
 import ReportDownloadDrawer from "./ReportDownloadDrawer";
+import usePermissions from "../data/usePermissions";
 
-const GROUPS = ["Financial", "Clinical", "Reference"];
+const GROUPS = ["Financial", "Clinical"];
 const GROUP_ICON = {
   Financial: "dollar-circle",
   Clinical: "activity",
-  Reference: "circle-element",
 };
 
 export default function ReportsTab({ filters, department = "opd" }) {
   const [active, setActive] = useState(null);
+  // Per-user report grants (legacy Role Assignment tables via Pm-Core).
+  // Admins / fetch-failure / ungranted users see everything (fail open) —
+  // see usePermissions for the rollout posture.
+  const permissions = usePermissions(filters?.clinicId);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {GROUPS.map((group) => {
         const items = REPORTS.filter(
-          (r) => r.group === group && (r.dept === "both" || r.dept === department)
+          (r) =>
+            r.group === group &&
+            r.dept !== "ipd" &&
+            (r.dept === "both" || r.dept === department) &&
+            permissions.canView(r.roleId)
         );
         if (!items.length) return null;
         return (
