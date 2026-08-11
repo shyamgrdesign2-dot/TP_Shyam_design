@@ -19,6 +19,8 @@ import {
 //   self identity   JWT `result.user_id` + profile `um_name`
 //   clinic          JWT `result.clinic_id` (+ profile `hospital_data` for name)
 //   IPD             profile `module_data` contains type "ipd"
+//   Data Analytics  profile `module_data` contains type "data_analytics"
+//                   (admin OR this module → clinic-wide doctor filter)
 //   ABDM/ABHA       profile `abhaEnable`
 //   consult modes   GrowthBook flags (same flags that gate the live features):
 //                   video-consult / tele-consult, snap-rx, tab-rx,
@@ -61,6 +63,7 @@ export default function useCapabilities() {
       // for callers that still check singleClinic for lock UI.
       singleClinic: true,
       ipd: modules.some((m) => m?.type === "ipd"),
+      hasAnalyticsModule: modules.some((m) => m?.type === "data_analytics"),
       abdm: profile.abhaEnable === true,
       gynecObstetric,
       modes: {

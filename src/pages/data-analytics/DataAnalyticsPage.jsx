@@ -150,10 +150,10 @@ export default function DataAnalyticsPage() {
   const [doctors, setDoctors] = useState([]);
   const [clinics, setClinics] = useState([]);
 
-  // Role scoping: a sub-doctor only ever sees their own metrics — their name
-  // stays selected and the doctor filter is locked. Admin keeps the full
-  // multi-select (empty = all doctors).
-  const doctorLocked = !caps.isAdmin && !!caps.selfId;
+  // Clinic-wide doctor filter if the user is admin/owner OR has the Data
+  // Analytics module on their profile. Everyone else stays locked to self.
+  const hospitalScope = caps.isAdmin || caps.hasAnalyticsModule;
+  const doctorLocked = !hospitalScope && !!caps.selfId;
   useEffect(() => {
     if (doctorLocked) setDoctors([caps.selfId]);
   }, [doctorLocked, caps.selfId]);
