@@ -74,6 +74,8 @@ function MobileCreateCertificate({
         option7: `Custom Date`,
         option8: `Add Text Input`,
         option9: `Email`,
+        option10: `MRN No.`,
+        option11: `Date of Birth`,
       },
       exec: (editor, current, options, originalEvent, btn) => {
         const randomId = generateRandomId();
@@ -89,7 +91,7 @@ function MobileCreateCertificate({
             insertHTMLContent(`<label class="consulting_doctor">${profile?.um_name}</label>`);
             break;
           case 'option2':
-            insertHTMLContent(`<label class="patient_name">${patient_data?.pm_fullname}</label>`);
+            insertHTMLContent(`<label class="patient_name">${[patient_data?.pm_salutation, patient_data?.pm_fullname].filter(Boolean).join(' ')}</label>`);
             break;
           case 'option3':
             insertHTMLContent(`<label class="age">${patient_data?.ageYears} Y, ${patient_data?.ageMonths} M</label>`);
@@ -111,6 +113,12 @@ function MobileCreateCertificate({
             break;
           case 'option9':
             insertHTMLContent(`<label class="email">${content}</label>`);
+            break;
+          case 'option10':
+            insertHTMLContent(`<label class="mrn_no">${patient_data?.tpml_refrence_id || ''}</label>`);
+            break;
+          case 'option11':
+            insertHTMLContent(`<label class="date_of_birth">${patient_data?.DOB ? moment(patient_data.DOB, "Do MMMM YYYY").format("DD-MM-YYYY") : ''}</label>`);
             break;
           default:
             break;
@@ -349,7 +357,7 @@ function MobileCreateCertificate({
 
   const processedContent = content
     .replace(/{Consulting Doctor}/g, `<label class="consulting_doctor">${profile?.um_name}</label>`)
-    .replace(/{Patient Name}/g, `<label class="patient_name">${patient_data?.pm_fullname}</label>`)
+    .replace(/{Patient Name}/g, `<label class="patient_name">${[patient_data?.pm_salutation, patient_data?.pm_fullname].filter(Boolean).join(' ')}</label>`)
     .replace(/{Age}/g, `<label class="age">${patient_data?.ageYears}Y, ${patient_data?.ageMonths}M</label>`)
     .replace(/{Contact Number}/g, `<label class="contact_number">${patient_data?.pm_contact_no}</label>`)
     .replace(/{Gender}/g, `<label class="gender">${patient_data?.pm_gender}</label>`)
@@ -357,7 +365,8 @@ function MobileCreateCertificate({
     .replace(/{Patient ID}/g, `<label class="patient_id">${patient_data?.pm_pid}</label>`)
     .replace(/{Address}/g, `<label class="address">${patient_data?.patient_address ? patient_data?.patient_address : 'Address'}</label>`)
     .replace(/{Blood Group}/g, `<label class="blood_group">${patient_data?.pm_blood_group ? patient_data?.pm_blood_group : 'Blood Group'}</label>`)
-    .replace(/{Date of Birth}/g, `<label class="date_of_birth">${patient_data?.DOB}</label>`)
+    .replace(/{Date of Birth}/g, `<label class="date_of_birth">${patient_data?.DOB ? moment(patient_data.DOB, "Do MMMM YYYY").format("DD-MM-YYYY") : ''}</label>`)
+    .replace(/{MRN No\.}/g, `<label class="mrn_no">${patient_data?.tpml_refrence_id || ''}</label>`)
     .replace(/{Today Date}/g, `<label class="today_date">${moment().format('DD-MM-YYYY')}</label>`)
     .replace(/{Department}/g, `<label class="department">${profile?.dp_name}</label>`)
     .replace(/{Referred by}/g, `<label class="referred_by">Enter Referred by</label>`)
