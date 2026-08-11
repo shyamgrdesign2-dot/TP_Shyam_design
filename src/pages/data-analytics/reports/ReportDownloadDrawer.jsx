@@ -335,7 +335,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         });
         return;
       }
-      downloadBlob(blob?.data ?? blob, `${resolvedReport.id}.csv`);
+      await downloadBlob(blob?.data ?? blob, `${resolvedReport.id}.csv`);
       trackAnalytics(EVENTS.REPORT_DOWNLOADED, { department, report_name: resolvedReport.label || resolvedReport.id, rows_exported: rows != null ? Number(rows) : undefined });
     } catch (e) {
       // Surface the failure — with the server's own reason when it sent one
