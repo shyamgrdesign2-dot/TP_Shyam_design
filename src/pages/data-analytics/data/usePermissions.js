@@ -15,11 +15,12 @@ import useCapabilities from "./useCapabilities";
 //     them every role, so a missing row must never blank the owner's screen;
 //   · endpoint error / timeout → fail OPEN (tiles render as today) so a
 //     Pm-Core blip can never kill the Reports tab;
-//   · a sub-user with ZERO granted roles → fail OPEN too, for parity with
-//     current behavior (today such users see all tiles). Flip GATE_EMPTY to
-//     true in the enforce phase, together with REPORTS_PERMISSIONS_MODE=
-//     enforce on Pm-Core, so both layers cut over at once.
-const GATE_EMPTY = false;
+//   · a sub-user with ZERO granted roles → tiles are GATED (hidden) since the
+//     2026-08-12 enforce cutover: GATE_EMPTY=true pairs with Pm-Core's
+//     REPORTS_PERMISSIONS_MODE=enforce, so an ungranted user sees fewer tiles
+//     instead of clicking into a 403. Admins and fetch-failure fallbacks above
+//     are unaffected — only a SUCCESSFUL "you have zero grants" answer gates.
+const GATE_EMPTY = true;
 
 export default function usePermissions(clinicId) {
   const { isAdmin } = useCapabilities();
