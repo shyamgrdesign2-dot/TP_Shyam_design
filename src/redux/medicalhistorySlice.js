@@ -70,11 +70,11 @@ export const searchTag = createAsyncThunk(
  * failure instead of rejecting — a missing config must fall back to defaults
  * silently rather than surface an error to the doctor.
  */
-export const getSectionConfig = createAsyncThunk(
-  "medicalHistory/getSectionConfig",
-  async (data) => {
+export const getUserSectionOrder = createAsyncThunk(
+  "medicalHistory/getUserSectionOrder",
+  async () => {
     try {
-      const result = await ApiMedicalHistory.getSectionConfig(data);
+      const result = await ApiMedicalHistory.getUserSectionOrder();
       return result?.status ? result.data : null;
     } catch (e) {
       return null;
@@ -82,11 +82,11 @@ export const getSectionConfig = createAsyncThunk(
   }
 );
 
-export const saveSectionConfig = createAsyncThunk(
-  "medicalHistory/saveSectionConfig",
+export const setUserSectionOrder = createAsyncThunk(
+  "medicalHistory/setUserSectionOrder",
   async (data) => {
     try {
-      const result = await ApiMedicalHistory.saveSectionConfig(data);
+      const result = await ApiMedicalHistory.setUserSectionOrder(data);
       return result?.status ? result.data : null;
     } catch (e) {
       return null;

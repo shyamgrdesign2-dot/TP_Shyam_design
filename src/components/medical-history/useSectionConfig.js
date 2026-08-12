@@ -1,42 +1,43 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { arrayMove } from "@dnd-kit/sortable";
-import { getSectionConfig, saveSectionConfig } from "../../redux/medicalhistorySlice";
-import { ADDITIONAL_HISTORY_SECTION_ID } from "./constants";
+import { getUserSectionOrder, setUserSectionOrder } from "../../redux/medicalhistorySlice";
 
 /**
- * Per-doctor section order + visibility for the Medical History drawer.
+ * Per-doctor section order + visibility for the Medical History drawer, backed
+ * by getUserSectionOrder / setUserSectionOrder.
+ * Contract: docs/MEDICAL-HISTORY-SECTION-CONFIG-API.md
  *
- * Persistence goes through the section-config endpoints
- * (docs/MEDICAL-HISTORY-SECTION-CONFIG-API.md), which are NOT deployed yet.
- * Until they are, the GET resolves to null and every save is a no-op, so
- * customisation applies for the current session and resets on reload. That is
- * intentional: it keeps the seam clean so the feature starts persisting the day
- * backend ships, with no frontend change and no localStorage to migrate off.
+ * Only the five real sections (tmmhs_id 1-5) are handled here, matching the API.
+ * Additional History is a frontend-only pseudo-section (riding on
+ * medical_history_remarks) with no server identity, so it is deliberately kept
+ * out of the order entirely: MedicalHistoryPanel always renders it last, and
+ * the customize panel never lists it. That way nothing in the panel is a
+ * preference that would silently reset on reload.
  *
  * Writes are optimistic and fire per change — this is a UI preference and must
- * not ride on the patient's Save button.
+ * not ride on the patient's Save button. Failures fall back to defaults
+ * silently; a missing config is not an error worth showing the doctor.
  */
 export default function useSectionConfig({ sections, doctorId, enabled }) {
     const dispatch = useDispatch();
     const [config, setConfig] = useState({ order: null, hidden: [] });
 
-    const defaultOrder = useMemo(
-        () => [...sections.map((s) => s.tmmhs_id), ADDITIONAL_HISTORY_SECTION_ID],
-        [sections]
-    );
+    const defaultOrder = useMemo(() => sections.map((s) => s.tmmhs_id), [sections]);
 
     useEffect(() => {
-        if (!enabled || !doctorId) return;
+        if (!enabled) return;
         let cancelled = false;
-        dispatch(getSectionConfig({ doctor_unique_id: doctorId }))
+        dispatch(getUserSectionOrder())
             .unwrap()
             .then((data) => {
-                if (cancelled || !data?.sections?.length) return;
-                const rows = [...data.sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                // Response is a flat array of {tmmhs_id, visible, order}.
+                const rows = Array.isArray(data) ? data : data?.sections;
+                if (cancelled || !rows?.length) return;
+                const sorted = [...rows].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
                 setConfig({
-                    order: rows.map((r) => r.tmmhs_id),
-                    hidden: rows.filter((r) => r.visible === false).map((r) => r.tmmhs_id),
+                    order: sorted.map((r) => r.tmmhs_id),
+                    hidden: sorted.filter((r) => r.visible === false).map((r) => r.tmmhs_id),
                 });
             })
             .catch(() => {
@@ -45,23 +46,19 @@ export default function useSectionConfig({ sections, doctorId, enabled }) {
         return () => {
             cancelled = true;
         };
-    }, [enabled, doctorId, dispatch]);
+    }, [enabled, dispatch]);
 
     const persist = useCallback(
         (next) => {
             if (!doctorId) return;
             const order = next.order || defaultOrder;
             const hidden = new Set(next.hidden || []);
-            dispatch(
-                saveSectionConfig({
-                    doctor_unique_id: doctorId,
-                    sections: order.map((tmmhs_id, index) => ({
-                        tmmhs_id,
-                        visible: !hidden.has(tmmhs_id),
-                        order: index,
-                    })),
-                })
-            );
+            const sections = order.map((tmmhs_id, index) => ({
+                tmmhs_id,
+                visible: !hidden.has(tmmhs_id),
+                order: index,
+            }));
+            dispatch(setUserSectionOrder({ doctor_unique_id: doctorId, sections }));
         },
         [dispatch, doctorId, defaultOrder]
     );

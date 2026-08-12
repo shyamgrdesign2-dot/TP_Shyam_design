@@ -3,6 +3,11 @@ import config from '../../config';
 
 const baseUrl = { customBaseUrl: config.medicalhistory_api_url }
 
+// Section order/visibility lives on its own configured host: the endpoints are
+// currently only deployed on UAT, so every environment points there until prod
+// is ready. See EnvironmentConfig.medicalhistory_section_order_api_url.
+const sectionOrderBaseUrl = { customBaseUrl: config.medicalhistory_section_order_api_url }
+
 const ApiMedicalHistory = {};
 
 ApiMedicalHistory.getPatientLastHistory = function (data) {
@@ -25,16 +30,16 @@ ApiMedicalHistory.searchTag = function (data) {
  * Per-doctor Medical History drawer layout: section order + visibility.
  * Contract: docs/MEDICAL-HISTORY-SECTION-CONFIG-API.md
  *
- * These endpoints are not deployed yet. Both calls are expected to fail until
- * backend ships them; callers must treat a failure as "use defaults", never as
- * an error worth surfacing to the doctor.
+ * getUserSectionOrder is a GET and takes no payload — the doctor is resolved
+ * from the bearer token. It responds { status, data: [{tmmhs_id, visible,
+ * order}] } with a flat array (no wrapper object).
  */
-ApiMedicalHistory.getSectionConfig = function (data) {
-  return api.post(`/api/v1/medicalhistory/getSectionConfig`, data, baseUrl);
+ApiMedicalHistory.getUserSectionOrder = function () {
+  return api.get(`/api/v1/medicalhistory/getUserSectionOrder`, sectionOrderBaseUrl);
 };
 
-ApiMedicalHistory.saveSectionConfig = function (data) {
-  return api.post(`/api/v1/medicalhistory/saveSectionConfig`, data, baseUrl);
+ApiMedicalHistory.setUserSectionOrder = function (data) {
+  return api.post(`/api/v1/medicalhistory/setUserSectionOrder`, data, sectionOrderBaseUrl);
 };
 
 ApiMedicalHistory.addEditPrivateNotes = function (data) {

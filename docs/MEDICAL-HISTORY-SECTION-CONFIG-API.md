@@ -4,8 +4,8 @@ Contract for two new endpoints that persist a **doctor's personal layout** of th
 Medical History drawer: the order the sections appear in, and which ones are
 hidden.
 
-Status: **not implemented.** The frontend is already wired to these endpoints and
-degrades cleanly without them — see [Frontend behaviour today](#frontend-behaviour-today).
+Status: **live on UAT** at `pm-medicalhistory-uat.tatvacare.in`. The frontend is
+wired to these endpoints and degrades to defaults if they fail.
 
 ---
 
@@ -32,40 +32,35 @@ the same layout in both.
 | 3 | Family History |
 | 4 | Allergies |
 | 5 | Surgical History |
-| 6 | Additional History |
+| 6 | Additional History *(frontend-only, not sent)* |
 
-`tmmhs_id: 6` is **not a real backend section.** Additional History is persisted
-on `medical_history_remarks` of the first section, not as its own row. It is
-given id 6 here purely so it can be ordered and hidden alongside the real
-sections — the same id already used by `MobileMedicalHistorySectionsList`. Store
-it as an ordinary int; no special handling needed.
+`tmmhs_id: 6` is **frontend-only and never sent to these endpoints** — the API
+accepts ids 1-5. Additional History is persisted on `medical_history_remarks` of
+the first section, not as its own row, so it has no server-side identity. It is
+given id 6 in the UI only so the customize panel can list it alongside the real
+sections (the same id `MobileMedicalHistorySectionsList` already uses). The
+frontend strips it from every payload and pins it last on load, which means its
+position and visibility are **not persistable** today.
 
 ---
 
-## `POST /api/v1/medicalhistory/getSectionConfig`
+## `GET /api/v1/medicalhistory/getUserSectionOrder`
 
-Request:
+No payload — the doctor is resolved from the bearer token.
 
-```json
-{ "doctor_unique_id": "d3f1c2a0-…" }
-```
-
-Response — a doctor who has customised their layout:
+Response — a doctor who has customised their layout (`data` is a **flat array**,
+not a wrapper object):
 
 ```json
 {
   "status": true,
-  "data": {
-    "doctor_unique_id": "d3f1c2a0-…",
-    "sections": [
-      { "tmmhs_id": 2, "visible": true,  "order": 0 },
-      { "tmmhs_id": 4, "visible": true,  "order": 1 },
-      { "tmmhs_id": 3, "visible": false, "order": 2 },
-      { "tmmhs_id": 1, "visible": true,  "order": 3 },
-      { "tmmhs_id": 5, "visible": true,  "order": 4 },
-      { "tmmhs_id": 6, "visible": true,  "order": 5 }
-    ]
-  }
+  "data": [
+    { "tmmhs_id": 2, "visible": true,  "order": 1 },
+    { "tmmhs_id": 4, "visible": true,  "order": 3 },
+    { "tmmhs_id": 3, "visible": false, "order": 2 },
+    { "tmmhs_id": 1, "visible": true,  "order": 0 },
+    { "tmmhs_id": 5, "visible": true,  "order": 4 }
+  ]
 }
 ```
 
@@ -73,7 +68,7 @@ A doctor who has never customised anything should get an **empty list**, not an
 error:
 
 ```json
-{ "status": true, "data": { "doctor_unique_id": "d3f1c2a0-…", "sections": [] } }
+{ "status": true, "data": [] }
 ```
 
 The frontend treats an empty list, a missing `data`, a non-200, and a network
@@ -81,7 +76,7 @@ failure identically: fall back to the default order with everything visible.
 
 ---
 
-## `POST /api/v1/medicalhistory/saveSectionConfig`
+## `POST /api/v1/medicalhistory/setUserSectionOrder`
 
 Sends the **complete** layout every time — this is a replace, not a patch. The
 frontend fires it on each individual reorder or toggle.
@@ -92,12 +87,11 @@ Request:
 {
   "doctor_unique_id": "d3f1c2a0-…",
   "sections": [
-    { "tmmhs_id": 2, "visible": true,  "order": 0 },
-    { "tmmhs_id": 4, "visible": true,  "order": 1 },
+    { "tmmhs_id": 2, "visible": true,  "order": 1 },
+    { "tmmhs_id": 4, "visible": true,  "order": 3 },
     { "tmmhs_id": 3, "visible": false, "order": 2 },
-    { "tmmhs_id": 1, "visible": true,  "order": 3 },
-    { "tmmhs_id": 5, "visible": true,  "order": 4 },
-    { "tmmhs_id": 6, "visible": true,  "order": 5 }
+    { "tmmhs_id": 1, "visible": true,  "order": 0 },
+    { "tmmhs_id": 5, "visible": true,  "order": 4 }
   ]
 }
 ```
@@ -124,11 +118,11 @@ row deletion if that's cheaper.
 | Field | Type | Notes |
 |---|---|---|
 | `doctor_unique_id` | string | From `profile.doctor_unique_id`. |
-| `tmmhs_id` | int | 1–6. See table above. |
+| `tmmhs_id` | int | 1–5. Id 6 is never sent — see above. |
 | `visible` | bool | `false` = section hidden in the drawer. |
 | `order` | int | 0-based, contiguous, ascending. Ties are undefined behaviour. |
 
-Always persist all six rows. Partial sets work but force the frontend to
+Always persist all five rows. Partial sets work but force the frontend to
 reconcile against defaults on every load.
 
 ---
@@ -137,15 +131,16 @@ reconcile against defaults on every load.
 
 Wired in [`useSectionConfig.js`](../src/components/medical-history/useSectionConfig.js):
 
-- `getSectionConfig` fires when the drawer opens.
-- `saveSectionConfig` fires immediately on every drag-reorder and visibility toggle.
-- Both thunks **swallow all errors and resolve to `null`.** A 404 from an
-  undeployed endpoint is indistinguishable from "no config saved", and neither
-  shows the doctor an error.
-- Until the endpoints exist, customisation applies for the current session and
-  resets on reload. Nothing is cached client-side — there is deliberately no
-  localStorage fallback, so the day these endpoints deploy the feature starts
-  persisting with **no frontend change** and no stale local state to migrate.
+- `getUserSectionOrder` fires when the drawer opens.
+- `setUserSectionOrder` fires immediately on every drag-reorder and visibility toggle.
+- Both thunks **swallow all errors and resolve to `null`.** "No config saved yet"
+  and "endpoint unreachable" are indistinguishable to the doctor, and neither is
+  worth an error toast for a layout preference.
+- Nothing is cached client-side — no localStorage fallback. If an environment
+  lacks these endpoints, customisation simply applies for the session and resets
+  on reload.
+- Additional History (id 6) is appended to the order client-side after the
+  response is applied; dragging it has no persisted effect.
 
 One safety rule is enforced client-side regardless of config: **a hidden section
 still renders if the patient already has data recorded in it.** Hiding a section

@@ -92,10 +92,12 @@ function MedicalHistoryPanel({
         return (section.tags || []).some((t) => !t.delete && isTagSelected(t));
     };
 
+    /**
+     * Always rendered last and never listed in the customize panel: Additional
+     * History has no server-side identity (it rides on medical_history_remarks),
+     * so its position could not be persisted like the real sections'.
+     */
     const renderAdditionalHistory = () => {
-        if (hiddenSet.has(ADDITIONAL_HISTORY_SECTION_ID) && !String(remarks || "").trim()) {
-            return null;
-        }
         return (
             <div key="additional" className={styles.sectionCardWrap}>
                 <SectionCard
@@ -166,9 +168,6 @@ function MedicalHistoryPanel({
 
                         <div className={styles.sectionsScroll}>
                             {order.map((entryId) => {
-                                if (entryId === ADDITIONAL_HISTORY_SECTION_ID) {
-                                    return renderAdditionalHistory();
-                                }
                                 const sectionIndex = sections.findIndex(
                                     (s) => s.tmmhs_id === entryId
                                 );
@@ -194,6 +193,8 @@ function MedicalHistoryPanel({
                                     />
                                 );
                             })}
+
+                            {renderAdditionalHistory()}
                         </div>
                     </div>
 
