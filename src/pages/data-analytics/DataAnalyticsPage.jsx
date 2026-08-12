@@ -93,7 +93,6 @@ const CARE_SUB_TABS = [
   // { id: "custom-modules", label: "Custom Modules", icon: "social/atom", fixedVariant: "linear" },
 ];
 
-
 // The new Data Analytics — a standalone page that OPENS like a full-page,
 // right-anchored drawer, built entirely on Tesseract. Kept separate from the
 // legacy opd-analytics / ipd-analytics modules.
@@ -137,6 +136,8 @@ export default function DataAnalyticsPage() {
   // Procedures / Gynec / Obstetric tabs were REMOVED (API-CONTRACTS-CURRENT
   // §7 WONT-BUILD: procedures have no data source; gynec/obstetric live in
   // MongoDB outside the reporting pipeline).
+  // Reports IPD tab is hidden for now — a single OPD tab would be noise, so
+  // skip the reports sub-tab strip until IPD is released again.
   const subTabsConfig = section === "care" ? CARE_SUB_TABS : null;
 
   // Shared filter state — every section reads the same values. The date filter
@@ -149,13 +150,18 @@ export default function DataAnalyticsPage() {
   const [doctors, setDoctors] = useState([]);
   const [clinics, setClinics] = useState([]);
 
-  // Role scoping: a sub-doctor only ever sees their own metrics — their name
-  // stays selected and the doctor filter is locked. Admin keeps the full
-  // multi-select (empty = all doctors).
-  const doctorLocked = !caps.isAdmin && !!caps.selfId;
+  // Clinic-wide doctor filter if the user is admin/owner OR has the Data
+  // Analytics module on their profile. Everyone else stays locked to self.
+  const hospitalScope = caps.isAdmin || caps.hasAnalyticsModule;
+  const doctorLocked = !hospitalScope && !!caps.selfId;
   useEffect(() => {
     if (doctorLocked) setDoctors([caps.selfId]);
   }, [doctorLocked, caps.selfId]);
+
+  // Clinic is always locked to the logged-in clinic from the auth token.
+  useEffect(() => {
+    if (caps.selfClinicId) setClinics([caps.selfClinicId]);
+  }, [caps.selfClinicId]);
   const [refreshKey, setRefreshKey] = useState(0);
   const handleRefresh = useCallback(() => {
     trackAnalytics(EVENTS.REFRESH, { department, section });
@@ -256,16 +262,17 @@ export default function DataAnalyticsPage() {
 
   // Hooks consume `doctor`/`clinic` as a CSV id string (empty = all).
   // clinic/* hooks may still narrow via singleIdOnly(); analytics/* accept CSV.
+  // Clinic is always the auth-token clinic (even before the default effect runs).
   const filters = useMemo(
     () => ({
       ...dateRange,
       // A locked sub-doctor is always scoped to themselves, even on the very
       // first render before the default-selection effect has run.
       doctor: doctorLocked ? caps.selfId : doctors.length ? doctors.join(",") : undefined,
-      clinic: clinics.length ? clinics.join(",") : undefined,
+      clinic: caps.selfClinicId || (clinics.length ? clinics.join(",") : undefined),
       canCompare: isComparable(dateRange),
     }),
-    [dateRange, doctors, clinics, doctorLocked, caps.selfId]
+    [dateRange, doctors, clinics, doctorLocked, caps.selfId, caps.selfClinicId]
   );
 
   const close = () => {
@@ -285,21 +292,18 @@ export default function DataAnalyticsPage() {
     if (isConsultModesOnly && value !== "consultation-modes") return;
     trackAnalytics(EVENTS.SECTION_VIEW, { department, section: value });
     setSection(value);
-    setSubTab("all");
+    setSubTab(value === "reports" ? "opd" : "all");
   };
 
-  // Clear-all resets every filter to its default state (all doctors, all
-  // clinics, Past 7 days). The CTA only shows while something is active.
-  // A locked doctor (sub-doctor) and a single clinic never count as "active"
-  // and never reset away from themselves.
+  // Clear-all resets doctor + date to defaults. Clinic stays on the auth-token
+  // clinic (read-only) and never counts as an "active" filter.
   const hasActiveFilters =
     (!doctorLocked && doctors.length > 0) ||
-    (!caps.singleClinic && clinics.length > 0) ||
     dateValue !== DEFAULT_DATE_VALUE;
   const clearAllFilters = () => {
     trackAnalytics(EVENTS.FILTER_CLEARED, { department, section });
     setDoctors(doctorLocked ? [caps.selfId] : []);
-    setClinics([]);
+    if (caps.selfClinicId) setClinics([caps.selfClinicId]);
     setDateValue(DEFAULT_DATE_VALUE);
     setDateRange(periodToRange("7d"));
   };
@@ -390,7 +394,7 @@ export default function DataAnalyticsPage() {
                   size="lg"
                   align="top"
                   tone="violet"
-                  title={`${deptLabel} ${hero.title}`}
+                  title={section === "reports" ? hero.title : `${deptLabel} ${hero.title}`}
                   subtitle={hero.subtitle}
                   bottomRadius={24}
                 />
@@ -468,7 +472,11 @@ export default function DataAnalyticsPage() {
                           clinicOptions={clinicOptions}
                           doctorLocked={doctorLocked}
                           lockedDoctorLabel={caps.selfName}
-                          singleClinic={caps.singleClinic}
+                          singleClinic
+                          lockedClinicLabel={
+                            caps.selfClinicName ||
+                            clinicOptions.find((c) => c.value === caps.selfClinicId)?.label
+                          }
                           hasActiveFilters={hasActiveFilters}
                           onClearAll={clearAllFilters}
                         />
@@ -541,7 +549,7 @@ function SectionContent({ department, section, filters, hero, subTab, isConsultM
       case "messages":
         return <MessagesSection filters={filters} />;
       case "reports":
-        return <ReportsTab filters={filters} department="opd" />;
+        return <ReportsTab filters={filters} department={subTab === "ipd" ? "ipd" : "opd"} />;
       default:
         break;
     }
@@ -559,7 +567,7 @@ function SectionContent({ department, section, filters, hero, subTab, isConsultM
       case "billing":
         return <BillingSection filters={filters} department="ipd" />;
       case "reports":
-        return <ReportsTab filters={filters} department="ipd" />;
+        return <ReportsTab filters={filters} department={subTab === "ipd" ? "ipd" : "opd"} />;
       default:
         break;
     }

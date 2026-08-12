@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Add, InfoCircle } from "iconsax-reactjs";
-import { ZONE_INFO, getZoneLabel, getSurfacesForFdi } from "./types";
+import { ZONE_INFO, getZoneLabel, getSurfacesForFdi, getProcedureLabel } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { SurfaceDots } from "./surface-pickers";
 import ui from "./ExaminationTab.ui.module.scss";
@@ -208,6 +208,10 @@ export function EditableNameCell({ value, catalog, onCommit, onFocusActivate }) 
   const wrapRef = useRef(null);
   const listRef = useRef(null);
   const [pos, setPos] = useState(null);
+  const catalogLabels = useMemo(
+    () => (catalog || []).map((c) => getProcedureLabel(c)).filter(Boolean),
+    [catalog],
+  );
   useEffect(() => {
     if (!editing) setDraft(value);
   }, [value, editing]);
@@ -216,16 +220,16 @@ export function EditableNameCell({ value, catalog, onCommit, onFocusActivate }) 
   }, [draft]);
   const filtered = useMemo(() => {
     const q = draft.toLowerCase().trim();
-    if (!q) return catalog.slice(0, 8);
-    return catalog.
+    if (!q) return catalogLabels.slice(0, 8);
+    return catalogLabels.
       filter((c) => c.toLowerCase().includes(q) && c !== value).
       slice(0, 8);
-  }, [draft, catalog, value]);
+  }, [draft, catalogLabels, value]);
   const hasExactMatch = useMemo(
     () =>
       filtered.some((c) => c.toLowerCase() === draft.trim().toLowerCase()) ||
-      catalog.some((c) => c.toLowerCase() === draft.trim().toLowerCase()),
-    [filtered, catalog, draft]
+      catalogLabels.some((c) => c.toLowerCase() === draft.trim().toLowerCase()),
+    [filtered, catalogLabels, draft]
   );
   const showCustom = draft.trim().length > 0 && !hasExactMatch;
   const totalItems = filtered.length + (showCustom ? 1 : 0);

@@ -13,14 +13,6 @@ export const BILL_TYPE_OPTIONS = [
   { value: "refund", label: "Refund" },
 ];
 
-// 3C bill types (threeC.schema.ts) — note "credite_notes" is the backend's
-// own token spelling; do not "fix" it client-side.
-export const THREE_C_BILL_TYPE_OPTIONS = [
-  { value: "cash_memo", label: "Cash Memo" },
-  { value: "invoice", label: "Invoice" },
-  { value: "credite_notes", label: "Credit Notes" },
-];
-
 // pm_gender is matched verbatim in SQL (appointment.model.ts) — capitalized,
 // single value (the column filter is `= ?`, not an IN list).
 export const GENDER_OPTIONS = [
@@ -30,18 +22,29 @@ export const GENDER_OPTIONS = [
 ];
 
 // pam_status codes (appointment.constant.ts): 0=Queue, 1=Arrived, 2=Engaged,
-// 3=Finished, >=4=Cancelled. The `statuses` param is a CSV of these codes.
+// 3=Finished, 4=Cancelled, 6=Draft. The `statuses` param is a CSV of these codes.
 export const APPOINTMENT_STATUS_OPTIONS = [
   { value: "0", label: "In Queue" },
   { value: "1", label: "Arrived" },
   { value: "2", label: "Engaged" },
   { value: "3", label: "Completed" },
   { value: "4", label: "Cancelled" },
+  { value: "6", label: "Draft" },
 ];
 
 export const BILLING_OVERALL_TYPE_OPTIONS = [
   { value: "revenue", label: "Revenue" },
   { value: "cashflow", label: "Cash Flow" },
+];
+
+// New OPD billing MOP labels — stored/filtered as these exact strings.
+export const PAYMENT_MODE_OPTIONS = [
+  { value: "Cash", label: "Cash" },
+  { value: "Credit Card", label: "Credit Card" },
+  { value: "UPI", label: "UPI" },
+  { value: "Cheque", label: "Cheque" },
+  { value: "Advance Deposit", label: "Advance Deposit" },
+  { value: "Others", label: "Others" },
 ];
 
 export const IPD_FILTER_BY_OPTIONS = [
@@ -61,11 +64,6 @@ export const COLLECTION_REPORT_TYPE_OPTIONS = [
   { value: "daywise", label: "Day Wise Report" },
 ];
 
-export const INCENTIVE_REPORT_TYPE_OPTIONS = [
-  { value: "detailed", label: "Detailed Report" },
-  { value: "overall", label: "Overall Report" },
-];
-
 export const THREE_C_REPORT_TYPE_OPTIONS = [
   { value: "summary", label: "Summary" },
   { value: "details", label: "Details" },
@@ -77,10 +75,17 @@ export const IPD_REPORT_TYPE_OPTIONS = [
   { value: "discharged", label: "Discharged Report" },
 ];
 
+// roleId — the LEGACY role/right id (tbl_role_master.rm_id) that gates this
+// tile, mirroring the PHP in_array checks in data_analytics_reports.php:
+//   389 Daily Collection · 390 Collection Report · 392 3C ·
+//   393 Billing Overall · 387 Appointment Analytics · 388 Prescription/
+//   Medicine Analytics · 22 IPD reports/analytics.
+// usePermissions().canView(roleId) decides visibility; tiles with no roleId
+// are never gated. Grants come live from the admin panel's Role Assignment.
 export const REPORTS = [
   // --- Financial ---
   {
-    id: "daily-collection", group: "Financial", dept: "both",
+    id: "daily-collection", roleId: 389, group: "Financial", dept: "opd",
     icon: `${IC}money/receipt.svg`,
     label: "Daily Collection",
     desc: "Cash memo, receipt, advance and refund for a single day.",
@@ -91,7 +96,7 @@ export const REPORTS = [
     buildParams: (f) => ({ type: f?.type || "opd", date: f?.endDate, clinicId: f?.clinicId, doctorId: f?.doctorId }),
   },
   {
-    id: "collection-report", group: "Financial", dept: "both",
+    id: "collection-report", roleId: 390, group: "Financial", dept: "opd",
     icon: `${IC}money/money-recive.svg`,
     label: "Collection Report",
     desc: "Day-wise or detailed collection by date, bill type and payment mode.",
@@ -107,55 +112,38 @@ export const REPORTS = [
     buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment }),
   },
   {
-    id: "incentive-report", group: "Financial", dept: "opd",
-    icon: `${IC}money/money-add.svg`,
-    label: "Incentive Reports",
-    desc: "Per-user and service-level incentive payouts.",
-    // incentive.schema.ts: detailed takes `user` = CSV of incentive-user ids
-    // (tim_id, NOT um_id); overall takes only dates + type. No department
-    // dimension exists on this endpoint.
-    filters: ["incentiveReportType", "dateRange", "incentiveUser"],
-    subFetchers: {
-      detailed: { fetcher: ApiReporting.financialIncentiveDetailed, exportFetcher: ApiReporting.exportFinancialIncentiveDetailed },
-      overall: { fetcher: ApiReporting.financialIncentiveOverall, exportFetcher: ApiReporting.exportFinancialIncentiveOverall },
-    },
-    fetcher: ApiReporting.financialIncentiveDetailed,
-    exportFetcher: ApiReporting.exportFinancialIncentiveDetailed,
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", user: f?.incentiveUser }),
-  },
-  {
-    id: "3c-report", group: "Financial", dept: "opd",
+    id: "3c-report", roleId: 392, group: "Financial", dept: "opd",
     icon: `${IC}content-edit/bill.svg`,
     label: "3C Report",
-    desc: "Cash, invoice and credit-note breakdown by account.",
-    // threeC.schema.ts: summary takes REQUIRED `account` (tban_id; "all"
-    // passes) + `billTypes` CSV; details takes `user` (CSV of tim_id).
-    filters: ["threeCReportType", "dateRange", "threeCBillTypes", "account", "incentiveUser"],
+    desc: "Cash, invoice and credit-note breakdown.",
+    // threeC.schema.ts: summary still requires `account` ("all" sentinel);
+    // the Account picker is out of scope so we always send "all".
+    filters: ["threeCReportType", "dateRange", "billType"],
     subFetchers: {
       summary: { fetcher: ApiReporting.financialThreeC, exportFetcher: ApiReporting.exportFinancialThreeC },
       details: { fetcher: ApiReporting.financialThreeCDetails, exportFetcher: ApiReporting.exportFinancialThreeCDetails },
     },
     fetcher: ApiReporting.financialThreeC,
     exportFetcher: ApiReporting.exportFinancialThreeC,
-    buildParams: (f) => ({ ...dates(f), account: f?.account || "all", billTypes: f?.threeCBillTypes, user: f?.incentiveUser }),
+    buildParams: (f) => ({ ...dates(f), account: "all", billTypes: f?.billType }),
   },
   {
-    id: "billing-overall", group: "Financial", dept: "both",
+    id: "billing-overall", roleId: 393, group: "Financial", dept: "opd",
     icon: `${IC}essential/chart.svg`,
     label: "Billing Overall Reports",
     desc: "Revenue and cash-flow reports across the whole practice.",
-    filters: ["billingOverallType", "dateRange", "billType", "issuedBy", "paymentMode", "account"],
+    filters: ["billingOverallType", "dateRange", "billType", "issuedBy", "paymentMode"],
     subFetchers: {
       revenue: { fetcher: ApiReporting.financialBillingOverallRevenue, exportFetcher: ApiReporting.exportFinancialBillingOverallRevenue },
       cashflow: { fetcher: ApiReporting.financialBillingOverallCashFlow, exportFetcher: ApiReporting.exportFinancialBillingOverallCashFlow },
     },
     fetcher: ApiReporting.financialBillingOverallRevenue,
     exportFetcher: ApiReporting.exportFinancialBillingOverallRevenue,
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment, accountant: f?.account && f.account !== "all" ? f.account : undefined }),
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment }),
   },
   {
-    id: "ipd-reports", group: "Financial", dept: "ipd",
-    icon: `${IC}buildings/building-4.svg`,
+    id: "ipd-reports", roleId: 22, group: "Financial", dept: "ipd",
+    icon: "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/content-edit/document-text.svg",
     label: "IPD Reports",
     desc: "Admitting and discharged patient reports with financials.",
     live: true,
@@ -166,7 +154,7 @@ export const REPORTS = [
   },
   // --- Clinical ---
   {
-    id: "appointment-analytics", group: "Clinical", dept: "opd",
+    id: "appointment-analytics", roleId: 387, group: "Clinical", dept: "opd",
     icon: `${IC}medical/clipboard-activity.svg`,
     label: "Appointment Analytics",
     desc: "Appointment status and doctor-wise breakdown.",
@@ -193,7 +181,7 @@ export const REPORTS = [
     }),
   },
   {
-    id: "ipd-analytics", group: "Clinical", dept: "ipd",
+    id: "ipd-analytics", roleId: 22, group: "Clinical", dept: "ipd",
     icon: `${IC}medical/clipboard-activity.svg`,
     label: "IPD Analytics",
     desc: "Inpatient clinical activity and department-wise breakdown.",
@@ -203,7 +191,7 @@ export const REPORTS = [
     buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, filterBy: f?.ipdFilterBy, ids: f?.ipdFilterIds }),
   },
   {
-    id: "prescription-analytics", group: "Clinical", dept: "opd",
+    id: "prescription-analytics", roleId: 388, group: "Clinical", dept: "opd",
     icon: `${IC}content-edit/document-sketch.svg`,
     label: "Prescription Analytics",
     desc: "Brand, generic and company prescription volumes.",
@@ -213,7 +201,7 @@ export const REPORTS = [
     buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, doctorId: f?.doctorId }),
   },
   {
-    id: "prescription-medicine", group: "Clinical", dept: "opd",
+    id: "prescription-medicine", roleId: 388, group: "Clinical", dept: "opd",
     icon: `${IC}medical/tablets.svg`,
     label: "Prescription Medicine Detailed",
     desc: "Medicine-level prescription detail for OPD.",
@@ -221,36 +209,6 @@ export const REPORTS = [
     fetcher: ApiReporting.clinicalPrescriptionMedicineDetailed,
     exportFetcher: ApiReporting.exportClinicalPrescriptionMedicineDetailed,
     buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, doctorId: f?.doctorId }),
-  },
-  // --- Reference ---
-  {
-    id: "ref-patients", group: "Reference", dept: "opd",
-    icon: `${IC}users/profile-2user.svg`,
-    label: "Referred by Patients",
-    desc: "Patients who referred others, with referred-case counts.",
-    live: true,
-    filters: ["dateRange"],
-    fetcher: ApiReporting.referencePatients,
-    buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, doctorId: f?.doctorId }),
-  },
-  {
-    id: "ref-others", group: "Reference", dept: "opd",
-    icon: `${IC}users/profile-2user.svg`,
-    label: "Referred by Others",
-    desc: "External referrers with their referred-case counts.",
-    live: true,
-    filters: [],
-    fetcher: ApiReporting.referencesList,
-    buildParams: () => ({}),
-  },
-  {
-    id: "ref-inpatient", group: "Reference", dept: "ipd",
-    icon: `${IC}users/profile-2user.svg`,
-    label: "Inpatient References",
-    desc: "Inpatient referrers with their referred cases.",
-    filters: [],
-    fetcher: ApiReporting.referenceInpatientList,
-    buildParams: () => ({}),
   },
 ];
 

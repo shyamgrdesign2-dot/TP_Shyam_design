@@ -65,6 +65,7 @@ export function useDentalCanvasPersistence(s) {
               surfaces: h.surface_codes || ["whole"],
               since: dateToSinceLabel(h.since_date),
               note: h.notes || "",
+              ...(h.visitProcedure ? { visitProcedure: h.visitProcedure } : {}),
             };
           }
         } else if (history && typeof history === "object") {

@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { Trash, Add, SearchNormal1, Warning2 } from "iconsax-reactjs";
 import { VISUAL_TYPE, getVisualType } from "../../../utils/dentalVisualTypes";
-import { getDefaultTreatmentSurfaces, QUADRANT_LABELS } from "./types";
+import { getDefaultTreatmentSurfaces, QUADRANT_LABELS, findProcedureCatalogItem, getProcedureLabel, resolveVisitProcedure } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { DiagnosisNameCell, SurfaceCellDropdown } from "./entry-cells";
 import { SinceDropdown } from "./examination-shared-ui";
 import { AlertDialog, AlertDialogContent } from "../ui/alert-dialog";
 import ui from "./ExaminationTab.ui.module.scss";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 
 const PRIMARY_DIAG_COLOR = {
   Implant: "#0891b2",
@@ -27,7 +28,8 @@ const PRIMARY_DIAG_COLOR = {
 };
 
 export function PrimaryDiagnosisBody({ state }) {
-  const { activeProcedures, visualTypeMap } = useDentalMasters();
+  const { procedureItems, visualTypeMap } = useDentalMasters();
+  const isChikitsalayAccessable = useChikitsalay();
   const [activeCell, setActiveCell] = useState(null);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -75,15 +77,19 @@ export function PrimaryDiagnosisBody({ state }) {
   const filteredCatalog = useMemo(() => {
     const q = query.toLowerCase().trim();
     const activeSet = new Set(activeRows.map((r) => r.toLowerCase()));
-    const pool = q ?
-      activeProcedures.filter((c) => c.toLowerCase().includes(q)) :
-      activeProcedures;
-    return pool.filter((c) => !activeSet.has(c.toLowerCase())).slice(0, 12);
-  }, [query, activeRows]);
+    const pool = q
+      ? procedureItems.filter((c) => getProcedureLabel(c).toLowerCase().includes(q))
+      : procedureItems;
+    return pool
+      .filter((c) => !activeSet.has(getProcedureLabel(c).toLowerCase()))
+      .slice(0, 12);
+  }, [query, activeRows, procedureItems]);
   const queryTrim = query.trim();
   const catalogHasExactName =
     queryTrim.length > 0 &&
-    activeProcedures.some((d) => d.toLowerCase() === queryTrim.toLowerCase());
+    procedureItems.some(
+      (d) => getProcedureLabel(d).toLowerCase() === queryTrim.toLowerCase(),
+    );
   const alreadyHasTypedTreatmentLabel =
     queryTrim.length > 0 &&
     displayRows.some((r) => r.toLowerCase() === queryTrim.toLowerCase());
@@ -101,16 +107,26 @@ export function PrimaryDiagnosisBody({ state }) {
   // Track most recently added diagnosis so we can auto-open its Since dropdown.
   const [lastAddedName, setLastAddedName] = useState(null);
   const [pendingDiagnosis, setPendingDiagnosis] = useState(null);
-  const commitDiagnosis = (name) => {
+  const commitDiagnosis = (nameOrItem) => {
+    const name = getProcedureLabel(nameOrItem);
+    const catalogItem =
+      typeof nameOrItem === "object" && nameOrItem !== null
+        ? nameOrItem
+        : findProcedureCatalogItem(procedureItems, name);
     if (name === "Implant") state.onToggleImplant(); else
       state.onToggleToothDiagnosis(name);
     const existing = state.currentTreatmentHistoryDetails[name];
+    const visitProcedure =
+      resolveVisitProcedure(catalogItem) ||
+      resolveVisitProcedure(findProcedureCatalogItem(procedureItems, name)) ||
+      existing?.visitProcedure;
     state.onUpdateTreatmentHistoryDetail(name, {
       surfaces: existing?.surfaces?.length ?
         existing.surfaces :
         getDefaultTreatmentSurfaces(name),
       since: existing?.since,
-      note: existing?.note
+      note: existing?.note,
+      ...(visitProcedure ? { visitProcedure } : {}),
     });
     setActiveCell({
       rowId: name,
@@ -120,12 +136,13 @@ export function PrimaryDiagnosisBody({ state }) {
     setQuery("");
     setSearchOpen(false);
   };
-  const addDiagnosis = (name) => {
+  const addDiagnosis = (nameOrItem) => {
+    const name = getProcedureLabel(nameOrItem);
     if ((name === "Missing" || name === "Extraction") && activeRows.length > 0) {
       setPendingDiagnosis(name);
       return;
     }
-    commitDiagnosis(name);
+    commitDiagnosis(nameOrItem);
   };
   const confirmMarkAs = () => {
     state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d));
@@ -536,9 +553,7 @@ export function PrimaryDiagnosisBody({ state }) {
             onFocus={() => setSearchOpen(true)}
             onKeyDown={(e) => {
               if (e.key !== "Enter" || !queryTrim) return;
-              const match = activeProcedures.find(
-                (d) => d.toLowerCase() === queryTrim.toLowerCase()
-              );
+              const match = findProcedureCatalogItem(procedureItems, queryTrim);
               if (match) {
                 addDiagnosis(match);
                 return;
@@ -550,6 +565,7 @@ export function PrimaryDiagnosisBody({ state }) {
 
 
           {searchOpen &&
+            (!isChikitsalayAccessable || filteredCatalog.length > 0) &&
             pos && (
               filteredCatalog.length > 0 || queryTrim) &&
             typeof document !== "undefined" &&
@@ -566,10 +582,11 @@ export function PrimaryDiagnosisBody({ state }) {
                 {filteredCatalog.map((c) =>
                   <button
                     type="button"
+                    key={getProcedureLabel(c)}
                     onClick={() => addDiagnosis(c)}
                     className={ui.popoverItem}>
 
-                    {c}
+                    {getProcedureLabel(c)}
                   </button>
                 )}
                 {queryTrim &&
@@ -593,16 +610,16 @@ export function PrimaryDiagnosisBody({ state }) {
         </div>
         {query.length === 0 &&
           <div className={ui.diagQuickChips}>
-            {activeProcedures
-              .filter((c) => !activeRows.includes(c))
+            {procedureItems
+              .filter((c) => !activeRows.includes(getProcedureLabel(c)))
               .slice(0, 8)
               .map((chip) => (
                 <button
-                  key={chip}
+                  key={getProcedureLabel(chip)}
                   type="button"
                   onClick={() => addDiagnosis(chip)}
                   className={ui.chipBtn}>
-                  {chip}
+                  {getProcedureLabel(chip)}
                 </button>
               ))}
           </div>}

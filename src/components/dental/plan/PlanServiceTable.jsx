@@ -14,11 +14,14 @@ import {
 } from "./plan-types";
 import { ToothPicker } from "./ToothPicker";
 import { computeDiscount } from "./lib/planFormHelpers";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import styles from "./AddEditPlanDrawer.module.scss";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 
 // ─── SurfacePicker (portal-based dropdown to avoid clipping) ─────────────────
 
-function SurfacePicker({ value, onChange }) {
+function SurfacePicker({ value, onChange, disabled }) {
+  const isChikitsalayAccessable = useChikitsalay();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -152,6 +155,7 @@ function SurfacePicker({ value, onChange }) {
           open ? setOpen(false) : openDropdown();
         }}
         className={styles.surfaceTrigger}
+        disabled={isChikitsalayAccessable}
       >
         <span className={styles.surfaceTriggerText}>
           {value.length > 0 ? (
@@ -190,6 +194,7 @@ function PlanServiceTableInner({
   clearCellActive,
   isCellActive,
 }) {
+  const isChikitsalayAccessable = useChikitsalay();
   if (rows.length === 0) return null;
 
   return (
@@ -236,9 +241,24 @@ function PlanServiceTableInner({
                 <tr key={row.id} className={styles.tableBodyRow}>
                   <td className={styles.rowIndexCellStickyLeft}>{idx + 1}</td>
                   <td className={styles.tableCell}>
-                    <div className={styles.serviceNameWrap}>
-                      <p className={styles.serviceNameText}>{row.treatment}</p>
-                    </div>
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild={true}>
+                        <div
+                          className={styles.serviceNameWrap}
+                          tabIndex={0}
+                          aria-label={row.treatment}
+                        >
+                          <p className={styles.serviceNameText}>{row.treatment}</p>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        sideOffset={6}
+                        className={styles.serviceNameTooltip}
+                      >
+                        {row.treatment}
+                      </TooltipContent>
+                    </Tooltip>
                   </td>
                   <td className={styles.tableCell}>
                     <ToothPicker
@@ -323,13 +343,14 @@ function PlanServiceTableInner({
                         onFocus={() => setCellActive(row.id, "rate")}
                         onBlur={() => clearCellActive(row.id, "rate")}
                         className={styles.currencyInput}
+                        disabled={isChikitsalayAccessable}
                       />
                     </div>
                   </td>
                   <td
                     className={`${styles.tableCellInteractive} ${isDiscActive ? styles.cellActiveBg : styles.cellHoverBg}`}
                   >
-                    {isDiscActive ? (
+                    {isDiscActive && !isChikitsalayAccessable ? (
                       <span className={styles.cellFocusRing} />
                     ) : null}
                     <div className={styles.discountInputWrap}>
@@ -343,6 +364,7 @@ function PlanServiceTableInner({
                             discount: 0,
                           })
                         }
+                        disabled={isChikitsalayAccessable}
                         title="Toggle discount type"
                       >
                         <span className={styles.discountTypeBtnSymbol}>
@@ -365,6 +387,7 @@ function PlanServiceTableInner({
                         pattern="[0-9]*"
                         autoComplete="off"
                         value={row.discount ? String(row.discount) : ""}
+                        disabled={isChikitsalayAccessable}
                         onChange={(e) => {
                           const v = e.target.value.replace(/\D/g, "");
                           const max =

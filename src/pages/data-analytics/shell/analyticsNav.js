@@ -5,7 +5,6 @@
 
 export const DEPARTMENTS = [
   { value: "opd", label: "OPD Analytics", icon: "clipboard-activity" },
-  { value: "ipd", label: "IPD Analytics", icon: "hospital-bed" },
 ];
 
 export const OPD_NAV = [
