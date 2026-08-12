@@ -289,7 +289,7 @@ function normalizeAgentMedicalHistoryTag(row = {}) {
     since: row.since || row.duration || '',
     relationship: row.relationship || row.relation || '',
     medication: row.medication || '',
-    status: row.status || statusFromMedicalHistoryEnable(row.enable),
+    status: enable === 'N' ? '' : (row.status || statusFromMedicalHistoryEnable(row.enable)),
     dateType: row.dateType || '',
     date: row.date || ''
   };
@@ -509,8 +509,14 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
       }
       const incomingNote = item.notes || item.note;
       const incomingDuration = item.duration || item.since;
-      const incomingStatus = item.status || statusFromMedicalHistoryEnable(item.enable);
+      // Negated tags ("No BP") have no status - never carry an Active status onto them
+      const incomingStatus = tagEnable === 'N'
+        ? ''
+        : (item.status || statusFromMedicalHistoryEnable(item.enable));
       const incomingRelationship = item.relation || item.relationship;
+      if (tagEnable === 'N' && existingTag.status) {
+        existingTag.status = '';
+      }
       if (incomingNote) {
         existingTag.note = mergeMedicalHistoryTagText(existingTag.note || existingTag.notes, incomingNote);
       }
@@ -535,7 +541,9 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
         pms_default: item.pms_default,
         note: item.notes || item.note || '',
         since: item.duration || item.since || '',
-        status: item.status || statusFromMedicalHistoryEnable(item.enable) || 'Active',
+        status: tagEnable === 'N'
+          ? ''
+          : (item.status || statusFromMedicalHistoryEnable(item.enable) || 'Active'),
         relationship: item.relation || item.relationship || ''
       };
       if (item.medication !== undefined && item.medication !== null) {
@@ -641,8 +649,10 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
               if (newTag.relationship) {
                 updatedTags[existingIndex].relationship = newTag.relationship;
               }
-              // Update status if Rx pad has it
-              if (newTag.status) {
+              // Update status if Rx pad has it; a negated tag never keeps a status
+              if (updatedTags[existingIndex].enable === 'N') {
+                updatedTags[existingIndex].status = '';
+              } else if (newTag.status) {
                 updatedTags[existingIndex].status = newTag.status;
               }
             }

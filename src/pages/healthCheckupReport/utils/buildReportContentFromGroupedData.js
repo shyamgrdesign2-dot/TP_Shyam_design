@@ -276,6 +276,18 @@ function symptomsToHtmlList(symptoms) {
   return `<ul>${items}</ul>`;
 }
 
+function isNegatedMedicalHistoryEntry(entry) {
+  const key = String(entry?.enable ?? "").trim().toLowerCase();
+  return key === 'n';
+}
+
+/** Negated entries read as "No <condition>" and carry no Since/Status/Medication. */
+function negatedMedicalHistoryLabel(title) {
+  const text = String(title ?? "").trim();
+  if (!text) return "";
+  return /^no\s+/i.test(text) ? text : `No ${text}`;
+}
+
 export function medicalHistoryToHtmlList(items, rowName = "") {
   if (!items || items.length === 0) return "<p><br></p>";
   const seenIds = new Set();
@@ -287,7 +299,12 @@ export function medicalHistoryToHtmlList(items, rowName = "") {
       seenFallback.add(item);
       return `<li>${escapeHtml(item)}</li>`;
     }
-    const title = item.title ?? item.name ?? item.conditionName ?? "";
+    const isNegated = isNegatedMedicalHistoryEntry(item);
+    const title = isNegated
+      ? negatedMedicalHistoryLabel(
+          item.title ?? item.name ?? item.conditionName ?? ""
+        )
+      : item.title ?? item.name ?? item.conditionName ?? "";
     const since = item.since ?? item.duration ?? "";
     const status = item.status ?? item.state ?? "";
     const medication = item.medication ?? "";
@@ -299,10 +316,12 @@ export function medicalHistoryToHtmlList(items, rowName = "") {
       item.medical_history_remarks ??
       "";
     const detailParts = [];
-    if (since) detailParts.push(`Since: ${escapeHtml(since)}`);
-    if (status) detailParts.push(`Status: ${escapeHtml(status)}`);
-    if (medication) detailParts.push(`Medication: ${escapeHtml(medication)}`);
-    if (notes) detailParts.push(escapeHtml(notes));
+    if (!isNegated) {
+      if (since) detailParts.push(`Since: ${escapeHtml(since)}`);
+      if (status) detailParts.push(`Status: ${escapeHtml(status)}`);
+      if (medication) detailParts.push(`Medication: ${escapeHtml(medication)}`);
+      if (notes) detailParts.push(escapeHtml(notes));
+    }
     const details = detailParts.join(" | ");
 
     if (Array.isArray(item.tags) && item.tags.length > 0) {
@@ -323,6 +342,14 @@ export function medicalHistoryToHtmlList(items, rowName = "") {
           const tagName = escapeHtml(
             tag.title ?? tag.conditionName ?? tag.name ?? ""
           );
+          if (isNegatedMedicalHistoryEntry(tag)) {
+            const negatedName = escapeHtml(
+              negatedMedicalHistoryLabel(
+                tag.title ?? tag.conditionName ?? tag.name ?? ""
+              )
+            );
+            return negatedName ? `<li><strong>${negatedName}</strong></li>` : "";
+          }
           const tagDetails = tag.details ?? tag.value ?? "";
           const tagSince = tag.since ?? "";
           const tagStatus = tag.status ?? "";
@@ -340,6 +367,15 @@ export function medicalHistoryToHtmlList(items, rowName = "") {
           return `<li><strong>${tagName}</strong>${tagDetailsStr ? ` (${tagDetailsStr})` : ""}</li>`;
         })
         .join("");
+    }
+
+    // Sections flagged "no known history" carry no tags - print the same wording
+    // every other medical history surface uses instead of leaving the row blank.
+    if (item.no_know_history && !details) {
+      const noKnownHistoryKey = `no_know_history|${rowName}`;
+      if (seenFallback.has(noKnownHistoryKey)) return "";
+      seenFallback.add(noKnownHistoryKey);
+      return "<li>No known history</li>";
     }
 
     if (item.tmmhst_id) {
