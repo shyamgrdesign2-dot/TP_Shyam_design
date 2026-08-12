@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Button } from "antd";
@@ -11,6 +11,11 @@ import {
 } from "../../utils/utils";
 import { isReceptionistSession } from "../../utils/receptionistSession";
 import styles from "./LimsNoAccessPage.module.css";
+import {
+  buildFeatureInterestPayload,
+  getFeatureInterestStatus,
+  submitFeatureInterest,
+} from "../monetization/utils/featureInterestService";
 
 export default function LimsNoAccessPage() {
   const navigate = useNavigate();
@@ -18,13 +23,62 @@ export default function LimsNoAccessPage() {
   const isReceptionist = isReceptionistSession(location.search);
   const { profile } = useSelector((state) => state.doctors);
   const [submitted, setSubmitted] = useState(false);
+  const [isStatusLoading, setIsStatusLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleRequestAccess = useCallback(() => {
+  const doctorId = useMemo(() => {
+    const built = buildFeatureInterestPayload({
+      feature: "lims",
+      profile,
+      isReceptionist,
+      search: location.search,
+    });
+    return built.doctorId !== "-" ? built.doctorId : "";
+  }, [profile, isReceptionist, location.search]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const run = async () => {
+      if (!doctorId) {
+        if (!isMounted) return;
+        setSubmitted(false);
+        setIsStatusLoading(false);
+        return;
+      }
+
+      setIsStatusLoading(true);
+      try {
+        const status = await getFeatureInterestStatus({
+          feature: "lims",
+          doctorId: String(doctorId).trim(),
+        });
+        if (!isMounted) return;
+        setSubmitted(Boolean(status?.submitted));
+      } catch (e) {
+        console.error("Feature interest status fetch failed", e);
+        if (!isMounted) return;
+        setSubmitted(false);
+      } finally {
+        if (!isMounted) return;
+        setIsStatusLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      isMounted = false;
+    };
+  }, [doctorId]);
+
+  const handleRequestAccess = useCallback(async () => {
+    if (submitted || submitting || !doctorId) return;
+
     const clinic_name = getClinicName(profile?.hospital_data);
     const clinic_city = getClinicCity(profile?.hospital_data);
     const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(location.search);
 
     trackEvent("TP_LIMS_RequestAccess", {
       mobile_no: tokenData?.mobile_no,
@@ -50,8 +104,31 @@ export default function LimsNoAccessPage() {
       ...deviceSdkData,
     });
 
-    setSubmitted(true);
-  }, [profile, isReceptionist]);
+    setSubmitting(true);
+    try {
+      const { payload } = buildFeatureInterestPayload({
+        feature: "lims",
+        profile,
+        isReceptionist,
+        search: location.search,
+      });
+
+      const result = await submitFeatureInterest({ feature: "lims", payload });
+      // Backend returns submitted:true for both fresh submit and alreadySubmitted
+      if (result?.submitted) setSubmitted(true);
+    } catch (e) {
+      console.error("Feature interest submit failed", e);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    submitted,
+    submitting,
+    doctorId,
+    profile,
+    isReceptionist,
+    location.search,
+  ]);
 
   return (
     <div className={styles.shell}>
@@ -96,7 +173,7 @@ export default function LimsNoAccessPage() {
               type="primary"
               className="btn btn-primary3 btn-41 px-4"
               onClick={handleRequestAccess}
-              disabled={submitted}
+              disabled={submitted || isStatusLoading || submitting || !doctorId}
             >
               {submitted ? "Interest submitted" : "I'm interested"}
             </Button>

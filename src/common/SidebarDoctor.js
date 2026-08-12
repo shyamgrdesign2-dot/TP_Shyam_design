@@ -27,7 +27,6 @@ import IPDKnowMore from "../pages/monetization/components/IPDKnowMore";
 import PharmacyKnowMore from "../pages/monetization/components/PharmacyKnowMore";
 import {
   getPharmacyAccessState,
-  hasPharmacyInterestSubmittedToday,
 } from "../pages/monetization/utils/pharmacyInterest";
 import AskTatvaKnowMore from "../pages/monetization/components/AskTatvaKnowMore";
 import { EVENTS } from "../utils/events";
@@ -242,24 +241,11 @@ function SidebarDoctor() {
         setSubModalData({ service_name: moduleName })
         if (moduleName === S_PHARMACY) {
           const pharmacyAccess = getPharmacyAccessState(planDetails);
-          // Paid Pharmacy → SSO. Non-paid: Know More until interest form submitted today;
-          // then SSO only while trial is active. Expired/locked never SSO.
-          if (pharmacyAccess.segment === "paid") {
-            check_SSO(moduleName);
-          } else if (
-            pharmacyAccess.segment === "trial_active" &&
-            hasPharmacyInterestSubmittedToday()
-          ) {
-            check_SSO(moduleName);
-          } else if (
-            pharmacyAccess.segment === "trial_active" ||
-            pharmacyAccess.segment === "trial_expired" ||
-            pharmacyAccess.segment === "locked"
-          ) {
-            handlePharmacyKnowMore();
-          } else {
-            check_SSO(moduleName);
-          }
+          // Paid Pharmacy → SSO.
+          // New requirement: for non-paid users, always show Know More and
+          // do NOT unlock trial/SSO based on "interest" submit.
+          if (pharmacyAccess.segment === "paid") check_SSO(moduleName);
+          else handlePharmacyKnowMore();
         } else if (moduleName === S_IPD && EMR_planDetails?.plan_tier === TRIAL && IPD_planDetails?.plan_tier === TRIAL) {
           if (isFirstClickOfDay(moduleName)) {
             handleIPDKnowMore();
@@ -956,10 +942,7 @@ function SidebarDoctor() {
         className=".modalWidth-800"
         width={600}
       >
-        <PharmacyKnowMore
-          handlePharmacyKnowMore={handlePharmacyKnowMore}
-          onRedirect={() => check_SSO(subModalData?.service_name)}
-        />
+        <PharmacyKnowMore handlePharmacyKnowMore={handlePharmacyKnowMore} />
       </Drawer>
 
       <ExpiredSubModal

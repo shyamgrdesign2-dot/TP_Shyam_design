@@ -1,14 +1,10 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Tabs } from "antd";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "./ContactSupport";
-import { S_PHARMACY } from "../../../utils/constants";
-import FreeTrialButton from "./FreeTrialButton";
-import ExpiredSubModal from "./ExpiredSubModal";
-import PharmacyInterestModal from "./PharmacyInterestModal";
 import {
   getClinicCity,
   getClinicName,
@@ -18,42 +14,39 @@ import {
 } from "../../../utils/utils";
 import { isReceptionistSession } from "../../../utils/receptionistSession";
 import {
-  getPharmacyAccessState,
-  hasPharmacyInterestSubmittedToday,
-  markPharmacyInterestSubmittedToday,
-} from "../utils/pharmacyInterest";
+  buildFeatureInterestPayload,
+  getFeatureInterestStatus,
+  submitFeatureInterest,
+} from "../utils/featureInterestService";
 
 const { TabPane } = Tabs;
 
-const PharmacyKnowMore = ({ handlePharmacyKnowMore, onRedirect }) => {
+const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
   const location = useLocation();
   const isReceptionist = isReceptionistSession(location.search);
   const { profile } = useSelector((state) => state.doctors);
-  const { planDetails } = useSelector((state) => state.subscription);
 
   const [videoLink, setVideoLink] = useState(false);
-  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
-  const [isInterestModalOpen, setIsInterestModalOpen] = useState(false);
-  const [interestSubmittedToday, setInterestSubmittedToday] = useState(() =>
-    hasPharmacyInterestSubmittedToday()
-  );
-  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [isStatusLoading, setIsStatusLoading] = useState(true);
+  const [interestSubmitted, setInterestSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const accessState = useMemo(
-    () => getPharmacyAccessState(planDetails),
-    [planDetails]
-  );
-
-  const showHideSubModal = useCallback(() => {
-    setIsSubModalOpen((prev) => !prev);
-  }, []);
+  const doctorId = useMemo(() => {
+    const built = buildFeatureInterestPayload({
+      feature: "pharmacy",
+      profile,
+      isReceptionist,
+      search: location.search,
+    });
+    return built.doctorId !== "-" ? built.doctorId : "";
+  }, [profile, isReceptionist, location.search]);
 
   const buildBaseEventAttrs = useCallback(() => {
     const clinic_name = getClinicName(profile?.hospital_data);
     const clinic_city = getClinicCity(profile?.hospital_data);
     const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(location.search);
 
     return {
       mobile_no: tokenData?.mobile_no,
@@ -77,53 +70,74 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore, onRedirect }) => {
           }),
       ...deviceSdkData,
     };
-  }, [profile, isReceptionist]);
+  }, [profile, isReceptionist, location.search]);
 
-  const handleRequestAccess = useCallback(() => {
-    trackEvent("TP_Pharmacy_RequestAccess", buildBaseEventAttrs());
+  useEffect(() => {
+    let isMounted = true;
 
-    if (accessState.canTryPharmacy) {
-      setIsInterestModalOpen(true);
-      return;
-    }
+    const run = async () => {
+      setIsStatusLoading(true);
 
-    // Trial expired / locked — upgrade only, never SSO
-    setIsSubModalOpen(true);
-  }, [accessState.canTryPharmacy, buildBaseEventAttrs]);
-
-  const handleInterestFormSubmit = useCallback(
-    (formValues) => {
-      if (!accessState.canTryPharmacy || typeof onRedirect !== "function") {
-        setIsInterestModalOpen(false);
-        setIsSubModalOpen(true);
+      if (!doctorId) {
+        if (!isMounted) return;
+        setInterestSubmitted(false);
+        setIsStatusLoading(false);
         return;
       }
 
-      setFormSubmitting(true);
-      trackEvent("TP_Pharmacy_FromSubmit", {
-        ...buildBaseEventAttrs(),
-        form_name: formValues.form_name,
-        form_clinic: formValues.form_clinic,
-        form_mobile_no: formValues.form_mobile_no,
+      try {
+        const status = await getFeatureInterestStatus({
+          feature: "pharmacy",
+          doctorId: String(doctorId).trim(),
+        });
+        if (!isMounted) return;
+        setInterestSubmitted(Boolean(status?.submitted));
+      } catch (e) {
+        console.error("Feature interest status fetch failed", e);
+        if (!isMounted) return;
+        setInterestSubmitted(false);
+      } finally {
+        if (!isMounted) return;
+        setIsStatusLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      isMounted = false;
+    };
+  }, [doctorId]);
+
+  const handleRequestAccess = useCallback(async () => {
+    if (interestSubmitted || submitting || !doctorId) return;
+
+    trackEvent("TP_Pharmacy_RequestAccess", buildBaseEventAttrs());
+    setSubmitting(true);
+
+    try {
+      const { payload } = buildFeatureInterestPayload({
+        feature: "pharmacy",
+        profile,
+        isReceptionist,
+        search: location.search,
       });
 
-      markPharmacyInterestSubmittedToday();
-      setInterestSubmittedToday(true);
-      setIsInterestModalOpen(false);
-      setFormSubmitting(false);
-
-      if (typeof handlePharmacyKnowMore === "function") {
-        handlePharmacyKnowMore();
-      }
-      onRedirect();
-    },
-    [
-      accessState.canTryPharmacy,
-      buildBaseEventAttrs,
-      handlePharmacyKnowMore,
-      onRedirect,
-    ]
-  );
+      const result = await submitFeatureInterest({ feature: "pharmacy", payload });
+      if (result?.submitted) setInterestSubmitted(true);
+    } catch (e) {
+      console.error("Feature interest submit failed", e);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    interestSubmitted,
+    submitting,
+    doctorId,
+    buildBaseEventAttrs,
+    profile,
+    isReceptionist,
+    location.search,
+  ]);
 
   const scrollToSection = (sectionId) => {
     const section = document.getElementById(sectionId);
@@ -151,10 +165,6 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore, onRedirect }) => {
             </Button>
             <div className="drawer-title">Pharmacy Management</div>
           </div>
-          <FreeTrialButton
-            title={S_PHARMACY}
-            showHideSubModal={showHideSubModal}
-          />
         </div>
 
         <div className="drawer-tabs">
@@ -186,26 +196,17 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore, onRedirect }) => {
       <div className="position-sticky bottom-0 bg-white w-100 px-4 py-3">
         <Button
           className="btn btn-proceed btn-primary3 w-100 align-items-center justify-content-center d-flex"
-          onClick={interestSubmittedToday ? undefined : handleRequestAccess}
-          disabled={interestSubmittedToday}
-          aria-disabled={interestSubmittedToday}
+          onClick={handleRequestAccess}
+          disabled={
+            interestSubmitted || isStatusLoading || submitting || !doctorId
+          }
+          aria-disabled={
+            interestSubmitted || isStatusLoading || submitting || !doctorId
+          }
         >
-          {interestSubmittedToday ? "Interest submitted" : "I'm interested"}
+          {interestSubmitted ? "Interest submitted" : "I'm interested"}
         </Button>
       </div>
-
-      <PharmacyInterestModal
-        open={isInterestModalOpen}
-        onClose={() => setIsInterestModalOpen(false)}
-        onSubmit={handleInterestFormSubmit}
-        submitting={formSubmitting}
-      />
-
-      <ExpiredSubModal
-        title={S_PHARMACY}
-        isSubModalOpen={isSubModalOpen}
-        showHideSubModal={showHideSubModal}
-      />
 
       {videoLink && (
         <VideoModal
