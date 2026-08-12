@@ -24,7 +24,6 @@ import { checkCredits } from "../redux/monetizationSlice";
 import { services } from "../redux/doctorsSlice";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import IPDKnowMore from "../pages/monetization/components/IPDKnowMore";
-import PharmacyKnowMore from "../pages/monetization/components/PharmacyKnowMore";
 import {
   getPharmacyAccessState,
 } from "../pages/monetization/utils/pharmacyInterest";
@@ -73,11 +72,12 @@ const isModuleRouteActive = (moduleType, location) => {
   const routeMap = {
     opd_billing: "/billing-dashboard",
     all_patients: "/all_patients",
-    // Note: dr_followup_appointment, data_analytics, pharmacy, and ipd are external redirects
+    pharmacy: "/pharmacy",
+    // Note: dr_followup_appointment, data_analytics, and ipd are external redirects
     // They open in new tabs, so they should not be in the routeMap
   };
   const route = routeMap[moduleType];
-  return route ? location.pathname === route : false;
+  return route ? location.pathname === route || location.pathname.startsWith(`${route}/`) : false;
 };
 
 function SidebarDoctor() {
@@ -114,7 +114,6 @@ function SidebarDoctor() {
 
   const [askTatvaKnowMoreDrawer, setAskTatvaKnowMoreDrawer] = useState(false);
   const [iPDKnowMoreDrawer, setIPDKnowMoreDrawer] = useState(false);
-  const [pharmacyKnowMoreDrawer, setPharmacyKnowMoreDrawer] = useState(false);
   const [subModalData, setSubModalData] = useState(null);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
 
@@ -176,10 +175,6 @@ function SidebarDoctor() {
     setIPDKnowMoreDrawer((prev) => !prev);
   };
 
-  const handlePharmacyKnowMore = () => {
-    setPharmacyKnowMoreDrawer((prev) => !prev);
-  };
-
   const showHideSubModal = () => {
     setIsSubModalOpen(!isSubModalOpen);
   }
@@ -216,6 +211,16 @@ function SidebarDoctor() {
       setHoveredItem(null);
     }
 
+    // Pharmacy: paid → SSO; otherwise always open in-app no-access intro.
+    // Handled before monetization gate so lead-gen works even when monetization is off.
+    if (moduleName === S_PHARMACY) {
+      const pharmacyAccess = getPharmacyAccessState(planDetails);
+      if (pharmacyAccess.segment === "paid") {
+        return check_SSO(moduleName);
+      }
+      return navigate("/pharmacy");
+    }
+
     // Data Analytics: Mission/CVT → /mission-analytics (admin/special only);
     // non-CVT → native page when release flag or allowlist; else legacy SSO.
     if (moduleName === "data_analytics") {
@@ -237,16 +242,9 @@ function SidebarDoctor() {
       return check_SSO(moduleName);
     }
     // if (moment(planDetails?.plan_active_date).diff("2025-07-01", 'days') > 0) {
-      if (tp_monetization_enable && (moduleName === S_PHARMACY || moduleName === S_IPD)) {
+      if (tp_monetization_enable && moduleName === S_IPD) {
         setSubModalData({ service_name: moduleName })
-        if (moduleName === S_PHARMACY) {
-          const pharmacyAccess = getPharmacyAccessState(planDetails);
-          // Paid Pharmacy → SSO.
-          // New requirement: for non-paid users, always show Know More and
-          // do NOT unlock trial/SSO based on "interest" submit.
-          if (pharmacyAccess.segment === "paid") check_SSO(moduleName);
-          else handlePharmacyKnowMore();
-        } else if (moduleName === S_IPD && EMR_planDetails?.plan_tier === TRIAL && IPD_planDetails?.plan_tier === TRIAL) {
+        if (moduleName === S_IPD && EMR_planDetails?.plan_tier === TRIAL && IPD_planDetails?.plan_tier === TRIAL) {
           if (isFirstClickOfDay(moduleName)) {
             handleIPDKnowMore();
           } else {
@@ -519,7 +517,9 @@ function SidebarDoctor() {
                 location.pathname !== "/apollo-consultations" &&
                 location.pathname !== "/bulk_messages" &&
                 location.pathname !== "/mission-analytics" &&
-                location.pathname !== "/data-analytics-x";
+                location.pathname !== "/data-analytics-x" &&
+                location.pathname !== "/pharmacy" &&
+                !location.pathname.startsWith("/lims");
               
               if (isPending) return "pending";
               if (isOnHomeRoute || (hasNoActiveRoute && !isActive)) return "active";
@@ -536,7 +536,9 @@ function SidebarDoctor() {
                   location.pathname !== "/apollo-consultations" &&
                   location.pathname !== "/bulk_messages" &&
                   location.pathname !== "/mission-analytics" &&
-                  location.pathname !== "/data-analytics-x")) || 
+                  location.pathname !== "/data-analytics-x" &&
+                  location.pathname !== "/pharmacy" &&
+                  !location.pathname.startsWith("/lims"))) || 
                 isAppointmentHovered
                   ? ni.calendarPrimary
                   : ni.calendar
@@ -700,9 +702,8 @@ function SidebarDoctor() {
                 const isHovered = hoveredItem === i;
                 const isRouteActive = isModuleRouteActive(item.type, location);
                 // Modules that redirect to external tabs should not stay active
-                // These include: Pharmacy, IPD, Follow Up
+                // These include: IPD, Follow Up (Pharmacy no-access is in-app at /pharmacy)
                 const isExternalRedirect = 
-                  item.type === S_PHARMACY || 
                   item.type === S_IPD || 
                   item.type === "ipd" ||
                   item.type === "dr_followup_appointment";
@@ -712,7 +713,21 @@ function SidebarDoctor() {
                 return (
                   <div key={i} className="position-relative">
                     <NavLink
+                      to={item.type === S_PHARMACY ? "/pharmacy" : undefined}
                       onClick={(e) => {
+                        // Pharmacy unpaid uses `to="/pharmacy"`; paid must SSO instead.
+                        if (item.type === S_PHARMACY) {
+                          const pharmacyAccess = getPharmacyAccessState(planDetails);
+                          if (pharmacyAccess.segment === "paid") {
+                            e.preventDefault();
+                            setHoveredItem(null);
+                            check_SSO(S_PHARMACY);
+                            return;
+                          }
+                          setHoveredItem(null);
+                          return;
+                        }
+                        e.preventDefault();
                         // For external redirect modules, clear hover state immediately on click
                         if (isExternalRedirect) {
                           setHoveredItem(null);
@@ -932,17 +947,6 @@ function SidebarDoctor() {
           handleIPDKnowMore={handleIPDKnowMore}
           onRedirect={() => check_SSO(subModalData?.service_name)}
         />
-      </Drawer>
-
-      <Drawer
-        closeIcon={false}
-        placement="right"
-        open={pharmacyKnowMoreDrawer}
-        onClose={handlePharmacyKnowMore}
-        className=".modalWidth-800"
-        width={600}
-      >
-        <PharmacyKnowMore handlePharmacyKnowMore={handlePharmacyKnowMore} />
       </Drawer>
 
       <ExpiredSubModal
