@@ -60,7 +60,7 @@ ChevronDown.defaultProps = {
   className: "",
 };
 
-export function VoiceBar() {
+export function VoiceBar({ guardVoiceRxUsage } = {}) {
   const { isOpen, close, route, externalControllerActive, externalState } = useVoiceBar();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -421,8 +421,16 @@ export function VoiceBar() {
       .sort((a, b) => (a.recorderOrder - b.recorderOrder) || (a.chunkOrder - b.chunkOrder))
       .map((chunk) => chunk.data);
     const audioBlob = new Blob(orderedChunks, { type: mimeType });
+    // Uncontrolled fallback path (header controller not active) — still must
+    // respect the VoiceRx credit guard before hitting the transcription API.
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "quick-dictator" });
+    if (canUseVoiceRx === false) {
+      close({ restoreFocus: true });
+      return;
+    }
     try {
       const { transcript } = await transcribeAnyAudio({ audioBlob });
+      guardVoiceRxUsage?.({ phase: "mark-used", surface: "quick-dictator" });
       const kind = route(transcript);
       close({ restoreFocus: true });
       if (kind === "clipboard") {
@@ -436,7 +444,7 @@ export function VoiceBar() {
         type: "error",
       });
     }
-  }, [controlledStatus, isControlled, micDenied, processing, route, close]);
+  }, [controlledStatus, guardVoiceRxUsage, isControlled, micDenied, processing, route, close]);
 
   // Cancel pauses the recording (keeping the audio) so Undo can resume it.
   // Also notifies the coach mark so it can tick its cancel counter toward

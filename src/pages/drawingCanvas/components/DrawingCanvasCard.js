@@ -28,6 +28,8 @@ const DrawingCanvasCard = ({
   onDelete,
   hideShowInRx = false,
   hideMoreOptions = false,
+  // Menu keys to omit, e.g. ["addEdit", "preview", "duplicate"] in the NewRx sidenav.
+  hiddenMenuKeys = [],
   trackingAttrs = {},
 }) => {
   const [localTitle, setLocalTitle] = useState(canvas?.title || canvas?.name || "Untitled Canvas");
@@ -290,7 +292,7 @@ const DrawingCanvasCard = ({
         </div>
       ),
     },
-  ];
+  ].filter((item) => !hiddenMenuKeys.includes(item.key));
 
   return (
     <>

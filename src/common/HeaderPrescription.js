@@ -21,6 +21,8 @@ import CommonModal from './CommonModal';
 
 import VideoModal from './VideoModal';
 import SaveDraft from './SaveDraft';
+import FreeTrialButton from '../pages/monetization/components/FreeTrialButton';
+import { TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 import {
     VoiceRxModuleActionButton,
@@ -98,6 +100,7 @@ import {
     parseMedicationFrequencySlots,
     resolveCopiedDoseFields,
 } from "../utils/medicationCopyNormalization";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   alerticon: alertIcon,
   tutorial2,
@@ -328,7 +331,7 @@ function getVoiceSoapDraftForStore(voiceDigitization) {
     };
 }
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false, onEndVisit, isEndVisitLoading = false, hasDentalData = false, onPreviewClick, showPreviewButton = false, onSelectLetterHead, isDentalConsultation = false }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false, onEndVisit, isEndVisitLoading = false, hasDentalData = false, onPreviewClick, showPreviewButton = false, onSelectLetterHead, isDentalConsultation = false, showVoiceRxTrialChip = false, onVoiceRxTrialChipClick }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded, userId } = useSelector((state) => state.doctors);
 
@@ -346,9 +349,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         templates,
         loading,
     } = useSelector((state) => state.caseManager);
+    const { planDetails } = useSelector((state) => state.subscription);
     const dispatch = useDispatch();
     const isChikitsalayAccessable = useChikitsalay();
-    const { activeVoiceModule, setHeaderDictation } = useRxPadSync();
+    const { activeVoiceModule, headerDictation, setHeaderDictation, guardVoiceRxUsage } = useRxPadSync();
 
     const {customModules} = useSelector((state) => state.customModules);
 
@@ -397,7 +401,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
     const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isHeaderVoiceDictationEnabled = Boolean(isNewPrescriptionUi && showVoiceRxModule && isVoiceRxNewFromGB);
     const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
     const headerVoiceVadEnabled = isVadEnabled(tpConfigData);
@@ -470,7 +474,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false, isVoiceRxNewUiFlow = false} = location.state || {};
     const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx && !isVoiceRxNewUiFlow;
-    const shouldHideLegacyVoiceRxCta = isNewPrescriptionUi;
+    // Hidden while the new-UI voice module is active; shown on the old page
+    // AND on the new page in voice-less point-n-click mode (where clicking it
+    // re-enters the same page with the VoiceRx flow enabled).
+    const shouldHideLegacyVoiceRxCta = isNewPrescriptionUi && showVoiceRxModule;
+    // The icon-only action group is a new-UI treatment, not a voice feature, so
+    // point-n-click sessions get it too even though showVoiceRxModule is false there.
+    const useCompactActionIcons = Boolean(isNewPrescriptionUi || showVoiceRxModule);
     const shouldShowLegacyVoiceRxCta =
         !shouldHideLegacyVoiceRxCta &&
         (isFreeVoiceRxUser || tp_monetization_enable) &&
@@ -973,6 +983,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }
         const recorder = headerVoiceMediaRecorderRef.current;
         if (!recorder || recorder.state === 'inactive') return;
+        const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "header" });
+        if (!canUseVoiceRx) return;
         const targetId = headerVoiceTargetIdRef.current || headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
         const voiceInputLocation = headerVoiceInputLocationRef.current || HEADER_DICTATION_NO_INPUT_LOCATION;
         setHeaderVoiceState("transcribing");
@@ -1088,7 +1100,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     await copyTranscriptToClipboard(transcript);
                 }
             }
-            uploadAndLogVoiceRx2({
+	            guardVoiceRxUsage?.({ phase: "mark-used", surface: "header" });
+	            uploadAndLogVoiceRx2({
                 audioBlob,
                 patientData: patient_data,
                 profile,
@@ -1160,12 +1173,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         headerVoiceInputLocationRef.current = HEADER_DICTATION_NO_INPUT_LOCATION;
         publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         publishQuickDictState("idle");
-    }, [buildHeaderVoiceAudioBlob, copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, stopHeaderVoiceActivityDetection, stopHeaderVoiceRecorderAndFlush, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [buildHeaderVoiceAudioBlob, copyTranscriptToClipboard, dispatch, guardVoiceRxUsage, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, stopHeaderVoiceActivityDetection, stopHeaderVoiceRecorderAndFlush, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const headerVoiceStartRecording = useCallback(async (triggerType = "manual_click") => {
         if (!isHeaderVoiceDictationEnabled) return;
         if (headerVoiceStateRef.current !== "idle") return;
         if (activeVoiceModule) return;
+        const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "header" });
+        if (!canUseVoiceRx) return;
         const cursor = headerVoiceCursorRef.current;
         const hasCursor = cursor?.element && document.activeElement === cursor.element;
         const targetId = hasCursor ? cursor.targetId : HEADER_DICTATION_TARGET;
@@ -1214,7 +1229,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
             publishQuickDictState("idle");
         }
-    }, [activeVoiceModule, getHeaderVoiceAudioConstraints, isHeaderVoiceDictationEnabled, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, startHeaderVoiceActivityDetection, startHeaderVoiceRecorder, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
+    }, [activeVoiceModule, guardVoiceRxUsage, getHeaderVoiceAudioConstraints, isHeaderVoiceDictationEnabled, patient_data, profile, publishHeaderDictation, publishQuickDictState, setHeaderVoiceState, startHeaderVoiceActivityDetection, startHeaderVoiceRecorder, stopHeaderVoiceActivityDetection, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount]);
 
     const headerVoiceCancelRecording = useCallback(() => {
         const recorder = headerVoiceMediaRecorderRef.current;
@@ -1807,7 +1822,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     setCustomModuleContents(Array.from(moduleMap.values()));
                 }
             }
-            (isMobile || (isTablet && isNewPrescriptionUi) || (isCompactHeader && showVoiceRxModule)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
+            (isMobile || (isTablet && isNewPrescriptionUi) || (isCompactHeader && useCompactActionIcons)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
         } else {
             errorMessage(action.error)
         }
@@ -3374,9 +3389,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     duration: 5,
                 });
 
-                if (useVoiceRx) {
+                if (!isFreeVoiceRxUser && useVoiceRx) {
                     let sendData = {
-                        b2c_id: profile?.b2c,
+                        b2c_id: profile?.b2c ?? planDetails?.profile_b2c,
                         service_name: S_VOICE_RX
                     }
                     dispatch(updateCredits(sendData))
@@ -3641,9 +3656,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     </Col>
                     <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
                         <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
-                            {/* Header VoiceRx dictation icon removed — dictation is now
-                                triggered via Quick Dictator (double-Shift). */}
-                            {!showVoiceRxModule && (
+                            {isNewPrescriptionUi && showVoiceRxTrialChip ? (
+                                <FreeTrialButton
+                                    title={S_VOICE_RX}
+                                    showHideSubModal={onVoiceRxTrialChipClick}
+                                />
+                            ) : null}
+                            {!useCompactActionIcons && (
                                 <Popover
                                     open={popOverVideo}
                                     onOpenChange={showHideVideoListPopover}
@@ -3659,7 +3678,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     </button>
                                 </Popover>
                             )}
-                            {showVoiceRxModule ? (
+                            {useCompactActionIcons ? (
                                 <div className={voiceModuleStyles.headerActionGroup}>
                                     <Popover
                                         open={popOverVideo}
@@ -3745,7 +3764,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     >
                                         <button className="btn d-flex align-items-center btn-text">
                                             {" "}
-                                            <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
+                                            {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                         </button>
                                     </Popover>
                                     <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
@@ -3761,7 +3780,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             <span>
                                                 <button className="btn d-flex align-items-center btn-text" disabled={hasUngroundedMedications}>
                                                     {" "}
-                                                    <i className="icon-save me-2"></i> <span>Save</span>
+                                                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span>
                                                 </button>
                                             </span>
                                         </Popover>
@@ -3770,11 +3789,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             ) : (
                                 <div className="d-flex align-items-center">
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
-                                        <i className="icon-template me-2"></i> <span>{isCompactHeader ? "Temp" : "Templates"}</span>
+                                        {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                     </button>
                                     <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <span>
-                                            <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> <i className="icon-save me-2"></i> <span>Save</span></button>
+                                            <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span></button>
                                         </span>
                                     </Tooltip>
                                 </div>
@@ -3783,9 +3802,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {DELETE_MODAL}
                             {CLEAR_MODAL}
 
-                            {!showVoiceRxModule && (
+                            {!useCompactActionIcons && (
                                 <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
-                                    {isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
+                                    {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="setting-2" variant="linear" size={18} /></span> : isCompactHeader ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isCompactHeader) ? "Custom" : "Customize"}</span>
                                 </button>
                             )}
 
@@ -3859,9 +3878,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     loading={isVideoConsultLoading}
                                 />
                             )}
-                            {/* Legacy VoiceRx CTA belongs only to the old prescription UI. */}
+                            {/* VoiceRx CTA — the new UI always uses the prod GenRxButton (animated
+                                gradient-video border); the compact icon-only variant is old-UI only. */}
                             {shouldShowLegacyVoiceRxCta ? (
-                                isCompactHeader ?
+                                isNewPrescriptionUi ? (
+                                    <GenRxButton onClick={handleGenRx} className="tesseract-genrx-cta" />
+                                ) : isCompactHeader ?
                                     <TabVoiceRxButton onClick={handleGenRx} />
                                     :
                                     <GenRxButton onClick={handleGenRx} />

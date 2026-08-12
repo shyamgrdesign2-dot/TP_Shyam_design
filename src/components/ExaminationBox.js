@@ -50,13 +50,23 @@ import {
   PrescriptionEmptyLineDragHandle,
   usePrescriptionNewEmptyLineUi,
 } from "./PrescriptionEmptyLineUi";
+import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import { attachTesseractCtBehind } from "./tesseractCt";
 const {
   alerticon: alertIcon,
   examination: Examinationicon,
 } = ASSETS.images;
 
-function ExaminationBox({ showVoiceRxModule }) {
+function ExaminationBox({ showVoiceRxModule, useTesseractUi = false }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  // Voice-mode table layout classes are legacy-only; the Tesseract shell uses
+  // the plain antd grid so header and body columns always align.
+  const useVoiceTableLayout = isVoiceRxModuleEnabled && !useTesseractUi;
   const getPrescriptionNewPopupProps = usePrescriptionNewPopupProps(showVoiceRxModule);
   const {
     selectedExaminationList,
@@ -124,6 +134,7 @@ function ExaminationBox({ showVoiceRxModule }) {
     rows: examinationData,
     setRows: setExaminationData,
     showVoiceRxModule,
+    useTesseractUi,
     nameField: "examination_name",
     rowKeyPrefix: "examination",
     searchOptions: parentSearchOptions,
@@ -250,6 +261,35 @@ function ExaminationBox({ showVoiceRxModule }) {
     },
     [searchParentQuery]
   );
+
+  // Frequently-used chips (Tesseract shell only) — captured from the
+  // frequently-searched list; not overwritten by typed-search results.
+  const [frequentExaminationChips, setFrequentExaminationChips] = useState([]);
+  useEffect(() => {
+    if (!searchParentQuery && Array.isArray(parentOptionsList) && parentOptionsList.length > 0) {
+      setFrequentExaminationChips(parentOptionsList.map((e) => e.examination_name).filter(Boolean));
+    }
+  }, [parentOptionsList, searchParentQuery]);
+  const availableExaminationChips = useTesseractUi
+    ? frequentExaminationChips.filter(
+        (name) => !examinationData.some(
+          (row) => String(row.examination_name || "").toLowerCase() === name.toLowerCase()
+        )
+      )
+    : [];
+  const onChipAdd = useCallback((name) => {
+    setExaminationData((prev) => [
+      ...prev,
+      {
+        unique_id: uuidv4(),
+        change: 1,
+        pms_default: 0,
+        examination_name: name,
+        note: "",
+      },
+    ]);
+    dispatch(setIsDDxReadyToGenerate(true));
+  }, [dispatch, setExaminationData]);
 
   const onSelectParent = useCallback(
     (data, e) => {
@@ -537,10 +577,21 @@ function ExaminationBox({ showVoiceRxModule }) {
 
   const TABLE_EXAMINATION = useMemo(() => {
     const examinationRows = Array.isArray(examinationData) ? examinationData : [];
-    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled;
+    const shouldUseEmptyLineTableLayout = isNewEmptyLineUiEnabled && isVoiceRxModuleEnabled && !useTesseractUi;
 
     return (
-      <div className={shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : undefined}>
+      <div
+        className={[shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableScrollWrap : "", useTesseractUi ? "tesseract-ct" : ""].filter(Boolean).join(" ") || undefined}
+        ref={useTesseractUi ? attachTesseractCtBehind : undefined}
+      >
+        {useTesseractUi && (
+          <Row gutter={0} className="tesseract-ct-head">
+            <Col lg={1} md={1} sm={1} xs={1} className="tesseract-ct-th" />
+            <Col lg={8} md={8} sm={8} xs={8} className="tesseract-ct-th">Name</Col>
+            <Col lg={14} md={14} sm={13} xs={13} className="tesseract-ct-th">Notes</Col>
+            <Col lg={1} md={1} sm={2} xs={2} className="tesseract-ct-th tesseract-ct-sticky-action" />
+          </Row>
+        )}
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="examination" direction="vertical">
             {(provided) => (
@@ -548,7 +599,7 @@ function ExaminationBox({ showVoiceRxModule }) {
                 {...provided.droppableProps}
                 ref={provided.innerRef}
                 className={[
-                  isNewEmptyLineUiEnabled ? "mt-2 prescription-empty-line-ui" : "",
+                  isNewEmptyLineUiEnabled ? "prescription-empty-line-ui" : "mt-2",
                   shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleTableBody : "",
                 ].filter(Boolean).join(" ")}
               >
@@ -620,13 +671,14 @@ function ExaminationBox({ showVoiceRxModule }) {
                           </Col>
                           <Col lg={1} md={1} sm={2} xs={2} className={[
                             isNewEmptyLineUiEnabled ? "symptoms-table-cell center" : "text-center",
+                            useTesseractUi ? "tesseract-ct-sticky-action" : "",
                             shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
                           ].filter(Boolean).join(" ")}>
                             <Button
                               className="btn py-0 btn-delete-prescription px-0"
                               onClick={() => onRemoveRow(index)}
                             >
-                              {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
+                              {useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                             </Button>
                           </Col>
                         </Row>
@@ -677,6 +729,7 @@ function ExaminationBox({ showVoiceRxModule }) {
                     </Col>
                     <Col lg={1} md={1} sm={2} xs={2} className={[
                       "symptoms-table-cell center",
+                      useTesseractUi ? "tesseract-ct-sticky-action" : "",
                       shouldUseEmptyLineTableLayout ? voiceModuleStyles.moduleActionCell : "",
                     ].filter(Boolean).join(" ")} />
                   </Row>
@@ -700,6 +753,7 @@ function ExaminationBox({ showVoiceRxModule }) {
     onEmptyLineDraftSearch,
     onEmptyLineDraftSelect,
     parentSearchOptions,
+    useTesseractUi,
   ]);
 
   //Child Componet
@@ -789,7 +843,7 @@ function ExaminationBox({ showVoiceRxModule }) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -814,7 +868,7 @@ function ExaminationBox({ showVoiceRxModule }) {
                         }
                       />
                     ) : (
-                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -885,7 +939,7 @@ function ExaminationBox({ showVoiceRxModule }) {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box">{isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
+                  <div className="round-box">{useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -953,6 +1007,129 @@ function ExaminationBox({ showVoiceRxModule }) {
       />
     );
   }, [isModalOpen1]);
+
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_EXAMINATION}
+      {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+        <div className={voiceModuleStyles.moduleSlot}>
+          <VoiceRxModuleCapture
+            moduleName="Examinations"
+            previousContext={examinationsVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.examination}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        </div>
+      ) : !isNewEmptyLineUiEnabled ? (
+        <div className="p-14">
+          <AutoComplete
+            value={searchParentQuery}
+            onSearch={onSearchParent}
+            options={parentSearchOptions}
+            className="autocomplete-custom w-100"
+            onSelect={onSelectParent}
+            defaultActiveFirstOption={true}
+            {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
+          >
+            <Input
+              placeholder="Search Examinations"
+              prefix={<i className="icon-search"></i>}
+            />
+          </AutoComplete>
+        </div>
+      ) : null}
+      {useTesseractUi && availableExaminationChips.length > 0 && (
+        <div className="tesseract-rxpad-chips">
+          {availableExaminationChips.map((name) => (
+            <TesseractButton
+              key={name}
+              variant="tonal"
+              theme="neutral"
+              size="sm"
+              className="tesseract-rxpad-chip"
+              title={name}
+              onClick={() => onChipAdd(name)}
+            >
+              {name}
+            </TesseractButton>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — same behavior, redesigned chrome.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target="examinations"
+        title="Examinations"
+        icon="bulk/stethoscope"
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="examinations"
+                label="Start Examinations voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: "Browse examination templates" })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (examinationData.length > 0) && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Save as template">
+                  {tesseractActionButton({ icon: "ram", label: "Save examination as template", disabled: examinationData.length === 0 })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: "Clear examinations", onClick: showHideClearData, disabled: examinationData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+      </RxPadSection>
+    );
+  }
 
   return (
     <>
@@ -1035,36 +1212,7 @@ function ExaminationBox({ showVoiceRxModule }) {
           </div>
         </div>
 
-        {DELETE_MODAL}
-        {REMOVE_ALL_ROWS}
-        {TABLE_EXAMINATION}
-        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
-          <div className={voiceModuleStyles.moduleSlot}>
-            <VoiceRxModuleCapture
-              moduleName="Examinations"
-              previousContext={examinationsVoicePreviousContext}
-              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.examination}
-              onCancel={() => setVoiceCaptureOpen(false)}
-              onComplete={handleVoiceCaptureComplete} />
-          </div>
-        ) : !isNewEmptyLineUiEnabled ? (
-          <div className="p-14">
-            <AutoComplete
-              value={searchParentQuery}
-              onSearch={onSearchParent}
-              options={parentSearchOptions}
-              className="autocomplete-custom w-100"
-              onSelect={onSelectParent}
-              defaultActiveFirstOption={true}
-              {...getPrescriptionNewPopupProps(!searchParentQuery ? "boxpopup" : "")}
-            >
-              <Input
-                placeholder="Search Examinations"
-                prefix={<i className="icon-search"></i>}
-              />
-            </AutoComplete>
-          </div>
-        ) : null}
+        {BODY_CONTENT}
       </div>
     </>
   );

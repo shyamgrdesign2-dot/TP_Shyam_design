@@ -17,6 +17,12 @@ import './components/dental/styles/globals.css';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
+// eslint-disable-next-line import/no-unresolved -- resolved via the package "exports" map, which eslint's resolver doesn't read
+import '@dhspl-tatvacare/tesseract-ui/styles.css';
+// Keeps the design-system's global element resets from leaking into the
+// rest of the portal (fonts, headings, scrollbars, corner shapes).
+import './styles/tesseractContainment.scss';
+import { TesseractThemeProvider } from '@dhspl-tatvacare/tesseract-ui';
 import * as Sentry from "@sentry/react";
 import {
   isChunkLoadError,
@@ -140,7 +146,9 @@ if (typeof window !== "undefined") {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <BrowserRouter basename={"/"}>
-      <App />
+      <TesseractThemeProvider colorScheme="light">
+        <App />
+      </TesseractThemeProvider>
     </BrowserRouter>
 );
 

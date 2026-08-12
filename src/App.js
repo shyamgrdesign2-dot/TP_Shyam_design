@@ -44,6 +44,7 @@ import {
   clearReceptionistSession,
   isReceptionistSession,
 } from "./utils/receptionistSession";
+import { useVoiceRxNewUiFlag, useNewPointClickUiFlag } from "./utils/voiceRxNavigation";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -227,11 +228,19 @@ const LimsPrintConfig = React.lazy(() =>
 );
 
 function PrescriptionRouteElement() {
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
+  const isNewPointClickUi = useNewPointClickUiFlag();
   const location = useLocation();
   const isVoiceRxNewUiFlow = Boolean(location.state?.isVoiceRxNewUiFlow);
 
   if (isVoiceRxNewFromGB && isVoiceRxNewUiFlow) {
+    return <PrescriptionNew />;
+  }
+
+  // Point-n-click rollout: every /prescription entry (fresh, edit, repeat,
+  // draft) renders PrescriptionNew in voice-less mode. Phones and opted-out
+  // doctors are excluded inside the hook.
+  if (isNewPointClickUi) {
     return <PrescriptionNew />;
   }
 

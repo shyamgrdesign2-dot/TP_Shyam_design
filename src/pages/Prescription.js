@@ -143,6 +143,7 @@ import {
 } from "../utils/symptomCollectorVitalsMerge";
 import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
 import { useChikitsalay } from "./chikitsalay/useChikitsalay";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState, shouldUseVoiceRxNewUiNavigation } from "../utils/voiceRxNavigation";
 
 function Prescription() {
   const {
@@ -710,7 +711,7 @@ function Prescription() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
@@ -2206,17 +2207,19 @@ function Prescription() {
     }
     
 
-    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-      state: {
-        patient_data,
-        autoOpenModal: false,
-        fromPrescription: true,
-        ...(isVoiceRxNewFromGB && {
-          isVoiceRxNewUiFlow: true,
-          voiceRxEntryPoint: "prescription_header",
-          caseManagerData: caseManagerData,
-        }),
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        {
+          patient_data,
+          autoOpenModal: false,
+          fromPrescription: true,
+          ...(shouldUseVoiceRxNewUiNavigation(isVoiceRxNewFromGB) && {
+            caseManagerData: caseManagerData,
+          }),
+        },
+        "prescription_header"
+      ),
     });
   }
   // Auto-fetch Zydus lab params when labReportID is available (for ZydusLabParametersList display)

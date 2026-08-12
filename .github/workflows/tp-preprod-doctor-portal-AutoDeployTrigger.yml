@@ -1,0 +1,76 @@
+name: Trigger auto deployment for tp-preprod-doctor-portal
+
+on:
+  push:
+    branches:
+      - preprod
+
+  workflow_dispatch:
+
+concurrency:
+  group: tp-preprod-doctor-portal
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      REACT_APP_ENV: prod
+      IMAGE_NAME: zydusdiginextml.azurecr.io/tp-preprod-doctor-portal:${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Login to Azure (required for Container App deployment)
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.TPPREPRODDOCTORPORTAL_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.TPPREPRODDOCTORPORTAL_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.TPPREPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
+
+      # Login to Azure Container Registry
+      - name: Docker login to ACR
+        env:
+          REGISTRY_USER: ${{ secrets.TPPREPRODDOCTORPORTAL_REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.TPPREPRODDOCTORPORTAL_REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$REGISTRY_PASS" | docker login zydusdiginextml.azurecr.io \
+            -u "$REGISTRY_USER" \
+            --password-stdin
+
+      # Build Docker image
+      - name: Build Docker image
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --build-arg REACT_APP_ENV=prod \
+            --build-arg GENERATE_SOURCEMAP=true \
+            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
+            -t "${{ env.IMAGE_NAME }}" .
+
+      # Push Docker image to ACR
+      - name: Push Docker image
+        run: |
+          set -euo pipefail
+
+          docker push "${{ env.IMAGE_NAME }}"
+
+      # Deploy to Azure Container App
+      - name: Deploy Container App
+        run: |
+          set -euo pipefail
+
+          az containerapp update \
+            --name tp-preprod-doctor-portal \
+            --resource-group tatva-uat \
+            --image "${{ env.IMAGE_NAME }}"

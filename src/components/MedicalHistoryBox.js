@@ -52,6 +52,7 @@ import medicalHistoryStyles from "./medical-history/medicalHistory.module.css";
 import useSectionConfig from "./medical-history/useSectionConfig";
 import useCrossSectionTagSearch from "./medical-history/useCrossSectionTagSearch";
 import { ENABLE_DESELECTED } from "./medical-history/constants";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   noRecordRound: noRecordFound,
   tubeIcon: playIcons,
@@ -280,10 +281,7 @@ function MedicalHistoryBox(props) {
     const [surgicalDateType, setSurgicalDateType] = useState('year');
     const [surgicalDate, setSurgicalDate] = useState(null);
     const selectedHistoryNoteVoiceTargetRef = useRef(null);
-    // Serialized medical-history state as last loaded/saved; drives the
-    // unsaved-changes guard. See buildDirtySnapshot below.
-    const initialSnapshotRef = useRef("");
-    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB && !gynecOnly;
 
     const applyVoiceMedicalHistory = useCallback((nextMedicalHistory) => {

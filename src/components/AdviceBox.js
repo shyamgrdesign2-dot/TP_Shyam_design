@@ -25,6 +25,12 @@ import { errorMessage, removeBeforeWhiteSpace, capitalizeAfterSentence } from ".
 
 import { MenuOutlined } from '@ant-design/icons';
 import {
+  RxPadSection,
+  Button as TesseractButton,
+  TPLibraryIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import "./tesseractRxPad.scss";
+import {
   addTemplate,
   updateTemplate,
   deleteTemplate,
@@ -34,6 +40,7 @@ import {
 } from "../redux/adviceSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { PrescriptionEmptyLineDragHandle } from "./PrescriptionEmptyLineUi";
 import { classNames } from "@react-pdf-viewer/core";
 import { ASSETS } from "../assets";
 import {
@@ -51,7 +58,9 @@ const {
   advice: Adviceicon,
 } = ASSETS.images;
 
-function AdviceBox({ showVoiceRxModule }) {
+const MAX_ADVICE_CHIPS = 7;
+
+function AdviceBox({ showVoiceRxModule, useTesseractUi = false }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const inputRef = useRef();
   const {
@@ -98,6 +107,43 @@ function AdviceBox({ showVoiceRxModule }) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
+
+  // Frequently-used chips (Tesseract shell only) — captured from the
+  // frequently-searched list; not overwritten by typed-search results.
+  const [frequentAdviceChips, setFrequentAdviceChips] = useState([]);
+  useEffect(() => {
+    if (!searchQuery && Array.isArray(parentOptionsList) && parentOptionsList.length > 0) {
+      // The frequently-searched API can return the same advice more than once;
+      // dedupe so the chip keys stay unique.
+      setFrequentAdviceChips([
+        ...new Set(parentOptionsList.map((e) => e.advice_name).filter(Boolean)),
+      ]);
+    }
+  }, [parentOptionsList, searchQuery]);
+  // Chips are a shortcut, not the full list — the dropdown still shows every
+  // frequently-used advice. Slice after filtering so a fresh one backfills as
+  // rows get added.
+  const availableAdviceChips = useTesseractUi
+    ? frequentAdviceChips
+        .filter(
+          (name) => !adviceData.some(
+            (row) => String(row.advice_name || "").toLowerCase() === name.toLowerCase()
+          )
+        )
+        .slice(0, MAX_ADVICE_CHIPS)
+    : [];
+  const onChipAdd = useCallback((name) => {
+    setAdviceData((prev) => [
+      ...prev,
+      {
+        unique_id: uuidv4(),
+        change: 1,
+        pms_default: 0,
+        advice_name: name,
+      },
+    ]);
+  }, [setAdviceData]);
+
 
   const [autoCompleteFlag, setAutoCompleteFlag] = useState(false);
   const [childDrawer, setChildDrawer] = useState(false);
@@ -453,12 +499,16 @@ function AdviceBox({ showVoiceRxModule }) {
                         className="advicecheck-row align-items-center"
                       >
                         <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                          <MenuOutlined
-                            {...provided.dragHandleProps}
-                            className="drag-handle"
-                            style={{ cursor: 'grab' }}
-                          >
-                          </MenuOutlined>
+                          {useTesseractUi ? (
+                            <PrescriptionEmptyLineDragHandle dragHandleProps={provided.dragHandleProps} />
+                          ) : (
+                            <MenuOutlined
+                              {...provided.dragHandleProps}
+                              className="drag-handle"
+                              style={{ cursor: 'grab' }}
+                            >
+                            </MenuOutlined>
+                          )}
                         </Col>
                         <Col lg={23} md={23} sm={23} xs={23} className='px-2 d-flex justify-content-between align-items-center'>
                           <Checkbox checked onClick={() => onRemoveRow(index)}><div className="text-truncate-twolines">{item.advice_name}</div></Checkbox>
@@ -474,7 +524,7 @@ function AdviceBox({ showVoiceRxModule }) {
         </Droppable>
       </DragDropContext>
     );
-  }, [adviceData]);
+  }, [adviceData, useTesseractUi]);
 
   // Handle Child Drawer
   const handleDrawerChild = useCallback((item) => {
@@ -518,7 +568,7 @@ function AdviceBox({ showVoiceRxModule }) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
+                    {useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -548,7 +598,7 @@ function AdviceBox({ showVoiceRxModule }) {
                         }
                       />
                     ) : (
-                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
+                      useTesseractUi ? <TPLibraryIcon name="trash" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -618,7 +668,7 @@ function AdviceBox({ showVoiceRxModule }) {
               })}
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
-                  <div className="round-box">{isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
+                  <div className="round-box">{useTesseractUi ? <TPLibraryIcon name="grid-5" variant="linear" size={18} /> : isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}</div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
@@ -737,6 +787,135 @@ function AdviceBox({ showVoiceRxModule }) {
     );
   }, [isModalOpen1]);
 
+  // Body below the header — identical for the classic and Tesseract shells.
+  const BODY_CONTENT = (
+    <>
+      {DELETE_MODAL}
+      {REMOVE_ALL_ROWS}
+      {TABLE_ADVICE}
+      <Drawer closeIcon={false} placement="right" onClose={handleDrawerChild} open={childDrawer} className="modalWidth-563" width="auto">
+        {CHILD_DRAWER_DATA}
+      </Drawer>
+
+      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : (useTesseractUi ? "" : "p-14")}>
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+          <VoiceRxModuleCapture
+            moduleName="Advices"
+            previousContext={adviceVoicePreviousContext}
+            dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.advice}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        ) : (
+          <AutoComplete
+            ref={inputRef}
+            value={searchQuery}
+            onSearch={onSearchParent}
+            onFocus={onFocusParent}
+            onBlur={onBlurParent}
+            options={parentSearchOptions}
+            className="autocomplete-custom w-100"
+            open={autoCompleteFlag}
+            onSelect={onSelectParent}
+            popupClassName="boxpopup"
+          >
+            <Input
+              placeholder="Search Advices"
+              prefix={<i className="icon-search"></i>}
+            />
+          </AutoComplete>
+        )}
+      </div>
+    </>
+  );
+
+  if (useTesseractUi) {
+    // Tesseract shell (RxPadSection) — outer skin only; body (dropdown,
+    // checkbox rows) stays exactly as the classic UI renders it.
+    const tesseractActionButton = ({ icon, label, onClick, disabled }) => (
+      <TesseractButton
+        variant="tonal"
+        theme="neutral"
+        size="sm"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        icon={<TPLibraryIcon name={icon} variant="linear" size={18} />}
+      />
+    );
+    return (
+      <RxPadSection
+        ref={sectionRef}
+        data-voice-rx-dictation-target="advice"
+        title="Advices"
+        icon="bulk/clipboard-check"
+        className={["tesseract-rxpad", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+        headerActions={
+          <>
+            {isVoiceRxModuleEnabled && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                dictationTargetId="advice"
+                label="Start Advices voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
+            <Popover
+              open={popOver1}
+              onOpenChange={showHideTemplatesListPopover}
+              content={TEMPLATE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-350 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Browse templates">
+                  {tesseractActionButton({ icon: "grid-5", label: "Browse advice templates" })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Popover
+              open={popOver2}
+              onOpenChange={() => (adviceData.length > 0) && showHideSaveTemplatePopOver()}
+              content={SAVE_CONTENT}
+              trigger="click"
+              overlayClassName="pop-450 pp-0"
+              placement="bottomRight"
+            >
+              <span>
+                <Tooltip placement="bottom" title="Save as template">
+                  {tesseractActionButton({ icon: "ram", label: "Save advice as template", disabled: adviceData.length === 0 })}
+                </Tooltip>
+              </span>
+            </Popover>
+            <Tooltip placement="bottom" title="Clear all entries">
+              <span>
+                {tesseractActionButton({ icon: "eraser", label: "Clear advice", onClick: showHideClearData, disabled: adviceData.length === 0 })}
+              </span>
+            </Tooltip>
+          </>
+        }
+      >
+        {BODY_CONTENT}
+        {availableAdviceChips.length > 0 && (
+          <div className="tesseract-rxpad-chips">
+            {availableAdviceChips.map((name) => (
+              <TesseractButton
+                key={name}
+                variant="tonal"
+                theme="neutral"
+                size="sm"
+                className="tesseract-rxpad-chip"
+                title={name}
+                onClick={() => onChipAdd(name)}
+              >
+                {name}
+              </TesseractButton>
+            ))}
+          </div>
+        )}
+      </RxPadSection>
+    );
+  }
+
   return (
     <>
       <div ref={sectionRef} data-voice-rx-dictation-target="advice" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
@@ -808,42 +987,7 @@ function AdviceBox({ showVoiceRxModule }) {
           </div>
         </div>
 
-        {DELETE_MODAL}
-        {REMOVE_ALL_ROWS}
-        {TABLE_ADVICE}
-        <Drawer closeIcon={false} placement="right" onClose={handleDrawerChild} open={childDrawer} className="modalWidth-563" width="auto">
-          {CHILD_DRAWER_DATA}
-        </Drawer>
-
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
-            <VoiceRxModuleCapture
-              moduleName="Advices"
-              previousContext={adviceVoicePreviousContext}
-              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.advice}
-              onCancel={() => setVoiceCaptureOpen(false)}
-              onComplete={handleVoiceCaptureComplete} />
-          ) : (
-            <AutoComplete
-              ref={inputRef}
-              // defaultValue={searchParentQuery}
-              value={searchQuery}
-              onSearch={onSearchParent}
-              onFocus={onFocusParent}
-              onBlur={onBlurParent}
-              options={parentSearchOptions}
-              className="autocomplete-custom w-100"
-              open={autoCompleteFlag}
-              onSelect={onSelectParent}
-              popupClassName="boxpopup"
-            >
-              <Input
-                placeholder="Search Advices"
-                prefix={<i className="icon-search"></i>}
-              />
-            </AutoComplete>
-          )}
-        </div>
+        {BODY_CONTENT}
       </div>
     </>
   );

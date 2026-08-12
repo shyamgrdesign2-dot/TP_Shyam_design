@@ -46,17 +46,7 @@ const DifferentialDiagnosis = ({
 
   const { isGynaecHistoryAccessable } = useAccess(patient_data?.ageYears);
 
-  const [isCollapseActive, setIsCollapseActive] = useState(
-    localStorage.getItem(
-      isDiagnosis ? IS_DDX_DIAGNOSIS_OPEN : IS_DDX_LAB_INVESTIGATION_OPEN
-    )
-      ? JSON.parse(
-        localStorage.getItem(
-          isDiagnosis ? IS_DDX_DIAGNOSIS_OPEN : IS_DDX_LAB_INVESTIGATION_OPEN
-        )
-      )
-      : true
-  );
+  const [isCollapseActive, setIsCollapseActive] = useState(false);
 
   const accordionItems = [
     {
@@ -328,10 +318,10 @@ const DifferentialDiagnosis = ({
 
   return (
     <>
-      <div className="d-flex" style={{ padding: "20px 0" }}>
+      <div className="d-flex" style={{ padding: "4px 0 0", alignItems: "flex-start" }}>
         <div>
           <img
-            style={{ backgroundColor: "#22003C", borderRadius: "10px 10px 0px" }}
+            style={{ backgroundColor: "#22003C", borderRadius: "10px 10px 0px", width: 42, height: 42 }}
             className="me-3"
             src={apexAI}
             alt="apex-AI"

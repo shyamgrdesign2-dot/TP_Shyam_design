@@ -387,8 +387,8 @@ const STEPS = [
   },
   {
     n: 4,
-    title: "5 seconds to undo",
-    body: "Click ✕ to cancel. You’ve got 5 seconds to undo.",
+    title: "Cancel anytime",
+    body: "Press Esc or click ✕ to discard what you just said.",
   },
 ];
 

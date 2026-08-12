@@ -589,7 +589,7 @@ export function useDrAgentPanel({
   // ── Integration ──
   const { requestCopyToRxPad, lastSignal, publishSignal, 
     // setPatientAllergies,
-     setAiFillInProgress, pushHistoricalUpdates, activeVoiceModule, headerDictation, runCopyWithAura } = useRxPadSync();
+     setAiFillInProgress, pushHistoricalUpdates, activeVoiceModule, headerDictation, runCopyWithAura, guardVoiceRxUsage } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const lastSignalIdRef = useRef(0);
   const voiceSessionCleanupSeenRef = useRef(voiceDigitization?.sessionId || "");
@@ -764,7 +764,7 @@ export function useDrAgentPanel({
     voiceRxDialogChoice,
   ]);
 
-  const confirmVoiceRxConsult = useCallback(() => {
+  const confirmVoiceRxConsult = useCallback(async() => {
     // Guard against starting a full-panel consultation while an inline
     // per-module / per-sidebar recorder is already running. Shared state
     // lives in the rxpad-sync context; the tooltip on hover uses the
@@ -782,7 +782,12 @@ export function useDrAgentPanel({
       setVoiceRxDialogOpen(false);
       return;
     }
-    trackDrAgentVoiceStart();
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "agent" });
+    trackDrAgentVoiceStart({canUseVoiceRx});
+    if (!canUseVoiceRx) {
+      setVoiceRxDialogOpen(false);
+      return;
+    }
     onVoiceCaptureModeChange?.(voiceRxDialogChoice);
     setVoiceRxDialogOpen(false);
     // Starting a fresh consultation clears any previously generated
@@ -811,7 +816,7 @@ export function useDrAgentPanel({
         return true;
       })
     }));
-  }, [voiceRxDialogChoice, onVoiceCaptureModeChange, selectedPatientId, setMessagesByPatient, activeVoiceModule, headerDictationBusy, resetLiveTranscript, trackDrAgentVoiceStart]);
+  }, [voiceRxDialogChoice, onVoiceCaptureModeChange, selectedPatientId, setMessagesByPatient, activeVoiceModule, headerDictationBusy, resetLiveTranscript, guardVoiceRxUsage, trackDrAgentVoiceStart]);
 
   // Listen for the "VoiceRx" CTA on a chat clinical-notes card —
   // fires "voicerx:begin-addon". Routes through the same beginVoiceAddOn
@@ -828,7 +833,7 @@ export function useDrAgentPanel({
   // wiping the chat history of prior voice cards. The prior result's
   // transcript will be merged onto the next submit so the transcript
   // pane stays cumulative across multiple re-records.
-  const beginVoiceAddOn = useCallback(() => {
+  const beginVoiceAddOn = useCallback(async () => {
     if (activeVoiceModule || headerDictationBusy) {
       toast.warning(
         activeVoiceModule
@@ -837,11 +842,14 @@ export function useDrAgentPanel({
       );
       return;
     }
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "agent-addon" });
     trackDrAgentVoiceStart({
       moduleName: "Clinical Notes",
       voiceInputLocation: "Clinical Notes",
       triggerLocation: "dr_agent_add_details_voice_cta",
+      canUseVoiceRx,
     });
+    if (!canUseVoiceRx) return;
     priorVoiceResultRef.current = voiceRxResult;
     setVoiceRxResult(null);
     setVoiceRxResultMinimized(false);
@@ -852,7 +860,7 @@ export function useDrAgentPanel({
     setVoiceRxAwaitingResponse(false);
     setVoiceRxRecording(true);
     onVoiceCaptureModeChange?.(voiceRxDialogChoice);
-  }, [activeVoiceModule, headerDictationBusy, voiceRxResult, voiceRxDialogChoice, onVoiceCaptureModeChange, resetLiveTranscript, trackDrAgentVoiceStart]);
+  }, [activeVoiceModule, headerDictationBusy, voiceRxResult, voiceRxDialogChoice, onVoiceCaptureModeChange, resetLiveTranscript, guardVoiceRxUsage, trackDrAgentVoiceStart]);
   beginVoiceAddOnRef.current = beginVoiceAddOn;
 
   // Inline quick-edit submit (called by the canvas's bottom-overlay
@@ -861,6 +869,8 @@ export function useDrAgentPanel({
   const submitQuickEdit = useCallback(async (meta = {}, progress = {}) => {
     if (voiceSubmitInFlightRef.current) return;
     if (!voiceRxResult) return;
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "agent-quick-edit" });
+    if (!canUseVoiceRx) return;
     const audioBlob = meta?.audioBlob || null;
     if (!audioBlob) {
       toast.error("No audio recording was captured.");
@@ -1068,8 +1078,9 @@ export function useDrAgentPanel({
         digitizeData: voiceRxLogDigitizeData,
         previousContext: voiceRxLogPreviousContext,
         speechAnalysis: meta?.speechAnalysis,
-      }).then(({ source }) => {
-        dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
+	      }).then(({ source }) => {
+	        guardVoiceRxUsage?.({ phase: "mark-used", surface: "agent-quick-edit" });
+	        dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
           type: voiceRxResult?.digitization ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
           source,
           durationMs: meta?.durationMs ?? 0,
@@ -1130,7 +1141,7 @@ export function useDrAgentPanel({
       if (voiceRxAbortRef.current === abortController) voiceRxAbortRef.current = null;
       voiceSubmitInFlightRef.current = false;
     }
-  }, [abortActiveVoiceRxRequest, voiceRxResult, voiceRxDialogChoice, selectedPatientId, setMessagesByPatient, patientId, doctorId, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated, dispatch, patientData, profile]);
+  }, [abortActiveVoiceRxRequest, voiceRxResult, voiceRxDialogChoice, selectedPatientId, setMessagesByPatient, patientId, doctorId, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated, dispatch, patientData, profile, guardVoiceRxUsage]);
 
   const cancelVoiceRxRecording = useCallback(() => {
     if (voiceRxTimeoutRef.current) {
@@ -1172,7 +1183,7 @@ export function useDrAgentPanel({
   }, [selectedPatientId, symptomCollectorData]);
 
 
-  const submitVoiceRxRecording = useCallback((meta) => {
+  const submitVoiceRxRecording = useCallback(async(meta) => {
     if (voiceSubmitInFlightRef.current) return;
     const liveText = voiceRxLiveTranscript.trim();
     const audioBlob = meta?.audioBlob || null;
@@ -1182,6 +1193,8 @@ export function useDrAgentPanel({
       onVoiceCaptureModeChange?.(null);
       return;
     }
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "agent" });
+    if (!canUseVoiceRx) return;
     voiceSubmitInFlightRef.current = true;
     dispatch(beginVoiceAttempt());
     const voicecall = (voiceDigitization?.voiceCallCount || 0) + 1;
@@ -1442,6 +1455,7 @@ export function useDrAgentPanel({
           previousContext: voiceRxLogPreviousContext,
           speechAnalysis: meta?.speechAnalysis,
         }).then(({ source }) => {
+          guardVoiceRxUsage?.({ phase: "mark-used", surface: "agent" });
           dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
             type: digitisePreviousContextForHistory ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
             source,
@@ -1532,6 +1546,7 @@ export function useDrAgentPanel({
     voiceDigitization?.sessionId,
     voiceDigitization?.voiceCallCount,
     voiceDigitization?.voiceLogCreated,
+    guardVoiceRxUsage,
     abortActiveVoiceRxRequest
   ]);
 
@@ -2243,6 +2258,8 @@ export function useDrAgentPanel({
   const retryVoiceRxSoap = useCallback(async () => {
     if (!voiceRxResult) return;
     if (soapRetryInFlightRef.current || voiceRxResult.soapStatus === "pending") return;
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "agent-soap-retry" });
+    if (!canUseVoiceRx) return;
     soapRetryInFlightRef.current = true;
     const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
       ...buildVoiceRxContextParams({
@@ -2280,7 +2297,7 @@ export function useDrAgentPanel({
     } finally {
       soapRetryInFlightRef.current = false;
     }
-  }, [dispatch, doctorId, patientData, patientId, profile, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
+  }, [dispatch, doctorId, guardVoiceRxUsage, patientData, patientId, profile, voiceDigitization?.sessionId, voiceDigitization?.soap, voiceDigitization?.soapHtml, voiceRxResult]);
 
   // Flip only while actively recording — submit flips back immediately so the chat loader
   // (VoiceRxLoaderCard) + RxPad processing overlay become visible.

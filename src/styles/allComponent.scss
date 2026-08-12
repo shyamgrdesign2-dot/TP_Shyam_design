@@ -519,9 +519,30 @@
 
 // Prescription Component SCSS
 .prescription-wrapper {
+  // Restored for the old point-n-click pad. NewRx opts out below.
   padding: 20px;
   position: relative;
   z-index: 0;
+
+  // NewRx supplies its own padding inside each section card and needs the
+  // wrapper flush, scroll-shadowed and horizontally scrollable.
+  &.prescription-wrapper--newrx {
+    padding: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    > .row {
+      min-width: 640px;
+    }
+
+    &.bg-body {
+      background-color: #f1f1f5 !important;
+    }
+  }
 
   &.prescription-wrapper-digitise {
     padding: 0;
@@ -564,14 +585,36 @@
   }
 
   .prescription-box-sm {
-    border: 1px solid $bordercolor;
     background-color: $white;
+    border: 1px solid $bordercolor;
     border-radius: 20px;
     margin-bottom: 15px;
 
     &:last-child {
       margin-bottom: 0;
     }
+  }
+
+  &.prescription-wrapper--newrx .opthal-panel-wrapper {
+    margin-bottom: 16px;
+    border-radius: 20px;
+    border: none;
+
+    .ant-collapse {
+      border: none !important;
+      border-radius: 20px !important;
+    }
+
+    .ant-collapse-item {
+      border: none !important;
+    }
+  }
+
+  // NewRx cards are flatter and tighter; the old pad keeps its original chrome.
+  &.prescription-wrapper--newrx .prescription-box-sm {
+    border: 1px solid #f1f1f5;
+    border-radius: 16px;
+    margin-bottom: 16px;
   }
 
   .opthal-panel-wrapper {
@@ -588,15 +631,28 @@
     .ant-collapse-item-active {
       .ant-collapse-header {
         position: sticky;
-        top: -24px;
-        border-radius: 8px;
+        top: 0;
         padding: 16px;
         background: white;
-        border-radius: 8px 8px 0 0 !important;
+        border-radius: 20px 20px 0 0 !important;
         z-index: 1;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
       }
     }
+  }
+
+  // Follow-up quick buttons as flat grey pills — NewRx only. Unscoped, this
+  // restyled the old point-n-click pad's buttons too, which prod never had.
+  &.prescription-wrapper--newrx .fllowbtn .btn-primary2 {
+    min-height: 32px !important;
+    height: auto !important;
+    border-radius: 10px !important;
+    background: #f1f1f5 !important;
+    color: #454551 !important;
+    border: none !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    padding: 0 12px !important;
   }
 }
 
@@ -907,6 +963,16 @@
           &[aria-expanded="false"] {
             border-radius: 12px !important;
             padding: 17px 20px;
+          }
+
+          // Compact collapsed DDx bar — NewRx only. The old pad keeps its
+          // original 17px/20px header so the Diagnosis section is unchanged.
+          .prescription-wrapper--newrx &[aria-expanded="false"] {
+            padding: 0 16px;
+            min-height: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
           }
 
           &[aria-expanded="true"] {
@@ -3241,6 +3307,7 @@ body {
   .badge-autofill {
     position: absolute;
     bottom: 0;
+    right: 0;
     padding: 3px 8px;
     font-size: 11px;
     background-color: $drawerHeaderColor;
@@ -3251,14 +3318,16 @@ body {
     display: none;
     z-index: 9;
     cursor: pointer;
+    border-radius: 6px 0 0 0;
     i {
       font-size: 16px;
     }
   }
   .autofill {
     overflow: hidden;
+    position: relative;
     .badge-autofill {
-      padding: 2px 1px;
+      padding: 2px 6px;
       white-space: nowrap;
       i {
         margin-right: 2px;
@@ -3517,6 +3586,16 @@ body {
           &[aria-expanded="false"] {
             border-radius: 12px !important;
             padding: 17px 20px;
+          }
+
+          // Compact collapsed DDx bar — NewRx only. The old pad keeps its
+          // original 17px/20px header so the Diagnosis section is unchanged.
+          .prescription-wrapper--newrx &[aria-expanded="false"] {
+            padding: 0 16px;
+            min-height: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
           }
 
           &[aria-expanded="true"] {

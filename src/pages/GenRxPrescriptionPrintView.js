@@ -33,6 +33,7 @@ import { env } from "../EnvironmentConfig";
 import { EVENTS } from "../utils/events";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   wtsp,
   loading_3: loadingImg,
@@ -66,7 +67,7 @@ function GenRxPrescriptionPrintView() {
   const dentalExaminationData = useSelector(selectDentalExamination);
   const oralExamination = useSelector((state) => state.oralExamination);
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
