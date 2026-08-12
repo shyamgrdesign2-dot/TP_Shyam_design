@@ -35,12 +35,57 @@ function singleIdOnly(v) {
   return s;
 }
 
-/** Read a single-doctor consultation-modes response's "Booked" value (its byDoctor has one row). */
+function doctorFullName(d) {
+  const named = String(d?.um_name || "").trim();
+  const first = String(d?.um_first_name || d?.first_name || d?.firstName || "").trim();
+  const last = String(d?.um_last_name || d?.last_name || d?.lastName || "").trim();
+  const assembled = [first, last].filter(Boolean).join(" ");
+  if (assembled && last) {
+    const prefix = named.match(/^(Dr\.?\s*)/i)?.[0] || "";
+    const body = assembled.replace(/^(Dr\.?\s*)/i, "");
+    return `${prefix}${body}`.replace(/\s+/g, " ").trim();
+  }
+  return named || assembled || (d?.um_id != null ? `Doctor ${d.um_id}` : "");
+}
+
+function normalizeDoctorName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/^dr\.?\s*/i, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveRosterDoctor(label, doctors) {
+  const n = normalizeDoctorName(label);
+  if (!n) return null;
+  const exact = doctors.find((d) => normalizeDoctorName(doctorFullName(d)) === n || normalizeDoctorName(d.um_name) === n);
+  if (exact) return exact;
+  const first = n.split(" ")[0];
+  const matches = doctors.filter((d) => normalizeDoctorName(doctorFullName(d)).split(" ")[0] === first);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function unwrapApptKpis(raw) {
+  const src = raw?.data ?? raw ?? {};
+  return src.kpis ?? {};
+}
+
+/** Rx-mode "Booked" — only present when the doctor has Tatva consultation-mode activity. */
 function bookedFromModesResponse(resp) {
   const ds = (resp?.data ?? resp)?.byDoctor?.datasets;
   if (!Array.isArray(ds)) return 0;
   const booked = ds.find((d) => String(d?.label || "").toLowerCase() === "booked");
   return toNum(booked?.data?.[0]);
+}
+
+function modeConsultationsFromKpis(kpis) {
+  if (!kpis) return 0;
+  return MODE_SERIES.reduce((sum, [, key]) => {
+    const v = key === "typeRx" ? (kpis.typeRx ?? kpis.keyboardRx) : kpis[key];
+    return sum + toNum(v);
+  }, 0);
 }
 
 async function buildByDoctorFanout({
@@ -69,37 +114,42 @@ async function buildByDoctorFanout({
   }
   if (clinicIdSingle) baseParams.clinicId = clinicIdSingle;
 
-  // Fetch one clinic/consultation-modes per doctor to build a stacked "byDoctor" chart. Keep the
-  // full response (not just kpis) so we can also read each doctor's "Booked" count.
-  const respByDoctor = new Array(doctors.length);
+  // Per doctor: appointment/summary is the source of truth for booked +
+  // completed (HIS/TP appointments). consultation-modes only sees Tatva Rx
+  // activity, so doctors who booked but never consulted in TP were exported as 0.
+  const rowsByDoctor = new Array(doctors.length);
   for (let i = 0; i < doctors.length; i += BATCH_SIZE) {
     const batch = doctors.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((d) =>
-        ApiReporting.clinicConsultationModes({ ...baseParams, doctorId: d.um_id })
-          .then((r) => (r?.data ?? r) ?? null)
-          .catch(() => null)
-      )
+      batch.map(async (d) => {
+        const params = { ...baseParams, doctorId: d.um_id };
+        const [modes, appt] = await Promise.all([
+          ApiReporting.clinicConsultationModes(params).then((r) => (r?.data ?? r) ?? null).catch(() => null),
+          ApiReporting.clinicalAppointmentSummary(params).then((r) => (r?.data ?? r) ?? null).catch(() => null),
+        ]);
+        return { modes, appt };
+      })
     );
-    results.forEach((r, j) => { respByDoctor[i + j] = r; });
+    results.forEach((r, j) => { rowsByDoctor[i + j] = r; });
   }
 
-  const labels = doctors.map((d) => d.um_name || `Doctor ${d.um_id}`);
-  const kpisByDoctor = respByDoctor.map((r) => r?.kpis ?? null);
+  const labels = doctors.map((d) => doctorFullName(d));
+  const kpisByDoctor = rowsByDoctor.map((r) => r?.modes?.kpis ?? null);
+
+  const booked = rowsByDoctor.map((r) => {
+    if (r?.appt != null) return toNum(unwrapApptKpis(r.appt).total);
+    return bookedFromModesResponse(r?.modes);
+  });
+  const consultations = rowsByDoctor.map((r, i) => {
+    if (r?.appt != null) return toNum(unwrapApptKpis(r.appt).completed);
+    return modeConsultationsFromKpis(kpisByDoctor[i]);
+  });
 
   const byDoctor = {
     labels,
-    // "Booked" first so buildDoctorBars picks it up as the booked series (rest = consultations).
     datasets: [
-      { label: "Booked", data: respByDoctor.map((r) => bookedFromModesResponse(r)) },
-      ...MODE_SERIES.map(([label, key]) => ({
-        label,
-        data: kpisByDoctor.map((kpis) => {
-          if (!kpis) return 0;
-          const v = key === "typeRx" ? (kpis.typeRx ?? kpis.keyboardRx) : kpis[key];
-          return toNum(v);
-        }),
-      })),
+      { label: "Booked", data: booked },
+      { label: "Consultations", data: consultations },
     ],
   };
 
@@ -140,7 +190,59 @@ export async function buildAllDoctorBars({ startDate, endDate, doctorId, clinicI
   const cvtRaw = await safe(ApiReporting.cvtByDoctor(cvtParams));
   const cvtByDoctorSeries = unwrapCvtSeries(unwrapCvtPayload(cvtRaw));
 
-  return buildDoctorBars(modesFull.data.byDoctor, cvtByDoctorSeries);
+  return buildDoctorBars(modesFull.data.byDoctor, cvtByDoctorSeries, { compactLabels: false });
+}
+
+/** Replace Rx-only booked/completed on a clinic-wide consultation-modes byDoctor with appointment/summary. */
+async function overlayAppointmentCounts(byDoctorSeries, { startDate, endDate, clinicIdSingle } = {}) {
+  if (!byDoctorSeries?.labels?.length) return byDoctorSeries;
+  const roster = (await getDoctorList()).filter((d) => d?.um_id != null);
+  if (!roster.length) return byDoctorSeries;
+
+  const resolved = byDoctorSeries.labels.map((label) => resolveRosterDoctor(label, roster));
+  const baseParams = {};
+  if (startDate && endDate) {
+    baseParams.startDate = startDate;
+    baseParams.endDate = endDate;
+  }
+  if (clinicIdSingle) baseParams.clinicId = clinicIdSingle;
+
+  const apptByIndex = new Array(resolved.length);
+  for (let i = 0; i < resolved.length; i += BATCH_SIZE) {
+    const batch = resolved.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map((d) => {
+        if (!d?.um_id) return Promise.resolve(null);
+        return ApiReporting.clinicalAppointmentSummary({ ...baseParams, doctorId: d.um_id })
+          .then((r) => (r?.data ?? r) ?? null)
+          .catch(() => null);
+      })
+    );
+    results.forEach((r, j) => { apptByIndex[i + j] = r; });
+  }
+
+  const datasets = byDoctorSeries.datasets || [];
+  const booked = byDoctorSeries.labels.map((_, i) => {
+    if (apptByIndex[i] != null) return toNum(unwrapApptKpis(apptByIndex[i]).total);
+    const bookedDs = datasets.find((ds) => String(ds.label || "").toLowerCase() === "booked");
+    return toNum(bookedDs?.data?.[i]);
+  });
+  const consultations = byDoctorSeries.labels.map((_, i) => {
+    if (apptByIndex[i] != null) return toNum(unwrapApptKpis(apptByIndex[i]).completed);
+    return datasets.reduce((sum, ds) => (
+      String(ds.label || "").toLowerCase() === "booked" ? sum : sum + toNum(ds.data?.[i])
+    ), 0);
+  });
+
+  return {
+    labels: byDoctorSeries.labels.map((label, i) => (
+      resolved[i] ? doctorFullName(resolved[i]) : label
+    )),
+    datasets: [
+      { label: "Booked", data: booked },
+      { label: "Consultations", data: consultations },
+    ],
+  };
 }
 
 export default function useMissionData({ startDate, endDate, doctorId, clinicId, refreshKey } = {}) {
@@ -187,6 +289,7 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
       cvtByDoctorRaw,
       startDate,
       endDate,
+      modesFromFanout: shouldFanoutModes,
     };
   }, [startDate, endDate, doctorId, clinicId, refreshKey]);
 
@@ -206,6 +309,7 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
         cvtByDoctorRaw,
         startDate: rangeStart,
         endDate: rangeEnd,
+        modesFromFanout,
       } = payload;
 
       const appt = apptRaw?.data ?? apptRaw ?? {};
@@ -234,6 +338,7 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
       const completed = toNum(liveKpis.completed);
       const scheduled = toNum(liveKpis.inQueue);
       const cancelled = toNum(liveKpis.cancelled);
+      const draft = toNum(liveKpis.draft);
 
       // Same period-over-period logic as useAppointmentsLive (Data Analytics Appointments).
       const prev = liveKpis.previous ?? {};
@@ -247,6 +352,7 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
       const statusDonut = [
         { label: "Completed", value: completed },
         { label: "In queue", value: scheduled },
+        { label: "Draft", value: draft },
         { label: "Cancelled", value: cancelled },
       ];
 
@@ -256,7 +362,14 @@ export default function useMissionData({ startDate, endDate, doctorId, clinicId,
 
       const visitTrend = buildVisitTrend(appt.appointments, cvtDailySeries);
 
-      const byDoctor = buildDoctorBars(modes.byDoctor, cvtByDoctorSeries);
+      const byDoctorSeries = modesFromFanout
+        ? modes.byDoctor
+        : await overlayAppointmentCounts(modes.byDoctor, {
+          startDate: rangeStart,
+          endDate: rangeEnd,
+          clinicIdSingle: singleIdOnly(clinicId),
+        });
+      const byDoctor = buildDoctorBars(byDoctorSeries, cvtByDoctorSeries, { compactLabels: true });
 
       const ageXY = seriesToXY(pt.age);
       const visitFreqXY = seriesToXY(pt.visitFrequency);
@@ -389,7 +502,10 @@ function buildDigitizedByDoctor(cvtByDoctor) {
   if (!cvtByDoctor?.labels?.length) return map;
   const data = cvtByDoctor.datasets?.[0]?.data || [];
   cvtByDoctor.labels.forEach((name, i) => {
-    map.set(String(name), toNum(data[i]));
+    const n = toNum(data[i]);
+    map.set(String(name), n);
+    const norm = normalizeDoctorName(name);
+    if (norm) map.set(norm, n);
   });
   return map;
 }
@@ -436,7 +552,7 @@ function buildVisitTrend(appointments, cvtDaily) {
   };
 }
 
-function buildDoctorBars(byDoctor, cvtByDoctor) {
+function buildDoctorBars(byDoctor, cvtByDoctor, { compactLabels = true } = {}) {
   if (!byDoctor?.labels?.length) return null;
   const doctors = byDoctor.labels;
   const datasets = byDoctor.datasets || [];
@@ -452,10 +568,13 @@ function buildDoctorBars(byDoctor, cvtByDoctor) {
         consultations += toNum(ds.data?.[i]);
       }
     });
-    // Merge CVT by full doctor name before compacting the x-axis label.
-    const digitized = toNum(digitizedMap.get(String(name)));
+    // Merge CVT by full doctor name before compacting the chart label.
+    const digitized = toNum(
+      digitizedMap.get(String(name)) ?? digitizedMap.get(normalizeDoctorName(name))
+    );
     return {
-      x: compactDrName(name),
+      x: compactLabels ? compactDrName(name) : name,
+      fullName: name,
       booked,
       consultations,
       digitized,

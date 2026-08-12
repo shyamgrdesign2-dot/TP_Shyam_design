@@ -16,6 +16,9 @@ import {
   oralPositionShort,
   reconcileOralPositions,
   ORAL_POSITION_LABEL,
+  findProcedureCatalogItem,
+  getProcedureLabel,
+  resolveVisitProcedure,
 } from "./types";
 import { useDentalMasters } from "../../../hooks/useDentalMasters";
 import { ExpandIcon } from "./ui-icons";
@@ -36,14 +39,23 @@ import ui from "./ExaminationTab.ui.module.scss";
 import { PanelShell } from "./PanelShell";
 import { ExaminationTemplateActions } from "./ExaminationTemplateActions";
 import { useExaminationTemplates } from "./hooks/useExaminationTemplates";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
+
+/** Chikitsalay: Tooth regions allowlist (API codes + mapped internal ids). */
+const CHIKITSALAY_TOOTH_REGION_IDS = new Set([
+  "full_mouth", "FULL",
+  "maxillary", "UPPER_ARCH",
+  "mandibular", "LOWER_ARCH",
+]);
 
 // ──────────────────────────────────────────────────────────────
 // OralPositionCell — multi-select dropdown for oral regions
 // ──────────────────────────────────────────────────────────────
 function OralPositionCell({ value = [], onChange, onHoverPreview, oralKind = "" }) {
   const { oralPositionGroups } = useDentalMasters();
+  const isChikitsalayAccessable = useChikitsalay();
   const positionLabelMap = useMemo(
-    () => Object.fromEntries(oralPositionGroups.flatMap((g) => g.items.map((i) => [i.id, i.label]))),
+    () => Object.fromEntries(oralPositionGroups?.flatMap((g) => g.items.map((i) => [i.id, i.label])) || []),
     [oralPositionGroups]
   );
   const [open, setOpen] = useState(false);
@@ -283,10 +295,17 @@ function OralPositionCell({ value = [], onChange, onHoverPreview, oralKind = "" 
             </div>
           );
 
-          const filtered = oralPositionGroups.map((g) => ({
-            group: g.group,
-            items: g.items.filter((it) => !q || it.label.toLowerCase().includes(q))
-          })).filter((g) => g.items.length);
+          const filtered = oralPositionGroups
+            .map((g) => ({
+              group: g.group,
+              items: g.items.filter((it) => {
+                if (isChikitsalayAccessable && g.group === "Tooth regions") {
+                  if (!CHIKITSALAY_TOOTH_REGION_IDS.has(it.id)) return false;
+                }
+                return !q || it.label.toLowerCase().includes(q);
+              }),
+            }))
+            .filter((g) => g.items.length);
 
           return (
             <div
@@ -399,15 +418,19 @@ function OralPositionCell({ value = [], onChange, onHoverPreview, oralKind = "" 
 // ──────────────────────────────────────────────────────────────
 // OralTable — record/edit grid with quick-add chips for a given kind
 // ──────────────────────────────────────────────────────────────
-function OralTable({ state, kind, catalog = [], list = [] }) {
+function OralTable({ state, kind, catalog = [], catalogItems = [], list = [] }) {
   const hasStatus = kind === "procedure";
   const { wrapRef, showEdge } = useStickyActionEdge(list.length);
+  const isChikitsalayAccessable = useChikitsalay();
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [pos, setPos] = useState(null);
 
   const inputRef = useRef(null);
   const popRef = useRef(null);
+
+  // Same as EntryTab: attach visitProcedure only for procedure catalogs (past + planned)
+  const usesProcedureCatalog = kind === "procedure" || kind === "past";
 
   const has = (name) => list.some((e) => e.name === name);
   const q = query.trim().toLowerCase();
@@ -425,8 +448,20 @@ function OralTable({ state, kind, catalog = [], list = [] }) {
       ? "Search & add past procedure"
       : "Search & add oral procedure";
 
-  const addAndClear = (name, opts = {}) => {
-    if (name) state.onAddOralEntry(kind, name);
+  const addAndClear = (nameOrItem, opts = {}) => {
+    const name = getProcedureLabel(nameOrItem);
+    if (!name) return;
+    const catalogItem = usesProcedureCatalog
+      ? (typeof nameOrItem === "object" && nameOrItem !== null
+        ? nameOrItem
+        : findProcedureCatalogItem(catalogItems, name))
+      : null;
+    const visitProcedure = isChikitsalayAccessable
+      ? resolveVisitProcedure(catalogItem)
+      : undefined;
+    state.onAddOralEntry(kind, name, {
+      ...(visitProcedure ? { visitProcedure } : {}),
+    });
     if (opts.isCustom) {
       trackDentalEvent(DENTAL_MOENGAGE_EVENTS.ORAL_CUSTOM_ENTRY_ADDED, {
         oral_kind: kind,
@@ -578,7 +613,7 @@ function OralTable({ state, kind, catalog = [], list = [] }) {
         />
       </div>
 
-      {showDropdown && pos && typeof document !== "undefined" && createPortal(
+      {showDropdown && pos && (!isChikitsalayAccessable || displayItems.length > 0) && typeof document !== "undefined" && createPortal(
         <div
           ref={popRef}
           style={{
@@ -667,7 +702,7 @@ function OralTable({ state, kind, catalog = [], list = [] }) {
 // OralExamPanel — sidebar accordions for Findings, Past work, etc.
 // ──────────────────────────────────────────────────────────────
 export function OralExamPanel({ state, onSave, saving }) {
-  const { activeOralProcedures, activeOralSurfaceFindings } = useDentalMasters();
+  const { activeOralProcedures, oralProcedureItems, activeOralSurfaceFindings } = useDentalMasters();
   const entries = Array.isArray(state.oralEntries) ? state.oralEntries : [];
   const pastProcedures = entries.filter((e) => e.kind === "past");
   const findings = entries.filter((e) => e.kind === "finding");
@@ -846,7 +881,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("past")}
             />
           }>
-          <OralTable state={state} kind="past" catalog={activeOralProcedures} list={pastProcedures} />
+          <OralTable state={state} kind="past" catalog={activeOralProcedures} catalogItems={oralProcedureItems} list={pastProcedures} />
         </AccordionWrap>
 
         <AccordionWrap
@@ -932,7 +967,7 @@ export function OralExamPanel({ state, onSave, saving }) {
               onChevronClick={() => jumpTo("procedures")}
             />
           }>
-          <OralTable state={state} kind="procedure" catalog={activeOralProcedures} list={procedures} />
+          <OralTable state={state} kind="procedure" catalog={activeOralProcedures} catalogItems={oralProcedureItems} list={procedures} />
         </AccordionWrap>
 
         <AccordionWrap

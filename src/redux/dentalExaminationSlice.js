@@ -10,6 +10,7 @@ const initialState = {
   // Tooth state: Map of toothId (string) to its clinical data
   // Example: { "T18": { findings: ["Caries"], procedures: [], notes: "Watch" } }
   toothState: {},
+  baselineToothState: {},
   version: 0,
   loading: false,
   saving: false,
@@ -66,11 +67,18 @@ const dentalExaminationSlice = createSlice({
     },
     clearDentalChart: (state) => {
       state.toothState = {};
+      state.baselineToothState = {};
       state.version = 0;
+      state.dentitionType = null;
+      state.error = null;
+      state.lastSaved = null;
     },
     resetDentalError: (state) => {
       state.error = null;
-    }
+    },
+    setBaselineToothState: (state, action) => {
+      state.baselineToothState = action.payload || {};
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -78,6 +86,7 @@ const dentalExaminationSlice = createSlice({
         state.loading = true;
         state.error = null;
         state.toothState = {};
+        state.baselineToothState = {};
         state.version = 0;
         state.dentitionType = null; // reset so stale type from previous patient doesn't bleed through
       })
@@ -88,6 +97,9 @@ const dentalExaminationSlice = createSlice({
         state.version = payload?.version || 0;
 
         state.toothState = toDentalToothState(payload);
+        state.baselineToothState = JSON.parse(
+          JSON.stringify(toDentalToothState(payload)),
+        );
       })
       .addCase(fetchDentalExamination.rejected, (state, action) => {
         state.loading = false;
@@ -108,7 +120,7 @@ const dentalExaminationSlice = createSlice({
   },
 });
 
-export const { updateToothData, syncWholeState, clearDentalChart, resetDentalError } = dentalExaminationSlice.actions;
+export const { updateToothData, syncWholeState, clearDentalChart, resetDentalError, setBaselineToothState } = dentalExaminationSlice.actions;
 export default dentalExaminationSlice.reducer;
 
 export const selectDentalExamination   = (state) => state.dentalExamination;

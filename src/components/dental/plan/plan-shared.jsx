@@ -83,7 +83,7 @@ export function PlanSurfaceAbbrTags({
 }
 // ─── Currency formatter ─────────────────────────────────────
 export function formatINR(amount) {
-  return `₹${amount.toLocaleString("en-IN")}`;
+  return `₹${(Number(amount) || 0).toLocaleString("en-IN")}`;
 }
 export function TabPill({ label, count, active, onClick }) {
   return (
@@ -226,7 +226,7 @@ export function DrawerHeader({ title, onClose, action, titleClassName }) {
   );
 }
 export function computePlanTotal(services) {
-  return services.reduce((sum, s) => sum + s.amount, 0);
+  return services.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 }
 export function computePlanDiscount(services) {
   return services.reduce((sum, s) => sum + s.discount, 0);
@@ -237,6 +237,7 @@ export function getServiceWorkflowStatus(service) {
   if (service.status === "no-show") return "no-show";
   if (service.status === "not-interested") return "not-interested";
   if (service.status === "cancelled") return "cancelled";
+  if (service.status === "refund") return "refund";
   if (service.status === "in-progress") return "in-progress";
   // Booked appointments do NOT count as activity — scheduling a visit is
   // intent, not execution. Consultations (Rx / end visit), sittings, or

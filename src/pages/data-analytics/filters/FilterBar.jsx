@@ -1,5 +1,9 @@
 import React from "react";
 import { Dropdown, DateRangePicker } from "@dhspl-tatvacare/tesseract-ui";
+import { InfoTooltip } from "../sections/KpiRow";
+
+const CLINIC_LOCK_HINT =
+  "To view another clinic, switch to it from Home page, then open Data Analytics again.";
 
 // Quick-select presets. Backend endpoints cap ranges at 31 days, so no
 // "This year" / "Till date" options (they'd always 400).
@@ -23,8 +27,8 @@ const DA_PRESETS = [
 // footer "Clear" action to reset just that filter.
 //
 // Role scoping (spec §1.7): a sub-doctor's doctor filter is locked to their
-// own name (disabled, no menu); an account with a single clinic gets a
-// disabled clinic field showing that clinic instead of a dropdown.
+// own name (disabled, no menu). Clinic is always read-only — locked to the
+// logged-in clinic from the auth token (dropdown hidden for everyone).
 export default function FilterBar({
   dateValue,
   onDateChange,
@@ -36,7 +40,8 @@ export default function FilterBar({
   clinicOptions = [],
   doctorLocked = false,
   lockedDoctorLabel,
-  singleClinic = false,
+  singleClinic = true,
+  lockedClinicLabel,
   hasActiveFilters = false,
   onClearAll,
   hideDateFilter = false,
@@ -80,30 +85,45 @@ export default function FilterBar({
         )}
       </div>
 
-      <div style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 220 }}>
-        {singleClinic ? (
-          <Dropdown
-            placeholder={clinicOptions[0]?.label || "Your clinic"}
-            options={[]}
-            value={[]}
-            mode="multi"
-            disabled
-            chevron={false}
-            ariaLabel="Clinic (single clinic account)"
-          />
-        ) : (
-          <Dropdown
-            placeholder="All clinics"
-            options={clinicOptions}
-            value={clinics}
-            onChange={onClinicsChange}
-            mode="multi"
-            optionControl="checkbox"
-            searchable={clinicOptions.length > 5}
-            secondaryAction={{ label: "Clear", onClick: () => onClinicsChange([]) }}
-            ariaLabel="Filter by clinics"
-          />
-        )}
+      <div
+        style={{
+          flex: "1 1 150px",
+          minWidth: 130,
+          maxWidth: 250,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        {/* Clinic multi-select is intentionally disabled for all users — scope
+            is always the auth-token clinic. Keep the branch so re-enabling the
+            dropdown later is a one-flag change. */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {singleClinic ? (
+            <Dropdown
+              placeholder={lockedClinicLabel || clinicOptions[0]?.label || "Your clinic"}
+              options={[]}
+              value={[]}
+              mode="multi"
+              disabled
+              chevron={false}
+              ariaLabel="Clinic (locked to logged-in clinic)"
+            />
+          ) : (
+            <Dropdown
+              placeholder="All clinics"
+              options={clinicOptions}
+              value={clinics}
+              onChange={onClinicsChange}
+              mode="multi"
+              optionControl="checkbox"
+              searchable={clinicOptions.length > 5}
+              secondaryAction={{ label: "Clear", onClick: () => onClinicsChange([]) }}
+              ariaLabel="Filter by clinics"
+            />
+          )}
+        </div>
+        {singleClinic && <InfoTooltip text={CLINIC_LOCK_HINT} />}
       </div>
 
       {/* Date range pinned right; shrinks but stays wide enough for the label. */}

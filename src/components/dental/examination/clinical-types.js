@@ -18,6 +18,82 @@ export const PROCEDURE_CATALOG = [
   "Composite Filling",
 ];
 
+export function getProcedureLabel(item) {
+  if (typeof item === "string") return String(item).replace(/\r/g, "").trim();
+  const raw = item?.label || item?.code || item?.name || "";
+  return String(raw).replace(/\r/g, "").trim();
+}
+
+export function resolveVisitProcedure(item) {
+  if (!item || typeof item !== "object") return undefined;
+
+  const nested = item.visitProcedure || item.visit_procedure;
+  if (nested && typeof nested === "object") {
+    const procedureName = nested.procedureName ?? nested.procedure_name;
+    return {
+      procedureId: nested.procedureId ?? nested.procedure_id,
+      procedureName:
+        procedureName != null
+          ? String(procedureName).replace(/\r/g, "").trim()
+          : undefined,
+      procedureCode: nested.procedureCode ?? nested.procedure_code,
+      price: nested.price,
+      discount: nested.discount ?? null,
+      discountType: nested.discountType ?? nested.discount_type,
+      gst: nested.gst,
+      totalAmount: nested.totalAmount ?? nested.total_amount,
+    };
+  }
+
+  const procedureId = item.procedureId ?? item.procedure_id;
+  if (procedureId == null) return undefined;
+
+  return {
+    procedureId,
+    procedureName: item.procedureName ?? item.procedure_name ?? getProcedureLabel(item),
+    procedureCode: item.procedureCode ?? item.procedure_code ?? item.code,
+    price: item.price,
+    discount: item.discount ?? null,
+    discountType: item.discountType ?? item.discount_type,
+    gst: item.gst,
+    totalAmount: item.totalAmount ?? item.total_amount,
+  };
+}
+
+export function normalizeProcedureCatalogItems(apiArr, fallbackArr = PROCEDURE_CATALOG) {
+  if (!apiArr?.length) {
+    return fallbackArr.map((label) => ({ code: label, label: getProcedureLabel(label) }));
+  }
+  return apiArr.map((item) => {
+    if (typeof item !== "object" || item == null) {
+      const label = getProcedureLabel(item);
+      return { code: label, label };
+    }
+    const visitProcedure = resolveVisitProcedure(item);
+    const label = getProcedureLabel(item);
+    return {
+      code: String(item.code || item.name || item.id || label).replace(/\r/g, "").trim(),
+      label,
+      ...(visitProcedure ? { visitProcedure } : {}),
+    };
+  }).filter((item) => item.label);
+}
+
+export function findProcedureCatalogItem(items, label) {
+  const q = String(label || "").trim().toLowerCase();
+  if (!q) return null;
+  return (items || []).find((item) => {
+    const vp = resolveVisitProcedure(item);
+    return (
+      getProcedureLabel(item).toLowerCase() === q ||
+      item.code?.toLowerCase() === q ||
+      item.name?.toLowerCase() === q ||
+      vp?.procedureName?.toLowerCase() === q ||
+      vp?.procedureCode?.toLowerCase() === q
+    );
+  });
+}
+
 export const TREATMENT_SURFACE_RULES = {
   Implant: "whole-tooth",
   Missing: "whole-tooth",

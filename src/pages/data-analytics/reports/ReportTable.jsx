@@ -42,7 +42,7 @@ export default function ReportTable({
     setExporting(true);
     try {
       const blob = await exportFetcher({ ...params, format: "csv" });
-      downloadBlob(blob?.data ?? blob, filename);
+      await downloadBlob(blob?.data ?? blob, filename);
     } catch (e) {
       /* export not available — silent */
     } finally {

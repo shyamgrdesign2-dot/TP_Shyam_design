@@ -79,4 +79,12 @@ ApiBulkMessages.states = function () {
     return api.post(`/user/v2/pm/info/states`, {}, baseUserManagementUrlV2);
 };
 
+ApiBulkMessages.listSpecialities = function () {
+    return api.post(`/master/data`, { dataType: ["Speciality"] }, baseUserManagementUrlV2);
+};
+
+ApiBulkMessages.listPmSpecialities = function () {
+    return api.post(`/master/pm-specialities`, {}, baseUserManagementUrlV2);
+};
+
 export default ApiBulkMessages;

@@ -46,13 +46,16 @@ import {
 } from "./plan-shared";
 import dui from "../dental-ui.module.scss";
 import styles from "./PlanEstimatesTab.module.scss";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 
 // ─── Plan Sub-Card ────────────────────────────────────────────
 function PlanSubCard({ plan, index, isOpen, onToggle }) {
   const { activatePlan, duplicatePlan, deletePlan, openDrawer, navigateTab } = usePlanContext();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
+  const isSessionPendingPlan = Boolean(plan.isSessionPending);
   const total = computePlanTotal(plan.services);
+  const isChikitsalayAccessable = useChikitsalay();
   
   const handleActivateClick = () => {
     setStartOpen(true);
@@ -103,6 +106,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
           </div>
         </div>
         <div className={styles.actionRow}>
+          {!isSessionPendingPlan && !isChikitsalayAccessable && (
           <button
             type="button"
             // onClick={handleActivateClick}
@@ -114,6 +118,8 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
           >
             Activate Plan
           </button>
+          )}
+          {!isSessionPendingPlan && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild={true}>
               <button
@@ -170,6 +176,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
           <button
             type="button"
             onClick={onToggle}
@@ -216,10 +223,20 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                 {plan.services.map((svc, idx) => {
                   const teeth = svc.teeth?.length > 0 ? svc.teeth : [svc.toothFdi];
                   const isFullMouth = teeth.includes("full-mouth");
-                  const teethCount = isFullMouth ? 1 : teeth.length;
+                  const isMaxillary = teeth.includes("maxillary");
+                  const isMandibular = teeth.includes("mandibular");
+                  const isArchScope = isFullMouth || isMaxillary || isMandibular;
+                  const teethCount = isArchScope ? 1 : teeth.length;
                   const surgeryDate = svc.procedureDate
                     ? dayjs(svc.procedureDate).format("D MMM YY")
                     : null;
+                  const archPillLabel = isFullMouth
+                    ? (isChikitsalayAccessable ? "88" : "Full")
+                    : isMaxillary
+                      ? (isChikitsalayAccessable ? "86" : "Max")
+                      : isMandibular
+                        ? (isChikitsalayAccessable ? "87" : "Mand")
+                        : null;
                   
                   return (
                     <tr key={idx} className={styles.tbodyTr}>
@@ -231,14 +248,14 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                           <p className={styles.treatmentName}>{svc.treatment}</p>
                           {teethCount > 1 ? (
                             <p className={styles.toothMeta}>{teethCount} teeth</p>
-                          ) : teethCount === 1 && !isFullMouth ? (
+                          ) : teethCount === 1 && !isArchScope ? (
                             <p className={styles.toothMeta}>{fdiToLabel(teeth[0])}</p>
                           ) : null}
                         </div>
                       </td>
                       <td className={styles.td}>
-                        {isFullMouth ? (
-                          <span className={styles.tdToothPill}>Full</span>
+                        {archPillLabel ? (
+                          <span className={styles.tdToothPill}>{archPillLabel}</span>
                         ) : teethCount > 0 ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                             {teeth.map(fdi => (
@@ -367,6 +384,7 @@ function showSnackbar(message, variant = "info") {
 export function PlanEstimatesTab() {
   const { estimatePlans, openDrawer } = usePlanContext();
   const [openIndex, setOpenIndex] = useState(0);
+  const isChikitsalayAccessable = useChikitsalay();
 
   if (estimatePlans.length === 0) {
     return (
@@ -380,7 +398,7 @@ export function PlanEstimatesTab() {
               <h3 className={styles.title}>Plan Estimates</h3>
             </div>
           </div>
-          <div className={`${dui.planClusterInnerSurface} ${styles.emptySurface}`}>
+          {!isChikitsalayAccessable && <div className={`${dui.planClusterInnerSurface} ${styles.emptySurface}`}>
             <EmptyState
               icon={<PlanEmptyIcon size={120} />}
               title="No treatment plans yet"
@@ -396,7 +414,7 @@ export function PlanEstimatesTab() {
                 </button>
               }
             />
-          </div>
+          </div>}
         </div>
       </SectionFrame>
     );
@@ -423,14 +441,14 @@ export function PlanEstimatesTab() {
             </div>
           </div>
           <div className={styles.btnGroup}>
-            <button
+            {!isChikitsalayAccessable && <button
               type="button"
               onClick={() => openDrawer({ type: "add-plan" })}
               className={styles.createBtn}
             >
               <Add size={20} variant="Linear" />
               Create Plan
-            </button>
+            </button>}
             <DropdownMenu>
               <DropdownMenuTrigger asChild={true}>
                 <button type="button" className={styles.moreBtn}>
