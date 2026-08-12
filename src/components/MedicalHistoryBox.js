@@ -281,6 +281,7 @@ function MedicalHistoryBox(props) {
     const [surgicalDateType, setSurgicalDateType] = useState('year');
     const [surgicalDate, setSurgicalDate] = useState(null);
     const selectedHistoryNoteVoiceTargetRef = useRef(null);
+    const initialSnapshotRef = useRef("");
     const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB && !gynecOnly;
 
