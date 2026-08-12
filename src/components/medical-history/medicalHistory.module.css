@@ -1,21 +1,19 @@
-.drawerBody {
+/*
+ * This panel renders inside the antd <Drawer> that every call site already
+ * provides, so there is no Tesseract Drawer shell here. Height is derived from
+ * the 60px in-box header (.modalCard-header.h-60) that MedicalHistoryBox draws.
+ */
+.panelRoot {
   display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
 }
 
-/* ── Drawer overlay: page header must sit behind ── */
-:global([data-radix-dialog-overlay]) {
-  z-index: 1099 !important;
-}
-
-/* ── Drawer shell override ── */
-.drawerShell {
-  border-radius: var(--tesseract-radius-0) !important;
+.drawerBody {
+  display: flex;
+  height: calc(100vh - var(--mh-header-height, 60px));
   overflow: hidden;
-  width: 85vw !important;
-  max-width: 85vw !important;
-  z-index: 1100 !important;
 }
 
 /* Y/N toggle: visible indicator */
@@ -55,44 +53,23 @@
   pointer-events: none;
 }
 
-/* ── Back arrow: replace close-square icon with left arrow ── */
-.drawerShell [class*="_closeBtn_"] {
-  order: -1;
+/*
+ * Header actions live in MedicalHistoryBox's own header bar (the back arrow and
+ * title are already rendered there), so we only style the gear + Save cluster.
+ */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-3);
 }
 
-.drawerShell [class*="_closeBtn_"] [data-tp-icon] {
-  -webkit-mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-left3.svg") !important;
-  mask-image: url("https://pmdoctorportal.tatvacare.in/tp-icons/straight/linear/arrow/arrow-left3.svg") !important;
-  -webkit-mask-size: contain !important;
-  mask-size: contain !important;
-  -webkit-mask-repeat: no-repeat !important;
-  mask-repeat: no-repeat !important;
-  -webkit-mask-position: center !important;
-  mask-position: center !important;
-  width: var(--tesseract-size-22) !important;
-  height: var(--tesseract-size-22) !important;
-}
-
-/* Header divider full height */
-.drawerShell [class*="_header_"] > [class*="_divider_"] {
+.headerActions > [class*="_divider_"] {
   align-self: stretch !important;
   height: auto !important;
 }
 
-/* Save button: min-width + white text */
-.footerContent button[class*="_button_"] {
-  min-width: 100px;
-}
-
-.footerContent button[class*="_button_"],
-.footerContent button[class*="_button_"] span {
-  color: var(--tesseract-fg-inverse) !important;
-}
-
-/* Drawer title size */
-.drawerShell h2[class*="_title_"] {
-  font-size: var(--tesseract-text-body-lg) !important;
-  font-weight: var(--tesseract-weight-semibold) !important;
+.headerSettingsBtn {
+  flex-shrink: 0;
 }
 
 .leftPanel {
@@ -895,12 +872,35 @@
   gap: var(--tesseract-space-1-5);
 }
 
+/* Flex row rather than a bare inline span: the Note label hosts the VoiceRx
+   dictation button, whose 36px icon otherwise overflows the 12px caption's
+   line box and floats above the text. */
 .fieldLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-1-5);
+  min-height: var(--tesseract-size-20);
   font-size: var(--tesseract-text-caption);
   font-weight: var(--tesseract-weight-regular);
   color: var(--tesseract-slate-400);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* Scale the dictation button down to sit with a caption-sized label. */
+.fieldLabel [class*="voiceButton"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tesseract-size-20);
+  height: var(--tesseract-size-20);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.fieldLabel [class*="voiceButton"] svg {
+  width: var(--tesseract-size-20);
+  height: var(--tesseract-size-20);
 }
 
 .noteField {
@@ -1036,12 +1036,12 @@
 }
 
 /* Fix: Tesseract InputBox / Dropdown focus states */
-.drawerShell [class*="_wrap_"][data-size]:focus-within [class*="_fieldRow_"] {
+.panelRoot [class*="_wrap_"][data-size]:focus-within [class*="_fieldRow_"] {
   border-color: var(--tesseract-border-focus) !important;
   box-shadow: var(--tesseract-focus-primary) !important;
 }
 
-.drawerShell [class*="_trigger_"]:focus-visible {
+.panelRoot [class*="_trigger_"]:focus-visible {
   border-color: var(--tesseract-border-focus) !important;
   box-shadow: var(--tesseract-focus-primary) !important;
 }
@@ -1100,15 +1100,15 @@
 }
 
 /* ── 12px corner radius on all SegmentedControls + Dropdown trigger ── */
-.drawerShell [role="radiogroup"] {
+.panelRoot [role="radiogroup"] {
   border-radius: var(--tesseract-radius-12) !important;
 }
 
-.drawerShell [role="radiogroup"] [role="radio"] {
+.panelRoot [role="radiogroup"] [role="radio"] {
   border-radius: var(--tesseract-radius-12) !important;
 }
 
-.drawerShell [class*="_trigger_"] {
+.panelRoot [class*="_trigger_"] {
   border-radius: var(--tesseract-radius-12) !important;
 }
 
@@ -1136,22 +1136,18 @@
   opacity: 1 !important;
 }
 
-/* ── Footer ── */
-.footerContent {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--tesseract-space-3);
-  width: 100%;
+/* Save button in the header cluster: min-width + white text */
+.headerActions button[class*="_button_"][data-variant="solid"] {
+  min-width: 100px;
 }
 
-/* ── Responsive: small screens = full width, detail stacks below ── */
-@media (max-width: 600px) {
-  .drawerShell {
-    width: 100vw !important;
-    max-width: 100vw !important;
-  }
+.headerActions button[class*="_button_"][data-variant="solid"],
+.headerActions button[class*="_button_"][data-variant="solid"] span {
+  color: var(--tesseract-fg-inverse) !important;
+}
 
+/* ── Responsive: small screens = detail stacks below ── */
+@media (max-width: 600px) {
   .drawerBody {
     flex-direction: column;
   }
@@ -1463,4 +1459,12 @@
 
 :global(div[id^="tp-tt-"][role="tooltip"]) :global(*) {
   color: inherit !important;
+}
+
+/* Additional History character counter */
+.additionalHistoryCount {
+  margin-top: var(--tesseract-space-1);
+  text-align: right;
+  font-size: var(--tesseract-text-caption-sm);
+  color: var(--tesseract-slate-400);
 }

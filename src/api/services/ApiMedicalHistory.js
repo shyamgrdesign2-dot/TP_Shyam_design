@@ -21,6 +21,22 @@ ApiMedicalHistory.searchTag = function (data) {
   return api.post(`/api/v1/medicalhistory/searchTag`, data, baseUrl);
 };
 
+/**
+ * Per-doctor Medical History drawer layout: section order + visibility.
+ * Contract: docs/MEDICAL-HISTORY-SECTION-CONFIG-API.md
+ *
+ * These endpoints are not deployed yet. Both calls are expected to fail until
+ * backend ships them; callers must treat a failure as "use defaults", never as
+ * an error worth surfacing to the doctor.
+ */
+ApiMedicalHistory.getSectionConfig = function (data) {
+  return api.post(`/api/v1/medicalhistory/getSectionConfig`, data, baseUrl);
+};
+
+ApiMedicalHistory.saveSectionConfig = function (data) {
+  return api.post(`/api/v1/medicalhistory/saveSectionConfig`, data, baseUrl);
+};
+
 ApiMedicalHistory.addEditPrivateNotes = function (data) {
   return api.post(`/api/v1/privatenotes/addPrivateNotes`, data, baseUrl);
 };
