@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { Button } from "antd";
+import { Button, message } from "antd";
 import {
   getClinicCity,
   getClinicName,
@@ -11,6 +11,7 @@ import {
 } from "../../utils/utils";
 import VideoModal from "../../common/VideoModal";
 import { ASSETS } from "../../assets";
+import { isReceptionistSession } from "../../utils/receptionistSession";
 import {
   buildFeatureInterestPayload,
   getFeatureInterestStatus,
@@ -35,7 +36,7 @@ export default function FeatureIntroNoAccessPage({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const isReceptionist = new URLSearchParams(location.search).has("receptionist");
+  const isReceptionist = isReceptionistSession(location.search);
   const { profile } = useSelector((state) => state.doctors);
 
   const [submitted, setSubmitted] = useState(false);
@@ -132,9 +133,15 @@ export default function FeatureIntroNoAccessPage({
       });
 
       const result = await submitFeatureInterest({ feature, payload });
-      if (result?.submitted) setSubmitted(true);
+      if (result?.submitted) {
+        setSubmitted(true);
+        message.success("Interest submitted successfully");
+      }
     } catch (e) {
       console.error("Feature interest submit failed", e);
+      message.error(
+        e?.message || "Failed to submit interest. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }

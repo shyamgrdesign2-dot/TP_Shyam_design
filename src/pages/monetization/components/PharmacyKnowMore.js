@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Tabs } from "antd";
+import { Button, Tabs, message } from "antd";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
@@ -121,9 +121,15 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
       });
 
       const result = await submitFeatureInterest({ feature: "pharmacy", payload });
-      if (result?.submitted) setInterestSubmitted(true);
+      if (result?.submitted) {
+        setInterestSubmitted(true);
+        message.success("Interest submitted successfully");
+      }
     } catch (e) {
       console.error("Feature interest submit failed", e);
+      message.error(
+        e?.message || "Failed to submit interest. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }

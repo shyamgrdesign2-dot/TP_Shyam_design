@@ -210,11 +210,13 @@ function SidebarDoctor() {
       setHoveredItem(null);
     }
 
-    // Pharmacy: paid → SSO; otherwise always open in-app no-access intro.
+    // Pharmacy: SSO only when paid + not expired (canSso). Else lead-gen no-access.
+    // If planDetails not loaded yet, no-op to avoid false lead-gen for paying users.
     // Handled before monetization gate so lead-gen works even when monetization is off.
     if (moduleName === S_PHARMACY) {
+      if (!planDetails) return;
       const pharmacyAccess = getPharmacyAccessState(planDetails);
-      if (pharmacyAccess.segment === "paid") {
+      if (pharmacyAccess.canSso) {
         return check_SSO(moduleName);
       }
       return navigate("/pharmacy");
@@ -712,18 +714,25 @@ function SidebarDoctor() {
                 return (
                   <div key={i} className="position-relative">
                     <NavLink
-                      to={item.type === S_PHARMACY ? "/pharmacy" : undefined}
+                      to={
+                        item.type === S_PHARMACY &&
+                        planDetails &&
+                        !getPharmacyAccessState(planDetails).canSso
+                          ? "/pharmacy"
+                          : undefined
+                      }
                       onClick={(e) => {
-                        // Pharmacy unpaid uses `to="/pharmacy"`; paid must SSO instead.
+                        // Pharmacy: canSso → SSO; else in-app no-access. Wait if planDetails null.
                         if (item.type === S_PHARMACY) {
+                          e.preventDefault();
+                          setHoveredItem(null);
+                          if (!planDetails) return;
                           const pharmacyAccess = getPharmacyAccessState(planDetails);
-                          if (pharmacyAccess.segment === "paid") {
-                            e.preventDefault();
-                            setHoveredItem(null);
+                          if (pharmacyAccess.canSso) {
                             check_SSO(S_PHARMACY);
                             return;
                           }
-                          setHoveredItem(null);
+                          navigate("/pharmacy");
                           return;
                         }
                         e.preventDefault();
@@ -765,7 +774,8 @@ function SidebarDoctor() {
                     {/* {moment(planDetails?.plan_active_date).diff("2025-07-01", 'days') > 0 && */}
                     {tp_monetization_enable &&
                       (item.type === S_PHARMACY ? (
-                        getPharmacyAccessState(planDetails).segment !== "paid" && (
+                        planDetails &&
+                        !getPharmacyAccessState(planDetails).canSso && (
                           <div className="trial-sidebar">
                             <img src={LockIcon} alt="Locked" />
                           </div>
