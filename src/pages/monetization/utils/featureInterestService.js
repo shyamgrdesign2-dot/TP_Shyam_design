@@ -50,17 +50,62 @@ function unwrapAxiosError(error) {
 }
 
 /**
+ * Owner-doctor may return either:
+ * - digitization envelope: { success, data: { um_name, um_contact1, ... } }
+ * - flat body: { um_name, um_contact1, hm_id, ... } (as from curl)
+ */
+function normalizeOwnerDoctorResponse(res) {
+  if (!res || typeof res !== "object") return null;
+
+  if (res.success === true) {
+    return res.data && typeof res.data === "object" ? res.data : null;
+  }
+
+  if (res.success === false) {
+    const err = new Error(res.error || "Request failed");
+    err.response = res;
+    throw err;
+  }
+
+  // Flat owner payload (no success envelope)
+  if (
+    res.um_id != null ||
+    res.um_name != null ||
+    res.um_contact1 != null ||
+    res.owner_doctor != null
+  ) {
+    return res;
+  }
+
+  return null;
+}
+
+/**
  * GET clinic owner doctor for the authenticated session.
  * Response fields used on interest submit: um_name → ownerDocName, um_contact1 → ownerDocMobile.
  */
 export const getOwnerDoctor = async () => {
   try {
     const response = await api.get(OWNER_DOCTOR_PATH, baseUrl);
-    return ensureSuccessful(response);
+    const owner = normalizeOwnerDoctorResponse(response);
+    if (!owner) {
+      throw new Error("Owner doctor response missing");
+    }
+    return owner;
   } catch (error) {
     if (error?.response?.data && typeof error.response.data === "object") {
       try {
-        return ensureSuccessful(error.response.data);
+        const owner = normalizeOwnerDoctorResponse(error.response.data);
+        if (owner) return owner;
+      } catch {
+        // fall through
+      }
+    }
+    // Some paths throw our normalized Error with .response already set
+    if (error?.response && !error?.response?.data) {
+      try {
+        const owner = normalizeOwnerDoctorResponse(error.response);
+        if (owner) return owner;
       } catch {
         // fall through
       }
