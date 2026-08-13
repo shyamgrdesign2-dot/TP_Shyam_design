@@ -66,13 +66,15 @@ const PrimaryActionButton = ({
   const [dropdownWidth, setDropdownWidth] = useState("7.3rem");
   const isTabletViewport = useTabletViewport();
 
-  // SmartRx is not supported on phones or tablets (incl. wide tablets / iPad desktop mode)
+  // Wide tablets (esp. iPad desktop mode) often report as desktop UA — catch them explicitly
   const isIPadDesktopMode =
     typeof navigator !== "undefined" &&
     /Macintosh/.test(navigator.userAgent) &&
     navigator.maxTouchPoints > 1;
-  const canShowSmartRx =
-    isSmartRxAccessible && !isMobile && !isTablet && !isTabletViewport && !isIPadDesktopMode;
+  const isTabletDevice = isTablet || isTabletViewport || isIPadDesktopMode;
+
+  // SmartRx is not supported on phones or tablets
+  const canShowSmartRx = isSmartRxAccessible && !isMobile && !isTabletDevice;
 
   useEffect(() => {
     const handleResize = () => {
@@ -113,10 +115,9 @@ const PrimaryActionButton = ({
   const allAvailableOptions = [];
   const dropdownOptionsList = [];
 
-  // TabRx should be shown only on tablet devices (not on laptops or mobiles)
-
+  // TabRx on mobile/tablet (incl. wide tablets that don't report as isMobile)
   const isTabRxEnabledFromGB = useFeatureIsOn(GB_TAB_RX);
-  const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
+  const isTabRxVisible = isTabRxEnabledFromGB && (isMobile || isTabletDevice);
 
   const isDental = dpid === 26 || (department && department.toLowerCase() === 'dental');
   const isDentalEnabled = useIsDentalEnabled();
