@@ -23,6 +23,7 @@ export const FEATURE_INTEREST_FEATURES = ["lims", "pharmacy"];
 export const FEATURE_INTEREST_SOURCES = ["kea", "doctor_portal"];
 
 const FEATURE_INTEREST_PATH = "/api/v1/digitization/feature-interest";
+const OWNER_DOCTOR_PATH = "/api/v1/digitization/owner-doctor";
 const FALLBACK = "-";
 
 function ensureSuccessful(res) {
@@ -49,8 +50,39 @@ function unwrapAxiosError(error) {
 }
 
 /**
+ * GET clinic owner doctor for the authenticated session.
+ * Response fields used on interest submit: um_name → ownerDocName, um_contact1 → ownerDocMobile.
+ */
+export const getOwnerDoctor = async () => {
+  try {
+    const response = await api.get(OWNER_DOCTOR_PATH, baseUrl);
+    return ensureSuccessful(response);
+  } catch (error) {
+    if (error?.response?.data && typeof error.response.data === "object") {
+      try {
+        return ensureSuccessful(error.response.data);
+      } catch {
+        // fall through
+      }
+    }
+    return unwrapAxiosError(error);
+  }
+};
+
+function withOwnerDoctorFields(payload, owner) {
+  return {
+    ...payload,
+    ownerDocName: owner?.um_name?.trim() || FALLBACK,
+    ownerDocMobile: owner?.um_contact1
+      ? String(owner.um_contact1).trim()
+      : FALLBACK,
+  };
+}
+
+/**
  * Build POST body matching backend SubmitInput in featureInterest.route.ts.
  * Missing clinic/address fields fall back to "-" (approved product behavior).
+ * ownerDocName / ownerDocMobile are filled at submit time via getOwnerDoctor.
  */
 export function buildFeatureInterestPayload({
   feature,
@@ -117,6 +149,8 @@ export function buildFeatureInterestPayload({
     hmBusinessId: String(hmBusinessId).trim() || FALLBACK,
     doctorId: String(doctorId).trim() || FALLBACK,
     source: isReceptionist ? "kea" : "doctor_portal",
+    ownerDocName: FALLBACK,
+    ownerDocMobile: FALLBACK,
   };
 
   let receptionistId = null;
@@ -143,19 +177,12 @@ export function buildFeatureInterestPayload({
 }
 
 /**
- * Status lookup: receptionist sessions use receptionistId; doctor sessions use doctorId.
+ * Status lookup by feature (auth/session identifies the actor; no doctorId/receptionistId query).
  */
-export const getFeatureInterestStatus = async ({
-  feature,
-  doctorId,
-  receptionistId,
-}) => {
+export const getFeatureInterestStatus = async ({ feature }) => {
   try {
-    const query = receptionistId
-      ? `receptionistId=${encodeURIComponent(receptionistId)}`
-      : `doctorId=${encodeURIComponent(doctorId)}`;
     const response = await api.get(
-      `${FEATURE_INTEREST_PATH}/${encodeURIComponent(feature)}?${query}`,
+      `${FEATURE_INTEREST_PATH}/${encodeURIComponent(feature)}`,
       baseUrl,
     );
     return ensureSuccessful(response);
@@ -172,11 +199,23 @@ export const getFeatureInterestStatus = async ({
   }
 };
 
+/**
+ * On interest click: fetch owner doctor → merge ownerDocName/ownerDocMobile → POST interest.
+ */
 export const submitFeatureInterest = async ({ feature, payload }) => {
+  let owner = null;
+  try {
+    owner = await getOwnerDoctor();
+  } catch (error) {
+    console.error("Owner doctor fetch failed", error);
+  }
+
+  const payloadWithOwner = withOwnerDoctorFields(payload, owner);
+
   try {
     const response = await api.post(
       `${FEATURE_INTEREST_PATH}/${encodeURIComponent(feature)}`,
-      payload,
+      payloadWithOwner,
       baseUrl,
     );
     return ensureSuccessful(response);

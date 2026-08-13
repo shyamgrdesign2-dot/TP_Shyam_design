@@ -84,20 +84,9 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
 
     const run = async () => {
       setIsStatusLoading(true);
-
-      if (!statusActorId) {
-        if (!isMounted) return;
-        setInterestSubmitted(false);
-        setIsStatusLoading(false);
-        return;
-      }
-
       try {
         const status = await getFeatureInterestStatus({
           feature: "pharmacy",
-          ...(isReceptionist
-            ? { receptionistId: String(statusActorId).trim() }
-            : { doctorId: String(statusActorId).trim() }),
         });
         if (!isMounted) return;
         setInterestSubmitted(Boolean(status?.submitted));
@@ -115,7 +104,7 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
     return () => {
       isMounted = false;
     };
-  }, [statusActorId, isReceptionist]);
+  }, []);
 
   const handleRequestAccess = useCallback(async () => {
     if (interestSubmitted || submitting || !statusActorId) return;

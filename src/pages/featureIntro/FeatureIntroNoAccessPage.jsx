@@ -58,7 +58,7 @@ export default function FeatureIntroNoAccessPage({
         ? built.receptionistId
         : "";
     return {
-      // Status + CTA gate: receptionistId when receptionist, else doctorId.
+      // CTA/submit gate: receptionistId when receptionist, else doctorId.
       statusActorId: isReceptionist ? nextReceptionistId : nextDoctorId,
     };
   }, [feature, profile, isReceptionist, location.search]);
@@ -67,21 +67,9 @@ export default function FeatureIntroNoAccessPage({
     let isMounted = true;
 
     const run = async () => {
-      if (!statusActorId) {
-        if (!isMounted) return;
-        setSubmitted(false);
-        setIsStatusLoading(false);
-        return;
-      }
-
       setIsStatusLoading(true);
       try {
-        const status = await getFeatureInterestStatus({
-          feature,
-          ...(isReceptionist
-            ? { receptionistId: String(statusActorId).trim() }
-            : { doctorId: String(statusActorId).trim() }),
-        });
+        const status = await getFeatureInterestStatus({ feature });
         if (!isMounted) return;
         setSubmitted(Boolean(status?.submitted));
       } catch (e) {
@@ -98,7 +86,7 @@ export default function FeatureIntroNoAccessPage({
     return () => {
       isMounted = false;
     };
-  }, [statusActorId, feature, isReceptionist]);
+  }, [feature]);
 
   const handleRequestAccess = useCallback(async () => {
     if (submitted || submitting || !statusActorId) return;
