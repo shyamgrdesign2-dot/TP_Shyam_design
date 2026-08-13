@@ -1,23 +1,14 @@
 import React from "react";
+import { TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import FeatureIntroNoAccessPage from "../featureIntro/FeatureIntroNoAccessPage";
 
 const PharmacyIcon = (
-  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path
-      d="M3 9h18v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-      stroke="#4b4ad5"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M3 9l2.5-5h13L21 9M12 13v5M9.5 15.5h5"
-      stroke="#4b4ad5"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
+  <TPLibraryIcon
+    name="capsule"
+    variant="bulk"
+    size={48}
+    color="var(--tesseract-blue-500, #4b4ad5)"
+  />
 );
 
 /** Placeholder — set `link` / `thumbnail` when video is ready. */

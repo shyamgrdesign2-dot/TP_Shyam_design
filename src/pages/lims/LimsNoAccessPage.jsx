@@ -1,22 +1,14 @@
 import React from "react";
+import { TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import FeatureIntroNoAccessPage from "../featureIntro/FeatureIntroNoAccessPage";
 
 const LimsIcon = (
-  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path
-      d="M9.5 2v6.4L4.7 18.2A2 2 0 006.5 21h11a2 2 0 001.8-2.8L14.5 8.4V2"
-      stroke="#4b4ad5"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M9 2h6M7.5 15h9"
-      stroke="#4b4ad5"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    />
-  </svg>
+  <TPLibraryIcon
+    name="ai-flask"
+    variant="bulk"
+    size={48}
+    color="var(--tesseract-blue-500, #4b4ad5)"
+  />
 );
 
 /** Placeholder — set `link` / `thumbnail` when video is ready. */
