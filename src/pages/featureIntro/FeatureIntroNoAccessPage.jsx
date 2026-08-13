@@ -161,7 +161,11 @@ export default function FeatureIntroNoAccessPage({
   ]);
 
   return (
-    <div className={styles.shell}>
+    <div
+      className={[styles.shell, isReceptionist ? styles.shellReceptionist : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <div className={styles.header}>
         {!isReceptionist && (
           <>
@@ -202,7 +206,12 @@ export default function FeatureIntroNoAccessPage({
             disabled={!hasVideo}
             aria-label={hasVideo ? "Play video" : "Video coming soon"}
           >
-            <img width={55} height={55} src={playIcon} alt="" />
+            <img
+              width={isReceptionist ? 40 : 55}
+              height={isReceptionist ? 40 : 55}
+              src={playIcon}
+              alt=""
+            />
           </button>
 
           <div className={styles.actions}>
