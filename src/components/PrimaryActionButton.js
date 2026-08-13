@@ -7,7 +7,6 @@ import { isZydus } from "../utils/utils";
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { GB_TAB_RX, GB_CVT_EXT_HOS } from "../utils/constants";
 import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
-import useTabletViewport from "../hooks/useTabletViewport";
 import { ASSETS } from "../assets";
 const smartPad = ASSETS.images.smartpad;
 
@@ -64,15 +63,6 @@ const PrimaryActionButton = ({
   );
   const buttonRef = useRef(null);
   const [dropdownWidth, setDropdownWidth] = useState("7.3rem");
-  const isTabletViewport = useTabletViewport();
-
-  // SmartRx is not supported on phones or tablets (incl. wide tablets / iPad desktop mode)
-  const isIPadDesktopMode =
-    typeof navigator !== "undefined" &&
-    /Macintosh/.test(navigator.userAgent) &&
-    navigator.maxTouchPoints > 1;
-  const canShowSmartRx =
-    isSmartRxAccessible && !isMobile && !isTablet && !isTabletViewport && !isIPadDesktopMode;
 
   useEffect(() => {
     const handleResize = () => {
@@ -124,13 +114,13 @@ const PrimaryActionButton = ({
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
   if (isCvtExtHosAccessableFromGB) {
-    if (canShowSmartRx) {
+    if (isSmartRxAccessible) {
       allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
   } else if (isDentalAndEnabled) {
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onTypeRxClick });
 
-    if (canShowSmartRx) {
+    if (isSmartRxAccessible && !isMobile) {
       dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
     if (isVoiceRxAccessible) {
@@ -143,7 +133,7 @@ const PrimaryActionButton = ({
       dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
   } else if (isZydusAccount) {
-    if (canShowSmartRx) {
+    if (isSmartRxAccessible && !isMobile) {
       dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
     if (isTabRxVisible) {
@@ -157,7 +147,7 @@ const PrimaryActionButton = ({
     }
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
   } else {
-    if (canShowSmartRx) {
+    if (isSmartRxAccessible && !isMobile) {
       allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
 
