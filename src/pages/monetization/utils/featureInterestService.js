@@ -119,12 +119,14 @@ export function buildFeatureInterestPayload({
     source: isReceptionist ? "kea" : "doctor_portal",
   };
 
+  let receptionistId = null;
   if (isReceptionist) {
     // Receptionist token user_id is receptionistId (URL receptionistId as fallback).
-    const receptionistId =
+    receptionistId =
       tokenUserId || urlParams.get("receptionistId") || FALLBACK;
     const receptionistName = urlParams.get("receptionistName");
     payload.receptionistId = String(receptionistId).trim() || FALLBACK;
+    receptionistId = payload.receptionistId;
     if (receptionistName) payload.receptionistName = receptionistName;
     if (tokenData?.mobile_no) {
       payload.receptionistNumber = String(tokenData.mobile_no);
@@ -132,15 +134,28 @@ export function buildFeatureInterestPayload({
   }
 
   // feature is path param only; keep for callers that need it
-  return { feature, payload, doctorId: payload.doctorId };
+  return {
+    feature,
+    payload,
+    doctorId: payload.doctorId,
+    receptionistId,
+  };
 }
 
-export const getFeatureInterestStatus = async ({ feature, doctorId }) => {
+/**
+ * Status lookup: receptionist sessions use receptionistId; doctor sessions use doctorId.
+ */
+export const getFeatureInterestStatus = async ({
+  feature,
+  doctorId,
+  receptionistId,
+}) => {
   try {
+    const query = receptionistId
+      ? `receptionistId=${encodeURIComponent(receptionistId)}`
+      : `doctorId=${encodeURIComponent(doctorId)}`;
     const response = await api.get(
-      `${FEATURE_INTEREST_PATH}/${encodeURIComponent(feature)}?doctorId=${encodeURIComponent(
-        doctorId,
-      )}`,
+      `${FEATURE_INTEREST_PATH}/${encodeURIComponent(feature)}?${query}`,
       baseUrl,
     );
     return ensureSuccessful(response);

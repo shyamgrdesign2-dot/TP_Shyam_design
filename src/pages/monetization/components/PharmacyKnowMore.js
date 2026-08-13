@@ -31,14 +31,21 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
   const [interestSubmitted, setInterestSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const doctorId = useMemo(() => {
+  const { statusActorId } = useMemo(() => {
     const built = buildFeatureInterestPayload({
       feature: "pharmacy",
       profile,
       isReceptionist,
       search: location.search,
     });
-    return built.doctorId !== "-" ? built.doctorId : "";
+    const doctorId = built.doctorId !== "-" ? built.doctorId : "";
+    const receptionistId =
+      built.receptionistId && built.receptionistId !== "-"
+        ? built.receptionistId
+        : "";
+    return {
+      statusActorId: isReceptionist ? receptionistId : doctorId,
+    };
   }, [profile, isReceptionist, location.search]);
 
   const buildBaseEventAttrs = useCallback(() => {
@@ -78,7 +85,7 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
     const run = async () => {
       setIsStatusLoading(true);
 
-      if (!doctorId) {
+      if (!statusActorId) {
         if (!isMounted) return;
         setInterestSubmitted(false);
         setIsStatusLoading(false);
@@ -88,7 +95,9 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
       try {
         const status = await getFeatureInterestStatus({
           feature: "pharmacy",
-          doctorId: String(doctorId).trim(),
+          ...(isReceptionist
+            ? { receptionistId: String(statusActorId).trim() }
+            : { doctorId: String(statusActorId).trim() }),
         });
         if (!isMounted) return;
         setInterestSubmitted(Boolean(status?.submitted));
@@ -106,10 +115,10 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
     return () => {
       isMounted = false;
     };
-  }, [doctorId]);
+  }, [statusActorId, isReceptionist]);
 
   const handleRequestAccess = useCallback(async () => {
-    if (interestSubmitted || submitting || !doctorId) return;
+    if (interestSubmitted || submitting || !statusActorId) return;
 
     trackEvent("TP_Pharmacy_RequestAccess", buildBaseEventAttrs());
     setSubmitting(true);
@@ -132,7 +141,7 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
   }, [
     interestSubmitted,
     submitting,
-    doctorId,
+    statusActorId,
     buildBaseEventAttrs,
     profile,
     isReceptionist,
@@ -198,10 +207,10 @@ const PharmacyKnowMore = ({ handlePharmacyKnowMore }) => {
           className="btn btn-proceed btn-primary3 w-100 align-items-center justify-content-center d-flex"
           onClick={handleRequestAccess}
           disabled={
-            interestSubmitted || isStatusLoading || submitting || !doctorId
+            interestSubmitted || isStatusLoading || submitting || !statusActorId
           }
           aria-disabled={
-            interestSubmitted || isStatusLoading || submitting || !doctorId
+            interestSubmitted || isStatusLoading || submitting || !statusActorId
           }
         >
           {interestSubmitted ? "Interest submitted" : "I'm interested"}

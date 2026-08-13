@@ -45,21 +45,29 @@ export default function FeatureIntroNoAccessPage({
 
   const hasVideo = Boolean(video?.link);
 
-  const doctorId = useMemo(() => {
+  const { statusActorId } = useMemo(() => {
     const built = buildFeatureInterestPayload({
       feature,
       profile,
       isReceptionist,
       search: location.search,
     });
-    return built.doctorId !== "-" ? built.doctorId : "";
+    const nextDoctorId = built.doctorId !== "-" ? built.doctorId : "";
+    const nextReceptionistId =
+      built.receptionistId && built.receptionistId !== "-"
+        ? built.receptionistId
+        : "";
+    return {
+      // Status + CTA gate: receptionistId when receptionist, else doctorId.
+      statusActorId: isReceptionist ? nextReceptionistId : nextDoctorId,
+    };
   }, [feature, profile, isReceptionist, location.search]);
 
   useEffect(() => {
     let isMounted = true;
 
     const run = async () => {
-      if (!doctorId) {
+      if (!statusActorId) {
         if (!isMounted) return;
         setSubmitted(false);
         setIsStatusLoading(false);
@@ -70,7 +78,9 @@ export default function FeatureIntroNoAccessPage({
       try {
         const status = await getFeatureInterestStatus({
           feature,
-          doctorId: String(doctorId).trim(),
+          ...(isReceptionist
+            ? { receptionistId: String(statusActorId).trim() }
+            : { doctorId: String(statusActorId).trim() }),
         });
         if (!isMounted) return;
         setSubmitted(Boolean(status?.submitted));
@@ -88,10 +98,10 @@ export default function FeatureIntroNoAccessPage({
     return () => {
       isMounted = false;
     };
-  }, [doctorId, feature]);
+  }, [statusActorId, feature, isReceptionist]);
 
   const handleRequestAccess = useCallback(async () => {
-    if (submitted || submitting || !doctorId) return;
+    if (submitted || submitting || !statusActorId) return;
 
     const clinic_name = getClinicName(profile?.hospital_data);
     const clinic_city = getClinicCity(profile?.hospital_data);
@@ -142,7 +152,7 @@ export default function FeatureIntroNoAccessPage({
   }, [
     submitted,
     submitting,
-    doctorId,
+    statusActorId,
     profile,
     isReceptionist,
     location.search,
@@ -200,7 +210,9 @@ export default function FeatureIntroNoAccessPage({
               type="primary"
               className="btn btn-primary3 btn-41 px-4"
               onClick={handleRequestAccess}
-              disabled={submitted || isStatusLoading || submitting || !doctorId}
+              disabled={
+                submitted || isStatusLoading || submitting || !statusActorId
+              }
             >
               {submitted ? "Interest submitted" : "I'm interested"}
             </Button>
