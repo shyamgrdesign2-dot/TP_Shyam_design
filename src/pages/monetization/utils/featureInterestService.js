@@ -62,33 +62,69 @@ export function buildFeatureInterestPayload({
   const clinic = getClinic(profile?.hospital_data);
   const urlParams = new URLSearchParams(search);
 
-  const doctorId =
-    tokenData?.doctor_unique_id ||
-    profile?.doctor_unique_id ||
-    tokenData?.doctorId ||
-    urlParams.get("doctorId") ||
-    FALLBACK;
+  const tokenUserId = tokenData?.user_id;
+  // Backend doctorId expects um_id / user_id (not doctor_unique_id).
+  // Receptionist JWT user_id is the receptionist — use URL um_id / profile um_id for doctorId.
+  // Doctor JWT user_id is the doctorId.
+  const urlDoctorUmId = urlParams.get("um_id")?.split(",")?.[0]?.trim();
+  const doctorId = isReceptionist
+    ? urlDoctorUmId || profile?.um_id || urlParams.get("doctorId") || FALLBACK
+    : tokenUserId ||
+      profile?.um_id ||
+      urlDoctorUmId ||
+      urlParams.get("doctorId") ||
+      FALLBACK;
 
   const hmAddress =
     clinic?.hm_address || (clinic?.hm_address1 ? clinic.hm_address1 : "");
 
+  // Receptionist/Kea sessions pass clinic + receptionist details in the URL, e.g.
+  // ?receptionist=dashboard&receptionistId=1008&receptionistName=...&clinicName=...&city=...&address=...
+  const urlClinicName = urlParams.get("clinicName");
+  const urlCity = urlParams.get("city") || urlParams.get("centerCity");
+  const urlAddress = urlParams.get("address");
+
+  const clinicId =
+    urlParams.get("clinicId") ||
+    tokenData?.clinic_id ||
+    clinic?.hm_id ||
+    FALLBACK;
+
+  const hmBusinessId =
+    urlParams.get("hospitalBusinessId") ||
+    urlParams.get("hm_business_id") ||
+    tokenData?.hospital_business_id ||
+    clinic?.hm_business_id ||
+    FALLBACK;
+
   const payload = {
     doctorName: profile?.um_name || FALLBACK,
+    // Receptionist token mobile is the receptionist number — never use it as doctorNumber.
     doctorNumber: profile?.um_contact
       ? String(profile.um_contact)
-      : tokenData?.mobile_no
+      : !isReceptionist && tokenData?.mobile_no
         ? String(tokenData.mobile_no)
         : FALLBACK,
-    city: getClinicCity(profile?.hospital_data) || FALLBACK,
+    city: (isReceptionist ? urlCity : null) || getClinicCity(profile?.hospital_data) || FALLBACK,
     state: clinic?.hm_state || FALLBACK,
-    address: hmAddress || FALLBACK,
-    clinicName: getClinicName(profile?.hospital_data) || FALLBACK,
+    address:
+      (isReceptionist ? urlAddress : null) || hmAddress || FALLBACK,
+    clinicName:
+      (isReceptionist ? urlClinicName : null) ||
+      getClinicName(profile?.hospital_data) ||
+      FALLBACK,
+    clinicId: String(clinicId).trim() || FALLBACK,
+    hmBusinessId: String(hmBusinessId).trim() || FALLBACK,
     doctorId: String(doctorId).trim() || FALLBACK,
     source: isReceptionist ? "kea" : "doctor_portal",
   };
 
   if (isReceptionist) {
+    // Receptionist token user_id is receptionistId (URL receptionistId as fallback).
+    const receptionistId =
+      tokenUserId || urlParams.get("receptionistId") || FALLBACK;
     const receptionistName = urlParams.get("receptionistName");
+    payload.receptionistId = String(receptionistId).trim() || FALLBACK;
     if (receptionistName) payload.receptionistName = receptionistName;
     if (tokenData?.mobile_no) {
       payload.receptionistNumber = String(tokenData.mobile_no);
