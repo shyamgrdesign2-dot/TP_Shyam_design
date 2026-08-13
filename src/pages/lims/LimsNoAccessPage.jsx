@@ -1,6 +1,7 @@
 import React from "react";
 import { TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import FeatureIntroNoAccessPage from "../featureIntro/FeatureIntroNoAccessPage";
+import limsIntroThumbnail from "../featureIntro/assets/lims-intro-thumbnail.png";
 
 const LimsIcon = (
   <TPLibraryIcon
@@ -11,10 +12,10 @@ const LimsIcon = (
   />
 );
 
-/** Placeholder — set `link` / `thumbnail` when video is ready. */
+/** Thumbnail only until video is ready — set `link` when available. */
 const LIMS_VIDEO = {
   link: "",
-  thumbnail: "",
+  thumbnail: limsIntroThumbnail,
 };
 
 export default function LimsNoAccessPage() {

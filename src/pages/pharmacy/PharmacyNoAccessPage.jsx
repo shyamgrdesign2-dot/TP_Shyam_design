@@ -1,6 +1,7 @@
 import React from "react";
 import { TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import FeatureIntroNoAccessPage from "../featureIntro/FeatureIntroNoAccessPage";
+import pharmacyIntroThumbnail from "../featureIntro/assets/pharmacy-intro-thumbnail.png";
 
 const PharmacyIcon = (
   <TPLibraryIcon
@@ -11,10 +12,10 @@ const PharmacyIcon = (
   />
 );
 
-/** Placeholder — set `link` / `thumbnail` when video is ready. */
+/** Thumbnail only until video is ready — set `link` when available. */
 const PHARMACY_VIDEO = {
   link: "",
-  thumbnail: "",
+  thumbnail: pharmacyIntroThumbnail,
 };
 
 export default function PharmacyNoAccessPage() {

@@ -122,6 +122,12 @@
   opacity: 0.9;
 }
 
+/* Thumbnail-only preview (no video link yet) */
+.videoThumbPreview:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .actions {
   display: flex;
   flex-direction: column;

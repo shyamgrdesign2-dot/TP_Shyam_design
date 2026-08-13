@@ -44,6 +44,7 @@ export default function FeatureIntroNoAccessPage({
   const [isVideoOpen, setIsVideoOpen] = useState(false);
 
   const hasVideo = Boolean(video?.link);
+  const hasThumbnail = Boolean(video?.thumbnail);
 
   const { statusActorId } = useMemo(() => {
     const built = buildFeatureInterestPayload({
@@ -182,9 +183,14 @@ export default function FeatureIntroNoAccessPage({
 
           <button
             type="button"
-            className={styles.videoThumb}
+            className={[
+              styles.videoThumb,
+              hasThumbnail && !hasVideo ? styles.videoThumbPreview : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             style={
-              video?.thumbnail
+              hasThumbnail
                 ? { backgroundImage: `url(${video.thumbnail})` }
                 : undefined
             }
@@ -192,20 +198,23 @@ export default function FeatureIntroNoAccessPage({
               if (hasVideo) setIsVideoOpen(true);
             }}
             disabled={!hasVideo}
-            aria-label={hasVideo ? "Play video" : "Video coming soon"}
+            aria-label={hasVideo ? "Play video" : "Feature preview"}
           >
-            <img
-              width={isReceptionist ? 40 : 55}
-              height={isReceptionist ? 40 : 55}
-              src={playIcon}
-              alt=""
-            />
+            {hasVideo && (
+              <img
+                width={isReceptionist ? 40 : 55}
+                height={isReceptionist ? 40 : 55}
+                src={playIcon}
+                alt=""
+              />
+            )}
           </button>
 
           <div className={styles.actions}>
             <Button
               type="primary"
               className="btn btn-primary3 btn-41 px-4"
+              style={{ width: "40%" }}
               onClick={handleRequestAccess}
               disabled={
                 submitted || isStatusLoading || submitting || !statusActorId
