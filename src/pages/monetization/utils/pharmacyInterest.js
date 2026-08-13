@@ -39,12 +39,17 @@ export function markPharmacyInterestSubmittedToday() {
   writeExtraStorage(jsonData);
 }
 
+function remainingDaysFrom(dateValue) {
+  if (!dateValue) return null;
+  const expiry = moment(dateValue);
+  if (!expiry.isValid()) return null;
+  return expiry.startOf("day").diff(moment().startOf("day"), "days");
+}
+
 /**
- * Pharmacy access segments for Know More / sidebar.
- * - trial_active: dual TRIAL and EMR plan_expiry_date not past
- * - trial_expired: dual TRIAL but expiry past
- * - locked: EMR paid, Pharmacy still TRIAL (no SSO)
- * - paid: Pharmacy not on TRIAL
+ * Pharmacy access for sidebar / lead-gen.
+ * SSO only when Pharmacy is paid and the Pharmacy offering is not expired.
+ * Dual trial, locked, expired, and unknown mappings → no-access (canSso: false).
  */
 export function getPharmacyAccessState(planDetails) {
   const { service_mappings, plan_expiry_date } = planDetails || {};
@@ -53,35 +58,39 @@ export function getPharmacyAccessState(planDetails) {
 
   const emrTrial = emr?.plan_tier === TRIAL;
   const pharmacyTrial = pharmacy?.plan_tier === TRIAL;
-  const pharmacyPaid = pharmacy && pharmacy.plan_tier !== TRIAL;
-  const emrPaid = emr && emr.plan_tier !== TRIAL;
+  const pharmacyPaid = Boolean(pharmacy && pharmacy.plan_tier !== TRIAL);
+  const emrPaid = Boolean(emr && emr.plan_tier !== TRIAL);
 
-  // Match FreeTrialButton: EMR plan_expiry_date drives dual-trial expiry.
-  // Invalid/missing dates must not count as active (moment(null) → NaN; NaN < 0 is false).
-  const expiry = plan_expiry_date ? moment(plan_expiry_date) : null;
-  const hasValidExpiry = Boolean(expiry?.isValid?.());
-  const remainingDays =
-    emrTrial && hasValidExpiry
-      ? expiry.startOf("day").diff(moment().startOf("day"), "days")
-      : null;
+  // Dual-trial expiry follows EMR plan_expiry_date (FreeTrialButton parity).
+  const dualTrialRemainingDays = emrTrial
+    ? remainingDaysFrom(plan_expiry_date)
+    : null;
 
-  if (pharmacyPaid && emrPaid) {
+  // Pharmacy paid alone (do not require EMR paid). Expiry from pharmacy mapping when present.
+  if (pharmacyPaid) {
+    const pharmacyRemainingDays = remainingDaysFrom(
+      pharmacy?.plan_expiry_date || pharmacy?.expiry_date,
+    );
+    if (pharmacyRemainingDays !== null && pharmacyRemainingDays < 0) {
+      return { segment: "paid_expired", canSso: false, canTryPharmacy: false };
+    }
     return { segment: "paid", canSso: true, canTryPharmacy: false };
   }
 
   if (emrTrial && pharmacyTrial) {
-    if (remainingDays === null || remainingDays < 0) {
+    if (dualTrialRemainingDays === null || dualTrialRemainingDays < 0) {
       return { segment: "trial_expired", canSso: false, canTryPharmacy: false };
     }
-    return { segment: "trial_active", canSso: true, canTryPharmacy: true };
+    // Lead-gen for dual trial — no SSO.
+    return { segment: "trial_active", canSso: false, canTryPharmacy: true };
   }
 
   if (emrPaid && pharmacyTrial) {
     return { segment: "locked", canSso: false, canTryPharmacy: false };
   }
 
-  // Fall-through (e.g. missing mapping): allow SSO like existing sidebar else branch
-  return { segment: "other", canSso: true, canTryPharmacy: false };
+  // Missing / unknown mapping — only paid may SSO.
+  return { segment: "other", canSso: false, canTryPharmacy: false };
 }
 
 export const INDIAN_MOBILE_REGEX = /^[6-9]\d{9}$/;

@@ -10,7 +10,9 @@ const isAuthTokenPreservePath = (pathname = "") =>
   pathname === "/our-offerings" ||
   pathname === "/abha-standalone" ||
   pathname === "/lims" ||
-  pathname.startsWith("/lims/");
+  pathname.startsWith("/lims/") ||
+  pathname === "/pharmacy" ||
+  pathname.startsWith("/pharmacy/");
 
 const removeSensitiveUrlParams = (search) => {
   const params = new URLSearchParams(search);
