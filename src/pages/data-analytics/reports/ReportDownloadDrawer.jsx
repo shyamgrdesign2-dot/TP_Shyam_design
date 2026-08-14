@@ -129,6 +129,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       setPaymentMode([]);
       setDeptIds([]);
       setIncentiveUserOptions([]);
+      setIssuedByOptions([]);
       setExportedRows(null);
       setToast(null);
       setAttempted(false);
@@ -204,6 +205,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   // and fall back to those lists when lookups have nothing to show.
   const [accountOptions, setAccountOptions] = useState([]);
   const [incentiveUserOptions, setIncentiveUserOptions] = useState([]);
+  const [issuedByOptions, setIssuedByOptions] = useState([]);
   const [lookupDeptOptions, setLookupDeptOptions] = useState([]);
   const [specialityDeptOptions, setSpecialityDeptOptions] = useState([]);
   const [paymentMode, setPaymentMode] = useState([]);
@@ -222,7 +224,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
 
   useEffect(() => {
     if (!open) return;
-    const needsLookup = needsAccount || needsDepartment || needsIpdFilter || showAppointmentOverallFilters || showIncentiveUser || showIpdAccount;
+    const needsLookup = needsAccount || needsDepartment || needsIpdFilter || showAppointmentOverallFilters || showIncentiveUser || showIpdAccount || showIssuedBy;
     if (!needsLookup) return;
     let alive = true;
 
@@ -263,6 +265,21 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         );
       }
 
+      // Canonical Issued By list: every non-deleted clinic user (um_id), not
+      // the doctors-only roster. Matches legacy portal + bill creator filter.
+      const issuedByUsers = firstList(
+        data.issuedByUsers,
+        data.issued_by_users,
+        data?.data?.issuedByUsers
+      );
+      if (issuedByUsers.length) {
+        setIssuedByOptions(
+          issuedByUsers
+            .filter((u) => u?.id != null)
+            .map((u) => ({ value: String(u.id), label: u.name || `User ${u.id}` }))
+        );
+      }
+
       const specs = Array.isArray(specialities) ? specialities : [];
       setSpecialityDeptOptions(specialitiesToDeptOptions(specs));
 
@@ -274,7 +291,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
     });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, needsAccount, needsDepartment, needsIpdFilter, showAppointmentOverallFilters, showIncentiveUser, showIpdAccount]);
+  }, [open, needsAccount, needsDepartment, needsIpdFilter, showAppointmentOverallFilters, showIncentiveUser, showIpdAccount, showIssuedBy]);
 
   // Case types are ids (toct_id) — listCasetype returns { status, data: { case_type } }.
   const [caseTypeOptions, setCaseTypeOptions] = useState([]);
@@ -713,7 +730,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             <MultiField
               label="Issued By"
               placeholder="All users"
-              options={doctorOptions}
+              options={issuedByOptions}
               value={issuedBy}
               onChange={setIssuedBy}
             />
