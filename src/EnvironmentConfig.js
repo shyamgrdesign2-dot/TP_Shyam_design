@@ -421,7 +421,7 @@ const prod = {
   medicalhistory_api_url: `https://pm-medicalhistory-prod.tatvacare.in`,
   // Section order/visibility endpoints are only deployed on the UAT host
   // today; every environment points there until prod is ready.
-  medicalhistory_section_order_api_url: `https://pm-medicalhistory-uat.tatvacare.in`,
+  medicalhistory_section_order_api_url: `https://pm-medicalhistory-prod.tatvacare.in`,
   videolibrary_api_url: `https://pm-videolibrary-prod.tatvacare.in`,
   sso_to_pm_url: `https://practice.tatvacare.in/api/get_doctor_sso_token.php`,
   sso_to_pm_admin_url: `https://practice.tatvacare.in/api/get_doctor_admin_sso_token.php`,
@@ -552,7 +552,7 @@ const zyPreprod = {
   medicalhistory_api_url: `https://pm-medicalhistory-preprod.tatvacare.in`,
   // Section order/visibility endpoints are only deployed on the UAT host
   // today; every environment points there until prod is ready.
-  medicalhistory_section_order_api_url: `https://pm-medicalhistory-uat.tatvacare.in`,
+  medicalhistory_section_order_api_url: `https://pm-medicalhistory-preprod.tatvacare.in`,
   videolibrary_api_url: `https://pm-videolibrary-preprod.tatvacare.in`,
   sso_to_pm_url: `https://zy-practice-preprod.tatvacare.in/api/get_doctor_sso_token.php`,
   sso_to_pm_admin_url: `https://zy-practice-preprod.tatvacare.in/api/get_doctor_admin_sso_token.php`,
