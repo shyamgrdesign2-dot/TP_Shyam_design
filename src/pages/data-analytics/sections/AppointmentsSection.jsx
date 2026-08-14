@@ -15,7 +15,7 @@ const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function AppointmentsSection({ filters }) {
   const caps = useCapabilities();
-  const { loading, kpis: rawKpis, statusDonut, visitsByHour: liveHourly } = useAppointmentsLive({
+  const { loading, kpis: rawKpis, statusDonut, visitsByHour: liveHourly, newVsReturning } = useAppointmentsLive({
     startDate: filters?.startDate,
     endDate: filters?.endDate,
     doctorId: filters?.doctor,
@@ -115,7 +115,7 @@ export default function AppointmentsSection({ filters }) {
           </ChartTile>
 
           <ChartTile title="New vs returning" subtitle="Share of visits, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/health-care.svg" titleTooltip="Split of first-time vs repeat patients among visits in the selected period">
-            <DonutWithLegend data={analytics.newVsReturning} centerLabel="Patients" height={240} />
+            <DonutWithLegend data={newVsReturning} centerLabel="Patients" height={240} />
           </ChartTile>
 
           <ChartTile title="Visit type mix" subtitle="Total visits, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/health/health-sign.svg" titleTooltip="Count of new, follow-up, urgent and other visit types in the selected period">
