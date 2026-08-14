@@ -126,7 +126,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
 
   // Same live doctor + clinic sources as the page FilterBar (Redux with API
   // fallback; hospital_data lives on the DOCTORS slice).
-  const { doctorOptions, clinicOptions } = useFilterOptions();
+  const { doctorOptions, clinicOptions, departmentOptions: doctorDeptOptions } = useFilterOptions();
   const lockedClinicId = useMemo(() => {
     const fromFilters = singleId(filters?.clinic);
     if (fromFilters) return fromFilters;
@@ -172,12 +172,27 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const showAccount = needsAccount && (!needsThreeCReportType || threeCReportType === "summary");
   const showAppointmentDetail = hasAppointmentDetailFields && appointmentReportType === "detailed";
 
-  // Account / department still come from /reports/lookups when needed.
-  // Mode of Payment uses the static billing labels (PAYMENT_MODE_OPTIONS).
+  // Account still comes from /reports/lookups. Departments used to depend only
+  // on that payload's `{ id, name }` rows — IPD lookups often omit names, use
+  // `dp_id`, or return an empty list, which left Filter By → Department as
+  // "No matches". Resolve names from specialities / the clinic doctor roster
+  // and fall back to those lists when lookups have nothing to show.
   const [accountOptions, setAccountOptions] = useState([]);
-  const [departmentOptions, setDepartmentOptions] = useState([]);
+  const [lookupDeptOptions, setLookupDeptOptions] = useState([]);
+  const [specialityDeptOptions, setSpecialityDeptOptions] = useState([]);
   const [paymentMode, setPaymentMode] = useState([]);
   const [deptFilter, setDeptIds] = useState([]);
+
+  const departmentOptions = useMemo(() => {
+    const namedLookups = lookupDeptOptions.map((opt) => {
+      const fromDoc = doctorDeptOptions.find((d) => String(d.value) === String(opt.value));
+      if (fromDoc && !isGenericDeptLabel(fromDoc.label)) return { ...opt, label: fromDoc.label };
+      return opt;
+    });
+    if (namedLookups.length) return sortDeptOptions(namedLookups);
+    if (doctorDeptOptions.length) return sortDeptOptions(doctorDeptOptions);
+    return sortDeptOptions(specialityDeptOptions);
+  }, [lookupDeptOptions, doctorDeptOptions, specialityDeptOptions]);
 
   useEffect(() => {
     if (!open) return;
@@ -185,41 +200,37 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
     if (!needsLookup) return;
     let alive = true;
 
-    // 1) Same lookups mapping that already showed Dept 8 / 7 / 110 / 9 / 31.
-    // 2) Speciality master (the list we previously dumped in full).
-    // Then keep only those lookup IDs and swap in displayName.
-    ApiReporting.reportLookups()
-      .then((r) => {
-        const data = r?.data ?? r ?? {};
-        if (!alive) return [];
-        const accounts = Array.isArray(data.accounts) ? data.accounts : [];
-        if (accounts.length) {
-          setAccountOptions([
-            { value: "all", label: "All accounts" },
-            ...accounts.map((a) => ({ value: String(a.id), label: a.name || `Account ${a.id}` })),
-          ]);
-        }
-        const departments = Array.isArray(data.departments) ? data.departments : [];
-        const mapped = departments
-          .filter((d) => d?.id != null)
-          .map((d) => ({ value: String(d.id), label: d.name || `Dept ${d.id}` }));
-        if (mapped.length) setDepartmentOptions(mapped);
-        return mapped;
-      })
-      .then((mapped) => {
-        if (!alive || !mapped?.length) return;
-        return getSpecialityList().then((specialities) => {
-          if (!alive) return;
-          const named = mapped.map((opt) => {
-            const spec = findSpecialityForDeptId(specialities, opt.value);
-            return { ...opt, label: specName(spec) || opt.label };
-          });
-          setDepartmentOptions(named);
-        });
-      })
-      .catch((err) => {
-        console.warn("[DA depts] failed", err);
+    Promise.all([
+      ApiReporting.reportLookups().catch((err) => {
+        console.warn("[DA depts] lookups failed", err);
+        return null;
+      }),
+      getSpecialityList().catch(() => []),
+    ]).then(([lookupRes, specialities]) => {
+      if (!alive) return;
+      const data = lookupRes?.data ?? lookupRes ?? {};
+      const accounts = firstList(data.accounts, data.account, data?.data?.accounts);
+      if (accounts.length) {
+        setAccountOptions([
+          { value: "all", label: "All accounts" },
+          ...accounts
+            .filter((a) => (a?.id ?? a?.tban_id ?? a?.value) != null)
+            .map((a) => {
+              const id = a.id ?? a.tban_id ?? a.value;
+              return { value: String(id), label: a.name || a.label || `Account ${id}` };
+            }),
+        ]);
+      }
+
+      const specs = Array.isArray(specialities) ? specialities : [];
+      setSpecialityDeptOptions(specialitiesToDeptOptions(specs));
+
+      const fromLookups = lookupsToDeptOptions(data).map((opt) => {
+        const spec = findSpecialityForDeptId(specs, opt.value);
+        return { ...opt, label: specName(spec) || opt.label };
       });
+      setLookupDeptOptions(fromLookups);
+    });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, needsAccount, needsDepartment, needsIpdFilter]);
@@ -712,6 +723,67 @@ function firstList(...candidates) {
 function specName(spec) {
   if (!spec) return null;
   return spec.displayName || spec.name || spec.dp_name || spec.speciality || null;
+}
+
+function deptValue(row) {
+  if (row == null || typeof row !== "object") return row ?? null;
+  return (
+    row.id ??
+    row.dp_id ??
+    row.dpId ??
+    row.departmentId ??
+    row.pmMasterId ??
+    row.code ??
+    row.value ??
+    null
+  );
+}
+
+function deptLabel(row, value) {
+  if (row == null || typeof row !== "object") return value != null ? `Dept ${value}` : null;
+  return (
+    row.name ||
+    row.displayName ||
+    row.dp_name ||
+    row.dpName ||
+    row.department_name ||
+    row.departmentName ||
+    row.speciality ||
+    row.label ||
+    (value != null ? `Dept ${value}` : null)
+  );
+}
+
+function isGenericDeptLabel(label) {
+  return !label || /^Dept\s/i.test(String(label));
+}
+
+function sortDeptOptions(options) {
+  return [...(options || [])].sort((a, b) => String(a.label).localeCompare(String(b.label)));
+}
+
+function toDeptOption(row) {
+  const value = deptValue(row);
+  if (value == null || value === "") return null;
+  return { value: String(value), label: deptLabel(row, value) };
+}
+
+function lookupsToDeptOptions(data) {
+  const rows = firstList(
+    data?.departments,
+    data?.department,
+    data?.depts,
+    data?.departmentList,
+    data?.specialities,
+    data?.speciality,
+    data?.data?.departments,
+    data?.data?.department
+  );
+  return rows.map(toDeptOption).filter(Boolean);
+}
+
+function specialitiesToDeptOptions(specialities) {
+  return (specialities || []).map(toDeptOption).filter((opt) => opt && !isGenericDeptLabel(opt.label));
 }
 
 function findSpecialityForDeptId(specialities, deptId) {

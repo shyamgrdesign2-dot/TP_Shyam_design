@@ -85,7 +85,7 @@ export const IPD_REPORT_TYPE_OPTIONS = [
 export const REPORTS = [
   // --- Financial ---
   {
-    id: "daily-collection", roleId: 389, group: "Financial", dept: "opd",
+    id: "daily-collection", roleId: 389, group: "Financial", dept: "both",
     icon: `${IC}money/receipt.svg`,
     label: "Daily Collection",
     desc: "Cash memo, receipt, advance and refund for a single day.",
@@ -96,7 +96,7 @@ export const REPORTS = [
     buildParams: (f) => ({ type: f?.type || "opd", date: f?.endDate, clinicId: f?.clinicId, doctorId: f?.doctorId }),
   },
   {
-    id: "collection-report", roleId: 390, group: "Financial", dept: "opd",
+    id: "collection-report", roleId: 390, group: "Financial", dept: "both",
     icon: `${IC}money/money-recive.svg`,
     label: "Collection Report",
     desc: "Day-wise or detailed collection by date, bill type and payment mode.",
@@ -128,7 +128,7 @@ export const REPORTS = [
     buildParams: (f) => ({ ...dates(f), account: "all", billTypes: f?.billType }),
   },
   {
-    id: "billing-overall", roleId: 393, group: "Financial", dept: "opd",
+    id: "billing-overall", roleId: 393, group: "Financial", dept: "both",
     icon: `${IC}essential/chart.svg`,
     label: "Billing Overall Reports",
     desc: "Revenue and cash-flow reports across the whole practice.",
