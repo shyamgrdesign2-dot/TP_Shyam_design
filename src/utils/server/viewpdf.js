@@ -10565,10 +10565,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   let details = "";
                                                   let hasDetails = false;
                                                   if (
-                                                    tag.since &&
+                                                    tag.oldSince &&
                                                     item.tmmhs_id !== 5
                                                   ) {
-                                                    details += ` (Since: ${tag?.since}`;
+                                                    details += ` (Since: ${tag?.oldSince}`;
                                                     hasDetails = true;
                                                   }
                                                   if (
@@ -10635,6 +10635,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     conditionName,
                                                     details,
                                                     hasDetails,
+                                                  });
+                                                } else if (
+                                                  tag &&
+                                                  tag?.enable === "N" &&
+                                                  tag?.title
+                                                ) {
+                                                  grouped[item?.title]?.push({
+                                                    conditionName: `No ${tag?.title}`,
+                                                    details: "",
+                                                    hasDetails: false,
                                                   });
                                                 }
                                               });
@@ -10798,7 +10808,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         option?.medical_history_option?.includes(
                                           item?.tmmhs_id,
                                         ) &&
-                                        item?.tags?.length > 0 && (
+                                        (item?.no_know_history ||
+                                          item?.tags?.length > 0) && (
                                           <Text
                                             key={i}
                                             style={{
@@ -10876,7 +10887,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 {item1?.title}
                                                                 &nbsp;
                                                               </Text>
-                                                              {((item1.since &&
+                                                              {((item1.oldSince &&
                                                                 item.tmmhs_id !==
                                                                   5) ||
                                                                 (item1.date &&
@@ -10908,7 +10919,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     Object.fromEntries(
                                                                       Object.entries(
                                                                         (({
-                                                                          since,
+                                                                          oldSince,
                                                                           date,
                                                                           status,
                                                                           medication,
@@ -10920,8 +10931,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                               5 &&
                                                                             date
                                                                               ? `${date}`
-                                                                              : since
-                                                                                ? `Since : ${since}`
+                                                                              : oldSince
+                                                                                ? `Since : ${oldSince}`
                                                                                 : null,
                                                                           status:
                                                                             status &&
@@ -11382,8 +11393,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                   },
                                                                 ]}
                                                               >
-                                                                {item1?.since
-                                                                  ? item1?.since
+                                                                {item1?.oldSince
+                                                                  ? item1?.oldSince
                                                                   : "-"}
                                                               </Text>
                                                               <Text

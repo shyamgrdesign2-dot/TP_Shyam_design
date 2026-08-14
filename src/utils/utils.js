@@ -132,6 +132,10 @@ export const isNumeric = (str) => {
   return /^[0-9]\d*$/.test(str);
 };
 
+export const isDecimalNumeric = (str) => {
+  return /^(\d+(\.\d{1,2})?|\.\d{1,2})$/.test(str);
+};
+
 export const isAlphabet = (str) => {
   return /^[a-zA-z\s]*$/.test(str);
 };

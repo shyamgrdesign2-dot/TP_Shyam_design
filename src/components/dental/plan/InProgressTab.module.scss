@@ -981,6 +981,12 @@
   }
 }
 
+.serviceStatusTriggerDisabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .serviceStatusContent {
   width: 180px;
   border-radius: 8px !important;
@@ -1366,7 +1372,8 @@
 
 .status_no_show,
 .status_not_interested,
-.status_cancelled {
+.status_cancelled,
+.status_refund {
   background: #FEE2E2;
   color: #991B1B;
 }

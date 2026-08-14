@@ -39,6 +39,7 @@ import { ServiceActions } from "./ServiceActions";
 import { ServiceAppointmentSection } from "./ServiceAppointmentSection";
 import dui from "../dental-ui.module.scss";
 import styles from "./InProgressTab.module.scss";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 
 export const cx = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -59,12 +60,26 @@ const STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
+const CHIKITSALAY_STATUS_OPTIONS = [
+  { value: "in-progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+  // { value: "cancelled", label: "Cancelled" },
+  // { value: "refund", label: "Refund" },
+];
+
+const ALL_STATUS_OPTIONS = [
+  ...STATUS_OPTIONS,
+  { value: "refund", label: "Refund" },
+];
+
 function getStatusSelectClasses(status) {
   if (status === "completed") return styles.statusSelect + " " + styles.completed;
   if (status === "in-progress") return styles.statusSelect + " " + styles.inProgress;
   if (status === "no-show") return styles.statusSelect + " " + styles.noShow;
   if (status === "not-interested") return styles.statusSelect + " " + styles.notInterested;
-  if (status === "cancelled") return styles.statusSelect + " " + styles.cancelled;
+  if (status === "cancelled" || status === "refund") {
+    return styles.statusSelect + " " + styles.cancelled;
+  }
   return styles.statusSelect + " " + styles.default;
 }
 
@@ -74,7 +89,8 @@ function getStatusSelectItemToneClasses(status) {
   if (
     status === "no-show" ||
     status === "not-interested" ||
-    status === "cancelled"
+    status === "cancelled" ||
+    status === "refund"
   )
     return styles.statusSelectItemTone + " " + styles.cancelled;
   return styles.statusSelectItemTone + " " + styles.default;
@@ -89,7 +105,7 @@ function formatSurfaceLabel(surface) {
 function normalizeStatusForDropdown(service) {
   const workflowStatus = getServiceWorkflowStatus(service);
   const raw = service.status === "planned" ? workflowStatus : service.status;
-  return STATUS_OPTIONS.some((opt) => opt.value === raw) ? raw : "not-started";
+  return ALL_STATUS_OPTIONS.some((opt) => opt.value === raw) ? raw : "not-started";
 }
 
 /** Skip accordion toggle when the click lands on an interactive child. */
@@ -115,6 +131,7 @@ function shouldIgnoreServiceHeaderToggle(event) {
  */
 function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
   const { markServiceDone, updateService, removeService } = usePlanContext();
+  const isChikitsalayAccessable = useChikitsalay();
   const [markDoneOpen, setMarkDoneOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -145,9 +162,14 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
     },
   ];
 
+  const statusOptions = isChikitsalayAccessable
+    ? CHIKITSALAY_STATUS_OPTIONS
+    : STATUS_OPTIONS;
   const dropdownValue = normalizeStatusForDropdown(service);
+  const isStatusLocked =
+    isChikitsalayAccessable && dropdownValue === "completed";
   const statusLabel =
-    STATUS_OPTIONS.find((opt) => opt.value === dropdownValue)?.label ??
+    ALL_STATUS_OPTIONS.find((opt) => opt.value === dropdownValue)?.label ??
     "Select status";
   const statusSelectClasses = getStatusSelectClasses(dropdownValue);
 
@@ -216,37 +238,47 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
             </div>
             <div className={styles.serviceCardStatusRow}>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild={true}>
+                <DropdownMenuTrigger asChild={true} disabled={isStatusLocked}>
                   <button
                     type="button"
+                    disabled={isStatusLocked}
                     onClick={(e) => e.stopPropagation()}
                     className={cx(
                       styles.serviceStatusTrigger,
-                      statusSelectClasses
+                      statusSelectClasses,
+                      isStatusLocked && styles.serviceStatusTriggerDisabled
                     )}
-                    aria-label="Change service status"
+                    aria-label={
+                      isStatusLocked
+                        ? "Service status is completed and cannot be changed"
+                        : "Change service status"
+                    }
                   >
                     <span>{statusLabel}</span>
-                    <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+                    {!isStatusLocked && (
+                      <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+                    )}
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className={cx(
-                    dropdownContentClass,
-                    styles.serviceStatusContent
-                  )}
-                >
-                  {STATUS_OPTIONS.map((opt) => (
-                    <DropdownMenuItem
-                      key={opt.value}
-                      onClick={() => handleServiceStatusChange(opt.value)}
-                      className={`${statusSelectItemBaseClass} ${getStatusSelectItemToneClasses(opt.value)}`}
-                    >
-                      {opt.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
+                {!isStatusLocked && (
+                  <DropdownMenuContent
+                    align="start"
+                    className={cx(
+                      dropdownContentClass,
+                      styles.serviceStatusContent
+                    )}
+                  >
+                    {statusOptions.map((opt) => (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        onClick={() => handleServiceStatusChange(opt.value)}
+                        className={`${statusSelectItemBaseClass} ${getStatusSelectItemToneClasses(opt.value)}`}
+                      >
+                        {opt.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                )}
               </DropdownMenu>
             </div>
           </div>
@@ -309,6 +341,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
  */
 function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
   const { markCompleted, revertToEstimates, deletePlan, openDrawer, patientId } = usePlanContext();
+  const isChikitsalayAccessable = useChikitsalay();
   const [markAllOpen, setMarkAllOpen] = useState(false);
   const [revertAllOpen, setRevertAllOpen] = useState(false);
   const [deletePlanOpen, setDeletePlanOpen] = useState(false);
@@ -422,7 +455,7 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                 <Receipt1 size={16} variant="Linear" className="" />
                 View Plan Estimate
               </DropdownMenuItem>
-              <DropdownMenuItem
+              {!isChikitsalayAccessable && <DropdownMenuItem
                 onClick={() => setRevertAllOpen(true)}
                 disabled={!canRevertToPlan}
                 className={canRevertToPlan ? styles.warningMenuItem : styles.disabledMenuItem}
@@ -432,7 +465,7 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                   variant="Linear"
                 />
                 <span>Revert All to Plan</span>
-              </DropdownMenuItem>
+              </DropdownMenuItem>}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setDeletePlanOpen(true)}
@@ -506,7 +539,7 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
             .filter((s) => getServiceWorkflowStatus(s) !== "completed")
             .map((s) => {
               const wfStatus = getServiceWorkflowStatus(s);
-              const label = STATUS_OPTIONS.find((o) => o.value === wfStatus)?.label ?? wfStatus;
+              const label = ALL_STATUS_OPTIONS.find((o) => o.value === wfStatus)?.label ?? wfStatus;
               return (
                 <div key={s.id} className={styles.incompleteServiceRow}>
                   <span className={styles.incompleteServiceName}>{s.treatment}</span>

@@ -143,3 +143,44 @@ describe("medicalHistoryConverters others copy handling", () => {
     );
   });
 });
+
+describe("medicalHistoryConverters negation status handling", () => {
+  it("does not default negated conditions to an Active status", () => {
+    const converted = convertMedicalHistoryToContextFormat([
+      { type: "Medical Condition", name: "No BP" },
+      { type: "Medical Condition", name: "Diabetes", enable: "N" },
+    ]);
+
+    expect(converted[0].tags.map((tag) => [tag.title, tag.enable, tag.status])).toEqual([
+      ["BP", "N", ""],
+      ["Diabetes", "N", ""],
+    ]);
+  });
+
+  it("clears a previously Active status when the condition becomes negated", () => {
+    const existing = [
+      {
+        tmmhs_id: 2,
+        section_name: "Medical Condition",
+        title: "Medical Condition",
+        tags: [{ title: "BP", enable: "Y", status: "Active" }],
+      },
+    ];
+
+    const converted = convertMedicalHistoryToContextFormat(
+      [{ type: "Medical Condition", name: "BP", enable: "N" }],
+      existing
+    );
+
+    expect(converted[0].tags[0].enable).toBe("N");
+    expect(converted[0].tags[0].status).toBe("");
+  });
+
+  it("drops an agent-supplied Active status on negated rows", () => {
+    const sections = convertAgentMedicalHistoryRowsToSections([
+      { type: "allergy", title: "Allergy", enable: "N", status: "Active" },
+    ]);
+
+    expect(sections[0].tags[0].status).toBe("");
+  });
+});

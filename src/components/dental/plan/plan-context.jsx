@@ -14,11 +14,14 @@ import React, {
   useMemo,
   useState
 } from "react";
+import { useSelector } from "react-redux";
 import {
   PLAN_CONSULTATION_FLUSH_EVENT,
   PLAN_CONSULTATION_QUEUE_PREFIX
 } from "../lib/plan-consultation-queue";
 import { useDentalPlan } from "../lib/useDentalPlan";
+import { selectSessionPendingServices } from "../../../redux/dentalPlanSlice";
+import { mergePendingIntoDraftPlans } from "./exam-suggestions";
 
 const PlanContext = createContext(null);
 
@@ -57,6 +60,7 @@ export function PlanProvider({
     clearError,
     refetchPlans,
   } = useDentalPlan(patientId);
+  const sessionPendingServices = useSelector(selectSessionPendingServices);
 
   // 2. Local UI state (Drawer, Snackbar)
   const [drawer, setDrawer] = useState(initialDrawer ?? { type: "closed" });
@@ -76,9 +80,13 @@ export function PlanProvider({
   const closeDrawer = useCallback(() => setDrawer({ type: "closed" }), []);
 
   // 3. Derived selectors
+  const displayPlans = useMemo(
+    () => mergePendingIntoDraftPlans(plans, sessionPendingServices),
+    [plans, sessionPendingServices],
+  );
   const estimatePlans = useMemo(
-    () => plans.filter((p) => p.status === "draft"),
-    [plans]
+    () => displayPlans.filter((p) => p.status === "draft"),
+    [displayPlans]
   );
   const inProgressPlans = useMemo(
     () => plans.filter((p) => p.status === "active" || p.status === "in-progress"),
@@ -115,7 +123,7 @@ export function PlanProvider({
     () => ({
       patientId,
       embedInPatientShell,
-      state: { plans, drawer, loading, error: apiError },
+      state: { plans: displayPlans, drawer, loading, error: apiError },
       // API actions — call directly instead of via string-keyed dispatch
       createPlan,
       updatePlan,
@@ -150,6 +158,7 @@ export function PlanProvider({
     [
       patientId,
       embedInPatientShell,
+      displayPlans,
       plans,
       drawer,
       loading,

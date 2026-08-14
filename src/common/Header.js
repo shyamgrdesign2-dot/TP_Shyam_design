@@ -785,6 +785,9 @@ function Header({ locationPath }) {
       // Clear storage - this is our confirmation of logout
       localStorage.clear();
       sessionStorage.clear();
+      import("../pages/data-analytics/data/doctorList")
+        .then((m) => m.clearDoctorListCache())
+        .catch(() => {});
 
       sendMessageToParent(EVENTS.LOGOUT);
       // Redirect to login page
@@ -797,6 +800,9 @@ function Header({ locationPath }) {
       dispatch(clearDoctorProfile());
       localStorage.clear();
       sessionStorage.clear();
+      import("../pages/data-analytics/data/doctorList")
+        .then((m) => m.clearDoctorListCache())
+        .catch(() => {});
 
       sendMessageToParent(EVENTS.LOGOUT);
       // Redirect to login page

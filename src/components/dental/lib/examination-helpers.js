@@ -47,6 +47,7 @@ export const transformToothStateToApi = (toothState) => {
           surface_codes: details.surfaces || ["whole"],
           since_date: sinceToDate(details.since),
           notes: details.note || "",
+          ...(details.visitProcedure ? { visitProcedure: details.visitProcedure } : {}),
         }));
 
     // Combine canvas zone findings and EntryTab text findings, deduplicating by id
@@ -92,6 +93,7 @@ export const transformToothStateToApi = (toothState) => {
         surface_codes: p.surfaces?.length ? p.surfaces : ["whole"],
         status: (p.status || "PLANNED").toUpperCase(),
         notes: p.notes || "",
+        ...(p.visitProcedure ? { visitProcedure: p.visitProcedure } : {}),
       })),
       treatment_history: [
         ...historyEntries.map((h) => {
@@ -102,6 +104,7 @@ export const transformToothStateToApi = (toothState) => {
             surface_codes: h.surface_codes || ["whole"],
             ...(since ? { since_date: since } : {}),
             notes: h.notes || h.note || "",
+            ...(h.visitProcedure ? { visitProcedure: h.visitProcedure } : {}),
           };
         }),
         ...pastProcedureEntries.map((p) => {
@@ -111,6 +114,7 @@ export const transformToothStateToApi = (toothState) => {
             surface_codes: p.surfaces?.length ? p.surfaces : ["whole"],
             ...(since ? { since_date: since } : {}),
             notes: p.notes || "",
+            ...(p.visitProcedure ? { visitProcedure: p.visitProcedure } : {}),
           };
         }),
       ],

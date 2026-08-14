@@ -53,7 +53,7 @@ const AbhaSyncButton = ({
       }
 
       const response = await axios.post(
-        `${config.abha_api_url}/api/v1/abdm/m2/linkCareContext/generate-token`,
+        `${config.abha_api_url}/api/v1/abdm/m2/linkCareContext/link_on_carecontext`,
         {
           patientUniqueId: patientUniqueId,
           caseID: caseId,

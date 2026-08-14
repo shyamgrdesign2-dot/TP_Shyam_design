@@ -20,11 +20,13 @@ import {
 import { resetUploadDocState } from "../../../../redux/uploadDocSlice";
 import { resetDDxState } from "../../../../redux/ddxSlice";
 import {
+  CLINIC_TARGET_STATUS,
   LANGUAGE_LIST,
   NEO_NATOLOGISTS_DP_ID,
 } from "../../../../utils/constants";
 import { useChikitsalay } from "../../../chikitsalay/useChikitsalay";
 import { ASSETS } from "../../../../assets";
+import { clinicTargetStatus } from "../../../chikitsalay/service";
 const {
   profileImg,
   hPlayIcon: playIcon,
@@ -105,6 +107,10 @@ function HeaderPrintView({
       };
       if (!isChikitsalayAccessable) {
         const action = await dispatch(sendCashsheetWhatsapp(sendData));
+      } else if (isChikitsalayAccessable) {
+        clinicTargetStatus(pam_id, {
+            targetStatus: CLINIC_TARGET_STATUS.COMPLETED,
+        });
       }
       if (pam_id || tcm_id) {
         updateVisitStatus({
@@ -314,7 +320,7 @@ function HeaderPrintView({
             loading={loadingEndVisit}
             className={`btn align-items-center d-flex btn-41 me-3 px-4 btn-primary3`}
           >
-            Done
+            {isChikitsalayAccessable ? "Call Next Patient" : "Done"}
           </Button>
         </div>
       </div>

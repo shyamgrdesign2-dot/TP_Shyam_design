@@ -106,6 +106,9 @@ function MessageCreateCampaign() {
     const [amount, setamount] = useState('');
     const [service_name, setservice_name] = useState('');
     const [about_service, setabout_service] = useState('');
+    const [custom_value, setcustom_value] = useState('');
+    const [procedure_name, setprocedure_name] = useState('');
+    const [discount, setdiscount] = useState('');
 
     const [dateRange, setDateRange] = useState({
         startDate: moment().format(dateFormat),
@@ -246,6 +249,15 @@ function MessageCreateCampaign() {
             if (campaign_data?.msg_rowData?.hasOwnProperty('about_service')) {
                 setabout_service(campaign_data?.msg_rowData?.about_service)
             }
+            if (campaign_data?.msg_rowData?.hasOwnProperty('custom_value')) {
+                setcustom_value(campaign_data?.msg_rowData?.custom_value)
+            }
+            if (campaign_data?.msg_rowData?.hasOwnProperty('procedure_name')) {
+                setprocedure_name(campaign_data?.msg_rowData?.procedure_name)
+            }
+            if (campaign_data?.msg_rowData?.hasOwnProperty('discount')) {
+                setdiscount(campaign_data?.msg_rowData?.discount)
+            }
             const clinic_city = getClinicCity(profile?.hospital_data);
             window.Moengage.track_event("TP_Select_Mode_Of_Messages", {
                 "Doctor_specialty": profile?.dp_name,
@@ -376,6 +388,15 @@ function MessageCreateCampaign() {
             }
             if (reuse_campaign_data?.msg_rowData?.hasOwnProperty('about_service')) {
                 setabout_service(reuse_campaign_data?.msg_rowData?.about_service)
+            }
+            if (reuse_campaign_data?.msg_rowData?.hasOwnProperty('custom_value')) {
+                setcustom_value(reuse_campaign_data?.msg_rowData?.custom_value)
+            }
+            if (reuse_campaign_data?.msg_rowData?.hasOwnProperty('procedure_name')) {
+                setprocedure_name(reuse_campaign_data?.msg_rowData?.procedure_name)
+            }
+            if (reuse_campaign_data?.msg_rowData?.hasOwnProperty('discount')) {
+                setdiscount(reuse_campaign_data?.msg_rowData?.discount)
             }
             const clinic_city = getClinicCity(profile?.hospital_data);
             window.Moengage.track_event("TP_Select_Mode_Of_Messages", {
@@ -1220,6 +1241,57 @@ function MessageCreateCampaign() {
                         />
                     );
                 }
+                else if (part === 'custom_value') {
+                    return (
+                        <Input
+                            key={index}
+                            style={{
+                                height: '30px',
+                                width: custom_value ? parseInt(custom_value?.length * 7.55) >= 150 ? custom_value?.length * 7.55 : 150 : 150,
+                                maxWidth: 300
+                            }}
+                            maxLength={25}
+                            value={custom_value}
+                            onChange={(e) => setcustom_value(e.target.value)}
+                            placeholder="Enter custom value"
+                            className="me-1 my-1 fw-medium"
+                        />
+                    );
+                }
+                else if (part === 'procedure_name') {
+                    return (
+                        <Input
+                            key={index}
+                            style={{
+                                height: '30px',
+                                width: procedure_name ? parseInt(procedure_name?.length * 7.55) >= 150 ? procedure_name?.length * 7.55 : 150 : 150,
+                                maxWidth: 300
+                            }}
+                            maxLength={25}
+                            value={procedure_name}
+                            onChange={(e) => setprocedure_name(e.target.value)}
+                            placeholder="Enter procedure name"
+                            className="me-1 my-1 fw-medium"
+                        />
+                    );
+                }
+                else if (part === 'discount') {
+                    return (
+                        <Input
+                            key={index}
+                            style={{
+                                height: '30px',
+                                width: discount ? parseInt(discount?.length * 7.55) >= 150 ? discount?.length * 7.55 : 150 : 150,
+                                maxWidth: 300
+                            }}
+                            maxLength={25}
+                            value={discount}
+                            onChange={(e) => setdiscount(e.target.value)}
+                            placeholder="Enter discount"
+                            className="me-1 my-1 fw-medium"
+                        />
+                    );
+                }
             }
             return part;
         });
@@ -1249,7 +1321,10 @@ function MessageCreateCampaign() {
         surgery_name,
         amount,
         service_name,
-        about_service
+        about_service,
+        custom_value,
+        procedure_name,
+        discount
     ]);
 
     const TEMPLATE_TEXT = useMemo(() => {
@@ -1278,6 +1353,9 @@ function MessageCreateCampaign() {
             .replace(/{amount}/g, amount ? amount : '{amount}')
             .replace(/{service_name}/g, service_name ? service_name : '{service_name}')
             .replace(/{about_service}/g, about_service ? about_service : '{about_service}')
+            .replace(/{custom_value}/g, custom_value ? custom_value : '{custom_value}')
+            .replace(/{procedure_name}/g, procedure_name ? procedure_name : '{procedure_name}')
+            .replace(/{discount}/g, discount ? discount : '{discount}')
     }, [
         template,
         clinic_name,
@@ -1303,7 +1381,10 @@ function MessageCreateCampaign() {
         surgery_name,
         amount,
         service_name,
-        about_service
+        about_service,
+        custom_value,
+        procedure_name,
+        discount
     ])
 
     const sendTemplate = () => {
@@ -1382,6 +1463,15 @@ function MessageCreateCampaign() {
                 }
                 else if (part === 'about_service') {
                     msg_rowData['about_service'] = about_service;
+                }
+                else if (part === 'custom_value') {
+                    msg_rowData['custom_value'] = custom_value;
+                }
+                else if (part === 'procedure_name') {
+                    msg_rowData['procedure_name'] = procedure_name;
+                }
+                else if (part === 'discount') {
+                    msg_rowData['discount'] = discount;
                 }
             }
         })
@@ -1672,6 +1762,9 @@ function MessageCreateCampaign() {
                                                                 .replace(/{amount}/g, `<label class="text-greycolor">{amount}</label>`)
                                                                 .replace(/{service_name}/g, `<label class="text-greycolor">{service_name}</label>`)
                                                                 .replace(/{about_service}/g, `<label class="text-greycolor">{about_service}</label>`)
+                                                                .replace(/{custom_value}/g, `<label class="text-greycolor">{custom_value}</label>`)
+                                                                .replace(/{procedure_name}/g, `<label class="text-greycolor">{procedure_name}</label>`)
+                                                                .replace(/{discount}/g, `<label class="text-greycolor">{discount}</label>`)
                                                         }}>
                                                     </div>
                                                 </div>

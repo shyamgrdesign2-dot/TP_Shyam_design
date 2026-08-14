@@ -7,10 +7,16 @@ import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
 
 import config from "../config";
-import { useLocalStorage } from "../utils/localStorage";
-import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, GB_CVT_EXT_HOS, GB_LIMS } from "../utils/constants";
+import { useLocalStorage, getDecodedToken } from "../utils/localStorage";
+import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, GB_CVT_EXT_HOS, GB_LIMS, NATIVE_DATA_ANALYTICS_NAV_ENABLED } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, sendMessageToParent, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
+import {
+  canShowMissionAnalyticsNav,
+  canShowNonCvtDataAnalyticsNav,
+  isMissionAnalyticsOnlyUser,
+  resolveDataAnalyticsDestination,
+} from "../pages/data-analytics/data/analyticsAccess";
 import FullPageLoader from "../pages/vaccination/components/Loader";
 import { useOpdBilling } from "../pages/opdBilling/useOpdBilling";
 import moment from "moment";
@@ -18,7 +24,9 @@ import { checkCredits } from "../redux/monetizationSlice";
 import { services } from "../redux/doctorsSlice";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import IPDKnowMore from "../pages/monetization/components/IPDKnowMore";
-import PharmacyKnowMore from "../pages/monetization/components/PharmacyKnowMore";
+import {
+  getPharmacyAccessState,
+} from "../pages/monetization/utils/pharmacyInterest";
 import AskTatvaKnowMore from "../pages/monetization/components/AskTatvaKnowMore";
 import { EVENTS } from "../utils/events";
 import { ASSETS } from "../assets";
@@ -64,11 +72,12 @@ const isModuleRouteActive = (moduleType, location) => {
   const routeMap = {
     opd_billing: "/billing-dashboard",
     all_patients: "/all_patients",
-    // Note: dr_followup_appointment, data_analytics, pharmacy, and ipd are external redirects
+    pharmacy: "/pharmacy",
+    // Note: dr_followup_appointment, data_analytics, and ipd are external redirects
     // They open in new tabs, so they should not be in the routeMap
   };
   const route = routeMap[moduleType];
-  return route ? location.pathname === route : false;
+  return route ? location.pathname === route || location.pathname.startsWith(`${route}/`) : false;
 };
 
 function SidebarDoctor() {
@@ -86,7 +95,6 @@ function SidebarDoctor() {
   const { planDetails } = useSelector((state) => state.subscription);
   const { service_mappings } = planDetails || {};
   const EMR_planDetails = service_mappings?.find(e => e.service_name === S_TATVA_PRACTICE)
-  const PHARMACY_planDetails = service_mappings?.find(e => e.service_name === S_PHARMACY)
   const IPD_planDetails = service_mappings?.find(e => e.service_name === S_IPD)
   const BILLING_planDetails = service_mappings?.find(e => e.service_name === S_BILLING)
 
@@ -105,7 +113,6 @@ function SidebarDoctor() {
 
   const [askTatvaKnowMoreDrawer, setAskTatvaKnowMoreDrawer] = useState(false);
   const [iPDKnowMoreDrawer, setIPDKnowMoreDrawer] = useState(false);
-  const [pharmacyKnowMoreDrawer, setPharmacyKnowMoreDrawer] = useState(false);
   const [subModalData, setSubModalData] = useState(null);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
 
@@ -167,24 +174,24 @@ function SidebarDoctor() {
     setIPDKnowMoreDrawer((prev) => !prev);
   };
 
-  const handlePharmacyKnowMore = () => {
-    setPharmacyKnowMoreDrawer((prev) => !prev);
-  };
-
   const showHideSubModal = () => {
     setIsSubModalOpen(!isSubModalOpen);
   }
 
   const isFirstClickOfDay = (key) => {
-    const localStorageExtraData = localStorage.getItem(PERSISTANT_STORAGE_KEY_EXTRA);
-    const jsonData = localStorageExtraData ? JSON.parse(localStorageExtraData) : {};
-    const today = moment().format('YYYY-MM-DD');
-    if (jsonData[`${key}_date`] !== today) {
-      jsonData[`${key}_date`] = today;
-      localStorage.setItem(PERSISTANT_STORAGE_KEY_EXTRA, JSON.stringify(jsonData));
-      return true;
-    } else {
+    try {
+      const localStorageExtraData = localStorage.getItem(PERSISTANT_STORAGE_KEY_EXTRA);
+      const jsonData = localStorageExtraData ? JSON.parse(localStorageExtraData) : {};
+      const today = moment().format("YYYY-MM-DD");
+      if (jsonData[`${key}_date`] !== today) {
+        jsonData[`${key}_date`] = today;
+        localStorage.setItem(PERSISTANT_STORAGE_KEY_EXTRA, JSON.stringify(jsonData));
+        return true;
+      }
       return false;
+    } catch {
+      // Private mode / quota / corrupt JSON — treat as first click without crashing.
+      return true;
     }
   };
 
@@ -203,23 +210,42 @@ function SidebarDoctor() {
       setHoveredItem(null);
     }
 
+    // Pharmacy: SSO only when paid + not expired (canSso). Else lead-gen no-access.
+    // If planDetails not loaded yet, no-op to avoid false lead-gen for paying users.
+    // Handled before monetization gate so lead-gen works even when monetization is off.
+    if (moduleName === S_PHARMACY) {
+      if (!planDetails) return;
+      const pharmacyAccess = getPharmacyAccessState(planDetails);
+      if (pharmacyAccess.canSso) {
+        return check_SSO(moduleName);
+      }
+      return navigate("/pharmacy");
+    }
+
+    // Data Analytics: Mission/CVT → /mission-analytics (admin/special only);
+    // non-CVT → native page when release flag or allowlist; else legacy SSO.
+    if (moduleName === "data_analytics") {
+      const tokenResult = tokenData || getDecodedToken()?.result;
+      const dest = resolveDataAnalyticsDestination({
+        tokenResult,
+        profile,
+      });
+      if (dest === "mission") {
+        const onlyAnalytics = isMissionAnalyticsOnlyUser(tokenResult);
+        return navigate(onlyAnalytics ? "/" : "/mission-analytics");
+      }
+      if (dest === "native") return navigate("/data-analytics-x");
+      if (dest === "none") return;
+      return check_SSO(moduleName);
+    }
+
     if(moduleName === "ipd") {
       return check_SSO(moduleName);
     }
     // if (moment(planDetails?.plan_active_date).diff("2025-07-01", 'days') > 0) {
-      if (tp_monetization_enable && (moduleName === S_PHARMACY || moduleName === S_IPD)) {
+      if (tp_monetization_enable && moduleName === S_IPD) {
         setSubModalData({ service_name: moduleName })
-        if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier === TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) {
-          if (isFirstClickOfDay(moduleName)) {
-            handlePharmacyKnowMore();
-          } else {
-            check_SSO(moduleName);
-          }
-        } else if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier !== TRIAL && PHARMACY_planDetails?.plan_tier !== TRIAL) {
-          check_SSO(moduleName);
-        } else if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier !== TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) {
-          handlePharmacyKnowMore();
-        } else if (moduleName === S_IPD && EMR_planDetails?.plan_tier === TRIAL && IPD_planDetails?.plan_tier === TRIAL) {
+        if (moduleName === S_IPD && EMR_planDetails?.plan_tier === TRIAL && IPD_planDetails?.plan_tier === TRIAL) {
           if (isFirstClickOfDay(moduleName)) {
             handleIPDKnowMore();
           } else {
@@ -452,10 +478,32 @@ function SidebarDoctor() {
     }
   };
 
+  const tokenResult = tokenData || getDecodedToken()?.result;
+  // Mission Analytics gated by JWT hospital_business_id (not GrowthBook).
+  const showMissionAnalytics = canShowMissionAnalyticsNav(tokenResult, profile);
+  const analyticsOnlySidebar = isMissionAnalyticsOnlyUser(tokenResult);
+  const hasDataAnalyticsModule = !!profile?.module_data?.some(
+    (m) => m?.type === "data_analytics"
+  );
+  const showNonCvtDataAnalytics = canShowNonCvtDataAnalyticsNav({
+    tokenResult,
+    hasModuleData: hasDataAnalyticsModule,
+  });
+
+  // Special Mission users stay on `/` with embedded analytics (no redirect loop).
+  // Admin Mission users open `/mission-analytics` (also embedded in this shell).
+  useEffect(() => {
+    if (!analyticsOnlySidebar) return;
+    if (location.pathname === "/mission-analytics") {
+      navigate("/", { replace: true });
+    }
+  }, [analyticsOnlySidebar, location.pathname, navigate]);
+
   return (
     <>
       <div className="SidebarDoctor" ref={sidebarRef}>
         {/* <div className="scrollable-content"> */}
+          {!analyticsOnlySidebar && (
           <NavLink
             to="/"
             replace={true}
@@ -468,7 +516,11 @@ function SidebarDoctor() {
                 location.pathname !== "/billing-dashboard" &&
                 location.pathname !== "/all_patients" &&
                 location.pathname !== "/apollo-consultations" &&
-                location.pathname !== "/bulk_messages";
+                location.pathname !== "/bulk_messages" &&
+                location.pathname !== "/mission-analytics" &&
+                location.pathname !== "/data-analytics-x" &&
+                location.pathname !== "/pharmacy" &&
+                !location.pathname.startsWith("/lims");
               
               if (isPending) return "pending";
               if (isOnHomeRoute || (hasNoActiveRoute && !isActive)) return "active";
@@ -483,7 +535,11 @@ function SidebarDoctor() {
                  (location.pathname !== "/billing-dashboard" &&
                   location.pathname !== "/all_patients" &&
                   location.pathname !== "/apollo-consultations" &&
-                  location.pathname !== "/bulk_messages")) || 
+                  location.pathname !== "/bulk_messages" &&
+                  location.pathname !== "/mission-analytics" &&
+                  location.pathname !== "/data-analytics-x" &&
+                  location.pathname !== "/pharmacy" &&
+                  !location.pathname.startsWith("/lims"))) || 
                 isAppointmentHovered
                   ? ni.calendarPrimary
                   : ni.calendar
@@ -498,10 +554,114 @@ function SidebarDoctor() {
               )}
             </div>
           </NavLink>
+          )}
 
-          {!isCvtExtHosAccessableFromGB && (
+          {/* Mission/CVT: admin + special → /mission-analytics (no module_data required).
+              Other CVT doctors: no Data Analytics.
+              Non-CVT: release flag → native; else module_data → SSO (or allowlist native). */}
+          {showMissionAnalytics ? (
+            <NavLink
+              replace={true}
+              className={({ isPending }) =>
+                isPending
+                  ? "pending"
+                  : hoveredItem === "mission_analytics" ||
+                      location.pathname === "/mission-analytics" ||
+                      (analyticsOnlySidebar && (location.pathname === "/" || location.pathname === ""))
+                    ? "active"
+                    : ""
+              }
+              onClick={(e) => {
+                e.preventDefault();
+                scrollToTop();
+                setHoveredItem(null);
+                // Special users already have analytics on `/`; admin opens dedicated path.
+                navigate(analyticsOnlySidebar ? "/" : "/mission-analytics");
+              }}
+              onMouseEnter={() => setHoveredItem("mission_analytics")}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              <img
+                src={getIcon(
+                  "data_analytics",
+                  hoveredItem === "mission_analytics" ||
+                    location.pathname === "/mission-analytics" ||
+                    (analyticsOnlySidebar && (location.pathname === "/" || location.pathname === "")),
+                  false
+                )}
+                alt="data_analytics"
+              />
+              <div className="mt-1 px-2">
+                <div className="text-truncate">Data Analytics</div>
+              </div>
+            </NavLink>
+          ) : showNonCvtDataAnalytics ? (
+            NATIVE_DATA_ANALYTICS_NAV_ENABLED ? (
+              <NavLink
+                replace={true}
+                className={({ isPending }) =>
+                  isPending
+                    ? "pending"
+                    : hoveredItem === "data_analytics" || location.pathname === "/data-analytics-x"
+                      ? "active"
+                      : ""
+                }
+                onClick={(e) => {
+                  e.preventDefault();
+                  setHoveredItem(null);
+                  clickOldModule("data_analytics");
+                }}
+                onMouseEnter={() => setHoveredItem("data_analytics")}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                <img
+                  src={getIcon(
+                    "data_analytics",
+                    hoveredItem === "data_analytics" || location.pathname === "/data-analytics-x",
+                    false
+                  )}
+                  alt="data_analytics"
+                />
+                <div className="mt-1 px-2">
+                  <div className="text-truncate">Data Analytics</div>
+                </div>
+              </NavLink>
+            ) : (
+              profile?.module_data
+                ?.filter((item) => item?.type === "data_analytics")
+                ?.map((item) => {
+                  const hoverKey = "data_analytics";
+                  const isHovered = hoveredItem === hoverKey;
+                  return (
+                    <div key={item.type} className="position-relative">
+                      <NavLink
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setHoveredItem(null);
+                          clickOldModule(item.type);
+                        }}
+                        replace={true}
+                        className={({ isPending }) =>
+                          isPending ? "pending" : isHovered ? "active" : ""
+                        }
+                        onMouseEnter={() => setHoveredItem(hoverKey)}
+                        onMouseLeave={() => setHoveredItem(null)}
+                      >
+                        <img
+                          src={getIcon(item.type, isHovered, false)}
+                          alt={`${item.type}`}
+                        />
+                        <div className="mt-1 px-2">{item.title}</div>
+                      </NavLink>
+                    </div>
+                  );
+                })
+            )
+          ) : null}
+
+          {!isCvtExtHosAccessableFromGB && !analyticsOnlySidebar && (
           <>
-          
+
           <NavLink
             replace={true}
             className={({ isActive, isPending }) =>
@@ -535,26 +695,47 @@ function SidebarDoctor() {
             profile?.module_data
               ?.filter(
                 (item) =>
-                  item?.type !== "MyT_patient" && item?.type !== "dis_patient"
+                  item?.type !== "MyT_patient" &&
+                  item?.type !== "dis_patient" &&
+                  item?.type !== "data_analytics"
               )
               ?.map((item, i) => {
                 const isHovered = hoveredItem === i;
                 const isRouteActive = isModuleRouteActive(item.type, location);
                 // Modules that redirect to external tabs should not stay active
-                // These include: Pharmacy, IPD, Follow Up, and Data Analytics
+                // These include: IPD, Follow Up (Pharmacy no-access is in-app at /pharmacy)
                 const isExternalRedirect = 
-                  item.type === S_PHARMACY || 
                   item.type === S_IPD || 
                   item.type === "ipd" ||
-                  item.type === "dr_followup_appointment" ||
-                  item.type === "data_analytics";
+                  item.type === "dr_followup_appointment";
                 // Only show active for this specific module when its route is active
                 const shouldShowActive = isRouteActive && !isExternalRedirect && !isHovered;
                 
                 return (
                   <div key={i} className="position-relative">
                     <NavLink
+                      to={
+                        item.type === S_PHARMACY &&
+                        planDetails &&
+                        !getPharmacyAccessState(planDetails).canSso
+                          ? "/pharmacy"
+                          : undefined
+                      }
                       onClick={(e) => {
+                        // Pharmacy: canSso → SSO; else in-app no-access. Wait if planDetails null.
+                        if (item.type === S_PHARMACY) {
+                          e.preventDefault();
+                          setHoveredItem(null);
+                          if (!planDetails) return;
+                          const pharmacyAccess = getPharmacyAccessState(planDetails);
+                          if (pharmacyAccess.canSso) {
+                            check_SSO(S_PHARMACY);
+                            return;
+                          }
+                          navigate("/pharmacy");
+                          return;
+                        }
+                        e.preventDefault();
                         // For external redirect modules, clear hover state immediately on click
                         if (isExternalRedirect) {
                           setHoveredItem(null);
@@ -593,17 +774,12 @@ function SidebarDoctor() {
                     {/* {moment(planDetails?.plan_active_date).diff("2025-07-01", 'days') > 0 && */}
                     {tp_monetization_enable &&
                       (item.type === S_PHARMACY ? (
-                        <div className="trial-sidebar">
-                          {EMR_planDetails?.plan_tier === TRIAL &&
-                          PHARMACY_planDetails?.plan_tier === TRIAL ? (
-                            <span>Trial</span>
-                          ) : (
-                            EMR_planDetails?.plan_tier !== TRIAL &&
-                            PHARMACY_planDetails?.plan_tier === TRIAL && (
-                              <img src={LockIcon} alt="Trial" />
-                            )
-                          )}
-                        </div>
+                        planDetails &&
+                        !getPharmacyAccessState(planDetails).canSso && (
+                          <div className="trial-sidebar">
+                            <img src={LockIcon} alt="Locked" />
+                          </div>
+                        )
                       ) : item.type === S_IPD ? (
                         <div className="trial-sidebar">
                           {EMR_planDetails?.plan_tier === TRIAL &&
@@ -692,23 +868,58 @@ function SidebarDoctor() {
               </div>
             </NavLink>
           )}
-          {/* {isLimsAccessableFromGB && ( */}
-            {/* <NavLink
-              to="/lims"
-              replace={true}
-              className={({ isActive, isPending }) =>
-                isPending ? "pending" : isActive || location.pathname.startsWith("/lims") ? "active" : ""
-              }
-              onMouseEnter={() => setHoveredItem("lims")}
-              onMouseLeave={() => setHoveredItem(null)}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9.5 2v6.4L4.7 18.2A2 2 0 006.5 21h11a2 2 0 001.8-2.8L14.5 8.4V2" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 2h6M7.5 15h9" stroke={location.pathname.startsWith("/lims") || hoveredItem === "lims" ? "#4b4ad5" : "#6b6b7a"} strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-              <div className="mt-1 px-2">LIMS</div>
-            </NavLink> */}
-          {/* )} */}
+          {/* Lead-gen only: show LIMS to users without GB access → NoAccess page. */}
+          {!isLimsAccessableFromGB && (
+            <div className="position-relative">
+              <NavLink
+                to="/lims"
+                replace={true}
+                className={({ isActive, isPending }) =>
+                  isPending
+                    ? "pending"
+                    : isActive || location.pathname.startsWith("/lims")
+                      ? "active"
+                      : ""
+                }
+                onMouseEnter={() => setHoveredItem("lims")}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M9.5 2v6.4L4.7 18.2A2 2 0 006.5 21h11a2 2 0 001.8-2.8L14.5 8.4V2"
+                    stroke={
+                      location.pathname.startsWith("/lims") || hoveredItem === "lims"
+                        ? "#4b4ad5"
+                        : "#6b6b7a"
+                    }
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M9 2h6M7.5 15h9"
+                    stroke={
+                      location.pathname.startsWith("/lims") || hoveredItem === "lims"
+                        ? "#4b4ad5"
+                        : "#6b6b7a"
+                    }
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="mt-1 px-2">LIMS</div>
+              </NavLink>
+              <div className="trial-sidebar">
+                <img src={LockIcon} alt="Locked" />
+              </div>
+            </div>
+          )}
           </>
           )}
         {/* </div> */}
@@ -741,20 +952,6 @@ function SidebarDoctor() {
       >
         <IPDKnowMore
           handleIPDKnowMore={handleIPDKnowMore}
-          onRedirect={() => check_SSO(subModalData?.service_name)}
-        />
-      </Drawer>
-
-      <Drawer
-        closeIcon={false}
-        placement="right"
-        open={pharmacyKnowMoreDrawer}
-        onClose={handlePharmacyKnowMore}
-        className=".modalWidth-800"
-        width={600}
-      >
-        <PharmacyKnowMore
-          handlePharmacyKnowMore={handlePharmacyKnowMore}
           onRedirect={() => check_SSO(subModalData?.service_name)}
         />
       </Drawer>

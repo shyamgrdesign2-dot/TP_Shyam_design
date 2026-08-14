@@ -193,10 +193,30 @@ import {
   setActiveTeleconsultConsultationId,
   setJoinToken,
 } from "../redux/teleconsultNotificationSlice";
-import { saveDentalExamination, selectDentalExamination, fetchDentalExamination } from "../redux/dentalExaminationSlice";
-import { saveOralExaminationThunk, patchOralExaminationThunk, fetchOralExamination } from "../redux/oralExaminationSlice";
+import {
+  saveDentalExamination,
+  selectDentalExamination,
+  fetchDentalExamination,
+  setBaselineToothState,
+  clearDentalChart,
+} from "../redux/dentalExaminationSlice";
+import {
+  createDentalPlan,
+  fetchDentalPlans,
+  clearSessionPendingServices,
+  selectSessionPendingServices,
+  selectDentalPlans,
+} from "../redux/dentalPlanSlice";
+import {
+  saveOralExaminationThunk,
+  patchOralExaminationThunk,
+  fetchOralExamination,
+  setBaselineOralEntries,
+  clearOralExamination,
+} from "../redux/oralExaminationSlice";
 import { transformToothStateToApi } from "./dental/lib/examination-helpers";
 import { buildPrintPdfBlobFromPayload } from "../utils/buildPrintPdfBlob";
+import { buildSessionPlanCreatePayloads } from "./dental/plan/exam-suggestions";
 import { buildConsultationPreviewPrintPayload } from "../utils/buildConsultationPreviewPrintPayload";
 import { ASSETS } from "../assets";
 import { ToothIcon } from "./dental/ToothIcon";
@@ -328,6 +348,8 @@ function ConsultationLayout({ children, headerProps }) {
     (state) => state.customModules,
   );
   const dentalExamination = useSelector(selectDentalExamination);
+  const sessionPendingServices = useSelector(selectSessionPendingServices);
+  const dentalPlans = useSelector(selectDentalPlans);
   const oralExamination = useSelector((state) => state.oralExamination);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
@@ -1078,13 +1100,17 @@ function ConsultationLayout({ children, headerProps }) {
     getSymptomsCollectorData();
   }, []);
 
-  // Prefetch dental data while user is on the Clinical tab so it's ready when dental tab opens
+  // Prefetch dental data while user is on the Clinical tab so it's ready when dental tab opens.
+  // Clear prior-patient dental/oral/pending first so canvas sync cannot re-bleed stale data.
   useEffect(() => {
     const patId = patient_data?.patient_unique_id;
     if (!patId || !isDentalRxPadPath(location.pathname)) return;
+    dispatch(clearOralExamination());
+    dispatch(clearDentalChart());
+    dispatch(clearSessionPendingServices());
     dispatch(fetchDentalExamination(patId));
     dispatch(fetchOralExamination(patId));
-  }, [patient_data?.patient_unique_id, location.pathname]);
+  }, [patient_data?.patient_unique_id, location.pathname, dispatch]);
 
   useEffect(() => {
     if (isGynaecHistoryAccessable) {
@@ -2296,7 +2322,7 @@ function ConsultationLayout({ children, headerProps }) {
       if (isDentalRxPadPath(location.pathname) && patientId && dentalExamination?.toothState && Object.keys(dentalExamination.toothState).length > 0) {
         try {
           const tooth_states = transformToothStateToApi(dentalExamination.toothState);
-          await dispatch(saveDentalExamination({
+          const dentalExaminationResponse = await dispatch(saveDentalExamination({
             patientId,
             data: {
               dentition_type: dentalExamination.dentitionType || "adult",
@@ -2304,6 +2330,11 @@ function ConsultationLayout({ children, headerProps }) {
               version: dentalExamination.version || 0,
             },
           }));
+
+          if (dentalExaminationResponse.meta.requestStatus !== "fulfilled") {
+            message.error("Failed to save dental examination. Please retry.");
+            return;
+          }
         } catch (dentalErr) {
           console.warn("[Dental] Save failed before end visit:", dentalErr);
           message.error("Failed to save dental examination. Please retry.");
@@ -2350,6 +2381,73 @@ function ConsultationLayout({ children, headerProps }) {
           } catch (oralErr) {
             console.warn("[Oral] Save failed before end visit:", oralErr);
           }
+        }
+      }
+
+      // Create treatment plans from session-pending exam procedures (dental + oral).
+      // Runs for oral-only visits too (not gated on toothState).
+      if (
+        isDentalRxPadPath(location.pathname) &&
+        patientId &&
+        sessionPendingServices.length > 0
+      ) {
+        try {
+          const plansFetch = await dispatch(fetchDentalPlans(patientId));
+          const currentPlans =
+            plansFetch.meta.requestStatus === "fulfilled"
+              ? plansFetch.payload
+              : dentalPlans;
+
+          const planCreatePayloads = buildSessionPlanCreatePayloads({
+            plans: currentPlans,
+            pendingServices: sessionPendingServices,
+          });
+
+          let anyPlanCreated = false;
+          for (const data of planCreatePayloads) {
+            const planResponse = await dispatch(
+              createDentalPlan({ patientId, data }),
+            );
+            if (planResponse.meta.requestStatus === "fulfilled") {
+              anyPlanCreated = true;
+            } else {
+              console.warn(
+                "[Dental] Failed to create treatment plan:",
+                planResponse.payload,
+              );
+            }
+          }
+
+          const shouldClearPending =
+            (planCreatePayloads.length === 0 &&
+              sessionPendingServices.length > 0) ||
+            (planCreatePayloads.length > 0 && anyPlanCreated);
+
+          if (shouldClearPending) {
+            dispatch(clearSessionPendingServices());
+            dispatch(fetchDentalPlans(patientId));
+            dispatch(
+              setBaselineToothState(
+                JSON.parse(JSON.stringify(dentalExamination.toothState || {})),
+              ),
+            );
+            const oralProcedureBaseline = (
+              oralExamination?.canvasOralEntries || []
+            )
+              .filter((e) => e.kind === "procedure")
+              .map((e) => ({
+                id: e.id,
+                kind: "procedure",
+                name: e.name,
+                surfaces: e.surfaces || [],
+                since: e.since || "",
+                status: e.status,
+                note: e.note || "",
+              }));
+            dispatch(setBaselineOralEntries(oralProcedureBaseline));
+          }
+        } catch (planErr) {
+          console.warn("[Dental] Plan create failed before end visit:", planErr);
         }
       }
 
@@ -2553,6 +2651,13 @@ function ConsultationLayout({ children, headerProps }) {
             dentalExaminationData: activeDentalData,
           },
         });
+
+        // Clear dental/oral store after print snapshot so the next patient cannot see prior data
+        if (isDentalRxPadPath(location.pathname)) {
+          dispatch(clearOralExamination());
+          dispatch(clearDentalChart());
+          dispatch(clearSessionPendingServices());
+        }
       } else {
         errorMessage(action.error);
       }
@@ -2879,8 +2984,10 @@ function ConsultationLayout({ children, headerProps }) {
                         </div>
                       }>
                         <ExaminationTab
+                          key={patient_data?.patient_unique_id}
                           patientId={patient_data?.patient_unique_id}
                           patientAge={patient_data?.ageYears}
+                          appointmentId={pamId || patient_data?.pam_id || state?.pam_id}
                         />
                       </Suspense>
                     </div>
