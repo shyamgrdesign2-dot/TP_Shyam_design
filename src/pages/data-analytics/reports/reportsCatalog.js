@@ -152,20 +152,18 @@ export const REPORTS = [
     buildParams: (f) => ({ ...dates(f), type: f?.type || "ipd", user: f?.incentiveUser }),
   },
   {
-    id: "3c-report", roleId: 392, group: "Financial", dept: "opd",
+    id: "3c-report", roleId: 392, group: "Financial", dept: "both",
     icon: `${IC}content-edit/bill.svg`,
     label: "3C Report",
     desc: "Cash, invoice and credit-note breakdown.",
     // threeC.schema.ts: summary still requires `account` ("all" sentinel);
     // the Account picker is out of scope so we always send "all".
-    filters: ["threeCReportType", "dateRange", "billType"],
-    subFetchers: {
-      summary: { fetcher: ApiReporting.financialThreeC, exportFetcher: ApiReporting.exportFinancialThreeC },
-      details: { fetcher: ApiReporting.financialThreeCDetails, exportFetcher: ApiReporting.exportFinancialThreeCDetails },
-    },
+    // dept "both" drives the inner OPD|IPD toggle in ReportDownloadDrawer
+    // (needsDept = report.dept === "both") — same as Collection / Billing Overall.
+    filters: ["dateRange", "billType"],
     fetcher: ApiReporting.financialThreeC,
     exportFetcher: ApiReporting.exportFinancialThreeC,
-    buildParams: (f) => ({ ...dates(f), account: "all", billTypes: f?.billType }),
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", account: "all", billTypes: f?.billType }),
   },
   {
     id: "billing-overall", roleId: 393, group: "Financial", dept: "both",
