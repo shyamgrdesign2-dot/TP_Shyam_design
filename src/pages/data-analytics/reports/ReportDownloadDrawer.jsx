@@ -24,9 +24,11 @@ import {
   IPD_FILTER_BY_OPTIONS,
   APPOINTMENT_REPORT_TYPE_OPTIONS,
   COLLECTION_REPORT_TYPE_OPTIONS,
+  INCENTIVE_REPORT_TYPE_OPTIONS,
   THREE_C_REPORT_TYPE_OPTIONS,
   IPD_REPORT_TYPE_OPTIONS,
   PAYMENT_MODE_OPTIONS,
+  IPD_PAYMENT_MODE_OPTIONS,
 } from "./reportsCatalog";
 import { isoLocal } from "../filters/periods";
 import { getDecodedToken } from "../../../utils/localStorage";
@@ -78,6 +80,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   // ids, empty = "all". Serialized to CSV at download time.
   const [billType, setBillType] = useState([]);
   const [issuedBy, setIssuedBy] = useState([]);
+  const [incentiveUser, setIncentiveUser] = useState([]);
   const [apptStatus, setApptStatus] = useState([]);
   const [caseType, setCaseType] = useState([]);
   const [ipdFilterIds, setIpdFilterIds] = useState([]);
@@ -87,15 +90,18 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   // auth-token clinic (read-only).
   const [gender, setGender] = useState(undefined);
   const [account, setAccount] = useState("all");
+  const [accountIds, setAccountIds] = useState([]);
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
   const [ipdFilterBy, setIpdFilterBy] = useState(undefined);
 
   const [appointmentReportType, setAppointmentReportType] = useState("general");
   const [collectionReportType, setCollectionReportType] = useState("general");
+  const [incentiveReportType, setIncentiveReportType] = useState("detailed");
   const [threeCReportType, setThreeCReportType] = useState("summary");
   const [ipdReportType, setIpdReportType] = useState("admitting");
   const [billingOverallType, setBillingOverallType] = useState("revenue");
+  const [clinicalData, setClinicalData] = useState(undefined);
 
   useEffect(() => {
     if (open) {
@@ -103,21 +109,26 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
       setType(department);
       setBillType([]);
       setIssuedBy([]);
+      setIncentiveUser([]);
       setApptStatus([]);
       setCaseType([]);
       setIpdFilterIds([]);
       setGender(undefined);
       setAccount("all");
+      setAccountIds([]);
       setAgeMin("");
       setAgeMax("");
       setIpdFilterBy(undefined);
       setAppointmentReportType("general");
       setCollectionReportType("general");
+      setIncentiveReportType("detailed");
       setThreeCReportType("summary");
       setIpdReportType("admitting");
       setBillingOverallType("revenue");
+      setClinicalData(undefined);
       setPaymentMode([]);
       setDeptIds([]);
+      setIncentiveUserOptions([]);
       setExportedRows(null);
       setToast(null);
       setAttempted(false);
@@ -126,7 +137,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
 
   // Same live doctor + clinic sources as the page FilterBar (Redux with API
   // fallback; hospital_data lives on the DOCTORS slice).
-  const { doctorOptions, clinicOptions } = useFilterOptions();
+  const { doctorOptions, clinicOptions, departmentOptions: doctorDeptOptions } = useFilterOptions();
   const lockedClinicId = useMemo(() => {
     const fromFilters = singleId(filters?.clinic);
     if (fromFilters) return fromFilters;
@@ -149,12 +160,14 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const needsIpdFilter = reportFilters.includes("ipdFilterBy");
   const needsAppointmentReportType = reportFilters.includes("appointmentReportType");
   const needsCollectionReportType = reportFilters.includes("collectionReportType");
+  const needsIncentiveReportType = reportFilters.includes("incentiveReportType");
   const needsThreeCReportType = reportFilters.includes("threeCReportType");
   const needsIpdReportType = reportFilters.includes("ipdReportType");
   const needsBillingOverallType = reportFilters.includes("billingOverallType");
   const needsAccount = reportFilters.includes("account");
   const needsPaymentMode = reportFilters.includes("paymentMode");
   const needsDepartment = reportFilters.includes("department");
+  const needsIncentiveUser = reportFilters.includes("incentiveUser");
   const hasAppointmentDetailFields = reportFilters.includes("appointmentDetailFields");
 
   // Per-tab field visibility, matched to what each endpoint's schema accepts:
@@ -171,58 +184,97 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
   const showPaymentMode = needsPaymentMode && isCollectionDetailed;
   const showAccount = needsAccount && (!needsThreeCReportType || threeCReportType === "summary");
   const showAppointmentDetail = hasAppointmentDetailFields && appointmentReportType === "detailed";
+  const showAppointmentOverallFilters = needsAppointmentReportType && appointmentReportType === "overall";
+  const showClinicalData = needsAppointmentReportType && appointmentReportType === "general";
+  // Detailed incentive takes `user` (tim_id CSV); overall is dates + type only.
+  const showIncentiveUser = needsIncentiveUser && (!needsIncentiveReportType || incentiveReportType === "detailed");
 
-  // Account / department still come from /reports/lookups when needed.
-  // Mode of Payment uses the static billing labels (PAYMENT_MODE_OPTIONS).
+  // Inner OPD|IPD toggle (Collection / Billing Overall). IPD uses HIS
+  // payment modes and an Account picker; OPD keeps the existing MOP list.
+  const isIpdDrawerTab = needsDept && type === "ipd";
+  const showIpdAccount =
+    isIpdDrawerTab &&
+    (needsBillingOverallType || (needsPaymentMode && isCollectionDetailed));
+  const paymentModeOptions = isIpdDrawerTab ? IPD_PAYMENT_MODE_OPTIONS : PAYMENT_MODE_OPTIONS;
+
+  // Account still comes from /reports/lookups. Departments used to depend only
+  // on that payload's `{ id, name }` rows — IPD lookups often omit names, use
+  // `dp_id`, or return an empty list, which left Filter By → Department as
+  // "No matches". Resolve names from specialities / the clinic doctor roster
+  // and fall back to those lists when lookups have nothing to show.
   const [accountOptions, setAccountOptions] = useState([]);
-  const [departmentOptions, setDepartmentOptions] = useState([]);
+  const [incentiveUserOptions, setIncentiveUserOptions] = useState([]);
+  const [lookupDeptOptions, setLookupDeptOptions] = useState([]);
+  const [specialityDeptOptions, setSpecialityDeptOptions] = useState([]);
   const [paymentMode, setPaymentMode] = useState([]);
   const [deptFilter, setDeptIds] = useState([]);
 
+  const departmentOptions = useMemo(() => {
+    const namedLookups = lookupDeptOptions.map((opt) => {
+      const fromDoc = doctorDeptOptions.find((d) => String(d.value) === String(opt.value));
+      if (fromDoc && !isGenericDeptLabel(fromDoc.label)) return { ...opt, label: fromDoc.label };
+      return opt;
+    });
+    if (namedLookups.length) return sortDeptOptions(namedLookups);
+    if (doctorDeptOptions.length) return sortDeptOptions(doctorDeptOptions);
+    return sortDeptOptions(specialityDeptOptions);
+  }, [lookupDeptOptions, doctorDeptOptions, specialityDeptOptions]);
+
   useEffect(() => {
     if (!open) return;
-    const needsLookup = needsAccount || needsDepartment || needsIpdFilter;
+    const needsLookup = needsAccount || needsDepartment || needsIpdFilter || showAppointmentOverallFilters || showIncentiveUser || showIpdAccount;
     if (!needsLookup) return;
     let alive = true;
 
-    // 1) Same lookups mapping that already showed Dept 8 / 7 / 110 / 9 / 31.
-    // 2) Speciality master (the list we previously dumped in full).
-    // Then keep only those lookup IDs and swap in displayName.
-    ApiReporting.reportLookups()
-      .then((r) => {
-        const data = r?.data ?? r ?? {};
-        if (!alive) return [];
-        const accounts = Array.isArray(data.accounts) ? data.accounts : [];
-        if (accounts.length) {
-          setAccountOptions([
-            { value: "all", label: "All accounts" },
-            ...accounts.map((a) => ({ value: String(a.id), label: a.name || `Account ${a.id}` })),
-          ]);
-        }
-        const departments = Array.isArray(data.departments) ? data.departments : [];
-        const mapped = departments
-          .filter((d) => d?.id != null)
-          .map((d) => ({ value: String(d.id), label: d.name || `Dept ${d.id}` }));
-        if (mapped.length) setDepartmentOptions(mapped);
-        return mapped;
-      })
-      .then((mapped) => {
-        if (!alive || !mapped?.length) return;
-        return getSpecialityList().then((specialities) => {
-          if (!alive) return;
-          const named = mapped.map((opt) => {
-            const spec = findSpecialityForDeptId(specialities, opt.value);
-            return { ...opt, label: specName(spec) || opt.label };
-          });
-          setDepartmentOptions(named);
-        });
-      })
-      .catch((err) => {
-        console.warn("[DA depts] failed", err);
+    Promise.all([
+      ApiReporting.reportLookups().catch((err) => {
+        console.warn("[DA depts] lookups failed", err);
+        return null;
+      }),
+      getSpecialityList().catch(() => []),
+    ]).then(([lookupRes, specialities]) => {
+      if (!alive) return;
+      const data = lookupRes?.data ?? lookupRes ?? {};
+      const accounts = firstList(data.accounts, data.account, data?.data?.accounts);
+      if (accounts.length) {
+        setAccountOptions(
+          accounts
+            .filter((a) => (a?.id ?? a?.tban_id ?? a?.value) != null)
+            .map((a) => {
+              const id = a.id ?? a.tban_id ?? a.value;
+              return { value: String(id), label: a.name || a.label || `Account ${id}` };
+            })
+        );
+      }
+
+      const incentiveUsers = firstList(
+        data.incentiveUsers,
+        data.incentive_users,
+        data?.data?.incentiveUsers
+      );
+      if (incentiveUsers.length) {
+        setIncentiveUserOptions(
+          incentiveUsers
+            .filter((u) => (u?.timId ?? u?.tim_id ?? u?.id ?? u?.value) != null)
+            .map((u) => {
+              const id = u.timId ?? u.tim_id ?? u.id ?? u.value;
+              return { value: String(id), label: u.incentiveUser || u.name || u.label || `User ${id}` };
+            })
+        );
+      }
+
+      const specs = Array.isArray(specialities) ? specialities : [];
+      setSpecialityDeptOptions(specialitiesToDeptOptions(specs));
+
+      const fromLookups = lookupsToDeptOptions(data).map((opt) => {
+        const spec = findSpecialityForDeptId(specs, opt.value);
+        return { ...opt, label: specName(spec) || opt.label };
       });
+      setLookupDeptOptions(fromLookups);
+    });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, needsAccount, needsDepartment, needsIpdFilter]);
+  }, [open, needsAccount, needsDepartment, needsIpdFilter, showAppointmentOverallFilters, showIncentiveUser, showIpdAccount]);
 
   // Case types are ids (toct_id) — listCasetype returns { status, data: { case_type } }.
   const [caseTypeOptions, setCaseTypeOptions] = useState([]);
@@ -252,11 +304,37 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
     };
   }, [open, showAppointmentDetail, caseTypeOptions.length]);
 
+  // Fallback when lookups omit incentive users: overall rows carry
+  // { timId, incentiveUser } and double as the picker's option source.
+  useEffect(() => {
+    if (!open || !showIncentiveUser || incentiveUserOptions.length) return;
+    let alive = true;
+    const { startDate, endDate } = resolveDates(range, filters);
+    if (!startDate || !endDate) return;
+    ApiReporting.financialIncentiveOverall({ startDate, endDate, limit: 100 })
+      .then((r) => {
+        const rows = (r?.data ?? r)?.rows || [];
+        if (alive && rows.length) {
+          setIncentiveUserOptions(
+            rows
+              .filter((u) => u?.timId != null)
+              .map((u) => ({ value: String(u.timId), label: u.incentiveUser || `User ${u.timId}` }))
+          );
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, showIncentiveUser, incentiveUserOptions.length, range]);
+
   const resolvedReport = useMemo(() => {
     if (!report?.subFetchers) return report;
     let key;
     if (needsAppointmentReportType) key = appointmentReportType;
     else if (needsCollectionReportType) key = collectionReportType;
+    else if (needsIncentiveReportType) key = incentiveReportType;
     else if (needsThreeCReportType) key = threeCReportType;
     else if (needsBillingOverallType) key = billingOverallType;
     else return report;
@@ -264,7 +342,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
     const sub = report.subFetchers[key];
     if (!sub) return report;
     return { ...report, fetcher: sub.fetcher, exportFetcher: sub.exportFetcher };
-  }, [report, appointmentReportType, collectionReportType, threeCReportType, billingOverallType, needsAppointmentReportType, needsCollectionReportType, needsThreeCReportType, needsBillingOverallType]);
+  }, [report, appointmentReportType, collectionReportType, incentiveReportType, threeCReportType, billingOverallType, needsAppointmentReportType, needsCollectionReportType, needsIncentiveReportType, needsThreeCReportType, needsBillingOverallType]);
 
   const canExport = typeof resolvedReport?.exportFetcher === "function";
 
@@ -304,6 +382,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         doctorId: filters?.doctor || undefined,
         billType: csv(billType),
         issuedBy: showIssuedBy ? csv(issuedBy) : undefined,
+        incentiveUser: showIncentiveUser ? csv(incentiveUser) : undefined,
         gender: showAppointmentDetail ? gender : undefined,
         // fromAge/toAge apply only as a pair (appointment.model.ts)
         ageMin: showAppointmentDetail && ageMin !== "" && ageMax !== "" ? Number(ageMin) : undefined,
@@ -312,8 +391,11 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         caseType: showAppointmentDetail ? csv(caseType) : undefined,
         ipdFilterBy: ipdFilterBy || undefined,
         ipdFilterIds: csv(ipdFilterIds),
-        ipdReportType: ipdReportType || undefined,
-        account: needsAccount ? account : undefined,
+        ipdReportType: ipdReportType === "discharged" ? "discharged" : "admitting",
+        appointmentReportType,
+        clinicalData: showClinicalData ? clinicalData : undefined,
+        account: showIpdAccount ? csv(accountIds) : (needsAccount ? account : undefined),
+        accountant: showIpdAccount ? csv(accountIds) : undefined,
         modeOfPayment: needsPaymentMode ? csv(paymentMode) : undefined,
         deptIds: needsDepartment ? csv(deptFilter) : undefined,
       };
@@ -332,19 +414,28 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         });
         return;
       }
-      await downloadBlob(blob?.data ?? blob, `${resolvedReport.id}.csv`);
+      try {
+        await downloadBlob(blob?.data ?? blob, `${resolvedReport.id}.csv`);
+      } catch (dlErr) {
+        dlErr._daStep = "inapp-upload";
+        throw dlErr;
+      }
       trackAnalytics(EVENTS.REPORT_DOWNLOADED, { department, report_name: resolvedReport.label || resolvedReport.id, rows_exported: rows != null ? Number(rows) : undefined });
     } catch (e) {
       // Surface the failure — with the server's own reason when it sent one
       // (error payloads arrive as a Blob because the request asked for one).
       const serverMsg = await extractErrorMessage(e);
       // eslint-disable-next-line no-console
-      console.warn("Report export failed", resolvedReport?.id, e?.response?.status || e?.message);
+      console.warn("Report export failed", resolvedReport?.id, e?._daStep, e?.response?.status || e?.message);
       trackAnalytics(EVENTS.REPORT_ERROR, { department, report_name: resolvedReport?.label || resolvedReport?.id, error_status: e?.response?.status || "unknown", error_message: serverMsg || e?.message || "" });
       setToast({
         status: "error",
         title: "Download failed",
-        subtext: serverMsg || "The report could not be downloaded. Please try again in a moment.",
+        subtext:
+          (e?._daStep === "inapp-upload" && e?.message) ||
+          serverMsg ||
+          e?.message ||
+          "The report could not be downloaded. Please try again in a moment.",
       });
     } finally {
       setDownloading(false);
@@ -380,6 +471,18 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
                 options={COLLECTION_REPORT_TYPE_OPTIONS}
                 value={collectionReportType}
                 onValueChange={setCollectionReportType}
+              />
+            </Field>
+          )}
+
+          {needsIncentiveReportType && (
+            <Field label="Report Type">
+              <SegmentedControl
+                size="sm"
+                theme="primary"
+                options={INCENTIVE_REPORT_TYPE_OPTIONS}
+                value={incentiveReportType}
+                onValueChange={setIncentiveReportType}
               />
             </Field>
           )}
@@ -430,7 +533,11 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
                   { value: "ipd", label: "IPD" },
                 ]}
                 value={type}
-                onValueChange={setType}
+                onValueChange={(v) => {
+                  setType(v);
+                  setPaymentMode([]);
+                  setAccountIds([]);
+                }}
               />
             </Field>
           )}
@@ -475,6 +582,40 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
           {needsIpdFilter && ipdFilterBy === "department" && (
             <MultiField
               label="Departments"
+              placeholder="Select departments"
+              options={departmentOptions}
+              value={ipdFilterIds}
+              onChange={setIpdFilterIds}
+            />
+          )}
+
+          {showAppointmentOverallFilters && (
+            <Field label="Department or Doctor">
+              <Dropdown
+                placeholder="Select"
+                options={IPD_FILTER_BY_OPTIONS}
+                value={ipdFilterBy}
+                onChange={(v) => {
+                  setIpdFilterBy(v);
+                  setIpdFilterIds([]);
+                }}
+              />
+            </Field>
+          )}
+
+          {showAppointmentOverallFilters && ipdFilterBy === "doctor" && (
+            <MultiField
+              label="Select Doctor"
+              placeholder="Select doctors"
+              options={doctorOptions}
+              value={ipdFilterIds}
+              onChange={setIpdFilterIds}
+            />
+          )}
+
+          {showAppointmentOverallFilters && ipdFilterBy === "department" && (
+            <MultiField
+              label="Select Department"
               placeholder="Select departments"
               options={departmentOptions}
               value={ipdFilterIds}
@@ -533,6 +674,31 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             </Field>
           )}
 
+          {showIncentiveUser && (
+            <MultiField
+              label="Incentive User"
+              placeholder="All users"
+              options={incentiveUserOptions}
+              value={incentiveUser}
+              onChange={setIncentiveUser}
+            />
+          )}
+
+          {showClinicalData && (
+            <Field label="Clinical Data">
+              <SegmentedControl
+                size="sm"
+                theme="primary"
+                options={[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                ]}
+                value={clinicalData}
+                onValueChange={setClinicalData}
+              />
+            </Field>
+          )}
+
           {showBillType && (
             <MultiField
               label={needsBillingOverallType ? "Type" : "Bill Type"}
@@ -557,7 +723,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             <Field label="Account">
               <Dropdown
                 placeholder="All accounts"
-                options={accountOptions.length ? accountOptions : [{ value: "all", label: "All accounts" }]}
+                options={[{ value: "all", label: "All accounts" }, ...accountOptions]}
                 value={account}
                 onChange={(v) => setAccount(v || "all")}
                 searchable={accountOptions.length > 5}
@@ -569,9 +735,19 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
             <MultiField
               label="Mode of Payment"
               placeholder="All modes"
-              options={PAYMENT_MODE_OPTIONS}
+              options={paymentModeOptions}
               value={paymentMode}
               onChange={setPaymentMode}
+            />
+          )}
+
+          {showIpdAccount && (
+            <MultiField
+              label="Account"
+              placeholder="All accounts"
+              options={accountOptions}
+              value={accountIds}
+              onChange={setAccountIds}
             />
           )}
 
@@ -712,6 +888,67 @@ function firstList(...candidates) {
 function specName(spec) {
   if (!spec) return null;
   return spec.displayName || spec.name || spec.dp_name || spec.speciality || null;
+}
+
+function deptValue(row) {
+  if (row == null || typeof row !== "object") return row ?? null;
+  return (
+    row.id ??
+    row.dp_id ??
+    row.dpId ??
+    row.departmentId ??
+    row.pmMasterId ??
+    row.code ??
+    row.value ??
+    null
+  );
+}
+
+function deptLabel(row, value) {
+  if (row == null || typeof row !== "object") return value != null ? `Dept ${value}` : null;
+  return (
+    row.name ||
+    row.displayName ||
+    row.dp_name ||
+    row.dpName ||
+    row.department_name ||
+    row.departmentName ||
+    row.speciality ||
+    row.label ||
+    (value != null ? `Dept ${value}` : null)
+  );
+}
+
+function isGenericDeptLabel(label) {
+  return !label || /^Dept\s/i.test(String(label));
+}
+
+function sortDeptOptions(options) {
+  return [...(options || [])].sort((a, b) => String(a.label).localeCompare(String(b.label)));
+}
+
+function toDeptOption(row) {
+  const value = deptValue(row);
+  if (value == null || value === "") return null;
+  return { value: String(value), label: deptLabel(row, value) };
+}
+
+function lookupsToDeptOptions(data) {
+  const rows = firstList(
+    data?.departments,
+    data?.department,
+    data?.depts,
+    data?.departmentList,
+    data?.specialities,
+    data?.speciality,
+    data?.data?.departments,
+    data?.data?.department
+  );
+  return rows.map(toDeptOption).filter(Boolean);
+}
+
+function specialitiesToDeptOptions(specialities) {
+  return (specialities || []).map(toDeptOption).filter((opt) => opt && !isGenericDeptLabel(opt.label));
 }
 
 function findSpecialityForDeptId(specialities, deptId) {

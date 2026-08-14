@@ -93,6 +93,11 @@ const CARE_SUB_TABS = [
   // { id: "custom-modules", label: "Custom Modules", icon: "social/atom", fixedVariant: "linear" },
 ];
 
+const REPORTS_SUB_TABS = [
+  { id: "opd", label: "OPD", icon: "medical/clipboard-activity" },
+  { id: "ipd", label: "IPD", icon: "medical/hospital-bed" },
+];
+
 // The new Data Analytics — a standalone page that OPENS like a full-page,
 // right-anchored drawer, built entirely on Tesseract. Kept separate from the
 // legacy opd-analytics / ipd-analytics modules.
@@ -136,9 +141,7 @@ export default function DataAnalyticsPage() {
   // Procedures / Gynec / Obstetric tabs were REMOVED (API-CONTRACTS-CURRENT
   // §7 WONT-BUILD: procedures have no data source; gynec/obstetric live in
   // MongoDB outside the reporting pipeline).
-  // Reports IPD tab is hidden for now — a single OPD tab would be noise, so
-  // skip the reports sub-tab strip until IPD is released again.
-  const subTabsConfig = section === "care" ? CARE_SUB_TABS : null;
+  const subTabsConfig = section === "care" ? CARE_SUB_TABS : section === "reports" ? REPORTS_SUB_TABS : null;
 
   // Shared filter state — every section reads the same values. The date filter
   // defaults to the "Past 7 days" preset; `dateValue` is what the picker shows
