@@ -414,19 +414,28 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         });
         return;
       }
-      await downloadBlob(blob?.data ?? blob, `${resolvedReport.id}.csv`);
+      try {
+        await downloadBlob(blob?.data ?? blob, `${resolvedReport.id}.csv`);
+      } catch (dlErr) {
+        dlErr._daStep = "inapp-upload";
+        throw dlErr;
+      }
       trackAnalytics(EVENTS.REPORT_DOWNLOADED, { department, report_name: resolvedReport.label || resolvedReport.id, rows_exported: rows != null ? Number(rows) : undefined });
     } catch (e) {
       // Surface the failure — with the server's own reason when it sent one
       // (error payloads arrive as a Blob because the request asked for one).
       const serverMsg = await extractErrorMessage(e);
       // eslint-disable-next-line no-console
-      console.warn("Report export failed", resolvedReport?.id, e?.response?.status || e?.message);
+      console.warn("Report export failed", resolvedReport?.id, e?._daStep, e?.response?.status || e?.message);
       trackAnalytics(EVENTS.REPORT_ERROR, { department, report_name: resolvedReport?.label || resolvedReport?.id, error_status: e?.response?.status || "unknown", error_message: serverMsg || e?.message || "" });
       setToast({
         status: "error",
         title: "Download failed",
-        subtext: serverMsg || "The report could not be downloaded. Please try again in a moment.",
+        subtext:
+          (e?._daStep === "inapp-upload" && e?.message) ||
+          serverMsg ||
+          e?.message ||
+          "The report could not be downloaded. Please try again in a moment.",
       });
     } finally {
       setDownloading(false);
