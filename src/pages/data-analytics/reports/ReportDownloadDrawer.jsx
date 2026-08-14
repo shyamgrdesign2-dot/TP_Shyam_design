@@ -323,7 +323,7 @@ export default function ReportDownloadDrawer({ report, department = "opd", filte
         caseType: showAppointmentDetail ? csv(caseType) : undefined,
         ipdFilterBy: ipdFilterBy || undefined,
         ipdFilterIds: csv(ipdFilterIds),
-        ipdReportType: ipdReportType || undefined,
+        ipdReportType: ipdReportType === "discharged" ? "discharged" : "admitting",
         account: needsAccount ? account : undefined,
         modeOfPayment: needsPaymentMode ? csv(paymentMode) : undefined,
         deptIds: needsDepartment ? csv(deptFilter) : undefined,

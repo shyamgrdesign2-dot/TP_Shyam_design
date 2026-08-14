@@ -6,13 +6,16 @@ import { StackedBarWithTotal } from "../charts/EmptyAware";
 import DonutWithLegend from "../charts/DonutWithLegend";
 import { formatINR } from "../charts/format";
 import useBillingLive from "../data/useBillingLive";
+import useIpdBilling from "../data/useIpdBilling";
 import KpiRow from "./KpiRow";
 
 const BILLING_TOOLTIPS = {
   billed: "Sum of all bills raised in the selected period",
   collected: "Payments received from patients in the selected period",
   due: "Amount still outstanding on bills raised in the selected period",
+  outstanding: "Billed minus collected for the selected period. Legacy IPD has no separate due figure.",
   refunded: "Bill amounts refunded to patients in the selected period",
+  creditNotes: "Credit notes issued in the selected period",
   advance: "Advance deposits collected in the selected period",
   advRefunded: "Advance deposits returned to patients in the selected period",
   advDebited: "Advance amounts applied toward bills in the selected period",
@@ -20,27 +23,39 @@ const BILLING_TOOLTIPS = {
 };
 
 export default function BillingSection({ filters, department = "opd" }) {
-  const { loading, kpis, paymentModes, refundModes, advanceModes, revenueByDoctor } = useBillingLive({
+  const isIpd = department === "ipd";
+  const live = useBillingLive({
     startDate: filters?.startDate,
     endDate: filters?.endDate,
     department,
     doctorId: filters?.doctor,
     clinicId: filters?.clinic,
+    enabled: !isIpd,
   });
+  const ipd = useIpdBilling({
+    startDate: filters?.startDate,
+    endDate: filters?.endDate,
+    doctorId: filters?.doctor,
+    clinicId: filters?.clinic,
+    enabled: isIpd,
+  });
+  const { loading, kpis, paymentModes, refundModes, advanceModes, revenueByDoctor } = isIpd ? ipd : live;
 
   const kpisWithTooltips = useMemo(
     () => kpis.map((k) => ({ ...k, tooltip: BILLING_TOOLTIPS[k.key] || k.tooltip })),
     [kpis]
   );
 
-  const revenueDonut = useMemo(
-    () => [
+  const revenueDonut = useMemo(() => {
+    const mid = isIpd
+      ? { label: "Outstanding", value: kpis.find((k) => k.key === "outstanding")?.value || 0 }
+      : { label: "Due", value: kpis.find((k) => k.key === "due")?.value || 0 };
+    return [
       { label: "Collected", value: kpis.find((k) => k.key === "collected")?.value || 0 },
-      { label: "Due", value: kpis.find((k) => k.key === "due")?.value || 0 },
+      mid,
       { label: "Refunded", value: kpis.find((k) => k.key === "refunded")?.value || 0 },
-    ],
-    [kpis]
-  );
+    ];
+  }, [kpis, isIpd]);
 
   const chartCount = 3 + (revenueByDoctor ? 1 : 0) + (advanceModes.length > 0 ? 1 : 0);
 
@@ -63,7 +78,16 @@ export default function BillingSection({ filters, department = "opd" }) {
 
       <SectionBlock title="More insights" count={chartCount}>
         <ChartGrid>
-          <ChartTile title="Revenue breakdown" subtitle="Collected, due and refunded" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/chart.svg" titleTooltip="How the total billed amount splits into collected, due, and refunded in the selected period">
+          <ChartTile
+            title="Revenue breakdown"
+            subtitle={isIpd ? "Collected, outstanding and refunded" : "Collected, due and refunded"}
+            iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/chart.svg"
+            titleTooltip={
+              isIpd
+                ? "How billed amount splits into collected, outstanding, and refunded in the selected period"
+                : "How the total billed amount splits into collected, due, and refunded in the selected period"
+            }
+          >
             <DonutWithLegend data={revenueDonut} centerLabel="Billed" valueFormat={formatINR} height={220} />
           </ChartTile>
 

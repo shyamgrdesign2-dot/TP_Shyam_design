@@ -185,10 +185,10 @@ export const REPORTS = [
     icon: `${IC}medical/clipboard-activity.svg`,
     label: "IPD Analytics",
     desc: "Inpatient clinical activity and department-wise breakdown.",
-    filters: ["dateRange", "clinic", "ipdFilterBy"],
+    filters: ["ipdReportType", "dateRange", "clinic", "ipdFilterBy"],
     fetcher: ApiReporting.financialIpdReports,
     exportFetcher: ApiReporting.exportFinancialIpdReports,
-    buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, filterBy: f?.ipdFilterBy, ids: f?.ipdFilterIds }),
+    buildParams: (f) => ({ ...dates(f), reportType: f?.ipdReportType || "admitting", clinicId: f?.clinicId, filterBy: f?.ipdFilterBy, ids: f?.ipdFilterIds }),
   },
   {
     id: "prescription-analytics", roleId: 388, group: "Clinical", dept: "opd",
