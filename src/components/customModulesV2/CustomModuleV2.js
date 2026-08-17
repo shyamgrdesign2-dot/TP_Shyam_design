@@ -435,9 +435,14 @@ const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) =
   // behind (e.g. after picking "Add Custom", or after deleting a filled row).
   useEffect(() => {
     if (!useTesseractUi || isMobile) return;
+    // Until the module definition resolves, every row would read as blank and
+    // the trim below would wipe already-restored content (see the same hazard
+    // called out where saved rows are normalized above).
+    const namedFields = module?.namedFields;
+    if (!namedFields?.length) return;
     const rows = Array.isArray(moduleData) ? moduleData : [];
     const hasContent = (row) =>
-      row && module?.namedFields?.some(
+      row && namedFields.some(
         (field) => String(row[field.fieldName] || "").trim()
       );
     let filledCount = rows.length;
@@ -449,7 +454,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule, useTesseractUi = false }) =
     setModuleData(updatedData);
     updateCustomModuleContents(updatedData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [moduleData, useTesseractUi, isMobile]);
+  }, [moduleData, useTesseractUi, isMobile, module?.namedFields]);
 
   // Handle deleting a row
   const handleDeleteRow = (rowId) => {
