@@ -1,3 +1,11 @@
+/* Obstetric is hosted inside a full-width antd Drawer on PrescriptionNew, and
+   that host sits at z-index 1100. Every surface opened from inside Obstetric has
+   to clear the host, otherwise it mounts behind it and reads as a dead click. */
+export const OBSTETRIC_HOST_DRAWER_Z_INDEX = 1100;
+export const OBSTETRIC_NESTED_DRAWER_Z_INDEX = 1200;
+export const OBSTETRIC_NESTED_UPLOAD_DRAWER_Z_INDEX = 1250;
+export const OBSTETRIC_NESTED_MODAL_Z_INDEX = 1300;
+
 export const ExaminationColumns = [
   {
     title: "Visits",

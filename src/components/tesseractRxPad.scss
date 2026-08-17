@@ -300,7 +300,16 @@
         flex-direction: column;
       }
 
-      /* Medicine name cell — fill the cell, 2-line clamp */
+      /* Medicine name cell — fill the cell, 2-line clamp.
+         `width` is not cosmetic here: `> .ant-col` above turns this wrapper
+         into a flex item with `flex-basis: auto`, so it shrink-wraps its
+         content. The inline voice-medicine editor inside carries `w-100`,
+         whose percentage then resolves against a content-sized ancestor —
+         circular — and the browser falls back to the combobox's min-content
+         width (24px = 11px padding each side). The seeded medicine name gets
+         2px to render in and reads as "the name disappeared on click". A
+         short medicine name hides this in the read-only state, so the cell
+         must be given a definite width for the chain below to resolve. */
       .fontroboto.fw-medium.p-2 {
         padding: 4px 8px !important;
         display: flex;
@@ -308,6 +317,15 @@
         justify-content: center;
         min-height: 42px;
         overflow: hidden;
+        width: 100%;
+        min-width: 0;
+      }
+
+      /* Same reason, one level down: `flex-grow` alone keeps `flex-basis:auto`
+         (content-sized), so the editor's containing block stays indefinite. */
+      .fontroboto.fw-medium.p-2 .flex-grow-1 {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
       }
 
       .text-main2 {

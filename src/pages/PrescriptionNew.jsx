@@ -193,6 +193,11 @@ import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { buildSoapIndividualPrintPayload } from "../utils/soapPrintPayload";
 import { hasMeaningfulVoicePayloadData } from "../utils/voiceSoapPayload";
 import { printBlobInNewTab } from "./opdBilling/utils/helper";
+import {
+  OBSTETRIC_HOST_DRAWER_Z_INDEX,
+  OBSTETRIC_NESTED_DRAWER_Z_INDEX,
+  OBSTETRIC_NESTED_UPLOAD_DRAWER_Z_INDEX,
+} from "./obstetric/utils/constants";
 
 const FOLLOW_UP_DATE_FORMATS = [
   "YYYY-MM-DD",
@@ -3712,7 +3717,7 @@ function PrescriptionNew() {
             open={obstetricDrawer}
             width="100%"
             push={false}
-            zIndex={1100}
+            zIndex={OBSTETRIC_HOST_DRAWER_Z_INDEX}
           >
             <Obstetric
               obstetricDetails={obstetricDetails}
@@ -3732,6 +3737,7 @@ function PrescriptionNew() {
             className="modalWidth-700"
             width="auto"
             push={false}
+            zIndex={OBSTETRIC_NESTED_UPLOAD_DRAWER_Z_INDEX}
           >
             <UploadDocument
               onClose={handleDeletePopup}
@@ -3754,6 +3760,9 @@ function PrescriptionNew() {
             open={medicalReportDrawer}
             width="50%"
             push={false}
+            // Reachable from the ANC Scheduler footer, i.e. from inside the
+            // obstetric host drawer at 1100.
+            zIndex={OBSTETRIC_NESTED_DRAWER_Z_INDEX}
           >
             <MedicalRecords
               medicalReportDrawer={medicalReportDrawer}

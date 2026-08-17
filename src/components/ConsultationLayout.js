@@ -228,6 +228,11 @@ import {
   syncCrossConsultReferral,
 } from "../utils/crossConsultHelpers";
 import { useCrossConsult } from "../hooks/useCrossConsult";
+import {
+  OBSTETRIC_HOST_DRAWER_Z_INDEX,
+  OBSTETRIC_NESTED_DRAWER_Z_INDEX,
+  OBSTETRIC_NESTED_UPLOAD_DRAWER_Z_INDEX,
+} from "../pages/obstetric/utils/constants";
 
 const ExaminationTab = React.lazy(() =>
   import("./dental/examination/ExaminationTab").then((m) => ({ default: m.ExaminationTab }))
@@ -3121,7 +3126,7 @@ function ConsultationLayout({ children, headerProps }) {
             open={obstetricDrawer}
             width="100%"
             push={false}
-            zIndex={1100}
+            zIndex={OBSTETRIC_HOST_DRAWER_Z_INDEX}
           >
             <Obstetric
               obstetricDetails={obstetricDetails}
@@ -3141,6 +3146,7 @@ function ConsultationLayout({ children, headerProps }) {
             className="modalWidth-700"
             width="auto"
             push={false}
+            zIndex={OBSTETRIC_NESTED_UPLOAD_DRAWER_Z_INDEX}
           >
             <UploadDocument
               onClose={handleDeletePopup}
@@ -3165,6 +3171,9 @@ function ConsultationLayout({ children, headerProps }) {
             className="modalWidth-700"
             width={"auto"}
             push={false}
+            // Reachable from the ANC Scheduler footer, i.e. from inside the
+            // obstetric host drawer at 1100.
+            zIndex={OBSTETRIC_NESTED_DRAWER_Z_INDEX}
           >
             <MedicalRecords
               medicalReportDrawer={medicalReportDrawer}

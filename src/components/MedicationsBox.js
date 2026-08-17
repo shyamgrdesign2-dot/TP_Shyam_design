@@ -443,7 +443,14 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
       (isMedicationInventorySelectionRequired(item) || isVoiceRxAutoGroundedEditable(item)),
     [isMedicationInventorySelectionRequired, isVoiceRxAutoGroundedEditable, isVoiceRxModuleEnabled]
   );
+  // A template row is stored against the medicine master (tmm_id); an
+  // unlinked medicine comes back empty from singleTemplateDetails, so saving
+  // is blocked for EVERY account until the medicine is picked from the list.
+  // Only the wording differs for inventory-backed accounts.
   const hasUngroundedMedications = isVoiceRxModuleEnabled && medicationData.some(isMedicationInventorySelectionRequired);
+  const ungroundedTemplateMessage = shouldShowInventorySourceWarning
+    ? "Some items aren't linked to your inventory. Please resolve them before saving as a template."
+    : "Some medicines aren't selected from the medicine list. Please select them before saving as a template.";
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
       if (!isPrescriptionNewContext) {
@@ -781,10 +788,8 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
     if (!isVoiceRxModuleEnabled) return;
     if (!canEditVoiceMedicineSelection(item)) return;
     const query = item.tmm_medicine_name || "";
-    setVoiceMedicineEdit({
-      uniqueId: item.unique_id,
-      query,
-    });
+    if (!item.unique_id) return; // no stable id → cannot target this row safely
+    setVoiceMedicineEdit({ uniqueId: item.unique_id, query });
     if (isZydusAccount || isVoiceRxAutoGroundedEditable(item)) {
       setParentSearchOptions([]);
     } else {
@@ -1864,7 +1869,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                             ].filter(Boolean).join(" ") || undefined}
                             data-testid={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
                             onClick={() => {
-                              if (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) && voiceMedicineEdit.uniqueId !== item.unique_id) {
+                              if (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) && item.unique_id && voiceMedicineEdit.uniqueId !== item.unique_id) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
@@ -1874,7 +1879,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                               {isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? (
                                 <div className="d-flex align-items-center gap-1 w-100">
                                   <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
-                                    {voiceMedicineEdit.uniqueId === item.unique_id ? (
+                                    {item.unique_id && voiceMedicineEdit.uniqueId === item.unique_id ? (
                                       <AutoComplete
                                         autoFocus
                                         value={voiceMedicineEdit.query}
@@ -3196,7 +3201,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : "Save as template"}>
+                <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : "Save as template"}>
                   {tesseractActionButton({ icon: "ram", label: "Save medications as template", disabled: medicationData.length === 0 || hasUngroundedMedications })}
                 </Tooltip>
               </span>
@@ -3274,7 +3279,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                 </button>
               )}
             </Popover>
-            <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
+            <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
               <Popover
                 open={popOver2}
                 onOpenChange={() => (medicationData.length > 0) && !hasUngroundedMedications && showHideSaveTemplatePopOver()}

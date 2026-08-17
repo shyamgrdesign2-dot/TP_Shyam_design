@@ -461,15 +461,25 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
     const shouldUseChikitsalayInventoryValidation =
         isNewPrescriptionUi && Boolean(showVoiceRxModule) && isChikitsalayAccessable;
+    // A One Click Rx template is stored against the medicine master (tmm_id),
+    // so a voice medicine that was never picked from the list comes back empty
+    // on retrieval. Block the save for EVERY account, exactly like the
+    // Medications section does; only the wording differs below.
+    const hasUngroundedVoiceMedications = isNewPrescriptionUi &&
+        Boolean(showVoiceRxModule) &&
+        medicationData.some(
+            (item) => !!item?.voice_rx_from_module && !(Number(item?.tmm_id) > 0)
+        );
     const hasUngroundedMedications = shouldUseChikitsalayInventoryValidation
         ? (
             diagnosisData.some(hasInvalidChikitsalayDiagnosis) ||
             investigationData.some(hasInvalidChikitsalayInvestigation) ||
             medicationData.some(hasInvalidChikitsalayMedication)
         )
-        : isZydusAccount && medicationData.some(
-            (item) => !!item?.voice_rx_from_module && !(Number(item?.tmm_id) > 0)
-        );
+        : hasUngroundedVoiceMedications;
+    const ungroundedTemplateMessage = (shouldUseChikitsalayInventoryValidation || isZydusAccount)
+        ? "Some items aren't linked to your inventory. Please resolve them before saving as a template."
+        : "Some medicines aren't selected from the medicine list. Please select them before saving as a template.";
     const [saveDraftLoading, setSaveDraftLoading] = useState(false);
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false, isVoiceRxNewUiFlow = false} = location.state || {};
@@ -3718,7 +3728,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             </span>
                                         </Popover>
                                     )}
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         {isMobile ? (
                                             <VoiceRxModuleActionButton
                                                 type="save"
@@ -3767,7 +3777,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                         </button>
                                     </Popover>
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <Popover
                                             open={popOver2}
                                             onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
@@ -3791,7 +3801,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
                                         {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="grid-5" variant="linear" size={18} /></span> : <i className="icon-template me-2"></i>} <span>{isCompactHeader ? "Temp" : "Templates"}</span>
                                     </button>
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <span>
                                             <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> {isNewPrescriptionUi ? <span className="me-2 d-inline-flex"><TPLibraryIcon name="ram" variant="linear" size={18} /></span> : <i className="icon-save me-2"></i>} <span>Save</span></button>
                                         </span>

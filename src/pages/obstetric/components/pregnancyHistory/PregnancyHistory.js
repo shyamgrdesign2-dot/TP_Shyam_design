@@ -10,6 +10,7 @@ import {
   LiveColumns,
   LiveColumnsWithPregnancyHistory,
   OutcomeOptions,
+  OBSTETRIC_NESTED_DRAWER_Z_INDEX,
 } from "../../utils/constants";
 import { getTypeOfAbortion } from "../../utils/helper";
 import { ABORTION, MISCARRIAGE } from "../../../../utils/constants";
@@ -273,6 +274,7 @@ const PregnancyHistory = ({
           open={obstetricDrawer}
           width="90%"
           push={false}
+          zIndex={OBSTETRIC_NESTED_DRAWER_Z_INDEX}
         >
           <Obstetric
             obstetricDetails={previousObstetricDetails}
