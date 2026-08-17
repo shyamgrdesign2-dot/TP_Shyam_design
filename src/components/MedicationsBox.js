@@ -366,7 +366,11 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
 
   const [searchParentQuery, setSearchParentQuery] = useState("");
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
-  const [voiceMedicineEdit, setVoiceMedicineEdit] = useState({ index: null, query: "" });
+  // Keyed by the row's stable unique_id, NOT its array index: taperDoseAdd
+  // splices rows into medicationData, which shifts every index after the
+  // insertion point and would otherwise move the open editor onto a
+  // different medicine (or write the selection into the wrong row).
+  const [voiceMedicineEdit, setVoiceMedicineEdit] = useState({ uniqueId: null, query: "" });
   const voiceMedicineSearchRequestRef = useRef(0);
   const autoVoiceMedicineGroundingRef = useRef(new Set());
 
@@ -487,8 +491,10 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
   }, [templates]);
 
   //Parent AutoComplete
-  const activeVoiceMedicineQuery = voiceMedicineEdit.index !== null ? voiceMedicineEdit.query : "";
-  const activeVoiceMedicineItem = voiceMedicineEdit.index !== null ? medicationData[voiceMedicineEdit.index] : null;
+  const activeVoiceMedicineQuery = voiceMedicineEdit.uniqueId !== null ? voiceMedicineEdit.query : "";
+  const activeVoiceMedicineItem = voiceMedicineEdit.uniqueId !== null
+    ? medicationData.find((row) => row?.unique_id === voiceMedicineEdit.uniqueId) || null
+    : null;
   const isVoiceMedicineFuzzySearchActive = (
     isVoiceRxModuleEnabled &&
     (
@@ -776,7 +782,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
     if (!canEditVoiceMedicineSelection(item)) return;
     const query = item.tmm_medicine_name || "";
     setVoiceMedicineEdit({
-      index: item.index,
+      uniqueId: item.unique_id,
       query,
     });
     if (isZydusAccount || isVoiceRxAutoGroundedEditable(item)) {
@@ -790,28 +796,36 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
     }
   };
 
-  const handleVoiceMedicineSearch = (query, index) => {
-    setVoiceMedicineEdit({ index, query: removeBeforeWhiteSpace(query) });
+  const handleVoiceMedicineSearch = (query, uniqueId) => {
+    setVoiceMedicineEdit({ uniqueId, query: removeBeforeWhiteSpace(query) });
   };
 
   const handleVoiceMedicineBlur = () => {
     voiceMedicineSearchRequestRef.current += 1;
     window.setTimeout(() => {
-      setVoiceMedicineEdit({ index: null, query: "" });
+      setVoiceMedicineEdit({ uniqueId: null, query: "" });
     }, 150);
   };
 
-  const onSelectVoiceMedicine = async (data, item, index) => {
+  const onSelectVoiceMedicine = async (data, item, uniqueId) => {
     const keyParsed = JSON.parse(item.key);
+    // Resolve the row by id: rows may have shifted (e.g. a tapering row was
+    // inserted above) since the editor was opened.
+    const index = medicationData.findIndex((row) => row?.unique_id === uniqueId);
+    if (index === -1) {
+      setVoiceMedicineEdit({ uniqueId: null, query: "" });
+      return;
+    }
     if (keyParsed.tmm_id === 0) {
       const current = medicationData[index];
       showHideAddMedicineModal();
       setAddCustom({
         ...keyParsed,
         voice_rx_replace_index: index,
+        voice_rx_replace_unique_id: uniqueId || current?.unique_id || "",
         voice_rx_replace_group_id: current?.voice_rx_group_id || "",
       });
-      setVoiceMedicineEdit({ index: null, query: "" });
+      setVoiceMedicineEdit({ uniqueId: null, query: "" });
       return;
     }
 
@@ -846,7 +860,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
         um_id: selected.um_id ?? keyParsed.um_id,
       };
     setMedicationData((prev) => [...prev]);
-    setVoiceMedicineEdit({ index: null, query: "" });
+    setVoiceMedicineEdit({ uniqueId: null, query: "" });
   };
 
   const onSelectParent = async (data, item) => {
@@ -1850,7 +1864,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                             ].filter(Boolean).join(" ") || undefined}
                             data-testid={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
                             onClick={() => {
-                              if (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) && voiceMedicineEdit.index !== item.index) {
+                              if (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) && voiceMedicineEdit.uniqueId !== item.unique_id) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
@@ -1860,7 +1874,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                               {isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? (
                                 <div className="d-flex align-items-center gap-1 w-100">
                                   <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
-                                    {voiceMedicineEdit.index === item.index ? (
+                                    {voiceMedicineEdit.uniqueId === item.unique_id ? (
                                       <AutoComplete
                                         autoFocus
                                         value={voiceMedicineEdit.query}
@@ -1869,8 +1883,8 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                                         bordered={false}
                                         defaultOpen
                                         open
-                                        onSearch={(query) => handleVoiceMedicineSearch(query, item.index)}
-                                        onSelect={(data, e) => onSelectVoiceMedicine(data, e, item.index)}
+                                        onSearch={(query) => handleVoiceMedicineSearch(query, item.unique_id)}
+                                        onSelect={(data, e) => onSelectVoiceMedicine(data, e, item.unique_id)}
                                         onBlur={handleVoiceMedicineBlur}
                                         options={parentSearchOptions}
                                         className="autocomplete-custom w-100 inputborder"
@@ -1914,7 +1928,16 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                               </Tooltip>
                               {renderSelectedMedicineStock(item)}
                             </div>
-                            <div className="badge-tapper badge-tapper--taper" onClick={() => taperDoseAdd(item)}>
+                            <div
+                              className="badge-tapper badge-tapper--taper"
+                              onClick={(event) => {
+                                // The name cell's onClick opens the voice-medicine
+                                // editor; without this the taper click bubbles and
+                                // swaps the name for an open search dropdown.
+                                event.stopPropagation();
+                                taperDoseAdd(item);
+                              }}
+                            >
                               <i className="icon-Add me-1"></i> Tapering Dose
                             </div>
                           </Col>
@@ -2718,13 +2741,21 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
           });
         } else {
           const replaceIndex = Number(addCustom?.voice_rx_replace_index);
+          const replaceUniqueId = String(addCustom?.voice_rx_replace_unique_id || "").trim();
           const replaceGroupId = String(addCustom?.voice_rx_replace_group_id || "").trim();
+          // The row id is the only reference that survives rows shifting
+          // (e.g. a tapering row inserted while the drawer was open).
+          const uniqueIdIndex = replaceUniqueId
+            ? medicationData.findIndex((item) => item?.unique_id === replaceUniqueId)
+            : -1;
           const replaceIndexMatches = Number.isInteger(replaceIndex) &&
             replaceIndex >= 0 &&
             (!replaceGroupId || String(medicationData[replaceIndex]?.voice_rx_group_id || "").trim() === replaceGroupId);
-          const targetIndex = replaceIndexMatches
-            ? replaceIndex
-            : (replaceGroupId ? medicationData.findIndex((item) => String(item?.voice_rx_group_id || "").trim() === replaceGroupId) : -1);
+          const targetIndex = uniqueIdIndex >= 0
+            ? uniqueIdIndex
+            : replaceIndexMatches
+              ? replaceIndex
+              : (replaceGroupId ? medicationData.findIndex((item) => String(item?.voice_rx_group_id || "").trim() === replaceGroupId) : -1);
           const targetRow = targetIndex >= 0 ? medicationData[targetIndex] : null;
 
           if (targetRow) {
