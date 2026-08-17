@@ -443,7 +443,14 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
       (isMedicationInventorySelectionRequired(item) || isVoiceRxAutoGroundedEditable(item)),
     [isMedicationInventorySelectionRequired, isVoiceRxAutoGroundedEditable, isVoiceRxModuleEnabled]
   );
+  // A template row is stored against the medicine master (tmm_id); an
+  // unlinked medicine comes back empty from singleTemplateDetails, so saving
+  // is blocked for EVERY account until the medicine is picked from the list.
+  // Only the wording differs for inventory-backed accounts.
   const hasUngroundedMedications = isVoiceRxModuleEnabled && medicationData.some(isMedicationInventorySelectionRequired);
+  const ungroundedTemplateMessage = shouldShowInventorySourceWarning
+    ? "Some items aren't linked to your inventory. Please resolve them before saving as a template."
+    : "Some medicines aren't selected from the medicine list. Please select them before saving as a template.";
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
       if (!isPrescriptionNewContext) {
@@ -3194,7 +3201,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
               placement="bottomRight"
             >
               <span>
-                <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : "Save as template"}>
+                <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : "Save as template"}>
                   {tesseractActionButton({ icon: "ram", label: "Save medications as template", disabled: medicationData.length === 0 || hasUngroundedMedications })}
                 </Tooltip>
               </span>
@@ -3272,7 +3279,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                 </button>
               )}
             </Popover>
-            <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some items aren't linked to your inventory. Please resolve them before saving as a template." : (medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
+            <Tooltip placement="bottom" title={hasUngroundedMedications ? ungroundedTemplateMessage : (medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
               <Popover
                 open={popOver2}
                 onOpenChange={() => (medicationData.length > 0) && !hasUngroundedMedications && showHideSaveTemplatePopOver()}
