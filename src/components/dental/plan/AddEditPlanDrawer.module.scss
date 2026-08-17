@@ -500,6 +500,7 @@
   width: 100%;
   align-items: center;
   padding: 0 1rem;
+  cursor: default;
 }
 
 .serviceNameText {
@@ -510,6 +511,12 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--tp-slate-800);
+}
+
+/* Above TPDrawer/Sheet (z-index 10000) so treatment name tooltip is visible */
+.serviceNameTooltip {
+  z-index: 11000;
+  max-width: 320px;
 }
 
 .tableCellInteractive {

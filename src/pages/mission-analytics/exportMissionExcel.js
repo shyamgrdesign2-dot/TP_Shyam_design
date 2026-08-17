@@ -122,7 +122,7 @@ function buildXyRows(xy, preferredKeys, xHeader = "Category") {
 
   xy.data.forEach((row) => {
     rows.push([
-      row[xKey] ?? "",
+      row.fullName || row[xKey] || "",
       ...series.map((s) => {
         const v = row[s.key];
         return typeof v === "number" ? v : Number(v) || 0;

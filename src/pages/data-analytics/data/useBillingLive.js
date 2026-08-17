@@ -30,6 +30,10 @@ export default function useBillingLive({
   // collection-summary call used solely for Billing chart tiles.
   includeRevenueByDoctor = true,
   includeCollectionSummary = true,
+  // IPD Billing uses the legacy-PHP hook instead. Keep this false there so
+  // billing-live Mongo is never called while IPD is selected. OPD callers
+  // leave this unset (true) — network calls stay identical.
+  enabled = true,
 } = {}) {
   const doctorList = useSelector((s) => s.bulkMessages?.doctorList) || [];
   const userId = useSelector((s) => s.doctors?.userId);
@@ -38,6 +42,10 @@ export default function useBillingLive({
   const doctorKey = doctorList.map((d) => d.um_id).join(",");
 
   const load = useCallback(async () => {
+    if (!enabled) {
+      setState({ loading: false, kpis: ZERO_KPIS, paymentModes: [], refundModes: [], advanceModes: [], advanceRefundModes: [], revenueByDoctor: null });
+      return;
+    }
     setState((s) => ({ ...s, loading: true }));
     let ids = doctorList.map((d) => d.um_id).filter(Boolean);
     // Cold open: Redux bulkMessages.doctorList is empty unless the user has
@@ -68,20 +76,21 @@ export default function useBillingLive({
       setState({ loading: false, kpis: ZERO_KPIS, paymentModes: [], refundModes: [], advanceModes: [], advanceRefundModes: [], revenueByDoctor: null });
       return;
     }
-    const base = { customBaseUrl: config.lab_params_api_url };
+    // Billing KPIs now come from the reporting service (Pm-Core), which reads the same v2
+    // billing Mongo the old Pm-Patient-Docs dashboard APIs read — same contract, same numbers,
+    // but no coupling to the billing service's API surface. clinicId params are accepted and
+    // ignored on both the old and new APIs (scope always comes from the JWT).
+    const base = { customBaseUrl: config.reporting_api_url };
     const qp = new URLSearchParams({
       startDate,
       endDate,
+      department,
       page: "1",
       limit: "100",
       sortBy: "date",
       sortOrder: "desc",
     });
     doctorIds.forEach((id) => qp.append("doctorIds", String(id)));
-    if (clinicId && clinicId !== "all") {
-      String(clinicId).split(",").filter(Boolean).forEach((id) => qp.append("clinicId", id));
-    }
-    const billPath = department === "ipd" ? "ipd-bill" : "bill";
     // True previous-period numbers: same query over the equal-length window
     // immediately before the selected range → real "vs previous period" pills.
     const prevWin = previousWindow(startDate, endDate);
@@ -97,13 +106,13 @@ export default function useBillingLive({
     const collParams = { startDate, endDate, type: department };
     if (clinicId && clinicId !== "all" && !String(clinicId).includes(",")) collParams.clinicId = clinicId;
     if (doctorId && doctorId !== "all" && !String(doctorId).includes(",")) collParams.doctorId = doctorId;
-    const billUrl = `/api/v1/billing/${billPath}/dashboard?${qp.toString()}`;
-    const advUrl = `/api/v1/billing/advancedDeposit/dashboard?${qp.toString()}`;
+    const billUrl = `/api/v1/reports/financial/billing-live/bill-dashboard?${qp.toString()}`;
+    const advUrl = `/api/v1/reports/financial/billing-live/advance-deposit-dashboard?${qp.toString()}`;
     const [bill, adv, prevBill, prevAdv, collSummary] = await Promise.all([
-      safe(cached(`bill-${billPath}`, { q: qp.toString() }, () => api.get(billUrl, base))),
-      safe(cached("advDeposit", { q: qp.toString() }, () => api.get(advUrl, base))),
-      prevWin ? safe(cached(`bill-${billPath}-prev`, { q: prevQp.toString() }, () => api.get(`/api/v1/billing/${billPath}/dashboard?${prevQp.toString()}`, base))) : Promise.resolve(null),
-      prevWin ? safe(cached("advDeposit-prev", { q: prevQp.toString() }, () => api.get(`/api/v1/billing/advancedDeposit/dashboard?${prevQp.toString()}`, base))) : Promise.resolve(null),
+      safe(cached(`billing-live-${department}`, { q: qp.toString() }, () => api.get(billUrl, base))),
+      safe(cached("billing-live-advDeposit", { q: qp.toString() }, () => api.get(advUrl, base))),
+      prevWin ? safe(cached(`billing-live-${department}-prev`, { q: prevQp.toString() }, () => api.get(`/api/v1/reports/financial/billing-live/bill-dashboard?${prevQp.toString()}`, base))) : Promise.resolve(null),
+      prevWin ? safe(cached("billing-live-advDeposit-prev", { q: prevQp.toString() }, () => api.get(`/api/v1/reports/financial/billing-live/advance-deposit-dashboard?${prevQp.toString()}`, base))) : Promise.resolve(null),
       includeCollectionSummary
         ? safe(cached("collSummary", collParams, () => ApiReporting.financialCollectionSummary(collParams)))
         : Promise.resolve(null),
@@ -164,11 +173,11 @@ export default function useBillingLive({
     });
 
     if (includeRevenueByDoctor && (!doctorId || doctorId === "all")) {
-      const revByDoc = await buildRevenueByDoctor(startDate, endDate, department, clinicId);
+      const revByDoc = await buildRevenueByDoctor(startDate, endDate, department);
       if (revByDoc) setState((prev) => ({ ...prev, revenueByDoctor: revByDoc }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, department, doctorKey, userId, doctorId, clinicId, includeRevenueByDoctor, includeCollectionSummary]);
+  }, [enabled, startDate, endDate, department, doctorKey, userId, doctorId, clinicId, includeRevenueByDoctor, includeCollectionSummary]);
 
   useEffect(() => {
     load();
@@ -201,39 +210,32 @@ function paymentModeDonut(modes, preferKey) {
 }
 
 const FANOUT_CAP = 20;
-const BATCH = 4;
 
-async function buildRevenueByDoctor(startDate, endDate, department, clinicId) {
+// One grouped reporting-service call replaces the old ≤20-per-doctor dashboard fan-out. The
+// endpoint applies the exact per-doctor dashboard semantics server-side, so each row carries the
+// same billed/collected the individual calls returned (clinicId was ignored by those calls too —
+// scope is token-driven).
+async function buildRevenueByDoctor(startDate, endDate, department) {
   let doctors = (await getDoctorList()).filter((d) => d?.um_id != null);
   doctors = doctors.slice(0, FANOUT_CAP);
   if (!doctors.length) return null;
 
-  const base = { customBaseUrl: config.lab_params_api_url };
-  const billPath = department === "ipd" ? "ipd-bill" : "bill";
-
-  const results = new Array(doctors.length);
-  for (let i = 0; i < doctors.length; i += BATCH) {
-    const batch = doctors.slice(i, i + BATCH);
-    const br = await Promise.all(
-      batch.map((d) => {
-        const qp = new URLSearchParams({ startDate, endDate, page: "1", limit: "1", sortBy: "date", sortOrder: "desc" });
-        qp.append("doctorIds", String(d.um_id));
-        if (clinicId && clinicId !== "all") String(clinicId).split(",").filter(Boolean).forEach((id) => qp.append("clinicId", id));
-        return cached(`bill-dr-${d.um_id}`, { startDate, endDate, department }, () =>
-          api.get(`/api/v1/billing/${billPath}/dashboard?${qp.toString()}`, base)
-        )
-          .then((r) => {
-            const s = r?.summary ?? r?.data?.summary ?? r ?? {};
-            return { billed: num(s.totalBillAmount), collected: num(s.totalPaidAmount) };
-          })
-          .catch(() => ({ billed: 0, collected: 0 }));
-      })
-    );
-    br.forEach((r, j) => { results[i + j] = r; });
-  }
+  const base = { customBaseUrl: config.reporting_api_url };
+  const qp = new URLSearchParams({ startDate, endDate, department });
+  doctors.forEach((d) => qp.append("doctorIds", String(d.um_id)));
+  const res = await cached(
+    "billing-live-rev-by-doctor",
+    { startDate, endDate, department, ids: doctors.map((d) => d.um_id).join(",") },
+    () => api.get(`/api/v1/reports/financial/billing-live/revenue-by-doctor?${qp.toString()}`, base)
+  ).catch(() => null);
+  if (!res) return null;
+  const byId = new Map((res.doctors || res.data?.doctors || []).map((r) => [String(r.doctorId), r]));
 
   const rows = doctors
-    .map((d, i) => ({ name: d.um_name || `Doctor ${d.um_id}`, ...results[i] }))
+    .map((d) => {
+      const r = byId.get(String(d.um_id));
+      return { name: d.um_name || `Doctor ${d.um_id}`, billed: num(r?.billed), collected: num(r?.collected) };
+    })
     .sort((a, b) => b.billed - a.billed);
 
   if (rows.every((r) => r.billed === 0 && r.collected === 0)) return null;

@@ -4,24 +4,18 @@ import SectionBlock from "./SectionBlock";
 import { ChartGrid, ChartTile, ScrollableChart } from "./ChartLayout";
 import { BarChartZ } from "../charts/EmptyAware";
 import DonutWithLegend from "../charts/DonutWithLegend";
-import { seriesToDonut } from "../charts/adapters";
+import { seriesToDonut, HOUR_LABELS_12H } from "../charts/adapters";
 import { rangeLengthDays } from "../filters/periods";
 import useAppointmentsLive from "../data/useAppointmentsLive";
 import useAppointmentsData from "../data/useAppointmentsData";
 import useCapabilities from "../data/useCapabilities";
 import KpiRow from "./KpiRow";
 
-const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => {
-  if (i === 0) return "12am";
-  if (i === 12) return "12pm";
-  return i < 12 ? `${i}am` : `${i - 12}pm`;
-});
-
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function AppointmentsSection({ filters }) {
   const caps = useCapabilities();
-  const { loading, kpis: rawKpis, statusDonut } = useAppointmentsLive({
+  const { loading, kpis: rawKpis, statusDonut, visitsByHour: liveHourly, newVsReturning } = useAppointmentsLive({
     startDate: filters?.startDate,
     endDate: filters?.endDate,
     doctorId: filters?.doctor,
@@ -60,7 +54,18 @@ export default function AppointmentsSection({ filters }) {
     return true;
   });
 
-  const caseTypeDonut = seriesToDonut(analytics.caseType);
+  const visitTypeDonut = seriesToDonut(analytics.caseType);
+  const categoryDonut = seriesToDonut(analytics.categoryMix);
+
+  const DONUT_COLOR_MAP = {
+    "Completed": "var(--tesseract-blue-400)",
+    "In queue": "var(--tesseract-violet-400)",
+    "Active queue": "var(--tesseract-violet-400)",
+    "Inactive queue": "var(--tesseract-warning-400)",
+    "Draft": "var(--tesseract-warning-400)",
+    "Cancelled": "var(--tesseract-error-400)",
+  };
+  const donutColors = statusDonut.map((d) => DONUT_COLOR_MAP[d.label] || "var(--tesseract-slate-300)");
 
   // Cards adapt to the selected range (correlation rule):
   //  - single day     → "Visits by hour" of THAT day (hour buckets fit a day)
@@ -73,13 +78,15 @@ export default function AppointmentsSection({ filters }) {
   const weekday = weekdayAveraged
     ? averagePerWeekday(analytics.visitsByWeekday, filters?.startDate, filters?.endDate)
     : analytics.visitsByWeekday;
-  const chartCount = 3 + (showWeekday ? 1 : 0) + (singleDay ? 1 : 0);
+  const hasCategoryMix = categoryDonut.length > 0;
+  const chartCount = 3 + (hasCategoryMix ? 1 : 0) + (showWeekday ? 1 : 0) + (singleDay ? 1 : 0);
 
   // Derived depth KPIs — computed live from data already on screen
   const totalKpi = kpis.find((k) => k.key === "total");
   const total = totalKpi?.value || 0;
+  const visitsByHour = liveHourly || analytics.visitsByHour;
   const busiestKpi = singleDay
-    ? busiestHour(analytics.visitsByHour)
+    ? busiestHour(visitsByHour)
     : busiestDay(analytics.visitsByWeekday);
   const enrichedKpis = [
     ...kpis,
@@ -104,16 +111,16 @@ export default function AppointmentsSection({ filters }) {
       <SectionBlock title="More insights" count={chartCount}>
         <ChartGrid>
           <ChartTile title="Appointment status" subtitle="Current status, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/clipboard-activity.svg" titleTooltip="Current status of every appointment that falls in the selected period. In-queue and draft are live states, so they appear here rather than as headline metrics.">
-            <DonutWithLegend data={statusDonut} centerLabel="Appointments" height={240} colors={["var(--tesseract-blue-400)", "var(--tesseract-violet-400)", "var(--tesseract-error-400)"]} />
+            <DonutWithLegend data={statusDonut} centerLabel="Appointments" height={240} colors={donutColors} />
           </ChartTile>
 
           <ChartTile title="New vs returning" subtitle="Share of visits, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/medical/health-care.svg" titleTooltip="Split of first-time vs repeat patients among visits in the selected period">
-            <DonutWithLegend data={analytics.newVsReturning} centerLabel="Patients" height={240} />
+            <DonutWithLegend data={newVsReturning} centerLabel="Patients" height={240} />
           </ChartTile>
 
-          <ChartTile title="Case-type mix" subtitle="Total visits, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/health/health-sign.svg" titleTooltip="Count of new, follow-up and urgent visits in the selected period">
+          <ChartTile title="Visit type mix" subtitle="Total visits, selected period" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/health/health-sign.svg" titleTooltip="Count of new, follow-up, urgent and other visit types in the selected period">
             <BarChartZ
-              data={caseTypeDonut.map((d) => ({ x: d.label, count: d.value }))}
+              data={visitTypeDonut.map((d) => ({ x: d.label, count: d.value }))}
               series={[{ key: "count", label: "Count" }]}
               fallbackLabels={["New", "Follow-up", "Urgent"]}
               fallbackSeries={[{ key: "count", label: "Count" }]}
@@ -121,6 +128,12 @@ export default function AppointmentsSection({ filters }) {
               showAverage={false}
             />
           </ChartTile>
+
+          {hasCategoryMix && (
+            <ChartTile title="Category mix" subtitle="Visits by appointment category" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/essential/category-2.svg" titleTooltip="Distribution of appointments across booking categories in the selected period">
+              <DonutWithLegend data={categoryDonut} centerLabel="Category" height={240} />
+            </ChartTile>
+          )}
 
           {showWeekday && (
             <ChartTile
@@ -148,11 +161,12 @@ export default function AppointmentsSection({ filters }) {
             <ChartTile title="Visits by hour" subtitle="Selected day" iconUrl="https://pmdoctorportal.tatvacare.in/tp-icons/rounded/bulk/time/clock.svg" titleTooltip="Visits in each hour slot of the selected day, spot the peak hours">
               <ScrollableChart minWidth={800}>
                 <BarChartZ
-                  data={analytics.visitsByHour?.data}
-                  series={analytics.visitsByHour?.series}
-                  fallbackLabels={HOUR_LABELS}
+                  data={visitsByHour?.data}
+                  series={visitsByHour?.series}
+                  fallbackLabels={HOUR_LABELS_12H}
                   fallbackSeries={[{ key: "Visits", label: "Visits" }]}
                   height={240}
+                  showAverage={false}
                 />
               </ScrollableChart>
             </ChartTile>
@@ -167,7 +181,8 @@ function busiestDay(weekday) {
   const rows = weekday?.data;
   const key = weekday?.series?.[0]?.key;
   if (!Array.isArray(rows) || !rows.length || !key) return null;
-  const top = rows.reduce((a, b) => ((b[key] || 0) > (a[key] || 0) ? b : a));
+  // >= so ties pick the later weekday (latest date on tie)
+  const top = rows.reduce((a, b) => ((b[key] || 0) >= (a[key] || 0) ? b : a));
   return (top[key] || 0) > 0 ? top.x : null;
 }
 

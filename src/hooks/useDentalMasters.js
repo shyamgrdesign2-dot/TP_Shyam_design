@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAllDentalMasters } from "../redux/dentalMastersSlice";
 import {
@@ -26,19 +26,45 @@ export function useDentalMasters() {
     }
   }, [dispatch, masters.loading, masters.surfaces.length, masters.fetchedAt, masters.error]);
 
+  // Memoize fallbacks — inline .map() creates a new array every render and can
+  // infinite-loop effects that depend on these catalogs.
+  const procedureItems = useMemo(
+    () =>
+      masters.procedureItems?.length
+        ? masters.procedureItems
+        : masters.procedures.map((label) => ({ code: label, label })),
+    [masters.procedureItems, masters.procedures],
+  );
+
+  const oralProcedureItems = useMemo(
+    () =>
+      masters.oralProcedureItems?.length
+        ? masters.oralProcedureItems
+        : (masters.oralProcedures || []).map((label) => ({ code: label, label })),
+    [masters.oralProcedureItems, masters.oralProcedures],
+  );
+
+  const oralPositionGroups = useMemo(
+    () =>
+      masters.oralAreaItems?.length > 0
+        ? buildOralPositionGroupsFromApi(masters.oralAreaItems)
+        : ORAL_POSITION_GROUPS,
+    [masters.oralAreaItems],
+  );
+
   return {
     ...masters,
     activeDiagnoses: masters.diagnoses,
     activeSurfaceFindings: masters.surfaceFindings.length > 0 ? masters.surfaceFindings : DIAGNOSES,
     activeToothDiagnoses: masters.diagnoses.length > 0 ? masters.diagnoses : TOOTH_DIAGNOSES,
     activeProcedures: masters.procedures,
+    procedureItems,
     activeSurfaces: masters.surfaces.length > 0 ? masters.surfaces : ALL_ZONES,
     activeOralDiagnoses: masters.oralDiagnoses || [],
     activeOralSurfaceFindings: masters.oralSurfaceFindings?.length > 0 ? masters.oralSurfaceFindings : (masters.oralDiagnoses?.length > 0 ? masters.oralDiagnoses : []),
     activeOralProcedures: masters.oralProcedures || [],
-    oralPositionGroups: masters.oralAreaItems?.length > 0
-      ? buildOralPositionGroupsFromApi(masters.oralAreaItems)
-      : ORAL_POSITION_GROUPS,
+    oralProcedureItems,
+    oralPositionGroups,
     visualTypeMap: masters.visualTypeMap,
   };
 }

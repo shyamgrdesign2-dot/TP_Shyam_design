@@ -16,6 +16,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { usePlanContext } from "./plan-context";
 import styles from "./InProgressTab.module.scss";
+import { useChikitsalay } from "../../../pages/chikitsalay/useChikitsalay";
 
 const cx = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -31,6 +32,7 @@ const dropdownItemClass = styles.dropdownItem;
  */
 export function ServiceActions({ service, plan, isOpen, onToggle, onDeleteOpen }) {
   const { openDrawer } = usePlanContext();
+  const isChikitsalayAccessable = useChikitsalay();
 
   return (
     <div className={styles.serviceCardActions}>
@@ -96,7 +98,7 @@ export function ServiceActions({ service, plan, isOpen, onToggle, onDeleteOpen }
             <Receipt1 size={16} variant="Linear" />
             View Service Estimate
           </DropdownMenuItem>
-          <DropdownMenuItem
+          {!isChikitsalayAccessable && <DropdownMenuItem
             onClick={() => onDeleteOpen?.()}
             className={styles.deleteServiceMenuItem}
           >
@@ -106,7 +108,7 @@ export function ServiceActions({ service, plan, isOpen, onToggle, onDeleteOpen }
               className={styles.errorIcon}
             />
             <span className={styles.errorText}>Delete Service</span>
-          </DropdownMenuItem>
+          </DropdownMenuItem>}
         </DropdownMenuContent>
       </DropdownMenu>
 

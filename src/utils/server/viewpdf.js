@@ -10636,6 +10636,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     details,
                                                     hasDetails,
                                                   });
+                                                } else if (
+                                                  tag &&
+                                                  tag?.enable === "N" &&
+                                                  tag?.title
+                                                ) {
+                                                  grouped[item?.title]?.push({
+                                                    conditionName: `No ${tag?.title}`,
+                                                    details: "",
+                                                    hasDetails: false,
+                                                  });
                                                 }
                                               });
                                             } else if (item?.no_know_history) {
@@ -10798,7 +10808,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         option?.medical_history_option?.includes(
                                           item?.tmmhs_id,
                                         ) &&
-                                        item?.tags?.length > 0 && (
+                                        (item?.no_know_history ||
+                                          item?.tags?.length > 0) && (
                                           <Text
                                             key={i}
                                             style={{

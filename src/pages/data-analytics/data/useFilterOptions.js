@@ -35,12 +35,36 @@ export default function useFilterOptions({ enabled = true } = {}) {
     };
   }, [needFetch]);
 
-  const doctorOptions = useMemo(() => {
-    const src = reduxDoctors.length ? reduxDoctors : fetchedDoctors;
-    return src
-      .filter((d) => d?.um_id != null)
-      .map((d) => ({ value: String(d.um_id), label: d.um_name || `Doctor ${d.um_id}` }));
-  }, [reduxDoctors, fetchedDoctors]);
+  const doctorSource = reduxDoctors.length ? reduxDoctors : fetchedDoctors;
+
+  const doctorOptions = useMemo(
+    () =>
+      doctorSource
+        .filter((d) => d?.um_id != null)
+        .map((d) => ({ value: String(d.um_id), label: d.um_name || `Doctor ${d.um_id}` })),
+    [doctorSource]
+  );
+
+  const departmentOptions = useMemo(() => {
+    const seen = new Map();
+    for (const d of doctorSource) {
+      const id = d?.dp_id ?? d?.dpId ?? d?.departmentId;
+      if (id == null) continue;
+      const key = String(id);
+      if (seen.has(key)) continue;
+      seen.set(key, {
+        value: key,
+        label:
+          d.department_name ||
+          d.dp_name ||
+          d.dpName ||
+          d.departmentName ||
+          d.speciality ||
+          `Dept ${key}`,
+      });
+    }
+    return [...seen.values()];
+  }, [doctorSource]);
 
   const clinicOptions = useMemo(
     () =>
@@ -50,5 +74,5 @@ export default function useFilterOptions({ enabled = true } = {}) {
     [hospitalData]
   );
 
-  return { doctorOptions, clinicOptions };
+  return { doctorOptions, clinicOptions, departmentOptions };
 }

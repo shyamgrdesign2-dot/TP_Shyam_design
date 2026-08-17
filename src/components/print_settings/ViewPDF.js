@@ -3860,6 +3860,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     details += `)`;
                                                                                 }
                                                                                 grouped[item.title].push({ conditionName, details, hasDetails });
+                                                                            } else if (tag && tag.enable === 'N' && tag.title) {
+                                                                                grouped[item.title].push({ conditionName: `No ${tag.title}`, details: '', hasDetails: false });
                                                                             }
                                                                         });
                                                                     } else if (item?.no_know_history) {
@@ -3902,7 +3904,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     {caseManagerData.medical_history.map((item, i) => {
                                                         let abcd = 97
                                                         return (
-                                                            option?.medical_history_option?.includes(item.tmmhs_id) && item?.tags?.length > 0 && (
+                                                            option?.medical_history_option?.includes(item.tmmhs_id) && (item?.no_know_history || item?.tags?.length > 0) && (
                                                                 <Text key={i} style={{ marginTop: (item?.no_know_history || item?.tags?.length > 0) ? PX_TO_PT * 6 : 0, lineHeight: 1.4 }}>
                                                                     {!item?.no_know_history ? (
                                                                         item?.tags?.length > 0 && (
