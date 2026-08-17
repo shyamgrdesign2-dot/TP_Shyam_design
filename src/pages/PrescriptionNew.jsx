@@ -51,6 +51,7 @@ import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails, resetObstetricState } from "../redux/obstetricSlice";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, getImageDimensions, isIPad, isVoiceRxFree } from "../utils/utils";
+import { isMonetizationPlanExpired } from "../utils/monetizationPlan";
 import {
   findLatestVitalsRowIndexForDate,
   getCopiedVitalsObject,
@@ -1316,9 +1317,13 @@ function PrescriptionNew() {
   const isVoiceRxFlowEntry = Boolean(state?.isVoiceRxNewUiFlow);
   const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible && isVoiceRxFlowEntry;
   const VOICE_RX_planDetails = servicesList?.find((service) => service.service_name === S_VOICE_RX);
+  // A purchased plan keeps its tier after plan_end_date passes, so the plan
+  // window is checked alongside the tier/credit rules.
+  const isVoiceRxPlanExpired = isMonetizationPlanExpired(VOICE_RX_planDetails);
   const isVoiceRxCreditExpired =
     !isFreeVoiceRxUser &&
     (VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION ||
+      isVoiceRxPlanExpired ||
       (VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0));
   const shouldShowVoiceRxTrialChip =
     canUseVoiceRxModuleUi &&
@@ -1362,7 +1367,10 @@ function PrescriptionNew() {
         trackVoiceRxBlocked(
           VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION
             ? "payment_failed"
-            : "credits_exhausted"
+            : isVoiceRxPlanExpired
+              ? "plan_expired"
+              : "credits_exhausted",
+          isVoiceRxPlanExpired ? { plan_end_date: VOICE_RX_planDetails?.plan_end_date || "" } : {}
         );
         if (!silent) openVoiceRxSubModal();
         return false;
@@ -1386,17 +1394,24 @@ function PrescriptionNew() {
           : errorMessage(action?.payload?.data?.message);
         return false;
       }
+      // The live response carries the authoritative plan window — a plan that
+      // expired mid-session is caught here even though the cached row looked fine.
+      const hasExpiredPlan = isMonetizationPlanExpired(action?.payload);
       if (
         action?.payload?.plan_tier === FAILED_VERIFICATION ||
+        hasExpiredPlan ||
         (action?.payload?.plan_tier === FREE && action?.payload?.credit_balance <= 0)
       ) {
         trackVoiceRxBlocked(
           action?.payload?.plan_tier === FAILED_VERIFICATION
             ? "payment_failed"
-            : "credits_exhausted",
+            : hasExpiredPlan
+              ? "plan_expired"
+              : "credits_exhausted",
           {
             plan_tier: action?.payload?.plan_tier || "",
             credit_balance: action?.payload?.credit_balance ?? "",
+            ...(hasExpiredPlan ? { plan_end_date: action?.payload?.plan_end_date || "" } : {}),
           }
         );
         if (action?.payload?.credit_balance !== VOICE_RX_planDetails?.credit_balance) {
@@ -1419,26 +1434,36 @@ function PrescriptionNew() {
       setUseVoiceRx,
       VOICE_RX_planDetails?.credit_balance,
       VOICE_RX_planDetails?.plan_tier,
+      VOICE_RX_planDetails?.plan_end_date,
       isVoiceRxCreditExpired,
+      isVoiceRxPlanExpired,
     ]
   );
 
+  // Landing warning: credits/plan status on entering the pad. Skipped for edit
+  // entries (Edit Prescription from the print view) — the doctor is amending an
+  // existing Rx, not starting a fresh voice consultation.
   useEffect(() => {
+    if (isEditRx) return undefined;
     if (
       canUseVoiceRxModuleUi &&
       !isFreeVoiceRxUser &&
       VOICE_RX_planDetails !== undefined &&
       (VOICE_RX_planDetails?.plan_tier === FREE ||
-        VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
+        VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION ||
+        isVoiceRxPlanExpired)
     ) {
       const timer = setTimeout(() => {
         openVoiceRxSubModal();
       }, 500);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [
     canUseVoiceRxModuleUi,
+    isEditRx,
     isFreeVoiceRxUser,
+    isVoiceRxPlanExpired,
     openVoiceRxSubModal,
     VOICE_RX_planDetails,
   ]);

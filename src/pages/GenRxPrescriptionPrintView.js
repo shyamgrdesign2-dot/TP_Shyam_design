@@ -410,6 +410,7 @@ function GenRxPrescriptionPrintView() {
           state: {
             patient_data,
             caseManagerData: action.payload,
+            isEditRx: true,
             ...(isVoiceRxNewFromGB && isValidMongoId(action.payload?.smart_prescription_filename || rxId)
               ? { isVoiceRxNewUiFlow: true }
               : {}),

@@ -513,7 +513,7 @@ function PrescriptionPrintView() {
                 const shouldReturnToNewPrescriptionUi =
                     Boolean(isVoiceRxNewUiFlow) ||
                     shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB);
-                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldReturnToNewPrescriptionUi ? { isVoiceRxNewUiFlow: true } : {}) } })
+                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, isEditRx: true, ...(shouldReturnToNewPrescriptionUi ? { isVoiceRxNewUiFlow: true } : {}) } })
             }
         } else {
             errorMessage(action.error)
