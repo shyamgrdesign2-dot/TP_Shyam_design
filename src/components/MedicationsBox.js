@@ -781,10 +781,8 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
     if (!isVoiceRxModuleEnabled) return;
     if (!canEditVoiceMedicineSelection(item)) return;
     const query = item.tmm_medicine_name || "";
-    setVoiceMedicineEdit({
-      uniqueId: item.unique_id,
-      query,
-    });
+    if (!item.unique_id) return; // no stable id → cannot target this row safely
+    setVoiceMedicineEdit({ uniqueId: item.unique_id, query });
     if (isZydusAccount || isVoiceRxAutoGroundedEditable(item)) {
       setParentSearchOptions([]);
     } else {
@@ -1864,7 +1862,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                             ].filter(Boolean).join(" ") || undefined}
                             data-testid={isVoiceRxModuleEnabled && isMedicationInventorySelectionRequired(item) ? `voice-rx-ungrounded-medication-row-${item.index}` : undefined}
                             onClick={() => {
-                              if (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) && voiceMedicineEdit.uniqueId !== item.unique_id) {
+                              if (isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) && item.unique_id && voiceMedicineEdit.uniqueId !== item.unique_id) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
@@ -1874,7 +1872,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
                               {isVoiceRxModuleEnabled && canEditVoiceMedicineSelection(item) ? (
                                 <div className="d-flex align-items-center gap-1 w-100">
                                   <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
-                                    {voiceMedicineEdit.uniqueId === item.unique_id ? (
+                                    {item.unique_id && voiceMedicineEdit.uniqueId === item.unique_id ? (
                                       <AutoComplete
                                         autoFocus
                                         value={voiceMedicineEdit.query}
