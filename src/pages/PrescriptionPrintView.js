@@ -46,6 +46,7 @@ import { useChikitsalay } from "./chikitsalay/useChikitsalay";
 import { useZydusWhatsapp } from "../hooks/useZydusWhatsapp";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
+import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   messageSent,
   wtsp,
@@ -80,7 +81,7 @@ function PrescriptionPrintView() {
 
     const navigate = useNavigate();
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
-    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isZydusWhatsappEnabled = useZydusWhatsapp();
 
     const { state } = useLocation();
@@ -512,7 +513,7 @@ function PrescriptionPrintView() {
                 const shouldReturnToNewPrescriptionUi =
                     Boolean(isVoiceRxNewUiFlow) ||
                     shouldUseNewPrescriptionUi(caseManagerData, isVoiceRxNewFromGB);
-                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, ...(shouldReturnToNewPrescriptionUi ? { isVoiceRxNewUiFlow: true } : {}) } })
+                navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData, isEditRx: true, ...(shouldReturnToNewPrescriptionUi ? { isVoiceRxNewUiFlow: true } : {}) } })
             }
         } else {
             errorMessage(action.error)

@@ -1,13 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { AutoComplete } from "antd";
-import { useFeatureValue } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from "uuid";
-import { Menu as IconsaxMenu } from "iconsax-reactjs";
 
 import { removeBeforeWhiteSpace } from "../utils/utils";
 
-const TP_CONFIG_DATA_FEATURE_KEY = "tp-config-data";
 const EMPTY_LINE_ANIMATION_MS = 180;
 
 export const isEmptyLineHeaderOption = (option) => option?.key === -1 || option?.key === "-1";
@@ -15,13 +12,22 @@ export const isEmptyLineHeaderOption = (option) => option?.key === -1 || option?
 export function PrescriptionEmptyLineDragHandle({ dragHandleProps }) {
   return (
     <span {...dragHandleProps} className="prescription-empty-line-drag-handle">
-      <IconsaxMenu
+      <svg
         className="prescription-empty-line-drag-icon"
-        color="#9aa0aa"
-        size={18}
-        variant="Outline"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="#9aa0aa"
         aria-hidden="true"
-      />
+        style={{ flexShrink: 0 }}
+      >
+        <circle cx="9" cy="5" r="1.4" />
+        <circle cx="15" cy="5" r="1.4" />
+        <circle cx="9" cy="12" r="1.4" />
+        <circle cx="15" cy="12" r="1.4" />
+        <circle cx="9" cy="19" r="1.4" />
+        <circle cx="15" cy="19" r="1.4" />
+      </svg>
     </span>
   );
 }
@@ -99,9 +105,12 @@ export function usePrescriptionNewEmptyLineUi({
   canCreateCustomRow = true,
   onAfterCommit,
   onAfterRemove,
+  useTesseractUi = false,
 }) {
-  const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
-  const isEnabled = showVoiceRxModule !== undefined && tpConfigData?.newEmptyLineUI === true;
+  // Two UI modes only: the Tesseract shell (PrescriptionNew) always uses the
+  // inline empty-line draft row; the classic UI never does. The old GB
+  // tp-config `newEmptyLineUI` gate is gone.
+  const isEnabled = Boolean(useTesseractUi);
   const [draftName, setDraftName] = useState("");
   const [removingRowKeys, setRemovingRowKeys] = useState([]);
   const latestRowsRef = useRef([]);

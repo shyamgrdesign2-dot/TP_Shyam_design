@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, S_VOICE_RX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../utils/constants";
 import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 
 import { addUpdateVitals, clearListVitalsToday, getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
@@ -25,7 +25,7 @@ import DiagnosisBox from "../components/DiagnosisBox";
 import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
 import InvestigationBox from "../components/InvestigationBox";
-import TabFollowUpBox from "../components/tab_design/TabFollowUpBox";
+import TabFollowUpBoxNew from "../components/tab_design/TabFollowUpBoxNew";
 import ReferralBox from "../components/ReferralBox";
 import { EMPTY_REFERRAL_DATA } from "../components/referral/ReferralPanelForm";
 import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
@@ -51,6 +51,7 @@ import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails, resetObstetricState } from "../redux/obstetricSlice";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, getImageDimensions, isIPad, isVoiceRxFree } from "../utils/utils";
+import { isMonetizationPlanExpired } from "../utils/monetizationPlan";
 import {
   findLatestVitalsRowIndexForDate,
   getCopiedVitalsObject,
@@ -98,7 +99,7 @@ import {
 } from "../redux/ddxSlice";
 import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
-import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
+import { useVoiceRxNavigation, useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 import { appendDedupedText, mergeCopiedRows } from "../utils/voiceRxRowStrip";
 import {
   getMedicineFrequencyDisplay,
@@ -111,6 +112,9 @@ import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
 import CustomModule from "../components/CustomModule";
 import CarePlanDropdown from "../components/CarePlanDropdown";
+import DrawingCanvas from "./drawingCanvas/DrawingCanvas";
+import DrawingCanvasList from "./drawingCanvas/components/DrawingCanvasList";
+import { listPatientCanvasMapping } from "./drawingCanvas/service";
 import CarePlanList from "../components/CarePlanList";
 import { getCarePlanNames, getCarePlanAssignments } from "./smartSync/services/carePlanService";
 
@@ -982,7 +986,13 @@ function PrescriptionNew() {
   const [isGrowthChart, setIsGrowthChart] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
-  const [customModuleContents, setCustomModuleContents] = useState([]);
+  // Seed from the prescription being edited on the FIRST render, not in an
+  // effect. Child module components mount before the parent's effects run, and
+  // an empty initial value made them write a blank placeholder row into shared
+  // state — which then won the race and wiped the saved content on edit.
+  const [customModuleContents, setCustomModuleContents] = useState(
+    () => (caseManagerData?.moduleContents?.length ? caseManagerData.moduleContents : [])
+  );
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
   // const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
   //   (!isVoiceRxNewUiFlow && caseManagerData?.smart_prescription_filename) ||
@@ -1000,6 +1010,16 @@ function PrescriptionNew() {
   const [labReportID, setLabReportID] = useState(null);
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
+  const [drawingCanvases, setDrawingCanvases] = useState([]);
+  const normalizeCanvasIds = useCallback((value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      return value.split(",").map((id) => id.trim()).filter(Boolean);
+    }
+    return [];
+  }, []);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState([]);
+  const [drawingCanvasDrawer, setDrawingCanvasDrawer] = useState(false);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
@@ -1043,7 +1063,7 @@ function PrescriptionNew() {
 
   const showHideSubModal = (object) => {
     object && setSubModalData(object)
-    setIsSubModalOpen(!isSubModalOpen);
+    setIsSubModalOpen((prev) => !prev);
   }
 
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
@@ -1157,7 +1177,10 @@ function PrescriptionNew() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
-    isDraft: caseManagerData?.is_draft
+    isDraft: caseManagerData?.is_draft,
+    // HeaderPrescription reads this off the context (not props) to persist
+    // canvas_filename on save, so the Show in Rx toggle is a no-op without it.
+    rxDrawingCanvasIds,
   };
 
   const [vitalDrawer, setVitalDrawer] = useState(false);
@@ -1191,6 +1214,27 @@ function PrescriptionNew() {
   const [activeTab, setActiveTab] = useState("basicInfo");
   const [drAgentOpen, setDrAgentOpen] = useState(false);
   const isTablet = useTabletViewport();
+  const rxWrapperRef = useRef(null);
+  const leftShadowRef = useRef(null);
+  const rightShadowRef = useRef(null);
+
+  useEffect(() => {
+    const el = rxWrapperRef.current;
+    if (!el) return;
+    const update = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      if (leftShadowRef.current)
+        leftShadowRef.current.style.opacity = scrollLeft > 0 ? "1" : "0";
+      if (rightShadowRef.current)
+        rightShadowRef.current.style.opacity =
+          scrollLeft + clientWidth < scrollWidth - 1 ? "1" : "0";
+    };
+    el.addEventListener("scroll", update, { passive: true });
+    update();
+    const t = setTimeout(update, 300);
+    return () => { el.removeEventListener("scroll", update); clearTimeout(t); };
+  }, [drAgentOpen]);
+
   const prescriptionWrapperStyle = {
     flex: "1 1 auto",
     minWidth: 0,
@@ -1198,11 +1242,13 @@ function PrescriptionNew() {
     height: "100%",
     maxHeight: "100%",
     overflowY: "auto",
-    overflowX: "hidden",
+    overflowX: "auto",
     overscrollBehavior: "contain",
     boxSizing: "border-box",
-    transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)",
-    ...(!isTablet && drAgentOpen ? { paddingRight: 408 } : {}),
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    transition: "margin-right 220ms cubic-bezier(0.4, 0, 0.2, 1)",
+    marginRight: drAgentOpen && isTablet ? "min(360px, calc(100vw - 24px))" : 0,
   };
   const drAgentOverlayClassName = [
     drAgentStyles.drAgentOverlay,
@@ -1261,10 +1307,166 @@ function PrescriptionNew() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isVoiceRxAccessible = isFreeVoiceRxUser || tp_monetization_enable;
-  const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible;
+  // Voice surfaces (dr agent, module/sidenav voice, double-Shift, trial chip,
+  // landing credits modal) light up only when the page was entered through a
+  // VoiceRx flow. Point-n-click entries (newPointClickUi rollout) render the
+  // same page voice-less; the header Voice Rx CTA re-enters with voice on.
+  const isVoiceRxFlowEntry = Boolean(state?.isVoiceRxNewUiFlow);
+  const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible && isVoiceRxFlowEntry;
+  const VOICE_RX_planDetails = servicesList?.find((service) => service.service_name === S_VOICE_RX);
+  // A purchased plan keeps its tier after plan_end_date passes, so the plan
+  // window is checked alongside the tier/credit rules.
+  const isVoiceRxPlanExpired = isMonetizationPlanExpired(VOICE_RX_planDetails);
+  const isVoiceRxCreditExpired =
+    !isFreeVoiceRxUser &&
+    (VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION ||
+      isVoiceRxPlanExpired ||
+      (VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0));
+  const shouldShowVoiceRxTrialChip =
+    canUseVoiceRxModuleUi &&
+    !isFreeVoiceRxUser &&
+    VOICE_RX_planDetails?.service_type === "ai" &&
+    (VOICE_RX_planDetails?.plan_tier === FREE || VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION);
+
+  const openVoiceRxSubModal = useCallback(() => {
+    setSubModalData({ service_name: S_VOICE_RX });
+    setIsSubModalOpen(true);
+  }, []);
+
+  const guardVoiceRxUsage = useCallback(
+    async ({ phase = "start", silent = false, surface = "", moduleName = "", sectionId = "" } = {}) => {
+      const trackVoiceRxBlocked = (reason, extra = {}) => {
+        trackEvent("TP_VoiceRx_Credit_Blocked", {
+          reason,
+          phase,
+          surface,
+          module_name: moduleName,
+          section_id: sectionId,
+          silent,
+          plan_tier: VOICE_RX_planDetails?.plan_tier || "",
+          credit_balance: VOICE_RX_planDetails?.credit_balance ?? "",
+          doctor_unique_id: profile?.doctor_unique_id,
+          doctor_name: profile?.um_name,
+          ...extra,
+        });
+      };
+      if (phase === "mark-used") {
+        setUseVoiceRx(true);
+        return true;
+      }
+      if (!canUseVoiceRxModuleUi) {
+        trackVoiceRxBlocked("voice_rx_not_accessible");
+        if (!silent) openVoiceRxSubModal();
+        return false;
+      }
+      if (isFreeVoiceRxUser) return true;
+      if (isVoiceRxCreditExpired) {
+        trackVoiceRxBlocked(
+          VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION
+            ? "payment_failed"
+            : isVoiceRxPlanExpired
+              ? "plan_expired"
+              : "credits_exhausted",
+          isVoiceRxPlanExpired ? { plan_end_date: VOICE_RX_planDetails?.plan_end_date || "" } : {}
+        );
+        if (!silent) openVoiceRxSubModal();
+        return false;
+      }
+      if (phase !== "submit") return true;
+
+      const sendData = {
+        b2c_id: profile?.b2c ?? planDetails?.profile_b2c,
+        service_name: S_VOICE_RX,
+      };
+      const action = await dispatch(checkCredits(sendData));
+      if (action.meta.requestStatus !== "fulfilled") {
+        trackVoiceRxBlocked("credit_check_failed");
+        errorMessage(action?.payload?.message || action?.error || "An error occurred");
+        return false;
+      }
+      if (!action?.payload?.hasOwnProperty("service_name")) {
+        trackVoiceRxBlocked("credit_check_invalid_response");
+        typeof action?.payload?.data?.error === "object"
+          ? errorMessage(action?.payload?.data?.error?.description)
+          : errorMessage(action?.payload?.data?.message);
+        return false;
+      }
+      // The live response carries the authoritative plan window — a plan that
+      // expired mid-session is caught here even though the cached row looked fine.
+      const hasExpiredPlan = isMonetizationPlanExpired(action?.payload);
+      if (
+        action?.payload?.plan_tier === FAILED_VERIFICATION ||
+        hasExpiredPlan ||
+        (action?.payload?.plan_tier === FREE && action?.payload?.credit_balance <= 0)
+      ) {
+        trackVoiceRxBlocked(
+          action?.payload?.plan_tier === FAILED_VERIFICATION
+            ? "payment_failed"
+            : hasExpiredPlan
+              ? "plan_expired"
+              : "credits_exhausted",
+          {
+            plan_tier: action?.payload?.plan_tier || "",
+            credit_balance: action?.payload?.credit_balance ?? "",
+            ...(hasExpiredPlan ? { plan_end_date: action?.payload?.plan_end_date || "" } : {}),
+          }
+        );
+        if (action?.payload?.credit_balance !== VOICE_RX_planDetails?.credit_balance) {
+          await dispatch(services(sendData.b2c_id));
+        }
+        openVoiceRxSubModal();
+        return false;
+      }
+      return true;
+    },
+    [
+      canUseVoiceRxModuleUi,
+      dispatch,
+      isFreeVoiceRxUser,
+      openVoiceRxSubModal,
+      planDetails?.profile_b2c,
+      profile?.b2c,
+      profile?.doctor_unique_id,
+      profile?.um_name,
+      setUseVoiceRx,
+      VOICE_RX_planDetails?.credit_balance,
+      VOICE_RX_planDetails?.plan_tier,
+      VOICE_RX_planDetails?.plan_end_date,
+      isVoiceRxCreditExpired,
+      isVoiceRxPlanExpired,
+    ]
+  );
+
+  // Landing warning: credits/plan status on entering the pad. Skipped for edit
+  // entries (Edit Prescription from the print view) — the doctor is amending an
+  // existing Rx, not starting a fresh voice consultation.
+  useEffect(() => {
+    if (isEditRx) return undefined;
+    if (
+      canUseVoiceRxModuleUi &&
+      !isFreeVoiceRxUser &&
+      VOICE_RX_planDetails !== undefined &&
+      (VOICE_RX_planDetails?.plan_tier === FREE ||
+        VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION ||
+        isVoiceRxPlanExpired)
+    ) {
+      const timer = setTimeout(() => {
+        openVoiceRxSubModal();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [
+    canUseVoiceRxModuleUi,
+    isEditRx,
+    isFreeVoiceRxUser,
+    isVoiceRxPlanExpired,
+    openVoiceRxSubModal,
+    VOICE_RX_planDetails,
+  ]);
   const [voiceHydrationStatus, setVoiceHydrationStatus] = useState("idle");
   const [symptomCollectorStatus, setSymptomCollectorStatus] = useState("idle");
   const symptomCollectorRequestRef = useRef(0);
@@ -2201,6 +2403,58 @@ function PrescriptionNew() {
   };
 
   // Handle Add button click
+  const fetchPatientCanvases = useCallback(async () => {
+    const pId = patient_data?.patient_unique_id;
+    if (!pId) return;
+    const res = await listPatientCanvasMapping(pId, tcmId);
+    if (res?.status && res?.records) {
+      setDrawingCanvases(res.records.map((r) => ({
+        id: r.mapping_id,
+        name: r.canvas_name,
+        url: r.canvas_url,
+        created_at: r.created_at || r.createdAt || r.canvas_created_at,
+        scene: null,
+      })));
+    }
+  }, [patient_data?.patient_unique_id, tcmId]);
+
+  useEffect(() => {
+    fetchPatientCanvases();
+  }, [fetchPatientCanvases]);
+
+  const handleDrawerDrawingCanvas = useCallback(() => {
+    setDrawingCanvasDrawer((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    setRxDrawingCanvasIds(normalizeCanvasIds(caseManagerData?.canvas_filename));
+  }, [tcmId, pamId, normalizeCanvasIds]);
+
+  const handleToggleCanvasRx = useCallback((canvasId, checked) => {
+    setRxDrawingCanvasIds((prev) => (
+      checked
+        ? [...Array.from(new Set([...prev, canvasId]))]
+        : prev.filter((id) => String(id) !== String(canvasId))
+    ));
+  }, []);
+
+  const handleSaveDrawingCanvas = useCallback((updatedCanvases, meta) => {
+    if (Array.isArray(updatedCanvases)) {
+      setDrawingCanvases(updatedCanvases);
+      const knownIds = new Set(updatedCanvases.map((c) => String(c?.id)).filter(Boolean));
+      setRxDrawingCanvasIds((prev) => prev.filter((id) => knownIds.has(String(id))));
+    } else {
+      fetchPatientCanvases();
+    }
+    if (meta && meta.mappingId != null && meta.mappingId !== "") {
+      setRxDrawingCanvasIds((prev) => (
+        meta.showInRx !== false
+          ? [...new Set([...prev, meta.mappingId])]
+          : prev.filter((id) => String(id) !== String(meta.mappingId))
+      ));
+    }
+  }, [fetchPatientCanvases]);
+
   const handleAddClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -2910,6 +3164,9 @@ function PrescriptionNew() {
           handleDrawerOpthal();
         }
         break;
+      case "canvas":
+        handleDrawerDrawingCanvas();
+        break;
       case "zydusLabReports":
         handleZydusTestReportDrawer();
         break;
@@ -3037,7 +3294,7 @@ function PrescriptionNew() {
   return (
     <VoiceBarProvider enabled={canUseVoiceRxModuleUi}>
     <CashManagerContext.Provider value={contextApi}>
-      <RxPadSyncProvider>
+      <RxPadSyncProvider guardVoiceRxUsage={guardVoiceRxUsage}>
         <PrescriptionNewRxPadCopyListener />
         <>
         <input
@@ -3077,6 +3334,8 @@ function PrescriptionNew() {
               selectedCarePlan={selectedCarePlan}
               hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
               showVoiceRxModule={canUseVoiceRxModuleUi}
+              showVoiceRxTrialChip={shouldShowVoiceRxTrialChip}
+              onVoiceRxTrialChipClick={openVoiceRxSubModal}
               isNewPrescriptionUi
             />
             <div className={prescriptionRouteShellClassName}>
@@ -3104,8 +3363,27 @@ function PrescriptionNew() {
                 setFilesData={setFilesData}
                 setIsEditDocument={setIsEditDocument}
                 setUploadDocDrawer={setUploadDocDrawer}
+                carePlanActions={{
+                  CarePlanList,
+                  CarePlanDropdown,
+                  patientId: patient_data?.patient_unique_id,
+                  tcmId,
+                  doctorId: userId,
+                  clinicId: decodedToken?.result?.clinic_id,
+                  selectedCarePlan,
+                  onCarePlanSelect: setSelectedCarePlan,
+                  placeholder: carePlanPlaceholder,
+                }}
+                canvasActions={{
+                  DrawingCanvasList,
+                  drawingCanvases,
+                  setDrawingCanvases,
+                  handleDrawerDrawingCanvas,
+                  rxDrawingCanvasIds,
+                  onToggleRx: handleToggleCanvasRx,
+                }}
               />
-              <div className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
+              <div ref={rxWrapperRef} className="w-100 bg-body wrapper2 prescription-wrapper prescription-wrapper--newrx" style={prescriptionWrapperStyle}>
           {/* <img src={hey} alt="vitals" className="me-3 hey" /> */}
           <div className="row">
             
@@ -3153,13 +3431,21 @@ function PrescriptionNew() {
                     
                     if (moduleContent) {
                       // Create a fallback module definition from the content
+                      // Only CustomModuleV2 stamps module_version, so a missing
+                      // version means a v1 entry. Defaulting it to "v2" rendered
+                      // v1 content in the v2 component with no fields at all.
+                      const fallbackVersion = moduleContent.module_version || "v1";
+                      // Derive the field list from whichever saved row actually
+                      // carries data — the first row can be an empty placeholder.
+                      const fallbackRow = (moduleContent.content || []).find(
+                        (row) => row && Object.keys(row).some((key) => key !== "id")
+                      );
                       customModule = {
                         module_id: moduleContent.module_id,
                         name: moduleContent.module_name || e.tmdpm_name,
-                        version: moduleContent.module_version || "v2",
-                        // For V2 modules, extract namedFields from the first content row
-                        namedFields: moduleContent.module_version === "v2" && moduleContent.content?.length > 0
-                          ? Object.keys(moduleContent.content[0])
+                        version: fallbackVersion,
+                        namedFields: fallbackVersion === "v2" && fallbackRow
+                          ? Object.keys(fallbackRow)
                               .filter((key) => key !== "id") // Exclude the id field
                               .map((key, index) => ({
                                 fieldName: key,
@@ -3181,15 +3467,16 @@ function PrescriptionNew() {
                         handleDDxDrawer={handleDDxDrawer}
                         generatedDDx={generatedDDx?.results}
                         showVoiceRxModule={canUseVoiceRxModuleUi}
+                        useTesseractUi
                       />
                     </div>
                   ) : e.tmdpm_id === 10 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <ExaminationBox showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <ExaminationBox showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     </div>
                   ) : e.tmdpm_id === 21 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <SurgicalBox showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <SurgicalBox showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     </div>
                   ) : e.tmdpm_id === 11 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
@@ -3201,11 +3488,12 @@ function PrescriptionNew() {
                         handleDDxKnowMore={handleDDxKnowMore}
                         isDDxGenerated={isDDxGenerated}
                         showVoiceRxModule={canUseVoiceRxModuleUi}
+                        useTesseractUi
                       />
                     </div>
                   ) : e.tmdpm_id === 12 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <MedicationsBox showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <MedicationsBox showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     </div>
                   ) : isOpthalModuleAccessible && e.tmdpm_id === OPTHAL_PAD_MODULE_ID && e.tmdpm_status === 0 ? (
                     <div key={i} className="opthal-panel-wrapper">
@@ -3219,7 +3507,7 @@ function PrescriptionNew() {
                     </div>
                   ) : e.tmdpm_id === 13 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <AdviceBox showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <AdviceBox showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     </div>
                   ) : e.tmdpm_id === 14 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
@@ -3228,11 +3516,12 @@ function PrescriptionNew() {
                         handleDDxDrawer={handleDDxDrawer}
                         generatedDDx={generatedDDx?.results}
                         showVoiceRxModule={canUseVoiceRxModuleUi}
+                        useTesseractUi
                       />
                     </div>
                   ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <TabFollowUpBox />
+                      <TabFollowUpBoxNew />
                     </div>
                   ) : e.tmdpm_id === 26 && e.tmdpm_status === 0 && isCrossConsultAccessable ? (
                     <div key={i} className="prescription-box-sm">
@@ -3243,9 +3532,9 @@ function PrescriptionNew() {
                     e.tmdpm_status === 0 &&
                     customModule &&
                     (customModule.version === "v2" ? (
-                      <CustomModuleV2 module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <CustomModuleV2 module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     ) : (
-                      <CustomModule module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} />
+                      <CustomModule module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} useTesseractUi />
                     ))
                   );
                 })}
@@ -3260,7 +3549,55 @@ function PrescriptionNew() {
             </div>
           </div>
         </div>
+        <div ref={leftShadowRef} className={drAgentStyles.rxScrollShadowLeft} />
+        <div ref={rightShadowRef} className={drAgentStyles.rxScrollShadowRight} style={{ right: drAgentOpen && isTablet ? "min(360px, calc(100vw - 24px))" : 0 }} />
+          {/* ── Dr Agent Panel + FAB ── */}
+          {/* Must stay inside the route shell: on desktop .drAgentOverlay is an
+              in-flow flex item (flex: 0 0 auto) that shares this flex row with
+              the prescription wrapper. Only the tablet variant is position:fixed. */}
+          {canUseVoiceRxModuleUi && (
+            <DrAgentRuntime
+              isOpen={drAgentOpen}
+              overlayClassName={drAgentOverlayClassName}
+              patientId={patient_data?.patient_unique_id}
+              doctorId={profile?.doctor_unique_id}
+              patientData={patient_data}
+              voiceHydrationStatus={voiceHydrationStatus}
+              symptomCollectorStatus={symptomCollectorStatus}
+              onPrintSoap={handlePrintSoapPdf}
+              onClose={() => setDrAgentOpen(false)}
+              onOpen={() => setDrAgentOpen(true)}
+            />
+          )}
         </div>
+        {drawingCanvasDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            bodyStyle={{ backgroundColor: "white" }}
+            onClose={handleDrawerDrawingCanvas}
+            open={drawingCanvasDrawer}
+            width="60%"
+            push={false}
+          >
+            <DrawingCanvas
+              patientId={patient_data?.patient_unique_id}
+              tcmId={tcmId}
+              canvases={drawingCanvases}
+              rxDrawingCanvasIds={rxDrawingCanvasIds}
+              onToggleRx={(canvasId, checked) => {
+                setRxDrawingCanvasIds((prev) => (
+                  checked
+                    ? [...Array.from(new Set([...prev, canvasId]))]
+                    : prev.filter((id) => String(id) !== String(canvasId))
+                ));
+              }}
+              onCreateCanvas={() => {}}
+              onSave={handleSaveDrawingCanvas}
+              onClose={handleDrawerDrawingCanvas}
+            />
+          </Drawer>
+        )}
         {vitalDrawer && (
           <Drawer
             closeIcon={false}
@@ -3591,22 +3928,6 @@ function PrescriptionNew() {
           />
         )}
 
-        {/* ── Dr Agent Panel + FAB ── */}
-          {canUseVoiceRxModuleUi && (
-            <DrAgentRuntime
-              isOpen={drAgentOpen}
-              overlayClassName={drAgentOverlayClassName}
-              patientId={patient_data?.patient_unique_id}
-              doctorId={profile?.doctor_unique_id}
-              patientData={patient_data}
-              voiceHydrationStatus={voiceHydrationStatus}
-              symptomCollectorStatus={symptomCollectorStatus}
-              onPrintSoap={handlePrintSoapPdf}
-              onClose={() => setDrAgentOpen(false)}
-              onOpen={() => setDrAgentOpen(true)}
-            />
-          )}
-
           </>
         )}
         </>
@@ -3614,7 +3935,7 @@ function PrescriptionNew() {
     </CashManagerContext.Provider>
     {canUseVoiceRxModuleUi && (
       <>
-        <VoiceBar />
+        <VoiceBar guardVoiceRxUsage={guardVoiceRxUsage} />
         <QuickDictateCoachMark />
         <TutorialDrawer />
       </>

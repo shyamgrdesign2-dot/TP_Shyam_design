@@ -1,0 +1,46 @@
+/* ── Design-system global-reset containment ──────────────────────────────
+   TesseractThemeProvider wraps the WHOLE app (src/index.js), so every
+   `[data-tp-theme] …` rule in the package stylesheet applies to every
+   portal screen — not just Tesseract components. Those resets change the
+   base font to Inter, retype all headings to Mulish, drop heading margins,
+   hide every scrollbar and reshape every corner. The design tokens live on
+   `:root`, so Tesseract components keep working with the resets neutered;
+   they style themselves through their own component classes. Restore the
+   portal's defaults here, then re-assert the Tesseract look inside our own
+   sections only. */
+[data-tp-theme] {
+  /* was: font-family: var(--font-sans) → Inter for the entire portal.
+     The provider also stamps the attribute on <html>, which inherits from
+     nothing, so state the portal stack explicitly (matches src/index.css). */
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  color: inherit;
+
+  /* was: :where([data-tp-theme] h1…h6) → Mulish/Inter + margin: 0 */
+  :is(h1, h2, h3, h4, h5, h6) {
+    font-family: inherit;
+    letter-spacing: normal;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  /* was: [data-tp-theme] * { scrollbar-width: none } → scrollbars hidden app-wide */
+  * {
+    scrollbar-width: auto;
+    -ms-overflow-style: auto;
+  }
+
+  ::-webkit-scrollbar {
+    display: initial;
+  }
+
+  /* was: [data-tp-theme] :is(*) { corner-shape: squircle } */
+  :is(*) {
+    corner-shape: round !important;
+  }
+}
+
+/* Inside Tesseract sections the design-system heading behaviour is correct. */
+.tesseract-rxpad :is(h1, h2, h3, h4, h5, h6) {
+  margin: 0;
+}

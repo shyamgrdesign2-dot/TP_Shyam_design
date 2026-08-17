@@ -149,7 +149,7 @@ import { RxPadSyncProvider } from "./dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import drAgentStyles from "./dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import OphthalmologyExamDrawer from "./ophthalmology/OphthalmologyExamDrawer";
 import ZydusLabParams from "./ZydusLabParams";
-import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
+import { useVoiceRxNavigation, useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 import useTabletViewport from "../hooks/useTabletViewport";
 import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { getGenRx } from "../api/services/ApiGenRx";
@@ -292,7 +292,7 @@ function ConsultationLayout({ children, headerProps }) {
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && (isFreeVoiceRxUser || tp_monetization_enable);
   const isTablet = useTabletViewport();
@@ -2063,12 +2063,16 @@ function ConsultationLayout({ children, headerProps }) {
     }
 
     setIsGenRxDrawerVisible(true);
-    navigate("/voice-rx-consult", {
-      state: {
-        patient_data,
-        autoOpenModal: false,
-        fromPrescription: true,
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        {
+          patient_data,
+          autoOpenModal: false,
+          fromPrescription: true,
+        },
+        "consultation_layout_header"
+      ),
     });
   };
 

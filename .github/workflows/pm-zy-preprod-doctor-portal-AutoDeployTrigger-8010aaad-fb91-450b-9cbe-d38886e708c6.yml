@@ -64,6 +64,7 @@ jobs:
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
             --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PREPROD_CDN }}" \
+            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
             -t "${{ env.IMAGE_NAME }}" .
 
           docker push "${{ env.IMAGE_NAME }}"
