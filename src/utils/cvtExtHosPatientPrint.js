@@ -163,6 +163,10 @@ export function getCvtExtHosPatientDataShowValue(id, args) {
     formatPediatricHtWt,
   } = args;
 
+  if (id == 20) {
+    return doctorProfile?.doctor_name ? String(doctorProfile.doctor_name) : "-";
+  }
+
   if (!patient) {
     if (id == 15) {
       return abhaDetails?.abha_address ? String(abhaDetails.abha_address) : "-";
