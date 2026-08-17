@@ -235,6 +235,15 @@ function PrescriptionRouteElement() {
   const isNewPointClickUi = useNewPointClickUiFlag();
   const location = useLocation();
   const isVoiceRxNewUiFlow = Boolean(location.state?.isVoiceRxNewUiFlow);
+  // The OLD voice flow (/voice-rx-consult, mobile voice recording, SmartRx
+  // digitisation) hands its recording/transcript to the OLD prescription page,
+  // which owns that pipeline. Such entries must never be captured by the
+  // point-n-click rollout below.
+  const isLegacyVoiceHandoff = Boolean(
+    location.state?.fromVoiceRecording ||
+    location.state?.audioBlob ||
+    location.state?.digitizedData
+  );
 
   if (isVoiceRxNewFromGB && isVoiceRxNewUiFlow) {
     return <PrescriptionNew />;
@@ -243,7 +252,7 @@ function PrescriptionRouteElement() {
   // Point-n-click rollout: every /prescription entry (fresh, edit, repeat,
   // draft) renders PrescriptionNew in voice-less mode. Phones and opted-out
   // doctors are excluded inside the hook.
-  if (isNewPointClickUi) {
+  if (isNewPointClickUi && !isLegacyVoiceHandoff) {
     return <PrescriptionNew />;
   }
 
