@@ -10,6 +10,7 @@ import { interest } from "../../../redux/monetizationSlice";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../../utils/utils";
 import { openModal } from "../../../redux/doctorModalSlice";
 import { FAILED_VERIFICATION, FREE, S_IPD, S_PHARMACY, S_TATVA_PRACTICE, TRIAL } from "../../../utils/constants";
+import { isMonetizationPlanExpired } from "../../../utils/monetizationPlan";
 import { ASSETS } from "../../../assets";
 const {
   expiredInfographic2,
@@ -81,6 +82,10 @@ function ExpiredSubModal({ title, styles, isSubModalOpen, showHideSubModal }) {
         });
     }
 
+    // A purchased plan (UNLIMITED/PAID/TRIAL) keeps its tier after its window
+    // closes, so it must not be described as an ongoing trial.
+    const isPlanExpired = isMonetizationPlanExpired(AI_planDetails);
+
     const isPurchased = () => {
         if (EMR_planDetails?.plan_tier !== TRIAL && NonAI_planDetails?.plan_tier === TRIAL) {
             return true;
@@ -126,6 +131,14 @@ function ExpiredSubModal({ title, styles, isSubModalOpen, showHideSubModal }) {
                         <img src={planExpiredSandClock} className="plan-expired-clock" alt="Expired Clock" />
                         <div className="text-white fs-16">
                             Your payment for the <span className="text-white fw-semibold">{AI_planDetails?.service_display_name}</span> Add-on has failed. Please contact Support for further assistance!
+                        </div>
+                    </>
+                ) : isPlanExpired ? (
+                    <>
+                        <img src={planExpiredSandClock} className="plan-expired-clock" alt="Expired Clock" />
+                        <div className="text-white">
+                            Your<span className="text-white fw-semibold"> {AI_planDetails?.service_display_name || NonAI_planDetails?.service_display_name} plan </span>has expired. <br />
+                            Renew now to continue a hassle free experience!
                         </div>
                     </>
                 ) : (

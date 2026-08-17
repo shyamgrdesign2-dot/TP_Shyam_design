@@ -13,7 +13,8 @@ import VideoModal from "../common/VideoModal";
 import { isMobile, isTablet } from "react-device-detect";
 import { getClinic, isVoiceRxFree, isZydus } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { resolveTpConfigEnvValue } from "../utils/voiceRxNavigation";
+import { useFeatureIsOn, useFeatureValue } from "@growthbook/growthbook-react";
 import { ASSETS } from "../assets";
 const {
   coupon: couponSvg,
@@ -28,6 +29,29 @@ const {
 // A brand-new account can land here before the backend has provisioned its
 // services; retry the fetch once after this delay when `voice_rx` is missing.
 const VOICE_RX_SERVICE_RETRY_MS = 4000;
+
+const TP_CONFIG_DATA_FEATURE_KEY = "tp-config-data";
+
+/**
+ * Offer line copy — editable from GrowthBook without a release, e.g.
+ *
+ *   "voiceRxPromoOffer": {
+ *     "subtextPrefix": "Limited-time",
+ *     "subtextHighlight": "New Year",
+ *     "subtextSuffix": "Offer"
+ *   }
+ *
+ * The value may also be env-keyed ({ uat, prod }). Anything missing falls back
+ * to the copy below, so an empty/absent config keeps today's wording.
+ * The trailing emoji is rendered by the component (see PROMO_OFFER_EMOJI) so
+ * the config stays plain text.
+ */
+const DEFAULT_PROMO_OFFER_COPY = {
+  subtextPrefix: "Limited-time",
+  subtextHighlight: "New Year",
+  subtextSuffix: "Offer",
+};
+const PROMO_OFFER_EMOJI = "🎉";
 
 /**
  * Per-doctor namespace for the promo counters. The offer budget belongs to the
@@ -61,6 +85,11 @@ const VoiceRxPromoModal = () => {
   const [isLoading, setIsLoading] = useState(false);
   const clinic = getClinic(profile?.hospital_data);
   const [isOpen, setIsOpen] = useState(false);
+  const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
+  const promoOfferCopy = {
+    ...DEFAULT_PROMO_OFFER_COPY,
+    ...(resolveTpConfigEnvValue(tpConfigData?.voiceRxPromoOffer) || {}),
+  };
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
@@ -231,7 +260,10 @@ const VoiceRxPromoModal = () => {
                   </span>
                 </div>
                 <p className="monetization-popup-offer-subtext">
-                  Limited-time <strong>New Year</strong> Offer🎉
+                  {promoOfferCopy.subtextPrefix}{" "}
+                  <strong>{promoOfferCopy.subtextHighlight}</strong>{" "}
+                  {promoOfferCopy.subtextSuffix}
+                  {PROMO_OFFER_EMOJI}
                 </p>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
