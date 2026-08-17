@@ -1139,6 +1139,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             value = `${caseManagerData?.patient_data?.caseType ? caseManagerData?.patient_data?.caseType : "-"}`;
         } else if (id == 19) {
             value = `${caseManagerData?.patient_data?.patientCategory ? caseManagerData?.patient_data?.patientCategory : "-"}`;
+        } else if (id == 20) {
+            value = `${caseManagerData?.doctor_data?.doctor_name ? caseManagerData?.doctor_data?.doctor_name : "-"}`;
         }
         return value
     }
