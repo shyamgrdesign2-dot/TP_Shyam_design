@@ -566,3 +566,53 @@ export function prescriptionLabResultsToResultsArray(labResults, dateStr = null)
   if (inputs.length === 0) return [];
   return [{ date, inputs }];
 }
+
+// ----- Custom investigation duplicate detection (non-blocking warning) -----
+
+function normalizeInvestigationName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function levenshteinDistance(a, b) {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dist = Array.from({ length: rows }, (_, i) => [i, ...Array(cols - 1).fill(0)]);
+  for (let j = 1; j < cols; j += 1) dist[0][j] = j;
+  for (let i = 1; i < rows; i += 1) {
+    for (let j = 1; j < cols; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dist[i][j] = Math.min(
+        dist[i - 1][j] + 1,
+        dist[i][j - 1] + 1,
+        dist[i - 1][j - 1] + cost,
+      );
+    }
+  }
+  return dist[rows - 1][cols - 1];
+}
+
+/**
+ * Non-blocking duplicate hint for custom-investigation creation (PRD §11):
+ * warns on a close name match against the already-loaded master list, never blocks.
+ * `masterList` entries need only `testName`/`reportName` (the shape every row in
+ * LabParams.js's merged master already has).
+ */
+export function findSimilarInvestigations(name, masterList = []) {
+  const query = normalizeInvestigationName(name);
+  if (!query) return [];
+
+  return masterList.filter((entry) => {
+    const candidate = normalizeInvestigationName(entry?.testName);
+    if (!candidate) return false;
+    if (candidate === query) return true;
+    if (candidate.includes(query) || query.includes(candidate)) return true;
+    const maxLen = Math.max(candidate.length, query.length);
+    if (maxLen === 0) return false;
+    const distance = levenshteinDistance(candidate, query);
+    // Within ~20% edit distance of the longer string counts as "similar".
+    return distance / maxLen <= 0.2;
+  });
+}

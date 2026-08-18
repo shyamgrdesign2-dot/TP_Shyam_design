@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, Card, DatePicker, Input, Popover, Tooltip, message, Spin } from 'antd';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Button, Card, DatePicker, Input, Popover, Tooltip, message, Spin, Select, Radio } from 'antd';
 import { EllipsisOutlined, DeleteOutlined, CaretRightOutlined, CaretDownOutlined } from "@ant-design/icons";
 import axios from 'axios';
 import moment from "moment";
@@ -18,6 +18,8 @@ import {
   mergeLabResultRowMeta,
 } from '../utils/labResultsUtils';
 import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
+import { getCustomInvestigations } from '../api/services/ApiCustomInvestigation';
+import InlineInvestigationPanel from './InlineInvestigationPanel';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -77,10 +79,57 @@ const LabResultsTable = ({
     const remarksRef = useRef(null);
     const scrollRef = useRef(null);
     const [defaultTestData, setDefaultTestData] = useState([]);
+    const [customGroups, setCustomGroups] = useState([]);
+    const [isCreateInvestigationOpen, setIsCreateInvestigationOpen] = useState(false);
 
     useEffect(() => {
       setDefaultTestData(JSON.parse(JSON.stringify(DEFAULT_TESTS_DATA)));
     }, [])
+
+    // Hospital-scoped custom investigations (PRD: Custom Investigation Groups/Investigations)
+    // merge into the same master rows LabParams already renders from. Also
+    // re-fetched on window focus so investigations created via the full
+    // management page (src/pages/lims/InvestigationSettingsPage.jsx, reachable
+    // separately from LIMS) show up here without a manual reload.
+    const hmid = tokenData?.clinic_id;
+    const fetchAndMergeCustomInvestigations = useCallback(async () => {
+      if (!hmid) return;
+      const { groups, investigations } = await getCustomInvestigations(hmid);
+      setCustomGroups(groups.filter((g) => g.isActive !== false));
+      const activeGroupNames = new Set(groups.filter((g) => g.isActive !== false).map((g) => g.name));
+      // Investigations only carry groupId, never a denormalized groupName —
+      // resolve it from the groups list (inv.groupName kept as a first choice
+      // for forward-compat with a real backend that might send it directly).
+      const groupNameById = new Map(groups.map((g) => [g.id, g.name]));
+      const rows = investigations
+        .filter((inv) => inv.isActive !== false)
+        .map((inv) => ({
+          reportName: inv.groupName || groupNameById.get(inv.groupId) || "",
+          testName: inv.name,
+          value: "",
+          units: inv.unit || "",
+          arrowDirection: "",
+          resultType: inv.resultType || "numeric",
+          dropdownOptions: inv.dropdownOptions || null,
+          isCustom: true,
+          refRange: {
+            isConditional: (inv.referenceRanges || []).some((r) => r.gender && r.gender !== "ALL"),
+            ranges: inv.referenceRanges || [],
+          },
+        }))
+        .filter((row) => activeGroupNames.size === 0 || activeGroupNames.has(row.reportName));
+      // Replace only the previously-merged custom rows so refetching never duplicates.
+      setDefaultTestData((prev) => [...prev.filter((r) => !r.isCustom), ...rows]);
+    }, [hmid]);
+
+    useEffect(() => {
+      fetchAndMergeCustomInvestigations();
+    }, [fetchAndMergeCustomInvestigations]);
+
+    useEffect(() => {
+      window.addEventListener("focus", fetchAndMergeCustomInvestigations);
+      return () => window.removeEventListener("focus", fetchAndMergeCustomInvestigations);
+    }, [fetchAndMergeCustomInvestigations]);
 
     const currentDate = new Date().toISOString().split("T")[0];
     const dateFormat = 'YYYY-MM-DD';
@@ -264,6 +313,28 @@ const LabResultsTable = ({
     
         return () => clearTimeout(timeOutId);
     }, [labParamsResults, existingResults, searchQuery, dates]);
+
+    // Custom investigations (and defaultTestData generally) never come back from
+    // searchLabParams's backend call, so they were never part of the auto-expand
+    // logic above — searching for one by name would never reveal its group. Layer
+    // a case-insensitive local match on top, merging (not replacing) whatever the
+    // backend-driven effect set, and running after it via the labParamsResults
+    // dependency so this can't be clobbered by that effect's later resolution.
+    useEffect(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return;
+        const localMatchNames = defaultTestData
+          .filter((row) =>
+            row.testName?.toLowerCase().includes(q) || row.reportName?.toLowerCase().includes(q)
+          )
+          .map((row) => row.reportName);
+        if (localMatchNames.length === 0) return;
+        setExpandedReports((prev) => {
+          const next = { ...prev };
+          localMatchNames.forEach((reportName) => { next[reportName] = true; });
+          return next;
+        });
+    }, [searchQuery, labParamsResults, defaultTestData]);
 
     const combineData = (currentFilledData, filledData) => {
         const combinedResults = [...filledData];
@@ -470,23 +541,41 @@ const LabResultsTable = ({
         handleCloseModal();
     };
 
-    const calculateArrowDirection = (value, refRange, gender) => {
+    // resultType is only meaningful for custom investigations; existing/default
+    // rows have no resultType and keep today's numeric behaviour (PRD §7: only
+    // numeric results ever get Low/Normal/High).
+    const calculateArrowDirection = (value, refRange, gender, resultType, patientAge) => {
+        if (resultType && resultType !== "numeric") {
+            return "";
+        }
         if (!value || isNaN(parseFloat(value))) {
             return "";
         }
-    
+
         let selectedRange;
         const ranges = refRange?.ranges;
-    
+        const age = patientAge != null && patientAge !== "" ? Number(patientAge) : undefined;
+        const isAgeInRange = (range) => {
+            const ageFrom = range?.ageFrom != null && range.ageFrom !== "" ? Number(range.ageFrom) : undefined;
+            const ageTo = range?.ageTo != null && range.ageTo !== "" ? Number(range.ageTo) : undefined;
+            if (ageFrom == null && ageTo == null) return true; // no age constraint on this range
+            if (age == null) return true; // patient age unknown — don't exclude on age
+            if (ageFrom != null && age < ageFrom) return false;
+            if (ageTo != null && age > ageTo) return false;
+            return true;
+        };
+        const byGender = (range) => range?.gender?.toLowerCase() === gender?.toLowerCase();
+
         // Check if refRange has conditional ranges
         if (refRange?.gender?.toLowerCase() === "all") {
           selectedRange = Array.isArray(ranges) ? ranges[0] : undefined;
-        } else {
-          selectedRange = Array.isArray(ranges)
-            ? (ranges.find(range => range?.gender?.toLowerCase() === gender?.toLowerCase()) ?? ranges[0])
-            : undefined;
+        } else if (Array.isArray(ranges)) {
+          selectedRange =
+            ranges.find((range) => byGender(range) && isAgeInRange(range)) ??
+            ranges.find((range) => byGender(range)) ??
+            ranges[0];
         }
-    
+
         if (selectedRange) {
             const numericValue = parseFloat(value);
             const min = parseFloat(selectedRange.min);
@@ -510,7 +599,7 @@ const LabResultsTable = ({
     
         setFilledData(data);
         existingResults = data?.length > 0 ? data : existingResults; // Use the combined data
-    
+
         // Case 1: No existing results
         if (existingResults.length === 0) {
           if (labParamsResults.length === 0) {
@@ -543,6 +632,9 @@ const LabResultsTable = ({
                           units: lab.units || "",
                           arrowDirection: "",
                           refRange: lab.refRange || "",
+                          resultType: lab.resultType,
+                          dropdownOptions: lab.dropdownOptions,
+                          isCustom: lab.isCustom,
                       })),
                   };
 
@@ -579,6 +671,9 @@ const LabResultsTable = ({
                               units: lab.units || "",
                               arrowDirection: existingInput ? existingInput.arrowDirection : "",
                               refRange: lab.refRange || "",
+                              resultType: lab.resultType,
+                              dropdownOptions: lab.dropdownOptions,
+                              isCustom: lab.isCustom,
                           };
                       }),
                   };
@@ -616,6 +711,9 @@ const LabResultsTable = ({
                               units: lab.units || "",
                               arrowDirection: "",
                               refRange: lab.refRange || "",
+                              resultType: lab.resultType,
+                              dropdownOptions: lab.dropdownOptions,
+                              isCustom: lab.isCustom,
                               recentlyUpdated: true, // Mark predefined data as newly added
                           });
                       }
@@ -764,15 +862,18 @@ const LabResultsTable = ({
                   arrowDirection: "",
                   refRange: "",
                   units: getUnitForTest(reportName, testName),
+                  resultType: getResultTypeForTest(reportName, testName),
+                  dropdownOptions: getDropdownOptionsForTest(reportName, testName),
               };
           }
-  
+
           // Update value and calculate arrow direction using existing refRange if available
           const existingRefRange = updatedData[reportName][testName][date].refRange;
           const gender = patientGender || "Male"; // Assuming `patientGender` is available globally or passed in
-  
+          const resultType = updatedData[reportName][testName][date].resultType;
+
           updatedData[reportName][testName][date].value = value;
-          updatedData[reportName][testName][date].arrowDirection = calculateArrowDirection(value, existingRefRange, gender);
+          updatedData[reportName][testName][date].arrowDirection = calculateArrowDirection(value, existingRefRange, gender, resultType);
   
           // Fetch refRange if not already available
           if (!existingRefRange) {
@@ -797,7 +898,8 @@ const LabResultsTable = ({
                 updatedData[reportName][testName][date].arrowDirection = calculateArrowDirection(
                     updatedData[reportName][testName][date].value,
                     refRange,
-                    patientGender || "Male"
+                    patientGender || "Male",
+                    updatedData[reportName][testName][date].resultType
                 );
             }
             return updatedData;
@@ -812,6 +914,26 @@ const LabResultsTable = ({
             }
         }
         return "";
+    };
+
+    const getResultTypeForTest = (reportName, testName) => {
+        for (const date of dates) {
+            const resultType = inputValues[reportName]?.[testName]?.[date]?.resultType;
+            if (resultType) {
+                return resultType;
+            }
+        }
+        return "numeric";
+    };
+
+    const getDropdownOptionsForTest = (reportName, testName) => {
+        for (const date of dates) {
+            const options = inputValues[reportName]?.[testName]?.[date]?.dropdownOptions;
+            if (options) {
+                return options;
+            }
+        }
+        return null;
     };
 
     const assemblePayload = () => {
@@ -994,6 +1116,44 @@ const LabResultsTable = ({
       showHideBackModal();
     }
 
+    // Search here only jumps to/expands matching backend groups (searchLabParams)
+    // and defaultTestData/custom investigations are always shown regardless of
+    // query — so "no matches" means the query hits neither source.
+    const queryMatchesExisting = useMemo(() => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      const hits = (row) =>
+        row?.testName?.toLowerCase().includes(q) || row?.reportName?.toLowerCase().includes(q);
+      return defaultTestData.some(hits) || labParamsResults.some(hits);
+    }, [searchQuery, defaultTestData, labParamsResults]);
+
+    const duplicateCheckMasterList = useMemo(
+      () => [...defaultTestData, ...labParamsResults],
+      [defaultTestData, labParamsResults]
+    );
+
+    const handleCustomInvestigationCreated = (newRow) => {
+      setDefaultTestData((prev) => [...prev, newRow]);
+      setInputValues((prev) => {
+        const updatedData = { ...prev };
+        const targetDates = dates.length > 0 ? dates : [currentDate];
+        targetDates.forEach((date) => {
+          if (!updatedData[newRow.reportName]) updatedData[newRow.reportName] = {};
+          if (!updatedData[newRow.reportName][newRow.testName]) {
+            updatedData[newRow.reportName][newRow.testName] = {};
+          }
+          updatedData[newRow.reportName][newRow.testName][date] = { ...newRow, date };
+        });
+        return updatedData;
+      });
+      setExpandedReports((prev) => ({ ...prev, [newRow.reportName]: true }));
+      setIsCreateInvestigationOpen(false);
+      // Refresh customGroups so the "existing group" picker includes what was
+      // just created, next time the panel opens (it was only fetched on mount
+      // and window focus, so without this it'd stay stale within the session).
+      fetchAndMergeCustomInvestigations();
+    };
+
     const tooltipTitle = (notes, reportName, testName, date) => {
       return (
         <div
@@ -1013,7 +1173,7 @@ const LabResultsTable = ({
     };
     
     return (
-      <div style={{background:"#fff"}}>
+      <div style={{background:"#fff", position: "relative", minHeight: "100vh"}}>
         <div
           className="modalCard-header h-60 align-items-center justify-content-between d-flex"
           style={{ position: "sticky", top: "0", zIndex: "5" }}
@@ -1107,6 +1267,33 @@ const LabResultsTable = ({
             </div>
           )}
         </div>
+
+        {searchQuery.trim() !== "" && !queryMatchesExisting && (
+          <div
+            className="d-flex align-items-center justify-content-between px-20 py-2"
+            style={{ background: "#FFF7E6", borderBottom: "1px solid #FFE0A3" }}
+          >
+            <span>Can't find "{searchQuery.trim()}"?</span>
+            <Button
+              type="link"
+              onClick={() => setIsCreateInvestigationOpen(true)}
+              style={{ fontWeight: 600 }}
+            >
+              Create custom investigation
+            </Button>
+          </div>
+        )}
+
+        <InlineInvestigationPanel
+          open={isCreateInvestigationOpen}
+          onClose={() => setIsCreateInvestigationOpen(false)}
+          initialName={searchQuery.trim()}
+          hmid={hmid}
+          createdBy={tokenData?.user_id}
+          existingGroups={customGroups}
+          masterList={duplicateCheckMasterList}
+          onCreated={handleCustomInvestigationCreated}
+        />
 
         <div style={{ overflowX: "auto", margin: "8px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1244,7 +1431,7 @@ const LabResultsTable = ({
                         <Spin />
                       </div>
                     </div>  
-                  ) : labParamsResults?.length > 0 || searchQuery === "" ? (
+                  ) : labParamsResults?.length > 0 || searchQuery === "" || queryMatchesExisting ? (
                     <>
                       <div style={{ height: "15px" }}></div>
                       <tbody>
@@ -1468,7 +1655,35 @@ const LabResultsTable = ({
                                             <div key={inputIndex} className="test-values-container">
                                               {/* Test Values Rendering */}
                                               {/* Use your test values rendering logic here */}
-                                              {testName !== "Remarks" && (
+                                              {testName !== "Remarks" && ["dropdown", "positive_negative"].includes(
+                                                inputValues[reportName][testName][date]?.resultType
+                                              ) && (
+                                                <div style={{ width: "180px" }}>
+                                                  {inputValues[reportName][testName][date]?.resultType === "dropdown" ? (
+                                                    <Select
+                                                      style={{ width: "100%" }}
+                                                      placeholder="Select"
+                                                      allowClear
+                                                      value={inputValues[reportName][testName][date]?.value || undefined}
+                                                      options={(inputValues[reportName][testName][date]?.dropdownOptions || []).map(
+                                                        (opt) => ({ value: opt, label: opt })
+                                                      )}
+                                                      onChange={(value) => handleInputChange(reportName, testName, date, value || "")}
+                                                    />
+                                                  ) : (
+                                                    <Radio.Group
+                                                      value={inputValues[reportName][testName][date]?.value || undefined}
+                                                      onChange={(e) => handleInputChange(reportName, testName, date, e.target.value)}
+                                                    >
+                                                      <Radio.Button value="Positive">Positive</Radio.Button>
+                                                      <Radio.Button value="Negative">Negative</Radio.Button>
+                                                    </Radio.Group>
+                                                  )}
+                                                </div>
+                                              )}
+                                              {testName !== "Remarks" && !["dropdown", "positive_negative"].includes(
+                                                inputValues[reportName][testName][date]?.resultType
+                                              ) && (
                                                 <div style={{ width: "180px" }}>
                                                 <Input
                                                   style={{

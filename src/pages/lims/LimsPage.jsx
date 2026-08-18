@@ -1145,6 +1145,12 @@ function LimsPageMain() {
               </button>
             </Dropdown>
           </div>
+          <Button
+            className={styles.filterTrigger}
+            onClick={() => navigate("/lims/investigation-settings")}
+          >
+            Custom Investigations
+          </Button>
         </div>
 
         <div
