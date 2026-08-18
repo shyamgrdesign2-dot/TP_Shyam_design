@@ -1,7 +1,16 @@
 import React from "react";
 import { cn } from "../../../utils";
 import { ASSETS } from "../../../../../assets";
+import { publicAssetUrl } from "../../../../../utils/publicAssetUrl";
 import styles from "./SectionSummaryBar.module.scss";
+
+/**
+ * Unlike the `ASSETS` entries below, this icon ships in this repo's `public/` folder,
+ * so it resolves through `PUBLIC_URL` (the app CDN) rather than the blob.
+ */
+const GYNEC_ICON_SRC = publicAssetUrl(
+  "/new-assets/icons/medical/gynec--line.svg"
+);
 
 const SECTION_ICON_SRC = {
   vitals: ASSETS.images.vitals,
@@ -29,9 +38,9 @@ const SECTION_ICON_SRC = {
   surgeries: ASSETS.images.surgery,
   "medical-history": ASSETS.images.medicalHistory,
   medicalhistory: ASSETS.images.medicalHistory,
-  gynec: "/new-assets/icons/medical/gynec--line.svg",
-  "gynec-history": "/new-assets/icons/medical/gynec--line.svg",
-  "gynaec-history": "/new-assets/icons/medical/gynec--line.svg",
+  gynec: GYNEC_ICON_SRC,
+  "gynec-history": GYNEC_ICON_SRC,
+  "gynaec-history": GYNEC_ICON_SRC,
 };
 
 function normalizeIconKey(value) {

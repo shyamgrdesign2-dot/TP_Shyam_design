@@ -68,6 +68,7 @@ import {
 import { convertAgentMedicalHistoryRowsToSections } from "../../utils/medicalHistoryConverters";
 import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers";
 import { mergeGynecHistory, normalizeGynaecHistoryFromDigitiseData, normalizeGynecHistoryFromApi } from "../../utils/gynecHistoryUtils";
+import { publicAssetUrl } from "../../utils/publicAssetUrl";
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitizationSlice";
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
@@ -3324,7 +3325,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
         <div className="snv-past-visits-empty-state">
           <img
             className="snv-past-visits-empty-icon"
-            src="/new-assets/icons/dr-agent/empty-docs.svg"
+            src={publicAssetUrl("/new-assets/icons/dr-agent/empty-docs.svg")}
             alt=""
             width={72}
             height={72}
@@ -3635,7 +3636,7 @@ function SideNavEmptyState({ sectionId, onActionClick, onVoiceClick, showVoiceAc
     <div className="snv-section-empty-state">
       <img
         className="snv-section-empty-icon"
-        src="/new-assets/icons/dr-agent/empty-docs.svg"
+        src={publicAssetUrl("/new-assets/icons/dr-agent/empty-docs.svg")}
         alt=""
         width={72}
         height={72}
