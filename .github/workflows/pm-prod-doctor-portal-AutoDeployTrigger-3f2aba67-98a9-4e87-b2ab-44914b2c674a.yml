@@ -179,39 +179,26 @@ jobs:
          #tenant-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_TENANT_ID }}
          #subscription-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
 
-      # Was `az storage blob upload-batch`, which re-uploaded all ~150MB every deploy and
-      # took 109s. That cost is per-file Python overhead across ~1000 small files far more
-      # than bandwidth, so azcopy (parallel, Go) is much faster even on a full upload.
+      # upload-batch never deletes blobs missing from --source, so previously uploaded
+      # hashed chunks survive. --overwrite only affects identical paths (e.g. manifest.json,
+      # favicon.ico) which we WANT current.
       #
-      # --compare-hash=MD5 is REQUIRED, not an optimisation: sync compares last-modified
-      # time by default, and every file gets a fresh mtime from the rebuilt image, so the
-      # default would re-upload everything and save nothing. --put-md5 stores the hash so
-      # subsequent runs can skip unchanged content-hashed chunks.
-      #
-      # --delete-destination=false preserves the old behaviour: blobs absent from the
-      # source are kept, so chunks referenced by the currently-live version survive.
-      #
-      # Failure here stops the job BEFORE the Container App revision switch, so prod stays
-      # on the previous version rather than serving a half-uploaded asset set.
+      # NOTE: this step takes ~109s because `az` is slow per-file across ~1000 small files,
+      # not because of bandwidth. Switching to `azcopy sync` would likely cut it to ~20s, but
+      # that is deliberately NOT done here: azcopy would also be writing Content-Type metadata
+      # on every blob, and if it inferred those differently from `az` the upload would still
+      # SUCCEED while serving .js as the wrong type — breaking prod with nothing in the logs.
+      # That change gets proven on a non-prod container first. See PR #3944 discussion.
       - name: Publish build assets to Azure Blob (react-static-prod/cdn)
-        env:
-          AZCOPY_AUTO_LOGIN_TYPE: AZCLI
         run: |
           set -euo pipefail
-          if ! command -v azcopy >/dev/null 2>&1; then
-            echo "azcopy not preinstalled — fetching"
-            curl -sL https://aka.ms/downloadazcopy-v10-linux -o /tmp/azcopy.tgz
-            tar -xzf /tmp/azcopy.tgz -C /tmp
-            sudo install -m 755 /tmp/azcopy_linux_amd64_*/azcopy /usr/local/bin/azcopy
-          fi
-          azcopy --version
-
-          azcopy sync "_blob_html" \
-            "https://pmdoctorportal.blob.core.windows.net/react-static-prod/cdn" \
-            --recursive \
-            --delete-destination=false \
-            --compare-hash=MD5 \
-            --put-md5
+          az storage blob upload-batch \
+            --account-name pmdoctorportal \
+            --auth-mode login \
+            --destination react-static-prod \
+            --source _blob_html \
+            --destination-path cdn \
+            --overwrite
 
       # ---- 4. Now switch the Container App to the new image (assets already in place) ----
       - name: Azure Login (deploy identity)
