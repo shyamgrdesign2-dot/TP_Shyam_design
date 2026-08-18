@@ -35,13 +35,21 @@ share one release and record two Sentry deploys (`-e prod`, `-e zy-preprod`).
 3. CI does the rest: builds, uploads sourcemaps under that release, deploys,
    registers the release + deploy in Sentry, and pushes the `vX.Y.Z` git tag.
 
-**Forgetting the bump fails the deploy.** The `Resolve release version` step
-aborts if `vX.Y.Z` already exists on a *different* commit. That is deliberate —
-it is the forcing function, not a bug.
+**Forgetting the bump does not break anything.** If `vX.Y.Z` already exists on a
+different commit, the deploy emits a `::warning::`, skips tagging, and ships
+normally. The same applies if the version is not valid semver.
+
+Bookkeeping never blocks a release. Sentry releases stay unique regardless,
+because the release string carries `+<sha>` — only the git *tag* can collide, and
+a duplicate tag is not worth a failed deploy.
+
+What you lose by not bumping is only the `vX.Y.Z` tag and a clean semver entry in
+the Sentry release list. The deploy, the release record and error attribution all
+still work.
 
 Re-running the workflow on an already-tagged commit (`workflow_dispatch`, or a
-retry after a late step failed) is allowed: the tag points at the same commit, so
-the deploy proceeds and the tagging step is skipped.
+retry after a late step failed) behaves the same way: it deploys and skips
+re-tagging.
 
 ## Do not confuse `version` with `apiCompatibilityVersion`
 
