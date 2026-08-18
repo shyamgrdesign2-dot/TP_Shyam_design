@@ -396,14 +396,6 @@ export function PatientReportedCard({ data, onCopy, defaultCollapsed = false }) 
   return (
     <CardShell
       icon={
-        /*
-          Deliberately NOT routed through `publicAssetUrl`. This URL feeds a CSS
-          `mask` in PatientReportedCard.module.scss, and mask-image fetches are
-          CORS-checked — pointing it at the PUBLIC_URL CDN would make the icon
-          disappear. Same constraint as `sideNavbarMedicalIcons.js`. Inline this as a
-          data URI (or add CORS headers to the CDN) before migrating it.
-          Allowlisted in scripts/check-no-raster-imports.js.
-        */
         <span
           className={styles.headerIcon}
           style={{ "--reported-patient-icon-url": 'url("/new-assets/icons/medical/clipboard-activity--bulk.svg")' }}
