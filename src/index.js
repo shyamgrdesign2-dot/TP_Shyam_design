@@ -82,6 +82,10 @@ const tracesSampleRateValue =
 
 Sentry.init({
   dsn: "https://a4c36bf5194238bfa49de0a593619865@o4509755819294720.ingest.us.sentry.io/4510737179475968",
+  // Baked at build time from the SENTRY_RELEASE build-arg (see Dockerfile + CI workflows).
+  // MUST be byte-identical to the release used for `sentry-cli sourcemaps upload`, otherwise
+  // Sentry cannot symbolicate. Undefined in local dev — Sentry simply omits the field.
+  release: process.env.REACT_APP_SENTRY_RELEASE,
   integrations: [
     Sentry.reactRouterV6BrowserTracingIntegration({
       useEffect: React.useEffect,
