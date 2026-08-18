@@ -89,8 +89,38 @@ Sentry.init({
       useNavigationType,
       createRoutesFromChildren,
       matchRoutes,
+
+      // Web vitals were almost never recorded. Measured over 7d in prod (spans dataset):
+      //   pageload spans 285,081 | TTFB 206,161 (72%) | FCP 1,570 (0.55%)
+      //                          | LCP 420 (0.15%)    | CLS 0
+      // The capture rate falls off exactly in the order the metrics become available,
+      // because the pageload span had already been sent: its p50 duration was 430ms
+      // (p95 2131ms). TTFB exists immediately so it survives; FCP/LCP land later and
+      // CLS is only final at page-hide, so they were all dropped.
+      //
+      // Root cause: idleTimeout was never set, so it used the SDK default of 1000ms.
+      // Raised so the span stays open long enough for FCP/LCP on this bundle.
+      idleTimeout: 5000,
+
+      // CLS can only be known when the page is hidden, which no idleTimeout can wait for.
+      // These emit LCP and CLS as their own spans at page-hide, decoupled from the
+      // pageload span's lifetime — the only way to capture CLS at all.
+      // Still under _experiments in SDK 10.9.0; revisit on upgrade.
+      _experiments: {
+        enableStandaloneLcpSpans: true,
+        enableStandaloneClsSpans: true,
+      },
     }),
-    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+    // "error" only. Measured over 7d in prod on the Sentry logs dataset:
+    //   info 1,026,942 (57%) | warn 553,576 (31%) | error 227,319 (13%)
+    // console.log was pure developer chatter, and 91% of the warn volume was a single
+    // repeated react-pdf message ("Invalid '' string child outside <Text> component"),
+    // which is a code defect to fix at source rather than a signal worth shipping.
+    //
+    // Keeping "error" preserves the one case the other capture paths miss: a bare
+    // console.error(...) that never throws is NOT seen by the global error handler,
+    // the ErrorBoundary, or captureException. These land in Sentry Logs, not Issues.
+    Sentry.consoleLoggingIntegration({ levels: ["error"] }),
   ],
   tracesSampleRate: tracesSampleRateValue,
   tracePropagationTargets: [],
