@@ -114,44 +114,34 @@ jobs:
           set -euo pipefail
           echo "$REGISTRY_PASS" | docker login acinacr.azurecr.io -u "$REGISTRY_USER" --password-stdin
 
-      # Layer cache across ephemeral runners. The expensive layer is `npm install` (126s),
-      # which only changes when package*.json or .npmrc change — so most deploys now skip it.
-      # A cache miss just rebuilds exactly as before, so the failure mode is "no slower".
+      # NO buildx layer cache here. It was tried and measurably lost.
       #
-      # Uses docker/build-push-action rather than a raw `docker buildx build` in a run: step:
-      # the type=gha backend needs ACTIONS_RUNTIME_TOKEN, which run: steps cannot see, so raw
-      # buildx would silently cache nothing.
+      # Run 32177103750 with cache-to type=gha,mode=max:
+      #   "preparing build cache for export 242.3s", cache export DONE 416.7s,
+      #   0 CACHED layers, Build step 835s vs 578s without it. +5m15s on the deploy.
       #
-      # load: true keeps the image in the local daemon so the later `docker create`
-      # (asset extraction) and the push below both still work.
+      # It cannot win on later runs either: mode=max re-exports every CHANGED layer, and
+      # `COPY . .` plus `npm run build` change on every commit, so the ~416s export recurs
+      # while the ceiling on savings is only the npm install layer (~260s). mode=min does
+      # not help — npm install lives in the build stage, which mode=min does not export.
+      # Revisit only with a different approach, e.g. caching node_modules on the runner
+      # via actions/cache, outside the image.
       #
       # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
       # estimated 3-6 min to a deploy already dominated by the webpack compile. Release
       # ATTRIBUTION does not need sourcemaps — `release` is event metadata, so "first seen
-      # in vX.Y.Z", regressions and release health all still work; only the readability of
-      # stack frames is lost.
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          load: true
-          tags: ${{ env.IMAGE_NAME }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            REACT_APP_ENV=prod
-            GENERATE_SOURCEMAP=false
-            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-            SENTRY_RELEASE=${{ steps.release.outputs.release }}
-            NODE_AUTH_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
-            PUBLIC_URL=${{ env.PUBLIC_URL_PROD_CDN }}
-
-      - name: Push image to ACR
+      # in vX.Y.Z", regressions and release health all still work.
+      - name: Build image and push to ACR
         run: |
           set -euo pipefail
+          docker build \
+            --build-arg REACT_APP_ENV=prod \
+            --build-arg GENERATE_SOURCEMAP=false \
+            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg SENTRY_RELEASE="${{ steps.release.outputs.release }}" \
+            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
+            --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PROD_CDN }}" \
+            -t "${{ env.IMAGE_NAME }}" .
           docker push "${{ env.IMAGE_NAME }}"
 
       # ---- 2. Extract built assets from the same image we just pushed ----
