@@ -498,6 +498,8 @@ export const HTMLTransformer = (htmlString) => {
       replaceContent(label, "{Procedure}");
     } else if (label.classList.contains("number_of_months")) {
       replaceContent(label, "{Number of Months}");
+     } else if (label.classList.contains("mrn_no")) {
+      replaceContent(label, "{MRN No.}");
     }
   });
 
