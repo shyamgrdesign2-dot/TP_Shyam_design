@@ -31,6 +31,7 @@ import {
 import { isProductionEnv } from "./utils/environment";
 import { getSentryRouteNameFromUrl } from "./utils/sentryRouteNames";
 import { reportBrowserOfflineToSentry } from "./utils/sentryNetwork";
+import { SENTRY_ENVIRONMENT, SENTRY_ENABLED } from "./utils/sentryEnvironment";
 
 // Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
@@ -125,7 +126,11 @@ Sentry.init({
   tracesSampleRate: tracesSampleRateValue,
   tracePropagationTargets: [],
   sendDefaultPii: true,
-  environment: appEnv,
+  // Silent on developer machines unless REACT_APP_SENTRY_LOCAL=1. See utils/sentryEnvironment.js.
+  enabled: SENTRY_ENABLED,
+  // NOT appEnv: .env.dev sets REACT_APP_ENV=prod on purpose (it picks the API base URL),
+  // which filed every local error as a production error. Local runs land in "local".
+  environment: SENTRY_ENVIRONMENT,
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;
