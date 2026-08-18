@@ -1,18 +1,11 @@
-import { ASSETS } from "../assets";
 import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 import {
   mergeDentalPrintCaseOptions,
   buildSavePrintSettingsPayload,
 } from "./dentalDefaultPrintSettings";
 
-/**
- * Rendered as an `<img src>` by `PadLeftModuleIcon` in `src/common/CustomizeSetting.js`.
- * The blob only ships the `--bulk` variant of this icon; there is no
- * `surgical-scissors-02--line.svg` on either asset host, and no `public/icons/` folder,
- * so the previous bare `/icons/medical/...` path 404'd.
- */
 export const DENTAL_PLAN_MODULE_ICON_URL =
-  ASSETS.dental.medicalIcons.surgicalScissors02;
+  "/icons/medical/surgical-scissors-02--line.svg";
 
 /**
  * Utility thunk to verify conditions and add the Dental module 

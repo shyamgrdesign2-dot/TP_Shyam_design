@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { cn } from "../../../utils";
-import { publicAssetUrl } from "../../../../../utils/publicAssetUrl";
 import styles from "./AgentHeader.module.scss";
 
 import {
@@ -120,13 +119,13 @@ export function AgentHeader({
               style={{ position: "relative", display: "inline-flex", width: 24, height: 24, alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}
             >
               <img
-                src={publicAssetUrl("/new-assets/icons/dr-agent/agent-bg.svg")}
+                src="/new-assets/icons/dr-agent/agent-bg.svg"
                 alt=""
                 draggable={false}
                 style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
               />
               <img
-                src={publicAssetUrl("/new-assets/icons/dr-agent/agent-spark.svg")}
+                src="/new-assets/icons/dr-agent/agent-spark.svg"
                 alt=""
                 draggable={false}
                 style={{ position: "relative", zIndex: 10, width: 14, height: 14 }}

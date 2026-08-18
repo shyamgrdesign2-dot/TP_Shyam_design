@@ -1,13 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { env } from "../EnvironmentConfig";
 
-/**
- * Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js.
- *
- * These files are uploaded to blob storage separately from the app build. Files that
- * live in this repo's `public/` folder are a different root: they ship with the build
- * and are served from `PUBLIC_URL` — use `publicAssetUrl()` in ./publicAssetUrl for those.
- */
+/** Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js */
 export const TP_ASSETS_BASE =
   "https://pmdoctorportal.tatvacare.in/tp-assets/assets";
 
