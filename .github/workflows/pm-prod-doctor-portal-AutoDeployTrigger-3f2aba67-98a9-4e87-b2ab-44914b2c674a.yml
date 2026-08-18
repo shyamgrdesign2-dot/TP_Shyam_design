@@ -169,26 +169,86 @@ jobs:
          #tenant-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_TENANT_ID }}
          #subscription-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
 
-      # upload-batch never deletes blobs missing from --source, so previously uploaded
-      # hashed chunks survive. --overwrite only affects identical paths (e.g. manifest.json,
-      # favicon.ico) which we WANT current.
+      # azcopy instead of `az storage blob upload-batch`. Proven on UAT first
+      # (run 32177197271): 471 files scanned, 15 uploaded, 10.8s versus ~109s here.
+      # The gain is twofold — azcopy parallelises properly, and sync skips files whose
+      # content is unchanged, which is most of a content-hashed build.
       #
-      # NOTE: this step takes ~109s because `az` is slow per-file across ~1000 small files,
-      # not because of bandwidth. Switching to `azcopy sync` would likely cut it to ~20s, but
-      # that is deliberately NOT done here: azcopy would also be writing Content-Type metadata
-      # on every blob, and if it inferred those differently from `az` the upload would still
-      # SUCCEED while serving .js as the wrong type — breaking prod with nothing in the logs.
-      # That change gets proven on a non-prod container first. See PR #3944 discussion.
+      # The risk this carries is that azcopy writes Content-Type on every blob it uploads.
+      # If it inferred those differently from `az`, the upload would still SUCCEED and the
+      # site would then serve .js with a type browsers refuse to execute, with nothing in
+      # the logs to explain it. The gate below turns that into a failed build instead.
+      # On UAT the newly built main.<hash>.js and main.<hash>.css came back as
+      # application/javascript and text/css.
+      #
+      # --compare-hash=MD5 is required, not an optimisation: sync compares last-modified
+      # time by default, and every file gets a fresh mtime from the rebuilt image, so the
+      # default would re-upload everything and save nothing.
+      # --delete-destination=false preserves the previous behaviour, keeping blobs absent
+      # from the source so chunks used by the live revision survive.
       - name: Publish build assets to Azure Blob (react-static-prod/cdn)
+        env:
+          AZCOPY_AUTO_LOGIN_TYPE: AZCLI
         run: |
           set -euo pipefail
-          az storage blob upload-batch \
-            --account-name pmdoctorportal \
-            --auth-mode login \
-            --destination react-static-prod \
-            --source _blob_html \
-            --destination-path cdn \
-            --overwrite
+          if ! command -v azcopy >/dev/null 2>&1; then
+            echo "azcopy not preinstalled — fetching"
+            curl -sL https://aka.ms/downloadazcopy-v10-linux -o /tmp/azcopy.tgz
+            tar -xzf /tmp/azcopy.tgz -C /tmp
+            sudo install -m 755 /tmp/azcopy_linux_amd64_*/azcopy /usr/local/bin/azcopy
+          fi
+          azcopy --version
+
+          time azcopy sync "_blob_html" \
+            "https://pmdoctorportal.blob.core.windows.net/react-static-prod/cdn" \
+            --recursive \
+            --delete-destination=false \
+            --compare-hash=MD5 \
+            --put-md5 | tee /tmp/azcopy.out
+
+          # Only files azcopy actually uploaded say anything about how azcopy behaves.
+          TRANSFERRED=$(grep -oE 'Total Number of Copy Transfers: [0-9]+' /tmp/azcopy.out | grep -oE '[0-9]+$' || echo 0)
+          echo "TRANSFERRED=$TRANSFERRED" >> "$GITHUB_ENV"
+          echo "azcopy uploaded $TRANSFERRED file(s)"
+
+      # Reads Content-Type back from the blob itself (not through the CDN, which could
+      # return a cached value) and fails the build on any mismatch — BEFORE the Container
+      # App switch, so prod keeps serving the previous revision if azcopy got this wrong.
+      #
+      # Samples ONLY from static/, deliberately: those filenames are content-hashed, so a
+      # changed build always produces new names azcopy must upload, which means the check
+      # actually exercises azcopy. Sampling unchanged public/ files would read back
+      # metadata `az` set on an earlier deploy and pass even if azcopy were broken.
+      - name: Verify Content-Type survived the upload
+        run: |
+          set -euo pipefail
+          if [ "${TRANSFERRED:-0}" -eq 0 ]; then
+            echo "::warning::azcopy uploaded 0 files, so nothing here exercises it. Content-Type unverified this run; existing blobs keep their previous metadata."
+            exit 0
+          fi
+
+          check() {
+            local rel="$1" want="$2"
+            [ -n "$rel" ] || { echo "  (no sample under static/ for $want — skipped)"; return 0; }
+            local got
+            got=$(az storage blob show \
+              --account-name pmdoctorportal --auth-mode login \
+              --container-name react-static-prod --name "cdn/$rel" \
+              --query "properties.contentSettings.contentType" -o tsv)
+            printf '  %-52s %s\n' "$rel" "$got"
+            if [ "$got" != "$want" ]; then
+              echo "::error::Content-Type mismatch for $rel — expected '$want', blob has '$got'. Revert this step to az storage blob upload-batch."
+              exit 1
+            fi
+          }
+
+          cd _blob_html
+          check "$(find static/js  -name '*.js'  -type f 2>/dev/null | head -1)" "application/javascript"
+          check "$(find static/css -name '*.css' -type f 2>/dev/null | head -1)" "text/css"
+          check "$(find static/media -name '*.svg'   -type f 2>/dev/null | head -1)" "image/svg+xml"
+          check "$(find static/media -name '*.png'   -type f 2>/dev/null | head -1)" "image/png"
+          check "$(find static/media -name '*.woff2' -type f 2>/dev/null | head -1)" "font/woff2"
+          echo "Content-Type preserved on every sampled type that azcopy uploaded."
 
       # ---- 4. Now switch the Container App to the new image (assets already in place) ----
       - name: Azure Login (deploy identity)
