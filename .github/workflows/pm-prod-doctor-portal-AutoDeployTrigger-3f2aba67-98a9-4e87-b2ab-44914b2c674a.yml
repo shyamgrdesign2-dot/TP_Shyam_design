@@ -53,27 +53,26 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           SHA=$(git rev-parse --short HEAD)
 
-          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::package.json version '$VERSION' is not X.Y.Z"
-            exit 1
-          fi
-
-          # Every prod deploy must be a distinct version. This is the forcing function
-          # for the bump: forget it in the release PR and the deploy stops here rather
-          # than quietly overwriting an existing release in Sentry.
+          # Bookkeeping must never block a deploy. Both checks below only decide whether
+          # this commit earns a git tag; neither stops the release from shipping.
           #
-          # Exception: if the tag already points at THIS commit we are re-running the same
-          # deploy (workflow_dispatch re-run, or a retry after a late step failed). That is
-          # legitimate — proceed, and skip re-tagging.
+          # Sentry releases stay unique regardless, because the release string carries
+          # +<sha>. Only the git TAG can collide, and a duplicate tag is not worth a
+          # failed deploy — especially with ~74 open PRs whose authors have no reason to
+          # know a tagging convention was introduced.
           TAG_EXISTS=0
-          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::warning::package.json version '$VERSION' is not X.Y.Z — deploying without a git tag. Set a semver version to get a tagged release."
+            TAG_EXISTS=1
+          elif git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
             if [ "$(git rev-list -n 1 "refs/tags/v$VERSION")" = "$(git rev-parse HEAD)" ]; then
+              # Same commit: a workflow_dispatch re-run, or a retry after a late step failed.
               echo "::notice::re-deploying v$VERSION — tag already points at this commit"
-              TAG_EXISTS=1
             else
-              echo "::error::tag v$VERSION already exists on a different commit — bump \"version\" in package.json before merging to prod"
-              exit 1
+              echo "::warning::tag v$VERSION already exists on a different commit — deploying without a new tag. Bump \"version\" in package.json to get a tagged release for this change."
             fi
+            TAG_EXISTS=1
           fi
 
           {
