@@ -111,16 +111,19 @@ Sentry.init({
         enableStandaloneClsSpans: true,
       },
     }),
-    // consoleLoggingIntegration removed: it forwarded every console call to Sentry Logs.
-    // src has 874 console.error + 187 console.log + 94 console.warn call sites, each
-    // shipping a log every time it executes — by far the largest consumer of log quota,
-    // for output nobody reads in Sentry.
+    // "log" dropped, "warn" and "error" deliberately kept.
     //
-    // Not a loss of error visibility: real exceptions still arrive via the global error
-    // and unhandledrejection handlers, ErrorBoundary, and explicit captureException.
+    // console.log is developer chatter and often sits in hot paths (render, effects), so it
+    // is the level most likely to burn log quota for output nobody reads in Sentry.
     //
-    // enableLogs stays true — utils/sentryNetwork.js uses Sentry.logger.info to report
-    // browser-offline events, and that is a deliberate, low-volume signal.
+    // warn and error are kept because they are a real diagnostic signal: a bare
+    // console.error("save failed") that never throws is NOT captured by the global error
+    // handlers, ErrorBoundary, or captureException — this integration is the only thing
+    // that surfaces it. These land in Sentry Logs, not as Issues.
+    //
+    // Note this is a modest quota saving: src has 874 console.error and 94 console.warn
+    // call sites versus 187 console.log, so most of the volume is retained by design.
+    Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
   ],
   tracesSampleRate: tracesSampleRateValue,
   tracePropagationTargets: [],
