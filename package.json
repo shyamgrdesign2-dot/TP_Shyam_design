@@ -1,6 +1,6 @@
 {
   "name": "react-thyrocare",
-  "version": "4.7.5",
+  "version": "4.8.0",
   "apiCompatibilityVersion": 1.1,
   "private": true,
   "homepage": "/",
@@ -114,7 +114,7 @@
     "test:e2e:debug": "PLAYWRIGHT_HTML_OPEN=never playwright test --debug=cli",
     "eject": "react-scripts eject",
     "compress:models": "node scripts/compress-models.js",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org digicare-health-solutions-priv --project tatvapractice ./build && sentry-cli sourcemaps upload --org digicare-health-solutions-priv --project tatvapractice ./build"
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org digicare-health-solutions-priv --project tatvapractice ./build && sentry-cli sourcemaps upload --org digicare-health-solutions-priv --project tatvapractice ${SENTRY_RELEASE:+--release \"$SENTRY_RELEASE\"} ./build"
   },
   "eslintConfig": {
     "extends": [

@@ -12,6 +12,19 @@ jobs:
     if: ${{ github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'prod' }}
     runs-on: ubuntu-latest
     steps:
+      # Checked out at the merge commit so package.json reflects exactly what is being released.
+      - name: Checkout merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Read release version
+        id: release
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Ensure secret exists
         run: |
           [ -n "${{ secrets.TEAMS_WEBHOOK_URL }}" ] || { echo "❌ TEAMS_WEBHOOK_URL not set"; exit 1; }
@@ -21,6 +34,7 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y jq
 
           jq -n --arg repo "${{ github.repository }}" \
+                --arg version "${{ steps.release.outputs.version }}" \
                 --arg num "${{ github.event.pull_request.number }}" \
                 --arg title "${{ github.event.pull_request.title }}" \
                 --arg url "${{ github.event.pull_request.html_url }}" \
@@ -38,10 +52,11 @@ jobs:
                   type: "AdaptiveCard",
                   version: "1.4",
                   body: [
-                    { type: "TextBlock", size: "Large", weight: "Bolder", text: "✅ PR merged to prod" },
+                    { type: "TextBlock", size: "Large", weight: "Bolder", text: "✅ v\($version) merged to prod" },
                     { type: "TextBlock", text: "**\($repo)**", wrap: true },
                     { type: "TextBlock", text: "**#\($num)** — \($title)", wrap: true },
                     { type: "FactSet", facts: [
+                        { title: "Version", value: "v\($version)" },
                         { title: "Author", value: $author },
                         { title: "Merged by", value: $mergedby },
                         { title: "Merge SHA", value: $sha },

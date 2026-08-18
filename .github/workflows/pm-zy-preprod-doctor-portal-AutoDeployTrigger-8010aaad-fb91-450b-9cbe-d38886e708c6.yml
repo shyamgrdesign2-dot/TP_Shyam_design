@@ -26,10 +26,29 @@ jobs:
       REACT_APP_ENV: zy-preprod
       PUBLIC_URL_PREPROD_CDN: https://pmdoctorportal-preprod-bzcjhaa5gqeqcrhj.a02.azurefd.net/
       IMAGE_NAME: zypractice02.azurecr.io/pm-preprod-doctor-portal:${{ github.sha }}
+      # This workflow builds the SAME `prod` branch commit as pm-prod-doctor-portal, so it
+      # shares the release identity and only records a second Sentry deploy against it.
+      # Creating/finalizing/tagging the release is the prod workflow's job.
+      RELEASE_PACKAGE: pm-doctor-portal
+      SENTRY_ORG: digicare-health-solutions-priv
+      SENTRY_PROJECT: tatvapractice
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Must resolve to the exact same string as the prod workflow — same branch, same commit.
+      - name: Resolve release version
+        id: release
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          SHA=$(git rev-parse --short HEAD)
+          {
+            echo "version=$VERSION"
+            echo "release=${RELEASE_PACKAGE}@${VERSION}+${SHA}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Release: ${RELEASE_PACKAGE}@${VERSION}+${SHA}"
 
       # Generate version.json
       - name: Generate version.json
@@ -37,7 +56,8 @@ jobs:
           set -euo pipefail
           SHA=$(git rev-parse --short HEAD)
           API_VERSION=$(node -e "console.log(require('./package.json').apiCompatibilityVersion ?? 1)")
-          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION}" > public/version.json
+          RELEASE="${{ steps.release.outputs.release }}"
+          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION,\"release\":\"$RELEASE\"}" > public/version.json
 
       # Login using OIDC (used for ACR + Container App)
       - name: Azure Login (Deploy Identity)
@@ -58,13 +78,19 @@ jobs:
         run: |
           set -euo pipefail
 
+          # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
+          # estimated 3-6 min to a deploy already dominated by the 356s webpack build.
+          # Release ATTRIBUTION does not need sourcemaps — `release` is event metadata, so
+          # "first seen in vX.Y.Z", regressions and release health all still work. Only the
+          # readability of the stack frames is lost. Flip to true once the pipeline is faster
+          # (docker layer cache, bigger runner, incremental blob upload).
           docker build \
             --build-arg REACT_APP_ENV=zy-preprod \
             --build-arg GENERATE_SOURCEMAP=false \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg SENTRY_RELEASE="${{ steps.release.outputs.release }}" \
             --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
             --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PREPROD_CDN }}" \
-            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
             -t "${{ env.IMAGE_NAME }}" .
 
           docker push "${{ env.IMAGE_NAME }}"
@@ -121,3 +147,15 @@ jobs:
             --name pm-preprod-doctor-portal \
             --resource-group practice-preprod \
             --image "${{ env.IMAGE_NAME }}"
+
+      # Record a zy-preprod deploy against the shared release. The release already exists
+      # (the sourcemap upload in this build created it), so no `releases new` is needed.
+      # Non-fatal: Sentry bookkeeping must never fail an already-live deploy.
+      - name: Record Sentry deploy (zy-preprod)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          npx --yes @sentry/cli@2 releases deploys new -r "$RELEASE" -e zy-preprod \
+            || echo "::warning::sentry deploy record failed for $RELEASE"
