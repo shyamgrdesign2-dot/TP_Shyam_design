@@ -16,7 +16,14 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    # Webpack minification is CPU-parallel and this build runs with an 8GB heap
+    # (see Dockerfile NODE_OPTIONS), so more cores + RAM directly cuts the 356s compile.
+    # Switchable WITHOUT a code change: set repo variable PROD_RUNNER
+    # (Settings -> Secrets and variables -> Actions -> Variables) to a provisioned
+    # larger-runner label, e.g. ubuntu-latest-8-cores. Clearing the variable reverts.
+    # Do NOT hardcode a label here: an unprovisioned label leaves the job queued
+    # forever rather than failing loudly.
+    runs-on: ${{ vars.PROD_RUNNER || 'ubuntu-latest' }}
 
     env:
       REACT_APP_ENV: prod
@@ -108,23 +115,44 @@ jobs:
           set -euo pipefail
           echo "$REGISTRY_PASS" | docker login acinacr.azurecr.io -u "$REGISTRY_USER" --password-stdin
 
-      - name: Build image and push to ACR
+      # Layer cache across ephemeral runners. The expensive layer is `npm install` (126s),
+      # which only changes when package*.json or .npmrc change — so most deploys now skip it.
+      # A cache miss just rebuilds exactly as before, so the failure mode is "no slower".
+      #
+      # Uses docker/build-push-action rather than a raw `docker buildx build` in a run: step:
+      # the type=gha backend needs ACTIONS_RUNTIME_TOKEN, which run: steps cannot see, so raw
+      # buildx would silently cache nothing.
+      #
+      # load: true keeps the image in the local daemon so the later `docker create`
+      # (asset extraction) and the push below both still work.
+      #
+      # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
+      # estimated 3-6 min to a deploy already dominated by the webpack compile. Release
+      # ATTRIBUTION does not need sourcemaps — `release` is event metadata, so "first seen
+      # in vX.Y.Z", regressions and release health all still work; only the readability of
+      # stack frames is lost.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ env.IMAGE_NAME }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            REACT_APP_ENV=prod
+            GENERATE_SOURCEMAP=false
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            SENTRY_RELEASE=${{ steps.release.outputs.release }}
+            NODE_AUTH_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
+            PUBLIC_URL=${{ env.PUBLIC_URL_PROD_CDN }}
+
+      - name: Push image to ACR
         run: |
           set -euo pipefail
-          # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
-          # estimated 3-6 min to a deploy already dominated by the 356s webpack build.
-          # Release ATTRIBUTION does not need sourcemaps — `release` is event metadata, so
-          # "first seen in vX.Y.Z", regressions and release health all still work. Only the
-          # readability of the stack frames is lost. Flip to true once the pipeline is faster
-          # (docker layer cache, bigger runner, incremental blob upload).
-          docker build \
-            --build-arg REACT_APP_ENV=prod \
-            --build-arg GENERATE_SOURCEMAP=false \
-            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
-            --build-arg SENTRY_RELEASE="${{ steps.release.outputs.release }}" \
-            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
-            --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PROD_CDN }}" \
-            -t "${{ env.IMAGE_NAME }}" .
           docker push "${{ env.IMAGE_NAME }}"
 
       # ---- 2. Extract built assets from the same image we just pushed ----
@@ -152,19 +180,39 @@ jobs:
          #tenant-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_TENANT_ID }}
          #subscription-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
 
-      # upload-batch never deletes blobs missing from --source, so previously uploaded
-      # hashed chunks survive. --overwrite only affects identical paths (e.g. manifest.json,
-      # favicon.ico) which we WANT current.
+      # Was `az storage blob upload-batch`, which re-uploaded all ~150MB every deploy and
+      # took 109s. That cost is per-file Python overhead across ~1000 small files far more
+      # than bandwidth, so azcopy (parallel, Go) is much faster even on a full upload.
+      #
+      # --compare-hash=MD5 is REQUIRED, not an optimisation: sync compares last-modified
+      # time by default, and every file gets a fresh mtime from the rebuilt image, so the
+      # default would re-upload everything and save nothing. --put-md5 stores the hash so
+      # subsequent runs can skip unchanged content-hashed chunks.
+      #
+      # --delete-destination=false preserves the old behaviour: blobs absent from the
+      # source are kept, so chunks referenced by the currently-live version survive.
+      #
+      # Failure here stops the job BEFORE the Container App revision switch, so prod stays
+      # on the previous version rather than serving a half-uploaded asset set.
       - name: Publish build assets to Azure Blob (react-static-prod/cdn)
+        env:
+          AZCOPY_AUTO_LOGIN_TYPE: AZCLI
         run: |
           set -euo pipefail
-          az storage blob upload-batch \
-            --account-name pmdoctorportal \
-            --auth-mode login \
-            --destination react-static-prod \
-            --source _blob_html \
-            --destination-path cdn \
-            --overwrite
+          if ! command -v azcopy >/dev/null 2>&1; then
+            echo "azcopy not preinstalled — fetching"
+            curl -sL https://aka.ms/downloadazcopy-v10-linux -o /tmp/azcopy.tgz
+            tar -xzf /tmp/azcopy.tgz -C /tmp
+            sudo install -m 755 /tmp/azcopy_linux_amd64_*/azcopy /usr/local/bin/azcopy
+          fi
+          azcopy --version
+
+          azcopy sync "_blob_html" \
+            "https://pmdoctorportal.blob.core.windows.net/react-static-prod/cdn" \
+            --recursive \
+            --delete-destination=false \
+            --compare-hash=MD5 \
+            --put-md5
 
       # ---- 4. Now switch the Container App to the new image (assets already in place) ----
       - name: Azure Login (deploy identity)
