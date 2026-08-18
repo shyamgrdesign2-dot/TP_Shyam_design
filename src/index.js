@@ -111,19 +111,16 @@ Sentry.init({
         enableStandaloneClsSpans: true,
       },
     }),
-    // "log" dropped, "warn" and "error" deliberately kept.
+    // "error" only. Measured over 7d in prod on the Sentry logs dataset:
+    //   info 1,026,942 (57%) | warn 553,576 (31%) | error 227,319 (13%)
+    // console.log was pure developer chatter, and 91% of the warn volume was a single
+    // repeated react-pdf message ("Invalid '' string child outside <Text> component"),
+    // which is a code defect to fix at source rather than a signal worth shipping.
     //
-    // console.log is developer chatter and often sits in hot paths (render, effects), so it
-    // is the level most likely to burn log quota for output nobody reads in Sentry.
-    //
-    // warn and error are kept because they are a real diagnostic signal: a bare
-    // console.error("save failed") that never throws is NOT captured by the global error
-    // handlers, ErrorBoundary, or captureException — this integration is the only thing
-    // that surfaces it. These land in Sentry Logs, not as Issues.
-    //
-    // Note this is a modest quota saving: src has 874 console.error and 94 console.warn
-    // call sites versus 187 console.log, so most of the volume is retained by design.
-    Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
+    // Keeping "error" preserves the one case the other capture paths miss: a bare
+    // console.error(...) that never throws is NOT seen by the global error handler,
+    // the ErrorBoundary, or captureException. These land in Sentry Logs, not Issues.
+    Sentry.consoleLoggingIntegration({ levels: ["error"] }),
   ],
   tracesSampleRate: tracesSampleRateValue,
   tracePropagationTargets: [],
