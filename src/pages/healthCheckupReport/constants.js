@@ -1,7 +1,9 @@
+import { publicAssetUrl } from "../../utils/publicAssetUrl";
+
 export const WHATSAPP_HEALTH_CHECKUP_REPORT_TEMPLATE_ID = "tp_health_checkup_report";
 
 export const HEALTH_CHECKUP_REPORT_TEMPLATE_HTML = `<div class="report-doc-header">
-  <img src="/ZydusLogo.png" alt="Hospital Logo" class="report-doc-header-logo" />
+  <img src="${publicAssetUrl("/ZydusLogo.png")}" alt="Hospital Logo" class="report-doc-header-logo" />
   <p class="report-doc-header-title">HEALTH CHECK-UP SUMMARY</p>
 </div>
 <table class="report-patient-table">

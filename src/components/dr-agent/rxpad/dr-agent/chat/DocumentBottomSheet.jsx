@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { cn } from "../../../utils";
+import { publicAssetUrl } from "../../../../../utils/publicAssetUrl";
 import styles from "./DocumentBottomSheet.module.scss";
 import { DocumentUpload } from "iconsax-reactjs";
 import { TPMedicalIcon } from "../../../atoms/MedicalIcon";
@@ -175,7 +176,7 @@ export function DocumentBottomSheet({
             /* ── Empty state ── */
             <div className={styles.emptyState}>
               <img
-                src="/new-assets/icons/dr-agent/empty-docs.svg"
+                src={publicAssetUrl("/new-assets/icons/dr-agent/empty-docs.svg")}
                 width={100}
                 height={100}
                 alt=""

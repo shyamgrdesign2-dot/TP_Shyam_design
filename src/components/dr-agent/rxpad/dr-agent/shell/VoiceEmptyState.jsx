@@ -1,4 +1,5 @@
 import { cn } from "../../../utils";
+import { publicAssetUrl } from "../../../../../utils/publicAssetUrl";
 import styles from "./VoiceEmptyState.module.scss";
 import Lottie from "lottie-react";
 import chevronDownLottie from "../../../assets/chevron-down.json";
@@ -25,7 +26,7 @@ export function VoiceEmptyState({
             <div className={cn(styles.sparkBase, "absolute inset-0 bg-white")} />
             <div className={cn(styles.sparkGif, "absolute inset-0")} />
             <img
-              src="/new-assets/icons/dr-agent/agent-spark.svg"
+              src={publicAssetUrl("/new-assets/icons/dr-agent/agent-spark.svg")}
               width={40}
               height={40}
               alt=""
