@@ -78,12 +78,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          # GENERATE_SOURCEMAP=true so the Sentry upload actually has maps to ship.
-          # .map files are deleted inside the image after upload, and blob assets are
-          # extracted from that post-delete image, so no map reaches the CDN.
+          # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
+          # estimated 3-6 min to a deploy already dominated by the 356s webpack build.
+          # Release ATTRIBUTION does not need sourcemaps — `release` is event metadata, so
+          # "first seen in vX.Y.Z", regressions and release health all still work. Only the
+          # readability of the stack frames is lost. Flip to true once the pipeline is faster
+          # (docker layer cache, bigger runner, incremental blob upload).
           docker build \
             --build-arg REACT_APP_ENV=zy-preprod \
-            --build-arg GENERATE_SOURCEMAP=true \
+            --build-arg GENERATE_SOURCEMAP=false \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             --build-arg SENTRY_RELEASE="${{ steps.release.outputs.release }}" \
             --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
