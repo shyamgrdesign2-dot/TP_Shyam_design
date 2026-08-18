@@ -44,3 +44,30 @@
 .tesseract-rxpad :is(h1, h2, h3, h4, h5, h6) {
   margin: 0;
 }
+
+/* was: @media (prefers-reduced-motion: reduce) { [data-tp-theme] * {
+     transition-duration: .01ms !important; animation-duration: .01ms !important } }
+   With [data-tp-theme] stamped on <html>, that reaches EVERY element in the
+   portal for users whose OS reports reduced motion (Windows: "Show animations
+   in Windows" off / "Adjust for best performance" — common on low-RAM
+   machines). `transition-duration: .01ms` is the killer: `transition-property`
+   defaults to `all`, so a non-zero duration manufactures a real transition —
+   and a transitionend event — for every style change on every element.
+   Ant Design popups (Select, Dropdown, Popover, DatePicker, Tooltip …) open
+   through rc-trigger + rc-motion, which finalize the open motion on the first
+   motion-end event; the storm of .01ms transitionends fires before rc-trigger
+   positions the popup, so it stays parked off-screen
+   (inset: -8040px auto auto -8320px) and no dropdown in the app ever opens.
+   Fix: force `0s`. A zero-duration transition is never created (spec), so no
+   stray events exist and rc-motion completes off animationend as designed —
+   while still honouring reduced motion (everything snaps instantly).
+   Same selectors as the package rule, later in the cascade, so this
+   !important wins. Verified against antd Select/Dropdown/Modal/Drawer
+   open+close cycles. */
+@media (prefers-reduced-motion: reduce) {
+  [data-tp-theme] *,
+  [data-tp-theme] ::before,
+  [data-tp-theme] ::after {
+    transition-duration: 0s !important;
+  }
+}
