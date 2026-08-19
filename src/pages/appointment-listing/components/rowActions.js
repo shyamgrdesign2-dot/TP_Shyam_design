@@ -1,6 +1,12 @@
 import React from "react";
+import { useSelector } from "react-redux";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { Dropdown, TPIcon, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import { TAB_IDS } from "../data/appointmentsConfig";
+import { useOpdBilling } from "../../opdBilling/useOpdBilling";
+import { env } from "../../../EnvironmentConfig";
+import { getDecodedToken } from "../../../utils/localStorage";
+import { GB_HEALTH_CHECKUP_REPORT, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../../../utils/constants";
 
 // The house kebab: straight/bold settings/3-dots-more, rotated to vertical.
 export const KebabIcon = ({ size = 16 }) => (
@@ -65,33 +71,86 @@ export function primaryKebabOption(tabId) {
   }
 }
 
-// Three-dot menu options, mirroring the legacy screen's per-row menu.
-export function kebabOptions(tabId) {
+/* Pending digitisation is finished visits waiting to be typed up, so the
+   kebab follows the Finished filters (no Cancel / End Visit; End Visit
+   Reason stays). Calendar "All" passes the row's own status as tabId. */
+function kebabTab(tabId) {
+  return tabId === TAB_IDS.PENDING ? TAB_IDS.FINISHED : tabId;
+}
+
+/**
+ * Three-dot menu options, matching AppointmentData.getMenuItems: same
+ * items, same order, same tab / Zydus / billing / ABHA / IPD / health-
+ * checkup gates. Join stays on the video marker, not in this menu.
+ */
+export function kebabOptions(tabId, row, ctx = {}) {
+  const tab = kebabTab(tabId);
+  const rec = row?.raw || row || {};
+  const isDraft = tab === TAB_IDS.DRAFT;
+  const isQueue = tab === TAB_IDS.QUEUE;
+  const isFinished = tab === TAB_IDS.FINISHED;
+  const isCancelled = tab === TAB_IDS.CANCELLED;
+  const billed = !!(rec.billStatus && rec.billStatus !== "Unbilled");
   const opts = [];
-  /* Joining a teleconsultation lives on the video marker itself, in a
-     popover that shows what the call is before you commit to it. Burying it
-     in this menu made it one more indistinguishable row. */
-  if (tabId === TAB_IDS.DRAFT) {
+
+  if (isDraft) {
     opts.push({ value: "print-draft-rx", label: "Print Draft Rx", icon: "printer" });
   }
-  // Icon families are pinned to the exact CDN files the design specifies
-  // (rounded/linear unless noted).
   opts.push({ value: "patient-details", label: "Patient Details", icon: "user", iconFamily: "users" });
-  if (tabId === TAB_IDS.QUEUE) {
+  if (isQueue) {
     opts.push({ value: "reschedule", label: "Reschedule", icon: "calendar-edit" });
   }
-  opts.push({ value: "create-bill", label: "Create Bill", icon: "receipt-text" });
-  opts.push({ value: "advance-deposit", label: "Advance Deposit", icon: "money-recive" });
+  if (ctx.isOpdBillingAccessable) {
+    opts.push({
+      value: "create-bill",
+      label: billed ? "View/Create Bill" : "Create Bill",
+      icon: "receipt-text",
+    });
+    opts.push({ value: "advance-deposit", label: "Advance Deposit", icon: "money-recive" });
+  }
   opts.push({ value: "add-lab-results", label: "Add Lab Results", icon: "lab", iconFamily: "medical" });
-  if (tabId !== TAB_IDS.DRAFT && tabId !== TAB_IDS.CANCELLED) {
-    opts.push({ value: "cancel-appointment", label: "Cancel Appointment", icon: "clipboard-close", iconFamily: "content-edit" });
+  /* Legacy: hidden on Draft at build time, then stripped on Finished /
+     Cancelled (and Queue+Zydus does not touch Cancel). */
+  if (!isDraft && !isFinished && !isCancelled) {
+    opts.push({
+      value: "cancel-appointment",
+      label: "Cancel Appointment",
+      icon: "clipboard-close",
+      iconFamily: "content-edit",
+    });
   }
   opts.push({ value: "create-certificate", label: "Create Certificate", icon: "award-badge3", iconFamily: "sports2" });
-  if (tabId !== TAB_IDS.DRAFT) {
+  if (ctx.canAdmitToIpd) {
+    opts.push({ value: "admit-to-ipd", label: "Admit to IPD", icon: "hospital", iconFamily: "medical" });
+  }
+  /* End Visit: not Draft; stripped on Finished / Cancelled; Queue+Zydus
+     also strips it (Zydus encounters are closed from their own flow). */
+  if (!isDraft && !isFinished && !isCancelled && !(isQueue && ctx.isZydus)) {
     opts.push({ value: "end-visit", label: "End Visit", icon: "login", iconFamily: "arrow", iconCorner: "straight" });
+  }
+  /* End Visit Reason is the read-only Finished view of tpvl_remarks.
+     Queue, Draft, Cancelled, and Zydus Queue never show it. */
+  if (isFinished) {
+    opts.push({ value: "end-visit-reason", label: "End Visit Reason", icon: "message-text" });
+  }
+  opts.push({ value: "upload-records", label: "Upload Medical Records", icon: "document-upload" });
+  if (!rec.abhaAddress && ctx.hipId && ctx.abhaEnable) {
+    opts.push({ value: "create-abha", label: "Create/Link ABHA", icon: "card" });
+  }
+  if (ctx.canHealthCheckupReport) {
+    opts.push({
+      value: "health-checkup-report",
+      label: "Generate Health Check-up Report",
+      icon: "clipboard-text",
+    });
+  }
+  if (rec.abhaAddress && ctx.hipId && ctx.abhaEnable) {
+    opts.push({ value: "download-abha", label: "Download ABHA Card", icon: "document-download" });
   }
   return opts;
 }
+
+const EMPTY_EXTRA = [];
 
 /**
  * The row kebab as a Tesseract Dropdown: icon-only vertical-dots trigger,
@@ -101,8 +160,40 @@ export function kebabOptions(tabId) {
  * the sticky right column that reads misaligned, so after it opens we snap
  * its right edge to the trigger (menu found via the trigger's aria-controls).
  */
-export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = [] }) {
+export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = EMPTY_EXTRA }) {
   const wrapRef = React.useRef(null);
+  const { isOpdBillingAccessable } = useOpdBilling();
+  const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
+  const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_NEW_IPD_HOS_BUSINESS_ID);
+  const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
+  const profile = useSelector((state) => state.doctors?.profile);
+  const isZydus = getDecodedToken()?.result?.hospital_business_id == env.zydus_business_id;
+  const options = React.useMemo(
+    () => [
+      ...extraOptions,
+      ...kebabOptions(tabId, row, {
+        isOpdBillingAccessable,
+        isZydus,
+        canAdmitToIpd:
+          (isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB) && !isZydus,
+        canHealthCheckupReport: isHealthCheckupReportAccessableFromGB,
+        hipId: profile?.HipID,
+        abhaEnable: profile?.abhaEnable,
+      }),
+    ],
+    [
+      extraOptions,
+      tabId,
+      row,
+      isOpdBillingAccessable,
+      isZydus,
+      isNewIPDAccessableFromGB,
+      isNewIPDHosBusinessIdAccessableFromGB,
+      isHealthCheckupReportAccessableFromGB,
+      profile?.HipID,
+      profile?.abhaEnable,
+    ]
+  );
   const alignMenu = () => {
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
@@ -117,16 +208,16 @@ export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = [] }) {
   };
   return (
     <div ref={wrapRef} onClickCapture={alignMenu} style={{ display: "inline-flex" }}>
-      {renderKebabDropdown(tabId, row, onRowAction, extraOptions)}
+      {renderKebabDropdown(row, onRowAction, options)}
     </div>
   );
 }
 
-function renderKebabDropdown(tabId, row, onRowAction, extraOptions = []) {
+function renderKebabDropdown(row, onRowAction, options) {
   return (
     <Dropdown
       className="tpKebabMenu"
-      options={[...extraOptions, ...kebabOptions(tabId)]}
+      options={options}
       value={null}
       onChange={(v) => v && onRowAction?.(v, row)}
       chevron={false}
@@ -134,7 +225,7 @@ function renderKebabDropdown(tabId, row, onRowAction, extraOptions = []) {
       placeholder=""
       leadingIcon={<KebabIcon size={16} />}
       ariaLabel="More actions"
-      width={232}
+      width={300}
       renderOption={(o) => (
         <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "2px 0" }}>
           <TPLibraryIcon

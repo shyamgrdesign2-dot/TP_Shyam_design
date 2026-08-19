@@ -5,9 +5,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { Drawer, DrawerContent, Button, InputBox } from "@dhspl-tatvacare/tesseract-ui";
 
 import { endVisit } from "../../../redux/appointmentsSlice";
+import { clearAbhaDetails } from "../../../redux/abhaSlice";
 import { fetchBillsByPatient, fetchPatientWalletBalance } from "../../opdBilling/service";
 import { getLoggedInDoctorId } from "../data/useDoctorSlots";
 import { S_TATVA_PRACTICE, S_BILLING, TRIAL } from "../../../utils/constants";
+import { TAB_IDS } from "../data/appointmentsConfig";
+import { getClinic, trackEvent } from "../../../utils/utils";
 import styles from "./BookAppointmentDrawer.module.css";
 
 // The billing / lab / certificate flows reuse the same feature components as
@@ -20,12 +23,16 @@ const AddAdvance = lazy(() => import("../../opdBilling/components/advanceDeposit
 const CreateCertificate = lazy(() => import("../../../components/medical_certificate/CreateCertificate"));
 const LabParams = lazy(() => import("../../../components/LabParams"));
 const ExpiredSubModal = lazy(() => import("../../monetization/components/ExpiredSubModal"));
+const AbhaDrawer = lazy(() => import("../../../components/abha/AbhaDrawer"));
+const UploadDocument = lazy(() => import("../../medicalRecords/UploadDocument"));
+const UploadDocPopup = lazy(() => import("../../medicalRecords/components/uploadDocPopup/UploadDocPopup"));
 
 const BILLING_GATED = new Set(["create-bill", "advance-deposit"]);
 
 /**
  * action: { type: "create-bill" | "advance-deposit" | "add-lab-results" |
- *           "create-certificate" | "end-visit", record, name } | null
+ *           "create-certificate" | "end-visit" | "end-visit-reason" |
+ *           "create-abha" | "upload-records", record, name, tabId, files } | null
  * onClose(): dismiss without side effects.
  * onDone(toast): dismiss after a completed flow; toast is {status, title}.
  *
@@ -37,6 +44,7 @@ const BILLING_GATED = new Set(["create-bill", "advance-deposit"]);
  */
 export default function RowActionDrawers({ action, onClose, onDone }) {
   const dispatch = useDispatch();
+  const profile = useSelector((state) => state.doctors?.profile);
   const { planDetails } = useSelector((state) => state.subscription) || {};
   const serviceMappings = planDetails?.service_mappings;
   const emrPlan = serviceMappings?.find((e) => e.service_name === S_TATVA_PRACTICE);
@@ -50,6 +58,9 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
   const [patientBills, setPatientBills] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [billData, setBillData] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState([]);
+  const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [showUploadDocPopup, setShowUploadDocPopup] = useState(false);
 
   useEffect(() => {
     if (action?.type !== "end-visit") setEndVisitReason("");
@@ -57,6 +68,13 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
       setBillingView(null);
       setPatientBills([]);
       setBillData(null);
+    }
+    if (action?.type === "upload-records") {
+      setUploadFiles(action.files || []);
+    } else {
+      setUploadFiles([]);
+      setShowDeletePopup(false);
+      setShowUploadDocPopup(false);
     }
   }, [action]);
 
@@ -98,6 +116,29 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the opened action
   }, [action, billingLocked]);
+
+  useEffect(() => {
+    if (action?.type !== "create-bill" || billingView !== "create" || billingLocked) return;
+    const record = action.record;
+    const clinic = getClinic();
+    trackEvent("TP_Billing_CreateBill", {
+      patientName: record?.pm_fullname,
+      patientId: record?.patient_unique_id,
+      doctorSpeciality: profile?.dp_name,
+      doctorId: profile?.doctor_unique_id,
+      doctorContact: profile?.um_contact,
+      source:
+        action.tabId === TAB_IDS.QUEUE
+          ? "appointment_queue"
+          : action.tabId === TAB_IDS.FINISHED
+          ? "appointment_finished"
+          : "",
+      city: clinic?.hm_city,
+      pincode: clinic?.hm_pincode,
+      subscriptionStatus: planDetails?.currentPlanStatus,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once when Create (not View) opens
+  }, [action?.type, billingView, billingLocked]);
 
   if (!action) return null;
   const { type, record } = action;
@@ -172,6 +213,30 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
     );
   }
 
+  if (type === "end-visit-reason") {
+    return (
+      <Drawer open onOpenChange={(open) => !open && onClose()}>
+        <DrawerContent side="right" width="min(610px, 90vw)" title={action.name || "End Visit Reason"}>
+          <div className={styles.form}>
+            <div style={{ fontWeight: 500, fontSize: 16, marginBottom: 8 }}>End Visit Reason</div>
+            <div
+              style={{
+                minHeight: 100,
+                padding: 12,
+                borderRadius: 10,
+                border: "1px solid var(--tesseract-slate-200)",
+                background: "var(--tesseract-slate-50)",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {record?.tpvl_remarks || "No reason was recorded for this visit."}
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
   // Legacy feature drawers, mounted with the same props as the old screen.
   return (
     <Suspense fallback={null}>
@@ -230,6 +295,56 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
             onSave={() => onDone?.({ status: "success", title: "Lab results saved." })}
           />
         </AntDrawer>
+      )}
+      {type === "create-abha" && (
+        <AbhaDrawer
+          onClose={onClose}
+          open
+          patientUniqueId={record?.patient_unique_id}
+          onSuccess={() => {
+            dispatch(clearAbhaDetails());
+            onDone?.({ status: "success", title: "ABHA linked for this patient." });
+          }}
+        />
+      )}
+      {type === "upload-records" && (
+        <AntDrawer
+          closeIcon={false}
+          placement="right"
+          bodyStyle={{ backgroundColor: "white" }}
+          onClose={() => setShowDeletePopup(true)}
+          open
+          className="modalWidth-700"
+          width="auto"
+          push={false}
+        >
+          <UploadDocument
+            onClose={() => setShowDeletePopup(true)}
+            handleDrawerUploadDoc={onClose}
+            shouldShowDeletePopup={showDeletePopup}
+            setShowDeletePopup={setShowDeletePopup}
+            filesData={uploadFiles}
+            setFilesData={setUploadFiles}
+            patientData={record}
+            handleUploadDocPopup={() => setShowUploadDocPopup((prev) => !prev)}
+            isAppointmentData
+          />
+        </AntDrawer>
+      )}
+      {type === "upload-records" && showUploadDocPopup && (
+        <UploadDocPopup
+          shouldShowUploadDocPopup={showUploadDocPopup}
+          onCancel={() => setShowUploadDocPopup(false)}
+          setFilesData={setUploadFiles}
+          filesData={uploadFiles}
+          setUploadDocDrawer={(open) => {
+            if (!open) onClose();
+          }}
+          patientData={record}
+          setIsFileSizeError={() => {}}
+          setIsFileLimitError={() => {}}
+          setIsFileTypeError={() => {}}
+        />
       )}
     </Suspense>
   );

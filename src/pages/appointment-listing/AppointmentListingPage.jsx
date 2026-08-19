@@ -46,13 +46,26 @@ import { viewCaseManager } from "../../redux/caseManagerSlice";
 import {
   setActiveTeleconsultAppointmentId,
   setActiveTeleconsultConsultationId,
+  setAppointmentTeleconsultStatus,
   setJoinToken,
 } from "../../redux/teleconsultNotificationSlice";
+import { setUploadDocCategories } from "../../redux/uploadDocSlice";
+import ApiAbha from "../../api/services/ApiAbha";
+import { saveAs } from "file-saver";
+import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
+import { useChikitsalay } from "../chikitsalay/useChikitsalay";
+import { clinicTargetStatus, generateClinicToken } from "../chikitsalay/service";
+import { DENTAL_RX_PAD_ROUTE } from "../../utils/dentalRoutes";
+import { handleAdmitToIpd } from "../../utils/utils";
+import { generateUniqueFileName, getCorrectedFileName } from "../medicalRecords/utils/helper";
+import { fetchAllDocumentCategories } from "../medicalRecords/service";
 import {
   GB_VOICE_RX_NEW_UI,
   UNFINISHED_RX_CASE,
   FETCH_SMART_RX,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
+  CLINIC_TARGET_STATUS,
+  PATIENT_DETAILS_SIDEBAR_KEYS,
 } from "../../utils/constants";
 import styles from "./AppointmentListingPage.module.css";
 
@@ -184,6 +197,12 @@ function ActiveFilterBar({ filters, groups, onRemove, onClearAll }) {
 export default function AppointmentListingPage() {
   const navigate = useNavigate();
   const profile = useSelector((state) => state.doctors?.profile);
+  const isDentalEnabled = useIsDentalEnabled();
+  const isChikitsalayAccessable = useChikitsalay();
+  const { activeTeleconsultAppointmentId, activeTeleconsultConsultationId } = useSelector(
+    (state) => state.teleconsultNotification || {}
+  );
+  const uploadDocCategories = useSelector((state) => state.uploadDoc?.uploadDocCategories) || [];
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
   const [view, setView] = useState(() => readPreference("view", "list"));
@@ -248,8 +267,25 @@ export default function AppointmentListingPage() {
     }, 180);
   };
   const dateWrapRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const pendingUploadRef = useRef(null);
   const dispatch = useDispatch();
   const isVoiceRxNewUi = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+
+  useEffect(() => {
+    if (!isChikitsalayAccessable) return undefined;
+    if (localStorage.getItem("visitClinicToken")) return undefined;
+    generateClinicToken();
+    return undefined;
+  }, [isChikitsalayAccessable]);
+
+  useEffect(() => {
+    if (uploadDocCategories.length) return undefined;
+    fetchAllDocumentCategories().then((categories) => {
+      dispatch(setUploadDocCategories({ categories, isChikitsalayAccessable }));
+    });
+    return undefined;
+  }, [uploadDocCategories.length, isChikitsalayAccessable, dispatch]);
 
   /* The export always ships the queue — the appointments still to be seen —
      whatever tab or filter is on screen. It is fetched on demand rather than
@@ -397,7 +433,16 @@ export default function AppointmentListingPage() {
       const videoConsultData = videoConsultDataFor(rec);
       switch (action) {
         case "type-rx":
-          navigate("/prescription", { state: { patient_data: rec, videoConsultData } });
+          window.Moengage?.track_event("patient_search_consult", {
+            doctor_id: profile?.doctor_unique_id,
+            patient_id: rec?.patient_unique_id,
+          });
+          navigate(isDentalEnabled ? DENTAL_RX_PAD_ROUTE : "/prescription", {
+            state: { patient_data: rec, videoConsultData },
+          });
+          if (isChikitsalayAccessable && rec?.pam_id) {
+            clinicTargetStatus(rec.pam_id, { targetStatus: CLINIC_TARGET_STATUS.SERVING });
+          }
           break;
         /* Join a video consult straight from the schedule, on the same path
            the waiting banner uses: check the room is live, take the token,
@@ -457,7 +502,11 @@ export default function AppointmentListingPage() {
           break;
         case "resume-rx": {
           const act = await dispatch(
-            viewCaseManager({ patient_unique_id: rec.patient_unique_id, tcm_id: rec.tcm_id })
+            viewCaseManager({
+              patient_unique_id: rec.patient_unique_id,
+              tcm_id: rec.tcm_id,
+              isChikitsalayAccessable,
+            })
           );
           if (act.meta.requestStatus === "fulfilled") {
             navigate("/prescription", { state: { patient_data: rec, caseManagerData: act.payload } });
@@ -487,8 +536,43 @@ export default function AppointmentListingPage() {
         case "add-lab-results":
         case "create-certificate":
         case "end-visit":
-          setActionDrawer({ type: action, record: rec, name: row.name });
+        case "end-visit-reason":
+        case "create-abha":
+          setActionDrawer({ type: action, record: rec, name: row.name, tabId: row.status || activeTab });
           break;
+        case "admit-to-ipd":
+          handleAdmitToIpd(rec);
+          break;
+        case "health-checkup-report":
+          navigate("/patient_details", {
+            state: { patient_data: rec, sidebarKey: PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT },
+          });
+          break;
+        case "upload-records":
+          pendingUploadRef.current = rec;
+          fileInputRef.current?.click();
+          break;
+        case "download-abha": {
+          const patientUniqueId = rec?.patient_unique_id;
+          if (!patientUniqueId) {
+            setToast({ status: "error", title: "Patient unique ID not found." });
+            break;
+          }
+          try {
+            const response = await ApiAbha.downloadAbhaCard({ patient_unique_id: patientUniqueId });
+            const contentType = response.headers?.["content-type"] || "image/png";
+            const blob = new Blob([response.data], { type: contentType });
+            const ext = contentType.includes("jpg") || contentType.includes("jpeg") ? "jpg" : "png";
+            saveAs(blob, `ABHA_Card_${patientUniqueId}.${ext}`);
+            setToast({ status: "success", title: "ABHA Card downloaded." });
+          } catch (error) {
+            setToast({
+              status: "error",
+              title: error?.response?.data?.message || "Failed to download ABHA Card. Please try again.",
+            });
+          }
+          break;
+        }
         case "print-rx":
         case "print-draft-rx":
           if (rec.print_rx_url) {
@@ -533,8 +617,28 @@ export default function AppointmentListingPage() {
           break;
       }
     },
-    [navigate, dispatch, isVoiceRxNewUi, activeTab]
+    [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable]
   );
+
+  const handleUploadFileChange = (event) => {
+    const files = event.target.files;
+    const record = pendingUploadRef.current;
+    event.target.value = null;
+    if (!files || !record) return;
+    const filesData = Array.from(files);
+    if (filesData.length === 0) return;
+    const updatedFiles = filesData.map((file) => {
+      const cleanFileName = getCorrectedFileName(file?.name || "");
+      const isCapturedFromCamera =
+        (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/jpg") &&
+        cleanFileName === "image.webp";
+      if (isCapturedFromCamera) {
+        return new File([file], generateUniqueFileName(file), { type: file.type });
+      }
+      return new File([file], cleanFileName, { type: file.type });
+    });
+    setActionDrawer({ type: "upload-records", record, name: record.pm_fullname, files: updatedFiles });
+  };
 
   const confirmCancelAppointment = async () => {
     const rec = cancelTarget?.raw;
@@ -548,6 +652,26 @@ export default function AppointmentListingPage() {
         pm_pid: rec.pm_pid,
       });
       if (res?.status) {
+        if (activeTeleconsultAppointmentId != null && String(rec.pam_id) === String(activeTeleconsultAppointmentId)) {
+          try {
+            if (activeTeleconsultConsultationId) {
+              await ApiTeleconsult.doctorLeft(activeTeleconsultConsultationId);
+            }
+          } catch (error) {
+            console.log("[teleconsult] doctorLeft during cancel failed", {
+              consultationId: activeTeleconsultConsultationId,
+              message: error?.message,
+            });
+          } finally {
+            dispatch(
+              setAppointmentTeleconsultStatus({
+                appointmentId: rec.pam_id,
+                status: "ENDED",
+              })
+            );
+            dispatch(setJoinToken(null));
+          }
+        }
         setToast({ status: "success", title: `${cancelTarget.name}'s appointment was cancelled.` });
         setCancelTarget(null);
         refetch();
@@ -927,7 +1051,17 @@ export default function AppointmentListingPage() {
             setActionDrawer(null);
             if (doneToast) setToast(doneToast);
             refetch();
+            setSlotsVersion((v) => v + 1);
           }}
+        />
+
+        <input
+          type="file"
+          multiple
+          ref={fileInputRef}
+          onChange={handleUploadFileChange}
+          accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
+          style={{ display: "none" }}
         />
 
         {toast && (
