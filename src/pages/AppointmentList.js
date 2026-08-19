@@ -43,6 +43,18 @@ function EmbeddedMissionAnalytics() {
   );
 }
 
+const AppointmentListingPage = lazy(() =>
+  lazyRetry(() => import("./appointment-listing"))
+);
+
+function EmbeddedAppointmentListing() {
+  return (
+    <Suspense fallback={<FullPageLoader />}>
+      <AppointmentListingPage />
+    </Suspense>
+  );
+}
+
 function AppointmentList() {
   const dispatch = useDispatch();
   let location = useLocation();
@@ -106,6 +118,17 @@ function AppointmentList() {
     locationPath === "/mission-analytics" ||
     (analyticsOnlyHome && (locationPath === "/" || locationPath === ""));
 
+  // The Tesseract appointment listing replaces the legacy Appointment screen
+  // for the standard desktop doctor flow. Receptionist, Zydus (its tabs are
+  // bespoke), mobile dashboard, and analytics-only homes keep the legacy one.
+  const useNewAppointmentListing =
+    !shouldShowMobileDashboard &&
+    !analyticsOnlyHome &&
+    !isReceptionist &&
+    !isZydus;
+  const hideWelcomeForNewAppointmentListing =
+    useNewAppointmentListing && (locationPath === "/" || locationPath === "");
+
   return (
     <>
       {!shouldShowMobileDashboard && !isReceptionist && <Header locationPath={locationPath} />}
@@ -122,7 +145,7 @@ function AppointmentList() {
                   : "wrapper"
           }`}
         >
-          {!shouldShowMobileDashboard && !isReceptionist && !hideWelcomeForMissionAnalytics && (
+          {!shouldShowMobileDashboard && !isReceptionist && !hideWelcomeForMissionAnalytics && !hideWelcomeForNewAppointmentListing && (
             <Welcome
               locationPath={locationPath}
               appointmentAgentsData={agentsData}
@@ -137,6 +160,8 @@ function AppointmentList() {
                   <AppointmentDashboardMobile />
                 ) : analyticsOnlyHome ? (
                   <EmbeddedMissionAnalytics />
+                ) : useNewAppointmentListing ? (
+                  <EmbeddedAppointmentListing />
                 ) : (
                   <Appointment locationPath={locationPath} appointmentAgentsData={agentsData} />
                 )

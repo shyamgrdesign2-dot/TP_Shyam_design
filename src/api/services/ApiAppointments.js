@@ -168,6 +168,21 @@ ApiAppointments.listCategories = function () {
   return api.get(`/api/v1/patient/listCategories`, baseVisitUrl);
 };
 
+/**
+ * Move an existing appointment to a new date/time in place.
+ *
+ * Until this landed, a "reschedule" was a booking of the new slot followed by
+ * a cancel of the old one: two writes, a window where the patient held two
+ * appointments, and a new pam_id that broke anything referencing the original.
+ * This is one call against the same appointment, so the id, the patient and
+ * the visit type all survive the move.
+ *
+ * PUT /api/v1/appointment/:pam_id on the visit-integration service.
+ */
+ApiAppointments.rescheduleAppointment = function (pamId, data) {
+  return api.put(`/api/v1/appointment/${pamId}`, data, baseVisitUrl);
+};
+
 ApiAppointments.getSnapRxUnDigitisedIds = function () {
   return api.get(`/api/v1/digitization/undigitizedAppointments`, baseSnapRxUrl);
 };
