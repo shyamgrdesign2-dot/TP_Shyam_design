@@ -136,6 +136,17 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>Tatva Practice</title> 
+
+    <!-- Build release identity, substituted into build/index.html by CI AFTER the webpack
+         build (see .github/workflows/*, "Stamp the release"). Deliberately not a
+         REACT_APP_* var: those land in env.raw, which is webpack's cache.version
+         (react-scripts config/env.js:72, config/webpack.config.js:244), so a per-commit
+         release string invalidates the entire filesystem cache on every deploy.
+         See docs/build-time-optimisation-plan.md §9.1.
+         Substituting after the build also keeps the value out of every webpack module,
+         so a warm cache can never serve a stale release.
+         Left as the literal placeholder in local dev, where CI never runs. -->
+    <script>window.__APP_RELEASE__ = "__APP_RELEASE__";</script>
 </head>
 
 <body>

@@ -138,9 +138,10 @@ jobs:
       # clean; the sha makes each deploy write its own entry, and restore-keys fall back
       # to the most recent compatible one.
       #
-      # Only babel-loader lands here. react-scripts/scripts/build.js never calls
-      # compiler.close(), so webpack's own filesystem cache is never written — plan §4.
-      # Enabling it (§9.1) would make this a 1.1 GB artifact and needs its own decision.
+      # Holds BOTH caches: babel-loader (~99 MB on disk) and webpack's own pack cache
+      # (~967 MB on disk), which PERSIST_WEBPACK_CACHE in the build step makes real. The
+      # entry is ~157 MB compressed — actions/cache zstd-compresses it and webpack pack
+      # files compress about 7:1. Measured save 6s, restore 12s (run 32219922816).
       - name: Restore the build cache
         uses: actions/cache@v4
         with:
@@ -179,9 +180,13 @@ jobs:
       # Mirrors the env the Dockerfile build stage set. Two that matter:
       #   CI=false          — Actions sets CI=true, which makes CRA treat warnings as
       #                       errors, and this repo builds with pre-existing warnings.
-      #   REACT_APP_SENTRY_RELEASE — inlined into the bundle for Sentry.init({release}).
-      #                       Same value as SENTRY_RELEASE so the two cannot drift; if
-      #                       they ever do, Sentry silently stops symbolicating.
+      #
+      # REACT_APP_SENTRY_RELEASE is deliberately NOT set. Every REACT_APP_* var lands in
+      # env.raw, which is webpack's cache.version, so a per-commit release string
+      # invalidated the entire filesystem cache on every deploy. The release is stamped
+      # into build/index.html after the build instead — see the next step and plan §9.1.
+      # SENTRY_RELEASE stays, because sentry-cli still needs it for the sourcemap upload,
+      # and both derive from the same value so they cannot drift.
       - name: Build
         env:
           REACT_APP_ENV: prod
@@ -189,10 +194,21 @@ jobs:
           PUBLIC_URL: ${{ env.PUBLIC_URL_PROD_CDN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_RELEASE: ${{ steps.release.outputs.release }}
-          REACT_APP_SENTRY_RELEASE: ${{ steps.release.outputs.release }}
           NODE_OPTIONS: --max-old-space-size=8192
           DISABLE_ESLINT_PLUGIN: 'true'
           CI: 'false'
+          # Makes craco close the webpack compiler after the build, which is the only
+          # reason webpack's `store: 'pack'` cache is flushed at all —
+          # react-scripts/scripts/build.js calls compiler.run() and never
+          # compiler.close(), so the cache configured at webpack.config.js:242 has never
+          # been written in this repo. See craco.config.js and plan §4, §9.1.
+          #
+          # This only pays off because the release is no longer a REACT_APP_* var.
+          # cache.version is md5(env.raw) and env.raw carries every REACT_APP_*, so a
+          # per-commit release string invalidated the entire pack on every deploy.
+          # Reintroducing ANY per-commit REACT_APP_* var silently reverts this to a cold
+          # build every time — no error, the saving just quietly disappears.
+          PERSIST_WEBPACK_CACHE: '1'
         run: |
           set -euo pipefail
           npm run build
@@ -200,6 +216,38 @@ jobs:
           # afterwards so they reach neither the image nor the CDN — same as the
           # Dockerfile's `find /app/build -name "*.map" -delete`.
           find build -name '*.map' -type f -delete
+
+      # Substituted AFTER the webpack build, on purpose. The release changes every
+      # commit; putting it anywhere webpack can see would either invalidate the entire
+      # filesystem cache (as REACT_APP_SENTRY_RELEASE did) or let a warm cache serve a
+      # stale value from a cached module — which fails silently, with Sentry attributing
+      # new errors to the previous deploy. index.html is regenerated every build, served
+      # no-store by nginx, and excluded from the blob upload, so it is the one place a
+      # per-deploy value can live safely.
+      #
+      # Only index.html is touched. The token also appears in the JS bundle, as the
+      # literal appVersion.js compares against for local dev; rewriting it there would
+      # break that check.
+      - name: Stamp the release into index.html
+        env:
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          if ! grep -q '__APP_RELEASE__' build/index.html; then
+            echo "::error::build/index.html has no __APP_RELEASE__ placeholder — public/index.html lost it, or the build did not regenerate index.html. Sentry would report no release."
+            exit 1
+          fi
+          # The release string is [A-Za-z0-9@.+-] only, so | is a safe delimiter.
+          sed -i "s|__APP_RELEASE__|${RELEASE}|g" build/index.html
+          if grep -q '__APP_RELEASE__' build/index.html; then
+            echo "::error::placeholder survived substitution in build/index.html"
+            exit 1
+          fi
+          if ! grep -qF "$RELEASE" build/index.html; then
+            echo "::error::release '$RELEASE' is not present in build/index.html after substitution"
+            exit 1
+          fi
+          echo "Stamped release: $RELEASE"
 
       - name: Docker login to ACR
         env:
