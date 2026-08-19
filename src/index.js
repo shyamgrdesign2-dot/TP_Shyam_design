@@ -10,6 +10,7 @@ import {
 
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { APP_RELEASE } from './utils/appVersion';
 
 import './index.css';
 import './styles/app.scss';
@@ -83,10 +84,19 @@ const tracesSampleRateValue =
 
 Sentry.init({
   dsn: "https://a4c36bf5194238bfa49de0a593619865@o4509755819294720.ingest.us.sentry.io/4510737179475968",
-  // Baked at build time from the SENTRY_RELEASE build-arg (see Dockerfile + CI workflows).
-  // MUST be byte-identical to the release used for `sentry-cli sourcemaps upload`, otherwise
-  // Sentry cannot symbolicate. Undefined in local dev — Sentry simply omits the field.
-  release: process.env.REACT_APP_SENTRY_RELEASE,
+  // Read from window.__APP_RELEASE__, which CI substitutes into build/index.html after
+  // the webpack build (see .github/workflows/*, "Stamp the release"). MUST be
+  // byte-identical to the release used for `sentry-cli sourcemaps upload`, otherwise
+  // Sentry cannot symbolicate — CI derives both from the same SENTRY_RELEASE value and
+  // fails the build if the substitution does not happen.
+  //
+  // It is NOT a REACT_APP_* var any more: those land in env.raw, which is webpack's
+  // cache.version, so a per-commit release string invalidated the whole filesystem cache
+  // every deploy. See docs/build-time-optimisation-plan.md §9.1.
+  //
+  // `|| undefined` keeps local dev behaviour identical — Sentry omits the field rather
+  // than registering a release of "".
+  release: APP_RELEASE || undefined,
   integrations: [
     Sentry.reactRouterV6BrowserTracingIntegration({
       useEffect: React.useEffect,
