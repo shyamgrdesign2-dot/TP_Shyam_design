@@ -193,7 +193,22 @@ jobs:
 
       # `npm install --legacy-peer-deps`, not `npm ci`, to match what the Dockerfile did.
       # package-lock.json has not been verified as in sync; switching is a separate change.
+      #
+      # NODE_AUTH_TOKEN must be set HERE, not only in the step above. This branch's
+      # committed .npmrc contains
+      #   //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+      # and a project-level .npmrc OVERRIDES the user-level ~/.npmrc — so the auth line
+      # written above is ignored, the placeholder expands to nothing, and npm sends an
+      # empty token. That is what broke preprod on its first runner build:
+      # "401 unauthenticated: User cannot be authenticated with the token provided",
+      # a different failure from uat's "token not provided".
+      #
+      # Both mechanisms are kept on purpose: the env var satisfies a .npmrc that has the
+      # placeholder, the ~/.npmrc line satisfies one that has none (uat's form). The
+      # combination is branch-agnostic.
       - name: Install dependencies
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
         run: |
           set -euo pipefail
           npm install --legacy-peer-deps
