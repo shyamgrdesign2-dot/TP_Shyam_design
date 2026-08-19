@@ -2,6 +2,21 @@
 <html lang="en">
 
 <head>
+    <!-- charset MUST be within the first 1024 bytes of the document. It used to sit
+         after the inline tag-manager script below, which put it at byte 2,679 — past the
+         limit, so the browser had to guess the encoding and re-decode once it found out.
+         Nothing may be inserted above this line. -->
+    <meta charset="utf-8" />
+
+    <!-- The CDN that serves every JS and CSS bundle. The render-blocking stylesheet lives
+         here, and it was not discovered until byte 2,997, after the inline script below
+         had been parsed — so DNS + TCP + TLS to this host all started late, on the
+         critical path. Opening the connection first is worth a round trip or three.
+         %PUBLIC_URL% resolves per environment (assets.tatvacare.in on prod, the Front Door
+         host on uat), so this cannot point at the wrong origin. -->
+    <link rel="preconnect" href="%PUBLIC_URL%" crossorigin>
+    <link rel="dns-prefetch" href="%PUBLIC_URL%">
+
    <!-- Google Tag Manager (deferred to after interactive) -->
     <script>
       const urlParams = new URLSearchParams(window.location.search);
@@ -46,7 +61,6 @@
       });
     </script>
 
-    <meta charset="utf-8" />
     <!-- Performance hints -->
     <!-- Keep preconnects lean to avoid overhead -->
     <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
