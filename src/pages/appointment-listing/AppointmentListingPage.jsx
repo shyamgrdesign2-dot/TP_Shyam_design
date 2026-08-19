@@ -326,12 +326,24 @@ export default function AppointmentListingPage() {
     () => (renderCalendar && calendarWindow ? calendarWindow : dateRange),
     [renderCalendar, calendarWindow, dateRange]
   );
-  const { rows: liveRows, counts: countByTab, loading, refetch } = useAppointments({
+  const { rows: liveRows, counts: countByTab, loading, loadingMore, hasMore, error, refetch, loadMore } = useAppointments({
     tabId: activeTab,
     dateRange: queryRange,
     query: debouncedQuery,
     visitTypeCsv,
+    /* Calendar must eventually show every appointment in the window. Table
+       uses the same 25-row infinite scroll as the legacy screen. */
+    fetchAllPages: renderCalendar,
   });
+
+  useEffect(() => {
+    if (!error) return undefined;
+    setToast({
+      status: "error",
+      title: error.message || "Could not load appointments. Try again.",
+    });
+    return undefined;
+  }, [error]);
 
   /* A manual pull of everything on screen. The spinner is held for a beat
      even when the request comes back instantly, because a button that does
@@ -543,6 +555,11 @@ export default function AppointmentListingPage() {
       } else {
         setToast({ status: "error", title: res?.message || "Could not cancel the appointment." });
       }
+    } catch {
+      setToast({
+        status: "error",
+        title: "Could not reach the server. The appointment was not cancelled, so try again in a moment.",
+      });
     } finally {
       setCancelling(false);
     }
@@ -761,6 +778,11 @@ export default function AppointmentListingPage() {
                   tabId={activeTab}
                   rows={rows}
                   loading={loading}
+                  loadingMore={loadingMore}
+                  hasMore={hasMore}
+                  onLoadMore={loadMore}
+                  error={error}
+                  onRetry={refetch}
                   hasActiveFilters={hasActiveFilters}
                   onClearFilters={clearFilters}
                   onRowAction={onRowAction}
@@ -844,6 +866,7 @@ export default function AppointmentListingPage() {
               : null
           }
           initialCaseType={bookingCtx?.reschedule?.raw?.toct_id ?? null}
+          initialCategory={bookingCtx?.reschedule?.raw?.pt_id ?? bookingCtx?.reschedule?.raw?.category_id ?? null}
           initialRemarks={bookingCtx?.reschedule?.raw?.pam_appointment_remark || ""}
           /* The appointment's own id, so a move is a PUT against it rather
              than a new booking plus a cancel. */
@@ -873,41 +896,8 @@ export default function AppointmentListingPage() {
                 }).format("HH:mm:ss")
               : null
           }
-          onBooked={async (result) => {
-            const old = bookingCtx?.reschedule?.raw;
-            /* Moved in place: there is no old appointment left to release, so
-               the cancel below would be cancelling the one we just moved. */
-            if (result?.moved) {
-              setRescheduleFor(null);
-              refetch();
-              setSlotsVersion((v) => v + 1);
-              return;
-            }
-            if (old) {
-              // Reschedule = new booking first, then release the old slot.
-              try {
-                const res = await ApiAppointments.cancelAppointments({
-                  pam_id: old.pam_id,
-                  patient_unique_id: old.patient_unique_id,
-                  pm_id: old.pm_id,
-                  pm_pid: old.pm_pid,
-                });
-                setToast(
-                  res?.status
-                    ? { status: "success", title: `${bookingCtx.reschedule.name}'s appointment was rescheduled.` }
-                    : {
-                        status: "warning",
-                        title: "New slot booked, but the old appointment could not be cancelled. Cancel it manually.",
-                      }
-                );
-              } catch {
-                setToast({
-                  status: "warning",
-                  title: "New slot booked, but the old appointment could not be cancelled. Cancel it manually.",
-                });
-              }
-              setRescheduleFor(null);
-            }
+          onBooked={(result) => {
+            if (result?.moved) setRescheduleFor(null);
             refetch();
             setSlotsVersion((v) => v + 1);
           }}

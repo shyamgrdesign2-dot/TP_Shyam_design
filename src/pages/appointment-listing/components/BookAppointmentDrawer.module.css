@@ -332,6 +332,17 @@
   color: var(--tesseract-warning-700);
 }
 
+.fieldHint {
+  margin: 0;
+  font-size: var(--tesseract-text-body-xs);
+  line-height: 1.4;
+  color: var(--tesseract-fg-tertiary);
+}
+
+.modeLocked {
+  pointer-events: none;
+}
+
 .fieldWarning > span[aria-hidden] {
   margin-top: 2px;
 }

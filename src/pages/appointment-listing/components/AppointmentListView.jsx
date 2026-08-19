@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   Button,
   DataTable,
@@ -16,8 +16,42 @@ import BillingTag from "./BillingTag";
 import TeleconsultPopover from "./TeleconsultPopover";
 import styles from "./AppointmentListView.module.css";
 
-export default function AppointmentListView({ tabId, rows, loading, hasActiveFilters, onClearFilters, onRowAction, onPatientClick, onAddAppointment }) {
+export default function AppointmentListView({
+  tabId,
+  rows,
+  loading,
+  loadingMore,
+  hasMore,
+  onLoadMore,
+  error,
+  onRetry,
+  hasActiveFilters,
+  onClearFilters,
+  onRowAction,
+  onPatientClick,
+  onAddAppointment,
+}) {
   const emptyMeta = EMPTY_STATE_BY_TAB[tabId] || EMPTY_STATE_BY_TAB[TAB_IDS.QUEUE];
+  const wrapRef = useRef(null);
+
+  // The new table scrolls inside the DS scroller, not the page (unlike
+  // legacy AppointmentData). Watch that scroller: near the bottom, or when
+  // the first page does not fill the pane, load the next 25.
+  useEffect(() => {
+    if (!hasMore || loading || !onLoadMore) return undefined;
+    const wrap = wrapRef.current;
+    if (!wrap) return undefined;
+    const scroller = wrap.querySelector('[class*="_scroller_"]') || wrap;
+    const maybeLoad = () => {
+      if (loadingMore) return;
+      const overflow = scroller.scrollHeight > scroller.clientHeight + 8;
+      const nearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
+      if (!overflow || nearBottom) onLoadMore();
+    };
+    scroller.addEventListener("scroll", maybeLoad, { passive: true });
+    maybeLoad();
+    return () => scroller.removeEventListener("scroll", maybeLoad);
+  }, [hasMore, loading, loadingMore, rows.length, onLoadMore]);
 
   const columns = useMemo(
     () => [
@@ -147,6 +181,7 @@ export default function AppointmentListView({ tabId, rows, loading, hasActiveFil
   );
 
   return (
+    <div className={styles.tableWrap} ref={wrapRef}>
     <DataTable
       className={styles.refTable}
       columns={columns}
@@ -157,7 +192,18 @@ export default function AppointmentListView({ tabId, rows, loading, hasActiveFil
       hoverable={false}
       loading={loading}
       emptyState={
-        loading ? null : (
+        loading ? null : error ? (
+        <Empty
+          media={<img src={emptyDocsIllustration} alt="" width={80} height={80} />}
+          title="Could not load appointments"
+          description="Something went wrong fetching this list. Try again."
+          action={
+            <Button variant="solid" theme="primary" size="sm" onClick={onRetry}>
+              Retry
+            </Button>
+          }
+        />
+        ) : (
         <Empty
           media={<img src={emptyDocsIllustration} alt="" width={80} height={80} />}
           title={hasActiveFilters ? "No matching appointments" : emptyMeta.title}
@@ -187,5 +233,11 @@ export default function AppointmentListView({ tabId, rows, loading, hasActiveFil
         )
       }
     />
+      {hasMore && !error && rows.length > 0 && (
+        <div className={styles.loadMore}>
+          {loadingMore ? "Loading more appointments…" : null}
+        </div>
+      )}
+    </div>
   );
 }

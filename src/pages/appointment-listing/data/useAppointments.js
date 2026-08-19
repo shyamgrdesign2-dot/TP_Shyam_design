@@ -9,6 +9,45 @@ const DATE_FORMAT = "YYYY-MM-DD";
 // The legacy screen widens the window for the digitisation tab so old
 // undigitised uploads are not hidden by the "today" default.
 const PENDING_START_DATE = "2000-01-01";
+// Same page size the legacy table infinite-scrolls on (`AppointmentData.js`).
+const LIST_PAGE_SIZE = 25;
+const LIST_PAGE_CAP = 40;
+
+async function fetchAppointmentPage(basePayload, page) {
+  const res = await ApiAppointments.getAllAppointment({ ...basePayload, page });
+  if (!res?.status) throw new Error(res?.error || "Could not load appointments.");
+  const data = res.data || {};
+  const chunk = data.app_data || [];
+  return { chunk, data, hasMore: chunk.length >= LIST_PAGE_SIZE };
+}
+
+function appendUnique(prev, incoming) {
+  const seen = new Set(prev.map((row) => row.id));
+  const extra = [];
+  incoming.forEach((row) => {
+    if (seen.has(row.id)) return;
+    seen.add(row.id);
+    extra.push(row);
+  });
+  return extra.length ? [...prev, ...extra] : prev;
+}
+
+/**
+ * Full-window fetch for ICS export (user-initiated). Table view pages via
+ * infinite scroll instead; calendar fills remaining pages in the background.
+ */
+async function fetchAllAppointmentPages(basePayload, isCancelled) {
+  const records = [];
+  let firstData = {};
+  for (let page = 0; page < LIST_PAGE_CAP; page += 1) {
+    if (isCancelled?.()) return { cancelled: true, records: [], data: {} };
+    const { chunk, data } = await fetchAppointmentPage(basePayload, page);
+    if (page === 0) firstData = data;
+    records.push(...chunk);
+    if (chunk.length < LIST_PAGE_SIZE) break;
+  }
+  return { cancelled: false, records, data: { ...firstData, app_data: records } };
+}
 
 // Legacy genderAge: "Female, 30y", falling back to months then days.
 function genderAge(rec) {
@@ -74,18 +113,16 @@ function mapRecord(rec, tabId, index) {
 export async function fetchQueueRows({ dateRange, query, visitTypeCsv } = {}) {
   const start = dateRange?.start ? moment(dateRange.start) : moment();
   const end = dateRange?.end ? moment(dateRange.end) : start;
-  const res = await ApiAppointments.getAllAppointment({
+  const { records } = await fetchAllAppointmentPages({
     startDate: start.format(DATE_FORMAT),
     endDate: end.format(DATE_FORMAT),
     apStatue: TAB_TO_AP_STATUS[TAB_IDS.QUEUE],
     filterVisitType: visitTypeCsv || "",
-    page: 0,
     search: query || "",
     sortOrder: "ascend",
     fetchBillStatus: true,
   });
-  if (!res?.status) throw new Error(res?.error || "Could not load the queue.");
-  return (res.data?.app_data || []).map((rec, i) => mapRecord(rec, TAB_IDS.QUEUE, i));
+  return records.map((rec, i) => mapRecord(rec, TAB_IDS.QUEUE, i));
 }
 
 /**
@@ -94,16 +131,26 @@ export async function fetchQueueRows({ dateRange, query, visitTypeCsv } = {}) {
  * legacy screen uses (apStatue filter, YYYY-MM-DD window, server search,
  * fetchBillStatus for the billing badges).
  *
+ * Table view (`fetchAllPages` false) matches the legacy infinite-scroll:
+ * page 0 on input change, later pages only when `loadMore` is called.
+ * Calendar view (`fetchAllPages` true) paints page 0 immediately, then
+ * fills remaining pages in the background so the grid is complete without
+ * blocking first paint on every page.
+ *
  * Inputs must be referentially stable across renders (visitTypeCsv is a
  * string for exactly that reason); debouncing of fast-changing inputs
  * (search typing) is the caller's job.
  */
-export default function useAppointments({ tabId, dateRange, query, visitTypeCsv }) {
+export default function useAppointments({ tabId, dateRange, query, visitTypeCsv, fetchAllPages = false }) {
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState(null);
   const requestSeq = useRef(0);
+  const pageRef = useRef(0);
+  const loadingMoreLock = useRef(false);
   const undigitisedIdsRef = useRef(null);
   const prevTabRef = useRef(tabId);
 
@@ -113,57 +160,97 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv 
     return { startDate: start.format(DATE_FORMAT), endDate: end.format(DATE_FORMAT) };
   }, [dateRange]);
 
-  // One status → mapped rows + the raw counts block. Shared by single-tab
-  // fetches and the merged "All" view.
-  const fetchStatus = useCallback(
-    async (statusTab) => {
-      const res = await ApiAppointments.getAllAppointment({
-        startDate,
-        endDate,
-        apStatue: TAB_TO_AP_STATUS[statusTab],
-        filterVisitType: visitTypeCsv || "",
-        page: 0,
-        search: query || "",
-        sortOrder: "ascend",
-        fetchBillStatus: true,
-      });
-      if (!res?.status) throw new Error(res?.error || "listAppointment failed");
-      const data = res.data || {};
-      return { rows: (data.app_data || []).map((rec, i) => mapRecord(rec, statusTab, i)), data };
-    },
+  const listPayload = useCallback(
+    (statusTab, pendingIds) => ({
+      startDate: statusTab === TAB_IDS.PENDING ? PENDING_START_DATE : startDate,
+      endDate,
+      apStatue: TAB_TO_AP_STATUS[statusTab],
+      filterVisitType: visitTypeCsv || "",
+      search: query || "",
+      sortOrder: "ascend",
+      fetchBillStatus: true,
+      ...(statusTab === TAB_IDS.PENDING && pendingIds?.length
+        ? { cvtAppointmentIdsStr: pendingIds.join(",") }
+        : {}),
+    }),
     [startDate, endDate, query, visitTypeCsv]
+  );
+
+  const applyCounts = useCallback((data, statusTab) => {
+    setCounts((prev) => {
+      if (statusTab === TAB_IDS.PENDING) {
+        return { ...prev, [TAB_IDS.PENDING]: undigitisedIdsRef.current?.length || 0 };
+      }
+      return {
+        ...prev,
+        [TAB_IDS.QUEUE]: data.queue_count ?? prev[TAB_IDS.QUEUE] ?? 0,
+        [TAB_IDS.FINISHED]: data.finished_count ?? prev[TAB_IDS.FINISHED] ?? 0,
+        [TAB_IDS.CANCELLED]: data.cancelled_count ?? prev[TAB_IDS.CANCELLED] ?? 0,
+        [TAB_IDS.DRAFT]: data.draft_count ?? prev[TAB_IDS.DRAFT] ?? 0,
+        [TAB_IDS.PENDING]: prev[TAB_IDS.PENDING] ?? (undigitisedIdsRef.current?.length || 0),
+      };
+    });
+  }, []);
+
+  const fillRemaining = useCallback(
+    async (statusTab, payload, fromPage, seq) => {
+      let page = fromPage;
+      let more = true;
+      while (more && page < LIST_PAGE_CAP) {
+        if (seq !== requestSeq.current) return;
+        const next = await fetchAppointmentPage(payload, page);
+        if (seq !== requestSeq.current) return;
+        const mapped = next.chunk.map((rec, i) => mapRecord(rec, statusTab, page * LIST_PAGE_SIZE + i));
+        setRows((prev) => appendUnique(prev, mapped));
+        more = next.hasMore;
+        page += 1;
+      }
+    },
+    []
   );
 
   const fetchRows = useCallback(async () => {
     const seq = ++requestSeq.current;
+    pageRef.current = 0;
+    loadingMoreLock.current = false;
     setLoading(true);
+    setLoadingMore(false);
+    setHasMore(false);
     setError(null);
     try {
-      // "All" view: every schedule status merged onto one grid, each row
-      // keeping its own status for colour + per-card actions.
       if (tabId === TAB_IDS.ALL) {
-        const results = await Promise.all(ALL_MERGED_TABS.map((s) => fetchStatus(s)));
+        const first = await Promise.all(
+          ALL_MERGED_TABS.map((statusTab) => fetchAppointmentPage(listPayload(statusTab), 0))
+        );
         if (seq !== requestSeq.current) return;
         const seen = new Set();
         const merged = [];
-        results.forEach(({ rows: r }) => {
-          r.forEach((row) => {
+        first.forEach(({ chunk }, i) => {
+          chunk.forEach((rec, j) => {
+            const row = mapRecord(rec, ALL_MERGED_TABS[i], j);
             if (seen.has(row.id)) return;
             seen.add(row.id);
             merged.push(row);
           });
         });
-        const d = (i) => results[i]?.data || {};
+        const d = (i) => first[i]?.data || {};
         setRows(merged);
         setCounts((prev) => ({
           ...prev,
-          [TAB_IDS.ALL]: merged.length,
           [TAB_IDS.QUEUE]: d(0).queue_count ?? prev[TAB_IDS.QUEUE] ?? 0,
           [TAB_IDS.FINISHED]: d(1).finished_count ?? prev[TAB_IDS.FINISHED] ?? 0,
           [TAB_IDS.CANCELLED]: d(2).cancelled_count ?? prev[TAB_IDS.CANCELLED] ?? 0,
           [TAB_IDS.DRAFT]: d(3).draft_count ?? prev[TAB_IDS.DRAFT] ?? 0,
         }));
+        setHasMore(false);
         setLoading(false);
+        if (fetchAllPages) {
+          await Promise.all(
+            ALL_MERGED_TABS.map((statusTab, i) =>
+              first[i].hasMore ? fillRemaining(statusTab, listPayload(statusTab), 1, seq) : null
+            )
+          );
+        }
         return;
       }
 
@@ -187,50 +274,54 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv 
         }
       }
 
-      const payload = {
-        startDate: tabId === TAB_IDS.PENDING ? PENDING_START_DATE : startDate,
-        endDate,
-        apStatue: TAB_TO_AP_STATUS[tabId],
-        filterVisitType: visitTypeCsv || "",
-        page: 0,
-        search: query || "",
-        sortOrder: "ascend",
-        fetchBillStatus: true,
-        ...(tabId === TAB_IDS.PENDING && pendingIds.length > 0
-          ? { cvtAppointmentIdsStr: pendingIds.join(",") }
-          : {}),
-      };
-
-      const res = await ApiAppointments.getAllAppointment(payload);
+      const payload = listPayload(tabId, pendingIds);
+      const { chunk, data, hasMore: more } = await fetchAppointmentPage(payload, 0);
       if (seq !== requestSeq.current) return;
-      if (!res?.status) throw new Error(res?.error || "listAppointment failed");
-
-      const data = res.data || {};
-      setRows((data.app_data || []).map((rec, i) => mapRecord(rec, tabId, i)));
-      setCounts((prev) => {
-        // The pending tab queries an all-time window, so its response counts
-        // do not describe the selected period; keep the existing tab badges.
-        if (tabId === TAB_IDS.PENDING) {
-          return { ...prev, [TAB_IDS.PENDING]: undigitisedIdsRef.current?.length || 0 };
-        }
-        return {
-          ...prev,
-          [TAB_IDS.QUEUE]: data.queue_count ?? prev[TAB_IDS.QUEUE] ?? 0,
-          [TAB_IDS.FINISHED]: data.finished_count ?? prev[TAB_IDS.FINISHED] ?? 0,
-          [TAB_IDS.CANCELLED]: data.cancelled_count ?? prev[TAB_IDS.CANCELLED] ?? 0,
-          [TAB_IDS.DRAFT]: data.draft_count ?? prev[TAB_IDS.DRAFT] ?? 0,
-          [TAB_IDS.PENDING]: prev[TAB_IDS.PENDING] ?? (undigitisedIdsRef.current?.length || 0),
-        };
-      });
+      setRows(chunk.map((rec, i) => mapRecord(rec, tabId, i)));
+      applyCounts(data, tabId);
+      setHasMore(!fetchAllPages && more);
       setLoading(false);
+      if (fetchAllPages && more) {
+        await fillRemaining(tabId, payload, 1, seq);
+      }
     } catch (e) {
       if (seq !== requestSeq.current) return;
       console.error("useAppointments:", e);
       setRows([]);
+      setHasMore(false);
       setError(e);
       setLoading(false);
     }
-  }, [tabId, startDate, endDate, query, visitTypeCsv, fetchStatus]);
+  }, [tabId, listPayload, fetchAllPages, fillRemaining, applyCounts]);
+
+  const loadMore = useCallback(async () => {
+    if (fetchAllPages || !hasMore || loading || loadingMoreLock.current) return;
+    loadingMoreLock.current = true;
+    const seq = requestSeq.current;
+    const nextPage = pageRef.current + 1;
+    setLoadingMore(true);
+    try {
+      let pendingIds = tabId === TAB_IDS.PENDING ? undigitisedIdsRef.current || [] : undefined;
+      const { chunk, hasMore: more } = await fetchAppointmentPage(listPayload(tabId, pendingIds), nextPage);
+      if (seq !== requestSeq.current) return;
+      setRows((prev) =>
+        appendUnique(
+          prev,
+          chunk.map((rec, i) => mapRecord(rec, tabId, nextPage * LIST_PAGE_SIZE + i))
+        )
+      );
+      pageRef.current = nextPage;
+      setHasMore(more);
+    } catch (e) {
+      if (seq !== requestSeq.current) return;
+      console.error("useAppointments loadMore:", e);
+    } finally {
+      if (seq === requestSeq.current) {
+        loadingMoreLock.current = false;
+        setLoadingMore(false);
+      }
+    }
+  }, [fetchAllPages, hasMore, loading, tabId, listPayload]);
 
   // Fetch immediately on any input change. Switching tabs clears the previous
   // tab's rows and shows the shimmer right away so stale rows (or a stale
@@ -265,5 +356,8 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv 
     return () => { alive = false; };
   }, []);
 
-  return { rows, counts, loading, error, refetch: fetchRows };
+  const countByTab =
+    tabId === TAB_IDS.ALL ? { ...counts, [TAB_IDS.ALL]: rows.length } : counts;
+
+  return { rows, counts: countByTab, loading, loadingMore, hasMore, error, refetch: fetchRows, loadMore };
 }

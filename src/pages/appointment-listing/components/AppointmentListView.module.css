@@ -5,10 +5,27 @@
 /* Fill the card body and keep only the rows scrolling: the DS scroller gets
    the full remaining height (its inline sticky-header max-height is capped,
    so release it) while thead stays pinned via the DS stickyHeader mode. */
+.tableWrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.loadMore {
+  flex: 0 0 auto;
+  min-height: 1px;
+  padding: 8px 0 4px;
+  text-align: center;
+  font-size: var(--tesseract-text-body-xs);
+  color: var(--tesseract-fg-tertiary);
+}
+
 .refTable {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  flex: 1;
 }
 
 /* The scroll frame shrink-wraps its rows and is capped by the card, so the

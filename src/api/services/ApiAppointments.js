@@ -175,7 +175,8 @@ ApiAppointments.listCategories = function () {
  * a cancel of the old one: two writes, a window where the patient held two
  * appointments, and a new pam_id that broke anything referencing the original.
  * This is one call against the same appointment, so the id, the patient and
- * the visit type all survive the move.
+ * the visit type all survive the move. Slot fields plus toct_id, category_id
+ * and appointment_remark so those values are not dropped.
  *
  * PUT /api/v1/appointment/:pam_id on the visit-integration service.
  */

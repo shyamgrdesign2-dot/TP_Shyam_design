@@ -93,10 +93,12 @@ export default function BookAppointmentDrawer({
   slot,
   doctorName,
   onBooked,
-  // Reschedule mode: prefill from the existing appointment; the caller
-  // cancels the old appointment after the new booking succeeds.
+  // Reschedule mode: prefill from the existing appointment; the drawer
+  // moves it in place with one PUT. Mode, visit type, category and remarks
+  // are locked — a move changes the slot, not those fields.
   initialPatient = null,
   initialCaseType = null,
+  initialCategory = null,
   initialRemarks = "",
   initialDateISO = null,
   initialTime = null, // "HH:mm:ss" of the appointment being moved
@@ -166,7 +168,7 @@ export default function BookAppointmentDrawer({
       setPatients([]);
       setPatient(initialPatient || null);
       setCaseType(initialCaseType || null);
-      setCategory(null);
+      setCategory(initialCategory || null);
       setRemarks(initialRemarks || "");
       setTeleSlotOk(true);
       /* A reschedule opens on today with the appointment's own time already
@@ -334,13 +336,20 @@ export default function BookAppointmentDrawer({
      dead end a disabled field is: the CTA stays live and answers instead. */
   const missing = () => {
     if (!effectiveSlot) return "Pick a time slot first.";
+    if (isReschedule) {
+      if (mode === "teleconsult" && !teleSlotOk)
+        return "This slot is not open for teleconsultation. Pick another time.";
+      return null;
+    }
     if (!patient) return "Choose a patient, or add a new one, before booking.";
     if (!caseType) return "Pick a visit type so the appointment can be billed correctly.";
     if (mode === "teleconsult" && !teleSlotOk)
       return "This slot is not open for teleconsultation. Pick another time or switch to In-clinic.";
     return null;
   };
-  const canBook = !!(patient && caseType && effectiveSlot && (mode !== "teleconsult" || teleSlotOk));
+  const canBook = isReschedule
+    ? !!(patient && effectiveSlot && (mode !== "teleconsult" || teleSlotOk))
+    : !!(patient && caseType && effectiveSlot && (mode !== "teleconsult" || teleSlotOk));
 
   const book = async () => {
     if (booking) return;
@@ -366,17 +375,28 @@ export default function BookAppointmentDrawer({
 
       /* Moving an existing appointment is an update, not a new booking. One
          PUT against its own id keeps the pam_id, the patient and the visit
-         type intact; the old book-then-cancel pair left a window where the
-         patient held two appointments and minted a new id that anything
-         referencing the original would no longer find. */
-      if (isReschedule && rescheduleId) {
-        const res = await ApiAppointments.rescheduleAppointment(rescheduleId, {
+         type intact. Visit type, category and remarks ride along so the
+         backend does not drop them; the drawer locks those controls so a
+         move cannot change them. Without pam_id there is nothing to PUT. */
+      if (isReschedule) {
+        if (!rescheduleId) {
+          setToast({
+            status: "error",
+            title: "Could not move this appointment. It is missing an id, so try again from the list.",
+          });
+          return;
+        }
+        const movePayload = {
           doctor_id: payload.doctor_id,
           appointment_date: payload.appointment_date,
           appointment_start_time: payload.appointment_start_time,
           appointment_end_time: payload.appointment_end_time,
           appointment_duration: payload.appointment_duration,
-        });
+        };
+        if (payload.toct_id) movePayload.toct_id = payload.toct_id;
+        if (payload.category_id) movePayload.category_id = payload.category_id;
+        if (payload.appointment_remark) movePayload.appointment_remark = payload.appointment_remark;
+        const res = await ApiAppointments.rescheduleAppointment(rescheduleId, movePayload);
         if (res?.status === false) {
           setToast({
             status: "error",
@@ -456,12 +476,14 @@ export default function BookAppointmentDrawer({
                 under it. A segmented control, not tabs: this switches a mode
                 within one form, it does not navigate between sections. */}
             <SegmentedControl
-              className={styles.modeSwitch}
+              className={`${styles.modeSwitch}${isReschedule ? ` ${styles.modeLocked}` : ""}`}
               size="md"
               variant="block"
               fullWidth
               value={mode}
-              onValueChange={setMode}
+              onValueChange={(v) => {
+                if (!isReschedule) setMode(v);
+              }}
               options={MODE_TABS.map((m) => ({
                 value: m.value,
                 label: m.label,
@@ -471,9 +493,17 @@ export default function BookAppointmentDrawer({
                   const g = mode === m.value ? m.iconActive : m.icon;
                   return <TPLibraryIcon name={g.name} family={g.family} variant={g.variant} size={18} />;
                 })(),
-                disabled: !slotless && m.value === "teleconsult" && effectiveSlot?.teleAvailable === false,
+                disabled:
+                  isReschedule ||
+                  (!slotless && m.value === "teleconsult" && effectiveSlot?.teleAvailable === false),
               }))}
             />
+            {isReschedule && (
+              <p className={styles.fieldHint}>
+                Mode, visit type, category and remarks stay with this appointment. This
+                drawer only moves the slot.
+              </p>
+            )}
             {!slotless && effectiveSlot?.teleAvailable === false && (
               <p className={styles.fieldWarning}>
                 <TPLibraryIcon name="info-circle" size={14} color="var(--tesseract-warning-600)" />
@@ -888,7 +918,7 @@ export default function BookAppointmentDrawer({
               )}
             </div>
 
-            <div className={styles.fieldRow}>
+            <div className={styles.fieldRow} data-locked={isReschedule || undefined}>
               <div className={styles.field}>
                 <p className={styles.fieldLabel}>
                   Visit Type <span className={styles.required}>*</span>
@@ -896,8 +926,9 @@ export default function BookAppointmentDrawer({
                 <Dropdown
                   options={caseTypes.map((t) => ({ value: t.toct_id, label: t.toct_type }))}
                   value={caseType}
-                  onChange={setCaseType}
+                  onChange={isReschedule ? undefined : setCaseType}
                   placeholder="Select Visit Type"
+                  disabled={isReschedule}
                 />
               </div>
               <div className={styles.field}>
@@ -905,8 +936,9 @@ export default function BookAppointmentDrawer({
                 <Dropdown
                   options={categories.map((c) => ({ value: c.pt_id, label: c.pt_name }))}
                   value={category}
-                  onChange={setCategory}
+                  onChange={isReschedule ? undefined : setCategory}
                   placeholder="Select Category"
+                  disabled={isReschedule}
                 />
               </div>
             </div>
@@ -918,7 +950,8 @@ export default function BookAppointmentDrawer({
               label="Remarks"
               placeholder="Write your remarks"
               value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
+              onChange={isReschedule ? undefined : (e) => setRemarks(e.target.value)}
+              disabled={isReschedule}
               autoGrow
               height={92}
               maxHeight={220}
