@@ -141,7 +141,7 @@ export async function fetchQueueRows({ dateRange, query, visitTypeCsv } = {}) {
  * string for exactly that reason); debouncing of fast-changing inputs
  * (search typing) is the caller's job.
  */
-export default function useAppointments({ tabId, dateRange, query, visitTypeCsv, fetchAllPages = false }) {
+export default function useAppointments({ tabId, dateRange, query, visitTypeCsv, fetchAllPages = false, includeDraft = true }) {
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -153,6 +153,11 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
   const loadingMoreLock = useRef(false);
   const undigitisedIdsRef = useRef(null);
   const prevTabRef = useRef(tabId);
+
+  const mergedTabs = useMemo(
+    () => (includeDraft ? ALL_MERGED_TABS : ALL_MERGED_TABS.filter((t) => t !== TAB_IDS.DRAFT)),
+    [includeDraft]
+  );
 
   const { startDate, endDate } = useMemo(() => {
     const start = dateRange?.start ? moment(dateRange.start) : moment();
@@ -220,33 +225,40 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
     try {
       if (tabId === TAB_IDS.ALL) {
         const first = await Promise.all(
-          ALL_MERGED_TABS.map((statusTab) => fetchAppointmentPage(listPayload(statusTab), 0))
+          mergedTabs.map((statusTab) => fetchAppointmentPage(listPayload(statusTab), 0))
         );
         if (seq !== requestSeq.current) return;
         const seen = new Set();
         const merged = [];
         first.forEach(({ chunk }, i) => {
           chunk.forEach((rec, j) => {
-            const row = mapRecord(rec, ALL_MERGED_TABS[i], j);
+            const row = mapRecord(rec, mergedTabs[i], j);
             if (seen.has(row.id)) return;
             seen.add(row.id);
             merged.push(row);
           });
         });
-        const d = (i) => first[i]?.data || {};
+        const COUNT_KEY = {
+          [TAB_IDS.QUEUE]: "queue_count",
+          [TAB_IDS.FINISHED]: "finished_count",
+          [TAB_IDS.CANCELLED]: "cancelled_count",
+          [TAB_IDS.DRAFT]: "draft_count",
+        };
         setRows(merged);
-        setCounts((prev) => ({
-          ...prev,
-          [TAB_IDS.QUEUE]: d(0).queue_count ?? prev[TAB_IDS.QUEUE] ?? 0,
-          [TAB_IDS.FINISHED]: d(1).finished_count ?? prev[TAB_IDS.FINISHED] ?? 0,
-          [TAB_IDS.CANCELLED]: d(2).cancelled_count ?? prev[TAB_IDS.CANCELLED] ?? 0,
-          [TAB_IDS.DRAFT]: d(3).draft_count ?? prev[TAB_IDS.DRAFT] ?? 0,
-        }));
+        setCounts((prev) => {
+          const next = { ...prev };
+          mergedTabs.forEach((id, i) => {
+            const key = COUNT_KEY[id];
+            if (key) next[id] = first[i]?.data?.[key] ?? prev[id] ?? 0;
+          });
+          if (!includeDraft) next[TAB_IDS.DRAFT] = 0;
+          return next;
+        });
         setHasMore(false);
         setLoading(false);
         if (fetchAllPages) {
           await Promise.all(
-            ALL_MERGED_TABS.map((statusTab, i) =>
+            mergedTabs.map((statusTab, i) =>
               first[i].hasMore ? fillRemaining(statusTab, listPayload(statusTab), 1, seq) : null
             )
           );
@@ -292,7 +304,7 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
       setError(e);
       setLoading(false);
     }
-  }, [tabId, listPayload, fetchAllPages, fillRemaining, applyCounts]);
+  }, [tabId, listPayload, fetchAllPages, fillRemaining, applyCounts, mergedTabs, includeDraft]);
 
   const loadMore = useCallback(async () => {
     if (fetchAllPages || !hasMore || loading || loadingMoreLock.current) return;

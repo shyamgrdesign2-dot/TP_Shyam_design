@@ -10,6 +10,7 @@ import {
 
 import { ASSETS } from "../../../assets";
 import { TAB_IDS, EMPTY_STATE_BY_TAB } from "../data/appointmentsConfig";
+import { useListingAccess } from "../data/useListingAccess";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
 import emptyDocsIllustration from "../assets/empty-docs.svg";
 import BillingTag from "./BillingTag";
@@ -33,6 +34,8 @@ export default function AppointmentListView({
 }) {
   const emptyMeta = EMPTY_STATE_BY_TAB[tabId] || EMPTY_STATE_BY_TAB[TAB_IDS.QUEUE];
   const wrapRef = useRef(null);
+  const { isCvtExtHos, isSmartRxAccessible, showBilling, showBookActions } = useListingAccess();
+  const actionCtx = { isCvtExtHos, isSmartRxAccessible };
 
   // The new table scrolls inside the DS scroller, not the page (unlike
   // legacy AppointmentData). Watch that scroller: near the bottom, or when
@@ -120,7 +123,7 @@ export default function AppointmentListView({
               <span className={styles.visitType}>{row.visitType}</span>
               {row.specialty && <p className={styles.specialty}>{row.specialty}</p>}
             </div>
-            <BillingTag status={row.billStatus} />
+            <BillingTag status={showBilling ? row.billStatus : ""} />
           </div>
         ),
       },
@@ -171,13 +174,13 @@ export default function AppointmentListView({
         cellClassName: styles.actionCol,
         cell: (row) => (
           <div className={styles.actionCell}>
-            <TableActions align="right" primary={rowPrimaryAction(tabId, row, onRowAction)} actions={[]} />
+            <TableActions align="right" primary={rowPrimaryAction(tabId, row, onRowAction, actionCtx)} actions={[]} />
             <RowKebabMenu tabId={tabId} row={row} onRowAction={onRowAction} />
           </div>
         ),
       },
     ],
-    [tabId, onRowAction, onPatientClick]
+    [tabId, onRowAction, onPatientClick, actionCtx, showBilling]
   );
 
   return (
@@ -217,7 +220,7 @@ export default function AppointmentListView({
               <Button variant="ghost" theme="primary" size="sm" onClick={onClearFilters}>
                 Clear all filters
               </Button>
-            ) : emptyMeta.cta === "add-appointment" ? (
+            ) : emptyMeta.cta === "add-appointment" && showBookActions ? (
               <Button
                 variant="solid"
                 theme="primary"

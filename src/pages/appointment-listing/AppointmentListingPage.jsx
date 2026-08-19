@@ -31,6 +31,7 @@ import {
   TAB_IDS,
 } from "./data/appointmentsConfig";
 import useAppointments, { fetchQueueRows } from "./data/useAppointments";
+import { useListingAccess } from "./data/useListingAccess";
 import { readPreference, writePreference } from "./data/viewPreferences";
 import AppointmentListView from "./components/AppointmentListView";
 import AppointmentCalendarView from "./components/AppointmentCalendarView";
@@ -203,6 +204,7 @@ export default function AppointmentListingPage() {
     (state) => state.teleconsultNotification || {}
   );
   const uploadDocCategories = useSelector((state) => state.uploadDoc?.uploadDocCategories) || [];
+  const { showDraft, showBookActions } = useListingAccess();
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
   const [view, setView] = useState(() => readPreference("view", "list"));
@@ -213,7 +215,9 @@ export default function AppointmentListingPage() {
   // Table keeps its status buckets; the calendar leads with the "All" view
   // (complete schedule). Switching view retargets the tab so the mode always
   // opens on its natural default.
-  const visibleTabs = view === "calendar" ? CALENDAR_TABS : LIST_TABS;
+  const visibleTabs = (view === "calendar" ? CALENDAR_TABS : LIST_TABS).filter(
+    (t) => t.id !== TAB_IDS.DRAFT || showDraft
+  );
   const isCalendar = view === "calendar";
   /* One deliberate exception to "the view is the view": Pending Digitisation
      is an all-time worklist, not a schedule, so it has nothing to draw on a
@@ -237,6 +241,10 @@ export default function AppointmentListingPage() {
     setActiveTab(tab);
     setRescheduleFor(null);
   };
+
+  useEffect(() => {
+    if (!showDraft && activeTab === TAB_IDS.DRAFT) setActiveTab(TAB_IDS.QUEUE);
+  }, [showDraft, activeTab]);
 
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState({});
@@ -370,6 +378,7 @@ export default function AppointmentListingPage() {
     /* Calendar must eventually show every appointment in the window. Table
        uses the same 25-row infinite scroll as the legacy screen. */
     fetchAllPages: renderCalendar,
+    includeDraft: showDraft,
   });
 
   useEffect(() => {
@@ -527,6 +536,7 @@ export default function AppointmentListingPage() {
           setCancelTarget(row);
           break;
         case "reschedule":
+          if (!showBookActions) return;
           // Both views use the same point-and-click reschedule sidebar
           // (date chips + day-part slot picker); no jump to the calendar.
           setBookingCtx({ slot: null, reschedule: row });
@@ -617,7 +627,7 @@ export default function AppointmentListingPage() {
           break;
       }
     },
-    [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable]
+    [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions]
   );
 
   const handleUploadFileChange = (event) => {
@@ -725,26 +735,30 @@ export default function AppointmentListingPage() {
                 value={view}
                 onValueChange={changeView}
               />
-              <Button
-                variant="outline"
-                theme="primary"
-                surface="dark"
-                className={styles.addApptBtn}
-                leftIcon={<TPLibraryIcon name="add" family="essential" size={20} />}
-                onClick={() => navigate("/add-appointment")}
-              >
-                Add Appointment
-              </Button>
-              <Button
-                variant="solid"
-                theme="primary"
-                surface="dark"
-                className={styles.startWalkInBtn}
-                leftIcon={<TPLibraryIcon name="flash" size={24} />}
-                onClick={() => navigate("/walk_in_consultation")}
-              >
-                Start Walk-In
-              </Button>
+              {showBookActions && (
+                <>
+                  <Button
+                    variant="outline"
+                    theme="primary"
+                    surface="dark"
+                    className={styles.addApptBtn}
+                    leftIcon={<TPLibraryIcon name="add" family="essential" size={20} />}
+                    onClick={() => navigate("/add-appointment")}
+                  >
+                    Add Appointment
+                  </Button>
+                  <Button
+                    variant="solid"
+                    theme="primary"
+                    surface="dark"
+                    className={styles.startWalkInBtn}
+                    leftIcon={<TPLibraryIcon name="flash" size={24} />}
+                    onClick={() => navigate("/walk_in_consultation")}
+                  >
+                    Start Walk-In
+                  </Button>
+                </>
+              )}
             </>
           }
         />
@@ -922,27 +936,29 @@ export default function AppointmentListingPage() {
                      appointment being moved, so it seeds the picker exactly
                      as a drop does. Outside move mode it is a fresh booking
                      and the slot is fixed. */
-                  onSlotPick={(slot) =>
-                    setBookingCtx(
-                      rescheduleFor ? { reschedule: rescheduleFor, seed: slot } : { slot }
-                    )
+                  onSlotPick={
+                    showBookActions
+                      ? (slot) =>
+                          setBookingCtx(
+                            rescheduleFor ? { reschedule: rescheduleFor, seed: slot } : { slot }
+                          )
+                      : undefined
                   }
                   /* A drop proposes a time, it does not commit one. The
                      drawer opens on its own date and slot picker, seeded to
                      wherever the card landed, so the doctor confirms or
                      adjusts in the same place they would have if they had
                      opened Reschedule from the row menu. */
-                  onEventDrop={(row, slot) =>
-                    slot
-                      ? setBookingCtx({ reschedule: row, seed: slot })
-                      : setToast({ status: "warning", title: "That time is not an available slot." })
+                  onEventDrop={
+                    showBookActions
+                      ? (row, slot) =>
+                          slot
+                            ? setBookingCtx({ reschedule: row, seed: slot })
+                            : setToast({ status: "warning", title: "That time is not an available slot." })
+                      : undefined
                   }
-                  rescheduleFor={rescheduleFor}
-                  /* Touch cannot drag a card onto a slot, so it says which
-                     appointment is moving and then taps the destination. The
-                     banner and the slot-picking mode this turns on already
-                     existed for the same job. */
-                  onStartMove={(row) => setRescheduleFor(row)}
+                  rescheduleFor={showBookActions ? rescheduleFor : null}
+                  onStartMove={showBookActions ? (row) => setRescheduleFor(row) : undefined}
                   /* The queue changes underneath you: reception books someone
                      in, a colleague finishes a visit. Refresh pulls the rows
                      and re-derives the availability the grid draws, so both
@@ -966,6 +982,7 @@ export default function AppointmentListingPage() {
                     setDateRange(d ? { start: d, end: d } : null);
                   }}
                   slotsVersion={slotsVersion}
+                  allowBook={showBookActions}
                 />
               )}
             </div>

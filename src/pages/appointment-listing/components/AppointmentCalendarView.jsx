@@ -19,6 +19,7 @@ import { TAB_IDS } from "../data/appointmentsConfig";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
 import AppointmentEventCard from "./AppointmentEventCard";
 import BillingTag, { StatusTag } from "./BillingTag";
+import { useListingAccess } from "../data/useListingAccess";
 import { readPreference, writePreference } from "../data/viewPreferences";
 import styles from "./AppointmentCalendarView.module.css";
 
@@ -238,10 +239,12 @@ export function MiniDatePopover({ anchor, onPick, onClose, maxDate = null }) {
 function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, onMouseEnter, onMouseLeave, onMove }) {
   // Act on this appointment's own status inside the merged "All" view.
   const cardTab = row.status || tabId;
+  const { isCvtExtHos, isSmartRxAccessible, showBilling } = useListingAccess();
   const act = (id, r) => {
     onRowAction?.(id, r);
     onClose();
   };
+  const primary = rowPrimaryAction(cardTab, row, act, { isCvtExtHos, isSmartRxAccessible });
   const width = 320;
   const popRef = useRef(null);
   // Placed after the first paint, once the real height is known; until then
@@ -266,7 +269,6 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
     setPlacement({ top, left, side, caret });
   }, [anchorRect]);
 
-  const primary = rowPrimaryAction(cardTab, row, act);
   const status = statusMeta(cardTab);
   const visit = visitMeta(row.visitType);
   /* Two boxes on purpose: the outer one positions and carries the caret,
@@ -370,7 +372,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
           Billing uses the same chip as the table so one fact keeps one look. */}
       <div className={styles.popoverTags}>
         {status && <StatusTag tone={status.badge}>{status.label}</StatusTag>}
-        <BillingTag status={row.billStatus} />
+        {showBilling && <BillingTag status={row.billStatus} />}
       </div>
 
       {/* CTA left, the rest of the actions right. */}
@@ -452,6 +454,7 @@ export default function AppointmentCalendarView({
   onDateChange = null, // same setter the toolbar picker uses (null = clear)
   onSlotUnavailable = null, // toast when a past/blocked slot is clicked
   slotsVersion = 0,
+  allowBook = true,
 }) {
   const [mode, setMode] = useState(() => readPreference("calendarMode", "day"));
   /* The availability layer is on by default, because a doctor opening the
@@ -523,6 +526,7 @@ export default function AppointmentCalendarView({
   const startDrag = (e, row) => {
     // Drag-reschedule applies to queue (upcoming) rows — including queue rows
     // shown inside the merged "All" view.
+    if (!allowBook) return;
     if ((row.status || tabId) !== TAB_QUEUE_ID || e.button === 2) return;
     /* Drag is a pointer gesture and stays one.
 
@@ -1116,6 +1120,7 @@ export default function AppointmentCalendarView({
      A `disabled` button swallows the click and says nothing, which reads as
      the app being broken rather than the slot being unavailable. */
   const openBooking = (slot) => {
+    if (!allowBook) return;
     if (slot.isPast) {
       onSlotUnavailable?.({
         status: "error",
@@ -1808,7 +1813,7 @@ export default function AppointmentCalendarView({
           tabId={tabId}
           onRowAction={onRowAction}
           /* Dragging is the pointer's way in; this is touch's. */
-          onMove={canDrag ? undefined : onStartMove}
+          onMove={canDrag || !allowBook ? undefined : onStartMove}
           onClose={closePopup}
           onMouseEnter={keepOpen}
           onMouseLeave={hoverClose}

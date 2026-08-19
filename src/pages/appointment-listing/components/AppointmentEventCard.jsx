@@ -5,6 +5,7 @@ import { ASSETS } from "../../../assets";
 import { statusMeta, shortGenderAge, videoTint } from "../data/appointmentStates";
 import { rowPrimaryAction, primaryKebabOption, RowKebabMenu } from "./rowActions";
 import BillingTag from "./BillingTag";
+import { useListingAccess } from "../data/useListingAccess";
 import styles from "./AppointmentEventCard.module.css";
 
 /* Chrome that competes with the patient name for the first line, measured at
@@ -106,14 +107,16 @@ export default function AppointmentEventCard({
   // (queue → TypeRx, finished → Print, and so on).
   const cardTab = row.status || tabId;
   const status = statusMeta(cardTab);
-  const primary = rowPrimaryAction(cardTab, row, onRowAction);
+  const { isCvtExtHos, isSmartRxAccessible, showBilling } = useListingAccess();
+  const actionCtx = { isCvtExtHos, isSmartRxAccessible };
+  const primary = rowPrimaryAction(cardTab, row, onRowAction, actionCtx);
   const v = cardVariant(width, height, row);
 
   const genderAge = v.showGenderAge && row.genderAge ? `(${shortGenderAge(row.genderAge)})` : "";
   // The salutation lives in its own backend column, so the short form is the
   // first token of the full name, never a guess at what is a title.
   const displayName = v.useShortName ? row.firstName || row.name : row.name;
-  const billing = <BillingTag status={row.billStatus} />;
+  const billing = showBilling ? <BillingTag status={row.billStatus} /> : null;
 
   /* On a chip there is one line to share between the time and the name, and
      the name is the thing being looked up. The meridiem goes first: its
@@ -234,7 +237,7 @@ export default function AppointmentEventCard({
               tabId={cardTab}
               row={row}
               onRowAction={onRowAction}
-              extraOptions={v.showCta ? [] : [primaryKebabOption(cardTab)].filter(Boolean)}
+              extraOptions={v.showCta ? [] : [primaryKebabOption(cardTab, actionCtx)].filter(Boolean)}
             />
           )}
         </div>

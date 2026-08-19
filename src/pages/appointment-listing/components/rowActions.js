@@ -7,6 +7,7 @@ import { useOpdBilling } from "../../opdBilling/useOpdBilling";
 import { env } from "../../../EnvironmentConfig";
 import { getDecodedToken } from "../../../utils/localStorage";
 import { GB_HEALTH_CHECKUP_REPORT, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../../../utils/constants";
+import { useListingAccess } from "../data/useListingAccess";
 
 // The house kebab: straight/bold settings/3-dots-more, rotated to vertical.
 export const KebabIcon = ({ size = 16 }) => (
@@ -23,10 +24,19 @@ export const KebabIcon = ({ size = 16 }) => (
 // Per-tab primary CTA for a row, shared by the table's Action column and the
 // calendar event card/popover: Queue gets the TypeRx split button, Finished
 // prints, Draft resumes, Pending digitises. Cancelled has no CTA at all.
-export function rowPrimaryAction(tabId, row, onRowAction) {
+export function rowPrimaryAction(tabId, row, onRowAction, ctx = {}) {
   const act = (action) => () => onRowAction?.(action, row);
   switch (tabId) {
     case TAB_IDS.QUEUE:
+      /* Mission / CVT external hospital: PrimaryActionButton only keeps
+         SmartRx (no TypeRx / VoiceRx / SnapRx / TabRx split). If SmartRx is
+         off, the legacy fallback is a plain Consult. */
+      if (ctx.isCvtExtHos) {
+        if (ctx.isSmartRxAccessible) {
+          return { label: "SmartRx", variant: "outline", theme: "primary", onClick: act("smart-sync") };
+        }
+        return { label: "Consult", variant: "outline", theme: "primary", onClick: act("type-rx") };
+      }
       return {
         label: "TypeRx",
         variant: "outline",
@@ -56,9 +66,13 @@ export function rowPrimaryAction(tabId, row, onRowAction) {
  * small to carry a button fold their CTA in here, so the action is never lost
  * just because the card shrank.
  */
-export function primaryKebabOption(tabId) {
+export function primaryKebabOption(tabId, ctx = {}) {
   switch (tabId) {
     case TAB_IDS.QUEUE:
+      if (ctx.isCvtExtHos) {
+        if (ctx.isSmartRxAccessible) return { value: "smart-sync", label: "SmartRx", icon: "document-text" };
+        return { value: "type-rx", label: "Consult", icon: "document-text" };
+      }
       return { value: "type-rx", label: "TypeRx", icon: "document-text" };
     case TAB_IDS.FINISHED:
       return { value: "print-rx", label: "Print Rx", icon: "printer" };
@@ -84,6 +98,7 @@ function kebabTab(tabId) {
  * checkup gates. Join stays on the video marker, not in this menu.
  */
 export function kebabOptions(tabId, row, ctx = {}) {
+  if (ctx.isCvtExtHos) return [];
   const tab = kebabTab(tabId);
   const rec = row?.raw || row || {};
   const isDraft = tab === TAB_IDS.DRAFT;
@@ -166,12 +181,14 @@ export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = EMPTY_EXT
   const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
   const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_NEW_IPD_HOS_BUSINESS_ID);
   const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
+  const { isCvtExtHos } = useListingAccess();
   const profile = useSelector((state) => state.doctors?.profile);
   const isZydus = getDecodedToken()?.result?.hospital_business_id == env.zydus_business_id;
   const options = React.useMemo(
     () => [
       ...extraOptions,
       ...kebabOptions(tabId, row, {
+        isCvtExtHos,
         isOpdBillingAccessable,
         isZydus,
         canAdmitToIpd:
@@ -185,6 +202,7 @@ export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = EMPTY_EXT
       extraOptions,
       tabId,
       row,
+      isCvtExtHos,
       isOpdBillingAccessable,
       isZydus,
       isNewIPDAccessableFromGB,
@@ -206,6 +224,7 @@ export function RowKebabMenu({ tabId, row, onRowAction, extraOptions = EMPTY_EXT
       })
     );
   };
+  if (options.length === 0) return null;
   return (
     <div ref={wrapRef} onClickCapture={alignMenu} style={{ display: "inline-flex" }}>
       {renderKebabDropdown(row, onRowAction, options)}

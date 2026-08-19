@@ -4,6 +4,7 @@ import { Button, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 
 import { StatusTag } from "./BillingTag";
 import { statusMeta, videoTint } from "../data/appointmentStates";
+import { useListingAccess } from "../data/useListingAccess";
 import styles from "./TeleconsultPopover.module.css";
 
 /**
@@ -27,6 +28,7 @@ export default function TeleconsultPopover({ row, tabId, onRowAction }) {
   const anchorRef = useRef(null);
   const openTimer = useRef(null);
   const closeTimer = useRef(null);
+  const { showBilling } = useListingAccess();
 
   const clearTimers = () => {
     clearTimeout(openTimer.current);
@@ -167,7 +169,7 @@ export default function TeleconsultPopover({ row, tabId, onRowAction }) {
 
               <div className={styles.tags}>
                 {status && <StatusTag tone={status.badge}>{status.label}</StatusTag>}
-                {row.billStatus && (
+                {showBilling && row.billStatus && (
                   <StatusTag tone={row.billStatus === "Unbilled" ? "unbilled" : "billed"}>
                     {row.billStatus}
                   </StatusTag>
