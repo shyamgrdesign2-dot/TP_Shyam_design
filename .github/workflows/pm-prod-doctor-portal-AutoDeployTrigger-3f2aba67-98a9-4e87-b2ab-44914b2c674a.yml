@@ -487,4 +487,13 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v$VERSION" -m "$RELEASE"
-          git push origin "v$VERSION"
+          # --no-verify skips .husky/pre-push, which runs `npm run lint:errors` — a full
+          # ESLint pass over all 1,171 files in src. That hook exists to stop a developer
+          # pushing broken code from their machine; running it here lints code that has
+          # already been built and deployed, three steps after the Container App was
+          # updated. It cost 79s of a 316s deploy (run 32285837494), making it the single
+          # largest step once the build cache is warm.
+          #
+          # It also contradicts the build step, which sets DISABLE_ESLINT_PLUGIN=true on
+          # purpose so the compile does not wait on linting.
+          git push --no-verify origin "v$VERSION"
