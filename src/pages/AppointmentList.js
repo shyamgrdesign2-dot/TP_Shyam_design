@@ -118,14 +118,14 @@ function AppointmentList() {
     locationPath === "/mission-analytics" ||
     (analyticsOnlyHome && (locationPath === "/" || locationPath === ""));
 
-  // The Tesseract appointment listing replaces the legacy Appointment screen
-  // for the standard desktop doctor flow. Receptionist, Zydus (its tabs are
-  // bespoke), mobile dashboard, and analytics-only homes keep the legacy one.
+  // The Tesseract appointment listing is the standard desktop doctor flow for
+  // all account types including Zydus. Zydus-specific tabs (Encounter,
+  // Appointment) are rendered inside AppointmentListingPage using the same
+  // GrowthBook + business_id gates that legacy AppointmentData.js used.
   const useNewAppointmentListing =
     !shouldShowMobileDashboard &&
     !analyticsOnlyHome &&
-    !isReceptionist &&
-    !isZydus;
+    !isReceptionist;
   const hideWelcomeForNewAppointmentListing =
     useNewAppointmentListing && (locationPath === "/" || locationPath === "");
 

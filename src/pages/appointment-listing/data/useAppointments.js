@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import ApiAppointments from "../../../api/services/ApiAppointments";
 import { isGrowthBookFeatureOn } from "../../../utils/growthbook";
-import { GB_CVT_EXT_HOS } from "../../../utils/constants";
+import { GB_CVT_EXT_HOS, TAB_ZYDUS_ENCOUNTER, TAB_ZYDUS_APPOINTMENT } from "../../../utils/constants";
+import { zydusConsultAppoint, zydusAppointment } from "../../../redux/appointmentsSlice";
 import { TAB_IDS, TAB_TO_AP_STATUS, ALL_MERGED_TABS } from "./appointmentsConfig";
 
 const DATE_FORMAT = "YYYY-MM-DD";
@@ -141,7 +143,42 @@ export async function fetchQueueRows({ dateRange, query, visitTypeCsv } = {}) {
  * string for exactly that reason); debouncing of fast-changing inputs
  * (search typing) is the caller's job.
  */
-export default function useAppointments({ tabId, dateRange, query, visitTypeCsv, fetchAllPages = false, includeDraft = true }) {
+// Map a Zydus ICT record (from appointmentsData in redux) to the standard row shape.
+function mapZydusRecord(rec, tabId, index) {
+  const timeText = rec.apTime || "";
+  const timeMoment = moment(String(timeText).trim(), ["h:mm A", "hh:mm A", "HH:mm"], true);
+  const dateMoment = moment(String(rec.apDate || "").trim(), ["Do MMM YYYY", "DD MMM YYYY", "YYYY-MM-DD"], true);
+  return {
+    id: String(rec.key || rec.encounterId || rec.appointmentId || `${rec.pm_contact_no ?? "row"}-${index}`),
+    raw: rec,
+    status: tabId,
+    name: rec.pm_fullname || rec.patientName || "--",
+    firstName: String(rec.pm_fullname || rec.patientName || "").trim().split(/\s+/)[0] || "",
+    genderAge: genderAge(rec),
+    contact: rec.pm_contact_no || "--",
+    mrn: rec.mrno || "",
+    visitType: rec.toct_type || rec.consultationType || "--",
+    specialty: "",
+    billStatus: "",
+    remark: "",
+    slotTime: String(timeText).trim().replace(/\s*([ap])\.?\s*m\.?$/i, (_, p) => ` ${p.toUpperCase()}M`),
+    slotDate: rec.apDate || "",
+    slotHour: timeMoment.isValid() ? timeMoment.hour() : null,
+    slotMinute: timeMoment.isValid() ? timeMoment.minute() : 0,
+    dateISO: dateMoment.isValid() ? dateMoment.format("YYYY-MM-DD") : null,
+    symptomsGathered: !!rec.symptomsGathered,
+    consultType: 0,
+    hasVideo: false,
+  };
+}
+
+export default function useAppointments({ tabId, dateRange, query, visitTypeCsv, fetchAllPages = false, includeDraft = true, zydusSiteId, zydusEmpNo }) {
+  const dispatch = useDispatch();
+  // Zydus encounter/appointment data lives in the redux store (populated by
+  // zydusConsultAppoint / zydusAppointment thunks, same as legacy AppointmentData.js).
+  const { appointmentsData: zydusReduxRows, zydusEncounterCount, zydusAappointmentCount } = useSelector(
+    (state) => state.records
+  );
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -223,6 +260,62 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
     setHasMore(false);
     setError(null);
     try {
+      // Zydus tabs fetch from the ICT system via the same redux thunks the
+      // legacy AppointmentData.js uses. No standard TP getAllAppointment call.
+      if (tabId === TAB_IDS.ZYDUS_ENCOUNTER || tabId === TAB_IDS.ZYDUS_APPOINTMENT) {
+        if (!zydusSiteId || !zydusEmpNo) {
+          setRows([]);
+          setLoading(false);
+          return;
+        }
+        const dateStr = startDate; // YYYY-MM-DD from memo below
+        const apStatue = tabId === TAB_IDS.ZYDUS_ENCOUNTER ? TAB_ZYDUS_ENCOUNTER : TAB_ZYDUS_APPOINTMENT;
+        const action = await dispatch(
+          zydusConsultAppoint({
+            siteId: zydusSiteId,
+            empNo: String(zydusEmpNo),
+            date: dateStr,
+            apStatue,
+            page: 0,
+            filterVisitType: visitTypeCsv || "",
+          })
+        );
+        if (seq !== requestSeq.current) return;
+        if (action.meta.requestStatus === "fulfilled") {
+          // appointmentsData in redux is overwritten by the thunk fulfilled case;
+          // map whatever came back directly from the payload (already transformed).
+          const payload = action.payload || [];
+          const mapped = payload
+            .filter((rec) => {
+              if (tabId === TAB_IDS.ZYDUS_APPOINTMENT) {
+                return !(rec.appointmentStatus || "").toLowerCase().includes("cancel");
+              }
+              return true;
+            })
+            .filter((rec) => {
+              if (!query) return true;
+              const q = query.toLowerCase();
+              return (
+                String(rec.pm_fullname || "").toLowerCase().includes(q) ||
+                String(rec.mrno || "").toLowerCase().includes(q) ||
+                String(rec.pm_contact_no || "").toLowerCase().includes(q)
+              );
+            })
+            .map((rec, i) => mapZydusRecord(rec, tabId, i));
+          setRows(mapped);
+          setCounts((prev) => ({
+            ...prev,
+            [TAB_IDS.ZYDUS_ENCOUNTER]: tabId === TAB_IDS.ZYDUS_ENCOUNTER ? mapped.length : (prev[TAB_IDS.ZYDUS_ENCOUNTER] ?? 0),
+            [TAB_IDS.ZYDUS_APPOINTMENT]: tabId === TAB_IDS.ZYDUS_APPOINTMENT ? mapped.length : (prev[TAB_IDS.ZYDUS_APPOINTMENT] ?? 0),
+          }));
+        } else {
+          setRows([]);
+        }
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+
       if (tabId === TAB_IDS.ALL) {
         const first = await Promise.all(
           mergedTabs.map((statusTab) => fetchAppointmentPage(listPayload(statusTab), 0))
@@ -304,7 +397,7 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
       setError(e);
       setLoading(false);
     }
-  }, [tabId, listPayload, fetchAllPages, fillRemaining, applyCounts, mergedTabs, includeDraft]);
+  }, [tabId, listPayload, fetchAllPages, fillRemaining, applyCounts, mergedTabs, includeDraft, zydusSiteId, zydusEmpNo, startDate, visitTypeCsv, query, dispatch]);
 
   const loadMore = useCallback(async () => {
     if (fetchAllPages || !hasMore || loading || loadingMoreLock.current) return;
@@ -368,8 +461,17 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
     return () => { alive = false; };
   }, []);
 
-  const countByTab =
-    tabId === TAB_IDS.ALL ? { ...counts, [TAB_IDS.ALL]: rows.length } : counts;
+  // Keep Zydus tab counts synced with redux store values the thunks update.
+  // The store is the source of truth; local counts are merged on top.
+  const countByTab = useMemo(() => {
+    const base = tabId === TAB_IDS.ALL ? { ...counts, [TAB_IDS.ALL]: rows.length } : counts;
+    return {
+      ...base,
+      [TAB_IDS.ZYDUS_ENCOUNTER]: counts[TAB_IDS.ZYDUS_ENCOUNTER] ?? zydusEncounterCount ?? 0,
+      [TAB_IDS.ZYDUS_APPOINTMENT]: counts[TAB_IDS.ZYDUS_APPOINTMENT] ?? zydusAappointmentCount ?? 0,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counts, rows.length, tabId, zydusEncounterCount, zydusAappointmentCount]);
 
   return { rows, counts: countByTab, loading, loadingMore, hasMore, error, refetch: fetchRows, loadMore };
 }

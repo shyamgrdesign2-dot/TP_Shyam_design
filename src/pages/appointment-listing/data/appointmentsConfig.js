@@ -10,6 +10,9 @@ export const TAB_IDS = {
   CANCELLED: "cancelled",
   DRAFT: "draft",
   PENDING: "pending-digitisation",
+  // Zydus-specific tabs (fetched from the Zydus ICT system, not TP backend)
+  ZYDUS_ENCOUNTER: "zydus-encounter",
+  ZYDUS_APPOINTMENT: "zydus-appointment",
 };
 
 export const TAB_TO_AP_STATUS = {
@@ -32,6 +35,9 @@ const TAB_META = {
   [TAB_IDS.CANCELLED]: { id: TAB_IDS.CANCELLED, label: "Cancelled", icon: "clipboard-close" },
   [TAB_IDS.DRAFT]: { id: TAB_IDS.DRAFT, label: "Draft", icon: "edit-2", iconFamily: "content-edit" },
   [TAB_IDS.PENDING]: { id: TAB_IDS.PENDING, label: "Pending Digitisation", icon: "ai-document", iconFamily: "ai" },
+  // Zydus tabs come from the ICT system (not the TP backend)
+  [TAB_IDS.ZYDUS_ENCOUNTER]: { id: TAB_IDS.ZYDUS_ENCOUNTER, label: "Encounter", icon: "timer", iconFamily: "time" },
+  [TAB_IDS.ZYDUS_APPOINTMENT]: { id: TAB_IDS.ZYDUS_APPOINTMENT, label: "Appointment", icon: "calendar", iconFamily: "time" },
 };
 
 // Table keeps its exact status buckets; the calendar leads with "All" (the
@@ -61,7 +67,20 @@ export const SLOT_FILTER_GROUP = {
 // Empty states: short scannable heading + explanatory subtext, with the
 // shared empty-docs illustration. Only the Queue tab carries a CTA
 // (Add Appointment); the others are informational.
+// Tabs shown for Zydus accounts (replaces standard LIST_TABS)
+export const ZYDUS_LIST_TABS = [TAB_IDS.ZYDUS_ENCOUNTER, TAB_IDS.ZYDUS_APPOINTMENT, TAB_IDS.QUEUE, TAB_IDS.FINISHED, TAB_IDS.CANCELLED].map(
+  (id) => TAB_META[id]
+);
+
 export const EMPTY_STATE_BY_TAB = {
+  [TAB_IDS.ZYDUS_ENCOUNTER]: {
+    title: "No encounters today",
+    description: "Encounters fetched from the Zydus system will appear here.",
+  },
+  [TAB_IDS.ZYDUS_APPOINTMENT]: {
+    title: "No appointments today",
+    description: "Appointments fetched from the Zydus system will appear here.",
+  },
   [TAB_IDS.QUEUE]: {
     title: "No patients in queue",
     description: "Book an appointment to start seeing patients here.",

@@ -103,6 +103,11 @@ export function rowPrimaryAction(tabId, row, onRowAction, ctx = {}) {
       return { label: "Resume", variant: "outline", theme: "primary", onClick: act("resume-rx") };
     case TAB_IDS.PENDING:
       return { label: "Digitise Rx", variant: "outline", theme: "primary", onClick: act("digitise-rx") };
+    // Zydus Encounter and Appointment rows both open the prescription pad
+    // (same "Consult" CTA as legacy AppointmentData.js WalkInConsultationZydus path)
+    case TAB_IDS.ZYDUS_ENCOUNTER:
+    case TAB_IDS.ZYDUS_APPOINTMENT:
+      return { label: "Consult", variant: "outline", theme: "primary", onClick: act("type-rx") };
     default:
       return null;
   }
@@ -144,6 +149,8 @@ function kebabTab(tabId) {
  */
 export function kebabOptions(tabId, row, ctx = {}) {
   if (ctx.isCvtExtHos) return [];
+  // Zydus Encounter / Appointment rows have no kebab — consult is the only action
+  if (tabId === TAB_IDS.ZYDUS_ENCOUNTER || tabId === TAB_IDS.ZYDUS_APPOINTMENT) return [];
   const tab = kebabTab(tabId);
   const rec = row?.raw || row || {};
   const isDraft = tab === TAB_IDS.DRAFT;

@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { isMobile, isTablet } from "react-device-detect";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useIsDentalEnabled } from "../../../hooks/useIsDentalEnabled";
-import { isVoiceRxFree, isZydus, shouldMonetizationDisabled } from "../../../utils/utils";
+import { isVoiceRxFree, shouldMonetizationDisabled } from "../../../utils/utils";
 import {
   GB_CVT_EXT_HOS,
   GB_ISCRIBE,
@@ -11,9 +11,12 @@ import {
   GB_SNAP_RX,
   GB_TAB_RX,
   GB_VOICE_RX_FREE,
+  GB_ZYDUS_USER,
   PAID,
   S_VOICE_RX,
 } from "../../../utils/constants";
+import { getDecodedToken } from "../../../utils/localStorage";
+import { env } from "../../../EnvironmentConfig";
 
 /**
  * iPad desktop mode reports as Macintosh UA — detect via touch points, not
@@ -48,6 +51,7 @@ function rxDeviceCaps() {
  */
 export function useListingAccess() {
   const isCvtExtHos = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const isZydusUserFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const showDraft = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX) && !isCvtExtHos;
   const isSmartRxAccessible = useFeatureIsOn(GB_ISCRIBE);
   const isSnapRxAccessible = useFeatureIsOn(GB_SNAP_RX);
@@ -58,7 +62,11 @@ export function useListingAccess() {
   const isVoiceRxPaid =
     planDetails?.service_mappings?.find((e) => e.service_name === S_VOICE_RX)?.plan_tier === PAID;
   const isDentalEnabled = useIsDentalEnabled();
-  const isZydusAccount = isZydus();
+
+  // Zydus: business_id check + GrowthBook flag, matching AppointmentData.js
+  const tokenData = getDecodedToken()?.result;
+  const isZydusAccount =
+    tokenData?.hospital_business_id == env.zydus_business_id && isZydusUserFromGB;
   const { isDesktopRx, isTouchRx } = rxDeviceCaps();
 
   return useMemo(
@@ -73,9 +81,10 @@ export function useListingAccess() {
       isDentalEnabled,
       isZydusAccount,
       showDraft,
-      showKebab: !isCvtExtHos,
-      showBilling: !isCvtExtHos,
-      showBookActions: !isCvtExtHos,
+      // Zydus has its own consult routing — no kebab, no booking, no billing badge
+      showKebab: !isCvtExtHos && !isZydusAccount,
+      showBilling: !isCvtExtHos && !isZydusAccount,
+      showBookActions: !isCvtExtHos && !isZydusAccount,
     }),
     [
       isCvtExtHos,

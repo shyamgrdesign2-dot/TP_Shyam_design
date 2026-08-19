@@ -26,6 +26,7 @@ import "@dhspl-tatvacare/tesseract-ui/styles.css";
 
 import {
   LIST_TABS,
+  ZYDUS_LIST_TABS,
   CALENDAR_TABS,
   SLOT_FILTER_GROUP,
   TAB_IDS,
@@ -67,7 +68,10 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   CLINIC_TARGET_STATUS,
   PATIENT_DETAILS_SIDEBAR_KEYS,
+  TAB_ZYDUS_ENCOUNTER,
+  TAB_ZYDUS_APPOINTMENT,
 } from "../../utils/constants";
+import { zydusConsultAppoint } from "../../redux/appointmentsSlice";
 import styles from "./AppointmentListingPage.module.css";
 
 /* All glyphs come from the Tesseract icon CDN via TPLibraryIcon (house
@@ -204,21 +208,31 @@ export default function AppointmentListingPage() {
     (state) => state.teleconsultNotification || {}
   );
   const uploadDocCategories = useSelector((state) => state.uploadDoc?.uploadDocCategories) || [];
-  const { showDraft, showBookActions } = useListingAccess();
+  const { showDraft, showBookActions, isZydusAccount } = useListingAccess();
+  // siteId / empNo are set by SidebarDoctor after the Zydus ICT login handshake;
+  // they live in the doctors redux slice, same as legacy AppointmentData.js reads them.
+  const { siteId: zydusSiteId, empNo: zydusEmpNo } = useSelector((state) => state.doctors);
+
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
   const [view, setView] = useState(() => readPreference("view", "list"));
-  const [activeTab, setActiveTab] = useState(() =>
-    readPreference("view", "list") === "calendar" ? TAB_IDS.ALL : TAB_IDS.QUEUE
-  );
+  const [activeTab, setActiveTab] = useState(() => {
+    // Zydus defaults to Encounter tab on first load; non-Zydus defaults to Queue.
+    if (readPreference("view", "list") === "calendar") return TAB_IDS.ALL;
+    return isZydusAccount ? TAB_IDS.ZYDUS_ENCOUNTER : TAB_IDS.QUEUE;
+  });
 
   // Table keeps its status buckets; the calendar leads with the "All" view
   // (complete schedule). Switching view retargets the tab so the mode always
   // opens on its natural default.
-  const visibleTabs = (view === "calendar" ? CALENDAR_TABS : LIST_TABS).filter(
+  // Zydus replaces the standard tab list with Encounter + Appointment + the
+  // standard TP buckets; calendar is disabled for Zydus (ICT data has no
+  // slot-based grid concept).
+  const baseTabs = isZydusAccount ? ZYDUS_LIST_TABS : LIST_TABS;
+  const visibleTabs = (view === "calendar" && !isZydusAccount ? CALENDAR_TABS : baseTabs).filter(
     (t) => t.id !== TAB_IDS.DRAFT || showDraft
   );
-  const isCalendar = view === "calendar";
+  const isCalendar = view === "calendar" && !isZydusAccount;
   /* One deliberate exception to "the view is the view": Pending Digitisation
      is an all-time worklist, not a schedule, so it has nothing to draw on a
      grid anchored to one day. Selecting it renders the table without moving
@@ -379,6 +393,8 @@ export default function AppointmentListingPage() {
        uses the same 25-row infinite scroll as the legacy screen. */
     fetchAllPages: renderCalendar,
     includeDraft: showDraft,
+    zydusSiteId,
+    zydusEmpNo,
   });
 
   useEffect(() => {
@@ -441,11 +457,48 @@ export default function AppointmentListingPage() {
       if (!rec) return;
       const videoConsultData = videoConsultDataFor(rec);
       switch (action) {
-        case "type-rx":
+        case "type-rx": {
           window.Moengage?.track_event("patient_search_consult", {
             doctor_id: profile?.doctor_unique_id,
             patient_id: rec?.patient_unique_id,
           });
+          // Zydus Encounter rows carry ICT-specific fields (encounterId, mrno,
+          // departmentId, visitId). The legacy screen fetches a fresh encounter
+          // list here to get the enriched data; we do the same for Encounter rows.
+          if (isZydusAccount && activeTab === TAB_IDS.ZYDUS_ENCOUNTER && zydusSiteId && zydusEmpNo) {
+            const dateStr = queryRange?.start
+              ? moment(queryRange.start).format("YYYY-MM-DD")
+              : moment().format("YYYY-MM-DD");
+            const action = await dispatch(
+              zydusConsultAppoint({
+                siteId: zydusSiteId,
+                empNo: String(zydusEmpNo),
+                date: dateStr,
+                apStatue: TAB_ZYDUS_ENCOUNTER,
+                page: 0,
+              })
+            );
+            if (action.meta.requestStatus === "fulfilled") {
+              const enriched = (action.payload || []).find(
+                (e) => e.encounterId == rec.encounterId || e.encounterId == rec.pam_ref_id
+              );
+              if (enriched) {
+                navigate("/prescription", {
+                  state: {
+                    patient_data: {
+                      ...rec,
+                      mrno: enriched.mrno,
+                      departmentId: enriched.departmentId,
+                      visitId: enriched.visitId,
+                      encounterId: enriched.encounterId,
+                    },
+                  },
+                });
+                break;
+              }
+            }
+            // Fall through to plain navigate if enrichment fails
+          }
           navigate(isDentalEnabled ? DENTAL_RX_PAD_ROUTE : "/prescription", {
             state: { patient_data: rec, videoConsultData },
           });
@@ -453,6 +506,7 @@ export default function AppointmentListingPage() {
             clinicTargetStatus(rec.pam_id, { targetStatus: CLINIC_TARGET_STATUS.SERVING });
           }
           break;
+        }
         /* Join a video consult straight from the schedule, on the same path
            the waiting banner uses: check the room is live, take the token,
            then hand off to the prescription screen to auto-join. */
@@ -709,9 +763,10 @@ export default function AppointmentListingPage() {
           title="Your Appointments"
           actions={
             <>
+              {/* Zydus accounts have no calendar view (ICT data has no slot grid). */}
               {/* List vs calendar is a page-level mode, so it sits with the
                   banner CTAs rather than down in the table toolbar. */}
-              <SegmentedControl
+              {!isZydusAccount && <SegmentedControl
                 className={styles.viewSeg}
                 size="md"
                 variant="block"
@@ -734,7 +789,7 @@ export default function AppointmentListingPage() {
                 ]}
                 value={view}
                 onValueChange={changeView}
-              />
+              />}
               {showBookActions && (
                 <>
                   <Button
