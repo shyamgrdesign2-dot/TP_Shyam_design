@@ -12,6 +12,7 @@ import { ASSETS } from "../../../assets";
 import { TAB_IDS, EMPTY_STATE_BY_TAB } from "../data/appointmentsConfig";
 import { useListingAccess } from "../data/useListingAccess";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
+import QueueRxSplitButton from "./QueueRxSplitButton";
 import emptyDocsIllustration from "../assets/empty-docs.svg";
 import BillingTag from "./BillingTag";
 import TeleconsultPopover from "./TeleconsultPopover";
@@ -34,8 +35,8 @@ export default function AppointmentListView({
 }) {
   const emptyMeta = EMPTY_STATE_BY_TAB[tabId] || EMPTY_STATE_BY_TAB[TAB_IDS.QUEUE];
   const wrapRef = useRef(null);
-  const { isCvtExtHos, isSmartRxAccessible, showBilling, showBookActions } = useListingAccess();
-  const actionCtx = { isCvtExtHos, isSmartRxAccessible };
+  const access = useListingAccess();
+  const { showBilling, showBookActions } = access;
 
   // The new table scrolls inside the DS scroller, not the page (unlike
   // legacy AppointmentData). Watch that scroller: near the bottom, or when
@@ -159,9 +160,9 @@ export default function AppointmentListView({
       {
         /* Hug the CTA + kebab. `width: "1%"` is the table-layout trick that
            stops a 100%-wide table from pouring leftover viewport into this
-           sticky cell (which read as empty space left of TypeRx). minWidth
+           sticky cell (which read as empty space left of Consult). minWidth
            floors a kebab-only row (Cancelled); maxWidth caps the longest
-           label (Digitise Rx / TypeRx split). Shared by every list tab. */
+           label (Digitise Rx / Consult split). Shared by every list tab. */
         id: "actions",
         header: "Action",
         sticky: "right",
@@ -174,13 +175,17 @@ export default function AppointmentListView({
         cellClassName: styles.actionCol,
         cell: (row) => (
           <div className={styles.actionCell}>
-            <TableActions align="right" primary={rowPrimaryAction(tabId, row, onRowAction, actionCtx)} actions={[]} />
+            {tabId === TAB_IDS.QUEUE ? (
+              <QueueRxSplitButton row={row} onRowAction={onRowAction} />
+            ) : (
+              <TableActions align="right" primary={rowPrimaryAction(tabId, row, onRowAction, access)} actions={[]} />
+            )}
             <RowKebabMenu tabId={tabId} row={row} onRowAction={onRowAction} />
           </div>
         ),
       },
     ],
-    [tabId, onRowAction, onPatientClick, actionCtx, showBilling]
+    [tabId, onRowAction, onPatientClick, access, showBilling]
   );
 
   return (

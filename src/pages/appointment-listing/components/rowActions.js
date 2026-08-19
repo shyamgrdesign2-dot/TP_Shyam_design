@@ -21,35 +21,82 @@ export const KebabIcon = ({ size = 16 }) => (
   />
 );
 
+const RX = {
+  smart: { id: "smart-rx", action: "smart-sync", label: "SmartRx" },
+  tab: { id: "tab-rx", action: "tab-rx", label: "TabRx" },
+  voice: { id: "voice-rx", action: "voice-rx", label: "Voice Rx" },
+  snap: { id: "snap-rx", action: "snap-rx", label: "SnapRx" },
+  consult: { id: "consult", action: "type-rx", label: "Consult" },
+};
+
+/**
+ * Same option lists as PrimaryActionButton (labels + gates + order), with
+ * listing styles applied by the Tesseract split Button:
+ *
+ *   CVT:    SmartRx only (desktop); otherwise a plain Consult
+ *   Dental / Zydus / default Queue: Consult is the button (replacing TypeRx).
+ *           SmartRx, TabRx, VoiceRx, SnapRx go in the chevron, gated the
+ *           same way as PrimaryActionButton. Consult is never in the menu.
+ */
+export function queueRxChoices(ctx = {}) {
+  if (ctx.isCvtExtHos) {
+    if (ctx.canShowSmartRx) return { primary: RX.smart, rest: [] };
+    return { primary: RX.consult, rest: [] };
+  }
+
+  if (ctx.isDentalEnabled) {
+    const dropdown = [];
+    if (ctx.canShowSmartRx) dropdown.push(RX.smart);
+    if (ctx.isVoiceRxAccessible) dropdown.push(RX.voice);
+    if (ctx.isSnapRxAccessible) dropdown.push(RX.snap);
+    if (ctx.isTabRxVisible) dropdown.push(RX.tab);
+    return { primary: RX.consult, rest: dropdown };
+  }
+
+  if (ctx.isZydusAccount) {
+    const dropdown = [];
+    if (ctx.canShowSmartRx) dropdown.push(RX.smart);
+    if (ctx.isTabRxVisible) dropdown.push(RX.tab);
+    if (ctx.isVoiceRxAccessible) dropdown.push(RX.voice);
+    if (ctx.isSnapRxAccessible) dropdown.push(RX.snap);
+    return { primary: RX.consult, rest: dropdown };
+  }
+
+  /* Listing Queue always faces Consult (the legacy TypeRx slot). Other Rx
+     modes belong in the chevron, gated the same way as PrimaryActionButton.
+     Paid VoiceRx would have outranked Consult on the Welcome button; with
+     Consult pinned it still appears in this menu when accessible. */
+  const dropdown = [];
+  if (ctx.canShowSmartRx) dropdown.push(RX.smart);
+  if (ctx.isTabRxVisible) dropdown.push(RX.tab);
+  if (ctx.isVoiceRxAccessible) dropdown.push(RX.voice);
+  if (ctx.isSnapRxAccessible) dropdown.push(RX.snap);
+  return { primary: RX.consult, rest: dropdown };
+}
+
+function asTablePrimary(choice, act) {
+  if (!choice?.primary) return null;
+  const { primary, rest } = choice;
+  const menu = rest
+    .filter((o) => o.action !== primary.action && o.label !== "TypeRx")
+    .map((o) => ({ id: o.id, label: o.label, onClick: act(o.action) }));
+  return {
+    label: primary.label === "TypeRx" ? "Consult" : primary.label,
+    variant: "outline",
+    theme: "primary",
+    onClick: act(primary.action),
+    ...(menu.length ? { menu } : {}),
+  };
+}
+
 // Per-tab primary CTA for a row, shared by the table's Action column and the
-// calendar event card/popover: Queue gets the TypeRx split button, Finished
+// calendar event card/popover: Queue gets the Consult split button, Finished
 // prints, Draft resumes, Pending digitises. Cancelled has no CTA at all.
 export function rowPrimaryAction(tabId, row, onRowAction, ctx = {}) {
   const act = (action) => () => onRowAction?.(action, row);
   switch (tabId) {
     case TAB_IDS.QUEUE:
-      /* Mission / CVT external hospital: PrimaryActionButton only keeps
-         SmartRx (no TypeRx / VoiceRx / SnapRx / TabRx split). If SmartRx is
-         off, the legacy fallback is a plain Consult. */
-      if (ctx.isCvtExtHos) {
-        if (ctx.isSmartRxAccessible) {
-          return { label: "SmartRx", variant: "outline", theme: "primary", onClick: act("smart-sync") };
-        }
-        return { label: "Consult", variant: "outline", theme: "primary", onClick: act("type-rx") };
-      }
-      return {
-        label: "TypeRx",
-        variant: "outline",
-        theme: "primary",
-        onClick: act("type-rx"),
-        menu: [
-          { id: "type-rx", label: "TypeRx", onClick: act("type-rx") },
-          { id: "voice-rx", label: "VoiceRx", onClick: act("voice-rx") },
-          { id: "snap-rx", label: "SnapRx", onClick: act("snap-rx") },
-          { id: "smart-sync", label: "SmartSync", onClick: act("smart-sync") },
-          { id: "tab-rx", label: "TabRx", onClick: act("tab-rx") },
-        ],
-      };
+      return asTablePrimary(queueRxChoices(ctx), act);
     case TAB_IDS.FINISHED:
       return { label: "Print Rx", variant: "outline", theme: "primary", icon: "printer", onClick: act("print-rx") };
     case TAB_IDS.DRAFT:
@@ -68,12 +115,10 @@ export function rowPrimaryAction(tabId, row, onRowAction, ctx = {}) {
  */
 export function primaryKebabOption(tabId, ctx = {}) {
   switch (tabId) {
-    case TAB_IDS.QUEUE:
-      if (ctx.isCvtExtHos) {
-        if (ctx.isSmartRxAccessible) return { value: "smart-sync", label: "SmartRx", icon: "document-text" };
-        return { value: "type-rx", label: "Consult", icon: "document-text" };
-      }
-      return { value: "type-rx", label: "TypeRx", icon: "document-text" };
+    case TAB_IDS.QUEUE: {
+      const { primary } = queueRxChoices(ctx);
+      return primary ? { value: primary.action, label: primary.label, icon: "document-text" } : null;
+    }
     case TAB_IDS.FINISHED:
       return { value: "print-rx", label: "Print Rx", icon: "printer" };
     case TAB_IDS.DRAFT:

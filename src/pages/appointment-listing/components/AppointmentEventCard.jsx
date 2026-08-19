@@ -4,8 +4,10 @@ import { TableActions, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 import { ASSETS } from "../../../assets";
 import { statusMeta, shortGenderAge, videoTint } from "../data/appointmentStates";
 import { rowPrimaryAction, primaryKebabOption, RowKebabMenu } from "./rowActions";
+import QueueRxSplitButton from "./QueueRxSplitButton";
 import BillingTag from "./BillingTag";
 import { useListingAccess } from "../data/useListingAccess";
+import { TAB_IDS } from "../data/appointmentsConfig";
 import styles from "./AppointmentEventCard.module.css";
 
 /* Chrome that competes with the patient name for the first line, measured at
@@ -104,12 +106,12 @@ export default function AppointmentEventCard({
   ...handlers
 }) {
   // In the merged "All" view each card acts on its own status
-  // (queue → TypeRx, finished → Print, and so on).
+  // (queue → Consult, finished → Print, and so on).
   const cardTab = row.status || tabId;
   const status = statusMeta(cardTab);
-  const { isCvtExtHos, isSmartRxAccessible, showBilling } = useListingAccess();
-  const actionCtx = { isCvtExtHos, isSmartRxAccessible };
-  const primary = rowPrimaryAction(cardTab, row, onRowAction, actionCtx);
+  const access = useListingAccess();
+  const { showBilling } = access;
+  const primary = rowPrimaryAction(cardTab, row, onRowAction, access);
   const v = cardVariant(width, height, row);
 
   const genderAge = v.showGenderAge && row.genderAge ? `(${shortGenderAge(row.genderAge)})` : "";
@@ -231,13 +233,19 @@ export default function AppointmentEventCard({
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          {v.showCta && primary && <TableActions align="right" primary={primary} actions={[]} />}
+          {v.showCta && primary && (
+            cardTab === TAB_IDS.QUEUE ? (
+              <QueueRxSplitButton row={row} onRowAction={onRowAction} />
+            ) : (
+              <TableActions align="right" primary={primary} actions={[]} />
+            )
+          )}
           {v.showKebab && (
             <RowKebabMenu
               tabId={cardTab}
               row={row}
               onRowAction={onRowAction}
-              extraOptions={v.showCta ? [] : [primaryKebabOption(cardTab, actionCtx)].filter(Boolean)}
+              extraOptions={v.showCta ? [] : [primaryKebabOption(cardTab, access)].filter(Boolean)}
             />
           )}
         </div>

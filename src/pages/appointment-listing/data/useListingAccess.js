@@ -1,5 +1,35 @@
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
+import { isMobile, isTablet } from "react-device-detect";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_CVT_EXT_HOS, GB_ISCRIBE, GB_SAVE_AS_DRAFT_RX } from "../../../utils/constants";
+import { useIsDentalEnabled } from "../../../hooks/useIsDentalEnabled";
+import { isVoiceRxFree, isZydus, shouldMonetizationDisabled } from "../../../utils/utils";
+import {
+  GB_CVT_EXT_HOS,
+  GB_ISCRIBE,
+  GB_SAVE_AS_DRAFT_RX,
+  GB_SNAP_RX,
+  GB_TAB_RX,
+  GB_VOICE_RX_FREE,
+  PAID,
+  S_VOICE_RX,
+} from "../../../utils/constants";
+
+/**
+ * iPad desktop mode reports as Macintosh UA — detect via touch points, not
+ * viewport width (same as PrimaryActionButton).
+ */
+function rxDeviceCaps() {
+  const isIPadDesktopMode =
+    typeof navigator !== "undefined" &&
+    /Macintosh/.test(navigator.userAgent) &&
+    navigator.maxTouchPoints > 1;
+  const isTabletDevice = isTablet || isIPadDesktopMode;
+  return {
+    isDesktopRx: !isMobile && !isTabletDevice,
+    isTouchRx: isMobile || isTabletDevice,
+  };
+}
 
 /**
  * Mission Hospital / CVT external-hospital gates, matching AppointmentData.js
@@ -11,18 +41,54 @@ import { GB_CVT_EXT_HOS, GB_ISCRIBE, GB_SAVE_AS_DRAFT_RX } from "../../../utils/
  *   - the Draft tab
  *   - billing chips on the visit-type column
  *   - Add Appointment and Start Walk-In (the Welcome action cluster)
- *   - TypeRx / VoiceRx / SnapRx / TabRx on the queue CTA (SmartRx only)
+ *   - Consult / VoiceRx / SnapRx / TabRx on the queue CTA (SmartRx only)
+ *
+ * Queue CTA flags match PrimaryActionButton: SmartRx > TabRx > VoiceRx >
+ * SnapRx > Consult, with Zydus / dental pinning Consult as the primary.
  */
 export function useListingAccess() {
   const isCvtExtHos = useFeatureIsOn(GB_CVT_EXT_HOS);
   const showDraft = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX) && !isCvtExtHos;
   const isSmartRxAccessible = useFeatureIsOn(GB_ISCRIBE);
-  return {
-    isCvtExtHos,
-    isSmartRxAccessible,
-    showDraft,
-    showKebab: !isCvtExtHos,
-    showBilling: !isCvtExtHos,
-    showBookActions: !isCvtExtHos,
-  };
+  const isSnapRxAccessible = useFeatureIsOn(GB_SNAP_RX);
+  const isTabRxEnabled = useFeatureIsOn(GB_TAB_RX);
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxAccessible = isVoiceRxFree(isVoiceRxFreeFromGB) || !shouldMonetizationDisabled();
+  const { planDetails } = useSelector((state) => state.subscription);
+  const isVoiceRxPaid =
+    planDetails?.service_mappings?.find((e) => e.service_name === S_VOICE_RX)?.plan_tier === PAID;
+  const isDentalEnabled = useIsDentalEnabled();
+  const isZydusAccount = isZydus();
+  const { isDesktopRx, isTouchRx } = rxDeviceCaps();
+
+  return useMemo(
+    () => ({
+      isCvtExtHos,
+      isSmartRxAccessible,
+      canShowSmartRx: isSmartRxAccessible && isDesktopRx,
+      isSnapRxAccessible,
+      isVoiceRxAccessible,
+      isVoiceRxPaid,
+      isTabRxVisible: isTabRxEnabled && isTouchRx,
+      isDentalEnabled,
+      isZydusAccount,
+      showDraft,
+      showKebab: !isCvtExtHos,
+      showBilling: !isCvtExtHos,
+      showBookActions: !isCvtExtHos,
+    }),
+    [
+      isCvtExtHos,
+      isSmartRxAccessible,
+      isDesktopRx,
+      isSnapRxAccessible,
+      isVoiceRxAccessible,
+      isVoiceRxPaid,
+      isTabRxEnabled,
+      isTouchRx,
+      isDentalEnabled,
+      isZydusAccount,
+      showDraft,
+    ]
+  );
 }

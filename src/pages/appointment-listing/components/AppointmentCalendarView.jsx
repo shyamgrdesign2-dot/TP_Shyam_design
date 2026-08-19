@@ -17,6 +17,7 @@ import useDoctorSlots from "../data/useDoctorSlots";
 import { STATUS_META, statusMeta, visitMeta, shortGenderAge } from "../data/appointmentStates";
 import { TAB_IDS } from "../data/appointmentsConfig";
 import { rowPrimaryAction, RowKebabMenu } from "./rowActions";
+import QueueRxSplitButton from "./QueueRxSplitButton";
 import AppointmentEventCard from "./AppointmentEventCard";
 import BillingTag, { StatusTag } from "./BillingTag";
 import { useListingAccess } from "../data/useListingAccess";
@@ -239,12 +240,13 @@ export function MiniDatePopover({ anchor, onPick, onClose, maxDate = null }) {
 function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, onMouseEnter, onMouseLeave, onMove }) {
   // Act on this appointment's own status inside the merged "All" view.
   const cardTab = row.status || tabId;
-  const { isCvtExtHos, isSmartRxAccessible, showBilling } = useListingAccess();
+  const access = useListingAccess();
+  const { showBilling } = access;
   const act = (id, r) => {
     onRowAction?.(id, r);
     onClose();
   };
-  const primary = rowPrimaryAction(cardTab, row, act, { isCvtExtHos, isSmartRxAccessible });
+  const primary = rowPrimaryAction(cardTab, row, act, access);
   const width = 320;
   const popRef = useRef(null);
   // Placed after the first paint, once the real height is known; until then
@@ -379,7 +381,13 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
       {(primary || row.hasVideo) && (
         <div className={styles.popoverActions}>
           <span className={styles.popoverActionsLead}>
-            {primary && <TableActions align="left" primary={primary} actions={[]} />}
+            {primary && (
+              cardTab === TAB_IDS.QUEUE ? (
+                <QueueRxSplitButton row={row} onRowAction={act} />
+              ) : (
+                <TableActions align="left" primary={primary} actions={[]} />
+              )
+            )}
             {/* A video consult can be joined straight from the schedule. */}
             {row.hasVideo && (
               <Button
