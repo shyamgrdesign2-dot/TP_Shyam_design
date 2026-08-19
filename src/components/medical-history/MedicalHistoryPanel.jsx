@@ -10,6 +10,7 @@ import {
 import "@dhspl-tatvacare/tesseract-ui/styles.css";
 
 import SectionPanel from "./SectionPanel";
+import useClampedDatePickerPopover from "./useClampedDatePickerPopover";
 import DetailPanel from "./DetailPanel";
 import {
     ADDITIONAL_HISTORY_SECTION_ID,
@@ -72,6 +73,11 @@ function MedicalHistoryPanel({
      * overflowing by the height of the tab strip.
      */
     const rootStyle = { "--mh-header-height": `${heightOffset}px` };
+
+    // Surgical History's date picker portals out of this panel; without this it
+    // hangs off the bottom of a short viewport with Apply out of reach.
+    useClampedDatePickerPopover();
+
     const selectedTagData = useMemo(() => {
         if (!selectData) return null;
         const section = sections?.[selectData.section_index];

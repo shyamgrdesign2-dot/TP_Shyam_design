@@ -7,6 +7,23 @@ import styles from "./medicalHistory.module.css";
 /** Suggested chips are clamped to roughly two rows before "+N more" kicks in. */
 const CHIP_ROWS_MAX_HEIGHT = 86;
 
+/**
+ * Tag titles in the library are not clean: plenty carry leading/among-words
+ * whitespace, and case and punctuation vary. Comparing them raw sorted every
+ * space-prefixed title ahead of the whole alphabet — which is why the Allergies
+ * list looked like the A-Z toggle did nothing for its first few rows. Sorting on
+ * a normalised key keeps the visible text as-is while ordering it the way the
+ * doctor reads it.
+ */
+const sortKey = (title) => String(title || "").replace(/\s+/g, " ").trim();
+
+const compareTitles = (a, b) =>
+    sortKey(a.title).localeCompare(sortKey(b.title), undefined, {
+        sensitivity: "base",
+        numeric: true,
+        ignorePunctuation: true,
+    });
+
 function SectionPanel({
     section,
     sectionIndex,
@@ -21,9 +38,23 @@ function SectionPanel({
     onAddCustom,
     onDeleteTag,
 }) {
-    const allTags = (section.tags || []).filter((t) => !t.delete);
-    const selectedTags = allTags.filter(isTagSelected);
-    const unselectedTags = allTags.filter((t) => !isTagSelected(t));
+    /**
+     * Tags are carried around as { tag, index } pairs, where `index` is the
+     * position in section.tags. Looking the index up later with indexOf() is
+     * not safe here: the tag library can hand back several rows with the same
+     * title and tmmhst_id, and those collided React keys made the sorted chip
+     * list render half unsorted (the A-Z toggle looked like it did nothing for
+     * Allergies). The real index is unique, so it is both the key and the
+     * value handed to onTagClick / onDeleteTag.
+     */
+    // Deliberately not memoised on section.tags: the parent updates a tag by
+    // mutating that array in place and cloning only the outer list, so a
+    // dependency on its identity would never see a newly selected chip.
+    const visibleTags = (section.tags || [])
+        .map((tag, index) => ({ tag, index }))
+        .filter((entry) => !entry.tag.delete);
+    const selectedTags = visibleTags.filter((entry) => isTagSelected(entry.tag));
+    const unselectedTags = visibleTags.filter((entry) => !isTagSelected(entry.tag));
 
     /**
      * `isExpand` is inherited from the old box, where a truthy value meant
@@ -41,21 +72,40 @@ function SectionPanel({
 
     const query = (crossSearchQuery || "").trim().toLowerCase();
 
+    const serverResults = searchResultTags || [];
+
+    /**
+     * The section's own suggestions and the hits coming back from the tag
+     * library are shown as one list: splitting them under a "From tag library"
+     * heading made the doctor scan two places for the same search. Library hits
+     * that duplicate a chip already in the section are dropped, and they carry a
+     * negative index so their key never collides with a real tag position.
+     */
     const filteredUnselected = useMemo(() => {
         const list = query
-            ? unselectedTags.filter((t) => (t.title || "").toLowerCase().includes(query))
+            ? unselectedTags.filter((entry) =>
+                  (entry.tag.title || "").toLowerCase().includes(query)
+              )
             : [...unselectedTags];
 
+        const seen = new Set(list.map((entry) => sortKey(entry.tag.title).toLowerCase()));
+        serverResults.forEach((tag, i) => {
+            const key = sortKey(tag.title).toLowerCase();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            list.push({ tag, index: -1 - i, fromLibrary: true });
+        });
+
+        // Ties fall back to the original order so the sort stays deterministic
+        // when the same title appears more than once.
         if (sortMode === "az") {
-            list.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+            list.sort((a, b) => compareTitles(a.tag, b.tag) || a.index - b.index);
         } else if (sortMode === "za") {
-            list.sort((a, b) => (b.title || "").localeCompare(a.title || ""));
+            list.sort((a, b) => compareTitles(b.tag, a.tag) || a.index - b.index);
         }
         return list;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [unselectedTags, query, sortMode]);
-
-    const serverResults = searchResultTags || [];
+    }, [unselectedTags, searchResultTags, query, sortMode]);
 
     /**
      * "Add as custom" is only offered when neither the section's own tags nor
@@ -64,11 +114,15 @@ function SectionPanel({
      */
     const hasNoExactMatch =
         query &&
-        !allTags.some((t) => (t.title || "").toLowerCase() === query) &&
+        !visibleTags.some((entry) => (entry.tag.title || "").toLowerCase() === query) &&
         !serverResults.some((t) => String(t.title || "").trim().toLowerCase() === query);
 
+    // While a search is running every match is shown — clamping the results to
+    // two rows behind a "+N more" hides the very chip the doctor searched for.
+    const clampChips = !showAllChips && !query;
+
     useEffect(() => {
-        if (!chipsRef.current || showAllChips) return;
+        if (!chipsRef.current || !clampChips) return;
         const container = chipsRef.current;
         if (container.scrollHeight > CHIP_ROWS_MAX_HEIGHT + 10) {
             const hidden = Array.from(container.children).filter(
@@ -78,9 +132,7 @@ function SectionPanel({
         } else {
             setOverflowCount(0);
         }
-    }, [filteredUnselected, showAllChips, crossSearchQuery]);
-
-    const getRealIndex = (tag) => section.tags.indexOf(tag);
+    }, [filteredUnselected, clampChips, crossSearchQuery]);
 
     const isChipSelected = (realIndex) =>
         selectedTag?.section_index === sectionIndex && selectedTag?.tag_index === realIndex;
@@ -89,6 +141,8 @@ function SectionPanel({
         const parts = [tag.enable === "Y" ? "Yes" : "No"];
         if (tag.enable === "N") return parts;
         if (tag.since) parts.push(tag.since);
+        // Surgical History carries its date here instead of a "since" value.
+        if (tag.date) parts.push(tag.date);
         if (tag.status) parts.push(tag.status);
         if (tag.relationship) parts.push(tag.relationship);
         if (tag.medication === "Yes") parts.push("On Medication");
@@ -169,23 +223,20 @@ function SectionPanel({
                     <>
                         {selectedTags.length > 0 ? (
                             <div className={styles.tagGrid}>
-                                {selectedTags.map((tag) => {
-                                    const realIdx = getRealIndex(tag);
-                                    return (
-                                        <SelectedChip
-                                            key={tag.unique_id || tag.tmmhst_id || realIdx}
-                                            tag={tag}
-                                            enable={tag.enable}
-                                            selected={isChipSelected(realIdx)}
-                                            subtextParts={buildSubtext(tag)}
-                                            tooltipContent={buildTooltipContent(tag)}
-                                            onTagClick={() =>
-                                                onTagClick(section.tmmhs_id, tag.tmmhst_id, sectionIndex, realIdx)
-                                            }
-                                            onDelete={() => onDeleteTag(sectionIndex, realIdx)}
-                                        />
-                                    );
-                                })}
+                                {selectedTags.map(({ tag, index }) => (
+                                    <SelectedChip
+                                        key={index}
+                                        tag={tag}
+                                        enable={tag.enable}
+                                        selected={isChipSelected(index)}
+                                        subtextParts={buildSubtext(tag)}
+                                        tooltipContent={buildTooltipContent(tag)}
+                                        onTagClick={() =>
+                                            onTagClick(section.tmmhs_id, tag.tmmhst_id, sectionIndex, index)
+                                        }
+                                        onDelete={() => onDeleteTag(sectionIndex, index)}
+                                    />
+                                ))}
                             </div>
                         ) : (
                             <div className={styles.selectedTagsEmpty}>
@@ -218,65 +269,43 @@ function SectionPanel({
                                 <div className={styles.frequentlyUsedWrap}>
                                     <div
                                         ref={chipsRef}
-                                        className={`${styles.tagGrid} ${showAllChips ? "" : styles.frequentlyUsedChips}`}
+                                        className={`${styles.tagGrid} ${clampChips ? styles.frequentlyUsedChips : ""}`}
                                     >
-                                        {filteredUnselected.map((tag) => {
-                                            const realIdx = getRealIndex(tag);
-                                            return (
-                                                <UnselectedChip
-                                                    key={tag.unique_id || tag.tmmhst_id || realIdx}
-                                                    tag={tag}
-                                                    onClick={() =>
-                                                        onTagClick(
-                                                            section.tmmhs_id,
-                                                            tag.tmmhst_id,
-                                                            sectionIndex,
-                                                            realIdx
-                                                        )
-                                                    }
-                                                />
-                                            );
-                                        })}
+                                        {filteredUnselected.map(({ tag, index, fromLibrary }) => (
+                                            <UnselectedChip
+                                                key={index}
+                                                tag={tag}
+                                                onClick={() =>
+                                                    fromLibrary
+                                                        ? onAddSearchResult(sectionIndex, tag)
+                                                        : onTagClick(
+                                                              section.tmmhs_id,
+                                                              tag.tmmhst_id,
+                                                              sectionIndex,
+                                                              index
+                                                          )
+                                                }
+                                            />
+                                        ))}
                                     </div>
-                                    {overflowCount > 0 && !showAllChips && (
-                                        <button
-                                            className={styles.showMoreOverlay}
-                                            onClick={() => setShowAllChips(true)}
-                                            type="button"
-                                        >
-                                            +{overflowCount} more
-                                        </button>
-                                    )}
                                 </div>
-                                {showAllChips && overflowCount > 0 && (
+                                {/* "+N more" sits under the clamped rows rather
+                                    than floating over them: as an overlay it
+                                    covered the last chip of the second row, so
+                                    that chip could never be read in full. */}
+                                {overflowCount > 0 && !query && (
                                     <button
                                         className={styles.showMoreBtn}
-                                        onClick={() => setShowAllChips(false)}
+                                        onClick={() => setShowAllChips((prev) => !prev)}
                                         type="button"
                                     >
-                                        Show less
-                                        <span className={styles.showMoreArrow} data-expanded="true" />
+                                        {showAllChips ? "Show less" : `+${overflowCount} more`}
+                                        <span
+                                            className={styles.showMoreArrow}
+                                            data-expanded={String(showAllChips)}
+                                        />
                                     </button>
                                 )}
-                            </>
-                        )}
-
-                        {serverResults.length > 0 && (
-                            <>
-                                <div className={styles.frequentlyUsedDivider}>
-                                    <span className={styles.frequentlyUsedLabel}>
-                                        From tag library
-                                    </span>
-                                </div>
-                                <div className={styles.tagGrid}>
-                                    {serverResults.map((tag) => (
-                                        <UnselectedChip
-                                            key={`server-${tag.tmmhst_id}-${tag.title}`}
-                                            tag={tag}
-                                            onClick={() => onAddSearchResult(sectionIndex, tag)}
-                                        />
-                                    ))}
-                                </div>
                             </>
                         )}
 

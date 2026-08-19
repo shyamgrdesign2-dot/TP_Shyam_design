@@ -8,8 +8,9 @@
  *   - medication is "Yes"/"No"  (the prototype used "Y"/"N")
  *   - relationship uses the existing 10-value list (the prototype invented a
  *     different 12-value list, which would orphan already-saved values)
- *   - status defaults to "" rather than "Active", so an untouched tag saves
- *     the same way it does today
+ *   - status starts at "Active" for a newly selected tag in the sections that
+ *     show the Status control (see SECTIONS_WITH_STATUS_AND_SINCE); tags loaded
+ *     from the server keep whatever status they were saved with, including ""
  *
  * Changing any of these silently rewrites patient data on the next save.
  */

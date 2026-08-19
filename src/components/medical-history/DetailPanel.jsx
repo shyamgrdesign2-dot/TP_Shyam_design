@@ -73,17 +73,34 @@ function DetailPanel({
         return parsed.isValid() ? parsed.toDate() : null;
     }, [surgicalDate, surgicalDateType]);
 
+    /**
+     * Tesseract's DatePicker does not emit a Date — Apply/Clear hand back a
+     * payload ({ mode, date, year, label }). Treating it as a Date threw
+     * "getFullYear is not a function" and the picked surgery date never landed
+     * on the tag. Plain Date/dayjs values are still accepted so the handler
+     * keeps working if the picker is swapped out.
+     */
     const handleDateChange = useCallback(
-        (date) => {
-            if (!date) {
+        (payload) => {
+            const picked =
+                payload instanceof Date || dayjs.isDayjs(payload)
+                    ? payload
+                    : payload?.date ??
+                      (payload?.year != null ? new Date(payload.year, 0, 1) : null);
+
+            if (!picked) {
                 if (surgicalDateType === "year") onSurgicalYearChange(null);
                 else onSurgicalDateChange(null);
                 return;
             }
+
+            const asDayjs = dayjs.isDayjs(picked) ? picked : dayjs(picked);
+            if (!asDayjs.isValid()) return;
+
             if (surgicalDateType === "year") {
-                onSurgicalYearChange(String(date.getFullYear()));
+                onSurgicalYearChange(String(asDayjs.year()));
             } else {
-                onSurgicalDateChange(dayjs(date));
+                onSurgicalDateChange(asDayjs);
             }
         },
         [surgicalDateType, onSurgicalDateChange, onSurgicalYearChange]
@@ -199,10 +216,6 @@ function DetailPanel({
                                             size="md"
                                             fullWidth
                                         />
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <span className={styles.fieldLabel}>Since</span>
-                                        <SinceInput value={tag.since || ""} onChange={onSinceChange} />
                                     </div>
                                 </>
                             )}

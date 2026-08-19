@@ -46,12 +46,13 @@ import {
     TesseractThemeProvider,
     TPIcon,
 } from "@dhspl-tatvacare/tesseract-ui";
+import { qdToast } from "./quick-dictator/voice-bar-context";
 import MedicalHistoryPanel from "./medical-history/MedicalHistoryPanel";
 import { CustomizeButton } from "./medical-history/CustomizePanel";
 import medicalHistoryStyles from "./medical-history/medicalHistory.module.css";
 import useSectionConfig from "./medical-history/useSectionConfig";
 import useCrossSectionTagSearch from "./medical-history/useCrossSectionTagSearch";
-import { ENABLE_DESELECTED } from "./medical-history/constants";
+import { ENABLE_DESELECTED, SECTION_TITLES, isTagSelected } from "./medical-history/constants";
 import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   noRecordRound: noRecordFound,
@@ -231,9 +232,13 @@ function MedicalHistoryBox(props) {
     // const [ medicalHistoryData, setMedicalHistoryData] = useState([]);
     const [cloneMedicalHistoryData, setCloneMedicalHistoryData] = useState([])
 
+    // Sections that show a Status field (Lifestyle, Medical Condition,
+    // Allergies) start a newly selected tag as Active, so the detail panel and
+    // the chip subtext both show a status straight away instead of leaving the
+    // segmented control blank until the doctor touches it.
     const MEDICAL_PROBLEM = {
         since: '',
-        status: '',
+        status: 'Active',
         medication: '',
         note: ''
     }
@@ -243,7 +248,7 @@ function MedicalHistoryBox(props) {
     }
     const OTHERS = {
         since: '',
-        status: '',
+        status: 'Active',
         note: ''
     }
 
@@ -251,7 +256,8 @@ function MedicalHistoryBox(props) {
         since: '',
         status: '',
         note: '',
-        dateType: 'year',
+        // 'onlyYear'/'fullDate' is the value every consumer reads
+        dateType: 'onlyYear',
         date: ''
     }
 
@@ -709,7 +715,11 @@ function MedicalHistoryBox(props) {
         } else {
             initial = { ...OTHERS }
         }
-        if (cloneMedicalHistoryData[i].tags[i1].enable === undefined || cloneMedicalHistoryData[i].tags[i1].enable === "-") {
+        // Any tag that is not already selected (Y/N) gets the section's field
+        // template applied — matching only on undefined/"-" missed tags the API
+        // returns with an empty enable, which then never picked up their
+        // defaults (Status stayed blank instead of Active).
+        if (!isTagSelected(cloneMedicalHistoryData[i].tags[i1])) {
             setCloneMedicalHistoryData((prev) => {
                 const newArray = [...prev];
                 newArray[i].tags[i1] = {
@@ -775,16 +785,6 @@ function MedicalHistoryBox(props) {
         }
     }, [selectData, cloneMedicalHistoryData]);
 
-    const onSurgicalDateTypeChange = useCallback((value) => {
-        setSurgicalDateType(value);
-        setSurgicalDate(null);
-    }, []);
-    const onSurgicalDateChange = useCallback((date) => {
-        setSurgicalDate(date);
-    }, []);
-    const onSurgicalYearChange = useCallback((value) => {
-        setSurgicalDate(value);
-    }, []);
 
     /**
      * When the patient already has history, open with the first recorded item
@@ -806,12 +806,13 @@ function MedicalHistoryBox(props) {
     }, [cloneMedicalHistoryData, selectData, onTagClick]);
 
     // Since Web
+    // Picking the already-selected segment used to clear the status, which left
+    // the control blank with no way to tell "not set" from "Active".
     const onChangeStatus = useCallback((key) => {
-        if (key != cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.status) {
-            cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].status = key
-        } else {
-            cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].status = ''
-        }
+        const section = cloneMedicalHistoryData[selectData?.section_index];
+        const tag = section?.tags?.[selectData?.tag_index];
+        if (!tag) return;
+        tag.status = key;
         setCloneMedicalHistoryData((prev) => [...prev]);
     }, [selectData, cloneMedicalHistoryData]);
 
@@ -857,6 +858,32 @@ function MedicalHistoryBox(props) {
         doctorId: profile?.doctor_unique_id,
         enabled: !gynecOnly,
     });
+
+    /**
+     * A section that already holds history for this patient cannot be hidden —
+     * hiding it would conceal recorded clinical data. The toggle is refused and
+     * the doctor is told why rather than the switch silently springing back.
+     */
+    const sectionHasRecordedData = useCallback((tmmhsId) => {
+        const section = (cloneMedicalHistoryData || []).find((s) => s?.tmmhs_id === tmmhsId);
+        if (!section) return false;
+        if (section.no_know_history) return true;
+        return (section.tags || []).some(
+            (t) => !t.delete && (t.enable === "Y" || t.enable === "N")
+        );
+    }, [cloneMedicalHistoryData]);
+
+    const onToggleSectionVisibilityGuarded = useCallback((tmmhsId) => {
+        const isHiding = !hiddenSectionIds.has(tmmhsId);
+        if (isHiding && sectionHasRecordedData(tmmhsId)) {
+            qdToast(
+                `${SECTION_TITLES[tmmhsId] || "This section"} still has history for this patient. Remove those entries before hiding it.`,
+                { type: "warning", duration: 3, key: "mh-hide-blocked" }
+            );
+            return;
+        }
+        onToggleSectionVisibility(tmmhsId);
+    }, [hiddenSectionIds, sectionHasRecordedData, onToggleSectionVisibility]);
 
     const getFieldTemplate = useCallback((tmmhs_id) => {
         if (tmmhs_id === 2) return { ...MEDICAL_PROBLEM };
@@ -957,6 +984,42 @@ function MedicalHistoryBox(props) {
 
     const onEnableChange = useCallback((value) => {
         updateSelectedTag({ enable: value });
+    }, [updateSelectedTag]);
+
+    /**
+     * Date of Surgery is mirrored in surgicalDateType/surgicalDate for the
+     * editor, but it is written onto the tag as it is picked. It used to live
+     * only in that parent state and was stamped onto the tag by onSaveClicked,
+     * so it belonged to whichever tag happened to be selected at save time:
+     * switching chips lost the date, and coming back to a chip showed the empty
+     * "Select year"/"Select date" placeholder.
+     */
+    const onSurgicalDateTypeChange = useCallback((value) => {
+        setSurgicalDateType(value);
+        setSurgicalDate(null);
+        updateSelectedTag({
+            dateType: value === "year" ? "onlyYear" : "fullDate",
+            date: "",
+            since: "",
+        });
+    }, [updateSelectedTag]);
+
+    const onSurgicalDateChange = useCallback((date) => {
+        setSurgicalDate(date);
+        updateSelectedTag({
+            dateType: "fullDate",
+            date: date ? dayjs(date).format("DD-MM-YYYY") : "",
+            since: "",
+        });
+    }, [updateSelectedTag]);
+
+    const onSurgicalYearChange = useCallback((value) => {
+        setSurgicalDate(value);
+        updateSelectedTag({
+            dateType: "onlyYear",
+            date: value ? String(value) : "",
+            since: "",
+        });
     }, [updateSelectedTag]);
 
     // `oldSince` is written alongside `since` to match the previous AutoComplete
@@ -1566,7 +1629,7 @@ function MedicalHistoryBox(props) {
                                             order={sectionOrder}
                                             hiddenSet={hiddenSectionIds}
                                             onDragEnd={onSectionDragEnd}
-                                            onToggleVisibility={onToggleSectionVisibility}
+                                            onToggleVisibility={onToggleSectionVisibilityGuarded}
                                             onReset={onResetSectionConfig}
                                         />
                                         <TesseractDivider orientation="vertical" />
@@ -2151,8 +2214,10 @@ function MedicalHistoryBox(props) {
                     primaryLabel="Save and Close"
                     onPrimary={async () => {
                         setShowUnsavedConfirm(false);
+                        // onSaveClicked already closes the drawer, and
+                        // handleDrawerMedicalHistory() is a toggle — calling it
+                        // again here re-opened the drawer right after saving.
                         await onSaveClicked();
-                        handleDrawerMedicalHistory();
                     }}
                     primaryTheme="primary"
                     secondaryLabel="Discard Changes"

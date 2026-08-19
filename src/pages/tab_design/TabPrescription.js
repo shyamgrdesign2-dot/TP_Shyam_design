@@ -30,6 +30,7 @@ import OphthalmologyExamPanel from "../../components/ophthalmology/Ophthalmology
 import VitalsBoxMobile from "../../components/VitalsBoxMobile";
 import TabVitalsList from "../../components/tab_design/TabVitalsList";
 import MedicalHistoryBoxMobile from "../../components/MedicalHistoryBoxMobile";
+import MedicalHistoryBox from "../../components/MedicalHistoryBox";
 import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
@@ -2871,14 +2872,26 @@ function TabPrescription() {
           closeIcon={false}
           placement="right"
           onClose={handleDrawerMedicalHistory}
+          /* The redesigned box owns the unsaved-changes guard, so the drawer
+             must not close itself on mask click or Esc. */
+          maskClosable={false}
+          keyboard={false}
           open={medicalHistoryDrawer}
           width="100%"
         >
-          <MedicalHistoryBoxMobile
-            handleDrawerMedicalHistory={handleDrawerMedicalHistory}
-            handleCollapsed={(flag) => handleCollapsed(flag)}
-            onSave={handleSaveGynecHistory}
-          />
+          {(isMobileDevice && !isTablet) ? (
+            <MedicalHistoryBoxMobile
+              handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+              handleCollapsed={(flag) => handleCollapsed(flag)}
+              onSave={handleSaveGynecHistory}
+            />
+          ) : (
+            <MedicalHistoryBox
+              handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+              handleCollapsed={(flag) => handleCollapsed(flag)}
+              onSave={handleSaveGynecHistory}
+            />
+          )}
         </Drawer>
         <Drawer
           closeIcon={false}

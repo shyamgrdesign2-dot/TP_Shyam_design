@@ -280,30 +280,6 @@
   overflow: hidden;
 }
 
-/* Overlay "+N more" at end of 2nd row with gradient fade */
-.showMoreOverlay {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: var(--tesseract-size-36);
-  padding: 0 var(--tesseract-space-2-5) 0 var(--tesseract-space-9);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, var(--tesseract-slate-0) 40%);
-  border: none;
-  font-size: var(--tesseract-text-caption);
-  font-weight: var(--tesseract-weight-semibold);
-  color: var(--tesseract-fg-link);
-  cursor: pointer;
-  font-family: var(--tesseract-font-body);
-  z-index: 2;
-}
-
-.showMoreOverlay:hover {
-  color: var(--tesseract-blue-600);
-}
-
 /* "Show more" / "Show less" toggle button */
 .showMoreBtn {
   display: flex;
@@ -394,7 +370,7 @@
   color: var(--tesseract-fg-primary);
   font-weight: var(--tesseract-weight-medium);
   white-space: nowrap;
-  max-width: 260px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: var(--tesseract-font-body);
@@ -537,7 +513,9 @@
   font-size: var(--tesseract-text-caption-lg);
   cursor: pointer;
   min-width: 150px;
-  max-width: 240px;
+  /* No fixed cap: a chip grows with its title (e.g. "Coronary Artery Disease
+     (CAD), S/P PTCA") and is only bound by the card it sits in. */
+  max-width: 100%;
   transition: background 0.15s ease, border-color 0.15s ease;
   overflow: hidden;
 }
@@ -1467,4 +1445,17 @@
   text-align: right;
   font-size: var(--tesseract-text-caption-sm);
   color: var(--tesseract-slate-400);
+}
+
+/*
+ * Tesseract's DatePicker portals its popover to <body> and only clamps its top
+ * edge into the viewport — it never bounds the height. On a short viewport
+ * (tablet, in-app webview) the day grid and the Apply footer end up below the
+ * fold with no way to reach them, so a full date can be picked but never
+ * applied. Bounding the height here gives the popover its own scroll.
+ */
+:global([id^="tp-drp-popover-"]) {
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
