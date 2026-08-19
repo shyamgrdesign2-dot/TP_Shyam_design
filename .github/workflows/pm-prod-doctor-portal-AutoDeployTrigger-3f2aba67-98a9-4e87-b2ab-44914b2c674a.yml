@@ -106,6 +106,101 @@ jobs:
           RELEASE="${{ steps.release.outputs.release }}"
           echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION,\"release\":\"$RELEASE\"}" > public/version.json
 
+      # The build runs on the runner, not inside Docker. Ported from uat (#3956, #3957)
+      # after it proved out there. docs/build-time-optimisation-plan.md §8.
+      #
+      # This supersedes the buildx layer cache that was tried and measurably lost
+      # (#3944, reverted in #3953): run 32177103750 spent 416.7s exporting cache for
+      # 0 CACHED layers, +5m15s on the deploy. That failed because it moved multi-GB
+      # layers to save ~126s. This moves a 99 MB babel-loader cache to save ~120s, and
+      # the ~/.npm cache on top. The note left on that revert — "revisit with a different
+      # approach, e.g. caching node_modules on the runner via actions/cache, outside the
+      # image" — is exactly this.
+      #
+      # Measured on uat: deploy 717s -> 481s once the cache is warm. The FIRST deploy
+      # after this merges is cold and will land near today's timing.
+      #
+      # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
+      # estimated 3-6 min to a deploy already dominated by the webpack compile. Release
+      # ATTRIBUTION does not need sourcemaps — `release` is event metadata, so "first seen
+      # in vX.Y.Z", regressions and release health all still work.
+
+      # Node 20 to match the `node:20` image the build used to run in.
+      # cache: 'npm' caches ~/.npm — the npm cache, not node_modules. Worth 85s on uat.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 99 MB measured (run 32186452054), so restore and save cost seconds against the
+      # ~120s of compile it saves. Keyed on the lockfile so a dependency change starts
+      # clean; the sha makes each deploy write its own entry, and restore-keys fall back
+      # to the most recent compatible one.
+      #
+      # Only babel-loader lands here. react-scripts/scripts/build.js never calls
+      # compiler.close(), so webpack's own filesystem cache is never written — plan §4.
+      # Enabling it (§9.1) would make this a 1.1 GB artifact and needs its own decision.
+      - name: Restore the build cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.cache
+          key: ${{ runner.os }}-craco-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-craco-${{ hashFiles('package-lock.json') }}-
+            ${{ runner.os }}-craco-
+
+      # This branch's committed .npmrc carries a ${NODE_AUTH_TOKEN} placeholder, so
+      # setting the env var alone would work here — but the uat branch's .npmrc does not,
+      # and assuming prod's convention on uat is what broke the first attempt there
+      # (#3957). Writing the auth line explicitly works against either form, so the two
+      # pipelines cannot drift apart again.
+      #
+      # It goes to the runner's user-level ~/.npmrc, never the repo's committed .npmrc —
+      # a token in the working tree is one `git add -A` from being pushed.
+      - name: Authenticate npm to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::GH_PACKAGES_TOKEN is empty — @dhspl-tatvacare packages cannot be installed"
+            exit 1
+          fi
+          printf '//npm.pkg.github.com/:_authToken=%s\n' "$NODE_AUTH_TOKEN" >> ~/.npmrc
+
+      # `npm install --legacy-peer-deps`, not `npm ci`, to match what the Dockerfile did.
+      # package-lock.json has not been verified as in sync; switching is a separate change.
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          npm install --legacy-peer-deps
+
+      # Mirrors the env the Dockerfile build stage set. Two that matter:
+      #   CI=false          — Actions sets CI=true, which makes CRA treat warnings as
+      #                       errors, and this repo builds with pre-existing warnings.
+      #   REACT_APP_SENTRY_RELEASE — inlined into the bundle for Sentry.init({release}).
+      #                       Same value as SENTRY_RELEASE so the two cannot drift; if
+      #                       they ever do, Sentry silently stops symbolicating.
+      - name: Build
+        env:
+          REACT_APP_ENV: prod
+          GENERATE_SOURCEMAP: 'false'
+          PUBLIC_URL: ${{ env.PUBLIC_URL_PROD_CDN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_RELEASE: ${{ steps.release.outputs.release }}
+          REACT_APP_SENTRY_RELEASE: ${{ steps.release.outputs.release }}
+          NODE_OPTIONS: --max-old-space-size=8192
+          DISABLE_ESLINT_PLUGIN: 'true'
+          CI: 'false'
+        run: |
+          set -euo pipefail
+          npm run build
+          # `npm run build` uploads the sourcemaps to Sentry as its last step. Drop them
+          # afterwards so they reach neither the image nor the CDN — same as the
+          # Dockerfile's `find /app/build -name "*.map" -delete`.
+          find build -name '*.map' -type f -delete
+
       - name: Docker login to ACR
         env:
           REGISTRY_USER: ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_USERNAME }}
@@ -114,44 +209,25 @@ jobs:
           set -euo pipefail
           echo "$REGISTRY_PASS" | docker login acinacr.azurecr.io -u "$REGISTRY_USER" --password-stdin
 
-      # NO buildx layer cache here. It was tried and measurably lost.
-      #
-      # Run 32177103750 with cache-to type=gha,mode=max:
-      #   "preparing build cache for export 242.3s", cache export DONE 416.7s,
-      #   0 CACHED layers, Build step 835s vs 578s without it. +5m15s on the deploy.
-      #
-      # It cannot win on later runs either: mode=max re-exports every CHANGED layer, and
-      # `COPY . .` plus `npm run build` change on every commit, so the ~416s export recurs
-      # while the ceiling on savings is only the npm install layer (~260s). mode=min does
-      # not help — npm install lives in the build stage, which mode=min does not export.
-      # Revisit only with a different approach, e.g. caching node_modules on the runner
-      # via actions/cache, outside the image.
-      #
-      # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
-      # estimated 3-6 min to a deploy already dominated by the webpack compile. Release
-      # ATTRIBUTION does not need sourcemaps — `release` is event metadata, so "first seen
-      # in vX.Y.Z", regressions and release health all still work.
-      - name: Build image and push to ACR
+      # Dockerfile.runtime is nginx + COPY build/. Its context is trimmed to build/ and
+      # nginx.conf by Dockerfile.runtime.dockerignore, which BuildKit uses in preference
+      # to .dockerignore — hence DOCKER_BUILDKIT=1 being explicit rather than assumed.
+      - name: Build and push the runtime image
+        env:
+          DOCKER_BUILDKIT: '1'
         run: |
           set -euo pipefail
-          docker build \
-            --build-arg REACT_APP_ENV=prod \
-            --build-arg GENERATE_SOURCEMAP=false \
-            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
-            --build-arg SENTRY_RELEASE="${{ steps.release.outputs.release }}" \
-            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
-            --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PROD_CDN }}" \
-            -t "${{ env.IMAGE_NAME }}" .
+          docker build -f Dockerfile.runtime -t "${{ env.IMAGE_NAME }}" .
           docker push "${{ env.IMAGE_NAME }}"
 
-      # ---- 2. Extract built assets from the same image we just pushed ----
-      - name: Extract built assets (html minus index.html and version.json)
+      # ---- 2. Stage the blob payload ----
+      # This used to pull the files back out of the pushed image with docker create/cp.
+      # The build output is already on disk now, so it is a copy.
+      - name: Stage built assets (html minus index.html and version.json)
         run: |
           set -euo pipefail
-          CID=$(docker create "${{ env.IMAGE_NAME }}")
-          mkdir -p _blob_html
-          docker cp "$CID:/usr/share/nginx/html/." _blob_html/
-          docker rm -v "$CID"
+          rm -rf _blob_html
+          cp -r build _blob_html
           # index.html and version.json must only be served from the container (nginx),
           # never from blob/CDN — both need no-cache guarantees that blob cannot provide.
           rm -f _blob_html/index.html
