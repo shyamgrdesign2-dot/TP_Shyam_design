@@ -644,7 +644,7 @@ export function ChatBubble({
 
   useEffect(() => {
     if (isEditing && editRef.current) {
-      editRef.current.focus();
+      editRef.current?.focus();
       editRef.current.style.height = "auto";
       editRef.current.style.height = editRef.current.scrollHeight + "px";
     }

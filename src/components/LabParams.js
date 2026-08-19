@@ -1657,7 +1657,7 @@ const LabResultsTable = ({
                         ))}
                       </tbody>
                       <div 
-                        onClick={() => searchRef.current.focus()} // Step 3: Focus on input when the div is clicked
+                        onClick={() => searchRef.current?.focus()} // Step 3: Focus on input when the div is clicked
                         style={{
                           cursor: "pointer",
                           marginLeft: "1.25rem",

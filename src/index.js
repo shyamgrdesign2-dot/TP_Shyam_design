@@ -145,6 +145,25 @@ Sentry.init({
   // NOT appEnv: .env.dev sets REACT_APP_ENV=prod on purpose (it picks the API base URL),
   // which filed every local error as a production error. Local runs land in "local".
   environment: SENTRY_ENVIRONMENT,
+  // Errors thrown by code we do not ship and cannot fix.
+  //
+  // "Java object is gone" was the single most user-affecting issue in prod over 7 days
+  // (41 users). It is not ours: it comes from Instagram's in-app browser, which injects
+  // its own navigation_performance_logger_android script (frames appear under iabjs://)
+  // that calls an Android Java bridge after the bridge has been garbage-collected. The
+  // events also arrive from health.tatvacare.in, a different frontend sharing this DSN.
+  // Nothing in this codebase can prevent it, and every one of those events pushes a real
+  // issue further down the list.
+  //
+  // The iOS equivalent is window.webkit.messageHandlers being undefined — same shape,
+  // same cause, a webview host that has torn down its bridge.
+  //
+  // Keep these patterns narrow. A broad filter hides real bugs, which costs far more
+  // than the noise does.
+  ignoreErrors: [
+    /Java object is gone/i,
+    /window\.webkit\.messageHandlers/i,
+  ],
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;

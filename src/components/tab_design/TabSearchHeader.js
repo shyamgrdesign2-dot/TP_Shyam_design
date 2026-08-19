@@ -8,7 +8,7 @@ function TabSearchHeader(props) {
 
     useEffect(() => {
         setTimeout(() => {
-            inputRef.current.focus();
+            inputRef.current?.focus();
         }, [500]);
     }, []);
 
