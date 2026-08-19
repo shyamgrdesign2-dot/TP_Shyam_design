@@ -124,6 +124,15 @@ module.exports = {
       if (useEsbuildMinify) useEsbuildMinifier(webpackConfig);
       if (persistWebpackCache) {
         webpackConfig.plugins = [...(webpackConfig.plugins || []), new PersistWebpackCachePlugin()];
+
+        // webpack keeps pack entries for unused modules for 60 days by default, so the
+        // cache only ever grows — measured on uat at 474 MB -> 509 MB -> 525 MB across
+        // three deploys. A week is far longer than the gap between deploys, so nothing
+        // still in use is pruned, while modules deleted or renamed stop being carried.
+        if (webpackConfig.cache && typeof webpackConfig.cache === 'object') {
+          webpackConfig.cache.maxAge = 7 * 24 * 60 * 60 * 1000;
+        }
+
         console.log('[craco] webpack filesystem cache will be persisted on close');
       }
 
