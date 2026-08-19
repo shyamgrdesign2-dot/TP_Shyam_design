@@ -1672,11 +1672,13 @@ const LabResultsTable = ({
                                                     />
                                                   ) : (
                                                     <Radio.Group
+                                                      size="small"
+                                                      style={{ display: "flex", width: "100%" }}
                                                       value={inputValues[reportName][testName][date]?.value || undefined}
                                                       onChange={(e) => handleInputChange(reportName, testName, date, e.target.value)}
                                                     >
-                                                      <Radio.Button value="Positive">Positive</Radio.Button>
-                                                      <Radio.Button value="Negative">Negative</Radio.Button>
+                                                      <Radio.Button value="Positive" style={{ flex: 1, textAlign: "center" }}>Positive</Radio.Button>
+                                                      <Radio.Button value="Negative" style={{ flex: 1, textAlign: "center" }}>Negative</Radio.Button>
                                                     </Radio.Group>
                                                   )}
                                                 </div>

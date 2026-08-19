@@ -102,14 +102,19 @@ const InvestigationFields = ({ fields, namePlaceholder = "e.g. Free Testosterone
                   ))}
                 </RadioGroup>
                 {ranges.length > 1 && (
+                  // Tesseract's CDN-resolved icons (leftIcon="...") aren't rendering
+                  // glyphs in this app's setup — falls back to showing the icon
+                  // name as literal text. Using a plain "×" here instead of
+                  // fighting that; revisit once icon resolution is fixed app-wide.
                   <Button
                     size="sm"
                     variant="ghost"
                     theme="neutral"
-                    icon="close-circle"
                     aria-label="Remove range"
                     onClick={() => removeRange(index)}
-                  />
+                  >
+                    ×
+                  </Button>
                 )}
               </div>
               <div className={styles.rangeInputs}>
