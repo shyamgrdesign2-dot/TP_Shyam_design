@@ -23,11 +23,13 @@
 // The fallback does NOT reintroduce the cache problem: an unset REACT_APP_* var is
 // absent from process.env, so react-scripts never puts it in env.raw.
 //
-// The literal placeholder survives in local dev, where CI never substitutes it.
+// The literal placeholder survives in local dev, where CI never substitutes it. It is
+// %%APP_RELEASE%% rather than __APP_RELEASE__ so a global substitution cannot also
+// rewrite the window.__APP_RELEASE__ property name in index.html.
 const STAMPED =
   (typeof window !== "undefined" && window.__APP_RELEASE__) || "";
 const RELEASE =
-  (STAMPED === "__APP_RELEASE__" ? "" : STAMPED) ||
+  (STAMPED === "%%APP_RELEASE%%" ? "" : STAMPED) ||
   process.env.REACT_APP_SENTRY_RELEASE ||
   "";
 

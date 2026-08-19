@@ -145,8 +145,12 @@
          See docs/build-time-optimisation-plan.md §9.1.
          Substituting after the build also keeps the value out of every webpack module,
          so a warm cache can never serve a stale release.
-         Left as the literal placeholder in local dev, where CI never runs. -->
-    <script>window.__APP_RELEASE__ = "__APP_RELEASE__";</script>
+         Left as the literal placeholder in local dev, where CI never runs.
+         The placeholder is %%APP_RELEASE%%, NOT __APP_RELEASE__: the property name on
+         this same line contains __APP_RELEASE__, and a global substitution on that
+         token rewrites the property name too, producing invalid JS. That shipped on
+         uat once and silently blanked the release. -->
+    <script>window.__APP_RELEASE__ = "%%APP_RELEASE%%";</script>
 </head>
 
 <body>

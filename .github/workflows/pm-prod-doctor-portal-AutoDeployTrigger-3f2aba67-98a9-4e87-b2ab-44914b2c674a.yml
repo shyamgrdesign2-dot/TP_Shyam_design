@@ -233,14 +233,23 @@ jobs:
           RELEASE: ${{ steps.release.outputs.release }}
         run: |
           set -euo pipefail
-          if ! grep -q '__APP_RELEASE__' build/index.html; then
-            echo "::error::build/index.html has no __APP_RELEASE__ placeholder — public/index.html lost it, or the build did not regenerate index.html. Sentry would report no release."
+          if ! grep -q '%%APP_RELEASE%%' build/index.html; then
+            echo "::error::build/index.html has no %%APP_RELEASE%% placeholder — public/index.html lost it, or the build did not regenerate index.html. Sentry would report no release."
             exit 1
           fi
           # The release string is [A-Za-z0-9@.+-] only, so | is a safe delimiter.
-          sed -i "s|__APP_RELEASE__|${RELEASE}|g" build/index.html
-          if grep -q '__APP_RELEASE__' build/index.html; then
+          sed -i "s|%%APP_RELEASE%%|${RELEASE}|g" build/index.html
+          if grep -q '%%APP_RELEASE%%' build/index.html; then
             echo "::error::placeholder survived substitution in build/index.html"
+            exit 1
+          fi
+          # THE check. An earlier version used __APP_RELEASE__ as the placeholder, which
+          # also appears as the property name on the same line, so a global substitution
+          # rewrote `window.__APP_RELEASE__ =` into `window.pm-doctor-portal@sha =` —
+          # invalid JS, script never runs, release silently empty. Every other check here
+          # passed on that build. Fixed on uat in #3963.
+          if ! grep -q 'window\.__APP_RELEASE__' build/index.html; then
+            echo "::error::the window.__APP_RELEASE__ assignment is gone from build/index.html — substitution clobbered the property name, and the release would be silently empty at runtime"
             exit 1
           fi
           if ! grep -qF "$RELEASE" build/index.html; then
