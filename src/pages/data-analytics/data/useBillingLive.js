@@ -30,6 +30,10 @@ export default function useBillingLive({
   // collection-summary call used solely for Billing chart tiles.
   includeRevenueByDoctor = true,
   includeCollectionSummary = true,
+  // IPD Billing uses the legacy-PHP hook instead. Keep this false there so
+  // billing-live Mongo is never called while IPD is selected. OPD callers
+  // leave this unset (true) — network calls stay identical.
+  enabled = true,
 } = {}) {
   const doctorList = useSelector((s) => s.bulkMessages?.doctorList) || [];
   const userId = useSelector((s) => s.doctors?.userId);
@@ -38,6 +42,10 @@ export default function useBillingLive({
   const doctorKey = doctorList.map((d) => d.um_id).join(",");
 
   const load = useCallback(async () => {
+    if (!enabled) {
+      setState({ loading: false, kpis: ZERO_KPIS, paymentModes: [], refundModes: [], advanceModes: [], advanceRefundModes: [], revenueByDoctor: null });
+      return;
+    }
     setState((s) => ({ ...s, loading: true }));
     let ids = doctorList.map((d) => d.um_id).filter(Boolean);
     // Cold open: Redux bulkMessages.doctorList is empty unless the user has
@@ -169,7 +177,7 @@ export default function useBillingLive({
       if (revByDoc) setState((prev) => ({ ...prev, revenueByDoctor: revByDoc }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, department, doctorKey, userId, doctorId, clinicId, includeRevenueByDoctor, includeCollectionSummary]);
+  }, [enabled, startDate, endDate, department, doctorKey, userId, doctorId, clinicId, includeRevenueByDoctor, includeCollectionSummary]);
 
   useEffect(() => {
     load();

@@ -147,7 +147,7 @@ const handleFileUpload = (event) => {
         <div className="d-flex justify-content-center flex-column">
           <div
             className="d-flex flex-wrap"
-            style={{ padding: "24px", columnGap: "16px" }}
+            style={{ padding: "24px", columnGap: "16px", rowGap: "12px" }}
           >
             {updatedCategory.map((item, index) => (
               <Button

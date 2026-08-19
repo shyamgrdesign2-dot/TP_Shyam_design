@@ -52,10 +52,11 @@ const RxPadSyncContext = createContext({
   removeHistoricalChunksBySourceCopyId: () => {},
   recordHistoricalSidebarEdit: () => {},
   syncPayload: null,
-  pushToRxPad: () => {}
+  pushToRxPad: () => {},
+  guardVoiceRxUsage: async () => true
 });
 
-export function RxPadSyncProvider({ children }) {
+export function RxPadSyncProvider({ children, guardVoiceRxUsage }) {
   const [lastCopyRequest, setLastCopyRequest] = useState(null);
   const [lastSignal, setLastSignal] = useState(null);
   const [, setCopySequence] = useState(0);
@@ -310,7 +311,8 @@ export function RxPadSyncProvider({ children }) {
       removeHistoricalChunksBySourceCopyId,
       recordHistoricalSidebarEdit,
       syncPayload,
-      pushToRxPad
+      pushToRxPad,
+      guardVoiceRxUsage: guardVoiceRxUsage || (async () => true)
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -325,7 +327,7 @@ export function RxPadSyncProvider({ children }) {
       isHistoricalSectionUnseen, pushHistoricalUpdates, acknowledgeHistoricalSection,
       dismissHistoricalHighlights, removeHistoricalChunk, lastUndoRequest,
       requestUndoRxPadSync, removeHistoricalChunksBySourceCopyId,
-      recordHistoricalSidebarEdit, syncPayload, pushToRxPad
+      recordHistoricalSidebarEdit, syncPayload, pushToRxPad, guardVoiceRxUsage
     ]
   );
 

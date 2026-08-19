@@ -62,12 +62,55 @@ function modeAllowed(enabledModes, label, hasData) {
 
 const BATCH_SIZE = 4;
 
+const META_DATASET = /^(booked|completed|draft)$/i;
+
+function unwrapPayload(raw) {
+  return (raw?.data ?? raw) ?? null;
+}
+
 /** Read a single-doctor consultation-modes response's "Booked" value (its byDoctor has one row). */
 function bookedFromModesResponse(resp) {
   const ds = resp?.byDoctor?.datasets;
   if (!Array.isArray(ds)) return 0;
   const booked = ds.find((d) => String(d?.label || "").toLowerCase() === "booked");
   return toNum(booked?.data?.[0]);
+}
+
+function modeTotalFromKpis(kpis) {
+  if (!kpis) return 0;
+  return MODE_SERIES.reduce((sum, [, key]) => {
+    const v = key === "typeRx" ? (kpis.typeRx ?? kpis.keyboardRx) : kpis[key];
+    return sum + toNum(v);
+  }, 0);
+}
+
+function datasetValueByLabel(datasets, matcher) {
+  if (!Array.isArray(datasets)) return null;
+  const hit = datasets.find((d) => matcher(String(d?.label || "")));
+  return hit ? toNum(hit.data?.[0]) : null;
+}
+
+/**
+ * Draft Rx is counted inside consultation-modes per-mode KPIs (typeRx, etc.).
+ * Appointment summary is the source that splits draft out of completed.
+ */
+function draftCountFromResponses(modesResp, apptResp) {
+  const modesK = modesResp?.kpis ?? {};
+  if (modesK.draft != null && modesK.draft !== "") return toNum(modesK.draft);
+  const fromModesChart = datasetValueByLabel(
+    modesResp?.byDoctor?.datasets,
+    (l) => /draft/i.test(l)
+  );
+  if (fromModesChart != null) return fromModesChart;
+  const apptK = apptResp?.kpis ?? {};
+  return toNum(apptK.draft);
+}
+
+/** Completed consultations for doctor-wise comparison: Rx mode total minus draft. */
+function completedConsultsFromResponses(modesResp, apptResp) {
+  const modesK = modesResp?.kpis ?? {};
+  const draft = draftCountFromResponses(modesResp, apptResp);
+  return Math.max(0, modeTotalFromKpis(modesK) - draft);
 }
 
 async function buildStackedByDoctor(baseParams, doctorFilterCsv) {
@@ -82,28 +125,40 @@ async function buildStackedByDoctor(baseParams, doctorFilterCsv) {
   // Batch in groups of BATCH_SIZE to avoid saturating the browser's
   // per-origin connection limit (6 for HTTP/1.1). Keep the full response
   // (not just kpis) so we can also read each doctor's "Booked" count.
-  const respByDoctor = new Array(doctors.length);
+  // Appointment summary is fetched alongside so draft can be subtracted
+  // from the doctor-wise "Consultations completed" bar.
+  const rowsByDoctor = new Array(doctors.length);
   for (let i = 0; i < doctors.length; i += BATCH_SIZE) {
     const batch = doctors.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(
-      batch.map((d) =>
-        cached(`modes-dr-${d.um_id}`, baseParams, () =>
-          ApiReporting.clinicConsultationModes({ ...baseParams, doctorId: d.um_id })
-        )
-          .then((r) => (r?.data ?? r) ?? null)
-          .catch(() => null)
-      )
+      batch.map(async (d) => {
+        const params = { ...baseParams, doctorId: d.um_id };
+        const [modes, appt] = await Promise.all([
+          cached(`modes-dr-${d.um_id}`, baseParams, () =>
+            ApiReporting.clinicConsultationModes(params)
+          )
+            .then(unwrapPayload)
+            .catch(() => null),
+          cached(`appt-sum-dr-${d.um_id}`, baseParams, () =>
+            ApiReporting.clinicalAppointmentSummary(params)
+          )
+            .then(unwrapPayload)
+            .catch(() => null),
+        ]);
+        return { modes, appt };
+      })
     );
-    batchResults.forEach((r, j) => { respByDoctor[i + j] = r; });
+    batchResults.forEach((r, j) => { rowsByDoctor[i + j] = r; });
   }
 
   const rows = doctors
     .map((d, i) => {
-      const resp = respByDoctor[i];
+      const { modes, appt } = rowsByDoctor[i] || {};
       return {
         name: d.um_name || `Doctor ${d.um_id}`,
-        resp,
-        k: resp?.kpis ?? { total: 0 },
+        resp: modes,
+        appt,
+        k: modes?.kpis ?? { total: 0 },
       };
     })
     .sort((a, b) => toNum(b.k.total) - toNum(a.k.total));
@@ -111,10 +166,11 @@ async function buildStackedByDoctor(baseParams, doctorFilterCsv) {
 
   return {
     labels: rows.map((r) => r.name),
-    // "Booked" first so buildDoctorComparison picks it up as the booked series
-    // (rest = consultations). Full names kept until after CVT join.
+    // Booked + Completed are comparison series. Mode series stay for
+    // Usage-by-doctor; Completed is Rx totals with draft removed.
     datasets: [
       { label: "Booked", data: rows.map((r) => bookedFromModesResponse(r.resp)) },
+      { label: "Completed", data: rows.map((r) => completedConsultsFromResponses(r.resp, r.appt)) },
       ...MODE_SERIES.map(([label, key]) => ({
         label,
         data: rows.map((r) => toNum(key === "typeRx" ? r.k.typeRx ?? r.k.keyboardRx : r.k[key])),
@@ -201,7 +257,7 @@ export default function useConsultationModesData({ month, startDate, endDate, do
         const modesOnly = {
           labels: stacked.labels,
           datasets: (stacked.datasets || []).filter(
-            (ds) => String(ds.label || "").toLowerCase() !== "booked"
+            (ds) => !META_DATASET.test(String(ds.label || ""))
           ),
         };
         byDoctor = compactXY(seriesToXY(modesOnly), compactDoctorLabel);
@@ -354,17 +410,20 @@ function buildDoctorComparison(byDoctorSeries, cvtByDoctor) {
   const doctors = byDoctorSeries.labels;
   const datasets = byDoctorSeries.datasets || [];
   const digitizedMap = buildDigitizedByDoctor(cvtByDoctor);
+  const bookedDs = findDatasetByLabel(datasets, (l) => l.toLowerCase() === "booked");
+  const completedDs = findDatasetByLabel(datasets, (l) => l.toLowerCase() === "completed");
 
   const data = doctors.map((name, i) => {
-    let booked = 0;
-    let consultations = 0;
-    datasets.forEach((ds) => {
-      if (String(ds.label || "").toLowerCase() === "booked") {
-        booked = toNum(ds.data?.[i]);
-      } else {
-        consultations += toNum(ds.data?.[i]);
-      }
-    });
+    const booked = toNum(bookedDs?.data?.[i]);
+    // Prefer the draft-stripped Completed series. Never sum Rx-mode
+    // datasets here — those include draft prescriptions.
+    const consultations = completedDs
+      ? toNum(completedDs.data?.[i])
+      : datasets.reduce((sum, ds) => {
+          const label = String(ds.label || "").toLowerCase();
+          if (META_DATASET.test(label)) return sum;
+          return sum + toNum(ds.data?.[i]);
+        }, 0);
     // Merge CVT by full doctor name before compacting the x-axis label.
     const digitized = toNum(digitizedMap.get(String(name)));
     return {

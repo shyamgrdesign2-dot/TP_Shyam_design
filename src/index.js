@@ -17,6 +17,12 @@ import './components/dental/styles/globals.css';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
+// eslint-disable-next-line import/no-unresolved -- resolved via the package "exports" map, which eslint's resolver doesn't read
+import '@dhspl-tatvacare/tesseract-ui/styles.css';
+// Keeps the design-system's global element resets from leaking into the
+// rest of the portal (fonts, headings, scrollbars, corner shapes).
+import './styles/tesseractContainment.scss';
+import { TesseractThemeProvider } from '@dhspl-tatvacare/tesseract-ui';
 import * as Sentry from "@sentry/react";
 import {
   isChunkLoadError,
@@ -25,6 +31,7 @@ import {
 import { isProductionEnv } from "./utils/environment";
 import { getSentryRouteNameFromUrl } from "./utils/sentryRouteNames";
 import { reportBrowserOfflineToSentry } from "./utils/sentryNetwork";
+import { SENTRY_ENVIRONMENT, SENTRY_ENABLED } from "./utils/sentryEnvironment";
 
 // Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
@@ -76,6 +83,10 @@ const tracesSampleRateValue =
 
 Sentry.init({
   dsn: "https://a4c36bf5194238bfa49de0a593619865@o4509755819294720.ingest.us.sentry.io/4510737179475968",
+  // Baked at build time from the SENTRY_RELEASE build-arg (see Dockerfile + CI workflows).
+  // MUST be byte-identical to the release used for `sentry-cli sourcemaps upload`, otherwise
+  // Sentry cannot symbolicate. Undefined in local dev — Sentry simply omits the field.
+  release: process.env.REACT_APP_SENTRY_RELEASE,
   integrations: [
     Sentry.reactRouterV6BrowserTracingIntegration({
       useEffect: React.useEffect,
@@ -83,13 +94,47 @@ Sentry.init({
       useNavigationType,
       createRoutesFromChildren,
       matchRoutes,
+
+      // Web vitals were almost never recorded. Measured over 7d in prod (spans dataset):
+      //   pageload spans 285,081 | TTFB 206,161 (72%) | FCP 1,570 (0.55%)
+      //                          | LCP 420 (0.15%)    | CLS 0
+      // The capture rate falls off exactly in the order the metrics become available,
+      // because the pageload span had already been sent: its p50 duration was 430ms
+      // (p95 2131ms). TTFB exists immediately so it survives; FCP/LCP land later and
+      // CLS is only final at page-hide, so they were all dropped.
+      //
+      // Root cause: idleTimeout was never set, so it used the SDK default of 1000ms.
+      // Raised so the span stays open long enough for FCP/LCP on this bundle.
+      idleTimeout: 5000,
+
+      // CLS can only be known when the page is hidden, which no idleTimeout can wait for.
+      // These emit LCP and CLS as their own spans at page-hide, decoupled from the
+      // pageload span's lifetime — the only way to capture CLS at all.
+      // Still under _experiments in SDK 10.9.0; revisit on upgrade.
+      _experiments: {
+        enableStandaloneLcpSpans: true,
+        enableStandaloneClsSpans: true,
+      },
     }),
-    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+    // "error" only. Measured over 7d in prod on the Sentry logs dataset:
+    //   info 1,026,942 (57%) | warn 553,576 (31%) | error 227,319 (13%)
+    // console.log was pure developer chatter, and 91% of the warn volume was a single
+    // repeated react-pdf message ("Invalid '' string child outside <Text> component"),
+    // which is a code defect to fix at source rather than a signal worth shipping.
+    //
+    // Keeping "error" preserves the one case the other capture paths miss: a bare
+    // console.error(...) that never throws is NOT seen by the global error handler,
+    // the ErrorBoundary, or captureException. These land in Sentry Logs, not Issues.
+    Sentry.consoleLoggingIntegration({ levels: ["error"] }),
   ],
   tracesSampleRate: tracesSampleRateValue,
   tracePropagationTargets: [],
   sendDefaultPii: true,
-  environment: appEnv,
+  // Silent on developer machines unless REACT_APP_SENTRY_LOCAL=1. See utils/sentryEnvironment.js.
+  enabled: SENTRY_ENABLED,
+  // NOT appEnv: .env.dev sets REACT_APP_ENV=prod on purpose (it picks the API base URL),
+  // which filed every local error as a production error. Local runs land in "local".
+  environment: SENTRY_ENVIRONMENT,
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;
@@ -140,7 +185,9 @@ if (typeof window !== "undefined") {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <BrowserRouter basename={"/"}>
-      <App />
+      <TesseractThemeProvider colorScheme="light">
+        <App />
+      </TesseractThemeProvider>
     </BrowserRouter>
 );
 

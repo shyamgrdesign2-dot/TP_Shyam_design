@@ -196,6 +196,7 @@ import { useIsDentalEnabled } from "../hooks/useIsDentalEnabled";
 import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { ASSETS } from "../assets";
 import { useCrossConsult } from "../hooks/useCrossConsult";
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 const {
   endVisit: visitEnd,
   cancelVisit: ImgcancelEnd,
@@ -327,7 +328,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isAppointmentAgentAccessableFromGB =
@@ -3808,15 +3809,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       source: selectedTab === TAB_ZYDUS_ENCOUNTER ? "Encounter" : "Appt Landing",
     });
     
-    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-      state: { 
-        patient_data: record,
-        isFromTabView: isMobile,
-        ...(isVoiceRxNewFromGB && {
-          isVoiceRxNewUiFlow: true,
-          voiceRxEntryPoint: selectedTab === TAB_ZYDUS_ENCOUNTER ? "zydus_encounter" : "appointment_landing",
-        }),
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        { patient_data: record, isFromTabView: isMobile },
+        selectedTab === TAB_ZYDUS_ENCOUNTER ? "zydus_encounter" : "appointment_landing"
+      ),
     });
   };
 

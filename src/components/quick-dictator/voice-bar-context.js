@@ -22,6 +22,11 @@ import { message } from "antd";
 import { Danger } from "iconsax-reactjs";
 import PropTypes from "prop-types";
 
+// qdToast renders `qd-*` markup, so the stylesheet has to travel with this
+// module — callers reach it without ever mounting VoiceBar, which would
+// otherwise leave the toast in a chunk whose CSS was never loaded.
+import "./quick-dictator.css";
+
 const VoiceBarContext = createContext(null);
 const DOUBLE_TAP_WINDOW_MS = 400;
 

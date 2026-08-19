@@ -19,6 +19,27 @@ import { uploadDocsToAzure } from "../pages/medicalRecords/service.js";
 /** True when running inside the native app WebView (Android/iOS). Use for in-app download/print; when false, use browser download. */
 export const isInNativeApp = () => browserName === "Chrome WebView" || browserName === "WebKit";
 
+/** RN bridge is injected on the top WebView, not on nested iframes. */
+export const getReactNativeWebView = () => {
+  if (typeof window === "undefined") return null;
+  if (window.ReactNativeWebView) return window.ReactNativeWebView;
+  try {
+    if (window.parent && window.parent !== window && window.parent.ReactNativeWebView) {
+      return window.parent.ReactNativeWebView;
+    }
+  } catch {
+    /* cross-origin iframe */
+  }
+  try {
+    if (window.top && window.top !== window && window.top.ReactNativeWebView) {
+      return window.top.ReactNativeWebView;
+    }
+  } catch {
+    /* cross-origin iframe */
+  }
+  return null;
+};
+
 // export const validateEmail = (email) => {
 //   return String(email)
 //     .toLowerCase()
@@ -477,6 +498,8 @@ export const HTMLTransformer = (htmlString) => {
       replaceContent(label, "{Procedure}");
     } else if (label.classList.contains("number_of_months")) {
       replaceContent(label, "{Number of Months}");
+     } else if (label.classList.contains("mrn_no")) {
+      replaceContent(label, "{MRN No.}");
     }
   });
 
@@ -1718,11 +1741,24 @@ export const getOnboardingDeviceSource = () => {
 
 export const sendMessageToParent = (eventName, data = {}) => {
   try {
-    if (window.ReactNativeWebView) {
-      window.ReactNativeWebView.postMessage(
-        JSON.stringify({ action: eventName, data })
-      );
-    } else {
+    const rn = getReactNativeWebView();
+    if (rn?.postMessage) {
+      rn.postMessage(JSON.stringify({ action: eventName, data }));
+      return;
+    }
+    // Multi-tab shells can nest this page two levels deep (tab iframe inside
+    // the app shell's own iframe) — post to both so whichever level is
+    // listening for the relay receives it.
+    let posted = false;
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ action: eventName, data }, "*");
+      posted = true;
+    }
+    if (window.top && window.top !== window && window.top !== window.parent) {
+      window.top.postMessage({ action: eventName, data }, "*");
+      posted = true;
+    }
+    if (!posted) {
       console.warn("ReactNativeWebView is not available on the window object.");
     }
   } catch (error) {

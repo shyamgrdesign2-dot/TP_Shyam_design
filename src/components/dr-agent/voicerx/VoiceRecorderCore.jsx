@@ -1247,7 +1247,11 @@ export function VoiceRecorderCore({
 
   // Blob recorder
   const { getBlob } = useBlobRecorder(stream, paused, micEnabled);
-  const { flushFinalChunks } = useAudioChunkRecorder(stream, paused, micEnabled, audioChunkContext);
+  // Chunk uploads are additionally gated on the VoiceRx credit guard so a
+  // blocked user never streams audio to /audio-chunks even if a surface
+  // forgot its own start-phase guard.
+  const [chunkUploadAllowed, setChunkUploadAllowed] = useState(true);
+  const { flushFinalChunks } = useAudioChunkRecorder(stream, paused, micEnabled && chunkUploadAllowed, audioChunkContext);
 
   // Active mic tracking
   const { activeDevice } = useActiveMic(stream, devices, selectedDeviceId);
@@ -1321,8 +1325,24 @@ export function VoiceRecorderCore({
     releaseActiveVoiceModule,
     setCollapsedVoiceSession,
     voicePauseToggleRequest,
-    voiceSubmitRequest
+    voiceSubmitRequest,
+    guardVoiceRxUsage
   } = useRxPadSync();
+
+  // Silent credit-guard check whenever the mic becomes active — decides
+  // whether streaming chunk uploads are allowed for this recording session.
+  useEffect(() => {
+    let cancelled = false;
+    if (!micEnabled) return undefined;
+    Promise.resolve(guardVoiceRxUsage?.({ phase: "start", silent: true }))
+      .then((allowed) => {
+        if (!cancelled) setChunkUploadAllowed(allowed !== false);
+      })
+      .catch(() => {
+        if (!cancelled) setChunkUploadAllowed(true);
+      });
+    return () => { cancelled = true; };
+  }, [guardVoiceRxUsage, micEnabled]);
   const voiceLockIdRef = useRef(`voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const resumeBlockedByOtherVoice = manualMute && activeVoiceLockIds?.some((id) => (
     id !== voiceLockIdRef.current &&

@@ -19,7 +19,9 @@ import {
   ArrowDown2,
   ArrowSquareDown,
   ArrowSquareUp,
+  Brush2,
   Calendar2,
+  ClipboardTick,
   Copy,
   DocumentText,
   Eye,
@@ -36,8 +38,8 @@ import { VoiceRecorderCore } from "../dr-agent/voicerx/VoiceRecorderCore";
 import RecordCard from "../../pages/medicalRecords/components/recordCard/RecordCard";
 import CashManagerContext from "../../context/CashManagerContext";
 import { useAccess } from "../../pages/vaccination/useAccess";
-import { getOverridenDueDate, getPatientVaccineDetails, getVaccineBrands, getVaccineTemplates } from "../../pages/vaccination/service";
-import { mergeDataPatientDetails } from "../../pages/vaccination/VaccinationHelper";
+import { getOverridenDueDate, getPatientVaccineDetails, getTvtAgeBySection, getVaccineBrands, getVaccineTemplates } from "../../pages/vaccination/service";
+import { getDates, getDefaultOption, getDistinctAges, mergeDataPatientDetails, splitVaccinesByCategory, VaccinationCategoryEnum } from "../../pages/vaccination/VaccinationHelper";
 import { getAllOpthalPrescriptions } from "../../pages/ophthalmology/service";
 import { getAllGrowthChartParams, getParentalDetails } from "../../pages/growthChart/service";
 import {
@@ -71,7 +73,7 @@ import { beginVoiceAttempt, markVoiceLogCreated } from "../../redux/voiceDigitiz
 import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
 import { getDecodedToken } from "../../utils/localStorage";
 import { trackEvent } from "../../utils/utils";
-import { GB_ZYDUS_USER } from "../../utils/constants";
+import { GB_CARE_PLAN, GB_ZYDUS_USER } from "../../utils/constants";
 import { buildMedicineDoseDisplayText } from "../../utils/medicationCopyNormalization";
 import { useIsDentalEnabled } from "../../hooks/useIsDentalEnabled";
 import { ToothIcon } from "../dental/ToothIcon";
@@ -98,6 +100,8 @@ const NAV_ITEMS = [
   { id: "growth", label: "Growth", icon: { kind: "iconsax", Icon: Ruler } },
   { id: "optal", label: "Ophthal", icon: { kind: "iconsax", Icon: Eye } },
   { id: "personalNotes", label: "Private Notes", icon: { kind: "iconsax", Icon: DocumentText } },
+  { id: "carePlan", label: "Care Plan", icon: { kind: "iconsax", Icon: ClipboardTick } },
+  { id: "canvas", label: "Canvas", icon: { kind: "iconsax", Icon: Brush2 } },
   { id: "referral", label: "Referral", icon: { kind: "custom", Component: ReferralIcon } },
   { id: "zydusLabReports", label: "Zydus Reports", icon: { kind: "medical", name: "lab" } },
   { id: "dentalPlan", label: "Dental Plan", icon: { kind: "custom", Component: ToothIcon } },
@@ -117,7 +121,7 @@ function getCustomizedPadNavId(item, access = {}) {
     case 1:
       return "vitals";
     case 3:
-      return access.isGynaecHistoryAccessable ? "gynec" : "history";
+      return access.isGynaecHistoryAccessable ? ["history", "gynec"] : "history";
     case 7:
       return access.isVaccinationAccessable ? "vaccine" : null;
     case 8:
@@ -130,6 +134,10 @@ function getCustomizedPadNavId(item, access = {}) {
       return "medicalRecords";
     case 19:
       return "labResults";
+    case 22:
+      return access.isCarePlanAccessable ? "carePlan" : null;
+    case 24:
+      return "canvas";
     case 25:
       if (access.referralOnRightPad) return null;
       return access.isCrossConsultAccessable ? "referral" : null;
@@ -152,6 +160,8 @@ const SECTION_TITLES = {
   growth: "Growth",
   optal: "Ophthal History",
   personalNotes: "Private Notes",
+  carePlan: "Care Plans",
+  canvas: "Canvas",
   referral: "Referral",
   zydusLabReports: "Zydus Reports",
   dentalPlan: "Dental Plan",
@@ -2332,6 +2342,7 @@ function buildViewData(overrides = {}, sourceData = {}) {
     gynec: sourceData.gynec ?? [],
     obstetric: sourceData.obstetric ?? [],
     vaccine: sourceData.vaccine ?? { pending: [], given: [] },
+    vaccineCategories: sourceData.vaccineCategories ?? { iap: [], other: [] },
     growth: sourceData.growth ?? { entries: [], info: {} },
     optal: sourceData.optal ?? [],
     personalNotes: sourceData.personalNotes ?? [],
@@ -3578,6 +3589,21 @@ const EMPTY_SECTION_CONFIG = {
     addLabel: "Add Lab Results",
     showVoice: false,
   },
+  vaccine: {
+    message: "No vaccinations have been recorded for this patient yet.",
+    addLabel: "Add Vaccinations",
+    showVoice: false,
+  },
+  medicalRecords: {
+    message: "No medical records have been added for this patient yet.",
+    addLabel: "Add New Records",
+    showVoice: false,
+  },
+  canvas: {
+    message: "No canvases have been created for this patient yet.",
+    addLabel: "Add Canvas",
+    showVoice: false,
+  },
   gynec: {
     message: "No gynec history has been recorded for this patient yet.",
     addLabel: "Add Gynec History",
@@ -3941,6 +3967,7 @@ function RecordsContent({
   setFilesData = NOOP,
   setIsEditDocument = NOOP,
   setUploadDocDrawer = NOOP,
+  emptyState,
 }) {
   const scrollRef = useRef(null);
   const [activeCategory, setActiveCategory] = useState(-1);
@@ -4003,7 +4030,7 @@ function RecordsContent({
       data-snv-scroll-root="true"
     >
       {!hasRecords ? (
-        <div className="snv-empty-state">No data recorded.</div>
+        emptyState || <div className="snv-empty-state">No data recorded.</div>
       ) : (
         <div className="snv-filter-strip">
           {availableCategories.map((category) => (
@@ -4093,6 +4120,86 @@ function groupVaccByWeek(rows) {
     map.get(v.week).push(v);
   }
   return order.map((week) => ({ week, items: map.get(week) }));
+}
+
+// Same relative wording VisitVaccination shows next to each due date ("This month",
+// "Next year", ...). Duplicated rather than lifted out of that component so the
+// patient-details card keeps its exact current behaviour.
+function vaccineDueRelativeLabel(vaccine) {
+  const now = moment();
+  const due = vaccine?.tvd_due_date
+    ? moment(new Date(vaccine.tvd_due_date))
+    : moment(vaccine?.dueDate, "Do MMM YYYY");
+  if (!due.isValid()) return "";
+  const days = now.diff(due, "days");
+  const weeks = now.diff(due, "weeks");
+  const months = now.diff(due, "months");
+  const years = now.diff(due, "years");
+  if (years >= 1) return "Last Year";
+  if (months >= 1) return "Last month";
+  if (weeks >= 1) return "Last week";
+  if (days >= 1) return "Last day";
+  if (days === 0) return "Today";
+  if (years < 0) return "Next year";
+  if (months < 0) return "Next month";
+  if (weeks < 0) return "This month";
+  if (days < 0) return "This week";
+  return "";
+}
+
+// NewRx sidenav vaccination. Mirrors the VisitVaccination card on patient details:
+// same source (overridden due dates only, not the whole standard template), same
+// IAP/Other split, and the same age-band slice so we show the current pending window
+// rather than every dose since birth. Only the grouping and labels differ.
+function buildVaccineCategoryData(overridenVaccineRows = [], ageSections = null, birthDate = "") {
+  const empty = { iap: [], other: [] };
+  if (!Array.isArray(overridenVaccineRows) || !overridenVaccineRows.length || !ageSections) return empty;
+
+  const combined = mergeDataPatientDetails(overridenVaccineRows, [], [], [], birthDate) || [];
+  const split = splitVaccinesByCategory(combined, ageSections);
+
+  const toRows = (ageEntries) => ageEntries.flatMap(([week, vaccines]) => (
+    (vaccines || []).flatMap((item) => {
+      const overriddenDue = item?.tvd_due_date || "";
+      const dobDue = item?.dueDate || "";
+      const givenDateRaw = item?.tvp_given_date || "";
+      if (!overriddenDue && !dobDue && !givenDateRaw) return [];
+
+      const dueMoment = overriddenDue
+        ? moment(new Date(overriddenDue))
+        : moment(dobDue, "Do MMM YYYY");
+      let status = "given";
+      if (overriddenDue || dobDue) {
+        status = dueMoment.isValid() && moment().isSameOrAfter(dueMoment, "day") ? "overdue" : "due";
+      }
+
+      return [{
+        week: week || item?.tvt_age || "Vaccines",
+        name: item?.tvac_name || item?.tvt_name || "Vaccine",
+        status,
+        // Overridden due date wins; otherwise fall back to the DOB-derived date,
+        // labelled as such exactly like the patient-details card does.
+        dueLabel: overriddenDue
+          ? `Updated due date: ${moment(new Date(overriddenDue)).format("DD-MMM-YYYY")}`
+          : dobDue ? `Due date: ${dobDue} (Based on DOB)` : "",
+        relative: (overriddenDue || dobDue) ? vaccineDueRelativeLabel(item) : "",
+        givenDate: givenDateRaw ? formatVaccDate(givenDateRaw) : "",
+        brand: item?.brandName || item?.tvc_name || "",
+        note: item?.tvp_remarks || item?.tvd_remarks || "",
+      }];
+    })
+  ));
+
+  // IAP is limited to the bands up to and including the patient's current one, exactly
+  // as VisitVaccination does for its "Pending Vaccines" list.
+  const iapEntries = [...getDistinctAges(split[VaccinationCategoryEnum[0].key] || []).idMap];
+  const iapCutoff = getDefaultOption(getDates(getDistinctAges(split[VaccinationCategoryEnum[0].key] || []).idMap));
+  const otherEntries = [...getDistinctAges(split[VaccinationCategoryEnum[1].key] || []).idMap];
+
+  return {
+    iap: toRows(iapEntries.slice(0, iapCutoff + 1)),
+    other: toRows(otherEntries),
+  };
 }
 
 function buildLegacyVaccineData(patientVaccineRows = [], vaccineTemplateRows = []) {
@@ -4198,6 +4305,42 @@ function buildOpthalStructureItems(rows = []) {
   });
 }
 
+// Shared by auto refraction, lensometer and glass prescription — all three use the
+// same sphere/cylinder/axis columns as the main OphthalmologyExamPanel tables.
+const OPTHAL_REFRACTION_FIELDS = [
+  { key: "sphere", label: "SPH" },
+  { key: "cylinder", label: "CYL" },
+  { key: "axis", label: "Axis" },
+  { key: "add", label: "Add" },
+  { key: "distance", label: "Dist" },
+  { key: "near", label: "Near" },
+];
+
+// autoRefraction stores Undilated and Dilated rows in one flat array keyed by `type`,
+// so they have to be split before findOpthalEyeRow, which matches on eye alone and
+// would otherwise always return the first OD/OS row regardless of type.
+function buildOpthalRefractionSections(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const hasTypedRows = list.some((item) => String(item?.type || "").trim());
+  if (!hasTypedRows) {
+    return [{
+      id: "auto-refraction",
+      title: "Auto Refraction Test",
+      icon: "AR",
+      items: buildOpthalEyeItems(list, OPTHAL_REFRACTION_FIELDS),
+    }];
+  }
+  return ["Undilated", "Dilated"].map((type) => ({
+    id: `auto-refraction-${type.toLowerCase()}`,
+    title: `Auto Refraction Test - ${type}`,
+    icon: "AR",
+    items: buildOpthalEyeItems(
+      list.filter((item) => String(item?.type || "").toLowerCase() === type.toLowerCase()),
+      OPTHAL_REFRACTION_FIELDS
+    ),
+  }));
+}
+
 function buildLegacyOpthalEntries(rows = []) {
   return rows.flatMap((row, index) => {
     const sections = [
@@ -4212,6 +4355,19 @@ function buildLegacyOpthalEntries(rows = []) {
           { key: "cNear", label: "C Near" },
           { key: "ucNear", label: "UC Near" },
         ]),
+      },
+      ...buildOpthalRefractionSections(row?.autoRefraction),
+      {
+        id: "lensometer",
+        title: "Lensometer Values",
+        icon: "LM",
+        items: buildOpthalEyeItems(row?.lensometerValues, OPTHAL_REFRACTION_FIELDS),
+      },
+      {
+        id: "glass-prescription",
+        title: "Glass Prescription",
+        icon: "GP",
+        items: buildOpthalEyeItems(row?.glassPrescription, OPTHAL_REFRACTION_FIELDS),
       },
       {
         id: "iop",
@@ -4467,6 +4623,96 @@ function VaccineBody({ data = { pending: [], given: [] } }) {
         </article>
       ) : null}
     </>
+  );
+}
+
+const VACCINE_STATUS_LABEL = { overdue: "Over due", due: "Due", given: "Given" };
+
+function VaccineStatusWeekGroup({ week, items }) {
+  return (
+    <div className="snv-vaccine-week-group">
+      <div className="snv-vaccine-week-chip">
+        <Calendar2 size={13} variant="Bulk" color="var(--tp-slate-500)" />
+        <span>{week}</span>
+      </div>
+      <div className="snv-vaccine-item-list">
+        {items.map((item, i) => (
+          <div key={`${week}-${item.name}-${i}`} className="snv-vaccine-item">
+            <span className="snv-vaccine-bullet" aria-hidden="true" />
+            <p className="snv-vaccine-item-text">
+              <span className="snv-vaccine-name">{item.name}</span>
+              <span>{" ("}</span>
+              <span className="snv-vaccine-muted">Status: </span>
+              <span className={`snv-vaccine-date-${item.status}`}>{VACCINE_STATUS_LABEL[item.status]}</span>
+              {item.dueLabel ? (
+                <span className="snv-vaccine-muted">{` | ${item.dueLabel}`}</span>
+              ) : null}
+              {item.relative ? (
+                <span className="snv-vaccine-muted">{` | ${item.relative}`}</span>
+              ) : null}
+              {item.givenDate ? (
+                <>
+                  <span className="snv-vaccine-muted">{" | Given date: "}</span>
+                  <span className="snv-vaccine-date-given">{item.givenDate}</span>
+                </>
+              ) : null}
+              {item.brand ? (
+                <span className="snv-vaccine-muted">{` | Brand: ${item.brand}`}</span>
+              ) : null}
+              {item.note ? (
+                <span className="snv-vaccine-muted">{` | Note: ${item.note}`}</span>
+              ) : null}
+              <span>{" )"}</span>
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VaccineCategoryCard({ title, rows, expanded, onToggle }) {
+  if (!rows.length) return null;
+  const groups = groupVaccByWeek(rows);
+  return (
+    <article className="snv-date-card">
+      <button type="button" className="snv-date-card-header" onClick={onToggle}>
+        <span>{`${title}(${rows.length})`}</span>
+        {expanded ? <ArrowSquareUp size={18} variant="Linear" /> : <ArrowSquareDown size={18} variant="Linear" />}
+      </button>
+      {expanded ? (
+        <div className="snv-date-card-body">
+          {groups.map((g, i) => <VaccineStatusWeekGroup key={`${title}-${g.week}-${i}`} week={g.week} items={g.items} />)}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function VaccineCategoryContent({ data = { iap: [], other: [] }, emptyState }) {
+  const iap = Array.isArray(data.iap) ? data.iap : [];
+  const other = Array.isArray(data.other) ? data.other : [];
+  const [expanded, setExpanded] = useState({ iap: true, other: true });
+
+  if (!iap.length && !other.length) {
+    return <div className="snv-content-scroll" data-snv-scroll-root="true">{emptyState}</div>;
+  }
+
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      <VaccineCategoryCard
+        title="IAP Vaccine"
+        rows={iap}
+        expanded={expanded.iap}
+        onToggle={() => setExpanded((p) => ({ ...p, iap: !p.iap }))}
+      />
+      <VaccineCategoryCard
+        title="Other Vaccine"
+        rows={other}
+        expanded={expanded.other}
+        onToggle={() => setExpanded((p) => ({ ...p, other: !p.other }))}
+      />
+    </div>
   );
 }
 
@@ -5269,13 +5515,91 @@ function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voice
   );
 }
 
+function CarePlanContent({ carePlanActions }) {
+  const {
+    CarePlanList: CarePlanListComponent,
+    CarePlanDropdown: CarePlanDropdownComponent,
+    patientId,
+    tcmId,
+    doctorId,
+    clinicId,
+    selectedCarePlan,
+    onCarePlanSelect,
+    placeholder,
+  } = carePlanActions || {};
+
+  if (!CarePlanListComponent || !CarePlanDropdownComponent) {
+    return <div className="snv-content-scroll" data-snv-scroll-root="true"><div className="snv-empty-state">No data recorded.</div></div>;
+  }
+
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      <CarePlanListComponent
+        patientId={patientId}
+        selectedTcmId={tcmId}
+        readOnly
+        title="Assigned Care Plans"
+        hideWhenEmpty
+        onCarePlanSelect={onCarePlanSelect}
+      />
+      <div className="snv-care-plan-assign">
+        <CarePlanDropdownComponent
+          onCarePlanSelect={onCarePlanSelect}
+          selectedCarePlan={selectedCarePlan}
+          patientId={patientId}
+          doctorId={doctorId}
+          clinicId={clinicId}
+          placeholder={placeholder}
+        />
+      </div>
+    </div>
+  );
+}
+
+const CANVAS_HIDDEN_MENU_KEYS = ["addEdit", "preview", "duplicate"];
+
+function CanvasContent({ canvasActions, emptyState }) {
+  const {
+    DrawingCanvasList: DrawingCanvasListComponent,
+    drawingCanvases = [],
+    setDrawingCanvases,
+    handleDrawerDrawingCanvas,
+    rxDrawingCanvasIds = [],
+    onToggleRx,
+  } = canvasActions || {};
+
+  if (!DrawingCanvasListComponent) {
+    return <div className="snv-content-scroll" data-snv-scroll-root="true"><div className="snv-empty-state">No data recorded.</div></div>;
+  }
+
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      {drawingCanvases.length === 0 ? emptyState : (
+        <DrawingCanvasListComponent
+          drawingCanvases={drawingCanvases}
+          setDrawingCanvases={setDrawingCanvases}
+          handleDrawerDrawingCanvas={handleDrawerDrawingCanvas}
+          rxDrawingCanvasIds={rxDrawingCanvasIds}
+          onToggleRx={onToggleRx}
+          hideShowInRx={false}
+          hideMoreOptions={false}
+          // Add/Edit and Preview only re-open the drawer, and Duplicate has no
+          // persisting handler here, so the rail menu is Rename/Download/Delete.
+          hiddenMenuKeys={CANVAS_HIDDEN_MENU_KEYS}
+          maxItems={null}
+        />
+      )}
+    </div>
+  );
+}
+
 function HiddenScrollRoot() {
   return (
     <div className="snv-content-scroll snv-hidden-scroll-root" data-snv-scroll-root="true" aria-hidden="true" />
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, referralValue, onReferralChange, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, referralValue, onReferralChange, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions, carePlanActions, canvasActions }) {
   const emptyState = EMPTY_SECTION_CONFIG[activeId] ? (
     <SideNavEmptyState
       sectionId={activeId}
@@ -5320,6 +5644,7 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           setFilesData={medicalRecordActions?.setFilesData}
           setIsEditDocument={medicalRecordActions?.setIsEditDocument}
           setUploadDocDrawer={medicalRecordActions?.setUploadDocDrawer}
+          emptyState={emptyState}
         />
       );
     case "gynec":
@@ -5327,8 +5652,7 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
     case "obstetric":
       return <ObstetricContent sections={viewData.obstetric} emptyState={emptyState} />;
     case "vaccine":
-      // return <VaccineContent data={viewData.vaccine} />; // TODO: INTEL - TO BE HANDLED ON PROD FIRST (showing due date to all vaccines by default)
-      return <HiddenScrollRoot />;
+      return <VaccineCategoryContent data={viewData.vaccineCategories} emptyState={emptyState} />;
     case "growth":
       return <GrowthContent data={viewData.growth} emptyState={emptyState} />;
     case "optal":
@@ -5343,6 +5667,10 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           voiceDisabled={privateNotesVoiceDisabled}
         />
       );
+    case "carePlan":
+      return <CarePlanContent carePlanActions={carePlanActions} />;
+    case "canvas":
+      return <CanvasContent canvasActions={canvasActions} emptyState={emptyState} />;
     case "referral":
       return (
         <ReferralContent
@@ -5364,10 +5692,18 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
   }
 }
 
-function isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating) {
+function isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating, canvasActions) {
+  if (activeId === "canvas") return (canvasActions?.drawingCanvases || []).length === 0;
   if (activeId === "vitals") return !vitalsUpdating && (viewData.vitals || []).length === 0;
   if (activeId === "history") return (viewData.history || []).length === 0;
   if (activeId === "labResults") return (viewData.labResults || []).length === 0;
+  if (activeId === "medicalRecords") {
+    return (viewData.medicalRecordsRawDocs || []).length === 0 && (viewData.medicalRecords || []).length === 0;
+  }
+  if (activeId === "vaccine") {
+    const categories = viewData.vaccineCategories || {};
+    return (categories.iap || []).length === 0 && (categories.other || []).length === 0;
+  }
   if (activeId === "gynec") return (viewData.gynec || []).length === 0;
   if (activeId === "obstetric") return getVisibleObstetricSections(viewData.obstetric || []).length === 0;
   if (activeId === "growth") {
@@ -5406,7 +5742,7 @@ function sectionVoiceLabel(activeId) {
 }
 
 function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, actionCounts, hidePlusIcon, voiceEnabled, voiceLocked }) {
-  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal" || activeId === "dentalPlan") return null;
+  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal" || activeId === "dentalPlan" || activeId === "carePlan") return null;
   const status = voiceState?.status || "idle";
   const busy = status === "recording" || status === "transcribing" || status === "digitizing";
   const disabled = busy || voiceLocked;
@@ -5438,7 +5774,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, referralValue, onReferralChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, voiceAnalyticsContext, medicalRecordActions }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionCounts, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, referralValue, onReferralChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, doctorName, patientName, patientGender, voiceSessionId, voiceAnalyticsContext, medicalRecordActions, carePlanActions, canvasActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -5449,7 +5785,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
     ? (activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "Transcribing private notes..." : "Refining your captured consultation...")
     : voiceStatus === "digitizing" ? "Filling section…" : undefined;
   const privateNotesVoiceDisabled = voiceLocked || ["recording", "transcribing", "digitizing"].includes(voiceStatus);
-  const emptyInlineActions = isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating);
+  const emptyInlineActions = isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating, canvasActions);
 
   useEdgeSwipeNavigation({
     containerRef,
@@ -5508,6 +5844,8 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           onVoiceClick={onVoiceClick}
           emptyVoiceDisabled={voiceLocked || ["recording", "transcribing", "digitizing"].includes(voiceStatus)}
           medicalRecordActions={medicalRecordActions}
+          carePlanActions={carePlanActions}
+          canvasActions={canvasActions}
         />
       </div>
       {showVoiceRx && voiceRecorderVisible && (
@@ -5574,13 +5912,15 @@ export function SideNavbar({
   setFilesData = NOOP,
   setIsEditDocument = NOOP,
   setUploadDocDrawer = NOOP,
+  carePlanActions,
+  canvasActions,
 }) {
   const dispatch = useDispatch();
   const [activeId, setActiveId] = useState(() => initialActiveId);
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
   const [pendingSectionChange, setPendingSectionChange] = useState(null);
-  const { activeVoiceModule, headerDictation, claimActiveVoiceModule, releaseActiveVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal } = useRxPadSync();
+  const { activeVoiceModule, headerDictation, claimActiveVoiceModule, releaseActiveVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal, guardVoiceRxUsage } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const sideNavVoiceLockIdRef = useRef(`side-nav-voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const sideNavVoiceSessionIdRef = useRef(null);
@@ -5598,6 +5938,9 @@ export function SideNavbar({
   const [hasPastVisitsLoaded, setHasPastVisitsLoaded] = useState(false);
   const [patientVaccineRows, setPatientVaccineRows] = useState([]);
   const [vaccineTemplateRows, setVaccineTemplateRows] = useState([]);
+  const [vaccineAgeSections, setVaccineAgeSections] = useState(null);
+  const [overridenVaccineRows, setOverridenVaccineRows] = useState([]);
+  const [vaccineDob, setVaccineDob] = useState("");
   const [opthalPrescriptionRows, setOpthalPrescriptionRows] = useState([]);
   const [growthChartRows, setGrowthChartRows] = useState([]);
   const [growthParentalDetails, setGrowthParentalDetails] = useState(null);
@@ -5621,6 +5964,7 @@ export function SideNavbar({
   const { isPediatricAccessable } = useAccess();
   const isCrossConsultAccessable = useCrossConsult();
   const isDentalAccessable = useIsDentalEnabled();
+  const isCarePlanAccessable = useFeatureIsOn(GB_CARE_PLAN);
   const {
     vitalsData = [],
     setVitalsData,
@@ -5693,11 +6037,12 @@ export function SideNavbar({
 
     const fetchVaccines = async () => {
       try {
-        const [patientTemplates, standardTemplates, overridenVaccines, vaccineBrands] = await Promise.all([
+        const [patientTemplates, standardTemplates, overridenVaccines, vaccineBrands, tvtAgeBySection] = await Promise.all([
           getPatientVaccineDetails(patientId, patientPid),
           getVaccineTemplates(),
           getOverridenDueDate(patientId, patientPid),
           getVaccineBrands(),
+          getTvtAgeBySection(),
         ]);
         if (vaccineRequestRef.current !== requestId) return;
         const mergedTemplates = mergeDataPatientDetails(
@@ -5709,10 +6054,15 @@ export function SideNavbar({
         );
         setPatientVaccineRows(Array.isArray(patientTemplates) ? patientTemplates : []);
         setVaccineTemplateRows(Array.isArray(mergedTemplates) ? mergedTemplates : []);
+        setVaccineAgeSections(tvtAgeBySection || null);
+        setOverridenVaccineRows(Array.isArray(overridenVaccines) ? overridenVaccines : []);
+        setVaccineDob(patientDob || "");
       } catch (error) {
         if (vaccineRequestRef.current !== requestId) return;
         setPatientVaccineRows([]);
         setVaccineTemplateRows([]);
+        setVaccineAgeSections(null);
+        setOverridenVaccineRows([]);
         console.error("[SideNavbar][Vaccines] failed to fetch patient vaccines:", error);
       }
     };
@@ -5936,6 +6286,10 @@ export function SideNavbar({
     () => buildLegacyVaccineData(patientVaccineRows, vaccineTemplateRows),
     [patientVaccineRows, vaccineTemplateRows]
   );
+  const vaccineCategoryData = useMemo(
+    () => buildVaccineCategoryData(overridenVaccineRows, vaccineAgeSections, vaccineDob),
+    [overridenVaccineRows, vaccineAgeSections, vaccineDob]
+  );
   const legacyOpthalEntries = useMemo(
     () => buildLegacyOpthalEntries(opthalPrescriptionRows),
     [opthalPrescriptionRows]
@@ -5997,9 +6351,10 @@ export function SideNavbar({
     gynec: legacyGynecSections,
     obstetric: legacyObstetricSections,
     vaccine: legacyVaccineData,
+    vaccineCategories: vaccineCategoryData,
     optal: legacyOpthalEntries,
     growth: legacyGrowthData,
-  }), [digitizedOverrides, legacyPastVisitEntries, legacyVitalsEntries, legacyHistorySections, legacyLabEntries, legacyMedicalRecords, allUploadedDocs, uploadDocCategories, legacyGynecSections, legacyObstetricSections, legacyVaccineData, legacyOpthalEntries, legacyGrowthData]);
+  }), [digitizedOverrides, legacyPastVisitEntries, legacyVitalsEntries, legacyHistorySections, legacyLabEntries, legacyMedicalRecords, allUploadedDocs, uploadDocCategories, legacyGynecSections, legacyObstetricSections, legacyVaccineData, vaccineCategoryData, legacyOpthalEntries, legacyGrowthData]);
 
   const pastVisitsState = useMemo(() => ({
     loading: isPastVisitsLoading,
@@ -6021,6 +6376,7 @@ export function SideNavbar({
     history: "Add/Edit Details",
     labResults: "Add/Edit Details",
     medicalRecords: "Add/Edit Details",
+    canvas: "Add Canvas",
     gynec: "Add/Edit Details",
     obstetric: "Add/Edit Details",
     vaccine: "Add/Edit Details",
@@ -6037,23 +6393,28 @@ export function SideNavbar({
   }), [labParamsDataProp?.length]);
 
   const navItems = useMemo(() => {
-    const seen = new Set(["pastVisits", "vitals", "history"]);
-    const orderedItems = [NAV_ITEM_BY_ID.pastVisits, NAV_ITEM_BY_ID.vitals, NAV_ITEM_BY_ID.history];
+    // Only Past Visits is pinned; it is not a Customize Your Pad module. Vitals and
+    // History are real modules (ids 1 and 3) so they follow their toggles like the rest.
+    const seen = new Set(["pastVisits"]);
+    const orderedItems = [NAV_ITEM_BY_ID.pastVisits];
     const access = {
       isVaccinationAccessable,
       isGrowthChartAccessable,
       isGynaecHistoryAccessable,
       isCrossConsultAccessable,
+      isCarePlanAccessable,
       referralOnRightPad,
       isDentalAccessable,
     };
 
     (customizedPadLeftList || []).forEach((item) => {
-      const navId = getCustomizedPadNavId(item, access);
-      if (navId === "growth") return;
-      if (!navId || seen.has(navId) || !NAV_ITEM_BY_ID[navId]) return;
-      seen.add(navId);
-      orderedItems.push(NAV_ITEM_BY_ID[navId]);
+      const navIds = getCustomizedPadNavId(item, access);
+      (Array.isArray(navIds) ? navIds : [navIds]).forEach((navId) => {
+        if (navId === "growth") return;
+        if (!navId || seen.has(navId) || !NAV_ITEM_BY_ID[navId]) return;
+        seen.add(navId);
+        orderedItems.push(NAV_ITEM_BY_ID[navId]);
+      });
     });
 
     if (isOpthalModuleAccessible && !seen.has("optal")) {
@@ -6078,6 +6439,7 @@ export function SideNavbar({
     isVaccinationAccessable,
     isZydusUserAccessable,
     isCrossConsultAccessable,
+    isCarePlanAccessable,
     referralOnRightPad,
     isDentalAccessable,
   ]);
@@ -6356,6 +6718,7 @@ export function SideNavbar({
         error: "",
       });
       const clinicalCompletedAtMs = Date.now();
+      guardVoiceRxUsage?.({ phase: "mark-used", surface: "side-navbar", sectionId });
       uploadAndLogVoiceRx2({
         audioBlob,
         patientData: { ...(patientData || {}), patient_unique_id: patientData?.patient_unique_id || patientId },
@@ -6426,9 +6789,9 @@ export function SideNavbar({
       toast.error(error?.message || "Voice processing failed.");
       updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
     }
-  }, [applySideNavVoiceResult, dispatch, doctorId, getSideNavVoiceSessionId, medicalHistoryData, patientData, patientId, privateNotesValue, profile, savePrivateNotesFromVoice, updateVoiceState, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated]);
+  }, [guardVoiceRxUsage, applySideNavVoiceResult, dispatch, doctorId, getSideNavVoiceSessionId, medicalHistoryData, patientData, patientId, privateNotesValue, profile, savePrivateNotesFromVoice, updateVoiceState, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated]);
 
-  const handleVoiceClick = useCallback(() => {
+  const handleVoiceClick = useCallback(async () => {
     if (!activeId) return;
     if (!isSideNavVoiceSupported(activeId)) return;
     if (activeVoiceModule || headerDictationBusy) return;
@@ -6436,6 +6799,8 @@ export function SideNavbar({
     if (existing === "recording" || existing === "transcribing" || existing === "digitizing") return;
     const sessionId = getSideNavVoiceSessionId();
     const moduleName = activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "Private Notes" : SIDE_NAV_MODULE_NAMES[activeId];
+    const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "start", surface: "side-navbar", sectionId: activeId });
+
     trackVoiceRx2StartEvent({
       patientData,
       profile,
@@ -6452,15 +6817,20 @@ export function SideNavbar({
         patientId: patientId || patientData?.patient_unique_id || "",
         section_id: activeId,
         trigger_location: "side_nav_voice_cta",
+        canUseVoiceRx
       },
     });
+    if (!canUseVoiceRx) return;
+    getSideNavVoiceSessionId();
     updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
-  }, [activeId, activeVoiceModule, doctorId, getSideNavVoiceSessionId, headerDictationBusy, patientData, patientId, profile, voiceBySection, updateVoiceState, voiceDigitization?.voiceCallCount]);
+  }, [activeId, activeVoiceModule, doctorId, getSideNavVoiceSessionId, guardVoiceRxUsage, headerDictationBusy, patientData, patientId, profile, voiceBySection, updateVoiceState, voiceDigitization?.voiceCallCount]);
 
-  const handleVoiceRecorderSubmit = useCallback((meta = {}) => {
-    if (activeId) return transcribeSectionAudio(activeId, meta);
-    return Promise.resolve();
-  }, [activeId, transcribeSectionAudio]);
+  const handleVoiceRecorderSubmit = useCallback(async (meta = {}) => {
+  const canUseVoiceRx = await guardVoiceRxUsage?.({ phase: "submit", surface: "side-navbar", sectionId: activeId });
+  if (!canUseVoiceRx) return;
+  if (activeId) return transcribeSectionAudio(activeId, meta);
+  return Promise.resolve();
+}, [activeId, guardVoiceRxUsage, transcribeSectionAudio]);
 
   const handleVoiceCancel = useCallback(() => {
     if (!activeId) return;
@@ -6584,6 +6954,8 @@ export function SideNavbar({
             setIsEditDocument,
             setUploadDocDrawer,
           }}
+          carePlanActions={carePlanActions}
+          canvasActions={canvasActions}
         />
       ) : null}
       <TPConfirmDialog

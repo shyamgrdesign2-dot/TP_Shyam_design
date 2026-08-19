@@ -16,21 +16,79 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    # Webpack minification is CPU-parallel and this build runs with an 8GB heap
+    # (see Dockerfile NODE_OPTIONS), so more cores + RAM directly cuts the 356s compile.
+    # Switchable WITHOUT a code change: set repo variable PROD_RUNNER
+    # (Settings -> Secrets and variables -> Actions -> Variables) to a provisioned
+    # larger-runner label, e.g. ubuntu-latest-8-cores. Clearing the variable reverts.
+    # Do NOT hardcode a label here: an unprovisioned label leaves the job queued
+    # forever rather than failing loudly.
+    runs-on: ${{ vars.PROD_RUNNER || 'ubuntu-latest' }}
 
     env:
       REACT_APP_ENV: prod
       # Upload → blob container react-static-prod/cdn/... Front Door exposes that at the root (/).
       PUBLIC_URL_PROD_CDN: https://assets.tatvacare.in/
       IMAGE_NAME: acinacr.azurecr.io/pm-prod-doctor-portal:${{ github.sha }}
+      # Sentry release naming: <package>@<semver>+<sha>. The package prefix makes Sentry
+      # parse it as semver (sortable, `release:latest` works); +sha is semver build
+      # metadata pinning the exact commit.
+      RELEASE_PACKAGE: pm-doctor-portal
+      SENTRY_ORG: digicare-health-solutions-priv
+      SENTRY_PROJECT: tatvapractice
 
     permissions:
       id-token: write
-      contents: read
+      contents: write   # push the vX.Y.Z release tag
 
     steps:
       - name: Checkout to the branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          # Full history + tags: needed by the duplicate-tag guard below and by
+          # `sentry-cli releases set-commits --auto` (suspect commits).
+          fetch-depth: 0
+
+      # ---- 0. Resolve this deploy's release identity ----
+      # This single string is the source of truth. It is baked into the JS bundle,
+      # used for the sourcemap upload, and used for every sentry-cli call. If the
+      # three ever differ, Sentry silently fails to symbolicate.
+      - name: Resolve release version
+        id: release
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          SHA=$(git rev-parse --short HEAD)
+
+          # Bookkeeping must never block a deploy. Both checks below only decide whether
+          # this commit earns a git tag; neither stops the release from shipping.
+          #
+          # Sentry releases stay unique regardless, because the release string carries
+          # +<sha>. Only the git TAG can collide, and a duplicate tag is not worth a
+          # failed deploy — especially with ~74 open PRs whose authors have no reason to
+          # know a tagging convention was introduced.
+          TAG_EXISTS=0
+
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::warning::package.json version '$VERSION' is not X.Y.Z — deploying without a git tag. Set a semver version to get a tagged release."
+            TAG_EXISTS=1
+          elif git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            if [ "$(git rev-list -n 1 "refs/tags/v$VERSION")" = "$(git rev-parse HEAD)" ]; then
+              # Same commit: a workflow_dispatch re-run, or a retry after a late step failed.
+              echo "::notice::re-deploying v$VERSION — tag already points at this commit"
+            else
+              echo "::warning::tag v$VERSION already exists on a different commit — deploying without a new tag. Bump \"version\" in package.json to get a tagged release for this change."
+            fi
+            TAG_EXISTS=1
+          fi
+
+          {
+            echo "version=$VERSION"
+            echo "sha=$SHA"
+            echo "release=${RELEASE_PACKAGE}@${VERSION}+${SHA}"
+            echo "tag_exists=$TAG_EXISTS"
+          } >> "$GITHUB_OUTPUT"
+          echo "Release: ${RELEASE_PACKAGE}@${VERSION}+${SHA}"
 
       # ---- 1. Build image and push to ACR (no Container App update yet) ----
       # Generate version.json here in CI where git is guaranteed to be available.
@@ -42,7 +100,11 @@ jobs:
           set -euo pipefail
           SHA=$(git rev-parse --short HEAD)
           API_VERSION=$(node -e "console.log(require('./package.json').apiCompatibilityVersion ?? 1)")
-          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION}" > public/version.json
+          # `release` is informational (ops can curl /version.json to see what is live).
+          # `apiVersion` stays the ONLY force-reload trigger — a routine semver bump must
+          # not hard-refresh every doctor mid-consult. See src/hooks/useVersionCheck.js.
+          RELEASE="${{ steps.release.outputs.release }}"
+          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION,\"release\":\"$RELEASE\"}" > public/version.json
 
       - name: Docker login to ACR
         env:
@@ -52,6 +114,23 @@ jobs:
           set -euo pipefail
           echo "$REGISTRY_PASS" | docker login acinacr.azurecr.io -u "$REGISTRY_USER" --password-stdin
 
+      # NO buildx layer cache here. It was tried and measurably lost.
+      #
+      # Run 32177103750 with cache-to type=gha,mode=max:
+      #   "preparing build cache for export 242.3s", cache export DONE 416.7s,
+      #   0 CACHED layers, Build step 835s vs 578s without it. +5m15s on the deploy.
+      #
+      # It cannot win on later runs either: mode=max re-exports every CHANGED layer, and
+      # `COPY . .` plus `npm run build` change on every commit, so the ~416s export recurs
+      # while the ceiling on savings is only the npm install layer (~260s). mode=min does
+      # not help — npm install lives in the build stage, which mode=min does not export.
+      # Revisit only with a different approach, e.g. caching node_modules on the runner
+      # via actions/cache, outside the image.
+      #
+      # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
+      # estimated 3-6 min to a deploy already dominated by the webpack compile. Release
+      # ATTRIBUTION does not need sourcemaps — `release` is event metadata, so "first seen
+      # in vX.Y.Z", regressions and release health all still work.
       - name: Build image and push to ACR
         run: |
           set -euo pipefail
@@ -59,6 +138,7 @@ jobs:
             --build-arg REACT_APP_ENV=prod \
             --build-arg GENERATE_SOURCEMAP=false \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg SENTRY_RELEASE="${{ steps.release.outputs.release }}" \
             --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
             --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PROD_CDN }}" \
             -t "${{ env.IMAGE_NAME }}" .
@@ -89,19 +169,86 @@ jobs:
          #tenant-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_TENANT_ID }}
          #subscription-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
 
-      # upload-batch never deletes blobs missing from --source, so previously uploaded
-      # hashed chunks survive. --overwrite only affects identical paths (e.g. manifest.json,
-      # favicon.ico) which we WANT current.
+      # azcopy instead of `az storage blob upload-batch`. Proven on UAT first
+      # (run 32177197271): 471 files scanned, 15 uploaded, 10.8s versus ~109s here.
+      # The gain is twofold — azcopy parallelises properly, and sync skips files whose
+      # content is unchanged, which is most of a content-hashed build.
+      #
+      # The risk this carries is that azcopy writes Content-Type on every blob it uploads.
+      # If it inferred those differently from `az`, the upload would still SUCCEED and the
+      # site would then serve .js with a type browsers refuse to execute, with nothing in
+      # the logs to explain it. The gate below turns that into a failed build instead.
+      # On UAT the newly built main.<hash>.js and main.<hash>.css came back as
+      # application/javascript and text/css.
+      #
+      # --compare-hash=MD5 is required, not an optimisation: sync compares last-modified
+      # time by default, and every file gets a fresh mtime from the rebuilt image, so the
+      # default would re-upload everything and save nothing.
+      # --delete-destination=false preserves the previous behaviour, keeping blobs absent
+      # from the source so chunks used by the live revision survive.
       - name: Publish build assets to Azure Blob (react-static-prod/cdn)
+        env:
+          AZCOPY_AUTO_LOGIN_TYPE: AZCLI
         run: |
           set -euo pipefail
-          az storage blob upload-batch \
-            --account-name pmdoctorportal \
-            --auth-mode login \
-            --destination react-static-prod \
-            --source _blob_html \
-            --destination-path cdn \
-            --overwrite
+          if ! command -v azcopy >/dev/null 2>&1; then
+            echo "azcopy not preinstalled — fetching"
+            curl -sL https://aka.ms/downloadazcopy-v10-linux -o /tmp/azcopy.tgz
+            tar -xzf /tmp/azcopy.tgz -C /tmp
+            sudo install -m 755 /tmp/azcopy_linux_amd64_*/azcopy /usr/local/bin/azcopy
+          fi
+          azcopy --version
+
+          time azcopy sync "_blob_html" \
+            "https://pmdoctorportal.blob.core.windows.net/react-static-prod/cdn" \
+            --recursive \
+            --delete-destination=false \
+            --compare-hash=MD5 \
+            --put-md5 | tee /tmp/azcopy.out
+
+          # Only files azcopy actually uploaded say anything about how azcopy behaves.
+          TRANSFERRED=$(grep -oE 'Total Number of Copy Transfers: [0-9]+' /tmp/azcopy.out | grep -oE '[0-9]+$' || echo 0)
+          echo "TRANSFERRED=$TRANSFERRED" >> "$GITHUB_ENV"
+          echo "azcopy uploaded $TRANSFERRED file(s)"
+
+      # Reads Content-Type back from the blob itself (not through the CDN, which could
+      # return a cached value) and fails the build on any mismatch — BEFORE the Container
+      # App switch, so prod keeps serving the previous revision if azcopy got this wrong.
+      #
+      # Samples ONLY from static/, deliberately: those filenames are content-hashed, so a
+      # changed build always produces new names azcopy must upload, which means the check
+      # actually exercises azcopy. Sampling unchanged public/ files would read back
+      # metadata `az` set on an earlier deploy and pass even if azcopy were broken.
+      - name: Verify Content-Type survived the upload
+        run: |
+          set -euo pipefail
+          if [ "${TRANSFERRED:-0}" -eq 0 ]; then
+            echo "::warning::azcopy uploaded 0 files, so nothing here exercises it. Content-Type unverified this run; existing blobs keep their previous metadata."
+            exit 0
+          fi
+
+          check() {
+            local rel="$1" want="$2"
+            [ -n "$rel" ] || { echo "  (no sample under static/ for $want — skipped)"; return 0; }
+            local got
+            got=$(az storage blob show \
+              --account-name pmdoctorportal --auth-mode login \
+              --container-name react-static-prod --name "cdn/$rel" \
+              --query "properties.contentSettings.contentType" -o tsv)
+            printf '  %-52s %s\n' "$rel" "$got"
+            if [ "$got" != "$want" ]; then
+              echo "::error::Content-Type mismatch for $rel — expected '$want', blob has '$got'. Revert this step to az storage blob upload-batch."
+              exit 1
+            fi
+          }
+
+          cd _blob_html
+          check "$(find static/js  -name '*.js'  -type f 2>/dev/null | head -1)" "application/javascript"
+          check "$(find static/css -name '*.css' -type f 2>/dev/null | head -1)" "text/css"
+          check "$(find static/media -name '*.svg'   -type f 2>/dev/null | head -1)" "image/svg+xml"
+          check "$(find static/media -name '*.png'   -type f 2>/dev/null | head -1)" "image/png"
+          check "$(find static/media -name '*.woff2' -type f 2>/dev/null | head -1)" "font/woff2"
+          echo "Content-Type preserved on every sampled type that azcopy uploaded."
 
       # ---- 4. Now switch the Container App to the new image (assets already in place) ----
       - name: Azure Login (deploy identity)
@@ -118,3 +265,38 @@ jobs:
             --name pm-prod-doctor-portal \
             --resource-group tatva-prod \
             --image "${{ env.IMAGE_NAME }}"
+
+      # ---- 5. Register the release in Sentry ----
+      # Runs after the deploy so the deploy timestamp is truthful. The release itself
+      # already exists (the sourcemap upload created it); `releases new` is idempotent.
+      - name: Finalize Sentry release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes @sentry/cli@2"
+
+          $CLI releases new "$RELEASE"
+
+          # Suspect Commits + "issue regressed in release X". Requires the GitHub
+          # integration to be enabled for the Sentry org; kept non-fatal so a missing
+          # integration never blocks an already-live prod deploy.
+          $CLI releases set-commits "$RELEASE" --auto \
+            || echo "::warning::sentry set-commits failed — enable the GitHub integration in Sentry for suspect commits"
+
+          $CLI releases finalize "$RELEASE"
+          $CLI releases deploys new -r "$RELEASE" -e prod
+
+      # ---- 6. Tag the commit so the deployed version is recoverable from git ----
+      - name: Tag release
+        if: steps.release.outputs.tag_exists == '0'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "$RELEASE"
+          git push origin "v$VERSION"

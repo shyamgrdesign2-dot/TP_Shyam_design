@@ -670,17 +670,29 @@
 .qd-tutorial-drawer .ant-drawer-content {
   border-left: 1px solid #e2e8f0;
 }
-.qd-tutorial-drawer .ant-drawer-header {
+body .qd-tutorial-drawer .ant-drawer-header {
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  min-height: 60px;
-  height: 60px;
-  padding: 0 20px;
+  min-height: 64px;
+  height: 64px;
+  padding: 0 24px;
   border-bottom: 1px solid #e2e8f0;
 }
-.qd-tutorial-drawer .ant-drawer-body {
-  padding: 24px 20px;
+body .qd-tutorial-drawer .ant-drawer-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+body .qd-tutorial-drawer .ant-drawer-close {
+  margin: 0;
+  padding: 0;
+}
+body .qd-tutorial-drawer .ant-drawer-body {
+  /* the portal sets `body .ant-drawer .ant-drawer-body { padding: 0 }`
+     globally — match that specificity so this drawer keeps its padding. */
+  padding: 24px;
+  background: #fff;
 }
 .qd-tutorial-title {
   color: #0f172a;
@@ -696,16 +708,16 @@
 .qd-tutorial-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 .qd-tutorial-heading {
   margin: 0;
   color: #0f172a;
   font-family: Mulish, sans-serif;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 0;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 .qd-tutorial-steps {
   display: flex;
@@ -716,10 +728,13 @@
 }
 .qd-tutorial-step {
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 28px 1fr;
   align-items: flex-start;
-  gap: 14px;
-  padding: 4px 0 16px;
+  gap: 12px;
+  padding: 0 0 18px;
+}
+.qd-tutorial-step:last-child {
+  padding-bottom: 0;
 }
 .qd-tutorial-step-index-wrap {
   display: flex;
@@ -731,8 +746,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
   border-radius: 8px;
   background: linear-gradient(135deg, #6938ef 0%, #4338ca 100%);
@@ -746,9 +761,9 @@
 .qd-tutorial-step-line {
   flex: 1;
   width: 2px;
-  min-height: 28px;
+  min-height: 20px;
   margin-top: 6px;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
   background-image: linear-gradient(180deg, #cbd5e1 0%, #cbd5e1 50%, transparent 50%, transparent 100%);
   background-repeat: repeat-y;
   background-size: 2px 8px;
@@ -756,8 +771,9 @@
 .qd-tutorial-step-copy {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-top: 4px;
+  gap: 2px;
+  padding-top: 3px;
+  min-width: 0;
 }
 .qd-tutorial-step-title {
   margin: 0;
@@ -775,9 +791,10 @@
 }
 .qd-tutorial-try {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;
+  gap: 12px;
   padding: 14px 16px;
+  margin-top: 4px;
   border: 1px solid #e0d4ff;
   border-radius: 12px;
   background: #f4efff;

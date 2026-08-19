@@ -7,15 +7,25 @@ ARG REACT_APP_ENV
 ARG SENTRY_AUTH_TOKEN
 ARG GENERATE_SOURCEMAP
 ARG PUBLIC_URL
-# GitHub Packages PAT (read:packages). Pass from CI:
-#   --build-arg NODE_AUTH_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
-# Used only for npm install; not kept as ENV so it is less likely to linger in layers.
+# Release identity for this build, e.g. pm-doctor-portal@4.8.0+61c4b3f (prod)
+# or pm-doctor-portal@61c4b3f (non-prod). Computed in CI, never here — the
+# Docker context has no reliable git metadata.
+ARG SENTRY_RELEASE
+# GitHub Packages PAT (read:packages) for @dhspl-tatvacare/* — passed from CI as a build-arg:
+#   buildArguments: NODE_AUTH_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
+# Consumed only for the install; .npmrc references it via ${NODE_AUTH_TOKEN} and is removed after
+# so the token never lingers in an image layer.
 ARG NODE_AUTH_TOKEN
 
 ENV REACT_APP_ENV=$REACT_APP_ENV
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ENV GENERATE_SOURCEMAP=$GENERATE_SOURCEMAP
 ENV PUBLIC_URL=$PUBLIC_URL
+# One build-arg drives both consumers so they can never drift:
+#   SENTRY_RELEASE            -> sentry-cli sourcemaps upload --release
+#   REACT_APP_SENTRY_RELEASE  -> inlined by CRA into Sentry.init({ release })
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
+ENV REACT_APP_SENTRY_RELEASE=$SENTRY_RELEASE
 
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV DISABLE_ESLINT_PLUGIN=true
@@ -29,6 +39,9 @@ RUN NODE_AUTH_TOKEN="$NODE_AUTH_TOKEN" npm install --legacy-peer-deps \
   && rm -f .npmrc
 
 COPY . .
+
+# COPY . . re-adds .npmrc — drop it again so npm run build never needs the token env
+RUN rm -f .npmrc
 
 RUN npm run build
 

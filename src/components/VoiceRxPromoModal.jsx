@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Drawer, Modal, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import "./VoiceRxPromoModal.scss";
@@ -12,7 +12,9 @@ import GenRxKnowMore from "./GenRxKnowMore";
 import VideoModal from "../common/VideoModal";
 import { isMobile, isTablet } from "react-device-detect";
 import { getClinic, isVoiceRxFree, isZydus } from "../utils/utils";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { getDecodedToken } from "../utils/localStorage";
+import { resolveTpConfigEnvValue } from "../utils/voiceRxNavigation";
+import { useFeatureIsOn, useFeatureValue } from "@growthbook/growthbook-react";
 import { ASSETS } from "../assets";
 const {
   coupon: couponSvg,
@@ -23,6 +25,47 @@ const {
   messagesSecondary: contactSupport,
   arrowRightPrimary: arrowRight,
 } = ASSETS.images;
+
+// A brand-new account can land here before the backend has provisioned its
+// services; retry the fetch once after this delay when `voice_rx` is missing.
+const VOICE_RX_SERVICE_RETRY_MS = 4000;
+
+const TP_CONFIG_DATA_FEATURE_KEY = "tp-config-data";
+
+/**
+ * Offer line copy — editable from GrowthBook without a release, e.g.
+ *
+ *   "voiceRxPromoOffer": {
+ *     "subtextPrefix": "Limited-time",
+ *     "subtextHighlight": "New Year",
+ *     "subtextSuffix": "Offer"
+ *   }
+ *
+ * The value may also be env-keyed ({ uat, prod }). Anything missing falls back
+ * to the copy below, so an empty/absent config keeps today's wording.
+ * The trailing emoji is rendered by the component (see PROMO_OFFER_EMOJI) so
+ * the config stays plain text.
+ */
+const DEFAULT_PROMO_OFFER_COPY = {
+  subtextPrefix: "Limited-time",
+  subtextHighlight: "New Year",
+  subtextSuffix: "Offer",
+};
+const PROMO_OFFER_EMOJI = "🎉";
+
+/**
+ * Per-doctor namespace for the promo counters. The offer budget belongs to the
+ * account, so it must not leak across doctors sharing a browser.
+ */
+const getPromoDoctorKey = (profile) => {
+  const tokenResult = getDecodedToken()?.result;
+  return (
+    profile?.doctor_unique_id ||
+    tokenResult?.doctor_unique_id ||
+    tokenResult?.user_id ||
+    null
+  );
+};
 
 const voiceRxVideoLink = {
   link: "https://www.youtube.com/embed/vIeSUFJ7JgE",
@@ -42,6 +85,11 @@ const VoiceRxPromoModal = () => {
   const [isLoading, setIsLoading] = useState(false);
   const clinic = getClinic(profile?.hospital_data);
   const [isOpen, setIsOpen] = useState(false);
+  const tpConfigData = useFeatureValue(TP_CONFIG_DATA_FEATURE_KEY, {});
+  const promoOfferCopy = {
+    ...DEFAULT_PROMO_OFFER_COPY,
+    ...(resolveTpConfigEnvValue(tpConfigData?.voiceRxPromoOffer) || {}),
+  };
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
@@ -60,10 +108,33 @@ const VoiceRxPromoModal = () => {
     setPopOverVideo(!popOverVideo);
   };
 
+  // Latest list, read inside the retry timer without re-arming the fetch effect.
+  const servicesListRef = useRef(servicesList);
   useEffect(() => {
-    if (profile?.b2c) {
+    servicesListRef.current = servicesList;
+  }, [servicesList]);
+
+  // The services list is what tells us whether this doctor still qualifies for
+  // the offer. On a freshly signed-up account the backend may not have
+  // provisioned `voice_rx` yet, so retry once shortly after the first fetch.
+  const voiceRxServiceRetriedRef = useRef(false);
+  useEffect(() => {
+    if (!profile?.b2c) return undefined;
+
+    dispatch(services(profile?.b2c));
+
+    if (voiceRxServiceRetriedRef.current) return undefined;
+
+    const retryTimer = setTimeout(() => {
+      const hasVoiceRxService = servicesListRef.current?.some(
+        (e) => e.service_name === S_VOICE_RX
+      );
+      if (hasVoiceRxService) return;
+      voiceRxServiceRetriedRef.current = true;
       dispatch(services(profile?.b2c));
-    }
+    }, VOICE_RX_SERVICE_RETRY_MS);
+
+    return () => clearTimeout(retryTimer);
   }, [dispatch, profile?.b2c]);
 
   useEffect(() => {
@@ -74,9 +145,15 @@ const VoiceRxPromoModal = () => {
       // 1. Maximum 1 time per session
       // 2. Maximum 2-3 sessions total (using 3 as max)
       // 3. Then stop forever
+      //
+      // Both counters are namespaced per doctor: the budget belongs to the
+      // account, not to the browser, so a different doctor signing in (or
+      // signing up) on the same machine starts with a fresh budget.
+      const doctorKey = getPromoDoctorKey(profile);
+      if (!doctorKey) return;
 
-      const SESSION_KEY = "voiceRxPromoModal_shown_in_session";
-      const TOTAL_SESSIONS_KEY = "voiceRxPromoModal_session_count";
+      const SESSION_KEY = `voiceRxPromoModal_shown_in_session_${doctorKey}`;
+      const TOTAL_SESSIONS_KEY = `voiceRxPromoModal_session_count_${doctorKey}`;
       const MAX_SESSIONS = 3;
 
       // Check if already shown in this session
@@ -109,7 +186,8 @@ const VoiceRxPromoModal = () => {
         setIsOpen(true);
       }
     }
-  }, [festival_extend, plan_tier, isFreeVoiceRxUser, servicesList]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [festival_extend, plan_tier, isFreeVoiceRxUser, servicesList, profile?.doctor_unique_id]);
 
   const onClose = () => {
     setIsOpen(false);
@@ -182,7 +260,10 @@ const VoiceRxPromoModal = () => {
                   </span>
                 </div>
                 <p className="monetization-popup-offer-subtext">
-                  Limited-time <strong>New Year</strong> Offer🎉
+                  {promoOfferCopy.subtextPrefix}{" "}
+                  <strong>{promoOfferCopy.subtextHighlight}</strong>{" "}
+                  {promoOfferCopy.subtextSuffix}
+                  {PROMO_OFFER_EMOJI}
                 </p>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

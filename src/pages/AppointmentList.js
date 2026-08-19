@@ -160,7 +160,7 @@ function AppointmentList() {
         </div>
       </div>
 
-      <ExtendTrialModal />
+      {/* <ExtendTrialModal /> */}
     </>
   );
 }

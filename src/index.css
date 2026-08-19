@@ -157,3 +157,22 @@ body.drawer-open-blur #root > *:not(.ant-drawer-root) {
   pointer-events: none;
   user-select: none;
 }
+
+/* Build version pinned to the bottom-right of the profile dropdown.
+   Injected via the Dropdown's dropdownRender (see src/common/Header.js), so it sits
+   inside the overlay but outside the menu and never intercepts the Log Out click. */
+.prfile-dropdown-inner {
+  position: relative;
+}
+
+.prfile-dropdown .app-version-badge {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  color: #C4C4C4;
+  pointer-events: none;
+  user-select: none;
+}

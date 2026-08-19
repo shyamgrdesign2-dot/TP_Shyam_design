@@ -27,7 +27,6 @@ export default function ReportsTab({ filters, department = "opd" }) {
         const items = REPORTS.filter(
           (r) =>
             r.group === group &&
-            r.dept !== "ipd" &&
             (r.dept === "both" || r.dept === department) &&
             permissions.canView(r.roleId)
         );

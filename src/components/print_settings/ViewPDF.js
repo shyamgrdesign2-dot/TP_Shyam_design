@@ -1139,6 +1139,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             value = `${caseManagerData?.patient_data?.caseType ? caseManagerData?.patient_data?.caseType : "-"}`;
         } else if (id == 19) {
             value = `${caseManagerData?.patient_data?.patientCategory ? caseManagerData?.patient_data?.patientCategory : "-"}`;
+        } else if (id == 20) {
+            value = `${caseManagerData?.doctor_data?.doctor_name ? caseManagerData?.doctor_data?.doctor_name : "-"}`;
         }
         return value
     }
@@ -3592,7 +3594,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             option?.format === 'inline' ? (
                                                 <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Vitals & Body Composition:&nbsp;</Text>
-                                                    {patientBirthWeight && (
+                                                    {Boolean(patientBirthWeight) && (
                                                         <>
                                                             <Text
                                                                 style={{
@@ -3657,7 +3659,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>
                                                         Vitals & Body Composition:&nbsp;
 
-                                                        {patientBirthWeight && (
+                                                        {Boolean(patientBirthWeight) && (
                                                             <>
                                                                 <Text
                                                                     style={{
@@ -3743,7 +3745,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>
                                                         Vitals & Body Composition:&nbsp;
 
-                                                        {patientBirthWeight && (
+                                                        {Boolean(patientBirthWeight) && (
                                                             <>
                                                                 <Text
                                                                     style={{
@@ -4215,7 +4217,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     </>
                                                 ) : option?.format === 'listview' ? (
                                                     <>
-                                                        {transformGivenVaccines?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {transformGivenVaccines?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Given Vaccines :&nbsp;{'\n'}</Text>
                                                             {transformGivenVaccines?.map((item, i) => {
                                                                 return (
@@ -4251,7 +4253,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 )
                                                             })}
                                                         </View>}
-                                                        {todayVaccines?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {todayVaccines?.due?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Due Vaccines :&nbsp;{'\n'}</Text>
                                                             {todayVaccines?.due?.map((item, i) => {
                                                                 return (
@@ -4292,7 +4294,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     </>
                                                 ) : (
                                                     <>
-                                                        {transformGivenVaccines?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {transformGivenVaccines?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Given Vaccines :&nbsp;{'\n'}</Text>
                                                             <View style={styles.table}>
                                                                 <View style={styles.headerRow} fixed>
@@ -4323,7 +4325,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 ))}
                                                             </View>
                                                         </View>}
-                                                        {todayVaccines?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {todayVaccines?.due?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Due Vaccines :&nbsp;{'\n'}</Text>
                                                             <View style={styles.table}>
                                                                 <View style={styles.headerRow} fixed>
@@ -7602,7 +7604,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                              
                       </Page>
                       )}
-                      {structuralTeethDiagramImgUrl && (
+                      {Boolean(structuralTeethDiagramImgUrl) && (
                         <Page
                             size="A4"
                             style={{

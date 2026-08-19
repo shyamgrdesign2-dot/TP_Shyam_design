@@ -44,6 +44,7 @@ import {
   clearReceptionistSession,
   isReceptionistSession,
 } from "./utils/receptionistSession";
+import { useVoiceRxNewUiFlag, useNewPointClickUiFlag } from "./utils/voiceRxNavigation";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -225,13 +226,33 @@ const LimsPrintPage = React.lazy(() =>
 const LimsPrintConfig = React.lazy(() =>
   lazyRetry(() => import("./pages/lims/LimsPrintConfig"))
 );
+const PharmacyNoAccessPage = React.lazy(() =>
+  lazyRetry(() => import("./pages/pharmacy/PharmacyNoAccessPage"))
+);
 
 function PrescriptionRouteElement() {
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
+  const isNewPointClickUi = useNewPointClickUiFlag();
   const location = useLocation();
   const isVoiceRxNewUiFlow = Boolean(location.state?.isVoiceRxNewUiFlow);
+  // The OLD voice flow (/voice-rx-consult, mobile voice recording, SmartRx
+  // digitisation) hands its recording/transcript to the OLD prescription page,
+  // which owns that pipeline. Such entries must never be captured by the
+  // point-n-click rollout below.
+  const isLegacyVoiceHandoff = Boolean(
+    location.state?.fromVoiceRecording ||
+    location.state?.audioBlob ||
+    location.state?.digitizedData
+  );
 
   if (isVoiceRxNewFromGB && isVoiceRxNewUiFlow) {
+    return <PrescriptionNew />;
+  }
+
+  // Point-n-click rollout: every /prescription entry (fresh, edit, repeat,
+  // draft) renders PrescriptionNew in voice-less mode. Phones and opted-out
+  // doctors are excluded inside the hook.
+  if (isNewPointClickUi && !isLegacyVoiceHandoff) {
     return <PrescriptionNew />;
   }
 
@@ -835,6 +856,7 @@ function App() {
           <Route path="lims" element={<LimsPage />} />
           <Route path="lims/print/:patientId" element={<LimsPrintPage />} />
           <Route path="lims/print-settings" element={<LimsPrintConfig />} />
+          <Route path="pharmacy" element={<PharmacyNoAccessPage />} />
           {/* <Route path="dental-rx-pad" element={<DentalModuleShell />} /> */}
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />

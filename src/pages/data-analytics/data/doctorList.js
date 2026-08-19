@@ -20,7 +20,13 @@ export function getDoctorList() {
 function unwrapSpecialities(r) {
   if (Array.isArray(r)) return r;
   const src = r?.data ?? r ?? {};
-  const list = src.speciality || src.specialities || src.data?.speciality || [];
+  const list =
+    (Array.isArray(src.speciality) && src.speciality) ||
+    (Array.isArray(src.specialities) && src.specialities) ||
+    (Array.isArray(src.data?.speciality) && src.data.speciality) ||
+    (Array.isArray(src.data?.specialities) && src.data.specialities) ||
+    (Array.isArray(src.data?.data?.speciality) && src.data.data.speciality) ||
+    [];
   return Array.isArray(list) ? list : [];
 }
 

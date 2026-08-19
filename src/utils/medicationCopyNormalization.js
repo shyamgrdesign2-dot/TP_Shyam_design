@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from "uuid";
+
 function firstTextValue(...values) {
   for (const value of values) {
     if (Array.isArray(value)) {
@@ -459,10 +461,19 @@ function normalizeCopiedMedicineDose(row) {
 }
 
 export function normalizeCopiedMedicationRows(rows = [], frequencyList = [], timingList = []) {
-  return rows.map((row) => normalizeCopiedMedicineDose(
-    normalizeCopiedMedicineSchedule(
-      normalizeCopiedMedicineFrequency(row, frequencyList),
-      timingList
-    )
-  ));
+  return rows.map((row) => {
+    const normalized = normalizeCopiedMedicineDose(
+      normalizeCopiedMedicineSchedule(
+        normalizeCopiedMedicineFrequency(row, frequencyList),
+        timingList
+      )
+    );
+
+    // Copied rows arrive without an id (`unique_id` is stripped before the
+    // payload leaves the pad), yet the pad keys row identity on it: the
+    // inline medicine editor, taper grouping and the custom-medicine replace
+    // path all resolve rows by `unique_id`. Mint one so id-less rows can
+    // never collide with each other.
+    return normalized?.unique_id ? normalized : { ...normalized, unique_id: uuidv4() };
+  });
 }

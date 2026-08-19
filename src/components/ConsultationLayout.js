@@ -150,7 +150,7 @@ import { RxPadSyncProvider } from "./dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import drAgentStyles from "./dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import OphthalmologyExamDrawer from "./ophthalmology/OphthalmologyExamDrawer";
 import ZydusLabParams from "./ZydusLabParams";
-import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
+import { useVoiceRxNavigation, useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 import useTabletViewport from "../hooks/useTabletViewport";
 import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { getGenRx } from "../api/services/ApiGenRx";
@@ -229,6 +229,11 @@ import {
   syncCrossConsultReferral,
 } from "../utils/crossConsultHelpers";
 import { useCrossConsult } from "../hooks/useCrossConsult";
+import {
+  OBSTETRIC_HOST_DRAWER_Z_INDEX,
+  OBSTETRIC_NESTED_DRAWER_Z_INDEX,
+  OBSTETRIC_NESTED_UPLOAD_DRAWER_Z_INDEX,
+} from "../pages/obstetric/utils/constants";
 
 const ExaminationTab = React.lazy(() =>
   import("./dental/examination/ExaminationTab").then((m) => ({ default: m.ExaminationTab }))
@@ -293,7 +298,7 @@ function ConsultationLayout({ children, headerProps }) {
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && (isFreeVoiceRxUser || tp_monetization_enable);
   const isTablet = useTabletViewport();
@@ -2064,12 +2069,16 @@ function ConsultationLayout({ children, headerProps }) {
     }
 
     setIsGenRxDrawerVisible(true);
-    navigate("/voice-rx-consult", {
-      state: {
-        patient_data,
-        autoOpenModal: false,
-        fromPrescription: true,
-      },
+    navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+      state: getVoiceRxNavigationState(
+        isVoiceRxNewFromGB,
+        {
+          patient_data,
+          autoOpenModal: false,
+          fromPrescription: true,
+        },
+        "consultation_layout_header"
+      ),
     });
   };
 
@@ -3133,7 +3142,7 @@ function ConsultationLayout({ children, headerProps }) {
             open={obstetricDrawer}
             width="100%"
             push={false}
-            zIndex={1100}
+            zIndex={OBSTETRIC_HOST_DRAWER_Z_INDEX}
           >
             <Obstetric
               obstetricDetails={obstetricDetails}
@@ -3153,6 +3162,7 @@ function ConsultationLayout({ children, headerProps }) {
             className="modalWidth-700"
             width="auto"
             push={false}
+            zIndex={OBSTETRIC_NESTED_UPLOAD_DRAWER_Z_INDEX}
           >
             <UploadDocument
               onClose={handleDeletePopup}
@@ -3177,6 +3187,9 @@ function ConsultationLayout({ children, headerProps }) {
             className="modalWidth-700"
             width={"auto"}
             push={false}
+            // Reachable from the ANC Scheduler footer, i.e. from inside the
+            // obstetric host drawer at 1100.
+            zIndex={OBSTETRIC_NESTED_DRAWER_Z_INDEX}
           >
             <MedicalRecords
               medicalReportDrawer={medicalReportDrawer}

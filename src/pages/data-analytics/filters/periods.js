@@ -80,6 +80,19 @@ export function rangeLengthDays(startDate, endDate) {
   return Number.isFinite(diff) && diff > 0 ? diff : 7;
 }
 
+// Tab-2 analytics family (`/analytics/ipd-billing`, billing-by-doctor) accepts
+// only these day windows — not an arbitrary startDate/endDate. Snap the
+// picker's range length to the nearest allowed bucket.
+export const ANALYTICS_DAY_WINDOWS = [7, 15, 30, 90, 365];
+
+export function snapAnalyticsDays(startDate, endDate, fallback = 7) {
+  const raw = rangeLengthDays(startDate, endDate);
+  return ANALYTICS_DAY_WINDOWS.reduce(
+    (best, d) => (Math.abs(d - raw) < Math.abs(best - raw) ? d : best),
+    fallback
+  );
+}
+
 // A range is "month-scoped" (weekly/month-bucketed cards may show) when it
 // either spans at least ~a month OR is a calendar month-to-date selection
 // (starts on the 1st and stays inside one month — the "This month" preset).

@@ -41,6 +41,10 @@ import { Container, Navbar } from "react-bootstrap";
 import ImmunisationHistory from "./components/immunisationHistory/ImmunisationHistory";
 import AncScheduler from "./components/ancScheduler/AncScheduler";
 import "./Obstetric.scss";
+import {
+  OBSTETRIC_NESTED_DRAWER_Z_INDEX,
+  OBSTETRIC_NESTED_MODAL_Z_INDEX,
+} from "./utils/constants";
 import { ASSETS } from "../../assets";
 const {
   alerticon: alertIcon,
@@ -637,7 +641,9 @@ const Obstetric = ({
             open={examinationDrawer}
             className="modalWidth-563"
             width="auto"
-            zIndex={200}
+            // Obstetric itself can be hosted in a full-width drawer at 1100
+            // (PrescriptionNew); anything opened from inside it has to clear that.
+            zIndex={OBSTETRIC_NESTED_DRAWER_Z_INDEX}
           >
             <AddExamination
               editIndex={examinationEditIndex}
@@ -671,7 +677,7 @@ const Obstetric = ({
             open={pastPregnancyDrawer}
             className="modalWidth-563"
             width="auto"
-            zIndex={200}
+            zIndex={OBSTETRIC_NESTED_DRAWER_Z_INDEX}
           >
             <PastPregnancy
               editIndex={pastPregnancyEditIndex}
@@ -699,6 +705,7 @@ const Obstetric = ({
           isModalOpen={shouldShowDeletePopup}
           onCancel={toggleDeletePopup}
           modalWidth={500}
+          zIndex={OBSTETRIC_NESTED_MODAL_Z_INDEX}
           title={"You may lose your data"}
           modalBody={
             <>

@@ -23,6 +23,12 @@ jobs:
       # Upload → blob container react-static-uat/cdn/... Front Door exposes that as /cdn/... (not /react-static-uat/cdn/).
       PUBLIC_URL_UAT_CDN: https://pm-doctor-portal-qa-ceg2g0auf6gmgpam.a02.azurefd.net/cdn/
       IMAGE_NAME: acinacr.azurecr.io/pm-uat-doctor-portal:${{ github.sha }}
+      # Non-prod releases are keyed on the commit, NOT package.json semver. The `uat`
+      # branch is ahead of what shipped, so reusing the semver would attribute unreleased
+      # UAT errors to a shipped prod version and pollute the semver release list.
+      RELEASE_PACKAGE: pm-doctor-portal
+      SENTRY_ORG: digicare-health-solutions-priv
+      SENTRY_PROJECT: tatvapractice
 
     permissions:
       id-token: write
@@ -31,6 +37,14 @@ jobs:
     steps:
       - name: Checkout to the branch
         uses: actions/checkout@v2
+
+      - name: Resolve release version
+        id: release
+        run: |
+          set -euo pipefail
+          SHA=$(git rev-parse --short HEAD)
+          echo "release=${RELEASE_PACKAGE}@${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Release: ${RELEASE_PACKAGE}@${SHA}"
 
       # ---- 1. Build image and push to ACR (no Container App update yet) ----
       # Generate version.json here in CI where git is guaranteed to be available.
@@ -42,7 +56,8 @@ jobs:
           set -euo pipefail
           SHA=$(git rev-parse --short HEAD)
           API_VERSION=$(node -e "console.log(require('./package.json').apiCompatibilityVersion ?? 1)")
-          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION}" > public/version.json
+          RELEASE="${{ steps.release.outputs.release }}"
+          echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION,\"release\":\"$RELEASE\"}" > public/version.json
 
       - name: Docker login to ACR
         env:
@@ -61,8 +76,9 @@ jobs:
             --build-arg REACT_APP_MOENGAGE_LOGS_UAT=1 \
             --build-arg GENERATE_SOURCEMAP=true \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
-            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
+            --build-arg SENTRY_RELEASE="${{ steps.release.outputs.release }}" \
             --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_UAT_CDN }}" \
+            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
             -t "${{ env.IMAGE_NAME }}" .
           docker push "${{ env.IMAGE_NAME }}"
 
@@ -117,3 +133,13 @@ jobs:
             --name pm-uat-doctor-portal \
             --resource-group tatva-uat \
             --image "${{ env.IMAGE_NAME }}"
+
+      # Non-fatal: Sentry bookkeeping must never fail an already-live deploy.
+      - name: Record Sentry deploy (uat)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          npx --yes @sentry/cli@2 releases deploys new -r "$RELEASE" -e uat \
+            || echo "::warning::sentry deploy record failed for $RELEASE"

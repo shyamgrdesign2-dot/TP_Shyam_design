@@ -249,6 +249,7 @@ export function DrAgentFab({
   const shadowId = `${uid.replace(/[:]/g, "")}-fab-shadow`;
   const shellId = `${uid.replace(/[:]/g, "")}-fab-shell`;
   const sheenId = `${uid.replace(/[:]/g, "")}-fab-sheen`;
+  const clipId = `${uid.replace(/[:]/g, "")}-fab-clip`;
 
   const showShimmer = !isPanelOpen && !isModuleRecording;
   const handleOpen = () => {
@@ -404,6 +405,9 @@ export function DrAgentFab({
                 <stop offset="1" stopColor="white" stopOpacity="0" />
               </linearGradient>
             )}
+            <clipPath id={clipId}>
+              <path d={FAB_PATH} />
+            </clipPath>
           </defs>
 
           <g filter={`url(#${shadowId})`}>
@@ -415,11 +419,13 @@ export function DrAgentFab({
             />
           </g>
           {showShimmer && (
-            <path
-              d={FAB_PATH}
-              fill={`url(#${sheenId})`}
-              className="vrx-fab-sheen"
-            />
+            <g clipPath={`url(#${clipId})`}>
+              <path
+                d={FAB_PATH}
+                fill={`url(#${sheenId})`}
+                className="vrx-fab-sheen"
+              />
+            </g>
           )}
         </svg>
 

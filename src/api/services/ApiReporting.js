@@ -87,6 +87,9 @@ ApiReporting.analyticsOpdBilling = (params) =>
 // #9 same shape as #8, IPD
 ApiReporting.analyticsIpdBilling = (params) =>
   get(`/api/v1/reports/analytics/ipd-billing`, params);
+// Legacy-PHP IPD/OPD billed+collected by doctor. days ∈ {7,15,30,90,365}, department=opd|ipd.
+ApiReporting.analyticsBillingByDoctor = (params) =>
+  get(`/api/v1/reports/analytics/billing-by-doctor`, params);
 // #10 { appointments: chart (Total + Cancelled), caseType: donut [New, Follow-Up, Urgent] }
 ApiReporting.analyticsAppointment = (params) =>
   get(`/api/v1/reports/analytics/appointment`, params);
@@ -145,11 +148,20 @@ ApiReporting.financialBillingOverallCashFlow = (params) =>
   get(`/api/v1/reports/financial/billing-overall/cash-flow`, params);
 ApiReporting.exportFinancialBillingOverallCashFlow = (params) =>
   getBlob(`/api/v1/reports/financial/billing-overall/cash-flow`, params);
-// #22 NEW — IPD Reports. reportType(admitting/discharged), clinicId?, startDate, endDate, filterBy?(department/doctor), ids?, page?, limit?, format?
+// #22 IPD admitting/discharged reports
+const withIpdReportType = (params = {}) => ({
+  ...params,
+  reportType: params.reportType === "discharged" ? "discharged" : "admitting",
+});
 ApiReporting.financialIpdReports = (params) =>
-  get(`/api/v1/reports/financial/ipd-reports`, params);
+  get(`/api/v1/reports/financial/ipd-reports`, withIpdReportType(params));
 ApiReporting.exportFinancialIpdReports = (params) =>
-  getBlob(`/api/v1/reports/financial/ipd-reports`, params);
+  getBlob(`/api/v1/reports/financial/ipd-reports`, withIpdReportType(params));
+// IPD census CSV — startDate, endDate, format=csv
+ApiReporting.financialIpdCensusReport = (params) =>
+  get(`/api/v1/reports/financial/ipd-census-report`, params);
+ApiReporting.exportFinancialIpdCensusReport = (params) =>
+  getBlob(`/api/v1/reports/financial/ipd-census-report`, params);
 
 /* ================================================================== *
  * TAB 3B — Clinical Reports  (/reports/clinical)  [tabular · JSON]

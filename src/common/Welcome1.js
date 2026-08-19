@@ -31,6 +31,7 @@ import PrimaryActionButton from '../components/PrimaryActionButton';
 import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
 import { clinicTargetStatus } from '../pages/chikitsalay/service';
+import { useVoiceRxNewUiFlag, getVoiceRxNavigationPath, getVoiceRxNavigationState } from "../utils/voiceRxNavigation";
 const {
   tubeIcon: playIcons,
   tutorialIcon: tutorial,
@@ -50,7 +51,7 @@ function Welcome1(props) {
     );
     const isTabRxAccessableFromGB = useFeatureIsOn(GB_TAB_RX);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tp_monetization_enable = !shouldMonetizationDisabled();
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
@@ -204,14 +205,12 @@ function Welcome1(props) {
           clinic_name: clinic?.hm_name,
           source: "Patient Details Rx",
         });
-        navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-            state: { 
-                patient_data: patient,
-                ...(isVoiceRxNewFromGB && {
-                    isVoiceRxNewUiFlow: true,
-                    voiceRxEntryPoint: "patient_details_rx",
-                }),
-            },
+        navigate(getVoiceRxNavigationPath(isVoiceRxNewFromGB), {
+            state: getVoiceRxNavigationState(
+                isVoiceRxNewFromGB,
+                { patient_data: patient },
+                "patient_details_rx"
+            ),
         });
     };
 

@@ -17,6 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       REACT_APP_ENV: qa_tp
+      # Non-prod: release keyed on the commit, not package.json semver — the qa branch
+      # is ahead of what shipped, so semver here would misattribute errors to a prod version.
+      RELEASE_PACKAGE: pm-doctor-portal
+      SENTRY_ORG: digicare-health-solutions-priv
+      SENTRY_PROJECT: tatvapractice
     permissions:
       id-token: write #This is required for requesting the OIDC JWT Token
       contents: read #Required when GH token is used to authenticate with private repo
@@ -24,6 +29,14 @@ jobs:
     steps:
       - name: Checkout to the branch
         uses: actions/checkout@v2
+
+      - name: Resolve release version
+        id: release
+        run: |
+          set -euo pipefail
+          SHA=$(git rev-parse --short HEAD)
+          echo "release=${RELEASE_PACKAGE}@${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Release: ${RELEASE_PACKAGE}@${SHA}"
 
       - name: Azure Login
         uses: azure/login@v1
@@ -45,3 +58,15 @@ jobs:
           buildArguments: |
             REACT_APP_ENV=qa_tp
             SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            SENTRY_RELEASE=${{ steps.release.outputs.release }}
+            NODE_AUTH_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
+
+      # Non-fatal: Sentry bookkeeping must never fail an already-live deploy.
+      - name: Record Sentry deploy (qa)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          npx --yes @sentry/cli@2 releases deploys new -r "$RELEASE" -e qa_tp \
+            || echo "::warning::sentry deploy record failed for $RELEASE"

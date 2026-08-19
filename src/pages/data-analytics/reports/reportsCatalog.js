@@ -47,6 +47,16 @@ export const PAYMENT_MODE_OPTIONS = [
   { value: "Others", label: "Others" },
 ];
 
+// HIS / PHP IPD payment modes (data_analytics_reports.php IPD drawers).
+export const IPD_PAYMENT_MODE_OPTIONS = [
+  { value: "Bank Credit Cards", label: "Bank Credit Cards" },
+  { value: "Online Bank Transfers", label: "Online Bank Transfers" },
+  { value: "Bank Transfers", label: "Bank Transfers" },
+  { value: "Mobile Payments", label: "Mobile Payments" },
+  { value: "E-wallet Payments", label: "E-wallet Payments" },
+  { value: "UPI", label: "UPI" },
+];
+
 export const IPD_FILTER_BY_OPTIONS = [
   { value: "doctor", label: "Doctor" },
   { value: "department", label: "Department" },
@@ -62,6 +72,11 @@ export const COLLECTION_REPORT_TYPE_OPTIONS = [
   { value: "general", label: "General Report" },
   { value: "detailed", label: "Detailed Report" },
   { value: "daywise", label: "Day Wise Report" },
+];
+
+export const INCENTIVE_REPORT_TYPE_OPTIONS = [
+  { value: "detailed", label: "Detailed Report" },
+  { value: "overall", label: "Overall Report" },
 ];
 
 export const THREE_C_REPORT_TYPE_OPTIONS = [
@@ -85,7 +100,7 @@ export const IPD_REPORT_TYPE_OPTIONS = [
 export const REPORTS = [
   // --- Financial ---
   {
-    id: "daily-collection", roleId: 389, group: "Financial", dept: "opd",
+    id: "daily-collection", roleId: 389, group: "Financial", dept: "both",
     icon: `${IC}money/receipt.svg`,
     label: "Daily Collection",
     desc: "Cash memo, receipt, advance and refund for a single day.",
@@ -96,7 +111,7 @@ export const REPORTS = [
     buildParams: (f) => ({ type: f?.type || "opd", date: f?.endDate, clinicId: f?.clinicId, doctorId: f?.doctorId }),
   },
   {
-    id: "collection-report", roleId: 390, group: "Financial", dept: "opd",
+    id: "collection-report", roleId: 390, group: "Financial", dept: "both",
     icon: `${IC}money/money-recive.svg`,
     label: "Collection Report",
     desc: "Day-wise or detailed collection by date, bill type and payment mode.",
@@ -109,26 +124,49 @@ export const REPORTS = [
       detailed: { fetcher: ApiReporting.financialCollectionDetailed, exportFetcher: ApiReporting.exportFinancialCollectionDetailed },
       daywise: { fetcher: ApiReporting.financialCollectionSummary, exportFetcher: ApiReporting.exportFinancialCollectionSummary },
     },
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment }),
+    buildParams: (f) => ({
+      ...dates(f),
+      type: f?.type || "opd",
+      clinicId: f?.clinicId,
+      billTypes: f?.billType,
+      issuedBy: f?.issuedBy,
+      modeOfPayment: f?.modeOfPayment,
+      account: f?.type === "ipd" ? f?.account : undefined,
+    }),
   },
   {
-    id: "3c-report", roleId: 392, group: "Financial", dept: "opd",
+    id: "incentive-report", group: "Financial", dept: "ipd",
+    icon: `${IC}money/money-add.svg`,
+    label: "Incentive Reports",
+    desc: "Per-user and service-level incentive payouts.",
+    // incentive.schema.ts: detailed takes `user` = CSV of incentive-user ids
+    // (tim_id, NOT um_id); overall takes only dates + type. No department
+    // dimension exists on this endpoint.
+    filters: ["incentiveReportType", "dateRange", "incentiveUser"],
+    subFetchers: {
+      detailed: { fetcher: ApiReporting.financialIncentiveDetailed, exportFetcher: ApiReporting.exportFinancialIncentiveDetailed },
+      overall: { fetcher: ApiReporting.financialIncentiveOverall, exportFetcher: ApiReporting.exportFinancialIncentiveOverall },
+    },
+    fetcher: ApiReporting.financialIncentiveDetailed,
+    exportFetcher: ApiReporting.exportFinancialIncentiveDetailed,
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "ipd", user: f?.incentiveUser }),
+  },
+  {
+    id: "3c-report", roleId: 392, group: "Financial", dept: "both",
     icon: `${IC}content-edit/bill.svg`,
     label: "3C Report",
     desc: "Cash, invoice and credit-note breakdown.",
     // threeC.schema.ts: summary still requires `account` ("all" sentinel);
     // the Account picker is out of scope so we always send "all".
-    filters: ["threeCReportType", "dateRange", "billType"],
-    subFetchers: {
-      summary: { fetcher: ApiReporting.financialThreeC, exportFetcher: ApiReporting.exportFinancialThreeC },
-      details: { fetcher: ApiReporting.financialThreeCDetails, exportFetcher: ApiReporting.exportFinancialThreeCDetails },
-    },
+    // dept "both" drives the inner OPD|IPD toggle in ReportDownloadDrawer
+    // (needsDept = report.dept === "both") — same as Collection / Billing Overall.
+    filters: ["dateRange", "billType"],
     fetcher: ApiReporting.financialThreeC,
     exportFetcher: ApiReporting.exportFinancialThreeC,
-    buildParams: (f) => ({ ...dates(f), account: "all", billTypes: f?.billType }),
+    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", account: "all", billTypes: f?.billType }),
   },
   {
-    id: "billing-overall", roleId: 393, group: "Financial", dept: "opd",
+    id: "billing-overall", roleId: 393, group: "Financial", dept: "both",
     icon: `${IC}essential/chart.svg`,
     label: "Billing Overall Reports",
     desc: "Revenue and cash-flow reports across the whole practice.",
@@ -139,13 +177,21 @@ export const REPORTS = [
     },
     fetcher: ApiReporting.financialBillingOverallRevenue,
     exportFetcher: ApiReporting.exportFinancialBillingOverallRevenue,
-    buildParams: (f) => ({ ...dates(f), type: f?.type || "opd", clinicId: f?.clinicId, billTypes: f?.billType, issuedBy: f?.issuedBy, modeOfPayment: f?.modeOfPayment }),
+    buildParams: (f) => ({
+      ...dates(f),
+      type: f?.type || "opd",
+      clinicId: f?.clinicId,
+      billTypes: f?.billType,
+      issuedBy: f?.issuedBy,
+      modeOfPayment: f?.modeOfPayment,
+      accountant: f?.type === "ipd" ? (f?.accountant || f?.account) : undefined,
+    }),
   },
   {
     id: "ipd-reports", roleId: 22, group: "Financial", dept: "ipd",
     icon: "https://pmdoctorportal.tatvacare.in/tp-icons/rounded/linear/content-edit/document-text.svg",
     label: "IPD Reports",
-    desc: "Admitting and discharged patient reports with financials.",
+    desc: "Inpatient admitting and discharged reports for the selected period.",
     live: true,
     filters: ["ipdReportType", "dateRange", "clinic", "ipdFilterBy"],
     fetcher: ApiReporting.financialIpdReports,
@@ -158,12 +204,11 @@ export const REPORTS = [
     icon: `${IC}medical/clipboard-activity.svg`,
     label: "Appointment Analytics",
     desc: "Appointment status and doctor-wise breakdown.",
-    // appointment.schema.ts — overall takes ONLY startDate+endDate; detailed
-    // takes gender (single, verbatim pm_gender), fromAge+toAge (both or
-    // neither), statuses (CSV of pam_status codes), caseTypes (CSV of
-    // toct_id), doctorIds (CSV of um_id). No clinicId (token-scoped) and no
-    // clinicalData flag — the legacy PHP toggle has no Pm-Core equivalent.
-    filters: ["appointmentReportType", "dateRange", "appointmentDetailFields"],
+    // Legacy PHP (data_analytics_reports.php):
+    //   General  → hospital, dates, clinicalData yes/no
+    //   Overall  → hospital, department-or-doctor, doctor/dept ids, dates
+    //   Detailed → gender, age, status, case type (appointment.schema.ts)
+    filters: ["appointmentReportType", "dateRange", "clinic", "appointmentDetailFields"],
     subFetchers: {
       general: { fetcher: ApiReporting.clinicalAppointmentOverall, exportFetcher: ApiReporting.exportClinicalAppointmentOverall },
       detailed: { fetcher: ApiReporting.clinicalAppointmentDetailed, exportFetcher: ApiReporting.exportClinicalAppointmentDetailed },
@@ -171,24 +216,46 @@ export const REPORTS = [
     },
     fetcher: ApiReporting.clinicalAppointmentOverall,
     exportFetcher: ApiReporting.exportClinicalAppointmentOverall,
-    buildParams: (f) => ({
-      ...dates(f),
-      gender: f?.gender,
-      ...(f?.ageMin != null && f?.ageMax != null ? { fromAge: f.ageMin, toAge: f.ageMax } : {}),
-      statuses: f?.status,
-      caseTypes: f?.caseType,
-      doctorIds: f?.doctorId,
-    }),
+    buildParams: (f) => {
+      const base = { ...dates(f), clinicId: f?.clinicId };
+      const kind = f?.appointmentReportType || "general";
+      if (kind === "detailed") {
+        return {
+          ...base,
+          gender: f?.gender,
+          ...(f?.ageMin != null && f?.ageMax != null ? { fromAge: f.ageMin, toAge: f.ageMax } : {}),
+          statuses: f?.status,
+          caseTypes: f?.caseType,
+          doctorIds: f?.doctorId,
+        };
+      }
+      if (kind === "overall") {
+        const ids = f?.ipdFilterIds;
+        return {
+          ...base,
+          reportType: "overall",
+          filterBy: f?.ipdFilterBy,
+          ids,
+          ...(f?.ipdFilterBy === "doctor" && ids ? { doctorIds: ids } : {}),
+          ...(f?.ipdFilterBy === "department" && ids ? { departmentIds: ids } : {}),
+        };
+      }
+      return {
+        ...base,
+        reportType: "general",
+        ...(f?.clinicalData ? { clinicalData: f.clinicalData } : {}),
+      };
+    },
   },
   {
     id: "ipd-analytics", roleId: 22, group: "Clinical", dept: "ipd",
     icon: `${IC}medical/clipboard-activity.svg`,
     label: "IPD Analytics",
-    desc: "Inpatient clinical activity and department-wise breakdown.",
-    filters: ["dateRange", "clinic", "ipdFilterBy"],
-    fetcher: ApiReporting.financialIpdReports,
-    exportFetcher: ApiReporting.exportFinancialIpdReports,
-    buildParams: (f) => ({ ...dates(f), clinicId: f?.clinicId, filterBy: f?.ipdFilterBy, ids: f?.ipdFilterIds }),
+    desc: "IPD census for the selected period.",
+    filters: ["dateRange"],
+    fetcher: ApiReporting.financialIpdCensusReport,
+    exportFetcher: ApiReporting.exportFinancialIpdCensusReport,
+    buildParams: (f) => ({ ...dates(f) }),
   },
   {
     id: "prescription-analytics", roleId: 388, group: "Clinical", dept: "opd",
