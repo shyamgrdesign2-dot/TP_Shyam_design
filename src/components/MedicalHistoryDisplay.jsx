@@ -200,8 +200,10 @@ const MedicalHistoryDisplay = ({
         closeIcon={false}
         placement="right"
         onClose={handleDrawerMedicalHistory}
+        maskClosable={false}
+        keyboard={false}
         open={medicalHistoryDrawer}
-        width="75%"
+        width="85%"
       >
         {(isMobile && !isTablet) ? (
           <MedicalHistoryBoxMobile

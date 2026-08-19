@@ -2572,8 +2572,10 @@ function Prescription() {
           closeIcon={false}
           placement="right"
           onClose={handleDrawerMedicalHistory}
+          maskClosable={false}
+          keyboard={false}
           open={medicalHistoryDrawer}
-          width="75%"
+          width="85%"
         >
           <MedicalHistoryBox
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}

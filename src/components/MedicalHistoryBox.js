@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from "react";
-import { Button, Card, Row, Col, Form, Radio, AutoComplete, Checkbox, Input, Spin, Popover, Tabs, DatePicker } from 'antd';
+import { Button, Card, Row, Col, Input, Popover, Tabs, DatePicker } from 'antd';
 
 import { isMobile } from 'react-device-detect';
 
-import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from 'uuid';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, removeBeforeWhiteSpace, onlyNumberFormat, onlyDecimalFormat, hasNumber, capitalizeAfterSentence, isDecimalNumeric } from "../utils/utils";
+import { errorMessage, removeBeforeWhiteSpace, onlyNumberFormat, capitalizeAfterSentence } from "../utils/utils";
 
 import moment from "moment";
 import dayjs from "dayjs";
@@ -17,7 +16,6 @@ import dayjs from "dayjs";
 import {
     listSectionwithTag,
     addTag,
-    searchTag
 } from "../redux/medicalhistorySlice";
 import { useLocation } from "react-router-dom";
 import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
@@ -34,7 +32,6 @@ import {
 } from "../utils/medicalHistoryUtils";
 import { convertAgentMedicalHistoryRowsToSections } from "../utils/medicalHistoryConverters";
 import VideoModal from "../common/VideoModal";
-import TextArea from "antd/es/input/TextArea";
 import { ASSETS } from "../assets";
 import {
     VoiceRxModuleCapture,
@@ -42,13 +39,22 @@ import {
     useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import {
+    Button as TesseractButton,
+    ConfirmDialog,
+    Divider as TesseractDivider,
+    TesseractThemeProvider,
+    TPIcon,
+} from "@dhspl-tatvacare/tesseract-ui";
+import MedicalHistoryPanel from "./medical-history/MedicalHistoryPanel";
+import { CustomizeButton } from "./medical-history/CustomizePanel";
+import medicalHistoryStyles from "./medical-history/medicalHistory.module.css";
+import useSectionConfig from "./medical-history/useSectionConfig";
+import useCrossSectionTagSearch from "./medical-history/useCrossSectionTagSearch";
+import { ENABLE_DESELECTED } from "./medical-history/constants";
 import { useVoiceRxNewUiFlag } from "../utils/voiceRxNavigation";
 const {
   noRecordRound: noRecordFound,
-  verticleUpDown,
-  activeVerticleUpDown: ActiveverticleUpDown,
-  inactiveVerticleUpDown: InActiveverticleUpDown,
-  noHypertension: NoHypertension,
   tubeIcon: playIcons,
   tutorial2,
 } = ASSETS.images;
@@ -213,7 +219,6 @@ function MedicalHistoryBox(props) {
     const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, gynecOnly = false, initialGynecHistory, showVoiceRxModule } = props
     const { TabPane } = Tabs;
     const {
-        searchList,
         defaultList,
         loading,
     } = useSelector((state) => state.medicalhistory);
@@ -260,20 +265,6 @@ function MedicalHistoryBox(props) {
     const [shouldShowVideo, setShowVideo] = useState(false);
     const [popOverVideo, setPopOverVideo] = useState(false);
     const [selectData, setSelectData] = useState(null);
-    const [addEditData, setAddEditData] = useState(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [searchOptions, setSearchOptions] = useState([]);
-
-    const SINCE_OPTIONS = [
-        { value: "Hour", label: "H" },
-        { value: "Day", label: "D" },
-        { value: "Week", label: "W" },
-        { value: "Month", label: "M" },
-        { value: "Year", label: "Y" },
-    ];
-    const [sinceValue, setSinceValue] = useState(1);
-    const [inputSince, setInputSince] = useState('');
-    const [sinceOptions, setSinceOptions] = useState([]);
     const [gynecEditState, setGynecEditState] = useState("CREATE");
     const [sectionState, setSectionState] = useState({ ...GYNEC_SECTION_ENABLE_LIST });
 
@@ -286,11 +277,11 @@ function MedicalHistoryBox(props) {
     const { patient_data, caseManagerData } = state || {};
     const [gynecLoading, setGynecLoading] = useState(false);
     const [gynecHistory, setGynecHistory] = useState({});
-    const [expandRemarks,setExpandRemarks] = useState(true);
     const [remarks,setRemarks] = useState(medicalHistoryData?.[0]?.medical_history_remarks || "");
     const [surgicalDateType, setSurgicalDateType] = useState('year');
     const [surgicalDate, setSurgicalDate] = useState(null);
     const selectedHistoryNoteVoiceTargetRef = useRef(null);
+    const initialSnapshotRef = useRef("");
     const isVoiceRxNewFromGB = useVoiceRxNewUiFlag();
     const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB && !gynecOnly;
 
@@ -416,7 +407,6 @@ function MedicalHistoryBox(props) {
     const openAdditionalHistoryVoiceCapture = useCallback(() => {
         setVoiceCaptureOpen(false);
         setSelectedHistoryNoteVoiceCaptureOpen(false);
-        setExpandRemarks(true);
         setAdditionalHistoryVoiceCaptureOpen(true);
     }, [setAdditionalHistoryVoiceCaptureOpen, setSelectedHistoryNoteVoiceCaptureOpen, setVoiceCaptureOpen]);
 
@@ -474,27 +464,6 @@ function MedicalHistoryBox(props) {
     const onChangeSegmentedMenopauseChild = (value) => onChangeSegmentedChild("ageAtMenopause", value, setInputMenopause);
     const onChangeSegmentedCyclesDaysChild = (value) => onChangeSegmentedChild("durationOfMenstrualFlow", value, setInputCyclesDays);
     const onChangeSegmentedPadNumChild = (value) => onChangeSegmentedChild("numberOfPadsPerDay", value, setInputPadsNum);
-
-    const SINCE_OPTIONS_WEB = [
-        { value: "Hour", label: "Hour" },
-        { value: "Day", label: "Day" },
-        { value: "Week", label: "Week" },
-        { value: "Month", label: "Month" },
-        { value: "Year", label: "Year" },
-    ];
-    const SURGICAL_DATE_TYPE_OPTIONS = [
-        { value: "year", label: "Year Only" },
-        { value: "full", label: "Full Date" },
-    ];
-
-    const STATUS_LIST = [
-        { value: "Active", label: "Active" },
-        { value: "Inactive", label: "Inactive" },
-    ];
-    const MEDICATION_LIST = [
-        { value: "Yes", label: "Yes" },
-        { value: "No", label: "No" },
-    ];
 
     const customCyclesValue = gynecHistory?.intervalOfCycle > 32 ? gynecHistory.intervalOfCycle : inputCycles;
     const CYCLES_LIST = Array.from({ length: 11 }, (_, i) => ({
@@ -586,9 +555,6 @@ function MedicalHistoryBox(props) {
         )
     });
 
-    const [popOver, setPopOver] = useState(false);
-    const RELATIONSHIP_LIST = ['Father', 'Mother', 'Maternity Grandfather', 'Maternity Grandmother', 'Paternity Grandfather', 'Paternity Grandmother', 'Uncle', 'Aunty', 'Sibling', 'Relatives'];
-    const [selectedRelationship, setSelectedRelationship] = useState([]);
     const defaultActiveTabKey = initialActiveKey || ((hideMenstrualHistoryTab && !gynecOnly) ? 'medical' : 'gynec');
     const [activeTab, setActiveTab] = useState(defaultActiveTabKey);
     const [tokenData, setTokenData] = useState(null);
@@ -701,25 +667,25 @@ function MedicalHistoryBox(props) {
                 console.groupEnd();
                 setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
                 setRemarks(getMedicalHistoryRemarks(mergedArray));
+                initialSnapshotRef.current = buildDirtySnapshot(mergedArray, getMedicalHistoryRemarks(mergedArray));
             } else if (isPrescriptionOnly && Array.isArray(data2) && data2.length > 0) {
-                setCloneMedicalHistoryData(JSON.parse(JSON.stringify(ensureFiveSections(data2))));
+                const fiveSections = ensureFiveSections(data2);
+                setCloneMedicalHistoryData(JSON.parse(JSON.stringify(fiveSections)));
                 setRemarks(getMedicalHistoryRemarks(data2));
+                initialSnapshotRef.current = buildDirtySnapshot(fiveSections, getMedicalHistoryRemarks(data2));
             } else {
                 setRemarks("");
+                initialSnapshotRef.current = buildDirtySnapshot([], "");
             }
         } catch (error) {
             console.error("Error merging medical history data:", error);
             setCloneMedicalHistoryData([]);
             setRemarks("");
+            initialSnapshotRef.current = buildDirtySnapshot([], "");
         }
     // defaultList always; overrideMedicalHistoryData for voice/snap/smart; medicalHistoryData for voice merge and consult.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [defaultList, overrideMedicalHistoryData, medicalHistoryData]);
-
-    const onNoKnownHistoryChange = useCallback((e, i) => {
-        cloneMedicalHistoryData[i].no_know_history = e.target.checked
-        setCloneMedicalHistoryData((prev) => [...prev]);
-    }, [cloneMedicalHistoryData]);
 
     const onExpandCollapseClick = useCallback((i) => {
         cloneMedicalHistoryData[i].isExpand = !cloneMedicalHistoryData[i].isExpand
@@ -727,7 +693,6 @@ function MedicalHistoryBox(props) {
     }, [cloneMedicalHistoryData]);
 
     const onTagClick = useCallback((tmmhs_id, tmmhst_id, i, i1) => {
-        setAddEditData(null)
         setSelectData({
             tmmhs_id: tmmhs_id,
             tmmhst_id: tmmhst_id,
@@ -807,167 +772,8 @@ function MedicalHistoryBox(props) {
                 setSurgicalDateType('year');
                 setSurgicalDate(null);
             }
-        } else {
-            setSinceValue(cloneMedicalHistoryData[i].tags[i1].since ? parseFloat(cloneMedicalHistoryData[i].tags[i1].since.split(" ")[0]) : 1)
-            setSelectedRelationship(cloneMedicalHistoryData[i].tags[i1].relationship ? cloneMedicalHistoryData[i].tags[i1].relationship.split(', ') : [])
         }
-    }, [addEditData, selectData, cloneMedicalHistoryData]);
-
-    const onEnableClick = useCallback((tmmhs_id, tmmhst_id, i, i1) => {
-        setAddEditData(null)
-        setSelectData({
-            tmmhs_id: tmmhs_id,
-            tmmhst_id: tmmhst_id,
-            section_index: i,
-            tag_index: i1
-        });
-        let initial = {}
-        if (tmmhs_id === 2) {
-            initial = { ...MEDICAL_PROBLEM }
-        } else if (tmmhs_id === 3) {
-            initial = { ...FAMILY_HISTORY }
-        } else if (tmmhs_id === 5) {
-            initial = { ...SURGICAL_HISTORY }
-        } else {
-            initial = { ...OTHERS }
-        }
-        setCloneMedicalHistoryData((prev) => {
-            const newArray = [...prev];
-            newArray[i].tags[i1] = {
-                ...newArray[i].tags[i1],
-                ...initial,
-                enable: newArray[i].tags[i1].enable !== undefined ?
-                    newArray[i].tags[i1].enable === "Y" ? "N"
-                        : newArray[i].tags[i1].enable === "N" ? "-" : "Y"
-                    : "Y"
-            };
-            return newArray;
-        })
-        if (tmmhs_id === 5) {
-            try {
-                const dateType = cloneMedicalHistoryData[i].tags[i1].dateType;
-                const dateValue = cloneMedicalHistoryData[i].tags[i1].date;
-                if (dateType && dateValue) {
-                    if (dateType === 'onlyYear') {
-                        setSurgicalDateType('year');
-                        setSurgicalDate(dateValue);
-                    } else if (dateType === 'fullDate') {
-                        setSurgicalDateType('full');
-                        try {
-                            const parsedDate = dayjs(dateValue, 'DD-MM-YYYY');
-                            if (parsedDate.isValid()) {
-                                setSurgicalDate(parsedDate);
-                            } else {
-                                setSurgicalDate(null);
-                            }
-                        } catch (error) {
-                            console.error('Error parsing surgical date:', error);
-                            setSurgicalDate(null);
-                        }
-                    }
-                } else {
-                    const sinceValue = cloneMedicalHistoryData[i].tags[i1].since;
-                    if (sinceValue) {
-                        if (/^\d{4}$/.test(sinceValue)) {
-                            setSurgicalDateType('year');
-                            setSurgicalDate(sinceValue);
-                        } else {
-                            setSurgicalDateType('full');
-                            try {
-                                const parsedDate = dayjs(sinceValue, 'DD-MM-YYYY');
-                                if (parsedDate.isValid()) {
-                                    setSurgicalDate(parsedDate);
-                                } else {
-                                    setSurgicalDate(null);
-                                }
-                            } catch (error) {
-                                console.error('Error parsing surgical date:', error);
-                                setSurgicalDate(null);
-                            }
-                        }
-                    } else {
-                        setSurgicalDateType('year');
-                        setSurgicalDate(null);
-                    }
-                }
-            } catch (error) {
-                console.error('Error initializing surgical history:', error);
-                setSurgicalDateType('year');
-                setSurgicalDate(null);
-            }
-        } else {
-            setSinceValue(cloneMedicalHistoryData[i].tags[i1].since ? parseFloat(cloneMedicalHistoryData[i].tags[i1].since.split(" ")[0]) : 1)
-            setSelectedRelationship(cloneMedicalHistoryData[i].tags[i1].relationship ? cloneMedicalHistoryData[i].tags[i1].relationship.split(', ') : [])
-        }
-    }, [addEditData, selectData, cloneMedicalHistoryData]);
-
-    const onAddEditClick = useCallback((e) => {
-        let modifyData = JSON.parse(JSON.stringify(e))
-        modifyData.tags.map((e) => {
-            e.unique_id = uuidv4()
-            return e
-        })
-        setAddEditData(modifyData)
-    }, [addEditData]);
-
-    useEffect(() => {
-        if (searchQuery) {
-            const timeOutId = setTimeout(() => {
-                dispatch(searchTag({ section_id: addEditData?.tmmhs_id, keyword: searchQuery }));
-            }, 500);
-            return () => {
-                clearTimeout(timeOutId);
-            };
-        }
-    }, [searchQuery]);
-
-    useEffect(() => {
-        const data = [];
-        searchList.map((e) => {
-            return data.push({
-                key: JSON.stringify({ ...e, unique_id: uuidv4() }),
-                value: e.title
-            });
-        });
-        if (searchQuery.length > 0) {
-            searchQuery &&
-                data.push({
-                    key: JSON.stringify({
-                        unique_id: uuidv4(),
-                        tmmhst_id: 0,
-                        pms_default: 1,
-                        title: searchQuery
-                    }),
-                    value: searchQuery
-                });
-        }
-        setSearchOptions(data);
-    }, [searchList]);
-
-    const onSearch = useCallback((e) => {
-        setSearchQuery(removeBeforeWhiteSpace(e.target.value));
-    }, [searchQuery]);
-
-    const onSelectParent = useCallback((e) => {
-        addEditData.tags.push({
-            ...e
-        });
-        setAddEditData((prev) => {
-            return { ...prev };
-        })
-        setSearchQuery("")
-    }, [addEditData]);
-
-    const onRemoveTag = useCallback((e, i) => {
-        if (e.tmmhst_id == 0) {
-            addEditData.tags.splice(i, 1);
-        } else {
-            e.delete = true
-        }
-        setAddEditData((prev) => {
-            return { ...prev };
-        })
-    }, [addEditData]);
+    }, [selectData, cloneMedicalHistoryData]);
 
     const onSurgicalDateTypeChange = useCallback((value) => {
         setSurgicalDateType(value);
@@ -980,188 +786,26 @@ function MedicalHistoryBox(props) {
         setSurgicalDate(value);
     }, []);
 
-    const onAddEditSaveClick = async () => {
-        const sendData = JSON.parse(JSON.stringify(addEditData));
-        const action = await dispatch(addTag(sendData));
-        if (action.meta.requestStatus === "fulfilled") {
-            setAddEditData(null)
-            if (action.payload.tags.length > 0) {
-                const updatedData = action.payload?.tags?.map((e) => {
-                    const data = sendData?.tags?.find(e1 => e1.unique_id == e.unique_id)
-                    return { ...data, ...e };
-                });
-                const index = cloneMedicalHistoryData?.findIndex(e => e.tmmhs_id == sendData.tmmhs_id)
-                setCloneMedicalHistoryData((prev) => {
-                    const newArray = [...prev];
-                    newArray[index].tags = [
-                        ...updatedData.map(({ unique_id, ...rest }) => rest),
-                    ];
-                    return newArray;
-                })
-            } else {
-                const index = cloneMedicalHistoryData?.findIndex(e => e.tmmhs_id == sendData.tmmhs_id)
-                setCloneMedicalHistoryData((prev) => {
-                    const newArray = [...prev];
-                    newArray[index].tags = [];
-                    return newArray;
-                })
-            }
-        } else {
-            errorMessage(action.error)
-        }
-    }
-
-    // Since Tab
+    /**
+     * When the patient already has history, open with the first recorded item
+     * selected so the detail pane shows real data instead of the empty state.
+     * Routed through onTagClick so surgical date/since initialisation is shared.
+     */
     useEffect(() => {
-        if (isMobile) {
-            if (sinceValue !== -1) {
-                const options = SINCE_OPTIONS.map((option) => {
-                    return {
-                        key: Math.random(),
-                        value: `${sinceValue} ${sinceValue <= 1 ? option.value : `${option.value}(s)`}`,
-                        label: <>{`${sinceValue}${option.label}`}</>,
-                    };
-                });
-                setSinceOptions(options);
-            } else if (inputSince.length > 0) {
-                const options = SINCE_OPTIONS.map((option) => {
-                    return {
-                        key: Math.random(),
-                        value: `${inputSince} ${inputSince <= 1 ? option.value : `${option.value}(s)`}`,
-                        label: <>{`${inputSince}${option.label}`}</>,
-                    };
-                });
-                setSinceOptions(options);
-            } else {
-                const options = SINCE_OPTIONS.map((option) => {
-                    return {
-                        key: Math.random(),
-                        value: `${option.value}`,
-                        label: <>{`${option.label}`}</>,
-                    };
-                });
-                setSinceOptions(options);
+        if (selectData || !cloneMedicalHistoryData?.length) return;
+        for (let i = 0; i < cloneMedicalHistoryData.length; i++) {
+            const section = cloneMedicalHistoryData[i];
+            const tags = section?.tags || [];
+            for (let j = 0; j < tags.length; j++) {
+                if (!tags[j].delete && (tags[j].enable === "Y" || tags[j].enable === "N")) {
+                    onTagClick(section.tmmhs_id, tags[j].tmmhst_id, i, j);
+                    return;
+                }
             }
         }
-    }, [sinceValue]);
-
-    const onChangeInputSinceChild = useCallback(
-        (e) => {
-            const updateQuery = onlyDecimalFormat(e.target.value);
-            setInputSince(updateQuery);
-            const tag = cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index];
-            tag.since = ''
-            tag.oldSince = ''
-            setCloneMedicalHistoryData((prev) => [...prev]);
-            if (updateQuery.length > 0) {
-                const options = SINCE_OPTIONS.map((option) => {
-                    return {
-                        key: Math.random(),
-                        value: `${updateQuery} ${updateQuery <= 1 ? option.value : `${option.value}(s)`}`,
-                        label: <>{`${updateQuery}${option.label}`}</>,
-                    };
-                });
-                setSinceOptions(options);
-            } else {
-                const options = SINCE_OPTIONS.map((option) => {
-                    return {
-                        key: Math.random(),
-                        value: `${option.value}`,
-                        label: <>{`${option.label}`}</>,
-                    };
-                });
-                setSinceOptions(options);
-            }
-        },
-        [selectData, inputSince, sinceOptions, cloneMedicalHistoryData]
-    );
-
-    const SINCE_LIST = [
-        { value: 1, label: 1 },
-        { value: 2, label: 2 },
-        { value: 3, label: 3 },
-        { value: 4, label: 4 },
-        { value: 5, label: 5 },
-        { value: -1, label: <Input className="w-100 custom-segment-input inputheight45 border-0" placeholder="Custom" value={inputSince} inputMode="numeric" onChange={onChangeInputSinceChild} onClick={() => onChangeSegmentedSinceChild(-1)} /> }
-    ];
-
-    const onChangeSegmentedSinceChild = useCallback(
-        (key) => {
-            setSinceValue(key)
-            const tag = cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index];
-            tag.since = ''
-            tag.oldSince = ''
-            setCloneMedicalHistoryData((prev) => [...prev]);
-        },
-        [selectData, sinceValue, cloneMedicalHistoryData]
-    );
-
-    const onChangeSinceChild = useCallback(
-        (key) => {
-            if (hasNumber(key)) {
-                const tag = cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index];
-                if (key != tag?.since) {
-                    tag.since = key
-                    tag.oldSince = key
-                } else {
-                    tag.since = ''
-                    tag.oldSince = ''
-                }
-                setCloneMedicalHistoryData((prev) => [...prev]);
-            }
-        },
-        [selectData, cloneMedicalHistoryData]
-    );
+    }, [cloneMedicalHistoryData, selectData, onTagClick]);
 
     // Since Web
-    const onSearchSinceChid = useCallback(
-        (query) => {
-            const updateQuery = onlyDecimalFormat(query);
-            const tag = cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index];
-            tag.since = updateQuery
-            tag.oldSince = updateQuery
-            setCloneMedicalHistoryData((prev) => [...prev]);
-            if (updateQuery) {
-                const options = SINCE_OPTIONS_WEB.map((option) => {
-                    return {
-                        key: Math.random(),
-                        value: `${updateQuery} ${updateQuery <= 1 ? option.value : `${option.value}(s)`}`,
-                        label: <>{`${updateQuery} ${updateQuery <= 1 ? option.label : `${option.label}(s)`}`}</>,
-                    };
-                });
-                setSinceOptions(options);
-            } else {
-                setSinceOptions([]);
-            }
-        },
-        [selectData, sinceOptions, cloneMedicalHistoryData]
-    );
-
-    const onBlurSinceChid = useCallback(
-        () => {
-            const tag = cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index];
-            const sinceValue = String(tag.since || '').replace(/\.$/, '');
-            if (isDecimalNumeric(sinceValue)) {
-                const formattedSince = `${sinceValue} ${parseFloat(sinceValue) <= 1 ? 'Day' : 'Day(s)'}`;
-                tag.since = formattedSince;
-                tag.oldSince = formattedSince;
-                setCloneMedicalHistoryData((prev) => [...prev]);
-            }
-        },
-        [selectData, cloneMedicalHistoryData]
-    );
-
-    const onSelectSinceChild = useCallback(
-        (data) => {
-            setSinceOptions([]);
-            const tag = cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index];
-            tag.since = data;
-            tag.oldSince = data;
-            setCloneMedicalHistoryData((prev) => [...prev]);
-        },
-        [selectData, sinceOptions, cloneMedicalHistoryData]
-    );
-
     const onChangeStatus = useCallback((key) => {
         if (key != cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.status) {
             cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].status = key
@@ -1185,51 +829,252 @@ function MedicalHistoryBox(props) {
         setCloneMedicalHistoryData((prev) => [...prev]);
     }, [selectData, cloneMedicalHistoryData]);
 
-    const showHidePopover = useCallback(() => {
-        setPopOver(!popOver);
-    }, [popOver]);
+    // ── Redesigned Medical History tab ────────────────────────────────────
+    // State and handlers below back the new chip/detail UI. They mutate the
+    // same cloneMedicalHistoryData shape the old UI used, so onSaveClicked and
+    // every downstream consumer stay untouched.
 
-    const onCheckboxClick = (e) => {
-        const index = selectedRelationship.indexOf(e);
-        if (index !== -1) {
-            selectedRelationship.splice(index, 1);
-        } else {
-            selectedRelationship.push(e)
-        }
-        setSelectedRelationship((prev) => [...prev])
-    }
+    const [crossSearchQuery, setCrossSearchQuery] = useState("");
+    const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
 
-    const onChangeRelationship = () => {
-        cloneMedicalHistoryData[selectData?.section_index].tags[selectData?.tag_index].relationship = selectedRelationship.join(', ')
-        setCloneMedicalHistoryData((prev) => [...prev]);
-    }
+    const onCrossSearchChange = useCallback((e) => {
+        setCrossSearchQuery(removeBeforeWhiteSpace(e.target.value));
+    }, []);
 
-    const RELATIONSHIP_CONTENT = useCallback(() => {
-        return (
-            <div className="pop-body pop-h-none">
-                {RELATIONSHIP_LIST.map((e, i) => {
-                    return (
-                        <div className="px-3 py-2" key={i}>
-                            <Checkbox className="advice-check" checked={selectedRelationship.includes(e)} onClick={() => onCheckboxClick(e)}>{e}</Checkbox>
-                        </div>
-                    )
-                })}
-                <div className="d-flex justify-content-end align-items-center my-2 pt-2 border-top">
-                    <Button className='btn mx-3 p-0 shadow-none border-0' onClick={showHidePopover}>
-                        Cancel
-                    </Button>
-                    <Button className='btn mx-3 p-0 btn-save' onClick={() => {
-                        showHidePopover()
-                        onChangeRelationship()
-                    }}>
-                        Save
-                    </Button>
-                </div>
-            </div>
+    const { resultsBySection: searchResultsBySection } = useCrossSectionTagSearch(
+        cloneMedicalHistoryData,
+        crossSearchQuery
+    );
+
+    const {
+        order: sectionOrder,
+        hiddenSet: hiddenSectionIds,
+        onDragEnd: onSectionDragEnd,
+        toggleVisibility: onToggleSectionVisibility,
+        reset: onResetSectionConfig,
+    } = useSectionConfig({
+        sections: cloneMedicalHistoryData,
+        doctorId: profile?.doctor_unique_id,
+        enabled: !gynecOnly,
+    });
+
+    const getFieldTemplate = useCallback((tmmhs_id) => {
+        if (tmmhs_id === 2) return { ...MEDICAL_PROBLEM };
+        if (tmmhs_id === 3) return { ...FAMILY_HISTORY };
+        if (tmmhs_id === 5) return { ...SURGICAL_HISTORY };
+        return { ...OTHERS };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    /** Append a tag to a section as already-selected, and focus it. */
+    const appendSelectedTag = useCallback((sectionIndex, tag) => {
+        let newTagIndex = 0;
+        setCloneMedicalHistoryData((prev) => {
+            const next = [...prev];
+            const section = next[sectionIndex];
+            if (!section) return prev;
+            const tags = [...(section.tags || [])];
+            newTagIndex = tags.length;
+            tags.push({
+                pms_default: 0,
+                ...getFieldTemplate(section.tmmhs_id),
+                ...tag,
+                unique_id: tag.unique_id || uuidv4(),
+                enable: "Y",
+            });
+            next[sectionIndex] = { ...section, tags };
+            return next;
+        });
+        const section = cloneMedicalHistoryData[sectionIndex];
+        setSelectData({
+            tmmhs_id: section?.tmmhs_id,
+            tmmhst_id: tag.tmmhst_id || 0,
+            section_index: sectionIndex,
+            tag_index: newTagIndex,
+        });
+    }, [cloneMedicalHistoryData, getFieldTemplate]);
+
+    const onAddCustomTag = useCallback((sectionIndex) => {
+        const title = crossSearchQuery.trim();
+        if (!title) return;
+        appendSelectedTag(sectionIndex, { tmmhst_id: 0, title, pms_default: 1 });
+        setCrossSearchQuery("");
+    }, [crossSearchQuery, appendSelectedTag]);
+
+    const onAddSearchResult = useCallback((sectionIndex, tag) => {
+        appendSelectedTag(sectionIndex, {
+            tmmhst_id: tag.tmmhst_id || 0,
+            title: String(tag.title || "").trim(),
+            pms_default: tag.pms_default ?? 0,
+        });
+        setCrossSearchQuery("");
+    }, [appendSelectedTag]);
+
+    /**
+     * Removing a chip deselects it rather than deleting it — "-" is the same
+     * third state the old Y/N/- toggle produced, and onSaveClicked already
+     * filters it out.
+     */
+    const onDeselectTag = useCallback((sectionIndex, tagIndex) => {
+        setCloneMedicalHistoryData((prev) => {
+            const next = [...prev];
+            const section = next[sectionIndex];
+            if (!section) return prev;
+            const tags = [...(section.tags || [])];
+            tags[tagIndex] = { ...tags[tagIndex], enable: ENABLE_DESELECTED };
+            next[sectionIndex] = { ...section, tags };
+            return next;
+        });
+        setSelectData((prev) =>
+            prev?.section_index === sectionIndex && prev?.tag_index === tagIndex ? null : prev
         );
-    }, [popOver, selectedRelationship]);
+    }, []);
+
+    const onNoKnownHistorySection = useCallback((sectionIndex, checked) => {
+        setCloneMedicalHistoryData((prev) => {
+            const next = [...prev];
+            next[sectionIndex] = { ...next[sectionIndex], no_know_history: checked };
+            return next;
+        });
+    }, []);
+
+    const updateSelectedTag = useCallback((patch) => {
+        setSelectData((current) => {
+            if (!current) return current;
+            setCloneMedicalHistoryData((prev) => {
+                const next = [...prev];
+                const section = next[current.section_index];
+                if (!section) return prev;
+                const tags = [...(section.tags || [])];
+                if (!tags[current.tag_index]) return prev;
+                tags[current.tag_index] = { ...tags[current.tag_index], ...patch };
+                next[current.section_index] = { ...section, tags };
+                return next;
+            });
+            return current;
+        });
+    }, []);
+
+    const onEnableChange = useCallback((value) => {
+        updateSelectedTag({ enable: value });
+    }, [updateSelectedTag]);
+
+    // `oldSince` is written alongside `since` to match the previous AutoComplete
+    // behaviour; both are persisted today.
+    const onSinceChange = useCallback((value) => {
+        updateSelectedTag({ since: value, oldSince: value });
+    }, [updateSelectedTag]);
+
+    const onRelationshipChange = useCallback((value) => {
+        updateSelectedTag({ relationship: value });
+    }, [updateSelectedTag]);
+
+    /**
+     * Custom and library tags are added with tmmhst_id 0. The save API does not
+     * create tags, so they are registered here first and their real ids merged
+     * back in — this replaces the registration the old "Edit & Add" popover did
+     * via onAddEditSaveClick.
+     */
+    const registerNewTags = useCallback(async () => {
+        for (let i = 0; i < cloneMedicalHistoryData.length; i++) {
+            const section = cloneMedicalHistoryData[i];
+            const tags = (section?.tags || []).filter((t) => !t.delete);
+            const hasNew = tags.some(
+                (t) => (!t.tmmhst_id || t.tmmhst_id === 0) && (t.enable === "Y" || t.enable === "N")
+            );
+            if (!hasNew) continue;
+
+            try {
+                const action = await dispatch(addTag({
+                    tmmhs_id: section.tmmhs_id,
+                    title: section.title,
+                    tags: tags.map((t) => ({
+                        tmmhst_id: t.tmmhst_id || 0,
+                        title: t.title,
+                        pms_default: t.pms_default ?? 0,
+                    })),
+                }));
+                const registered = action?.payload?.tags;
+                if (action.meta.requestStatus !== "fulfilled" || !registered?.length) continue;
+
+                section.tags.forEach((tag) => {
+                    if (tag.tmmhst_id) return;
+                    const match = registered.find(
+                        (r) => String(r.title || "").trim().toLowerCase() ===
+                            String(tag.title || "").trim().toLowerCase()
+                    );
+                    if (match) tag.tmmhst_id = match.tmmhst_id;
+                });
+            } catch (e) {
+                console.warn("[MedicalHistoryBox] addTag failed for section", section?.tmmhs_id, e);
+            }
+        }
+    }, [cloneMedicalHistoryData, dispatch]);
+
+    /**
+     * Unsaved-changes guard. The antd Drawer at each call site closes on mask
+     * click and Esc without consulting this component, so those call sites set
+     * maskClosable={false} and keyboard={false} — every close then routes
+     * through the header back arrow and lands here.
+     */
+    const buildDirtySnapshot = useCallback((sections, remarksValue) => JSON.stringify({
+        remarks: String(remarksValue || "").trim(),
+        sections: (sections || []).map((s) => ({
+            id: s?.tmmhs_id,
+            nkh: !!s?.no_know_history,
+            tags: (s?.tags || [])
+                .filter((t) => t.enable === "Y" || t.enable === "N")
+                .map((t) => ({
+                    id: t.tmmhst_id,
+                    title: t.title,
+                    enable: t.enable,
+                    since: t.since,
+                    status: t.status,
+                    medication: t.medication,
+                    relationship: t.relationship,
+                    note: t.note,
+                    date: t.date,
+                })),
+        })),
+    }), []);
+
+    const isMedicalHistoryDirty = useCallback(
+        () => buildDirtySnapshot(cloneMedicalHistoryData, remarks) !== initialSnapshotRef.current,
+        [buildDirtySnapshot, cloneMedicalHistoryData, remarks]
+    );
+
+    const isMedicalTab = !gynecOnly && activeTab === "medical";
+
+    /**
+     * The antd tab strip is only rendered when both tabs are available; the
+     * `hide-tabs-nav` class removes it otherwise. When it is visible it costs
+     * 46px plus antd's 16px .ant-tabs-nav bottom margin — the gynec tab already
+     * cancels that margin with its own -1rem wrapper, so the medical panel does
+     * the same and reports 60 + 46 as its height offset.
+     */
+    const TABS_NAV_HEIGHT = 46;
+    const tabsNavVisible = !(hideMenstrualHistoryTab || gynecOnly);
+    const medicalPanelHeightOffset = 60 + (tabsNavVisible ? TABS_NAV_HEIGHT : 0);
+
+    /** Drives the Save label: "Save Changes" once the patient has history. */
+    const hasExistingHistory = useMemo(
+        () => (cloneMedicalHistoryData || []).some(
+            (s) => s?.no_know_history ||
+                (s?.tags || []).some((t) => !t.delete && (t.enable === "Y" || t.enable === "N"))
+        ) || !!String(remarks || "").trim(),
+        [cloneMedicalHistoryData, remarks]
+    );
+
+    const requestCloseDrawer = useCallback(() => {
+        if (!gynecOnly && activeTab === "medical" && isMedicalHistoryDirty()) {
+            setShowUnsavedConfirm(true);
+            return;
+        }
+        handleDrawerMedicalHistory();
+    }, [gynecOnly, activeTab, isMedicalHistoryDirty, handleDrawerMedicalHistory]);
 
     const onSaveClicked = async () => {
+        await registerNewTags();
         const clinic_name = getClinicName(profile?.hospital_data);
         window.Moengage.track_event("TP_Medical_history_updated", {
             clinic_name,
@@ -1272,6 +1117,9 @@ function MedicalHistoryBox(props) {
                 ...remarks && i === 0 && {medical_history_remarks: remarks?.trim()}
             }
         })
+        // Saved state becomes the new baseline, so closing right after a save
+        // does not trip the unsaved-changes guard.
+        initialSnapshotRef.current = buildDirtySnapshot(cloneMedicalHistoryData, remarks);
         if (!remarks && medicalHistory.filter(e => !e?.no_know_history && e?.tags?.length === 0).length === medicalHistory.length) {
             if (typeof setMedicalHistoryData === 'function') setMedicalHistoryData([]);
             handleDrawerMedicalHistory()
@@ -1643,10 +1491,6 @@ function MedicalHistoryBox(props) {
     }, [popOverVideo]);
     
     
-    const onExpandCollapseRemarks = () => {
-        setExpandRemarks(!expandRemarks);
-    }
-
     const onRemarksChange = (e) => {
         setRemarks(e.target.value);
     }
@@ -1658,8 +1502,11 @@ function MedicalHistoryBox(props) {
                     .hide-tabs-nav .ant-tabs-nav {
                         display: none !important;
                     }
+                    /* No margin here: with the tab strip hidden the redesigned
+                       panel must sit flush under the 60px header. It carries its
+                       own top padding via .searchBar. */
                     .hide-tabs-nav .ant-tabs-content-holder {
-                        margin-top: 16px;
+                        margin-top: 0;
                     }
                     .hide-tabs-nav .ant-tabs-content {
                         padding-top: 0;
@@ -1675,7 +1522,7 @@ function MedicalHistoryBox(props) {
                     <div className='align-items-center d-flex h-100'>
                         <div className='border-end h-100 text-center me-3'>
                             <div
-                                onClick={handleDrawerMedicalHistory}
+                                onClick={requestCloseDrawer}
                                 className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
                                 <i className='icon-right'></i>
                             </div>
@@ -1685,7 +1532,10 @@ function MedicalHistoryBox(props) {
                         </div>
                     </div>
                     <div className="d-flex align-items-center gap-2">
-                        {isGynaecHistoryAccessable && (
+                        {/* Gynec video tutorial belongs to the Menstrual History
+                            tab; hidden on Medical History so that header matches
+                            the redesign (gear + Save only). */}
+                        {isGynaecHistoryAccessable && !isMedicalTab && (
                             <Popover
                                 open={popOverVideo}
                                 onOpenChange={showHideVideoListPopover}
@@ -1696,7 +1546,7 @@ function MedicalHistoryBox(props) {
                             >
                                 <button className="btn d-flex align-items-center btn-text p-0 me-20">
                                     <span>
-                                        <img src={tutorial2} />
+                                        <img src={tutorial2} alt="Video tutorial" />
                                     </span>
                                 </button>
                             </Popover>
@@ -1708,9 +1558,32 @@ function MedicalHistoryBox(props) {
                                 onClick={openMedicalHistoryVoiceCapture}
                             />
                         )} */}
-                        <Button className='btn btn-primary3 btn-41 px-4 me-20' onClick={onSaveClicked}>
-                            Save
-                        </Button>
+                        <TesseractThemeProvider colorScheme="light">
+                            <span className={`${medicalHistoryStyles.headerActions} me-20`}>
+                                {isMedicalTab && (
+                                    <>
+                                        <CustomizeButton
+                                            order={sectionOrder}
+                                            hiddenSet={hiddenSectionIds}
+                                            onDragEnd={onSectionDragEnd}
+                                            onToggleVisibility={onToggleSectionVisibility}
+                                            onReset={onResetSectionConfig}
+                                        />
+                                        <TesseractDivider orientation="vertical" />
+                                    </>
+                                )}
+                                <TesseractButton
+                                    variant="solid"
+                                    theme="primary"
+                                    size="md"
+                                    onClick={onSaveClicked}
+                                >
+                                    {isMedicalTab
+                                        ? (hasExistingHistory ? "Save Changes" : "Save History")
+                                        : "Save"}
+                                </TesseractButton>
+                            </span>
+                        </TesseractThemeProvider>
                     </div>
                 </div>
                 <Tabs 
@@ -2155,417 +2028,106 @@ function MedicalHistoryBox(props) {
                     }
                     {!gynecOnly && (
                     <TabPane tab="Medical History" key="medical">
-                        <div style={{ marginTop: hideMenstrualHistoryTab ? "16px" : "-1rem" }}>
-                            {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
-                                <div className={voiceModuleStyles.moduleSlot}>
-                                    <VoiceRxModuleCapture
-                                        moduleName="Medical History"
-                                        moduleApiName="medical_history"
-                                        previousContext={medicalHistoryPreviousContext}
-                                        dummyDigitisedData={[]}
-                                        onCancel={() => setVoiceCaptureOpen(false)}
-                                        onComplete={handleVoiceCaptureComplete}
-                                    />
-                                </div>
-                            ) : null}
-                            <Row>
-                                <Col lg={15}>
-                                    <div className="bg-white overflow-y-auto medical-history-section" style={{ height: 'calc(100vh - 115px)' }}>
-                                        {cloneMedicalHistoryData.length > 0 ? (
-                                            cloneMedicalHistoryData?.map((e, i) => {
-                                                return (
-                                                    <div key={i} className="border-bottom px-4 pt-3 pb-2">
-                                                        <div className="d-flex align-items-center justify-content-between mb-3">
-                                                            <div className="d-flex align-items-center">
-                                                                <div className="titleprint">{e?.title}</div>
-                                                                <Button className="btn border rounded-3 px-1 ms-3 collapseButton" onClick={() => onExpandCollapseClick(i)}>
-                                                                    <i style={{ transitionDuration: '0.5s' }} className={`icon-right d-block fs-18 ${e?.isExpand ? 'iconrotate270' : 'iconrotatehistory90'}`}></i>
-                                                                </Button>
-                                                            </div>
-                                                            <div className="d-flex align-items-center">
-                                                                <Checkbox className="fontroboto" checked={e?.no_know_history} onChange={(e) => onNoKnownHistoryChange(e, i)}>No known history</Checkbox>
-                                                                <button className='btn d-flex ms-1 align-items-center btn-text pe-0' onClick={() => onAddEditClick(e)}>
-                                                                    <i className="icon-setting me-2"></i> <span>Edit & Add</span>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div className="d-flex flex-wrap">
-                                                            {!e?.no_know_history && !e?.isExpand && e?.tags?.map((e1, i1) => {
-                                                                return (
-                                                                    <div key={Math.random()} className={`history-badge ${e1?.enable !== undefined ? e1?.enable === "Y" ? 'history-active' : e1?.enable === "N" ? 'history-inactive' : '' : ''}`}>
-                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.title}</div>
-                                                                        <span onClick={() => onEnableClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.enable !== undefined ? e1?.enable : "-"}<img src={e1?.enable !== undefined ? e1?.enable === "Y" ? ActiveverticleUpDown : e1?.enable === "N" ? InActiveverticleUpDown : verticleUpDown : verticleUpDown} />
-                                                                        </span>
-                                                                    </div>
-                                                                )
-                                                            })}
-                                                        </div>
-                                                        {i===cloneMedicalHistoryData?.length-1 && (
-                                                            <div key={i} className="pt-3 pb-4">
-                                                                <div className="d-flex align-items-center justify-content-between mb-3">
-                                                                    <div className="d-flex align-items-center">
-                                                                        <div className="titleprint">Additional History</div>
-                                                                        <Button className="btn border rounded-3 px-1 ms-3 collapseButton" onClick={onExpandCollapseRemarks}>
-                                                                            <i style={{ transitionDuration: '0.5s' }} className={`icon-right d-block fs-18 ${!expandRemarks ? 'iconrotate270' : 'iconrotatehistory90'}`}></i>
-                                                                        </Button>
-                                                                        {isVoiceRxModuleEnabled && (
-                                                                            <span className="d-inline-flex ms-2">
-                                                                                <VoiceRxModuleButton
-                                                                                    active={additionalHistoryVoiceCaptureOpen}
-                                                                                    dictationTargetId="medical-history-additional"
-                                                                                    label="Start Additional History voice input"
-                                                                                    onClick={openAdditionalHistoryVoiceCapture}
-                                                                                />
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                                {expandRemarks &&
-                                                                    <div data-voice-rx-dictation-target="medical-history-additional" style={{ position: "relative", width: "100%" }}>
-                                                                        {isVoiceRxModuleEnabled && additionalHistoryVoiceCaptureOpen ? (
-                                                                            <div className={voiceModuleStyles.moduleSlot}>
-                                                                                <VoiceRxModuleCapture
-                                                                                    mode="transcribe"
-                                                                                    moduleName="Additional History"
-                                                                                    onCancel={() => setAdditionalHistoryVoiceCaptureOpen(false)}
-                                                                                    onComplete={handleAdditionalHistoryVoiceCaptureComplete}
-                                                                                />
-                                                                            </div>
-                                                                        ) : null}
-                                                                        <TextArea
-                                                                            value={remarks}
-                                                                            placeholder="Write your additional history"
-                                                                            className="textareaPlaceholder"
-                                                                            rows={3}
-                                                                            onChange={onRemarksChange}
-                                                                            maxLength={5000}
-                                                                            autoSize={{ minRows: 3, maxRows: 6 }}
-                                                                        />
-                                                                        <div className="additional-history-count">
-                                                                            {remarks?.length || 0}/{5000}
-                                                                        </div>
-                                                                    </div>
-                                                                }
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )
-                                            })
-                                        ) : (
-                                            <div className="d-flex align-items-center justify-content-center h-100">
-                                                <Spin />
-                                            </div>
-                                        )}
+                      {/* -16px, not the -1rem the gynec tab uses: the root font
+                          size is 14px, so 1rem cancels only 14 of antd's 16px
+                          nav margin and leaves a 2px seam. */}
+                      <div style={{ marginTop: tabsNavVisible ? "-16px" : 0 }}>
+                        <MedicalHistoryPanel
+                            heightOffset={medicalPanelHeightOffset}
+                            loading={loading}
+                            sections={cloneMedicalHistoryData}
+                            selectData={selectData}
+                            order={sectionOrder}
+                            hiddenSet={hiddenSectionIds}
+                            crossSearchQuery={crossSearchQuery}
+                            onCrossSearchChange={onCrossSearchChange}
+                            searchResultsBySection={searchResultsBySection}
+                            onAddSearchResult={onAddSearchResult}
+                            remarks={remarks}
+                            onRemarksChange={onRemarksChange}
+                            onTagClick={onTagClick}
+                            onDeleteTag={onDeselectTag}
+                            onNoKnownHistory={onNoKnownHistorySection}
+                            onSectionExpand={onExpandCollapseClick}
+                            onAddCustom={onAddCustomTag}
+                            onEnableChange={onEnableChange}
+                            onStatusChange={onChangeStatus}
+                            onMedicationChange={onChangeMedication}
+                            onSinceChange={onSinceChange}
+                            onRelationshipChange={onRelationshipChange}
+                            onNoteChange={onChangeInputNote}
+                            surgicalDateType={surgicalDateType}
+                            surgicalDate={surgicalDate}
+                            onSurgicalDateTypeChange={onSurgicalDateTypeChange}
+                            onSurgicalDateChange={onSurgicalDateChange}
+                            onSurgicalYearChange={onSurgicalYearChange}
+                            moduleCaptureSlot={
+                                isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+                                    <div className={voiceModuleStyles.moduleSlot}>
+                                        <VoiceRxModuleCapture
+                                            moduleName="Medical History"
+                                            moduleApiName="medical_history"
+                                            previousContext={medicalHistoryPreviousContext}
+                                            dummyDigitisedData={[]}
+                                            onCancel={() => setVoiceCaptureOpen(false)}
+                                            onComplete={handleVoiceCaptureComplete}
+                                        />
                                     </div>
-                                </Col>
-                                <Col lg={9}>
-                                    <div className="bg-body overflow-y-auto" style={{ height: 'calc(100vh - 61px)' }}>
-                                        {addEditData ? (
-                                            <div>
-                                                <div className="selectedchip-header1 d-flex flex-column justify-content-center title px-20">
-                                                    <span className="text-truncate">{addEditData?.title}</span>
-                                                </div>
-                                                <div className="p-3">
-                                                    <div className="mt-1 mb-3">
-                                                        <Input className="popinput" onChange={onSearch} value={searchQuery} placeholder={`Search ${addEditData?.title}`} prefix={<i className='icon-search me-2'></i>} allowClear />
-                                                    </div>
-                                                    <div className="d-flex flex-wrap">
-                                                        {searchQuery.length > 0 ? (
-                                                            searchOptions?.map((item, i) => {
-                                                                return (
-                                                                    i === searchOptions.length - 1 ? (
-                                                                        <Button
-                                                                            key={i}
-                                                                            type="text"
-                                                                            className="btn btn-primary2 chips-custom mb-14 chips-addCustom chips-height"
-                                                                            onClick={() => onSelectParent({ ...JSON.parse(item.key) })}>
-                                                                            "{item.value}" <i className="icon-Add mx-2 fs-6"></i> <a className="fw-medium text-decoration-underline text-primary"> Add Custom</a>
-                                                                        </Button>
-                                                                    ) : (
-                                                                        <Button
-                                                                            key={i}
-                                                                            type="text"
-                                                                            style={{ width: item.value.length > 26 && '250px' }}
-                                                                            className={`${item.value.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`}
-                                                                            onClick={() => onSelectParent({ ...JSON.parse(item.key) })}>
-                                                                            {item.value}
-                                                                        </Button>
-                                                                    )
-                                                                )
-                                                            })
-                                                        ) : (
-                                                            addEditData?.tags?.filter(e => !e.delete).map((e, i) => {
-                                                                return (
-                                                                    <div key={Math.random()} className="border rounded-10px px-2 py-1 d-flex align-items-center me-3 mb-2 bg-white fontroboto">
-                                                                        {e?.title}
-                                                                        <i className="ms-2 icon-Cross fs-18" onClick={() => onRemoveTag(e, i)}></i>
-                                                                    </div>
-                                                                )
-                                                            })
-                                                        )}
-                                                    </div>
-                                                    <div className="d-flex justify-content-end align-items-center mt-4">
-                                                        <Button className='btn btn-text me-4 p-0 shadow-none border-0' onClick={() => setAddEditData(null)}>
-                                                            Cancel
-                                                        </Button>
-                                                        <Button className='btn btn-primary3 btn-41 px-4' onClick={onAddEditSaveClick} loading={loading}>
-                                                            Save
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            selectData ? (
-                                                cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.enable == 'Y' ? (
-                                                    <div>
-                                                        <div className="selectedchip-header1 d-flex flex-column justify-content-center title px-20">
-                                                            <span className="text-truncate">{cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.title}</span>
-                                                        </div>
-
-                                                        <div className="p-3">
-                                                            {isMobile ? (
-                                                                selectData?.tmmhs_id !== 3 && selectData?.tmmhs_id !== 5 &&
-                                                                <>
-                                                                    <div className="mt-2">
-                                                                        <label className="title-common mb-1"> Since</label>
-                                                                        <div className="segement-static d-flex">
-                                                                            {SINCE_LIST.map((item, i) => {
-                                                                                return (
-                                                                                    <button key={i}
-                                                                                        type="button"
-                                                                                        className={`btn w-100 p-0 ${sinceValue > 5 ? item.value == -1 && 'btn-segement custom-input-selected' : sinceValue == item.value && 'btn-segement'}`}
-                                                                                        onClick={() => onChangeSegmentedSinceChild(item.value)}>
-                                                                                        {item.label}
-                                                                                    </button>
-                                                                                )
-                                                                            })}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="mt-3">
-                                                                        <div className="segement-static d-flex">
-                                                                            {sinceOptions.map((item, i) => {
-                                                                                return (
-                                                                                    <button key={i}
-                                                                                        type="button"
-                                                                                        className={`btn w-100 ${cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.since !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.since == item.value && 'btn-segement'}`}
-                                                                                        onClick={() => onChangeSinceChild(item.value)}>
-                                                                                        {item.label}
-                                                                                    </button>
-                                                                                )
-                                                                            })}
-                                                                        </div>
-                                                                    </div>
-                                                                </>
-                                                            ) : (
-                                                                <Row gutter={20} className="mt-2">
-                                                                    {selectData?.tmmhs_id !== 3 && selectData?.tmmhs_id !== 5 &&
-                                                                        <Col lg={24} >
-                                                                            <label className="title-common mb-1"> Since</label>
-                                                                            <AutoComplete
-                                                                                defaultValue={cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.since !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.since}
-                                                                                value={cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.since !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.since}
-                                                                                placeholder="Since"
-                                                                                defaultOpen={false}
-                                                                                onSearch={(query) => onSearchSinceChid(query)}
-                                                                                onBlur={() => onBlurSinceChid()}
-                                                                                options={sinceOptions}
-                                                                                className="autocomplete-custom w-100"
-                                                                                defaultActiveFirstOption={true}
-                                                                                onSelect={(data) => onSelectSinceChild(data)}
-                                                                            />
-                                                                        </Col>
-                                                                    }
-                                                                    {selectData?.tmmhs_id == 3 && (
-                                                                        <Col lg={24}>
-                                                                            <label className="title-common mb-1"> Relationship</label>
-                                                                            <Popover
-                                                                                open={popOver}
-                                                                                onOpenChange={showHidePopover}
-                                                                                content={RELATIONSHIP_CONTENT}
-                                                                                trigger="click"
-                                                                                arrow={false}
-                                                                                overlayClassName="pp-0 poover-13"
-                                                                                placement="bottom">
-                                                                                <div>
-                                                                                    <Input className="popinput input-tuncate" readOnly value={cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.relationship !== undefined ? cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.relationship : ''} placeholder="Select relationship" suffix={<i className='icon-right iconrotate270'></i>} />
-                                                                                </div>
-                                                                            </Popover>
-                                                                        </Col>
-                                                                    )}
-                                                                </Row>
-
-                                                            )}
-                                                            {selectData?.tmmhs_id != 3 && selectData?.tmmhs_id != 5 && (
-                                                                <div className={`${isMobile ? 'mt-5' : 'mt-20'}`}>
-                                                                    <label className="title-common mb-1">Status</label>
-                                                                    {/* <div className="segement-static d-flex">
-                                                                        {STATUS_LIST.map((item, i) => {
-                                                                            return (
-                                                                                <button key={i}
-                                                                                    type="button"
-                                                                                    className={`btn w-100 ${cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.status !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.status == item.value && 'btn-segement'}`}
-                                                                                    onClick={() => onChangeStatus(item.value)}>
-                                                                                    {item.label}
-                                                                                </button>
-                                                                            )
-                                                                        })}
-                                                                    </div> */}
-                                                                    <Form.Item className="form_addnewpatient">
-                                                                        <Radio.Group
-                                                                            className={`d-flex gender-radio all-change-radio ${isMobile ? 'segmented-radio-mobile' : ''}`}
-                                                                            value={cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.status !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.status}>
-                                                                            {STATUS_LIST.map((item, i) => {
-                                                                                return (
-                                                                                    <Radio.Button key={i} className={`w-100 text-center ${isMobile ? 'segment-47' : 'text-segment'}`} value={item.value} onClick={() => onChangeStatus(item.value)}>{item.label}</Radio.Button>
-                                                                                )
-                                                                            })}
-                                                                        </Radio.Group>
-                                                                    </Form.Item>
-                                                                </div>
-                                                            )}
-                                                            {selectData?.tmmhs_id == 2 && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.status == 'Active' && (
-                                                                <div className={`${isMobile ? 'mt-5' : 'mt-20'}`}>
-                                                                    <label className="title-common mb-1"> Medication</label>
-                                                                    {/* <div className="segement-static d-flex">
-                                                                        {MEDICATION_LIST.map((item, i) => {
-                                                                            return (
-                                                                                <button key={i}
-                                                                                    type="button"
-                                                                                    className={`btn w-100 ${cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.medication !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.medication == item.value && 'btn-segement'}`}
-                                                                                    onClick={() => onChangeMedication(item.value)}>
-                                                                                    {item.label}
-                                                                                </button>
-                                                                            )
-                                                                        })}
-                                                                    </div> */}
-                                                                    <Form.Item className="form_addnewpatient">
-                                                                        <Radio.Group
-                                                                            className={`d-flex gender-radio all-change-radio ${isMobile ? 'segmented-radio-mobile' : ''}`}
-                                                                            value={cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.medication !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.medication}>
-                                                                            {MEDICATION_LIST.map((item, i) => {
-                                                                                return (
-                                                                                    <Radio.Button key={i} className={`w-100 text-center ${isMobile ? 'segment-47' : 'text-segment'}`} value={item.value} onClick={() => onChangeMedication(item.value)}>{item.label}</Radio.Button>
-                                                                                )
-                                                                            })}
-                                                                        </Radio.Group>
-                                                                    </Form.Item>
-                                                                </div>
-                                                            )}
-                                                            {selectData?.tmmhs_id == 3 && isMobile && (
-                                                                <div>
-                                                                    <label className="title-common mb-1"> Relationship</label>
-                                                                    <Popover
-                                                                        open={popOver}
-                                                                        onOpenChange={showHidePopover}
-                                                                        content={RELATIONSHIP_CONTENT}
-                                                                        trigger="click"
-                                                                        arrow={false}
-                                                                        overlayClassName="poover-34 pp-0"
-                                                                        placement="bottom">
-                                                                        <div>
-                                                                            <Input className="popinput" readOnly value={cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.relationship !== undefined ? cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.relationship : ''} placeholder="Select relationship" suffix={<i className='icon-right iconrotate270 ms-2'></i>} />
-                                                                        </div>
-                                                                    </Popover>
-                                                                </div>
-                                                            )}
-                                                            {selectData?.tmmhs_id == 5 && (
-                                                                <div className={`${isMobile ? 'mt-5' : 'mt-20'}`}>
-                                                                    <label className="title-common mb-1">Date of Surgery</label>
-                                                                    <div className="mb-3">
-                                                                        <Radio.Group
-                                                                            className="d-flex gender-radio all-change-radio"
-                                                                            value={surgicalDateType}
-                                                                            onChange={(e) => onSurgicalDateTypeChange(e.target.value)}
-                                                                        >
-                                                                            {SURGICAL_DATE_TYPE_OPTIONS.map((item, i) => (
-                                                                                <Radio.Button 
-                                                                                    key={i} 
-                                                                                    className="w-100 text-center text-segment" 
-                                                                                    value={item.value}
-                                                                                >
-                                                                                    {item.label}
-                                                                                </Radio.Button>
-                                                                            ))}
-                                                                        </Radio.Group>
-                                                                    </div>
-                                                                    {surgicalDateType === 'year' ? (
-                                                                        <Input
-                                                                            className="popinput"
-                                                                            placeholder="Enter year (e.g., 2020)"
-                                                                            value={surgicalDate || ''}
-                                                                            onChange={(e) => onSurgicalYearChange(e.target.value)}
-                                                                            maxLength={4}
-                                                                        />
-                                                                    ) : (
-                                                                        <DatePicker
-                                                                            className="popinput w-100"
-                                                                            placeholder="Select date"
-                                                                            format={showDateFormat}
-                                                                            value={surgicalDate}
-                                                                            onChange={onSurgicalDateChange}
-                                                                        />
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                            <div data-voice-rx-dictation-target="medical-history-note" className={`${isMobile ? 'mt-5' : 'mt-20'}`}>
-                                                                <div className="d-flex align-items-center mb-1">
-                                                                    <label className="title-common mb-0">
-                                                                        {selectData?.tmmhs_id == 5 ? "Surgical History Remarks" : "Note"}
-                                                                    </label>
-                                                                    {isVoiceRxModuleEnabled && (
-                                                                        <span className="d-inline-flex ms-2">
-                                                                            <VoiceRxModuleButton
-                                                                                active={selectedHistoryNoteVoiceCaptureOpen}
-                                                                                dictationTargetId="medical-history-note"
-                                                                                label="Start Medical History note voice input"
-                                                                                onClick={openSelectedHistoryNoteVoiceCapture}
-                                                                            />
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                {isVoiceRxModuleEnabled && selectedHistoryNoteVoiceCaptureOpen ? (
-                                                                    <div className={voiceModuleStyles.moduleSlot}>
-                                                                        <VoiceRxModuleCapture
-                                                                            mode="transcribe"
-                                                                            moduleName="Medical History Note"
-                                                                            hideCaptions={true}
-                                                                            onCancel={() => setSelectedHistoryNoteVoiceCaptureOpen(false)}
-                                                                            onComplete={handleSelectedHistoryNoteVoiceCaptureComplete}
-                                                                        />
-                                                                    </div>
-                                                                ) : null}
-                                                                <Input.TextArea 
-                                                                    value={cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.note !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.note} 
-                                                                    placeholder={selectData?.tmmhs_id == 5 ? "Enter surgical history remarks here" : "Enter any specific notes here"} 
-                                                                    className="textareaPlaceholder" 
-                                                                    rows={3} 
-                                                                    onChange={onChangeInputNote} 
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ) : cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.enable == 'N' && (
-                                                    <div className="text-center">
-                                                        <img className="mt-4 mb-3" style={{ width: 135 }} src={NoHypertension} alt="No Result Found" />
-                                                        <div className="title-hypertension">{`No ${cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.title} !`}</div>
-                                                        <div className="fontroboto text-main title fw-normal mt-2">
-                                                            You have selected as patient does not <br />
-                                                            have {cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.title}
-                                                        </div>
-                                                    </div>
-                                                )
-                                            ) : (
-                                                <div className="text-center">
-                                                    <img className="my-4" style={{ width: 194 }} src={noRecordFound} alt="No Result Found" />
-                                                    <div className="fontroboto text-main title-common"> No Records Found! </div>
-                                                    <div className="fontroboto text-main title fw-normal mt-2"> You haven't added any medical history. </div>
-                                                </div>
-                                            )
-                                        )}
+                                ) : null
+                            }
+                            additionalHistoryVoiceButton={
+                                isVoiceRxModuleEnabled ? (
+                                    <span className="d-inline-flex" onClick={(e) => e.stopPropagation()}>
+                                        <VoiceRxModuleButton
+                                            active={additionalHistoryVoiceCaptureOpen}
+                                            dictationTargetId="medical-history-additional"
+                                            label="Start Additional History voice input"
+                                            onClick={openAdditionalHistoryVoiceCapture}
+                                        />
+                                    </span>
+                                ) : null
+                            }
+                            additionalHistoryVoiceCaptureSlot={
+                                isVoiceRxModuleEnabled && additionalHistoryVoiceCaptureOpen ? (
+                                    <div className={voiceModuleStyles.moduleSlot}>
+                                        <VoiceRxModuleCapture
+                                            mode="transcribe"
+                                            moduleName="Additional History"
+                                            onCancel={() => setAdditionalHistoryVoiceCaptureOpen(false)}
+                                            onComplete={handleAdditionalHistoryVoiceCaptureComplete}
+                                        />
                                     </div>
-                                </Col>
-                            </Row>
-                        </div>
+                                ) : null
+                            }
+                            noteVoiceButton={
+                                isVoiceRxModuleEnabled ? (
+                                    /* No ms-2: .fieldLabel is a flex row and
+                                       supplies the gap. */
+                                    <span className="d-inline-flex">
+                                        <VoiceRxModuleButton
+                                            active={selectedHistoryNoteVoiceCaptureOpen}
+                                            dictationTargetId="medical-history-note"
+                                            label="Start Medical History note voice input"
+                                            onClick={openSelectedHistoryNoteVoiceCapture}
+                                        />
+                                    </span>
+                                ) : null
+                            }
+                            noteVoiceCaptureSlot={
+                                isVoiceRxModuleEnabled && selectedHistoryNoteVoiceCaptureOpen ? (
+                                    <div className={voiceModuleStyles.moduleSlot}>
+                                        <VoiceRxModuleCapture
+                                            mode="transcribe"
+                                            moduleName="Medical History Note"
+                                            hideCaptions={true}
+                                            onCancel={() => setSelectedHistoryNoteVoiceCaptureOpen(false)}
+                                            onComplete={handleSelectedHistoryNoteVoiceCaptureComplete}
+                                        />
+                                    </div>
+                                ) : null
+                            }
+                        />
+                      </div>
                     </TabPane>
                     )}
                 </Tabs>
@@ -2576,6 +2138,31 @@ function MedicalHistoryBox(props) {
                     onCancel={() => setShowVideo(false)}
                 />
             )}
+            <TesseractThemeProvider colorScheme="light">
+                <ConfirmDialog
+                    open={showUnsavedConfirm}
+                    onOpenChange={setShowUnsavedConfirm}
+                    title="You may lose your changes"
+                    withDescription={false}
+                    callout="You have unsaved changes that will be lost. Would you like to save your medical history changes before leaving?"
+                    calloutTone="warning"
+                    calloutCustomIcon={<TPIcon name="danger" size={24} variant="bulk" />}
+                    calloutLines={5}
+                    primaryLabel="Save and Close"
+                    onPrimary={async () => {
+                        setShowUnsavedConfirm(false);
+                        await onSaveClicked();
+                        handleDrawerMedicalHistory();
+                    }}
+                    primaryTheme="primary"
+                    secondaryLabel="Discard Changes"
+                    onSecondary={() => {
+                        setShowUnsavedConfirm(false);
+                        handleDrawerMedicalHistory();
+                    }}
+                    secondaryTheme="error"
+                />
+            </TesseractThemeProvider>
         </>
     );
 }
