@@ -145,7 +145,7 @@ function ActionMenu({ onAction, isFilled, showBilling }) {
             onClick={() => { onAction(isFilled ? "view" : "add"); setOpen(false); }}
           >
             <PlusOutlined />
-            <span>{isFilled ? "View / Edit Lab Results" : "Add Lab Results"}</span>
+            <span>{isFilled ? "View / Edit Investigation Results" : "Add Investigation Results"}</span>
           </button>
           <button
             type="button"

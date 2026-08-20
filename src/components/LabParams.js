@@ -1232,8 +1232,16 @@ const LabResultsTable = ({
                 </>
               }
             />
-            <div className="modal-title">Add Lab Results</div>
+            <div className="modal-title">Add Investigation Results</div>
           </div>
+          <Button
+            className="btn btn-primary2 btn-41 me-2"
+            onClick={() =>
+              window.open("/lims/investigation-settings", "_blank", "noopener,noreferrer")
+            }
+          >
+            Investigation Settings
+          </Button>
           <Button
             className="btn btn-primary3 btn-41 px-4 me-20"
             onClick={handleSave}
@@ -1572,7 +1580,11 @@ const LabResultsTable = ({
                                                 const formatAgeBand = (range) => {
                                                   const from = range.ageFrom ?? 0;
                                                   const to = range.ageTo ?? 120;
-                                                  return from <= 0 && to >= 120 ? "" : ` (${from}-${to}y)`;
+                                                  if (from <= 0 && to >= 120) return "";
+                                                  // Age To left blank defaults to 120 (see toPayload) — with
+                                                  // an actual Age From, that reads as "no upper bound".
+                                                  if (from > 0 && to >= 120) return ` (${from}+ years)`;
+                                                  return ` (${from}-${to}y)`;
                                                 };
                                                 return inputValues[reportName][testName] &&
                                                   Object.keys(inputValues[reportName][testName]).map((date, index) => {

@@ -171,10 +171,10 @@ const ConsultationSidebar = ({
               label = "Records";
               onClick = () => allUploadedDocs?.length === 0 ? handleAddClick() : openCollapsed(7);
               break;
-            case 19: // Lab Results
+            case 19: // Investigation Results
               active = collapsedFlag === 8;
               icon = active ? labParamsDark : labParamsWhite;
-              label = "Lab Results";
+              label = "Investigation Results";
               onClick = () => labParamsData?.length === 0 ? handleAddLabParamsDrawer() : openCollapsed(8);
               break;
             case 22: // Care Plan

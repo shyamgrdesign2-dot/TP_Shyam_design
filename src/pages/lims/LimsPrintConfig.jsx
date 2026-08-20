@@ -288,7 +288,7 @@ function LabResultsFormatLayout() {
               <i
                 className={`icon-Preview ${labOption.enable === "N" ? "disable-preview" : ""} me-3`}
               />
-              <span>Lab Results</span>
+              <span>Investigation Results</span>
             </div>
             <div>
               <Form.Item className="mb-0 form_addnewpatient">
@@ -460,7 +460,7 @@ function LimsPrintConfigMain() {
   };
 
   const tabs = [
-    { key: TAB_LAB_RESULTS, label: "Lab Results" },
+    { key: TAB_LAB_RESULTS, label: "Investigation Results" },
     { key: TAB_HEADER_FOOTER, label: "Header & Footer" },
     { key: TAB_PAGE_FORMAT, label: "Page Format" },
   ];

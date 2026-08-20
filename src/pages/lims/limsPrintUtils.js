@@ -66,7 +66,7 @@ export function ensureLabOption(ps) {
   if (!has) {
     ps.prescription.case_option.push({
       id: LAB_RESULTS_CASE_ID,
-      title: "Lab Results",
+      title: "Investigation Results",
       format: "inline",
       enable: "Y",
       custom_status: "Y",
@@ -76,7 +76,7 @@ export function ensureLabOption(ps) {
     (o) => o.id === LAB_RESULTS_CASE_ID,
   );
   const opt = ps.prescription.case_option.find((o) => o.id === LAB_RESULTS_CASE_ID);
-  if (opt) opt.title = "Lab Results";
+  if (opt) opt.title = "Investigation Results";
   return ps;
 }
 
