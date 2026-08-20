@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button, Card, DatePicker, Input, Popover, Tooltip, message, Spin, Select, Radio } from 'antd';
-import { EllipsisOutlined, DeleteOutlined, CaretRightOutlined, CaretDownOutlined } from "@ant-design/icons";
+import { EllipsisOutlined, DeleteOutlined, CaretRightOutlined, CaretDownOutlined, SettingOutlined } from "@ant-design/icons";
 import axios from 'axios';
 import moment from "moment";
 import { jwtDecode } from 'jwt-decode';
@@ -20,6 +20,8 @@ import {
 import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
 import { getCustomInvestigations } from '../api/services/ApiCustomInvestigation';
 import InlineInvestigationPanel from './InlineInvestigationPanel';
+import inlinePanelStyles from './InlineInvestigationPanel.module.css';
+import { InvestigationSettingsPanel } from '../pages/lims/InvestigationSettingsPage';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -81,6 +83,7 @@ const LabResultsTable = ({
     const [defaultTestData, setDefaultTestData] = useState([]);
     const [customGroups, setCustomGroups] = useState([]);
     const [isCreateInvestigationOpen, setIsCreateInvestigationOpen] = useState(false);
+    const [isInvestigationSettingsOpen, setIsInvestigationSettingsOpen] = useState(false);
 
     useEffect(() => {
       setDefaultTestData(JSON.parse(JSON.stringify(DEFAULT_TESTS_DATA)));
@@ -1234,20 +1237,23 @@ const LabResultsTable = ({
             />
             <div className="modal-title">Add Investigation Results</div>
           </div>
-          <Button
-            className="btn btn-primary2 btn-41 me-2"
-            onClick={() =>
-              window.open("/lims/investigation-settings", "_blank", "noopener,noreferrer")
-            }
-          >
-            Investigation Settings
-          </Button>
-          <Button
-            className="btn btn-primary3 btn-41 px-4 me-20"
-            onClick={handleSave}
-          >
-            Save
-          </Button>
+          <div className="align-items-center d-flex">
+            <Button
+              type="text"
+              className="btn btn-41 px-2 me-2 focus-none d-flex align-items-center justify-content-center"
+              title="Investigation Settings"
+              aria-label="Investigation Settings"
+              onClick={() => setIsInvestigationSettingsOpen(true)}
+            >
+              <SettingOutlined style={{ fontSize: "18px" }} />
+            </Button>
+            <Button
+              className="btn btn-primary3 btn-41 px-4 me-20"
+              onClick={handleSave}
+            >
+              Save
+            </Button>
+          </div>
         </div>
         <div
           className="align-items-center d-flex justify-content-between px-20 py-3 gap-4"
@@ -1310,6 +1316,26 @@ const LabResultsTable = ({
           existingGroups={customGroups}
           onCreated={handleCustomInvestigationCreated}
         />
+
+        {isInvestigationSettingsOpen && (
+          <>
+            <div
+              className={inlinePanelStyles.backdrop}
+              onClick={() => {
+                setIsInvestigationSettingsOpen(false);
+                fetchAndMergeCustomInvestigations();
+              }}
+            />
+            <div className={inlinePanelStyles.panel} style={{ width: "min(920px, 95%)" }}>
+              <InvestigationSettingsPanel
+                onClose={() => {
+                  setIsInvestigationSettingsOpen(false);
+                  fetchAndMergeCustomInvestigations();
+                }}
+              />
+            </div>
+          </>
+        )}
 
         <div style={{ overflowX: "auto", margin: "8px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1564,7 +1590,26 @@ const LabResultsTable = ({
                                       }}
                                     >
                                       {testName}
-                                      {testName !== "Remarks" && (
+                                      {testName !== "Remarks" && (() => {
+                                        // Text/Positive-Negative/Dropdown investigations never carry
+                                        // reference ranges (see toPayload) — showing this icon for them
+                                        // would only ever open a tooltip saying "No reference range
+                                        // available", so skip it entirely for non-numeric result types.
+                                        // Read from defaultTestData (always freshly populated by
+                                        // fetchAndMergeCustomInvestigations) rather than the inputValues
+                                        // cell — the merge/cache pipeline (assemblePayload/combineData)
+                                        // can settle on a cell that dropped resultType/dropdownOptions
+                                        // from an earlier pass and never refreshes it. Match on testName
+                                        // alone, not reportName — a search-matched row's "reportName" is
+                                        // the test's own name (each match renders as its own one-item
+                                        // group), not its real group name in defaultTestData.
+                                        const defaultRow = defaultTestData.find((row) => row.testName === testName);
+                                        const cellWithResultType = Object.values(
+                                          inputValues[reportName][testName] || {}
+                                        ).find((cell) => cell?.resultType);
+                                        const resultType = defaultRow?.resultType || cellWithResultType?.resultType;
+                                        return !resultType || resultType === "numeric";
+                                      })() && (
                                         <Tooltip
                                           placement="bottom"
                                           title={

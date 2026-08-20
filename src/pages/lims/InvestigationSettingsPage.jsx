@@ -2,9 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Button,
-  Drawer,
-  DrawerContent,
-  DrawerBody,
   InputBox,
   Empty,
   Alert,
@@ -41,6 +38,31 @@ const DrawerFooterActions = ({ onCancel, onSubmit, submitting, disabled, label }
     </Button>
   </div>
 );
+
+/**
+ * Plain absolute-positioned panel — not Tesseract's `Drawer` molecule, which
+ * portals at a fixed z-index that renders invisibly when this page is nested
+ * inside another Drawer (e.g. embedded in LabParams.js). Anchored to the
+ * nearest position:relative ancestor (.page), same approach as
+ * InlineInvestigationPanel.
+ */
+const SidePanel = ({ open, onClose, title, children }) => {
+  if (!open) return null;
+  return (
+    <>
+      <div className={styles.drawerBackdrop} onClick={onClose} />
+      <div className={styles.drawerPanel} role="dialog" aria-label={title}>
+        <div className={styles.drawerHeader}>
+          <span className={styles.drawerTitle}>{title}</span>
+          <button type="button" className={styles.drawerCloseButton} onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+        {children}
+      </div>
+    </>
+  );
+};
 
 /**
  * Create-or-edit body for one investigation. In create mode with no fixed
@@ -97,7 +119,7 @@ const InvestigationDrawerBody = ({ groups, groupId, groupName, editing, onDone }
 
   return (
     <>
-      <DrawerBody>
+      <div className={styles.drawerBody}>
         {allowGroupPicker && (
           <div className={styles.field} style={{ marginBottom: "var(--tesseract-space-5)" }}>
             <span className={styles.fieldLabel}>Group</span>
@@ -140,7 +162,7 @@ const InvestigationDrawerBody = ({ groups, groupId, groupName, editing, onDone }
             {submitError}
           </Alert>
         )}
-      </DrawerBody>
+      </div>
       <DrawerFooterActions
         onCancel={onDone}
         onSubmit={submit}
@@ -158,12 +180,14 @@ const InvestigationDrawerBody = ({ groups, groupId, groupName, editing, onDone }
  * investigation can only be created inside a group — matches the PRD's
  * group-first flow. There is no activate/deactivate on the real backend
  * (isActive is always true, no endpoint exists to change it) — every item
- * shown here is active by definition. Opened in its own tab from the
- * results-entry "Create custom investigation" prompt in LabParams.js (kept
- * out of that component's DOM to avoid nesting a Tesseract Drawer inside the
- * antd Drawer it already lives in).
+ * shown here is active by definition.
+ *
+ * Reachable both as its own routed page (`/lims/investigation-settings`) and
+ * embedded directly inside LabParams.js's results-entry panel — pass
+ * `onClose` to render it embedded; the "Back" control then closes the panel
+ * instead of navigating history.
  */
-function InvestigationSettingsPageInner() {
+function InvestigationSettingsPageInner({ onClose }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const umid = getDecodedToken()?.result?.user_id;
@@ -239,7 +263,7 @@ function InvestigationSettingsPageInner() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
-          <button type="button" className={styles.backLink} onClick={() => navigate(-1)}>
+          <button type="button" className={styles.backLink} onClick={() => (onClose ? onClose() : navigate(-1))}>
             ← Back
           </button>
           <h1 className={styles.title}>Custom Investigation Groups</h1>
@@ -374,59 +398,51 @@ function InvestigationSettingsPageInner() {
         </div>
       )}
 
-      <Drawer open={!!renameGroupDrawer} onOpenChange={(next) => !next && setRenameGroupDrawer(null)}>
-        <DrawerContent
-          width="30%"
-          title="Rename Group"
-          footer={
-            <DrawerFooterActions
-              onCancel={() => setRenameGroupDrawer(null)}
-              onSubmit={saveGroupRename}
-              submitting={false}
-              disabled={!renameGroupDrawer?.name?.trim()}
-              label="Save Changes"
-            />
-          }
-        >
-          <DrawerBody>
-            <InputBox
-              label="Group name"
-              required
-              fullWidth
-              value={renameGroupDrawer?.name || ""}
-              onChange={(e) => setRenameGroupDrawer((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="e.g. Hormonal Profile"
-            />
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+      <SidePanel open={!!renameGroupDrawer} onClose={() => setRenameGroupDrawer(null)} title="Rename Group">
+        <div className={styles.drawerBody}>
+          <InputBox
+            label="Group name"
+            required
+            fullWidth
+            value={renameGroupDrawer?.name || ""}
+            onChange={(e) => setRenameGroupDrawer((prev) => ({ ...prev, name: e.target.value }))}
+            placeholder="e.g. Hormonal Profile"
+          />
+        </div>
+        <DrawerFooterActions
+          onCancel={() => setRenameGroupDrawer(null)}
+          onSubmit={saveGroupRename}
+          submitting={false}
+          disabled={!renameGroupDrawer?.name?.trim()}
+          label="Save Changes"
+        />
+      </SidePanel>
 
-      <Drawer open={!!investigationDrawer} onOpenChange={(next) => !next && setInvestigationDrawer(null)}>
-        <DrawerContent
-          width="40%"
-          title={
-            investigationDrawer?.editing
-              ? "Edit Investigation"
-              : investigationDrawer?.groupId
-              ? `New Investigation — ${investigationDrawer?.groupName || ""}`
-              : "New Group"
-          }
-        >
-          {investigationDrawer && (
-            <InvestigationDrawerBody
-              groups={groups}
-              groupId={investigationDrawer.groupId}
-              groupName={investigationDrawer.groupName}
-              editing={investigationDrawer.editing}
-              onDone={() => {
-                setInvestigationDrawer(null);
-                setPrefillName("");
-                load();
-              }}
-            />
-          )}
-        </DrawerContent>
-      </Drawer>
+      <SidePanel
+        open={!!investigationDrawer}
+        onClose={() => setInvestigationDrawer(null)}
+        title={
+          investigationDrawer?.editing
+            ? "Edit Investigation"
+            : investigationDrawer?.groupId
+            ? `New Investigation — ${investigationDrawer?.groupName || ""}`
+            : "New Group"
+        }
+      >
+        {investigationDrawer && (
+          <InvestigationDrawerBody
+            groups={groups}
+            groupId={investigationDrawer.groupId}
+            groupName={investigationDrawer.groupName}
+            editing={investigationDrawer.editing}
+            onDone={() => {
+              setInvestigationDrawer(null);
+              setPrefillName("");
+              load();
+            }}
+          />
+        )}
+      </SidePanel>
 
       <ConfirmDialog
         open={!!confirmDelete}
@@ -453,4 +469,14 @@ export default function InvestigationSettingsPage() {
       <InvestigationSettingsPageInner />
     </LimsAccessBoundary>
   );
+}
+
+/**
+ * For embedding directly inside LabParams.js's results-entry panel — same
+ * component, no LimsAccessBoundary gate (matches the inline create panel,
+ * which doesn't gate on LIMS access either) and takes `onClose` so "Back"
+ * closes the panel instead of navigating history.
+ */
+export function InvestigationSettingsPanel({ onClose }) {
+  return <InvestigationSettingsPageInner onClose={onClose} />;
 }
