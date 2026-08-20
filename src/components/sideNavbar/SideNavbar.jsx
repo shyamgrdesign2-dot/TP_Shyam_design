@@ -92,7 +92,7 @@ const NAV_ITEMS = [
   { id: "pastVisits", label: "Past Visits", icon: { kind: "iconsax", Icon: Note1 } },
   { id: "vitals", label: "Vitals", icon: { kind: "medical", name: "heart-rate" } },
   { id: "history", label: "History", icon: { kind: "medical", name: "clipboard-activity" } },
-  { id: "labResults", label: "Lab Results", icon: { kind: "medical", name: "lab" } },
+  { id: "labResults", label: "Investigation Results", icon: { kind: "medical", name: "lab" } },
   { id: "medicalRecords", label: "Records", icon: { kind: "medical", name: "health-file-03" } },
   { id: "gynec", label: "Gynec", icon: { kind: "medical", name: "gynec" } },
   { id: "obstetric", label: "Obstetric", icon: { kind: "medical", name: "obstetric" } },
@@ -152,7 +152,7 @@ const SECTION_TITLES = {
   pastVisits: "Past Visit",
   vitals: "Vitals and Body Composition",
   history: "Medical History",
-  labResults: "Lab Results",
+  labResults: "Investigation Results",
   medicalRecords: "Medical Records",
   gynec: "Gynec History",
   obstetric: "Obstetric History",
@@ -3585,8 +3585,8 @@ const EMPTY_SECTION_CONFIG = {
     showVoice: true,
   },
   labResults: {
-    message: "No lab results have been added for this patient yet.",
-    addLabel: "Add Lab Results",
+    message: "No investigation results have been added for this patient yet.",
+    addLabel: "Add Investigation Results",
     showVoice: false,
   },
   vaccine: {
