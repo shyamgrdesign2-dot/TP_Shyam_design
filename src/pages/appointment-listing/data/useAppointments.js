@@ -3,8 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import ApiAppointments from "../../../api/services/ApiAppointments";
 import { isGrowthBookFeatureOn } from "../../../utils/growthbook";
-import { GB_CVT_EXT_HOS, TAB_ZYDUS_ENCOUNTER, TAB_ZYDUS_APPOINTMENT } from "../../../utils/constants";
-import { zydusConsultAppoint, zydusAppointment } from "../../../redux/appointmentsSlice";
+import { GB_CVT_EXT_HOS, TAB_FINISHED, TAB_ZYDUS_ENCOUNTER, TAB_ZYDUS_APPOINTMENT } from "../../../utils/constants";
+import { zydusConsultAppoint, zydusAppointment, copyGetAllAppointment1 } from "../../../redux/appointmentsSlice";
+import { calculateAge } from "../../../utils/utils";
 import { TAB_IDS, TAB_TO_AP_STATUS, ALL_MERGED_TABS } from "./appointmentsConfig";
 
 const DATE_FORMAT = "YYYY-MM-DD";
@@ -172,13 +173,70 @@ function mapZydusRecord(rec, tabId, index) {
   };
 }
 
+function transformZydusEncounterPayload(payload) {
+  const list = (payload || []).filter((e) => !e.isCancelled);
+  return list.map((e) => {
+    const age = calculateAge(moment(e.dob, "DD-MM-YYYY").format("YYYY-MM-DD"));
+    return {
+      ...e,
+      key: e.encounterId,
+      pm_fullname: e.patientName,
+      apTime: moment(e.encounterDateTime, "DD-MM-YYYY HH:mm").format("hh:mm A"),
+      apDate: moment(e.encounterDateTime, "DD-MM-YYYY HH:mm").format("Do MMM YYYY"),
+      DOB: moment(e.dob, "DD-MM-YYYY").format("Do MMM YYYY"),
+      ageYears: age?.years,
+      ageMonths: age?.months,
+      ageDays: age?.days,
+      pm_gender: e.gender,
+      pm_contact_no: e.mobileNo,
+      patient_address: e.patientAddress,
+      toct_type: e.consultationType,
+    };
+  });
+}
+
+function transformZydusAppointmentPayload(payload) {
+  return (payload || []).map((e) => ({
+    ...e,
+    key: e.appointmentId ?? e.encounterId ?? `${e.patientName}-${e.fromTime}`,
+    pm_fullname: e.patientName,
+    apTime: moment(e.fromTime, "DD-MM-YYYY HH:mm").format("hh:mm A"),
+    apDate: moment(e.fromTime, "DD-MM-YYYY HH:mm").format("Do MMM YYYY"),
+    DOB: "",
+    ageYears: 0,
+    ageMonths: 0,
+    ageDays: 0,
+    pm_gender: e.gender,
+    pm_contact_no: e.mobileNo,
+    patient_address: e.location,
+  }));
+}
+
+function matchesZydusQuery(row, q) {
+  const qq = String(q || "").trim().toLowerCase();
+  if (!qq) return true;
+  const raw = row?.raw || {};
+  return (
+    String(raw.pm_fullname || "").toLowerCase().includes(qq) ||
+    String(raw.mrno || "").toLowerCase().includes(qq) ||
+    String(raw.pm_contact_no || "").toLowerCase().includes(qq)
+  );
+}
+
 export default function useAppointments({ tabId, dateRange, query, visitTypeCsv, fetchAllPages = false, includeDraft = true, zydusSiteId, zydusEmpNo }) {
   const dispatch = useDispatch();
-  // Zydus encounter/appointment data lives in the redux store (populated by
-  // zydusConsultAppoint / zydusAppointment thunks, same as legacy AppointmentData.js).
-  const { appointmentsData: zydusReduxRows, zydusEncounterCount, zydusAappointmentCount } = useSelector(
-    (state) => state.records
-  );
+  // Zydus encounter/appointment counts + buckets are maintained in redux by
+  // the same thunks the legacy screen uses.
+  const {
+    queueCount,
+    finishedCount,
+    cancelledCount,
+    draftRxCount,
+    zydusEncounterCount,
+    zydusAappointmentCount,
+    appointmentsData: zydusReduxRows,
+  } = useSelector((state) => state.records);
+  const { advancedSettings } = useSelector((state) => state.billing || {});
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -190,6 +248,9 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
   const loadingMoreLock = useRef(false);
   const undigitisedIdsRef = useRef(null);
   const prevTabRef = useRef(tabId);
+  const prevFetchKeyRef = useRef(null);
+  const zydusServerRowsRef = useRef([]);
+  const [zydusServerRowsVersion, setZydusServerRowsVersion] = useState(0);
 
   const mergedTabs = useMemo(
     () => (includeDraft ? ALL_MERGED_TABS : ALL_MERGED_TABS.filter((t) => t !== TAB_IDS.DRAFT)),
@@ -268,49 +329,86 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
           setLoading(false);
           return;
         }
-        const dateStr = startDate; // YYYY-MM-DD from memo below
-        const apStatue = tabId === TAB_IDS.ZYDUS_ENCOUNTER ? TAB_ZYDUS_ENCOUNTER : TAB_ZYDUS_APPOINTMENT;
-        const action = await dispatch(
+
+        const isEncounter = tabId === TAB_IDS.ZYDUS_ENCOUNTER;
+        const apStatue = isEncounter ? TAB_ZYDUS_ENCOUNTER : TAB_ZYDUS_APPOINTMENT;
+
+        // Legacy expects DD-MM-YYYY for the Zydus ICT API calls.
+        const zydusApiDate = moment(startDate, DATE_FORMAT).format("DD-MM-YYYY");
+
+        // 1) Consultations/Appointments list from ICT
+        const encounterAction = await dispatch(
           zydusConsultAppoint({
             siteId: zydusSiteId,
             empNo: String(zydusEmpNo),
-            date: dateStr,
+            date: zydusApiDate,
             apStatue,
             page: 0,
             filterVisitType: visitTypeCsv || "",
           })
         );
+
         if (seq !== requestSeq.current) return;
-        if (action.meta.requestStatus === "fulfilled") {
-          // appointmentsData in redux is overwritten by the thunk fulfilled case;
-          // map whatever came back directly from the payload (already transformed).
-          const payload = action.payload || [];
-          const mapped = payload
-            .filter((rec) => {
-              if (tabId === TAB_IDS.ZYDUS_APPOINTMENT) {
-                return !(rec.appointmentStatus || "").toLowerCase().includes("cancel");
-              }
-              return true;
-            })
-            .filter((rec) => {
-              if (!query) return true;
-              const q = query.toLowerCase();
-              return (
-                String(rec.pm_fullname || "").toLowerCase().includes(q) ||
-                String(rec.mrno || "").toLowerCase().includes(q) ||
-                String(rec.pm_contact_no || "").toLowerCase().includes(q)
-              );
-            })
-            .map((rec, i) => mapZydusRecord(rec, tabId, i));
-          setRows(mapped);
-          setCounts((prev) => ({
-            ...prev,
-            [TAB_IDS.ZYDUS_ENCOUNTER]: tabId === TAB_IDS.ZYDUS_ENCOUNTER ? mapped.length : (prev[TAB_IDS.ZYDUS_ENCOUNTER] ?? 0),
-            [TAB_IDS.ZYDUS_APPOINTMENT]: tabId === TAB_IDS.ZYDUS_APPOINTMENT ? mapped.length : (prev[TAB_IDS.ZYDUS_APPOINTMENT] ?? 0),
-          }));
-        } else {
-          setRows([]);
+
+        let encounterData = [];
+        if (encounterAction?.meta?.requestStatus === "fulfilled") {
+          encounterData = encounterAction.payload || [];
         }
+
+        // 2) Appointment call happens in the legacy screen as well (keeps
+        // redux buckets/counts in sync with the Finished tab).
+        await dispatch(
+          zydusAppointment({
+            siteId: zydusSiteId,
+            empNo: String(zydusEmpNo),
+            date: zydusApiDate,
+          })
+        );
+
+        // 3) Finished schedule + pagination loop to keep queue/finished
+        // counts consistent.
+        const sendData = {
+          startDate,
+          endDate,
+          apStatue: TAB_FINISHED,
+          page: 0,
+          fetchBillStatus: advancedSettings?.billingStatusInAppointmentScreen,
+        };
+
+        let action = await dispatch(copyGetAllAppointment1(sendData));
+        let appData = [];
+        while (appData.length < encounterData.length && action?.meta?.requestStatus === "fulfilled") {
+          appData.push(...(action?.payload?.app_data || []).filter((x) => x.pam_ref_id != null));
+          if (appData.length >= encounterData.length) break;
+          sendData.page += 1;
+          action = await dispatch(copyGetAllAppointment1(sendData));
+        }
+
+        if (seq !== requestSeq.current) return;
+
+        let serverRecords = isEncounter
+          ? transformZydusEncounterPayload(encounterData)
+          : transformZydusAppointmentPayload(encounterData).filter((rec) =>
+              !String(rec.appointmentStatus || "").toLowerCase().includes("cancel")
+            );
+
+        // Match legacy: reducer filters by filterVisitType CSV vs `toct_type`.
+        if (visitTypeCsv) {
+          const allowed = visitTypeCsv.split(",").map((s) => s.trim()).filter(Boolean);
+          if (allowed.length) {
+            serverRecords = serverRecords.filter((rec) => allowed.includes(rec.toct_type));
+          }
+        }
+
+        const mappedRows = serverRecords.map((rec, i) => mapZydusRecord(rec, tabId, i));
+
+        // Cache the unfiltered server rows so Zydus search stays client-side
+        // (legacy does not re-fetch on keystrokes).
+        zydusServerRowsRef.current = mappedRows;
+        setZydusServerRowsVersion((v) => v + 1);
+
+        const filteredRows = query ? mappedRows.filter((r) => matchesZydusQuery(r, query)) : mappedRows;
+        setRows(filteredRows);
         setHasMore(false);
         setLoading(false);
         return;
@@ -397,7 +495,23 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
       setError(e);
       setLoading(false);
     }
-  }, [tabId, listPayload, fetchAllPages, fillRemaining, applyCounts, mergedTabs, includeDraft, zydusSiteId, zydusEmpNo, startDate, visitTypeCsv, query, dispatch]);
+  }, [
+    tabId,
+    listPayload,
+    fetchAllPages,
+    fillRemaining,
+    applyCounts,
+    mergedTabs,
+    includeDraft,
+    zydusSiteId,
+    zydusEmpNo,
+    startDate,
+    endDate,
+    visitTypeCsv,
+    query,
+    advancedSettings?.billingStatusInAppointmentScreen,
+    dispatch,
+  ]);
 
   const loadMore = useCallback(async () => {
     if (fetchAllPages || !hasMore || loading || loadingMoreLock.current) return;
@@ -428,18 +542,52 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
     }
   }, [fetchAllPages, hasMore, loading, tabId, listPayload]);
 
-  // Fetch immediately on any input change. Switching tabs clears the previous
-  // tab's rows and shows the shimmer right away so stale rows (or a stale
-  // empty state) never flash before the new data resolves. Layout effect =
-  // the reset commits before the browser paints the new tab.
+  const isZydusConsultTab = tabId === TAB_IDS.ZYDUS_ENCOUNTER || tabId === TAB_IDS.ZYDUS_APPOINTMENT;
+
+  // Fetch immediately on inputs, but for Zydus search typing we must not
+  // re-fetch from the server. We accomplish this by skipping fetchRows when
+  // the "fetch key" is unchanged for Zydus (it intentionally omits `query`).
   useLayoutEffect(() => {
     if (prevTabRef.current !== tabId) {
       prevTabRef.current = tabId;
       setRows([]);
     }
+
+    const fetchKey = isZydusConsultTab
+      ? `zydus|${tabId}|${startDate}|${zydusSiteId}|${zydusEmpNo}`
+      : `tp|${tabId}|${startDate}|${endDate}|${query}|${visitTypeCsv}|${fetchAllPages}|${includeDraft}`;
+
+    if (prevFetchKeyRef.current === fetchKey) {
+      if (isZydusConsultTab) setLoading(false);
+      return;
+    }
+
+    prevFetchKeyRef.current = fetchKey;
     setLoading(true);
     fetchRows();
-  }, [fetchRows, tabId]);
+  }, [
+    fetchRows,
+    tabId,
+    startDate,
+    endDate,
+    query,
+    visitTypeCsv,
+    fetchAllPages,
+    includeDraft,
+    zydusSiteId,
+    zydusEmpNo,
+    isZydusConsultTab,
+  ]);
+
+  // Zydus search is client-side only: apply the query filter over the
+  // cached server rows.
+  useEffect(() => {
+    if (!isZydusConsultTab) return;
+    const serverRows = zydusServerRowsRef.current || [];
+    const filteredRows = query ? serverRows.filter((r) => matchesZydusQuery(r, query)) : serverRows;
+    setRows(filteredRows);
+    setLoading(false);
+  }, [query, isZydusConsultTab, zydusServerRowsVersion]);
 
   // Prime the pending-digitisation badge count once in the background.
   useEffect(() => {
@@ -465,13 +613,40 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
   // The store is the source of truth; local counts are merged on top.
   const countByTab = useMemo(() => {
     const base = tabId === TAB_IDS.ALL ? { ...counts, [TAB_IDS.ALL]: rows.length } : counts;
+
+    // On Zydus Encounter/Appointment, the queue/finished counts come from
+    // `copyGetAllAppointment1` loop (redux buckets). Local counts won't have
+    // been updated because those tabs don't call TP getAllAppointment.
+    if (isZydusConsultTab) {
+      return {
+        ...base,
+        [TAB_IDS.QUEUE]: queueCount ?? base[TAB_IDS.QUEUE] ?? 0,
+        [TAB_IDS.FINISHED]: finishedCount ?? base[TAB_IDS.FINISHED] ?? 0,
+        [TAB_IDS.CANCELLED]: cancelledCount ?? base[TAB_IDS.CANCELLED] ?? 0,
+        [TAB_IDS.DRAFT]: includeDraft ? draftRxCount ?? base[TAB_IDS.DRAFT] ?? 0 : 0,
+        [TAB_IDS.ZYDUS_ENCOUNTER]: zydusEncounterCount ?? 0,
+        [TAB_IDS.ZYDUS_APPOINTMENT]: zydusAappointmentCount ?? 0,
+      };
+    }
+
     return {
       ...base,
-      [TAB_IDS.ZYDUS_ENCOUNTER]: counts[TAB_IDS.ZYDUS_ENCOUNTER] ?? zydusEncounterCount ?? 0,
-      [TAB_IDS.ZYDUS_APPOINTMENT]: counts[TAB_IDS.ZYDUS_APPOINTMENT] ?? zydusAappointmentCount ?? 0,
+      [TAB_IDS.ZYDUS_ENCOUNTER]: zydusEncounterCount ?? 0,
+      [TAB_IDS.ZYDUS_APPOINTMENT]: zydusAappointmentCount ?? 0,
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [counts, rows.length, tabId, zydusEncounterCount, zydusAappointmentCount]);
+  }, [
+    counts,
+    rows.length,
+    tabId,
+    isZydusConsultTab,
+    queueCount,
+    finishedCount,
+    cancelledCount,
+    draftRxCount,
+    includeDraft,
+    zydusEncounterCount,
+    zydusAappointmentCount,
+  ]);
 
   return { rows, counts: countByTab, loading, loadingMore, hasMore, error, refetch: fetchRows, loadMore };
 }

@@ -564,6 +564,40 @@ html :where(.page) td {
   background: var(--tesseract-bg-surface);
 }
 
+/* Legacy Zydus date navigator (prev/next + single date picker) */
+.zydusDateNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--tesseract-radius-10);
+  border: 1px solid var(--tesseract-slate-200);
+  background: var(--tesseract-bg-surface);
+}
+
+.zydusNavBtn {
+  min-width: 34px !important;
+  padding: 0 !important;
+}
+
+.zydusDateNav :global(.ant-picker) {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  height: 34px;
+  width: 130px;
+}
+
+.zydusDateNav :global(.ant-picker-input > input) {
+  font-size: var(--tesseract-text-body-sm) !important;
+  font-weight: 500 !important;
+  color: var(--tesseract-fg-secondary) !important;
+}
+
+.zydusDateNav :global(.ant-picker-suffix) {
+  display: none !important;
+}
+
 .dateWrap [class*="_trigger_"]:hover {
   border-color: var(--tesseract-slate-300);
 }

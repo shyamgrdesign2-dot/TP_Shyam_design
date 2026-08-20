@@ -463,6 +463,11 @@ export default function AppointmentCalendarView({
   onSlotUnavailable = null, // toast when a past/blocked slot is clicked
   slotsVersion = 0,
   allowBook = true,
+  // Zydus parity: calendar is read-only and should render appointments only
+  // (no slot availability fetches + no Week/Month controls).
+  modeOverride = null, // "day" | "week" | "month"
+  disableAvailabilityLayer = false, // hides availability controls + stops slot API calls
+  hideModeToggle = false,
 }) {
   const [mode, setMode] = useState(() => readPreference("calendarMode", "day"));
   /* The availability layer is on by default, because a doctor opening the
@@ -473,6 +478,11 @@ export default function AppointmentCalendarView({
     () => readPreference("calendarFreeSlots", "on") === "on"
   );
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
+
+  useEffect(() => {
+    if (!modeOverride) return;
+    setMode(modeOverride);
+  }, [modeOverride]);
   const [popup, setPopup] = useState(null); // {row, anchorRect, pinned}
   const [dragging, setDragging] = useState(null); // {id, x, y, offX, offY, width}
   /* Which free slot the pointer is currently over, as `dateISO|slot.start`.
@@ -871,6 +881,7 @@ export default function AppointmentCalendarView({
      further down — the availability hook has to run before the memos that
      read its output. */
   const slotDateISOs = useMemo(() => {
+    if (disableAvailabilityLayer) return [];
     if (mode !== "month") return days.map(iso);
     /* Month only reads availability to draw the bars, so with the switch off
        there is nothing to draw and nothing worth fetching. */
@@ -882,7 +893,7 @@ export default function AppointmentCalendarView({
       if (startOfDay(d) >= todayStart) out.push(iso(d));
     }
     return out;
-  }, [mode, days, anchor, freeSlots]);
+  }, [mode, days, anchor, freeSlots, disableAvailabilityLayer]);
 
   const { slotsByDate, pendingDates } = useDoctorSlots({
     dateISOs: slotDateISOs,
@@ -1282,26 +1293,30 @@ export default function AppointmentCalendarView({
               product already uses for the screen that edits a doctor's
               working hours. The verb is what makes it read as a control
               rather than a heading. */}
-          <label className={styles.availabilityToggle}>
-            <span className={styles.availabilityLabel}>Show Slots</span>
-            <Toggle
+          {!disableAvailabilityLayer && (
+            <label className={styles.availabilityToggle}>
+              <span className={styles.availabilityLabel}>Show Slots</span>
+              <Toggle
+                size="sm"
+                ariaLabel="Show the slot grid under the appointments"
+                checked={freeSlots}
+                onCheckedChange={(next) => {
+                  setFreeSlots(next);
+                  writePreference("calendarFreeSlots", next ? "on" : "off");
+                }}
+              />
+            </label>
+          )}
+          {!hideModeToggle && !disableAvailabilityLayer && (
+            <SegmentedControl
+              className={styles.granularity}
               size="sm"
-              ariaLabel="Show the slot grid under the appointments"
-              checked={freeSlots}
-              onCheckedChange={(next) => {
-                setFreeSlots(next);
-                writePreference("calendarFreeSlots", next ? "on" : "off");
-              }}
+              variant="block"
+              options={MODE_OPTIONS}
+              value={mode}
+              onValueChange={pickMode}
             />
-          </label>
-          <SegmentedControl
-            className={styles.granularity}
-            size="sm"
-            variant="block"
-            options={MODE_OPTIONS}
-            value={mode}
-            onValueChange={pickMode}
-          />
+          )}
         </div>
       </div>
 

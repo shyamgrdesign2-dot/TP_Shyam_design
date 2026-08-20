@@ -21,6 +21,7 @@ import {
   Toast,
   TPLibraryIcon,
 } from "@dhspl-tatvacare/tesseract-ui";
+import { DatePicker } from "antd";
 // eslint-disable-next-line import/no-unresolved -- exports-map alias ("./styles.css" → dist css); webpack resolves it, eslint-plugin-import cannot
 import "@dhspl-tatvacare/tesseract-ui/styles.css";
 
@@ -232,7 +233,7 @@ export default function AppointmentListingPage() {
   const visibleTabs = (view === "calendar" && !isZydusAccount ? CALENDAR_TABS : baseTabs).filter(
     (t) => t.id !== TAB_IDS.DRAFT || showDraft
   );
-  const isCalendar = view === "calendar" && !isZydusAccount;
+  const isCalendar = view === "calendar";
   /* One deliberate exception to "the view is the view": Pending Digitisation
      is an all-time worklist, not a schedule, so it has nothing to draw on a
      grid anchored to one day. Selecting it renders the table without moving
@@ -246,8 +247,10 @@ export default function AppointmentListingPage() {
     // The calendar is anchored to one day, so a multi-day table filter
     // collapses to where it started rather than being silently ignored.
     if (next === "calendar") setDateRange((r) => (r?.start ? { start: r.start, end: r.start } : r));
-    if (next === "calendar") setActiveTab(TAB_IDS.ALL);
-    else if (activeTab === TAB_IDS.ALL) setActiveTab(TAB_IDS.QUEUE);
+    if (!isZydusAccount) {
+      if (next === "calendar") setActiveTab(TAB_IDS.ALL);
+      else if (activeTab === TAB_IDS.ALL) setActiveTab(TAB_IDS.QUEUE);
+    }
   };
   /* Changing tab never changes the view: whichever mode the doctor chose is
      the mode they stay in, Pending Digitisation included. */
@@ -333,7 +336,7 @@ export default function AppointmentListingPage() {
   };
 
   const activeFilterCount = Object.values(filters).reduce((n, v) => n + (v || []).length, 0);
-  const hasActiveFilters = query.trim() !== "" || activeFilterCount > 0;
+  const hasActiveFilters = !isZydusAccount && (query.trim() !== "" || activeFilterCount > 0);
 
   // Legacy date rule: only Queue (upcoming) may navigate into the future.
   // The calendar "All" view also spans upcoming appointments, so it too.
@@ -427,6 +430,33 @@ export default function AppointmentListingPage() {
     const wantVideo = slotSel[0] === "video";
     return liveRows.filter((row) => row.hasVideo === wantVideo);
   }, [liveRows, filters.slot]);
+
+  // Zydus legacy date navigator: single day (prev/next + date picker),
+  // with the legacy "can't go to next day when on today" rule.
+  const zydusDateISO = dateRange?.start ? moment(dateRange.start).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
+  const zydusDateValue = moment(zydusDateISO, "YYYY-MM-DD");
+
+  const backZydusDatePress = useCallback(() => {
+    const next = zydusDateValue.clone().subtract(1, "day");
+    setDateRange({ start: next.toDate(), end: next.toDate() });
+    setCalendarWindow(null);
+    setCalendarWindowLabel(null);
+  }, [zydusDateValue]);
+
+  const nextZydusDatePress = useCallback(() => {
+    const todayISO = moment().format("YYYY-MM-DD");
+    const isQueueOrDraft = [TAB_IDS.QUEUE, TAB_IDS.DRAFT].includes(activeTab);
+
+    if (!isQueueOrDraft && zydusDateISO === todayISO) {
+      setToast({ status: "error", title: "Can't select next date" });
+      return;
+    }
+
+    const next = zydusDateValue.clone().add(1, "day");
+    setDateRange({ start: next.toDate(), end: next.toDate() });
+    setCalendarWindow(null);
+    setCalendarWindowLabel(null);
+  }, [activeTab, setToast, zydusDateISO, zydusDateValue]);
 
   const clearFilters = () => {
     setQuery("");
@@ -763,10 +793,9 @@ export default function AppointmentListingPage() {
           title="Your Appointments"
           actions={
             <>
-              {/* Zydus accounts have no calendar view (ICT data has no slot grid). */}
               {/* List vs calendar is a page-level mode, so it sits with the
                   banner CTAs rather than down in the table toolbar. */}
-              {!isZydusAccount && <SegmentedControl
+              <SegmentedControl
                 className={styles.viewSeg}
                 size="md"
                 variant="block"
@@ -789,7 +818,7 @@ export default function AppointmentListingPage() {
                 ]}
                 value={view}
                 onValueChange={changeView}
-              />}
+              />
               {showBookActions && (
                 <>
                   <Button
@@ -865,7 +894,9 @@ export default function AppointmentListingPage() {
                   showHelper={false}
                   clearable
                   leftIcon={<TPLibraryIcon name="search-normal" size={20} />}
-                  placeholder="Search by patient name / ID / mobile number"
+                    placeholder={
+                      isZydusAccount ? "Search patient by name, MRN or mobile number" : "Search by patient name / ID / mobile number"
+                    }
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -877,93 +908,113 @@ export default function AppointmentListingPage() {
                     how much of it you see, so the picker drops to single
                     mode there rather than making the user express a span
                     twice. */}
-                <div
-                  className={styles.dateWrap}
-                  ref={dateWrapRef}
-                  /* The picker is disabled on the digitisation worklist, and a
-                     disabled control explains nothing on its own. */
-                  onClickCapture={() => {
-                    if (activeTab === TAB_IDS.PENDING) {
-                      setToast({ status: "error", title: "Digitisation covers all dates." });
-                    }
-                  }}
-                >
-                  <DateRangePicker
-                    /* Mirrors the calendar's own picker: week selects the
-                       week, month picks the month, day picks a day. Two
-                       controls on one value must not disagree about what
-                       kind of thing that value is. */
-                    mode={
-                      !renderCalendar
-                        ? "range"
-                        : calendarWindowLabel?.mode === "week"
-                        ? "range"
-                        : calendarWindowLabel?.mode === "month"
-                        ? "month"
-                        : "single"
-                    }
-                    months={1}
-                    showPresets={!renderCalendar}
-                    presets={RANGE_PRESETS}
-                    // Single mode doesn't commit on outside-click in this DS
-                    // build, so it gets an explicit Apply.
-                    commitMode={renderCalendar ? "apply" : "outside-click"}
-                    /* Cleared on the digitisation worklist so the trigger
-                       shows its "Till date" placeholder rather than a day
-                       the list is not actually filtered by. */
-                    value={
-                      activeTab === TAB_IDS.PENDING
-                        ? null
-                        : renderCalendar
-                        ? calendarWindowLabel?.value ?? dateRange?.start ?? null
-                        : dateRange
-                    }
-                    onChange={(v) => {
-                      if (!renderCalendar) return setDateRange(v);
-                      /* Week hands back a range and month a month; the
-                         calendar only ever wants the day to anchor on. */
-                      const d = pickedDate(v) || (v?.start ? new Date(v.start) : null);
-                      return setDateRange(d ? { start: d, end: d } : null);
-                    }}
-                    /* The digitisation worklist queries an all-time window,
-                       so the control says what is actually on screen rather
-                       than "Today", which would be a plain untruth about a
-                       list reaching back years. */
-                    placeholder={
-                      activeTab === TAB_IDS.PENDING
-                        ? "Till date"
-                        : calendarWindowLabel?.label || "Today"
-                    }
-                    /* In week or month view the control names the span on
-                       screen. A picker reading "13 Aug 2026" above a grid of
-                       seven days is describing something that is not there. */
-                    {...(calendarWindowLabel ? { formatDate: () => calendarWindowLabel.label } : {})}
-                    size="sm"
-                    fullWidth={false}
-                    // Legacy rule: future dates only on the Queue tab; the
-                    // pending tab lists its all-time window, picker off.
-                    maxDate={allowFutureDates ? undefined : new Date()}
-                    disabled={activeTab === TAB_IDS.PENDING}
-                  />
-                </div>
-                <div className={styles.filterWrap} data-active={activeFilterCount > 0 || undefined}>
-                  <Filter
-                    groups={filterGroups}
-                    value={filters}
-                    onChange={setFilters}
-                    mode="live"
-                    icon={<TPLibraryIcon name="sort" size={15} />}
-                  />
-                </div>
+                {!isZydusAccount ? (
+                  <>
+                    <div
+                      className={styles.dateWrap}
+                      ref={dateWrapRef}
+                      /* The picker is disabled on the digitisation worklist, and a
+                         disabled control explains nothing on its own. */
+                      onClickCapture={() => {
+                        if (activeTab === TAB_IDS.PENDING) {
+                          setToast({ status: "error", title: "Digitisation covers all dates." });
+                        }
+                      }}
+                    >
+                      <DateRangePicker
+                        mode={
+                          !renderCalendar
+                            ? "range"
+                            : calendarWindowLabel?.mode === "week"
+                            ? "range"
+                            : calendarWindowLabel?.mode === "month"
+                            ? "month"
+                            : "single"
+                        }
+                        months={1}
+                        showPresets={!renderCalendar}
+                        presets={RANGE_PRESETS}
+                        commitMode={renderCalendar ? "apply" : "outside-click"}
+                        value={
+                          activeTab === TAB_IDS.PENDING
+                            ? null
+                            : renderCalendar
+                            ? calendarWindowLabel?.value ?? dateRange?.start ?? null
+                            : dateRange
+                        }
+                        onChange={(v) => {
+                          if (!renderCalendar) return setDateRange(v);
+                          const d = pickedDate(v) || (v?.start ? new Date(v.start) : null);
+                          return setDateRange(d ? { start: d, end: d } : null);
+                        }}
+                        placeholder={
+                          activeTab === TAB_IDS.PENDING ? "Till date" : calendarWindowLabel?.label || "Today"
+                        }
+                        {...(calendarWindowLabel ? { formatDate: () => calendarWindowLabel.label } : {})}
+                        size="sm"
+                        fullWidth={false}
+                        maxDate={allowFutureDates ? undefined : new Date()}
+                        disabled={activeTab === TAB_IDS.PENDING}
+                      />
+                    </div>
+                    <div className={styles.filterWrap} data-active={activeFilterCount > 0 || undefined}>
+                      <Filter
+                        groups={filterGroups}
+                        value={filters}
+                        onChange={setFilters}
+                        mode="live"
+                        icon={<TPLibraryIcon name="sort" size={15} />}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.zydusDateNav}>
+                    <Button
+                      variant="outline"
+                      theme="neutral"
+                      size="sm"
+                      surface="light"
+                      className={styles.zydusNavBtn}
+                      onClick={backZydusDatePress}
+                      aria-label="Previous date"
+                      leftIcon={<TPLibraryIcon name="chevron-left" size={16} />}
+                    />
+                    <DatePicker
+                      value={zydusDateValue}
+                      format="DD-MM-YYYY"
+                      inputReadOnly
+                      allowClear={false}
+                      onChange={(d, dateString) => {
+                        if (!dateString || !d) return;
+                        const m = moment(dateString, "DD-MM-YYYY");
+                        setDateRange({ start: m.toDate(), end: m.toDate() });
+                        setCalendarWindow(null);
+                        setCalendarWindowLabel(null);
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      theme="neutral"
+                      size="sm"
+                      surface="light"
+                      className={styles.zydusNavBtn}
+                      onClick={nextZydusDatePress}
+                      aria-label="Next date"
+                      leftIcon={<TPLibraryIcon name="chevron-right" size={16} />}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
-            <ActiveFilterBar
-              filters={filters}
-              groups={filterGroups}
-              onRemove={removeFilterValue}
-              onClearAll={() => setFilters({})}
-            />
+            {!isZydusAccount && (
+              <ActiveFilterBar
+                filters={filters}
+                groups={filterGroups}
+                onRemove={removeFilterValue}
+                onClearAll={() => setFilters({})}
+              />
+            )}
 
             <div className={styles.body} data-view={renderCalendar ? "calendar" : "list"}>
               {!renderCalendar ? (
@@ -1038,6 +1089,9 @@ export default function AppointmentListingPage() {
                   }}
                   slotsVersion={slotsVersion}
                   allowBook={showBookActions}
+                  modeOverride={isZydusAccount ? "day" : null}
+                  disableAvailabilityLayer={isZydusAccount}
+                  hideModeToggle={isZydusAccount}
                 />
               )}
             </div>
