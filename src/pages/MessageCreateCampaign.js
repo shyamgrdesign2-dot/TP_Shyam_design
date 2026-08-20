@@ -135,7 +135,7 @@ function MessageCreateCampaign() {
 
     useEffect(() => {
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_Select_Target_Audience", {
+        window.Moengage?.track_event?.("TP_Select_Target_Audience", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,
@@ -148,7 +148,7 @@ function MessageCreateCampaign() {
     useEffect(() => {
         const clinic_city = getClinicCity(profile?.hospital_data);
         if (campaign_data === undefined && reuse_campaign_data === undefined) {
-            window.Moengage.track_event("TP_Select_Mode_Of_Messages", {
+            window.Moengage?.track_event?.("TP_Select_Mode_Of_Messages", {
                 "Doctor_specialty": profile?.dp_name,
                 "Doctor_unique_id": profile?.doctor_unique_id,
                 clinic_city,
@@ -259,7 +259,7 @@ function MessageCreateCampaign() {
                 setdiscount(campaign_data?.msg_rowData?.discount)
             }
             const clinic_city = getClinicCity(profile?.hospital_data);
-            window.Moengage.track_event("TP_Select_Mode_Of_Messages", {
+            window.Moengage?.track_event?.("TP_Select_Mode_Of_Messages", {
                 "Doctor_specialty": profile?.dp_name,
                 "Doctor_unique_id": profile?.doctor_unique_id,
                 clinic_city,
@@ -399,7 +399,7 @@ function MessageCreateCampaign() {
                 setdiscount(reuse_campaign_data?.msg_rowData?.discount)
             }
             const clinic_city = getClinicCity(profile?.hospital_data);
-            window.Moengage.track_event("TP_Select_Mode_Of_Messages", {
+            window.Moengage?.track_event?.("TP_Select_Mode_Of_Messages", {
                 "Doctor_specialty": profile?.dp_name,
                 "Doctor_unique_id": profile?.doctor_unique_id,
                 clinic_city,
@@ -586,7 +586,7 @@ function MessageCreateCampaign() {
     // Steps Code
     const next = async () => {
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_BulkSMS_Template_to_Broadcast", {
+        window.Moengage?.track_event?.("TP_BulkSMS_Template_to_Broadcast", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,
@@ -595,7 +595,7 @@ function MessageCreateCampaign() {
             "Selection_Decision": 'Next',
         });
         if (stepCurrent === 1) {
-            window.Moengage.track_event("TP_Messages_Timing", {
+            window.Moengage?.track_event?.("TP_Messages_Timing", {
                 "Doctor_specialty": profile?.dp_name,
                 "Doctor_unique_id": profile?.doctor_unique_id,
                 clinic_city,
@@ -636,7 +636,7 @@ function MessageCreateCampaign() {
     const prev = () => {
         setStepCurrent(prev => prev - 1);
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_BulkSMS_Template_to_Broadcast", {
+        window.Moengage?.track_event?.("TP_BulkSMS_Template_to_Broadcast", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,
@@ -658,7 +658,7 @@ function MessageCreateCampaign() {
         setTemplate(e)
         next()
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_Select_Template", {
+        window.Moengage?.track_event?.("TP_Select_Template", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,
@@ -1480,7 +1480,7 @@ function MessageCreateCampaign() {
 
     const onAddEditCampaign = async (draft) => {
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_Send_Message_Now", {
+        window.Moengage?.track_event?.("TP_Send_Message_Now", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,

@@ -781,8 +781,8 @@ function PastPregnancy({
         patient_number: patient_data?.pm_contact_no,
         patient_id: patient_data?.patient_unique_id,
       };
-      window.Moengage.track_event("TP_Obs_history_updated", attributes);
-      window.Moengage.track_event("TP_Past_pregnancy_updated", attributes);
+      window.Moengage?.track_event?.("TP_Obs_history_updated", attributes);
+      window.Moengage?.track_event?.("TP_Past_pregnancy_updated", attributes);
       message.open({
         key: MESSAGE_KEY,
         type: "",

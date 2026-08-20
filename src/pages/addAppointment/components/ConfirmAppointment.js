@@ -149,7 +149,7 @@ function ConfirmAppointment({
     function goToAddPatient() {
         dispatch(clearAbhaDetails());
         // Track the event with appropriate data
-        window.Moengage.track_event("TP_AddAppointments_AddNewPatient", {
+        window.Moengage?.track_event?.("TP_AddAppointments_AddNewPatient", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             "Doctor_Name": profile?.um_name,

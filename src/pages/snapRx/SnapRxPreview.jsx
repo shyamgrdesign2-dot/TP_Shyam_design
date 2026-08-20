@@ -402,7 +402,7 @@ function SnapRxPreview() {
   const handleDownload = async () => {
     try {
       if (showDigitalRx) {
-        window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+        window.Moengage?.track_event?.("TP_Digitised_Prescription_Download", {
           Doctor_Name: profile?.um_name,
           Doctor_Number: profile?.um_contact,
           Doctor_Unique_Id: profile?.doctor_unique_id,
@@ -422,7 +422,7 @@ function SnapRxPreview() {
 
   const handleInAppDownload = async () => {
     if (showDigitalRx) {
-      window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+      window.Moengage?.track_event?.("TP_Digitised_Prescription_Download", {
         Doctor_Name: profile?.um_name,
         Doctor_Number: profile?.um_contact,
         Doctor_Unique_Id: profile?.doctor_unique_id,

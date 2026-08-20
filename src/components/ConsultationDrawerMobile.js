@@ -495,7 +495,7 @@ const ConsultationDrawerMobile = ({
 
     const clinic_name = getClinicName(profile?.hospital_data);
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_App_voiceRx_FreeTrailInfo", {
+    window.Moengage?.track_event?.("TP_App_voiceRx_FreeTrailInfo", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -808,7 +808,7 @@ const ConsultationDrawerMobile = ({
         genRxDetails?.type === "ambient"
           ? "ambient"
           : "dictation";
-      window.Moengage?.track_event(
+      window.Moengage?.track_event?.(
         targetMode === "ambient"
           ? "TP_App_AV_SC_Autofill_Ambient"
           : "TP_App_AV_SC_Autofill_Voice",
@@ -1143,7 +1143,7 @@ const ConsultationDrawerMobile = ({
   };
 
   const handleSend = async () => {
-    window.Moengage.track_event("TP_App_AV_TypeTranscript", {
+    window.Moengage?.track_event?.("TP_App_AV_TypeTranscript", {
       ...getVoiceRxMoengageBasePayload({
         profile,
         userId,
@@ -3159,7 +3159,7 @@ const ConsultationDrawerMobile = ({
         return total + duration;
       }, 0);
     
-    window.Moengage.track_event("TP_App_AV_SaveRx", {
+    window.Moengage?.track_event?.("TP_App_AV_SaveRx", {
       ...getVoiceRxMoengageBasePayload({
         profile,
         userId,
@@ -3439,7 +3439,7 @@ const ConsultationDrawerMobile = ({
 
       const clinic_name = getClinicName(profile?.hospital_data);
       const deviceSdkData = getDeviceSdkData();
-      window.Moengage.track_event("TP_App_Voice_Submit", {
+      window.Moengage?.track_event?.("TP_App_Voice_Submit", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,

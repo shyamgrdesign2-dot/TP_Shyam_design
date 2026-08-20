@@ -96,7 +96,7 @@ function WalkInPatientCard({
   const handlePatientDetailsClick = useCallback(() => {
     if (doctorDetails && window.Moengage) {
       const clinic_name = getClinicName(profile?.hospital_data);
-      window.Moengage.track_event("TP_Patient_details", {
+      window.Moengage?.track_event?.("TP_Patient_details", {
         clinic_name,
         patient_number: patient?.pm_contact_no || patient?.pm_mobile,
         patient_id: patient?.patient_unique_id || patient?.pm_pid,
@@ -108,7 +108,7 @@ function WalkInPatientCard({
   const handleVoiceRxClick = useCallback(() => {
     if (doctorDetails && profile && window.Moengage) {
       const clinic = getClinic(profile?.hospital_data);
-      window.Moengage.track_event("TP_AV_Entry", {
+      window.Moengage?.track_event?.("TP_AV_Entry", {
         patient_id: patient?.patient_unique_id || patient?.pm_pid || "",
         patient_name: patient?.pm_fullname || patient?.pm_name || "",
         patient_mobile_number: patient?.pm_contact_no || patient?.pm_mobile || "",

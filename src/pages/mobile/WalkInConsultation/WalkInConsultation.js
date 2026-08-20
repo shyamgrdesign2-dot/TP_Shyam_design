@@ -128,7 +128,7 @@ function WalkInConsultation() {
   const handleSearchChange = useCallback((value) => {
     // Track search event (same as web version)
     if (window.Moengage && profile && clinicName) {
-      window.Moengage.track_event("TP_Patient_searched", {
+      window.Moengage?.track_event?.("TP_Patient_searched", {
         clinic_name: clinicName,
       });
     }
@@ -181,7 +181,7 @@ function WalkInConsultation() {
     // Same logic as web version
     if (window.Moengage && profile) {
       const clinic_name = getClinicName(profile?.hospital_data);
-      window.Moengage.track_event("TP_Add_Patient_clicked", {
+      window.Moengage?.track_event?.("TP_Add_Patient_clicked", {
         clinic_name,
       });
     }

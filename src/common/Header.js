@@ -332,7 +332,7 @@ function Header({ locationPath }) {
                 <Button
                   onClick={() => {
 
-                    window.Moengage.track_event("TP_Tatvapedia_Switch_cancelled");
+                    window.Moengage?.track_event?.("TP_Tatvapedia_Switch_cancelled");
                     showHideLogoModal()
                   }}
                   className="lh-lg btn btn-primary3 btn-41 px-4"
@@ -520,14 +520,14 @@ function Header({ locationPath }) {
       showHideSwitchModal()
     }
     const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage.track_event("TP_Flow_changed", {
+    window.Moengage?.track_event?.("TP_Flow_changed", {
       clinic_name,
     });
   }
 
   //DrawerVideo function
   const handleDrawervideo = useCallback(() => {
-    window.Moengage.track_event("video_library_button_clicked");
+    window.Moengage?.track_event?.("video_library_button_clicked");
     setvideoDrawer(!videoDrawer);
   }, [videoDrawer]);
 
@@ -556,7 +556,7 @@ function Header({ locationPath }) {
                     onClick={() => {
                       setVideoLink(item1)
                       const clinic_name = getClinicName(profile?.hospital_data);
-                      window.Moengage.track_event("TP_Tutorial_Viewed", {
+                      window.Moengage?.track_event?.("TP_Tutorial_Viewed", {
                         clinic_name,
                         tutorial_type: videoList[0]?.category,
                       });
@@ -820,7 +820,7 @@ function Header({ locationPath }) {
 
   const handleClick = () => {
     const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage.track_event("BuyPlanNow_Click", {
+    window.Moengage?.track_event?.("BuyPlanNow_Click", {
       doctor_id: profile?.doctor_unique_id,
       clinic_name,
     });
@@ -1141,7 +1141,7 @@ function Header({ locationPath }) {
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_AISuite", {
+    window.Moengage?.track_event?.("TP_Monetization_AISuite", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -1162,7 +1162,7 @@ function Header({ locationPath }) {
     e.preventDefault();
     const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Profile_Section", {
+    window.Moengage?.track_event?.("TP_Profile_Section", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -1185,7 +1185,7 @@ function Header({ locationPath }) {
           <div>
             <img onClick={() => {
               if(!isCvtExtHosAccessableFromGB){
-                window.Moengage.track_event("TP_Tatvapedia_clicked");
+                window.Moengage?.track_event?.("TP_Tatvapedia_clicked");
                 showHideLogoModal()
               }
             }}
@@ -1527,7 +1527,7 @@ function Header({ locationPath }) {
                                     onClick={() => {
                                       setVideoLink(item1)
                                       const clinic_name = getClinicName(profile?.hospital_data);
-                                      window.Moengage.track_event("TP_Tutorial_Viewed", {
+                                      window.Moengage?.track_event?.("TP_Tutorial_Viewed", {
                                         clinic_name,
                                         tutorial_type: item?.category,
                                       });
@@ -1560,7 +1560,7 @@ function Header({ locationPath }) {
                 <Button
                   className="btn btn-delete-prescription mx-auto d-block p-0 mb-1"
                   onClick={() =>
-                    window.Moengage.track_event("announcement_button_clicked")
+                    window.Moengage?.track_event?.("announcement_button_clicked")
                   }
                   id="beamerButton"
                 >

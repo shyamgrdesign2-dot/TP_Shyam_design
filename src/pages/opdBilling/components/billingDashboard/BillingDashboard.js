@@ -111,7 +111,7 @@ function BillingDashboard({ patientData, fromPath }) {
 
   useEffect(() => {
     const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage.track_event("TP_Appointment_Page_Landing", {
+    window.Moengage?.track_event?.("TP_Appointment_Page_Landing", {
       clinic_name,
     });
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -268,7 +268,7 @@ function BillingDashboard({ patientData, fromPath }) {
                     onClick={() => {
                       setVideoLink(item1);
                       const clinic_name = getClinicName(profile?.hospital_data);
-                      window.Moengage.track_event("TP_Tutorial_Viewed", {
+                      window.Moengage?.track_event?.("TP_Tutorial_Viewed", {
                         clinic_name,
                         tutorial_type: videoList[15]?.category,
                       });

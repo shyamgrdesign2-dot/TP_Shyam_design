@@ -104,7 +104,7 @@ const ReceptionistKnowMore = ({ handleDDxKnowMore }) => {
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData(); 
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_RequestACallback", {
+    window.Moengage?.track_event?.("TP_Monetization_RequestACallback", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -281,7 +281,7 @@ const ReceptionistKnowMore = ({ handleDDxKnowMore }) => {
             type="button"
             className="btn-41 btn ant-btn-text btn-input addMeasurementBtn w-100"
             onClick={() => {
-              window.Moengage.track_event("TP_AG_AIR_ReqCallBack", {
+              window.Moengage?.track_event?.("TP_AG_AIR_ReqCallBack", {
                 doctor_name: profile?.um_name,
                 doctor_number: profile?.um_contact,
                 doctor_unique_id: profile?.doctor_unique_id,
@@ -299,7 +299,7 @@ const ReceptionistKnowMore = ({ handleDDxKnowMore }) => {
               className="btn btn-primary3 btn-41 px-4 me-20 w-100"
               type="primary"
               onClick={() => {
-                window.Moengage.track_event("TP_AG_GUA", {
+                window.Moengage?.track_event?.("TP_AG_GUA", {
                   doctor_name: profile?.um_name,
                   doctor_number: profile?.um_contact,
                   doctor_unique_id: profile?.doctor_unique_id,

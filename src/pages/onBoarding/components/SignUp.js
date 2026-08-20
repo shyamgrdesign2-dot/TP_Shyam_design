@@ -171,7 +171,7 @@ useEffect(() => {
           // User exists, proceed with OTP
           if (window.sendOtp) {
             // moengage event for set password
-            window.Moengage.track_event('TP_NewLoginFlow_Password_Setup', {
+            window.Moengage?.track_event?.('TP_NewLoginFlow_Password_Setup', {
               mobile: "91" + mobileNumber,
               operating_system: detectOperatingSystem(),
               utm_campaign: utm.utm_campaign ?? 'NA',
@@ -189,7 +189,7 @@ useEffect(() => {
                 console.log("OTP sent successfully:", successData);
                 if (successData && successData.message) {
                   const reqId = successData.message;
-                  window.Moengage.track_event('TP_NewLoginFlow_Password_Setup_Otp_Success', {
+                  window.Moengage?.track_event?.('TP_NewLoginFlow_Password_Setup_Otp_Success', {
                     mobile: "91" + mobileNumber,
                     operating_system: detectOperatingSystem(),
                     utm_campaign: utm.utm_campaign ?? 'NA',
@@ -550,7 +550,7 @@ useEffect(() => {
           }
           else if (window.sendOtp) {
             // moengage event for login via OTP
-            window.Moengage.track_event('TP_NewLoginFlow_Login_With_OTP', {
+            window.Moengage?.track_event?.('TP_NewLoginFlow_Login_With_OTP', {
               mobile: "91" + mobileNumber,
               utm_campaign: utm.utm_campaign ?? 'NA',
               utm_source: utm.utm_source ?? 'NA',
@@ -566,7 +566,7 @@ useEffect(() => {
               (data) => {
                 if (data.type === "success"){
                   // moengage event for OTP sent
-                  window.Moengage.track_event('TP_NewLoginFlow_Login_with_OTP_Success', {
+                  window.Moengage?.track_event?.('TP_NewLoginFlow_Login_with_OTP_Success', {
                     mobile: "91" + mobileNumber,
                     utm_campaign: utm.utm_campaign ?? 'NA',
                     utm_source: utm.utm_source ?? 'NA',
@@ -623,7 +623,7 @@ useEffect(() => {
             // Proceed with signup flow
             if (window.sendOtp) {
 
-              window.Moengage.track_event('TP_NewLoginFlow_GetStarted', {
+              window.Moengage?.track_event?.('TP_NewLoginFlow_GetStarted', {
                   mobile: "91" + mobileNumber,
                   utm_campaign: utm.utm_campaign ?? 'NA',
                   utm_source: utm.utm_source ?? 'NA',
@@ -639,7 +639,7 @@ useEffect(() => {
                   // console.log(data,"data")
                   if (data.type === "success"){
                     // moengage event for OTP sent for signup
-                    window.Moengage.track_event('TP_NewLoginFlow_SignupOTP_sucess', {
+                    window.Moengage?.track_event?.('TP_NewLoginFlow_SignupOTP_sucess', {
                       mobile: "91" + mobileNumber,
                       utm_campaign: utm.utm_campaign ?? 'NA',
                       utm_source: utm.utm_source ?? 'NA',
@@ -700,7 +700,7 @@ useEffect(() => {
 
         if (passwordSet) {   
           // moengage event for login via password
-          window.Moengage.track_event('TP_NewLoginFlow_Login_With_Password', {
+          window.Moengage?.track_event?.('TP_NewLoginFlow_Login_With_Password', {
             mobile: "91" + mobileNumber,
             operating_system: detectOperatingSystem(),
             utm_campaign: utm.utm_campaign ?? 'NA',

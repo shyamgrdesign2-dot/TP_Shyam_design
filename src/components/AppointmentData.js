@@ -1705,7 +1705,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   };
 
   const onConsultClick = async (record) => {
-    window.Moengage.track_event("patient_search_consult", {
+    window.Moengage?.track_event?.("patient_search_consult", {
       doctor_id: profile?.doctor_unique_id,
       patient_id: record?.patient_unique_id,
     });
@@ -1940,11 +1940,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const onSmartRxClick = async (record) => {
     const tokenData = getTokenData();
     const clinic = getClinic(profile?.hospital_data);
-    window.Moengage.track_event("patient_search_consult", {
+    window.Moengage?.track_event?.("patient_search_consult", {
       doctor_id: profile?.doctor_unique_id,
       patient_id: record?.patient_unique_id,
     });
-    window.Moengage.track_event("TP_SmartRx_Started", {
+    window.Moengage?.track_event?.("TP_SmartRx_Started", {
       patient_id: record?.patient_unique_id || "",
       patient_name: record.pm_fullname,
       doctor_id: profile?.doctor_unique_id,
@@ -1992,14 +1992,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   };
 
   const onAppointmentAgentClick = async () => {
-    // window.Moengage.track_event("patient_search_consult", {
+    // window.Moengage?.track_event?.("patient_search_consult", {
     //     "doctor_id": profile?.doctor_unique_id,
     //     "patient_id": record?.patient_unique_id
     // });
     const tokenData = getTokenData();
     const clinic = getClinic(profile?.hospital_data);
     if (agentsData) {
-      window.Moengage.track_event("TP_AG_YourAIReceptionist", {
+      window.Moengage?.track_event?.("TP_AG_YourAIReceptionist", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -2043,7 +2043,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         },
       });
     } else {
-      window.Moengage.track_event("TP_AG_YourAIReceptionist", {
+      window.Moengage?.track_event?.("TP_AG_YourAIReceptionist", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -2141,7 +2141,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       // const ocrData = await fetchRxDigitisedData(tcm_id);
       const tokenData = getTokenData();
       const clinic = getClinic(profile?.hospital_data);
-      window.Moengage.track_event("TP_DigitizeSSRx", {
+      window.Moengage?.track_event?.("TP_DigitizeSSRx", {
       patient_id: record?.patient_unique_id || "",
       patient_name: record.pm_fullname,
       doctor_id: profile?.doctor_unique_id,
@@ -3795,7 +3795,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const onVoiceRxClick = async (record) => {
     const clinic = getClinic(profile?.hospital_data);
-    window.Moengage.track_event("TP_AV_Entry", {
+    window.Moengage?.track_event?.("TP_AV_Entry", {
       patient_id: record?.patient_unique_id || "",
       patient_name: record?.pm_fullname || "",
       patient_mobile_number: record?.pm_contact_no || "",

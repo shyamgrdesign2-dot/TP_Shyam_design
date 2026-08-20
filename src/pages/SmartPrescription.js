@@ -569,7 +569,7 @@ function SmartPrescription() {
           dispatch(setActiveTeleconsultConsultationId(data.consultationId));
         }
 
-        window.Moengage.track_event("TP_TC_StartCall", {
+        window.Moengage?.track_event?.("TP_TC_StartCall", {
           doctor_name: profile?.um_name,
           doctor_number: profile?.um_contact,
           doctor_specialty: profile?.dp_name,
@@ -1126,7 +1126,7 @@ function SmartPrescription() {
 
   // Handle opening upload drawer from template manager
   const handleUploadNewTemplate = () => {
-    window.Moengage.track_event("TP_CC_Add_Custom_Rx", {
+    window.Moengage?.track_event?.("TP_CC_Add_Custom_Rx", {
       "Doctor_specialty": profile?.dp_name,
       "Doctor_unique_id": profile?.doctor_unique_id,
       "Doctor_Name": profile?.um_name,
@@ -1428,14 +1428,14 @@ function SmartPrescription() {
   useEffect(() => {
     const clinic_name = getClinicName(profile?.hospital_data);
     tcmId === 0 ?
-      window.Moengage.track_event("TP_Consultation_Started", {
+      window.Moengage?.track_event?.("TP_Consultation_Started", {
         clinic_name,
         patient_number: patient_data?.pm_contact_no,
         patient_id: patient_data?.patient_unique_id,
         tcm_id: tcmId,
       })
       :
-      window.Moengage.track_event("TP_Consultation_edit_started", {
+      window.Moengage?.track_event?.("TP_Consultation_edit_started", {
         clinic_name,
         patient_number: patient_data?.pm_contact_no,
         patient_id: patient_data?.patient_unique_id,
@@ -2727,7 +2727,7 @@ function SmartPrescription() {
     const type = isCustomSSRX ? 1 : 0;
     const tokenData = getTokenData();
     const clinic = getClinic(profile?.hospital_data);
-    window.Moengage.track_event("TP_SmartRx_Submit", {
+    window.Moengage?.track_event?.("TP_SmartRx_Submit", {
       patient_id: patient_data?.patient_unique_id || "",
       patient_name: patient_data?.pm_fullname,
       doctor_id: profile?.doctor_unique_id,

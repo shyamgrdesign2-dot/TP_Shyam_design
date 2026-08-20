@@ -523,7 +523,7 @@ const ConsultationDrawer = ({
 
     const clinic_name = getClinicName(profile?.hospital_data);
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_voiceRx_FreeTrailInfo", {
+    window.Moengage?.track_event?.("TP_voiceRx_FreeTrailInfo", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -1328,7 +1328,7 @@ const ConsultationDrawer = ({
   };
 
   const handleSend = async () => {
-    window.Moengage.track_event("TP_AV_TypeTranscript", {
+    window.Moengage?.track_event?.("TP_AV_TypeTranscript", {
       patient_id: patient_data?.patient_unique_id || "",
       patient_name: patient_data?.pm_fullname || "",
       patient_mobile_number: patient_data?.pm_contact_no || "",
@@ -3429,7 +3429,7 @@ const ConsultationDrawer = ({
         prescriptionUrlsForSessionRef.current
       );
 
-      window.Moengage.track_event("TP_Voice_endVisit", {
+      window.Moengage?.track_event?.("TP_Voice_endVisit", {
         doctorId: profile?.doctor_unique_id || "",
         doctorName: profile?.um_name || "",
         patientId: patient_data?.patient_unique_id || "",
@@ -3479,7 +3479,7 @@ const ConsultationDrawer = ({
         return total + duration;
       }, 0);
     
-    window.Moengage.track_event("TP_AV_SaveRx", {
+    window.Moengage?.track_event?.("TP_AV_SaveRx", {
       patient_id: patient_data?.patient_unique_id || "",
       patient_name: patient_data?.pm_fullname || "",
       patient_mobile_number: patient_data?.pm_contact_no || "",
@@ -3802,7 +3802,7 @@ const ConsultationDrawer = ({
 
       const clinic_name = getClinicName(profile?.hospital_data);
       const deviceSdkData = getDeviceSdkData();
-      window.Moengage.track_event("TP_Voice_Submit", {
+      window.Moengage?.track_event?.("TP_Voice_Submit", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,

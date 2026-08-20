@@ -80,14 +80,14 @@ const DemoExpirationBanner = () => {
 
   const handleClick = () => {
     const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage.track_event("BuyPlanNow_Click", {
+    window.Moengage?.track_event?.("BuyPlanNow_Click", {
       doctor_id: profile?.doctor_unique_id,
       clinic_name,
     });
 
     const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_GetUnlimited_Access", {
+    window.Moengage?.track_event?.("TP_GetUnlimited_Access", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,

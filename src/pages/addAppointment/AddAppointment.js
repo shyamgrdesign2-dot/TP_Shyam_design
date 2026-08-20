@@ -715,7 +715,7 @@ function AddAppointment() {
       };
 
       // In your tracking event, use these functions
-      window.Moengage.track_event("TP_AddAppointment_bookappointment", {
+      window.Moengage?.track_event?.("TP_AddAppointment_bookappointment", {
         "Doctor_specialty": profile?.dp_name,
         "Doctor_unique_id": profile?.doctor_unique_id,
         "Doctor_name": profile?.um_name,
@@ -936,7 +936,7 @@ function AddAppointment() {
                     onClick={() => {
                       setVideoLink(item1);
                       const clinic_name = getClinicName(profile?.hospital_data);
-                      window.Moengage.track_event("TP_Tutorial_Viewed", {
+                      window.Moengage?.track_event?.("TP_Tutorial_Viewed", {
                         clinic_name,
                         tutorial_type: videoList[16]?.category,
                       });
@@ -1008,7 +1008,7 @@ function AddAppointment() {
                 onClick={() => {
                   myAvailability();
                   HandleSettingsDescription();
-                  window.Moengage.track_event("TP_AddAppointments_AvailabilitySettings", {
+                  window.Moengage?.track_event?.("TP_AddAppointments_AvailabilitySettings", {
                     "Doctor_specialty": profile?.dp_name,
                     "Doctor_unique_id": profile?.doctor_unique_id,
                     "Doctor_Name": profile?.um_name,
@@ -1082,7 +1082,7 @@ function AddAppointment() {
                 fontWeight: 500,
               }}
               onClick={() => {
-                window.Moengage.track_event("TP__TC_ApptBooking", {
+                window.Moengage?.track_event?.("TP__TC_ApptBooking", {
                   "Doctor_name": profile?.um_name,
                   "Doctor_mobile_No": profile?.um_contact,
                   "Doctor_specialty": profile?.dp_name,

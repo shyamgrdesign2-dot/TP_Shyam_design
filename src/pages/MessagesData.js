@@ -71,7 +71,7 @@ function MessagesData(props) {
             showHideModal()
         }
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_Messages_Button", {
+        window.Moengage?.track_event?.("TP_Messages_Button", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,
@@ -541,7 +541,7 @@ function MessagesData(props) {
     const handleNewTemplate = () => {
         navigate('/create-campaign', { state: { setupData:appointmentAgentsData } });
         const clinic_city = getClinicCity(profile?.hospital_data);
-        window.Moengage.track_event("TP_Choose_New_Template", {
+        window.Moengage?.track_event?.("TP_Choose_New_Template", {
             "Doctor_specialty": profile?.dp_name,
             "Doctor_unique_id": profile?.doctor_unique_id,
             clinic_city,

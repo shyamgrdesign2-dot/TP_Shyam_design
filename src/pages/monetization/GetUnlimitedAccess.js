@@ -154,7 +154,7 @@ function GetUnlimitedAccess() {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData(); 
         const deviceSdkData = getDeviceSdkData(); 
-        window.Moengage.track_event("TP_Monetization_AddService", {
+        window.Moengage?.track_event?.("TP_Monetization_AddService", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
@@ -193,7 +193,7 @@ function GetUnlimitedAccess() {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData(); 
         const deviceSdkData = getDeviceSdkData(); 
-        window.Moengage.track_event("TP_Monetization_AddService", {
+        window.Moengage?.track_event?.("TP_Monetization_AddService", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,

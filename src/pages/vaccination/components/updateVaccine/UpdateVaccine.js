@@ -254,7 +254,7 @@ const UpdateVaccine = ({
       patient_number: patient_data?.pm_contact_no,
       patient_id: patient_data?.patient_unique_id,
     };
-    window.Moengage.track_event("TP_vaccination_updated", attributes);
+    window.Moengage?.track_event?.("TP_vaccination_updated", attributes);
   };
 
   const updateVaccineDetails = async () => {
@@ -503,7 +503,7 @@ const UpdateVaccine = ({
     const result = updateVaccine(payload);
     const resultStatus = await result;
     if (resultStatus?.status === 201) {
-      window.Moengage.track_event("TP_Vaccination_Revert_Confirmed", {
+      window.Moengage?.track_event?.("TP_Vaccination_Revert_Confirmed", {
         Doctor_specialty: profile?.dp_name,
         Doctor_unique_id: profile?.doctor_unique_id,
         Doctor_Name: profile?.um_name,
@@ -806,7 +806,7 @@ const UpdateVaccine = ({
                               className="cursor-pointer d-flex main-color"
                               onClick={() => {
                                 setShowDefaultPopup(i);
-                                window.Moengage.track_event(
+                                window.Moengage?.track_event?.(
                                   "TP_Vaccination_Revert",
                                   {
                                     Doctor_specialty: profile?.dp_name,

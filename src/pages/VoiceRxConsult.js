@@ -226,7 +226,7 @@ const VoiceRxConsult = () => {
     setIsSubModalOpen((prev) => !prev);
     const clinic_name = getClinicName(profile?.hospital_data);
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_voiceRx_FreeTrailInfo", {
+    window.Moengage?.track_event?.("TP_voiceRx_FreeTrailInfo", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -472,7 +472,7 @@ const VoiceRxConsult = () => {
     }
 
     try {
-      window.Moengage.track_event("TP_AV_Submit", {
+      window.Moengage?.track_event?.("TP_AV_Submit", {
         patient_id: patient_data?.patient_unique_id || "",
         patient_name: patient_data?.pm_fullname || "",
         patient_mobile_number: patient_data?.pm_contact_no || "",
@@ -560,7 +560,7 @@ const VoiceRxConsult = () => {
   };
 
   const handleDictationMode = () => {
-    window.Moengage.track_event("TP_AV_StartDictate", {
+    window.Moengage?.track_event?.("TP_AV_StartDictate", {
       patient_id: patient_data?.patient_unique_id || "",
       patient_name: patient_data?.pm_fullname || "",
       patient_mobile_number: patient_data?.pm_contact_no || "",
@@ -585,7 +585,7 @@ const VoiceRxConsult = () => {
       alert("Please confirm patient consent before proceeding");
       return;
     }
-    window.Moengage.track_event("TP_AV_StartConversation", {
+    window.Moengage?.track_event?.("TP_AV_StartConversation", {
       patient_id: patient_data?.patient_unique_id || "",
       patient_name: patient_data?.pm_fullname || "",
       patient_mobile_number: patient_data?.pm_contact_no || "",
@@ -641,7 +641,7 @@ const VoiceRxConsult = () => {
             targetMode === "ambient" ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
         }
         const clinic_name = getClinicName(profile?.hospital_data);
-        window.Moengage?.track_event(
+        window.Moengage?.track_event?.(
           targetMode === "ambient"
             ? "TP_AV_SC_Autofill_Ambient"
             : "TP_AV_SC_Autofill_Voice",
@@ -834,7 +834,7 @@ const VoiceRxConsult = () => {
                     className={`${styles.checkBox} ${consentChecked ? styles.checked : ''}`}
                     onClick={() => {
                       setConsentChecked(!consentChecked);
-                       window.Moengage.track_event("TP_AV_StartDictate", {
+                       window.Moengage?.track_event?.("TP_AV_StartDictate", {
                          patient_id: patient_data?.patient_unique_id || "",
                          patient_name: patient_data?.pm_fullname || "",
                         patient_mobile_number: patient_data?.pm_contact_no || "",

@@ -361,7 +361,7 @@ const DifferentialDiagnosisDrawer = ({
                                 note: "",
                               });
                               setDiagnosisData((prev) => [...prev]);
-                              window.Moengage.track_event(
+                              window.Moengage?.track_event?.(
                                 "TP_CDSS_Ddx_selected",
                                 {
                                   clinic_name: getClinicName(
@@ -471,7 +471,7 @@ const DifferentialDiagnosisDrawer = ({
                                             setInvestigationData((prev) => [
                                               ...prev,
                                             ]);
-                                            window.Moengage.track_event(
+                                            window.Moengage?.track_event?.(
                                               "TP_CDSS_addtoRx",
                                               {
                                                 clinic_name: getClinicName(

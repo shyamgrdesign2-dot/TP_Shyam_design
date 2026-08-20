@@ -99,7 +99,7 @@ function CarePlanDropdown({ onCarePlanSelect, selectedCarePlan, patientId, docto
 
             if (assignResponse) {
                 
-                window.Moengage.track_event("care_plan_assigned", {
+                window.Moengage?.track_event?.("care_plan_assigned", {
                     plan_id: plan.plan_id,
                     plan_name: plan.plan_name,
                     patient_id: patientId,

@@ -26,7 +26,7 @@ const ClinicSetup = ({ reason, handleView, number }) => {
     }, []);
 
     const logoutUser = () => {
-        window.Moengage.track_event('TP_Logout', {mobile: localStorage.getItem('mo_mobile') , utm_campaign, utm_content, utm_medium, utm_source})
+        window.Moengage?.track_event?.('TP_Logout', {mobile: localStorage.getItem('mo_mobile') , utm_campaign, utm_content, utm_medium, utm_source})
         localStorage.removeItem('mo_mobile');
         window.location.href = "/login";
     }
@@ -49,7 +49,7 @@ const ClinicSetup = ({ reason, handleView, number }) => {
             if (mbl_no != null && mbl_no !== "") {
                 const response = await setupClinic({mblNo: mbl_no, clinicName: clinicName});
                 if (response?.data?.ssoUrl !== "") {
-                    window.Moengage.track_event("TP_Clinic_Setup_Success", {
+                    window.Moengage?.track_event?.("TP_Clinic_Setup_Success", {
                         mobile: mbl_no,
                         utm_campaign,
                         utm_content,

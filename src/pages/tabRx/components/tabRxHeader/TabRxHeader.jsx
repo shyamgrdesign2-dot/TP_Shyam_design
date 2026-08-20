@@ -426,7 +426,7 @@ function TabRxHeader({
 
   const onTemplateSelected = async (tmoc_id, tmoc_template_name) => {
     oneClickCosultationTemplateId = tmoc_id;
-    window.Moengage.track_event("one_click_template_select", {
+    window.Moengage?.track_event?.("one_click_template_select", {
       template_name: tmoc_template_name,
     });
     const action = await dispatch(
@@ -1849,13 +1849,13 @@ function TabRxHeader({
 
       const clinic_name = getClinicName(profile?.hospital_data);
       tcmId == 0
-        ? window.Moengage.track_event("TP_Consultation_ended", {
+        ? window.Moengage?.track_event?.("TP_Consultation_ended", {
             clinic_name,
             patient_number: patient_data?.pm_contact_no,
             patient_id: patient_data?.patient_unique_id,
             tcm_id: tcmId,
           })
-        : window.Moengage.track_event("TP_Consultation_edited", {
+        : window.Moengage?.track_event?.("TP_Consultation_edited", {
             clinic_name,
             patient_number: patient_data?.pm_contact_no,
             patient_id: patient_data?.patient_unique_id,
@@ -2018,7 +2018,7 @@ function TabRxHeader({
           dispatch(setSelectAutofill(false));
         }
 
-        window.Moengage.track_event("Z_enter_getInvestigationAndMedicine", {
+        window.Moengage?.track_event?.("Z_enter_getInvestigationAndMedicine", {
           clinic_name,
           patient_id: patient_data?.patient_unique_id,
           mrno: patient_data?.mrno,
@@ -2032,7 +2032,7 @@ function TabRxHeader({
           patient_data?.mrno !== undefined &&
           (medicationData.length > 0 || investigationData.length > 0)
         ) {
-          window.Moengage.track_event(
+          window.Moengage?.track_event?.(
             "Z_getInvestigationAndMedicine_API_before_call",
             {
               clinic_name,
@@ -2067,7 +2067,7 @@ function TabRxHeader({
                     .join(", ")
                 : "";
 
-            window.Moengage.track_event(
+            window.Moengage?.track_event?.(
               "Z_getInvestigationAndMedicine_API_Response",
               {
                 clinic_name,
@@ -2115,7 +2115,7 @@ function TabRxHeader({
               pillupSwitch: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
             };
 
-            window.Moengage.track_event("Z_placeIctOrder_API_before_call", {
+            window.Moengage?.track_event?.("Z_placeIctOrder_API_before_call", {
               action: tcmId == 0 ? "add" : "edit",
               tcmId: action?.payload?.tcm_id,
               siteId: siteId,
@@ -2144,17 +2144,17 @@ function TabRxHeader({
 
             const actionPIO = await dispatch(placeIctOrder(zydusSendData));
             if (actionPIO.payload?.status !== 400) {
-              window.Moengage.track_event("Z_placeIctOrder_API_Response", {
+              window.Moengage?.track_event?.("Z_placeIctOrder_API_Response", {
                 status: "suceess",
               });
             } else {
-              window.Moengage.track_event("Z_placeIctOrder_API_Response", {
+              window.Moengage?.track_event?.("Z_placeIctOrder_API_Response", {
                 status: "failure",
                 reason: actionPIO.payload.data.message,
               });
             }
           } else {
-            window.Moengage.track_event(
+            window.Moengage?.track_event?.(
               "Z_getInvestigationAndMedicine_API_Response",
               {
                 clinic_name,
@@ -2253,7 +2253,7 @@ function TabRxHeader({
                         const clinic_name = getClinicName(
                           profile?.hospital_data,
                         );
-                        window.Moengage.track_event("TP_Tutorial_Viewed", {
+                        window.Moengage?.track_event?.("TP_Tutorial_Viewed", {
                           clinic_name,
                           tutorial_type: videoList[0]?.category,
                         });

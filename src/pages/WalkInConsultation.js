@@ -168,7 +168,7 @@ function WalkInConsultation() {
   // };
 
   const onConsultClick = async (record) => {
-    // window.Moengage.track_event("patient_search_consult", {
+    // window.Moengage?.track_event?.("patient_search_consult", {
     //   doctor_id: profile?.doctor_unique_id,
     // //   patient_id: record?.patient_unique_id,
     // });
@@ -384,7 +384,7 @@ function WalkInConsultation() {
               icon={<i className="icon-Preview"></i>}
               onClick={() => {
                 const clinic_name = getClinicName(profile?.hospital_data);
-                window.Moengage.track_event("TP_Patient_details", {
+                window.Moengage?.track_event?.("TP_Patient_details", {
                   clinic_name,
                   "patient_number": patient?.pm_contact_no,
                   "patient_id": patient?.patient_unique_id
@@ -419,7 +419,7 @@ function WalkInConsultation() {
                 icon={<i className="icon-Consult"></i>}
                 onClick={() => {
                   const clinic_name = getClinicName(profile?.hospital_data);
-                  window.Moengage.track_event("TP_Consult_started", {
+                  window.Moengage?.track_event?.("TP_Consult_started", {
                     clinic_name,
                     "patient_number": patient?.pm_contact_no,
                     "patient_id": patient?.patient_unique_id
@@ -531,7 +531,7 @@ function WalkInConsultation() {
   const onSearchParent = useCallback(
     (query) => {
       const clinic_name = getClinicName(profile?.hospital_data);
-      window.Moengage.track_event("TP_Patient_searched", {
+      window.Moengage?.track_event?.("TP_Patient_searched", {
         clinic_name,
       });
       setSearchQuery(query);
@@ -549,7 +549,7 @@ function WalkInConsultation() {
   const onSmartRxClick = async (patient) => {
     const tokenData = getTokenData();
     const clinic = getClinic(profile?.hospital_data);
-    window.Moengage.track_event("TP_SmartRx_Started", {
+    window.Moengage?.track_event?.("TP_SmartRx_Started", {
       patient_id: patient?.patient_unique_id || "",
       patient_name: patient?.pm_fullname,
       doctor_id: profile?.doctor_unique_id,
@@ -560,7 +560,7 @@ function WalkInConsultation() {
       source: "Appointment Landing Page",
       device_details: navigator.userAgent
   });
-    // window.Moengage.track_event("patient_search_consult", {
+    // window.Moengage?.track_event?.("patient_search_consult", {
     //   doctor_id: profile?.doctor_unique_id,
     //   //   patient_id: record?.patient_unique_id,
     // });
@@ -573,7 +573,7 @@ function WalkInConsultation() {
 
   const onVoiceRxClick = async (patient) => {
     const clinic = getClinic(profile?.hospital_data);
-    window.Moengage.track_event("TP_AV_Entry", {
+    window.Moengage?.track_event?.("TP_AV_Entry", {
       patient_id: patient?.patient_unique_id || "",
       patient_name: patient?.pm_fullname || "",
       patient_mobile_number: patient?.pm_contact_no || "",
@@ -666,7 +666,7 @@ function WalkInConsultation() {
                     onTypeRxClick={onTypeRxClick}
                     onConsultClick={(patient) => {
                       const clinic_name = getClinicName(profile?.hospital_data);
-                      window.Moengage.track_event("TP_Consult_started", {
+                      window.Moengage?.track_event?.("TP_Consult_started", {
                         clinic_name,
                         "patient_number": patient?.pm_contact_no,
                         "patient_id": patient?.patient_unique_id
@@ -687,12 +687,12 @@ function WalkInConsultation() {
   }, [clickedPatient]);
 
   function goToAddPatient() {
-    // window.Moengage.track_event("walkin_consult_start", {
+    // window.Moengage?.track_event?.("walkin_consult_start", {
     //   "doctor_id": profile?.doctor_unique_id,
     //   "patient_type": 'New',
     // });
     const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage.track_event("TP_Add_Patient_clicked", {
+    window.Moengage?.track_event?.("TP_Add_Patient_clicked", {
       clinic_name,
     });
     if (searchQuery.length === 10 && isNumeric(searchQuery)) {

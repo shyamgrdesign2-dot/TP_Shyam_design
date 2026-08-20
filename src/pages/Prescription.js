@@ -845,7 +845,7 @@ function Prescription() {
           dispatch(setActiveTeleconsultConsultationId(data.consultationId));
         }
 
-        window.Moengage.track_event("TP_TC_StartCall", {
+        window.Moengage?.track_event?.("TP_TC_StartCall", {
           doctor_name: profile?.um_name,
           doctor_number: profile?.um_contact,
           doctor_specialty: profile?.dp_name,
@@ -879,13 +879,13 @@ function Prescription() {
   useEffect(() => {
     const clinic_name = getClinicName(profile?.hospital_data);
     tcmId == 0
-      ? window.Moengage.track_event("TP_Consultation_Started", {
+      ? window.Moengage?.track_event?.("TP_Consultation_Started", {
           clinic_name,
           patient_number: patient_data?.pm_contact_no,
           patient_id: patient_data?.patient_unique_id,
           tcm_id: tcmId,
         })
-      : window.Moengage.track_event("TP_Consultation_edit_started", {
+      : window.Moengage?.track_event?.("TP_Consultation_edit_started", {
           clinic_name,
           patient_number: patient_data?.pm_contact_no,
           patient_id: patient_data?.patient_unique_id,
@@ -1621,7 +1621,7 @@ function Prescription() {
   const handleDDxDrawer = (field) => {
     setDDxDrawer((prev) => !prev);
     if (!ddxDrawer) {
-      window.Moengage.track_event("TP_CDSS_Ddx_reviewed", {
+      window.Moengage?.track_event?.("TP_CDSS_Ddx_reviewed", {
         clinic_name: getClinicName(profile?.hospital_data),
         doctor_id: profile?.doctor_unique_id,
         patient_number: patient_data?.pm_contact_no,
@@ -1655,7 +1655,7 @@ function Prescription() {
           } else {
             setIsDDxLoading(true);
             setIsDDxGenerated(true);
-            window.Moengage.track_event("TP_CDSS_Ack_GenDx", {
+            window.Moengage?.track_event?.("TP_CDSS_Ack_GenDx", {
               clinic_name: getClinicName(profile?.hospital_data),
               doctor_id: profile?.doctor_unique_id,
               patient_number: patient_data?.pm_contact_no,
@@ -1707,7 +1707,7 @@ function Prescription() {
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData(); 
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_GenerateDDX", {
+    window.Moengage?.track_event?.("TP_Monetization_GenerateDDX", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -2194,7 +2194,7 @@ function Prescription() {
     if (tcmId == 0) {
       const tokenData = getTokenData();
       const deviceSdkData = getDeviceSdkData();
-      window.Moengage.track_event("TP_VoiceRx", {
+      window.Moengage?.track_event?.("TP_VoiceRx", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -2340,7 +2340,7 @@ function Prescription() {
                   onChange={(key) => {
                     setActiveTab(key);
                     if (key === "apexAI") {
-                      window.Moengage.track_event("TP_Apex_AI_Ack", {
+                      window.Moengage?.track_event?.("TP_Apex_AI_Ack", {
                         clinic_name: getClinicName(profile?.hospital_data),
                         doctor_id: profile?.doctor_unique_id,
                         patient_number: patient_data?.pm_contact_no,

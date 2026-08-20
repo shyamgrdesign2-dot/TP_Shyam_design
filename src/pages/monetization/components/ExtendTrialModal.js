@@ -77,7 +77,7 @@ function ExtendTrialModal() {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_Monetization_FreeTrailExtension", {
+        window.Moengage?.track_event?.("TP_Monetization_FreeTrailExtension", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
@@ -95,7 +95,7 @@ function ExtendTrialModal() {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_Monetization_VoiceRx_GetUnlimitedRx", {
+        window.Moengage?.track_event?.("TP_Monetization_VoiceRx_GetUnlimitedRx", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
@@ -123,7 +123,7 @@ function ExtendTrialModal() {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_Monetization_RequestACallback", {
+        window.Moengage?.track_event?.("TP_Monetization_RequestACallback", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
@@ -140,7 +140,7 @@ function ExtendTrialModal() {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
-        window.Moengage.track_event("TP_Monetization_VoiceRx_Contact_Support", {
+        window.Moengage?.track_event?.("TP_Monetization_VoiceRx_Contact_Support", {
             doctor_name: profile?.um_name,
             doctor_number: profile?.um_contact,
             doctor_unique_id: profile?.doctor_unique_id,
