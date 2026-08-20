@@ -3782,6 +3782,7 @@ function PrescriptionNew() {
             open={addlabparamsDrawer}
             onClose={showHideBackModal}
             bodyStyle={{ backgroundColor: "white" }}
+            zIndex={1100}
           >
             <LabParams
               handleAddLabParamsDrawer={handleAddLabParamsDrawer}

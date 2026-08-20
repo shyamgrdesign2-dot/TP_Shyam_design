@@ -174,7 +174,7 @@ const ConsultationSidebar = ({
             case 19: // Investigation Results
               active = collapsedFlag === 8;
               icon = active ? labParamsDark : labParamsWhite;
-              label = "Investigation Results";
+              label = "Results";
               onClick = () => labParamsData?.length === 0 ? handleAddLabParamsDrawer() : openCollapsed(8);
               break;
             case 22: // Care Plan

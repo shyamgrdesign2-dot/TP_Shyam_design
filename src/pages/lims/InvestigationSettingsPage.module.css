@@ -7,45 +7,13 @@
   min-height: 100vh;
 }
 
-/* Plain absolute-positioned panels (not Tesseract's Drawer) so this page can
-   be nested inside an antd Drawer (e.g. embedded in LabParams.js) without a
-   portalled Tesseract Drawer rendering underneath it — same reasoning as
-   InlineInvestigationPanel.module.css. Anchored to .page's position:relative,
-   which covers the full page standalone and just this panel's bounds when
-   embedded. */
-.drawerBackdrop {
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--tesseract-slate-900) 40%, transparent);
-  z-index: 1000;
-}
-
-.drawerPanel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  height: 100%;
-  width: min(480px, 100%);
-  background: var(--tesseract-bg-surface);
-  box-shadow: var(--tesseract-shadow-xl);
-  z-index: 1001;
-  display: flex;
-  flex-direction: column;
-}
-
-.drawerHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--tesseract-space-4) var(--tesseract-space-6);
-  border-bottom: 1px solid var(--tesseract-border-soft);
-  flex-shrink: 0;
-}
-
-.drawerTitle {
-  font-size: var(--tesseract-text-h5);
-  font-weight: var(--tesseract-weight-semibold);
-  color: var(--tesseract-fg-heading);
+/* Tesseract's solid/primary Button renders its label span in slate-700 at
+   weight 600 regardless of theme — visibly wrong on a filled primary
+   background. Force it to match the rest of the app's primary CTAs
+   (white, medium weight). */
+.primaryCta span {
+  color: #fff !important;
+  font-weight: var(--tesseract-weight-medium) !important;
 }
 
 .drawerCloseButton {
@@ -152,6 +120,20 @@
   color: var(--tesseract-fg-tertiary);
 }
 
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-4);
+  margin-bottom: var(--tesseract-space-5);
+}
+
+.toolbarCount {
+  flex-shrink: 0;
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-fg-tertiary);
+  white-space: nowrap;
+}
+
 .groupList {
   display: flex;
   flex-direction: column;
@@ -165,41 +147,146 @@
   flex-shrink: 0;
 }
 
-.emptyInvestigations {
-  padding: var(--tesseract-space-4) 0;
-  color: var(--tesseract-fg-tertiary);
-  font-size: var(--tesseract-text-body-sm);
-}
-
-.investigationRow {
+.groupHeaderBlock {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--tesseract-space-3);
-  padding: var(--tesseract-space-2) 0;
-  border-bottom: 1px solid var(--tesseract-border-soft);
+  flex-direction: column;
+  gap: var(--tesseract-space-2);
+  min-width: 0;
 }
 
-.investigationRow:last-child {
-  border-bottom: none;
-}
-
-.investigationInfo {
+.groupNameRow {
   display: flex;
   align-items: center;
   gap: var(--tesseract-space-2);
-  min-width: 0;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--tesseract-slate-300);
+}
+
+.statusDot[data-active="true"] {
+  background: var(--tesseract-success-500);
+}
+
+.groupTitleName {
+  font-size: var(--tesseract-text-h5);
+  font-weight: var(--tesseract-weight-semibold);
+  color: var(--tesseract-fg-heading);
+}
+
+.groupMeta {
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-fg-secondary);
+}
+
+.groupChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tesseract-space-1);
+}
+
+.kebabWrapper {
+  position: relative;
+}
+
+.kebabOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1004;
+}
+
+.kebabMenu {
+  position: absolute;
+  top: calc(100% + var(--tesseract-space-1));
+  right: 0;
+  z-index: 1005;
+  min-width: 160px;
+  background: var(--tesseract-bg-surface);
+  border: 1px solid var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-8);
+  box-shadow: var(--tesseract-shadow-md);
+  padding: var(--tesseract-space-1);
+}
+
+.kebabMenuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--tesseract-space-2);
+  width: 100%;
+  padding: var(--tesseract-space-2) var(--tesseract-space-3);
+  background: none;
+  border: none;
+  border-radius: var(--tesseract-radius-6);
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-error-600);
+  cursor: pointer;
+  text-align: left;
+}
+
+.kebabMenuItem:hover:not(:disabled) {
+  background: var(--tesseract-slate-50);
+}
+
+.kebabMenuItem:disabled {
+  color: var(--tesseract-fg-tertiary);
+  cursor: not-allowed;
+}
+
+.emptyGroupBox {
+  padding: var(--tesseract-space-5);
+  text-align: center;
+  color: var(--tesseract-fg-tertiary);
+  font-size: var(--tesseract-text-body-sm);
+  border: 1px dashed var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-8);
+}
+
+.investigationTable {
+  display: flex;
+  flex-direction: column;
+}
+
+.investigationTableHeader,
+.investigationTableRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 90px 100px auto;
+  align-items: center;
+  gap: var(--tesseract-space-3);
+}
+
+.investigationTableHeader {
+  padding: 0 0 var(--tesseract-space-2) 0;
+  font-size: var(--tesseract-text-caption);
+  font-weight: var(--tesseract-weight-medium);
+  color: var(--tesseract-fg-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--tesseract-border-soft);
+  padding-bottom: var(--tesseract-space-2);
+}
+
+.investigationTableRow {
+  padding: var(--tesseract-space-3) 0;
+  border-bottom: 1px solid var(--tesseract-border-soft);
+}
+
+.investigationTableRow:last-of-type {
+  border-bottom: none;
 }
 
 .investigationName {
   font-weight: var(--tesseract-weight-medium);
   color: var(--tesseract-fg-primary);
+  min-width: 0;
 }
 
-.investigationMeta {
-  font-size: var(--tesseract-text-caption);
-  color: var(--tesseract-fg-tertiary);
-  text-transform: capitalize;
+.investigationCell {
+  font-size: var(--tesseract-text-body-sm);
+  color: var(--tesseract-fg-secondary);
 }
 
 .investigationActions {
@@ -207,6 +294,24 @@
   align-items: center;
   gap: var(--tesseract-space-1);
   flex-shrink: 0;
+  justify-self: end;
+}
+
+.addInvestigationRow {
+  margin-top: var(--tesseract-space-3);
+  padding: var(--tesseract-space-3);
+  background: none;
+  border: 1px dashed var(--tesseract-border-soft);
+  border-radius: var(--tesseract-radius-8);
+  color: var(--tesseract-fg-link);
+  font-size: var(--tesseract-text-body-sm);
+  font-weight: var(--tesseract-weight-medium);
+  cursor: pointer;
+  text-align: left;
+}
+
+.addInvestigationRow:hover {
+  background: var(--tesseract-slate-50);
 }
 
 .footerActions {

@@ -20,7 +20,6 @@ import {
 import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
 import { getCustomInvestigations } from '../api/services/ApiCustomInvestigation';
 import InlineInvestigationPanel from './InlineInvestigationPanel';
-import inlinePanelStyles from './InlineInvestigationPanel.module.css';
 import { InvestigationSettingsPanel } from '../pages/lims/InvestigationSettingsPage';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
@@ -1194,6 +1193,15 @@ const LabResultsTable = ({
     
     return (
       <div style={{background:"#fff", position: "relative", minHeight: "100vh"}}>
+        {isInvestigationSettingsOpen ? (
+          <InvestigationSettingsPanel
+            onClose={() => {
+              setIsInvestigationSettingsOpen(false);
+              fetchAndMergeCustomInvestigations();
+            }}
+          />
+        ) : (
+        <>
         <div
           className="modalCard-header h-60 align-items-center justify-content-between d-flex"
           style={{ position: "sticky", top: "0", zIndex: "5" }}
@@ -1322,26 +1330,6 @@ const LabResultsTable = ({
           existingGroups={customGroups}
           onCreated={handleCustomInvestigationCreated}
         />
-
-        {isInvestigationSettingsOpen && (
-          <>
-            <div
-              className={inlinePanelStyles.backdrop}
-              onClick={() => {
-                setIsInvestigationSettingsOpen(false);
-                fetchAndMergeCustomInvestigations();
-              }}
-            />
-            <div className={inlinePanelStyles.panel} style={{ width: "min(920px, 95%)" }}>
-              <InvestigationSettingsPanel
-                onClose={() => {
-                  setIsInvestigationSettingsOpen(false);
-                  fetchAndMergeCustomInvestigations();
-                }}
-              />
-            </div>
-          </>
-        )}
 
         <div style={{ overflowX: "auto", margin: "8px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -2029,6 +2017,8 @@ const LabResultsTable = ({
               </>
             }
         />}
+        </>
+        )}
       </div>
     );
 };

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import moment from "moment";
 import {
   Button,
   InputBox,
@@ -8,6 +9,8 @@ import {
   SegmentedControl,
   Dropdown,
   SectionCard,
+  Badge,
+  Chip,
 } from "@dhspl-tatvacare/tesseract-ui";
 import LimsAccessBoundary from "./LimsAccessBoundary";
 import {
@@ -48,47 +51,37 @@ const DeleteGlyph = () => (
   </svg>
 );
 
+const KebabGlyph = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="12" cy="5" r="1.8" />
+    <circle cx="12" cy="12" r="1.8" />
+    <circle cx="12" cy="19" r="1.8" />
+  </svg>
+);
+
+const RESULT_TYPE_LABEL = {
+  numeric: "Numeric",
+  text: "Text",
+  positive_negative: "Positive/Negative",
+  dropdown: "Dropdown",
+};
+
 const DrawerFooterActions = ({ onCancel, onSubmit, submitting, disabled, label }) => (
   <div className={styles.footerActions}>
     <Button variant="outline" theme="neutral" onClick={onCancel} disabled={submitting}>
       Cancel
     </Button>
-    <Button onClick={onSubmit} loading={submitting} disabled={disabled}>
+    <Button onClick={onSubmit} loading={submitting} disabled={disabled} className={styles.primaryCta}>
       {label}
     </Button>
   </div>
 );
 
 /**
- * Plain absolute-positioned panel — not Tesseract's `Drawer` molecule, which
- * portals at a fixed z-index that renders invisibly when this page is nested
- * inside another Drawer (e.g. embedded in LabParams.js). Anchored to the
- * nearest position:relative ancestor (.page), same approach as
- * InlineInvestigationPanel.
- */
-const SidePanel = ({ open, onClose, title, children }) => {
-  if (!open) return null;
-  return (
-    <>
-      <div className={styles.drawerBackdrop} onClick={onClose} />
-      <div className={styles.drawerPanel} role="dialog" aria-label={title}>
-        <div className={styles.drawerHeader}>
-          <span className={styles.drawerTitle}>{title}</span>
-          <button type="button" className={styles.drawerCloseButton} onClick={onClose} aria-label="Close">
-            ×
-          </button>
-        </div>
-        {children}
-      </div>
-    </>
-  );
-};
-
-/**
  * Plain centered dialog — not Tesseract's `ConfirmDialog`, which portals at a
- * z-index below SidePanel above (1001): a delete confirmed from inside the
- * create/edit panel would render underneath it. Higher z-index (1002/1003)
- * than SidePanel so it's always on top regardless of which panel triggered it.
+ * z-index that would render invisibly when nested inside LabParams.js's own
+ * Drawer. High enough (1002/1003) to always sit above whichever drawer-level
+ * (group list or investigation form) triggered it.
  */
 const ConfirmModal = ({ open, onCancel, onConfirm, title, description }) => {
   if (!open) return null;
@@ -242,6 +235,8 @@ function InvestigationSettingsPageInner({ onClose }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedGroupId, setExpandedGroupId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openMenuGroupId, setOpenMenuGroupId] = useState(null);
 
   const [investigationDrawer, setInvestigationDrawer] = useState(null); // null | { groupId?, groupName?, editing? }
   const [confirmDelete, setConfirmDelete] = useState(null); // null | { type: 'group'|'investigation', item }
@@ -278,6 +273,15 @@ function InvestigationSettingsPageInner({ onClose }) {
   const isGroupLocked = (group) =>
     isLocked(group.id) || (group.investigations || []).some((inv) => isLocked(inv.id));
 
+  const q = searchQuery.trim().toLowerCase();
+  const filteredGroups = !q
+    ? groups
+    : groups.filter(
+        (group) =>
+          group.name.toLowerCase().includes(q) ||
+          (group.investigations || []).some((inv) => inv.name.toLowerCase().includes(q))
+      );
+
   const openCreateGroup = () => setInvestigationDrawer({});
   const openCreateInvestigation = (group) => {
     setInvestigationDrawer({ groupId: group.id, groupName: group.name });
@@ -310,6 +314,46 @@ function InvestigationSettingsPageInner({ onClose }) {
     }
   };
 
+  if (investigationDrawer) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.header}>
+          <div>
+            <button type="button" className={styles.backLink} onClick={() => setInvestigationDrawer(null)}>
+              ← Back
+            </button>
+            <h1 className={styles.title}>
+              {investigationDrawer.editing
+                ? "Edit Investigation"
+                : investigationDrawer.groupId
+                ? `New Investigation — ${investigationDrawer.groupName || ""}`
+                : "New Group"}
+            </h1>
+          </div>
+          <button
+            type="button"
+            className={styles.drawerCloseButton}
+            onClick={() => setInvestigationDrawer(null)}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <InvestigationDrawerBody
+          groups={groups}
+          groupId={investigationDrawer.groupId}
+          groupName={investigationDrawer.groupName}
+          editing={investigationDrawer.editing}
+          onDone={() => {
+            setInvestigationDrawer(null);
+            setPrefillName("");
+            load();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -323,7 +367,7 @@ function InvestigationSettingsPageInner({ onClose }) {
             them, for use across result entry.
           </p>
         </div>
-        <Button onClick={openCreateGroup}>+ New Group</Button>
+        <Button onClick={openCreateGroup} className={styles.primaryCta}>+ New group</Button>
       </div>
 
       {prefillName && (
@@ -357,115 +401,182 @@ function InvestigationSettingsPageInner({ onClose }) {
         <Empty
           title="No custom groups yet"
           description="Create a group first — investigations live inside a group."
-          action={<Button onClick={openCreateGroup}>+ New Group</Button>}
+          action={<Button onClick={openCreateGroup} className={styles.primaryCta}>+ New group</Button>}
         />
       ) : (
-        <div className={styles.groupList}>
-          {groups.map((group) => {
-            const groupInvestigations = group.investigations || [];
-            const isExpanded = expandedGroupId === group.id;
-            const groupLocked = isGroupLocked(group);
-            return (
-              <SectionCard
-                key={group.id}
-                title={group.name}
-                subtitle={`${groupInvestigations.length} investigation(s)`}
-                collapsible
-                collapsed={!isExpanded}
-                onCollapsedChange={(nowCollapsed) => setExpandedGroupId(nowCollapsed ? null : group.id)}
-                headerActions={
-                  <div className={styles.groupHeaderActions} onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" variant="ghost" onClick={() => openCreateInvestigation(group)}>
-                      + Investigation
-                    </Button>
-                    {!groupLocked && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        theme="error"
-                        aria-label="Delete group"
-                        disabled={!isOwnItem(group)}
-                        onClick={() => setConfirmDelete({ type: "group", item: group })}
-                      >
-                        <DeleteGlyph />
-                      </Button>
-                    )}
-                  </div>
-                }
-              >
-                {groupInvestigations.length === 0 ? (
-                  <div className={styles.emptyInvestigations}>No investigations in this group yet.</div>
-                ) : (
-                  groupInvestigations.map((inv) => {
-                    const editable = isOwnItem(inv);
-                    const invLocked = isLocked(inv.id);
-                    return (
-                      <div key={inv.id} className={styles.investigationRow}>
-                        <div className={styles.investigationInfo}>
-                          <span className={styles.investigationName}>{inv.name}</span>
-                          <span className={styles.investigationMeta}>
-                            {inv.resultType} {inv.unit ? `· ${inv.unit}` : ""}
-                          </span>
+        <>
+          <div className={styles.toolbar}>
+            <InputBox
+              placeholder="Search groups or investigations…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              clearable
+              fullWidth
+            />
+            <span className={styles.toolbarCount}>
+              {filteredGroups.length} group{filteredGroups.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {filteredGroups.length === 0 ? (
+            <Empty
+              title="No matches"
+              description={`No groups or investigations match "${searchQuery.trim()}".`}
+            />
+          ) : (
+            <div className={styles.groupList}>
+              {filteredGroups.map((group) => {
+                const groupInvestigations = group.investigations || [];
+                const isExpanded = expandedGroupId === group.id;
+                const groupLocked = isGroupLocked(group);
+                const hasInvestigations = groupInvestigations.length > 0;
+                const lastUpdated = [group.updatedAt, ...groupInvestigations.map((i) => i.updatedAt)]
+                  .filter(Boolean)
+                  .sort()
+                  .pop();
+                const previewChips = groupInvestigations.slice(0, 3);
+                const overflowCount = groupInvestigations.length - previewChips.length;
+                const menuOpen = openMenuGroupId === group.id;
+
+                return (
+                  <SectionCard
+                    key={group.id}
+                    title={
+                      <div className={styles.groupHeaderBlock}>
+                        <div className={styles.groupNameRow}>
+                          <span className={styles.statusDot} data-active={hasInvestigations} />
+                          <span className={styles.groupTitleName}>{group.name}</span>
                         </div>
-                        <div className={styles.investigationActions}>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            theme="neutral"
-                            aria-label="Edit investigation"
-                            disabled={!editable}
-                            onClick={() => openEditInvestigation(group, inv)}
-                          >
-                            <EditGlyph />
-                          </Button>
-                          {!invLocked && (
+                        <span className={styles.groupMeta}>
+                          {groupInvestigations.length} investigation{groupInvestigations.length === 1 ? "" : "s"}
+                          {lastUpdated ? ` · Updated ${moment(lastUpdated).fromNow()}` : ""}
+                        </span>
+                        {hasInvestigations && (
+                          <div className={styles.groupChips}>
+                            {previewChips.map((inv) => (
+                              <Chip key={inv.id} label={inv.name} size="sm" variant="soft" />
+                            ))}
+                            {overflowCount > 0 && (
+                              <Chip label={`+${overflowCount} more`} size="sm" variant="outline" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    }
+                    collapsible
+                    collapsed={!isExpanded}
+                    onCollapsedChange={(nowCollapsed) => setExpandedGroupId(nowCollapsed ? null : group.id)}
+                    headerActions={
+                      <div className={styles.groupHeaderActions} onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="ghost" onClick={() => openCreateInvestigation(group)}>
+                          + Add investigation
+                        </Button>
+                        {!groupLocked && (
+                          <div className={styles.kebabWrapper}>
                             <Button
                               size="sm"
                               variant="ghost"
-                              theme="error"
-                              aria-label="Delete investigation"
-                              disabled={!editable}
-                              onClick={() => setConfirmDelete({ type: "investigation", item: inv })}
+                              theme="neutral"
+                              aria-label="Group actions"
+                              onClick={() => setOpenMenuGroupId(menuOpen ? null : group.id)}
                             >
-                              <DeleteGlyph />
+                              <KebabGlyph />
                             </Button>
-                          )}
-                        </div>
+                            {menuOpen && (
+                              <>
+                                <div className={styles.kebabOverlay} onClick={() => setOpenMenuGroupId(null)} />
+                                <div className={styles.kebabMenu} role="menu">
+                                  <button
+                                    type="button"
+                                    className={styles.kebabMenuItem}
+                                    disabled={!isOwnItem(group)}
+                                    onClick={() => {
+                                      setOpenMenuGroupId(null);
+                                      setConfirmDelete({ type: "group", item: group });
+                                    }}
+                                  >
+                                    <DeleteGlyph />
+                                    Delete group
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    );
-                  })
-                )}
-              </SectionCard>
-            );
-          })}
-        </div>
+                    }
+                  >
+                    {groupInvestigations.length === 0 ? (
+                      <div className={styles.emptyGroupBox}>
+                        No investigations yet — add one to activate this group.
+                      </div>
+                    ) : (
+                      <div className={styles.investigationTable}>
+                        <div className={styles.investigationTableHeader}>
+                          <span>Investigation</span>
+                          <span>Result type</span>
+                          <span>Unit</span>
+                          <span>Status</span>
+                          <span />
+                        </div>
+                        {groupInvestigations.map((inv) => {
+                          const editable = isOwnItem(inv);
+                          const invLocked = isLocked(inv.id);
+                          return (
+                            <div key={inv.id} className={styles.investigationTableRow}>
+                              <span className={styles.investigationName}>{inv.name}</span>
+                              <span className={styles.investigationCell}>
+                                {RESULT_TYPE_LABEL[inv.resultType] || inv.resultType}
+                              </span>
+                              <span className={styles.investigationCell}>{inv.unit || "—"}</span>
+                              <span>
+                                <Badge variant="soft" color={invLocked ? "neutral" : "success"} size="sm">
+                                  {invLocked ? "In use" : "Active"}
+                                </Badge>
+                              </span>
+                              <div className={styles.investigationActions}>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  theme="neutral"
+                                  aria-label="Edit investigation"
+                                  disabled={!editable}
+                                  onClick={() => openEditInvestigation(group, inv)}
+                                >
+                                  <EditGlyph />
+                                </Button>
+                                {!invLocked && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    theme="error"
+                                    aria-label="Delete investigation"
+                                    disabled={!editable}
+                                    onClick={() => setConfirmDelete({ type: "investigation", item: inv })}
+                                  >
+                                    <DeleteGlyph />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          className={styles.addInvestigationRow}
+                          onClick={() => openCreateInvestigation(group)}
+                        >
+                          + Add another investigation to this group
+                        </button>
+                      </div>
+                    )}
+                  </SectionCard>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
-
-      <SidePanel
-        open={!!investigationDrawer}
-        onClose={() => setInvestigationDrawer(null)}
-        title={
-          investigationDrawer?.editing
-            ? "Edit Investigation"
-            : investigationDrawer?.groupId
-            ? `New Investigation — ${investigationDrawer?.groupName || ""}`
-            : "New Group"
-        }
-      >
-        {investigationDrawer && (
-          <InvestigationDrawerBody
-            groups={groups}
-            groupId={investigationDrawer.groupId}
-            groupName={investigationDrawer.groupName}
-            editing={investigationDrawer.editing}
-            onDone={() => {
-              setInvestigationDrawer(null);
-              setPrefillName("");
-              load();
-            }}
-          />
-        )}
-      </SidePanel>
 
       <ConfirmModal
         open={!!confirmDelete}
