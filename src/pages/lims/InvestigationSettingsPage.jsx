@@ -7,7 +7,6 @@ import {
   Alert,
   SegmentedControl,
   Dropdown,
-  ConfirmDialog,
 } from "@dhspl-tatvacare/tesseract-ui";
 import LimsAccessBoundary from "./LimsAccessBoundary";
 import {
@@ -61,6 +60,32 @@ const SidePanel = ({ open, onClose, title, children }) => {
         {children}
       </div>
     </>
+  );
+};
+
+/**
+ * Plain centered dialog — not Tesseract's `ConfirmDialog`, which portals at a
+ * z-index below SidePanel above (1001): a delete confirmed from inside the
+ * create/edit panel would render underneath it. Higher z-index (1002/1003)
+ * than SidePanel so it's always on top regardless of which panel triggered it.
+ */
+const ConfirmModal = ({ open, onCancel, onConfirm, title, description }) => {
+  if (!open) return null;
+  return (
+    <div className={styles.confirmBackdrop} onClick={onCancel}>
+      <div className={styles.confirmDialog} role="alertdialog" onClick={(e) => e.stopPropagation()}>
+        <span className={styles.confirmTitle}>{title}</span>
+        <span className={styles.confirmDescription}>{description}</span>
+        <div className={styles.confirmActions}>
+          <Button variant="outline" theme="neutral" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button theme="error" onClick={onConfirm}>
+            Delete
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -444,16 +469,16 @@ function InvestigationSettingsPageInner({ onClose }) {
         )}
       </SidePanel>
 
-      <ConfirmDialog
+      <ConfirmModal
         open={!!confirmDelete}
-        onOpenChange={(next) => !next && setConfirmDelete(null)}
+        onCancel={() => setConfirmDelete(null)}
         title={`Delete "${confirmDelete?.item?.name}"?`}
-        description="This cannot be undone. If this has any patient result recorded against it, the delete will be rejected."
-        primaryLabel="Cancel"
-        onPrimary={() => setConfirmDelete(null)}
-        secondaryLabel="Delete"
-        secondaryTheme="error"
-        onSecondary={() =>
+        description={
+          confirmDelete?.type === "group"
+            ? "This cannot be undone. A group can only be deleted while every investigation inside it is still unused — if any one of them has a patient result recorded against it, the delete will be rejected."
+            : "This cannot be undone. An investigation can only be deleted while it's still unused — once a patient result has been recorded against it, the delete will be rejected."
+        }
+        onConfirm={() =>
           confirmDelete?.type === "group"
             ? handleDeleteGroup(confirmDelete.item)
             : handleDeleteInvestigation(confirmDelete.item)
