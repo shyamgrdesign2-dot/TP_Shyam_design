@@ -43,3 +43,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: var(--tesseract-space-3);
 }
+
+.duplicateWarningAction {
+  margin-top: var(--tesseract-space-2);
+}

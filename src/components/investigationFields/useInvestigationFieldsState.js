@@ -1,15 +1,15 @@
-import { useMemo, useState } from "react";
-import { findSimilarInvestigations } from "../../utils/labResultsUtils";
+import { useState } from "react";
 
-export const emptyRange = () => ({ gender: "ALL", ageFrom: "", ageTo: "", min: "", max: "", unit: "" });
+export const emptyRange = () => ({ gender: "all", ageFrom: "", ageTo: "", min: "", max: "", unit: "" });
 
 /**
  * Shared field state for "an investigation" (name/unit/resultType/dropdownOptions/
- * referenceRanges) — used by both the inline create-on-the-fly drawer and the
+ * referenceRanges) — used by both the inline create-on-the-fly panel and the
  * groups/investigations management page, so validation and payload-building stay
- * in one place.
+ * in one place. Gender values are lowercase ('all'/'male'/'female') to match the
+ * backend contract exactly (Pm-Patient-Docs custom-report-groups API).
  */
-export function useInvestigationFieldsState(initial = {}, masterList = []) {
+export function useInvestigationFieldsState(initial = {}) {
   const [name, setName] = useState(initial.name || "");
   const [unit, setUnit] = useState(initial.unit || "");
   const [resultType, setResultType] = useState(initial.resultType || "numeric");
@@ -19,7 +19,7 @@ export function useInvestigationFieldsState(initial = {}, masterList = []) {
   const [ranges, setRanges] = useState(
     initial.referenceRanges?.length
       ? initial.referenceRanges.map((r) => ({
-          gender: r.gender || "ALL",
+          gender: (r.gender || "all").toLowerCase(),
           ageFrom: r.ageFrom ?? "",
           ageTo: r.ageTo ?? "",
           min: r.min ?? "",
@@ -28,7 +28,6 @@ export function useInvestigationFieldsState(initial = {}, masterList = []) {
         }))
       : [emptyRange()]
   );
-  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
 
   const updateRange = (index, patch) => {
     setRanges((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
@@ -42,34 +41,30 @@ export function useInvestigationFieldsState(initial = {}, masterList = []) {
     setResultType("numeric");
     setDropdownOptionsText("");
     setRanges([emptyRange()]);
-    setDuplicateAcknowledged(false);
   };
 
   const isNameValid = name.trim().length > 0;
   const isRangesValid =
-    resultType !== "numeric" || ranges.some((r) => r.min.trim() !== "" && r.max.trim() !== "");
+    resultType !== "numeric" || ranges.some((r) => r.min !== "" && r.max !== "");
   const isDropdownValid =
     resultType !== "dropdown" ||
     dropdownOptionsText.split(",").map((o) => o.trim()).filter(Boolean).length >= 2;
   const isValid = isNameValid && isRangesValid && isDropdownValid;
 
-  const duplicates = useMemo(
-    () => (name.trim() ? findSimilarInvestigations(name, masterList) : []),
-    [name, masterList]
-  );
-
   const toPayload = (unit_ = unit) => {
     const referenceRanges =
       resultType === "numeric"
         ? ranges
-            .filter((r) => r.min.trim() !== "" && r.max.trim() !== "")
+            .filter((r) => r.min !== "" && r.max !== "")
             .map((r) => ({
               gender: r.gender,
-              ageFrom: r.ageFrom || null,
-              ageTo: r.ageTo || null,
-              min: r.min,
-              max: r.max,
-              unit: r.unit || unit_,
+              // Backend requires numeric ageFrom/ageTo (no "unbounded" option) —
+              // default an empty age band to 0-120 ("applies to everyone").
+              ageFrom: r.ageFrom !== "" ? Number(r.ageFrom) : 0,
+              ageTo: r.ageTo !== "" ? Number(r.ageTo) : 120,
+              min: Number(r.min),
+              max: Number(r.max),
+              unit: r.unit || unit_ || "",
             }))
         : [];
     const dropdownOptions =
@@ -77,10 +72,10 @@ export function useInvestigationFieldsState(initial = {}, masterList = []) {
         ? dropdownOptionsText.split(",").map((o) => o.trim()).filter(Boolean)
         : resultType === "positive_negative"
         ? ["Positive", "Negative"]
-        : null;
+        : undefined;
     return {
       name: name.trim(),
-      unit: unit_,
+      unit: unit_ || undefined,
       resultType,
       dropdownOptions,
       referenceRanges,
@@ -93,8 +88,6 @@ export function useInvestigationFieldsState(initial = {}, masterList = []) {
     resultType, setResultType,
     dropdownOptionsText, setDropdownOptionsText,
     ranges, addRange, updateRange, removeRange,
-    duplicateAcknowledged, setDuplicateAcknowledged,
-    duplicates,
     isValid,
     reset,
     toPayload,

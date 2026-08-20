@@ -1,5 +1,5 @@
 import { Button, Input, Tooltip } from 'antd';
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { CaretRightOutlined, CaretDownOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
@@ -22,6 +22,20 @@ const LabResultsTable = ({
     doctorNameById = {},
 }) => {
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+
+    // The table below is a read-only subset of LabParams.js's own editable
+    // table (same per-date columns, same values) — for users allowed to
+    // edit, showing it first just to make them click "Add/Edit Parameters"
+    // again added a click with no new information. Skip straight to the
+    // editable table for them; CVT external-hospital users (no edit
+    // permission, see the button visibility check below) still land here.
+    useLayoutEffect(() => {
+        if (!isCvtExtHosAccessableFromGB) {
+            handleSwitchToAddLabParams?.();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedReports, setExpandedReports] = useState({});
     const scrollRef = useRef(null);

@@ -90,21 +90,17 @@ const LabResultsTable = ({
     // merge into the same master rows LabParams already renders from. Also
     // re-fetched on window focus so investigations created via the full
     // management page (src/pages/lims/InvestigationSettingsPage.jsx, reachable
-    // separately from LIMS) show up here without a manual reload.
-    const hmid = tokenData?.clinic_id;
+    // separately from LIMS) show up here without a manual reload. hm_id is
+    // derived server-side from the auth token — GET /custom-report-groups takes
+    // no params. There is no activate/deactivate on the real backend (isActive
+    // is always true), so no filtering by that here.
     const fetchAndMergeCustomInvestigations = useCallback(async () => {
-      if (!hmid) return;
-      const { groups, investigations } = await getCustomInvestigations(hmid);
-      setCustomGroups(groups.filter((g) => g.isActive !== false));
-      const activeGroupNames = new Set(groups.filter((g) => g.isActive !== false).map((g) => g.name));
-      // Investigations only carry groupId, never a denormalized groupName —
-      // resolve it from the groups list (inv.groupName kept as a first choice
-      // for forward-compat with a real backend that might send it directly).
-      const groupNameById = new Map(groups.map((g) => [g.id, g.name]));
-      const rows = investigations
-        .filter((inv) => inv.isActive !== false)
-        .map((inv) => ({
-          reportName: inv.groupName || groupNameById.get(inv.groupId) || "",
+      if (!tokenData) return;
+      const groups = await getCustomInvestigations();
+      setCustomGroups(groups);
+      const rows = groups.flatMap((group) =>
+        (group.investigations || []).map((inv) => ({
+          reportName: group.name,
           testName: inv.name,
           value: "",
           units: inv.unit || "",
@@ -112,15 +108,16 @@ const LabResultsTable = ({
           resultType: inv.resultType || "numeric",
           dropdownOptions: inv.dropdownOptions || null,
           isCustom: true,
+          customTestId: inv.id,
           refRange: {
-            isConditional: (inv.referenceRanges || []).some((r) => r.gender && r.gender !== "ALL"),
+            isConditional: (inv.referenceRanges || []).some((r) => r.gender && r.gender !== "all"),
             ranges: inv.referenceRanges || [],
           },
         }))
-        .filter((row) => activeGroupNames.size === 0 || activeGroupNames.has(row.reportName));
+      );
       // Replace only the previously-merged custom rows so refetching never duplicates.
       setDefaultTestData((prev) => [...prev.filter((r) => !r.isCustom), ...rows]);
-    }, [hmid]);
+    }, [tokenData]);
 
     useEffect(() => {
       fetchAndMergeCustomInvestigations();
@@ -635,6 +632,7 @@ const LabResultsTable = ({
                           resultType: lab.resultType,
                           dropdownOptions: lab.dropdownOptions,
                           isCustom: lab.isCustom,
+                          customTestId: lab.customTestId,
                       })),
                   };
 
@@ -674,6 +672,7 @@ const LabResultsTable = ({
                               resultType: lab.resultType,
                               dropdownOptions: lab.dropdownOptions,
                               isCustom: lab.isCustom,
+                              customTestId: lab.customTestId,
                           };
                       }),
                   };
@@ -714,6 +713,7 @@ const LabResultsTable = ({
                               resultType: lab.resultType,
                               dropdownOptions: lab.dropdownOptions,
                               isCustom: lab.isCustom,
+                              customTestId: lab.customTestId,
                               recentlyUpdated: true, // Mark predefined data as newly added
                           });
                       }
@@ -864,6 +864,7 @@ const LabResultsTable = ({
                   units: getUnitForTest(reportName, testName),
                   resultType: getResultTypeForTest(reportName, testName),
                   dropdownOptions: getDropdownOptionsForTest(reportName, testName),
+                  ...getCustomTestIdForTest(reportName, testName),
               };
           }
 
@@ -926,6 +927,16 @@ const LabResultsTable = ({
         return "numeric";
     };
 
+    const getCustomTestIdForTest = (reportName, testName) => {
+        for (const date of dates) {
+            const cell = inputValues[reportName]?.[testName]?.[date];
+            if (cell?.isCustom) {
+                return { isCustom: true, customTestId: cell.customTestId };
+            }
+        }
+        return { isCustom: false, customTestId: undefined };
+    };
+
     const getDropdownOptionsForTest = (reportName, testName) => {
         for (const date of dates) {
             const options = inputValues[reportName]?.[testName]?.[date]?.dropdownOptions;
@@ -942,15 +953,20 @@ const LabResultsTable = ({
                     .flatMap((reportName) =>
                         Object.keys(inputValues[reportName])
                             .map((testName) => {
-                                const testValue = inputValues[reportName][testName][date]?.value || "";
+                                const cell = inputValues[reportName][testName][date];
+                                const testValue = cell?.value || "";
                                 if (testValue) {
                                     return {
                                         reportName,
                                         testName: testName,
                                         value: testValue,
-                                        arrowDirection: inputValues[reportName][testName][date]?.arrowDirection || "",
-                                        refRange: inputValues[reportName][testName][date]?.refRange,
-                                        units: inputValues[reportName][testName][date]?.units || getUnitForTest(reportName, testName),
+                                        arrowDirection: cell?.arrowDirection || "",
+                                        refRange: cell?.refRange,
+                                        units: cell?.units || getUnitForTest(reportName, testName),
+                                        // Backend contract §10: custom-investigation results need
+                                        // isCustom + customTestId so they save against the right
+                                        // hospital-scoped investigation record.
+                                        ...(cell?.isCustom ? { isCustom: true, customTestId: cell.customTestId } : {}),
                                     };
                                 } else {
                                     return null; // Exclude tests without a value
@@ -1127,11 +1143,6 @@ const LabResultsTable = ({
       return defaultTestData.some(hits) || labParamsResults.some(hits);
     }, [searchQuery, defaultTestData, labParamsResults]);
 
-    const duplicateCheckMasterList = useMemo(
-      () => [...defaultTestData, ...labParamsResults],
-      [defaultTestData, labParamsResults]
-    );
-
     const handleCustomInvestigationCreated = (newRow) => {
       setDefaultTestData((prev) => [...prev, newRow]);
       setInputValues((prev) => {
@@ -1288,10 +1299,7 @@ const LabResultsTable = ({
           open={isCreateInvestigationOpen}
           onClose={() => setIsCreateInvestigationOpen(false)}
           initialName={searchQuery.trim()}
-          hmid={hmid}
-          createdBy={tokenData?.user_id}
           existingGroups={customGroups}
-          masterList={duplicateCheckMasterList}
           onCreated={handleCustomInvestigationCreated}
         />
 
@@ -1702,7 +1710,7 @@ const LabResultsTable = ({
                                                   type="text"
                                                   inputMode={(() => {
                                                     const refRange = inputValues[reportName][testName][date]?.refRange;
-                                                    const hasRanges = refRange?.ranges?.some((range) => range.min?.trim() || range.max?.trim());
+                                                    const hasRanges = refRange?.ranges?.some((range) => String(range.min ?? '').trim() || String(range.max ?? '').trim());
                                                     return hasRanges ? "numeric" : "text";
                                                   })()}
                                                   className={`lab-params-input
@@ -1756,7 +1764,7 @@ const LabResultsTable = ({
                                                   
                                                     // Check if any range in the ranges array has a non-empty min or max
                                                     const hasMinOrMax = refRange?.ranges?.some(
-                                                      (range) => range.min?.trim() || range.max?.trim()
+                                                      (range) => String(range.min ?? '').trim() || String(range.max ?? '').trim()
                                                     );
                                                   
                                                     handleInputChange(

@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { Button, InputBox, Dropdown, SegmentedControl } from "@dhspl-tatvacare/tesseract-ui";
+import { Button, InputBox, Dropdown, SegmentedControl, Alert } from "@dhspl-tatvacare/tesseract-ui";
 import {
   createCustomInvestigationGroup,
   createCustomInvestigation,
 } from "../api/services/ApiCustomInvestigation";
 import { useInvestigationFieldsState } from "./investigationFields/useInvestigationFieldsState";
+import { useDuplicateCheck } from "./investigationFields/useDuplicateCheck";
 import InvestigationFields from "./investigationFields/InvestigationFields";
 import styles from "./InlineInvestigationPanel.module.css";
+
+const extractErrorMessage = (error) =>
+  error?.response?.data?.message || error?.message || "Something went wrong. Please try again.";
 
 /**
  * "Can't find it, create it" flow for hospital-scoped custom investigations
@@ -19,33 +23,36 @@ import styles from "./InlineInvestigationPanel.module.css";
  * positioned LabParams root) means there's no separate stacking context to
  * lose — it always renders on top of the table it's anchored to, in the same
  * tab, same drawer.
+ *
+ * There is no create-empty-group endpoint on the backend — creating a new
+ * group always creates its first investigation in the same call.
  */
 const InlineInvestigationPanel = ({
   open,
   onClose,
   initialName = "",
-  hmid,
-  createdBy,
   existingGroups = [],
-  masterList = [],
   onCreated,
 }) => {
   const [groupMode, setGroupMode] = useState(existingGroups.length > 0 ? "existing" : "new");
   const [selectedGroupId, setSelectedGroupId] = useState(existingGroups[0]?.id ?? "");
   const [newGroupName, setNewGroupName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const fields = useInvestigationFieldsState({ name: initialName }, masterList);
+  const fields = useInvestigationFieldsState({ name: initialName });
+  const duplicateCheck = useDuplicateCheck(fields.name);
   const groupOptions = existingGroups.map((g) => ({ value: g.id, label: g.name }));
 
   const isGroupValid = groupMode === "existing" ? selectedGroupId !== "" : newGroupName.trim().length > 0;
-  const canSubmit = fields.isValid && isGroupValid && !submitting;
+  const canSubmit = fields.isValid && isGroupValid && duplicateCheck.status !== "blocked" && !submitting;
 
   const resetForm = () => {
     fields.reset();
     setGroupMode(existingGroups.length > 0 ? "existing" : "new");
     setSelectedGroupId(existingGroups[0]?.id ?? "");
     setNewGroupName("");
+    setSubmitError("");
   };
 
   // This component stays mounted (renders null when closed) rather than being
@@ -68,44 +75,46 @@ const InlineInvestigationPanel = ({
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
+    setSubmitError("");
     try {
+      const payload = fields.toPayload();
       let groupId = selectedGroupId;
       let groupName = existingGroups.find((g) => g.id === selectedGroupId)?.name || "";
+      let created;
 
       if (groupMode === "new") {
-        const created = await createCustomInvestigationGroup({
-          hmid,
+        // Atomic: creates the group AND this first investigation in one call.
+        const res = await createCustomInvestigationGroup({
           name: newGroupName.trim(),
-          createdBy,
+          investigations: [payload],
         });
-        groupId = created?.id;
-        groupName = newGroupName.trim();
+        groupId = res.group?.id;
+        groupName = res.group?.name || newGroupName.trim();
+        created = res.investigations?.[0];
+      } else {
+        created = await createCustomInvestigation({ groupId, ...payload });
       }
-
-      const payload = fields.toPayload();
-      const created = await createCustomInvestigation({
-        hmid,
-        groupId,
-        ...payload,
-        createdBy,
-      });
 
       onCreated?.({
         reportName: groupName,
         testName: payload.name,
         value: "",
-        units: payload.unit,
+        units: payload.unit || "",
         arrowDirection: "",
         resultType: payload.resultType,
         dropdownOptions: payload.dropdownOptions,
         refRange: {
-          isConditional: payload.referenceRanges.some((r) => r.gender !== "ALL"),
+          isConditional: payload.referenceRanges.some((r) => r.gender !== "all"),
           ranges: payload.referenceRanges,
         },
         isCustom: true,
+        customTestId: created?.id,
         id: created?.id,
       });
       resetForm();
+      onClose?.();
+    } catch (error) {
+      setSubmitError(extractErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -155,7 +164,13 @@ const InlineInvestigationPanel = ({
             )}
           </div>
 
-          <InvestigationFields fields={fields} />
+          <InvestigationFields fields={fields} duplicateCheck={duplicateCheck} />
+
+          {submitError && (
+            <Alert status="error" title="Couldn't create investigation">
+              {submitError}
+            </Alert>
+          )}
         </div>
 
         <div className={styles.footer}>

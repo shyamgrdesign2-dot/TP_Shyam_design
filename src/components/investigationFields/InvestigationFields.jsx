@@ -10,9 +10,9 @@ const RESULT_TYPE_OPTIONS = [
 ];
 
 const GENDER_OPTIONS = [
-  { value: "ALL", label: "All" },
-  { value: "MALE", label: "Male" },
-  { value: "FEMALE", label: "Female" },
+  { value: "all", label: "All" },
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
 ];
 
 /**
@@ -20,16 +20,19 @@ const GENDER_OPTIONS = [
  * investigation. Reference ranges support gender AND age-band together
  * (e.g. Female 18-40 vs Female 41-60 vs Male 18-40 as separate rows) —
  * required so the abnormal-result calc can match on both dimensions.
+ *
+ * `duplicateCheck` (from useDuplicateCheck) drives the duplicate-name banner:
+ * "blocked" (matches the standard catalog) is never dismissible — the caller
+ * must disable submit while it's active; "warning" (matches another custom
+ * investigation in this hospital) is a dismissible non-blocking heads-up.
  */
-const InvestigationFields = ({ fields, namePlaceholder = "e.g. Free Testosterone" }) => {
+const InvestigationFields = ({ fields, duplicateCheck, namePlaceholder = "e.g. Free Testosterone" }) => {
   const {
     name, setName,
     unit, setUnit,
     resultType, setResultType,
     dropdownOptionsText, setDropdownOptionsText,
     ranges, addRange, updateRange, removeRange,
-    duplicateAcknowledged, setDuplicateAcknowledged,
-    duplicates,
   } = fields;
 
   return (
@@ -43,17 +46,25 @@ const InvestigationFields = ({ fields, namePlaceholder = "e.g. Free Testosterone
         placeholder={namePlaceholder}
       />
 
-      {duplicates.length > 0 && !duplicateAcknowledged && (
-        <Alert
-          status="warning"
-          title="A similar investigation already exists"
-          action={
-            <Button size="sm" variant="ghost" theme="warning" onClick={() => setDuplicateAcknowledged(true)}>
+      {duplicateCheck?.status === "blocked" && (
+        <Alert status="error" title="This name is already in the standard investigation catalog">
+          {duplicateCheck.existing?.reportName || duplicateCheck.existing?.testName || "Existing entry"} — choose a
+          different name to continue.
+        </Alert>
+      )}
+
+      {duplicateCheck?.status === "warning" && !duplicateCheck.acknowledged && (
+        <Alert status="warning" title="A similar investigation already exists">
+          {duplicateCheck.existing?.name || "Existing custom investigation"}
+          {/* Tesseract's Alert lays the `action` slot out inline with the body
+              in a non-shrinking flex row; in this drawer's narrow width that
+              starves the body to 0px and wraps every word onto its own line.
+              Stacking the button below the text avoids that collapse. */}
+          <div className={styles.duplicateWarningAction}>
+            <Button size="sm" variant="ghost" theme="warning" onClick={duplicateCheck.acknowledge}>
               Continue creating anyway
             </Button>
-          }
-        >
-          {duplicates.slice(0, 3).map((d) => `${d.reportName} → ${d.testName}`).join(", ")}
+          </div>
         </Alert>
       )}
 

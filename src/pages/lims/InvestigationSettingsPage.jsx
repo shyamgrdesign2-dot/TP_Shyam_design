@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Button,
@@ -6,9 +6,10 @@ import {
   DrawerContent,
   DrawerBody,
   InputBox,
-  Badge,
   Empty,
   Alert,
+  SegmentedControl,
+  Dropdown,
   ConfirmDialog,
 } from "@dhspl-tatvacare/tesseract-ui";
 import LimsAccessBoundary from "./LimsAccessBoundary";
@@ -16,17 +17,19 @@ import {
   getCustomInvestigations,
   createCustomInvestigationGroup,
   updateCustomInvestigationGroup,
-  setCustomInvestigationGroupActive,
   deleteCustomInvestigationGroup,
   createCustomInvestigation,
   updateCustomInvestigation,
-  setCustomInvestigationActive,
   deleteCustomInvestigation,
 } from "../../api/services/ApiCustomInvestigation";
 import { useInvestigationFieldsState } from "../../components/investigationFields/useInvestigationFieldsState";
+import { useDuplicateCheck } from "../../components/investigationFields/useDuplicateCheck";
 import InvestigationFields from "../../components/investigationFields/InvestigationFields";
 import { getDecodedToken } from "../../utils/localStorage";
 import styles from "./InvestigationSettingsPage.module.css";
+
+const extractErrorMessage = (error) =>
+  error?.response?.data?.message || error?.message || "Something went wrong. Please try again.";
 
 const DrawerFooterActions = ({ onCancel, onSubmit, submitting, disabled, label }) => (
   <div className={styles.footerActions}>
@@ -39,37 +42,54 @@ const DrawerFooterActions = ({ onCancel, onSubmit, submitting, disabled, label }
   </div>
 );
 
-const InvestigationDrawerBody = ({ drawerState, hmid, umid, masterList, onDone }) => {
-  const fields = useInvestigationFieldsState(
-    drawerState.editing
-      ? {
-          name: drawerState.editing.name,
-          unit: drawerState.editing.unit,
-          resultType: drawerState.editing.resultType,
-          dropdownOptions: drawerState.editing.dropdownOptions,
-          referenceRanges: drawerState.editing.referenceRanges,
-        }
-      : { name: drawerState.prefillName || "" },
-    masterList
-  );
+/**
+ * Create-or-edit body for one investigation. In create mode with no fixed
+ * groupId, shows the existing/new group toggle (there is no create-empty-group
+ * endpoint — a new group is always created together with this investigation,
+ * in one call). In edit mode the group is fixed — the API has no move-between-
+ * groups operation.
+ */
+const InvestigationDrawerBody = ({ groups, groupId, groupName, editing, onDone }) => {
+  const [groupMode, setGroupMode] = useState(groupId ? "existing" : groups.length > 0 ? "existing" : "new");
+  const [selectedGroupId, setSelectedGroupId] = useState(groupId || groups[0]?.id || "");
+  const [newGroupName, setNewGroupName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const allowGroupPicker = !editing && !groupId;
+
+  const fields = useInvestigationFieldsState(
+    editing
+      ? {
+          name: editing.name,
+          unit: editing.unit,
+          resultType: editing.resultType,
+          dropdownOptions: editing.dropdownOptions,
+          referenceRanges: editing.referenceRanges,
+        }
+      : {}
+  );
+  const duplicateCheck = useDuplicateCheck(fields.name, { skip: !!editing && fields.name === editing.name });
+  const groupOptions = groups.map((g) => ({ value: g.id, label: g.name }));
+
+  const isGroupValid = !allowGroupPicker || (groupMode === "existing" ? selectedGroupId !== "" : newGroupName.trim().length > 0);
+  const canSubmit = fields.isValid && isGroupValid && duplicateCheck.status !== "blocked" && !submitting;
 
   const submit = async () => {
-    if (!fields.isValid) return;
+    if (!canSubmit) return;
     setSubmitting(true);
+    setSubmitError("");
     try {
       const payload = fields.toPayload();
-      if (drawerState.editing) {
-        await updateCustomInvestigation({ id: drawerState.editing.id, ...payload });
+      if (editing) {
+        await updateCustomInvestigation({ id: editing.id, ...payload });
+      } else if (allowGroupPicker && groupMode === "new") {
+        await createCustomInvestigationGroup({ name: newGroupName.trim(), investigations: [payload] });
       } else {
-        await createCustomInvestigation({
-          hmid,
-          groupId: drawerState.groupId,
-          ...payload,
-          createdBy: umid,
-        });
+        await createCustomInvestigation({ groupId: allowGroupPicker ? selectedGroupId : groupId, ...payload });
       }
       onDone();
+    } catch (error) {
+      setSubmitError(extractErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -78,118 +98,141 @@ const InvestigationDrawerBody = ({ drawerState, hmid, umid, masterList, onDone }
   return (
     <>
       <DrawerBody>
-        <InvestigationFields fields={fields} />
+        {allowGroupPicker && (
+          <div className={styles.field} style={{ marginBottom: "var(--tesseract-space-5)" }}>
+            <span className={styles.fieldLabel}>Group</span>
+            <SegmentedControl
+              size="sm"
+              options={[
+                { value: "existing", label: "Existing group" },
+                { value: "new", label: "New group" },
+              ]}
+              value={groupMode}
+              onValueChange={setGroupMode}
+              disabled={groups.length === 0}
+            />
+            {groupMode === "existing" ? (
+              <Dropdown
+                label=""
+                placeholder="Select a group"
+                options={groupOptions}
+                value={selectedGroupId}
+                onChange={setSelectedGroupId}
+              />
+            ) : (
+              <InputBox
+                fullWidth
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="e.g. Hormonal Profile"
+              />
+            )}
+          </div>
+        )}
+        {!allowGroupPicker && groupName && (
+          <p className={styles.subtitle} style={{ marginBottom: "var(--tesseract-space-4)" }}>
+            In <strong>{groupName}</strong>
+          </p>
+        )}
+        <InvestigationFields fields={fields} duplicateCheck={duplicateCheck} />
+        {submitError && (
+          <Alert status="error" title="Couldn't save">
+            {submitError}
+          </Alert>
+        )}
       </DrawerBody>
       <DrawerFooterActions
         onCancel={onDone}
         onSubmit={submit}
         submitting={submitting}
-        disabled={!fields.isValid}
-        label={drawerState.editing ? "Save Changes" : "Create Investigation"}
+        disabled={!canSubmit}
+        label={editing ? "Save Changes" : "Create Investigation"}
       />
     </>
   );
 };
 
 /**
- * Hospital-level master data: create/edit/deactivate/delete custom investigation
- * groups and, inside each group, the investigations that belong to it. An
- * investigation can only be created inside a group — matches the PRD's group-first
- * flow. Opened in its own tab from the results-entry "Create custom investigation"
- * prompt in LabParams.js (kept out of that component's DOM to avoid nesting a
- * Tesseract Drawer inside the antd Drawer it already lives in).
+ * Hospital-level master data: create/edit/delete custom investigation groups
+ * and, inside each group, the investigations that belong to it. An
+ * investigation can only be created inside a group — matches the PRD's
+ * group-first flow. There is no activate/deactivate on the real backend
+ * (isActive is always true, no endpoint exists to change it) — every item
+ * shown here is active by definition. Opened in its own tab from the
+ * results-entry "Create custom investigation" prompt in LabParams.js (kept
+ * out of that component's DOM to avoid nesting a Tesseract Drawer inside the
+ * antd Drawer it already lives in).
  */
 function InvestigationSettingsPageInner() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const decodedToken = getDecodedToken();
-  const hmid = decodedToken?.result?.clinic_id;
-  const umid = decodedToken?.result?.user_id;
+  const umid = getDecodedToken()?.result?.user_id;
 
   const [prefillName, setPrefillName] = useState(searchParams.get("prefillName") || "");
   const [groups, setGroups] = useState([]);
-  const [investigations, setInvestigations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedGroupId, setExpandedGroupId] = useState(null);
 
-  const [groupDrawer, setGroupDrawer] = useState(null); // null | { id?, name }
-  const [investigationDrawer, setInvestigationDrawer] = useState(null); // null | { groupId, groupName, editing? }
-  const [confirmTarget, setConfirmTarget] = useState(null); // { type: 'group'|'investigation', action: 'delete'|'deactivate', item }
+  const [renameGroupDrawer, setRenameGroupDrawer] = useState(null); // null | { id, name }
+  const [investigationDrawer, setInvestigationDrawer] = useState(null); // null | { groupId?, groupName?, editing? }
+  const [confirmDelete, setConfirmDelete] = useState(null); // null | { type: 'group'|'investigation', item }
+  const [actionError, setActionError] = useState("");
 
   const load = async () => {
-    if (!hmid) return;
     setLoading(true);
-    const res = await getCustomInvestigations(hmid);
-    setGroups(res.groups);
-    setInvestigations(res.investigations);
+    setGroups(await getCustomInvestigations());
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hmid]);
+  }, []);
 
-  const investigationsByGroup = useMemo(() => {
-    const map = {};
-    investigations.forEach((inv) => {
-      if (!map[inv.groupId]) map[inv.groupId] = [];
-      map[inv.groupId].push(inv);
-    });
-    return map;
-  }, [investigations]);
+  // The backend doesn't expose whether an item has a patient result recorded
+  // against it (the usage lock is enforced server-side, surfaced only as a 409
+  // on the actual edit/delete attempt) — so this can only gate on creatorship,
+  // not usage. A locked item's edit/delete will still 409; handled below.
+  const isOwnItem = (item) => String(item.createdBy) === String(umid);
 
-  // Investigations only carry groupId, never a denormalized groupName.
-  const groupNameById = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
-
-  const masterList = useMemo(
-    () =>
-      investigations.map((inv) => ({
-        reportName: inv.groupName || groupNameById.get(inv.groupId) || "",
-        testName: inv.name,
-      })),
-    [investigations, groupNameById]
-  );
-
-  const canEditOrDelete = (item) => item.createdBy === umid && !item.hasBeenUsed;
-
-  const openCreateGroup = () => setGroupDrawer({ name: "" });
-  const openEditGroup = (group) => setGroupDrawer({ id: group.id, name: group.name });
-
-  const saveGroup = async () => {
-    if (!groupDrawer?.name?.trim()) return;
-    if (groupDrawer.id) {
-      await updateCustomInvestigationGroup({ id: groupDrawer.id, hmid, name: groupDrawer.name.trim() });
-    } else {
-      await createCustomInvestigationGroup({ hmid, name: groupDrawer.name.trim(), createdBy: umid });
-    }
-    setGroupDrawer(null);
-    load();
-  };
-
+  const openCreateGroup = () => setInvestigationDrawer({});
   const openCreateInvestigation = (group) => {
-    setInvestigationDrawer({ groupId: group.id, groupName: group.name, prefillName });
-    setPrefillName(""); // one-time use — the banner disappears once it's been applied
+    setInvestigationDrawer({ groupId: group.id, groupName: group.name });
+    setPrefillName("");
   };
-  const openEditInvestigation = (inv) =>
-    setInvestigationDrawer({
-      groupId: inv.groupId,
-      groupName: inv.groupName || groupNameById.get(inv.groupId) || "",
-      editing: inv,
-    });
+  const openEditInvestigation = (group, inv) =>
+    setInvestigationDrawer({ groupId: group.id, groupName: group.name, editing: inv });
 
-  const handleConfirm = async () => {
-    if (!confirmTarget) return;
-    const { type, action, item } = confirmTarget;
-    if (type === "group") {
-      if (action === "delete") await deleteCustomInvestigationGroup(item.id);
-      if (action === "deactivate") await setCustomInvestigationGroupActive({ id: item.id, isActive: !item.isActive });
-    } else {
-      if (action === "delete") await deleteCustomInvestigation(item.id);
-      if (action === "deactivate") await setCustomInvestigationActive({ id: item.id, isActive: !item.isActive });
+  const handleDeleteGroup = async (group) => {
+    try {
+      await deleteCustomInvestigationGroup(group.id);
+      setConfirmDelete(null);
+      load();
+    } catch (error) {
+      setActionError(extractErrorMessage(error));
+      setConfirmDelete(null);
     }
-    setConfirmTarget(null);
-    load();
+  };
+
+  const handleDeleteInvestigation = async (inv) => {
+    try {
+      await deleteCustomInvestigation(inv.id);
+      setConfirmDelete(null);
+      load();
+    } catch (error) {
+      setActionError(extractErrorMessage(error));
+      setConfirmDelete(null);
+    }
+  };
+
+  const saveGroupRename = async () => {
+    if (!renameGroupDrawer?.name?.trim()) return;
+    try {
+      await updateCustomInvestigationGroup({ id: renameGroupDrawer.id, name: renameGroupDrawer.name.trim() });
+      setRenameGroupDrawer(null);
+      load();
+    } catch (error) {
+      setActionError(extractErrorMessage(error));
+    }
   };
 
   return (
@@ -221,6 +264,18 @@ function InvestigationSettingsPageInner() {
         </Alert>
       )}
 
+      {actionError && (
+        <Alert
+          status="error"
+          title="Action failed"
+          className={styles.prefillBanner}
+          showDismiss
+          onDismiss={() => setActionError("")}
+        >
+          {actionError}
+        </Alert>
+      )}
+
       {loading ? (
         <div className={styles.loading}>Loading…</div>
       ) : groups.length === 0 ? (
@@ -232,9 +287,8 @@ function InvestigationSettingsPageInner() {
       ) : (
         <div className={styles.groupList}>
           {groups.map((group) => {
-            const groupInvestigations = investigationsByGroup[group.id] || [];
+            const groupInvestigations = group.investigations || [];
             const isExpanded = expandedGroupId === group.id;
-            const groupLocked = groupInvestigations.length > 0;
             return (
               <div key={group.id} className={styles.groupCard}>
                 <div
@@ -244,7 +298,6 @@ function InvestigationSettingsPageInner() {
                   <div className={styles.groupCardHeaderLeft}>
                     <span className={styles.chevron}>{isExpanded ? "▾" : "▸"}</span>
                     <span className={styles.groupName}>{group.name}</span>
-                    {!group.isActive && <Badge color="neutral">Inactive</Badge>}
                     <span className={styles.groupCount}>{groupInvestigations.length} investigation(s)</span>
                   </div>
                   <div className={styles.groupCardActions} onClick={(e) => e.stopPropagation()}>
@@ -255,25 +308,17 @@ function InvestigationSettingsPageInner() {
                       size="sm"
                       variant="ghost"
                       theme="neutral"
-                      disabled={groupLocked}
-                      onClick={() => openEditGroup(group)}
+                      disabled={!isOwnItem(group)}
+                      onClick={() => setRenameGroupDrawer({ id: group.id, name: group.name })}
                     >
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      theme="neutral"
-                      onClick={() => setConfirmTarget({ type: "group", action: "deactivate", item: group })}
-                    >
-                      {group.isActive ? "Deactivate" : "Activate"}
+                      Rename
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       theme="error"
-                      disabled={groupLocked}
-                      onClick={() => setConfirmTarget({ type: "group", action: "delete", item: group })}
+                      disabled={!isOwnItem(group)}
+                      onClick={() => setConfirmDelete({ type: "group", item: group })}
                     >
                       Delete
                     </Button>
@@ -288,7 +333,7 @@ function InvestigationSettingsPageInner() {
                       </div>
                     ) : (
                       groupInvestigations.map((inv) => {
-                        const editable = canEditOrDelete(inv);
+                        const editable = isOwnItem(inv);
                         return (
                           <div key={inv.id} className={styles.investigationRow}>
                             <div className={styles.investigationInfo}>
@@ -296,8 +341,6 @@ function InvestigationSettingsPageInner() {
                               <span className={styles.investigationMeta}>
                                 {inv.resultType} {inv.unit ? `· ${inv.unit}` : ""}
                               </span>
-                              {!inv.isActive && <Badge color="neutral">Inactive</Badge>}
-                              {inv.hasBeenUsed && <Badge color="primary">In use</Badge>}
                             </div>
                             <div className={styles.investigationActions}>
                               <Button
@@ -305,28 +348,16 @@ function InvestigationSettingsPageInner() {
                                 variant="ghost"
                                 theme="neutral"
                                 disabled={!editable}
-                                onClick={() => openEditInvestigation(inv)}
+                                onClick={() => openEditInvestigation(group, inv)}
                               >
                                 Edit
                               </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                theme="neutral"
-                                onClick={() =>
-                                  setConfirmTarget({ type: "investigation", action: "deactivate", item: inv })
-                                }
-                              >
-                                {inv.isActive ? "Deactivate" : "Activate"}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
                                 theme="error"
                                 disabled={!editable}
-                                onClick={() =>
-                                  setConfirmTarget({ type: "investigation", action: "delete", item: inv })
-                                }
+                                onClick={() => setConfirmDelete({ type: "investigation", item: inv })}
                               >
                                 Delete
                               </Button>
@@ -343,17 +374,17 @@ function InvestigationSettingsPageInner() {
         </div>
       )}
 
-      <Drawer open={!!groupDrawer} onOpenChange={(next) => !next && setGroupDrawer(null)}>
+      <Drawer open={!!renameGroupDrawer} onOpenChange={(next) => !next && setRenameGroupDrawer(null)}>
         <DrawerContent
           width="30%"
-          title={groupDrawer?.id ? "Edit Group" : "New Group"}
+          title="Rename Group"
           footer={
             <DrawerFooterActions
-              onCancel={() => setGroupDrawer(null)}
-              onSubmit={saveGroup}
+              onCancel={() => setRenameGroupDrawer(null)}
+              onSubmit={saveGroupRename}
               submitting={false}
-              disabled={!groupDrawer?.name?.trim()}
-              label={groupDrawer?.id ? "Save Changes" : "Create Group"}
+              disabled={!renameGroupDrawer?.name?.trim()}
+              label="Save Changes"
             />
           }
         >
@@ -362,8 +393,8 @@ function InvestigationSettingsPageInner() {
               label="Group name"
               required
               fullWidth
-              value={groupDrawer?.name || ""}
-              onChange={(e) => setGroupDrawer((prev) => ({ ...prev, name: e.target.value }))}
+              value={renameGroupDrawer?.name || ""}
+              onChange={(e) => setRenameGroupDrawer((prev) => ({ ...prev, name: e.target.value }))}
               placeholder="e.g. Hormonal Profile"
             />
           </DrawerBody>
@@ -373,16 +404,23 @@ function InvestigationSettingsPageInner() {
       <Drawer open={!!investigationDrawer} onOpenChange={(next) => !next && setInvestigationDrawer(null)}>
         <DrawerContent
           width="40%"
-          title={investigationDrawer?.editing ? "Edit Investigation" : `New Investigation — ${investigationDrawer?.groupName || ""}`}
+          title={
+            investigationDrawer?.editing
+              ? "Edit Investigation"
+              : investigationDrawer?.groupId
+              ? `New Investigation — ${investigationDrawer?.groupName || ""}`
+              : "New Group"
+          }
         >
           {investigationDrawer && (
             <InvestigationDrawerBody
-              drawerState={investigationDrawer}
-              hmid={hmid}
-              umid={umid}
-              masterList={masterList}
+              groups={groups}
+              groupId={investigationDrawer.groupId}
+              groupName={investigationDrawer.groupName}
+              editing={investigationDrawer.editing}
               onDone={() => {
                 setInvestigationDrawer(null);
+                setPrefillName("");
                 load();
               }}
             />
@@ -391,25 +429,19 @@ function InvestigationSettingsPageInner() {
       </Drawer>
 
       <ConfirmDialog
-        open={!!confirmTarget}
-        onOpenChange={(next) => !next && setConfirmTarget(null)}
-        title={
-          confirmTarget?.action === "delete"
-            ? `Delete "${confirmTarget?.item?.name}"?`
-            : `${confirmTarget?.item?.isActive ? "Deactivate" : "Activate"} "${confirmTarget?.item?.name}"?`
-        }
-        description={
-          confirmTarget?.action === "delete"
-            ? "This cannot be undone."
-            : confirmTarget?.item?.isActive
-            ? "It won't be available for new result entry, but existing results stay visible."
-            : "It will become available for new result entry again."
-        }
+        open={!!confirmDelete}
+        onOpenChange={(next) => !next && setConfirmDelete(null)}
+        title={`Delete "${confirmDelete?.item?.name}"?`}
+        description="This cannot be undone. If this has any patient result recorded against it, the delete will be rejected."
         primaryLabel="Cancel"
-        onPrimary={() => setConfirmTarget(null)}
-        secondaryLabel={confirmTarget?.action === "delete" ? "Delete" : "Confirm"}
-        secondaryTheme={confirmTarget?.action === "delete" ? "error" : "primary"}
-        onSecondary={handleConfirm}
+        onPrimary={() => setConfirmDelete(null)}
+        secondaryLabel="Delete"
+        secondaryTheme="error"
+        onSecondary={() =>
+          confirmDelete?.type === "group"
+            ? handleDeleteGroup(confirmDelete.item)
+            : handleDeleteInvestigation(confirmDelete.item)
+        }
       />
     </div>
   );
