@@ -1564,6 +1564,16 @@ const LabResultsTable = ({
                                               {/* Logic for rendering the reference range */}
                                               {(() => {
                                                 let hasRenderedRefRange = false;
+                                                const GENDER_LABEL = { all: "All", male: "Male", female: "Female" };
+                                                const GENDER_ORDER = { all: 0, male: 1, female: 2 };
+                                                // 0-120 is the "applies to everyone" default band (see
+                                                // useInvestigationFieldsState's toPayload) — omit it from the
+                                                // label so only genuinely age-restricted rows show an age band.
+                                                const formatAgeBand = (range) => {
+                                                  const from = range.ageFrom ?? 0;
+                                                  const to = range.ageTo ?? 120;
+                                                  return from <= 0 && to >= 120 ? "" : ` (${from}-${to}y)`;
+                                                };
                                                 return inputValues[reportName][testName] &&
                                                   Object.keys(inputValues[reportName][testName]).map((date, index) => {
                                                     const testData = inputValues[reportName][testName][date];
@@ -1575,42 +1585,35 @@ const LabResultsTable = ({
                                                       !hasRenderedRefRange
                                                     ) {
                                                       hasRenderedRefRange = true;
-                                                      if (refRange) {
-                                                        const maleRange = refRange.ranges.find(
-                                                          (range) => range.gender.toLowerCase() === "male"
-                                                        );
-                                                        const femaleRange = refRange.ranges.find(
-                                                          (range) => range.gender.toLowerCase() === "female"
-                                                        );
-                                                        const allRange = refRange.ranges.find(
-                                                          (range) => range.gender.toLowerCase() === "all"
-                                                        );
-                                                        return (
-                                                          <div key={index}>
-                                                            <strong>Reference Range:</strong>
-                                                            {maleRange && femaleRange ? (
-                                                              <div>
-                                                                Male: {`${maleRange.min} - ${maleRange.max} ${maleRange.unit}`} <br />
-                                                                Female: {`${femaleRange.min} - ${femaleRange.max} ${femaleRange.unit}`}
-                                                              </div>
-                                                            ) : maleRange ? (
-                                                              <div>
-                                                                Male: {`${maleRange.min} - ${maleRange.max} ${maleRange.unit}`}
-                                                              </div>
-                                                            ) : femaleRange ? (
-                                                              <div>
-                                                                Female: {`${femaleRange.min} - ${femaleRange.max} ${femaleRange.unit}`}
-                                                              </div>
-                                                            ) : allRange ? (
-                                                              <div>
-                                                                All: {`${allRange.min} - ${allRange.max} ${allRange.unit}`}
-                                                              </div>
-                                                            ) : (
-                                                              <div>No reference range available</div>
-                                                            )}
-                                                          </div>
-                                                        );
-                                                      }
+                                                      // Every configured gender + age-band row, not just the
+                                                      // first match per gender — a gender can have several
+                                                      // rows (e.g. Male 0-10 and Male 10+) and all of them
+                                                      // need to show up here.
+                                                      const sortedRanges = [...refRange.ranges].sort((a, b) => {
+                                                        const genderDiff =
+                                                          (GENDER_ORDER[a.gender?.toLowerCase()] ?? 3) -
+                                                          (GENDER_ORDER[b.gender?.toLowerCase()] ?? 3);
+                                                        if (genderDiff !== 0) return genderDiff;
+                                                        return (a.ageFrom ?? 0) - (b.ageFrom ?? 0);
+                                                      });
+                                                      return (
+                                                        <div key={index}>
+                                                          <strong>Reference Range:</strong>
+                                                          {sortedRanges.length > 0 ? (
+                                                            <div>
+                                                              {sortedRanges.map((range, rangeIndex) => (
+                                                                <div key={rangeIndex}>
+                                                                  {(GENDER_LABEL[range.gender?.toLowerCase()] || range.gender) +
+                                                                    formatAgeBand(range)}
+                                                                  : {range.min} - {range.max} {range.unit}
+                                                                </div>
+                                                              ))}
+                                                            </div>
+                                                          ) : (
+                                                            <div>No reference range available</div>
+                                                          )}
+                                                        </div>
+                                                      );
                                                     }
                                                     return null;
                                                   });
