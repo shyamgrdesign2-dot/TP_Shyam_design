@@ -158,54 +158,11 @@
   gap: var(--tesseract-space-3);
 }
 
-.groupCard {
-  border: 1px solid var(--tesseract-border-neutral);
-  border-radius: var(--tesseract-radius-10);
-  overflow: hidden;
-}
-
-.groupCardHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--tesseract-space-3);
-  padding: var(--tesseract-space-4);
-  cursor: pointer;
-  background: var(--tesseract-bg-surface);
-}
-
-.groupCardHeaderLeft {
-  display: flex;
-  align-items: center;
-  gap: var(--tesseract-space-2);
-  min-width: 0;
-}
-
-.chevron {
-  color: var(--tesseract-fg-tertiary);
-  width: var(--tesseract-space-3);
-}
-
-.groupName {
-  font-weight: var(--tesseract-weight-semibold);
-  color: var(--tesseract-fg-heading);
-}
-
-.groupCount {
-  font-size: var(--tesseract-text-caption);
-  color: var(--tesseract-fg-tertiary);
-}
-
-.groupCardActions {
+.groupHeaderActions {
   display: flex;
   align-items: center;
   gap: var(--tesseract-space-1);
   flex-shrink: 0;
-}
-
-.investigationList {
-  border-top: 1px solid var(--tesseract-border-soft);
-  padding: var(--tesseract-space-2) var(--tesseract-space-4) var(--tesseract-space-4);
 }
 
 .emptyInvestigations {
