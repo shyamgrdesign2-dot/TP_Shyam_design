@@ -927,7 +927,12 @@ const LabResultsTable = ({
                 return resultType;
             }
         }
-        return "numeric";
+        // Fall back to the merged master list — a brand-new cell (first edit for
+        // this test/date) has no inputValues entry yet to read resultType from.
+        // Match on testName alone: search-matched rows set reportName to the
+        // test's own name, not its real group name (see the info-icon fix above).
+        const defaultRow = defaultTestData.find((row) => row.testName === testName);
+        return defaultRow?.resultType || "numeric";
     };
 
     const getCustomTestIdForTest = (reportName, testName) => {
@@ -947,7 +952,8 @@ const LabResultsTable = ({
                 return options;
             }
         }
-        return null;
+        const defaultRow = defaultTestData.find((row) => row.testName === testName);
+        return defaultRow?.dropdownOptions || null;
     };
 
     const assemblePayload = () => {
@@ -1574,7 +1580,26 @@ const LabResultsTable = ({
                                 {/* Main Loop: Exclude "Remarks" */}
                                 {Object.keys(inputValues[reportName])
                                   .filter((testName) => testName !== "Remarks") // Exclude "Remarks"
-                                  .map((testName, index) => (
+                                  .map((testName, index) => {
+                                    // Text/Positive-Negative/Dropdown investigations never carry
+                                    // reference ranges (see toPayload), and only numeric ones show
+                                    // the free-text input — the other two need their own widget.
+                                    // Read from defaultTestData (always freshly populated by
+                                    // fetchAndMergeCustomInvestigations) rather than trusting any one
+                                    // date's inputValues cell — the merge/cache pipeline
+                                    // (assemblePayload/combineData) can settle on a cell that dropped
+                                    // resultType/dropdownOptions from an earlier pass, and a search-
+                                    // matched row's "reportName" is the test's own name (each match
+                                    // renders as its own one-item group), not its real group name in
+                                    // defaultTestData — so match on testName alone.
+                                    const defaultRow = defaultTestData.find((row) => row.testName === testName);
+                                    const cellWithResultType = Object.values(
+                                      inputValues[reportName][testName] || {}
+                                    ).find((cell) => cell?.resultType);
+                                    const effectiveResultType = defaultRow?.resultType || cellWithResultType?.resultType;
+                                    const effectiveDropdownOptions =
+                                      defaultRow?.dropdownOptions || cellWithResultType?.dropdownOptions;
+                                    return (
                                     <tr key={testName} style={{ background: "#fff" }}>
                                     {/* Test Name Column */}
                                     <td
@@ -1590,26 +1615,8 @@ const LabResultsTable = ({
                                       }}
                                     >
                                       {testName}
-                                      {testName !== "Remarks" && (() => {
-                                        // Text/Positive-Negative/Dropdown investigations never carry
-                                        // reference ranges (see toPayload) — showing this icon for them
-                                        // would only ever open a tooltip saying "No reference range
-                                        // available", so skip it entirely for non-numeric result types.
-                                        // Read from defaultTestData (always freshly populated by
-                                        // fetchAndMergeCustomInvestigations) rather than the inputValues
-                                        // cell — the merge/cache pipeline (assemblePayload/combineData)
-                                        // can settle on a cell that dropped resultType/dropdownOptions
-                                        // from an earlier pass and never refreshes it. Match on testName
-                                        // alone, not reportName — a search-matched row's "reportName" is
-                                        // the test's own name (each match renders as its own one-item
-                                        // group), not its real group name in defaultTestData.
-                                        const defaultRow = defaultTestData.find((row) => row.testName === testName);
-                                        const cellWithResultType = Object.values(
-                                          inputValues[reportName][testName] || {}
-                                        ).find((cell) => cell?.resultType);
-                                        const resultType = defaultRow?.resultType || cellWithResultType?.resultType;
-                                        return !resultType || resultType === "numeric";
-                                      })() && (
+                                      {testName !== "Remarks" &&
+                                        (!effectiveResultType || effectiveResultType === "numeric") && (
                                         <Tooltip
                                           placement="bottom"
                                           title={
@@ -1724,16 +1731,16 @@ const LabResultsTable = ({
                                               {/* Test Values Rendering */}
                                               {/* Use your test values rendering logic here */}
                                               {testName !== "Remarks" && ["dropdown", "positive_negative"].includes(
-                                                inputValues[reportName][testName][date]?.resultType
+                                                effectiveResultType
                                               ) && (
                                                 <div style={{ width: "180px" }}>
-                                                  {inputValues[reportName][testName][date]?.resultType === "dropdown" ? (
+                                                  {effectiveResultType === "dropdown" ? (
                                                     <Select
                                                       style={{ width: "100%" }}
                                                       placeholder="Select"
                                                       allowClear
                                                       value={inputValues[reportName][testName][date]?.value || undefined}
-                                                      options={(inputValues[reportName][testName][date]?.dropdownOptions || []).map(
+                                                      options={(effectiveDropdownOptions || []).map(
                                                         (opt) => ({ value: opt, label: opt })
                                                       )}
                                                       onChange={(value) => handleInputChange(reportName, testName, date, value || "")}
@@ -1752,7 +1759,7 @@ const LabResultsTable = ({
                                                 </div>
                                               )}
                                               {testName !== "Remarks" && !["dropdown", "positive_negative"].includes(
-                                                inputValues[reportName][testName][date]?.resultType
+                                                effectiveResultType
                                               ) && (
                                                 <div style={{ width: "180px" }}>
                                                 <Input
@@ -1842,7 +1849,8 @@ const LabResultsTable = ({
                                       </div>
                                     </td>
                                   </tr>
-                                  ))}
+                                    );
+                                  })}
 
                                 {/* Render Remarks row at the end */}
                                 {Object.keys(inputValues[reportName])

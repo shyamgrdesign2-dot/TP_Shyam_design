@@ -46,7 +46,7 @@ export default function LabResultsDrawer({
           <CloseOutlined />
         </button>
         <div className="lims-drawer-header-divider" />
-        <span className="lims-drawer-title">Add Lab Results</span>
+        <span className="lims-drawer-title">Add Investigation Results</span>
         <div className="lims-drawer-spacer" />
         <div className="lims-drawer-actions">
           {/* <Button onClick={handlePrint} icon={<PrinterOutlined />}>
