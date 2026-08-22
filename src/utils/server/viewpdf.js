@@ -38,6 +38,11 @@ import {
   MISSION_HOSPITAL_ADDRESS,
 } from "../constants";
 import moment from "moment";
+import {
+  canRenderCanvasSection,
+  getHeaderFlowHeightPts,
+  getMaxCanvasImageHeightPts,
+} from "../print/letterheadMetrics";
 import { transformToothStateToApi } from "../../components/dental/lib/examination-helpers";
 import {
   DENTAL_EXAM_CASE_OPTION_ID,
@@ -383,27 +388,7 @@ const FOOTER_CONTENT_GAP = PX_TO_PT * 5;
 // below stays readable.
 const CANVAS_BLOCK_CHROME_PTS = PX_TO_PT * (20 + 14 * 1.2 + 10 + 15);
 
-/**
- * Largest height a drawing-canvas image may take before its <View wrap={false}>
- * stops fitting on a page.
- *
- * Without a cap, react-pdf clamps an auto-sized image to the page content area, and
- * the canvas name plus margins then push the block past it. The block overflows the
- * page and spills onto a second one. Measured with a 507x690 canvas on A4 with
- * 3cm/2.5cm margins: the block laid out at ~702pt against 686pt of usable height.
- * Capping the image keeps the block fittable for every margin/canvas combination.
- */
-const getMaxCanvasImageHeight = (paddingTop = 0, paddingBottom = 0) => {
-  const usableHeight =
-    heightOfA4PageInPts - (paddingTop || 0) - (paddingBottom || 0);
-  // 60%, not "usable minus chrome". Page padding is not the whole story: the
-  // letterhead header and footer are `fixed` views that render inside the padding
-  // box and consume flow height on every page, by an amount that varies with each
-  // doctor's print settings and is not knowable here. Sizing to the full remainder
-  // measured 726pt and still looped. 60% leaves room for any letterhead while
-  // keeping the drawing large enough to read.
-  return Math.max(0, usableHeight * 0.6 - CANVAS_BLOCK_CHROME_PTS);
-};
+
 export const getMedicineFreqDosageFormat = (freqDosage, is_dosage_decimal) => {
   if (!!is_dosage_decimal) {
     return freqDosage;
@@ -2407,6 +2392,36 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   };
 
   const paddingStyles = calculatePadding();
+
+  /**
+   * Height the letterhead header takes out of page flow on every page.
+   *
+   * paddingBottom already reserves the footer (which is absolutely positioned), but
+   * paddingTop reserves only the letterhead margin - the header block itself is a
+   * `fixed`, non-absolute view and is laid out in flow. Anything sizing against the
+   * usable page height has to subtract this.
+   */
+  const headerFlowHeightPts = getHeaderFlowHeightPts({
+    letterheadFormat:
+      mode === NORMAL
+        ? printSettings?.letterhead_format
+        : printSettings?.whatsapp_letterhead_format,
+    header: printSettings?.header_footer?.header,
+    fileHeader,
+    logoEnabled: printSettings?.logo_enable === "Y",
+    availableWidthPts:
+      widthOfA4PageInPts -
+      (paddingStyles?.paddingLeft || 0) -
+      (paddingStyles?.paddingRight || 0),
+  });
+
+  const maxCanvasImageHeight = getMaxCanvasImageHeightPts({
+    pageHeightPts: heightOfA4PageInPts,
+    paddingTop: paddingStyles?.paddingTop,
+    paddingBottom: paddingStyles?.paddingBottom,
+    headerFlowHeightPts,
+    blockChromePts: CANVAS_BLOCK_CHROME_PTS,
+  });
   const getFooterImageRenderHeight = () => {
     return getFooterImageRenderHeightForWidth(
       paddingStyles?.paddingLeft,
@@ -17774,7 +17789,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           </View>
 
           {/* Rendering the Excalidraw Canvases */}
-          {shouldRenderSection(25) && drawingCanvases && drawingCanvases.length > 0 && (
+          {shouldRenderSection(25) &&
+            drawingCanvases &&
+            drawingCanvases.length > 0 &&
+            // No room under this letterhead: rendering anyway would loop react-pdf.
+            canRenderCanvasSection(maxCanvasImageHeight) && (
             <View style={{ marginTop: PX_TO_PT * 20 }} wrap={true}>
               {drawingCanvases.map((canvasObj, i) => (
                 // wrap stays false so the canvas name and its drawing are never split
@@ -17801,10 +17820,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       // explicit `height` would bound it but also force every short or
                       // wide canvas into a full-height box, letterboxing it with blank
                       // space; maxHeight bounds only the images that need it.
-                      maxHeight: getMaxCanvasImageHeight(
-                        paddingStyles?.paddingTop,
-                        paddingStyles?.paddingBottom,
-                      ),
+                      maxHeight: maxCanvasImageHeight,
                       objectFit: "contain",
                     }}
                   />
