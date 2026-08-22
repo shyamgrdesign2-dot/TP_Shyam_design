@@ -5,7 +5,7 @@ import "./VoiceRxPromoModal.scss";
 
 import { useSelector, useDispatch } from "react-redux";
 import { services } from "../redux/doctorsSlice";
-import { FREE, GB_ZYDUS_USER, GB_VOICE_RX_FREE, S_VOICE_RX } from "../utils/constants";
+import { FREE, GB_ZYDUS_USER, GB_VOICE_RX_FREE, S_VOICE_RX, SUPPORT_PHONE_NUMBER } from "../utils/constants";
 import { extendCredits } from "../redux/monetizationSlice";
 
 import GenRxKnowMore from "./GenRxKnowMore";
@@ -401,7 +401,7 @@ const VoiceRxPromoModal = () => {
               <span>Contact Support:</span>
             </div>
             <div className="monetization-popup-contact-info">
-              <a href="tel:+919974042363">+91-9974042363</a>
+              <a href={`tel:+91${SUPPORT_PHONE_NUMBER}`}>{`+91-${SUPPORT_PHONE_NUMBER}`}</a>
               <span>|</span>
               <a href="mailto:Support@tatvacare.in">Support@tatvacare.in</a>
             </div>
