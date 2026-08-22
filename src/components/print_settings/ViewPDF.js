@@ -34,7 +34,28 @@ const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
 const FOOTER_CONTENT_GAP = PX_TO_PT * 5;
 const widthOfA4PageInPts = 595;
+const heightOfA4PageInPts = 842;
 const SOAP_PRINT_MODULE_ID = 90000101;
+
+// Section marginTop (15px) + canvas name Text (14px font + 10px marginBottom) +
+// per-canvas marginBottom (15px): everything in the block that is not the image.
+const CANVAS_BLOCK_CHROME_PTS = PX_TO_PT * (15 + 14 * 1.2 + 10 + 15);
+
+/**
+ * Largest height a drawing-canvas image may take before its <View wrap={false}>
+ * stops fitting on a page.
+ *
+ * Without a cap, react-pdf clamps an auto-sized image to the page content area, and the
+ * canvas name plus margins then push the block past it, spilling onto a second page.
+ * Mirrors getMaxCanvasImageHeight in utils/server/viewpdf.js; both documents render the
+ * same canvas section and both must cap it.
+ */
+const getMaxCanvasImageHeight = (paddingTop = 0, paddingBottom = 0) => {
+    const usableHeight =
+        heightOfA4PageInPts - (paddingTop || 0) - (paddingBottom || 0);
+    // 60% — see the note on getMaxCanvasImageHeight in utils/server/viewpdf.js.
+    return Math.max(0, usableHeight * 0.6 - CANVAS_BLOCK_CHROME_PTS);
+};
 
 // Roboto
 Font.register({
@@ -7332,6 +7353,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {filteredDrawingCanvases.length > 0 && (
                                             <View style={{ marginTop: PX_TO_PT * 15 }} wrap={true}>
                                                 {filteredDrawingCanvases.map((canvasObj, i) => (
+                                                    // wrap stays false — see the note on the same
+                                                    // block in utils/server/viewpdf.js.
                                                     <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
                                                         <Text
                                                             style={{
@@ -7347,7 +7370,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         <Image
                                                             src={canvasObj.imageUrl}
                                                             style={{
+                                                                // maxHeight, NOT height — see the note on the
+                                                                // same block in utils/server/viewpdf.js.
                                                                 width: '100%',
+                                                                maxHeight: getMaxCanvasImageHeight(
+                                                                    paddingStyles?.paddingTop,
+                                                                    paddingStyles?.paddingBottom
+                                                                ),
                                                                 objectFit: 'contain',
                                                             }}
                                                         />

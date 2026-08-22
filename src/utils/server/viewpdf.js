@@ -373,8 +373,37 @@ Font.register({
 });
 
 const widthOfA4PageInPts = 595;
+const heightOfA4PageInPts = 842;
 const CM_TO_PT = 28.35;
 const FOOTER_CONTENT_GAP = PX_TO_PT * 5;
+
+// Space the canvas block spends on things other than the image itself: the
+// section marginTop (20px), the canvas name Text (14px font + 10px marginBottom)
+// and the per-canvas marginBottom (15px). Kept as one number so the max-height
+// below stays readable.
+const CANVAS_BLOCK_CHROME_PTS = PX_TO_PT * (20 + 14 * 1.2 + 10 + 15);
+
+/**
+ * Largest height a drawing-canvas image may take before its <View wrap={false}>
+ * stops fitting on a page.
+ *
+ * Without a cap, react-pdf clamps an auto-sized image to the page content area, and
+ * the canvas name plus margins then push the block past it. The block overflows the
+ * page and spills onto a second one. Measured with a 507x690 canvas on A4 with
+ * 3cm/2.5cm margins: the block laid out at ~702pt against 686pt of usable height.
+ * Capping the image keeps the block fittable for every margin/canvas combination.
+ */
+const getMaxCanvasImageHeight = (paddingTop = 0, paddingBottom = 0) => {
+  const usableHeight =
+    heightOfA4PageInPts - (paddingTop || 0) - (paddingBottom || 0);
+  // 60%, not "usable minus chrome". Page padding is not the whole story: the
+  // letterhead header and footer are `fixed` views that render inside the padding
+  // box and consume flow height on every page, by an amount that varies with each
+  // doctor's print settings and is not knowable here. Sizing to the full remainder
+  // measured 726pt and still looped. 60% leaves room for any letterhead while
+  // keeping the drawing large enough to read.
+  return Math.max(0, usableHeight * 0.6 - CANVAS_BLOCK_CHROME_PTS);
+};
 export const getMedicineFreqDosageFormat = (freqDosage, is_dosage_decimal) => {
   if (!!is_dosage_decimal) {
     return freqDosage;
@@ -17748,6 +17777,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           {shouldRenderSection(25) && drawingCanvases && drawingCanvases.length > 0 && (
             <View style={{ marginTop: PX_TO_PT * 20 }} wrap={true}>
               {drawingCanvases.map((canvasObj, i) => (
+                // wrap stays false so the canvas name and its drawing are never split
+                // across a page boundary. maxHeight below keeps the block small enough
+                // to fit a page, so it always has somewhere to land.
                 <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
                   <Text
                     style={{
@@ -17764,6 +17796,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     src={canvasObj.imageUrl}
                     style={{
                       width: "100%",
+                      // maxHeight, NOT height. Left unbounded, react-pdf sizes the image
+                      // from its aspect ratio and a tall canvas overflows the page. An
+                      // explicit `height` would bound it but also force every short or
+                      // wide canvas into a full-height box, letterboxing it with blank
+                      // space; maxHeight bounds only the images that need it.
+                      maxHeight: getMaxCanvasImageHeight(
+                        paddingStyles?.paddingTop,
+                        paddingStyles?.paddingBottom,
+                      ),
                       objectFit: "contain",
                     }}
                   />
