@@ -61,7 +61,85 @@ export const isTalkativeWidgetEvent = (event) =>
     isTalkativeFrame(frame?.filename || frame?.abs_path)
   );
 
+// Meta's in-app browsers (Instagram, Facebook) inject their own bridge scripts
+// and then tear the native bridge down underneath them, so the page is left
+// calling into an object that no longer exists. index.js already drops the two
+// most common messages outright via ignoreErrors, but those blunt patterns miss
+// the rest of the family ("Java exception was raised during method invocation",
+// failures inside sendDataToNative / sendBeforeUnloadMessage, frames served from
+// iabjs://) and would equally match a genuine bug of ours that happened to
+// mention the same words.
+//
+// This check is deliberately narrow: the browser must be a Meta one AND the
+// message must look like a bridge failure AND a bridge frame must be present.
+// Originally written for PR #3799 (branch sentry-login-logs) as
+// utils/sentryEventFilters.js; brought here so there is one filter module
+// rather than two, because that branch cannot be merged as-is — its index.js
+// predates release stamping and would revert it.
+const META_BROWSER_NAMES = new Set(["Instagram", "Facebook"]);
+
+const META_BRIDGE_FRAME_PATTERNS = [
+  "sendDataToNative",
+  "sendPageHideMessage",
+  "sendBeforeUnloadMessage",
+  "iabjs://navigation_performance_logger_android",
+];
+
+const META_BRIDGE_ERROR_PATTERNS = [
+  "window.webkit.messageHandlers",
+  "Java object is gone",
+  "Java exception was raised during method invocation",
+];
+
+const getBrowserName = (event) =>
+  event?.contexts?.browser?.name ||
+  event?.tags?.["browser.name"] ||
+  event?.tags?.browser?.split?.(" ")?.[0] ||
+  "";
+
+const getExceptionValues = (event) => event?.exception?.values || [];
+
+const getExceptionText = (event) =>
+  [
+    event?.message,
+    ...getExceptionValues(event).flatMap((exception) => [
+      exception?.type,
+      exception?.value,
+      exception?.mechanism?.type,
+    ]),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+const getFrameText = (event) =>
+  getExceptionValues(event)
+    .flatMap((exception) => exception?.stacktrace?.frames || [])
+    .flatMap((frame) => [
+      frame?.function,
+      frame?.filename,
+      frame?.abs_path,
+      frame?.module,
+    ])
+    .filter(Boolean)
+    .join(" ");
+
+export const isMetaInAppBrowserBridgeError = (event) => {
+  if (!META_BROWSER_NAMES.has(getBrowserName(event))) return false;
+
+  const exceptionText = getExceptionText(event);
+  const frameText = getFrameText(event);
+
+  const hasBridgeError = META_BRIDGE_ERROR_PATTERNS.some((pattern) =>
+    exceptionText.includes(pattern)
+  );
+  const hasBridgeFrame = META_BRIDGE_FRAME_PATTERNS.some(
+    (pattern) => frameText.includes(pattern) || exceptionText.includes(pattern)
+  );
+
+  return hasBridgeError && hasBridgeFrame;
+};
+
 export const isUnactionableThirdPartyEvent = (event) =>
-  isTalkativeWidgetEvent(event);
+  isTalkativeWidgetEvent(event) || isMetaInAppBrowserBridgeError(event);
 
 export default isUnactionableThirdPartyEvent;

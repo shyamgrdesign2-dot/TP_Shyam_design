@@ -1,4 +1,5 @@
 import {
+  isMetaInAppBrowserBridgeError,
   isTalkativeFrame,
   isTalkativeWidgetEvent,
   isUnactionableThirdPartyEvent,
@@ -128,5 +129,101 @@ describe("the MoEngage ignoreErrors pattern", () => {
     expect(
       MOENGAGE_PATTERN.test("Failed to read prescription draft from localStorage")
     ).toBe(false);
+  });
+});
+
+describe("isMetaInAppBrowserBridgeError", () => {
+  // Ported with the filter from PR #3799.
+  const metaEvent = ({ browserName = "Instagram", value, functionName }) => ({
+    contexts: { browser: { name: browserName } },
+    exception: {
+      values: [
+        {
+          type: "TypeError",
+          value,
+          mechanism: { type: "auto.browser.global_handlers.onerror" },
+          stacktrace: {
+            frames: [{ function: functionName, filename: "/login" }],
+          },
+        },
+      ],
+    },
+  });
+
+  it("drops Instagram WebKit bridge errors", () => {
+    expect(
+      isMetaInAppBrowserBridgeError(
+        metaEvent({
+          value:
+            "undefined is not an object (evaluating 'window.webkit.messageHandlers')",
+          functionName: "sendDataToNative",
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("drops Facebook Java bridge lifecycle errors", () => {
+    expect(
+      isMetaInAppBrowserBridgeError(
+        metaEvent({
+          browserName: "Facebook",
+          value: "Error invoking postMessage: Java object is gone",
+          functionName: "sendBeforeUnloadMessage",
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("keeps the same message outside a Meta browser", () => {
+    expect(
+      isMetaInAppBrowserBridgeError(
+        metaEvent({
+          browserName: "Safari",
+          value:
+            "undefined is not an object (evaluating 'window.webkit.messageHandlers')",
+          functionName: "sendDataToNative",
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("keeps a Meta-browser error that is not a bridge failure", () => {
+    // A real bug hit inside the Instagram browser must still report.
+    expect(
+      isMetaInAppBrowserBridgeError(
+        metaEvent({
+          value: "Cannot read properties of undefined (reading 'pm_dob')",
+          functionName: "renderGrowthChart",
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("requires a bridge frame, not just a bridge message", () => {
+    expect(
+      isMetaInAppBrowserBridgeError(
+        metaEvent({
+          value: "Java object is gone",
+          functionName: "handleSubmit",
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("reads the browser name from tags when contexts are absent", () => {
+    const event = {
+      tags: { "browser.name": "Instagram" },
+      exception: {
+        values: [
+          {
+            value: "Java object is gone",
+            stacktrace: { frames: [{ function: "sendPageHideMessage" }] },
+          },
+        ],
+      },
+    };
+
+    expect(isMetaInAppBrowserBridgeError(event)).toBe(true);
+    expect(isUnactionableThirdPartyEvent(event)).toBe(true);
   });
 });
