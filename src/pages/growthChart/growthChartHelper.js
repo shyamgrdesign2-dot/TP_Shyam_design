@@ -210,3 +210,18 @@ export const getAgeInMonths = (patientDOB) => {
 export const disableFutureDates = (current) => {
   return current && current >= moment().add(1, "days").startOf("day");
 };
+
+// Chart.js returns NaN from getPixelForValue when a reading is missing the
+// plotted measurement, or when the patient's date of birth cannot be parsed
+// into an age. Canvas silently ignores non-finite coordinates in path calls,
+// but createRadialGradient throws on them, and a throw inside a chart plugin
+// aborts the entire draw and leaves the growth chart blank. Resolve the pixel
+// positions once and drop anything non-finite before drawing.
+export const getFinitePointPixels = (data, xAxis, yAxis) =>
+  (data || [])
+    .map((point) => ({
+      point,
+      x: xAxis.getPixelForValue(point.x),
+      y: yAxis.getPixelForValue(point.y),
+    }))
+    .filter(({ x, y }) => Number.isFinite(x) && Number.isFinite(y));
