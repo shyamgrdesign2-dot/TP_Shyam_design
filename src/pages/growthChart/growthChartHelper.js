@@ -55,13 +55,23 @@ export const dummyData = {
   ],
 };
 
+// Compare a reading against the previous reading that survived the age filter
+// below, not against the previous row of the source array. Entries skipped by
+// that filter are not plotted, so comparing against them flagged the wrong
+// points — and the first reading kept for an older patient was compared against
+// a reading that had already been dropped.
+const isIncreaseOverPrevious = (series, value) => {
+  const previous = series[series.length - 1];
+  return Boolean(previous) && value > previous.y;
+};
+
 export const getGrowthChartData = (
   growthChartData,
   DOB,
   patientAgeInMonths
 ) => {
   return growthChartData.reduce(
-    (acc, entry, index) => {
+    (acc, entry) => {
       const createdDate = moment(entry.tcbc_created_date);
       const monthsDiff = createdDate.diff(DOB, "months");
 
@@ -78,34 +88,34 @@ export const getGrowthChartData = (
       acc.Height.push({
         x: monthsDiff,
         y: entry.height,
-        isMalnutrition:
-          index && entry.height > growthChartData[index - 1].height,
+        isMalnutrition: isIncreaseOverPrevious(acc.Height, entry.height),
         data: entry,
       });
       acc.Weight.push({
         x: monthsDiff,
         y: entry.weight,
-        isMalnutrition:
-          index && entry.weight > growthChartData[index - 1].weight,
+        isMalnutrition: isIncreaseOverPrevious(acc.Weight, entry.weight),
         data: entry,
       });
       acc.BMI.push({
         x: monthsDiff,
         y: entry.bmi,
-        isMalnutrition: index && entry.bmi > growthChartData[index - 1].bmi,
+        isMalnutrition: isIncreaseOverPrevious(acc.BMI, entry.bmi),
         data: entry,
       });
       acc.OFC.push({
         x: monthsDiff,
         y: entry.ofc,
-        isMalnutrition: index && entry.ofc > growthChartData[index - 1].ofc,
+        isMalnutrition: isIncreaseOverPrevious(acc.OFC, entry.ofc),
         data: entry,
       });
       acc.HeightVsWeight.push({
         x: entry.height,
         y: entry.weight,
-        isMalnutrition:
-          index && entry.weight > growthChartData[index - 1].weight,
+        isMalnutrition: isIncreaseOverPrevious(
+          acc.HeightVsWeight,
+          entry.weight
+        ),
         data: entry,
       });
 
@@ -210,3 +220,18 @@ export const getAgeInMonths = (patientDOB) => {
 export const disableFutureDates = (current) => {
   return current && current >= moment().add(1, "days").startOf("day");
 };
+
+// Chart.js returns NaN from getPixelForValue when a reading is missing the
+// plotted measurement, or when the patient's date of birth cannot be parsed
+// into an age. Canvas silently ignores non-finite coordinates in path calls,
+// but createRadialGradient throws on them, and a throw inside a chart plugin
+// aborts the entire draw and leaves the growth chart blank. Resolve the pixel
+// positions once and drop anything non-finite before drawing.
+export const getFinitePointPixels = (data, xAxis, yAxis) =>
+  (data || [])
+    .map((point) => ({
+      point,
+      x: xAxis.getPixelForValue(point.x),
+      y: yAxis.getPixelForValue(point.y),
+    }))
+    .filter(({ x, y }) => Number.isFinite(x) && Number.isFinite(y));
