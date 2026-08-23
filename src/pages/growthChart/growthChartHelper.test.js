@@ -4,11 +4,17 @@ import {
   getGrowthChartData,
 } from "./growthChartHelper";
 
-// Chart.js linear scales resolve a pixel arithmetically, so a value that is
-// undefined or non-numeric becomes NaN while null coerces to 0. This mock
-// keeps that coercion behaviour rather than second-guessing it.
+// Mirrors chart.js v4 LinearScaleBase.getPixelForValue:
+//
+//   getPixelForValue(value) {
+//     return value === null ? NaN : this.getPixelForDecimal(
+//       (value - this._startValue) / this._valueRange);
+//   }
+//
+// null is rejected outright, and anything else goes through arithmetic, so
+// undefined and non-numeric strings fall out as NaN.
 const scale = (scaleFactor) => ({
-  getPixelForValue: (value) => value * scaleFactor,
+  getPixelForValue: (value) => (value === null ? NaN : value * scaleFactor),
 });
 
 const xAxis = scale(2);
@@ -56,10 +62,18 @@ describe("getFinitePointPixels", () => {
     expect(getFinitePointPixels(data, xAxis, yAxis)).toEqual([]);
   });
 
-  it("keeps readings Chart.js itself would plot at zero", () => {
-    // null coerces to 0 on a linear scale, so the point is still drawable and
-    // this helper must not start hiding points the chart used to show.
-    const atZero = { x: null, y: 30 };
+  it("drops a reading the API stored as null", () => {
+    // This is the shape seen in production: the growth API returns null for a
+    // measurement the doctor left blank, and chart.js turns null into NaN.
+    const nulled = { x: null, y: 30, isMalnutrition: true };
+
+    expect(getFinitePointPixels([nulled], xAxis, yAxis)).toEqual([]);
+  });
+
+  it("keeps a genuine zero", () => {
+    // 0 is a real number to chart.js, so the helper must not confuse it with
+    // an absent value and start hiding points the chart used to plot.
+    const atZero = { x: 0, y: 30 };
 
     expect(getFinitePointPixels([atZero], xAxis, yAxis)).toEqual([
       { point: atZero, x: 0, y: 90 },
