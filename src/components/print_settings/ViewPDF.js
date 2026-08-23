@@ -7374,9 +7374,19 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             canRenderCanvasSection(maxCanvasImageHeight) && (
                                             <View style={{ marginTop: PX_TO_PT * 15 }} wrap={true}>
                                                 {filteredDrawingCanvases.map((canvasObj, i) => (
-                                                    // wrap stays false — see the note on the same
-                                                    // block in utils/server/viewpdf.js.
-                                                    <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                                                    // wrap stays false, and the gap belongs between
+                                                    // canvases so the last block carries none - see the
+                                                    // notes on the same block in utils/server/viewpdf.js.
+                                                    <View
+                                                        key={`canvas-${i}`}
+                                                        wrap={false}
+                                                        style={{
+                                                            marginBottom:
+                                                                i === filteredDrawingCanvases.length - 1
+                                                                    ? 0
+                                                                    : PX_TO_PT * 15,
+                                                        }}
+                                                    >
                                                         <Text
                                                             style={{
                                                                 fontSize: PX_TO_PT * 14,

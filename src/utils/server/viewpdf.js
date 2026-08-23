@@ -17799,7 +17799,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 // wrap stays false so the canvas name and its drawing are never split
                 // across a page boundary. maxHeight below keeps the block small enough
                 // to fit a page, so it always has somewhere to land.
-                <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                //
+                // The gap belongs *between* canvases, so the last block carries none.
+                // A trailing margin on the final block pushes the section's bottom edge
+                // just past the page's wrap area; react-pdf then carries a remainder that
+                // draws nothing onto a fresh page, and the prescription ends on a blank
+                // sheet. Reproduced at body heights 330-335pt with a single canvas.
+                <View
+                  key={`canvas-${i}`}
+                  wrap={false}
+                  style={{
+                    marginBottom:
+                      i === drawingCanvases.length - 1 ? 0 : PX_TO_PT * 15,
+                  }}
+                >
                   <Text
                     style={{
                       fontSize: PX_TO_PT * 14,
