@@ -1,4 +1,8 @@
-import { getFinitePointPixels } from "./growthChartHelper";
+import moment from "moment";
+import {
+  getFinitePointPixels,
+  getGrowthChartData,
+} from "./growthChartHelper";
 
 // Chart.js linear scales resolve a pixel arithmetically, so a value that is
 // undefined or non-numeric becomes NaN while null coerces to 0. This mock
@@ -64,5 +68,54 @@ describe("getFinitePointPixels", () => {
 
   it("tolerates a missing data array", () => {
     expect(getFinitePointPixels(undefined, xAxis, yAxis)).toEqual([]);
+  });
+});
+
+describe("getGrowthChartData malnutrition flag", () => {
+  const DOB = moment("2020-01-01");
+
+  // tcbc_created_date drives the age filter, so these span either side of the
+  // 24-month cutoff that applies to a patient aged 24 months or older.
+  const reading = (date, height) => ({
+    tcbc_created_date: date,
+    height,
+    weight: height / 2,
+    bmi: 15,
+    ofc: 40,
+  });
+
+  it("compares against the previous reading that survived the age filter", () => {
+    // The 12-month reading is dropped for a 30-month-old patient, so the
+    // 26-month reading is the first one plotted and has nothing to compare
+    // against. Before the fix it was compared against the dropped row, and
+    // 80 > 60 flagged the very first point on the chart. The 28-month reading
+    // must then compare against the 26-month one.
+    //
+    // Only the first kept reading can have a dropped predecessor, because the
+    // age filter drops a prefix of the date-sorted source, so this is the case
+    // that distinguishes the fix.
+    const rows = [
+      reading("2021-01-01", 60), // 12 months - filtered out
+      reading("2022-03-01", 80), // 26 months - first kept
+      reading("2022-05-01", 90), // 28 months - taller than the kept one
+    ];
+
+    const { Height } = getGrowthChartData(rows, DOB, 30);
+
+    expect(Height).toHaveLength(2);
+    expect(Height[0].isMalnutrition).toBe(false);
+    expect(Height[1].isMalnutrition).toBe(true);
+  });
+
+  it("flags each series against its own previous reading", () => {
+    const rows = [reading("2022-03-01", 80), reading("2022-05-01", 90)];
+
+    const data = getGrowthChartData(rows, DOB, 30);
+
+    expect(data.Weight[1].isMalnutrition).toBe(true);
+    expect(data.HeightVsWeight[1].isMalnutrition).toBe(true);
+    // bmi and ofc are unchanged between the two readings, so neither rises.
+    expect(data.BMI[1].isMalnutrition).toBe(false);
+    expect(data.OFC[1].isMalnutrition).toBe(false);
   });
 });
