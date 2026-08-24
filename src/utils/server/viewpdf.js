@@ -206,20 +206,25 @@ Font.register({
   ],
 });
 
-// Bengali
+// Bengali / Assamese.
+// NotoSansBengali, not AnekBangla: AnekBangla places the below-base vowel signs
+// (ু ূ ৃ) as zero-advance marks pulled back by a GPOS xOffset of 0.55-0.91em, and
+// @react-pdf/renderer ignores that offset, so the mark lands under the *next*
+// consonant — "ওষুধ" prints as "ওষধু", "কুকুর" as "ককুবু". NotoSansBengali needs
+// no offset above 0.22em for the same text, so it renders correctly.
 Font.register({
-  family: "AnekBangla",
+  family: "NotoSansBengali",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Regular.ttf`,
+      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansBengali-Regular.ttf`,
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Medium.ttf`,
+      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansBengali-Medium.ttf`,
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Bold.ttf`,
+      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansBengali-Bold.ttf`,
       fontWeight: 700,
     }, // Bold
   ],
@@ -1156,7 +1161,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       return "NotoSansTamil";
     }
     if (lg == 11 || lg == 12) {
-      return "AnekBangla";
+      return "NotoSansBengali";
     }
     if (lg == 13) {
       return "NotoSansOriya"; // Odia

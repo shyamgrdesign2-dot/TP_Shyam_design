@@ -1136,9 +1136,10 @@ export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
     return "AnekDevanagari";
   }
 
-  // Bengali/Assamese
+  // Bengali/Assamese - see the Font.register note in ViewPDF.js for why this is
+  // NotoSansBengali and not AnekBangla.
   if (/[\u0980-\u09FF]/.test(text)) {
-    return "AnekBangla";
+    return "NotoSansBengali";
   }
 
   // Tamil
@@ -1201,6 +1202,20 @@ export const isValidGST = (gstNumber) => {
 
   return true; // GST is valid
 };
+
+/**
+ * @react-pdf/renderer drops the last glyph cluster of a word that sits alone in a
+ * <Text> when shaping splits a matra into pre-base + post-base glyphs, so the glyph
+ * count outruns the character count (Bengali ো / ৌ, and the same class of vowel sign
+ * in the other Indic scripts). "ডোজ" prints as "ডো", "নোট" as "নো". A trailing
+ * zero-width space keeps the final cluster inside the measured run; it is invisible
+ * and adds no advance width, so layout is unchanged.
+ */
+const PDF_TRAILING_CLUSTER_GUARD = "\u200B"; // zero-width space
+const guardPdfTrailingCluster = (value) =>
+    typeof value === "string" && /[^\u0000-\u00FF]/.test(value)
+        ? value + PDF_TRAILING_CLUSTER_GUARD
+        : value;
 
 export const getRxTitle = (LanguageId, title) => {
     const translations = {
@@ -1322,7 +1337,7 @@ export const getRxTitle = (LanguageId, title) => {
             "NOTES": 'ଟିପ୍ପଣୀ',
         }
     };
-    return translations?.[parseInt(LanguageId)]?.[title] || title;
+    return guardPdfTrailingCluster(translations?.[parseInt(LanguageId)]?.[title] || title);
 }
 
 export const getDurationTitle = (LanguageId, tmm_duration_type) => {
@@ -1497,7 +1512,7 @@ export const getDurationTitle = (LanguageId, tmm_duration_type) => {
     return tmm_duration_type;
   }
 
-  return languageTranslations[tmm_duration_type];
+  return guardPdfTrailingCluster(languageTranslations[tmm_duration_type]);
 };
 
 export const getTimeingTitle = (LanguageId) => {
