@@ -62,6 +62,38 @@ export const searchTag = createAsyncThunk(
   }
 );
 
+/**
+ * Section order/visibility preferences for the Medical History drawer.
+ * Contract: docs/MEDICAL-HISTORY-SECTION-CONFIG-API.md
+ *
+ * The endpoints do not exist yet, so these thunks resolve to null on any
+ * failure instead of rejecting — a missing config must fall back to defaults
+ * silently rather than surface an error to the doctor.
+ */
+export const getUserSectionOrder = createAsyncThunk(
+  "medicalHistory/getUserSectionOrder",
+  async () => {
+    try {
+      const result = await ApiMedicalHistory.getUserSectionOrder();
+      return result?.status ? result.data : null;
+    } catch (e) {
+      return null;
+    }
+  }
+);
+
+export const setUserSectionOrder = createAsyncThunk(
+  "medicalHistory/setUserSectionOrder",
+  async (data) => {
+    try {
+      const result = await ApiMedicalHistory.setUserSectionOrder(data);
+      return result?.status ? result.data : null;
+    } catch (e) {
+      return null;
+    }
+  }
+);
+
 export const addEditPrivateNotes = createAsyncThunk(
   "privateNotes/addEditPrivateNotes",
   async (data) => {

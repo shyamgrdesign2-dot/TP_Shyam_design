@@ -35,6 +35,7 @@ import VitalsBox from "../components/VitalsBox";
 import VitalsList from "../components/VitalsList";
 
 import MedicalHistoryBox from "../components/MedicalHistoryBox";
+import MedicalHistoryDrawer from "../components/MedicalHistoryDrawer";
 import MedicalHistoryList from "../components/MedicalHistoryList";
 
 import PrivateNotesBox from "../components/PrivateNotesBox";
@@ -2567,13 +2568,14 @@ function Prescription() {
             />
           </Drawer>
         )}
-        <Drawer
+        <MedicalHistoryDrawer
           className="scroll-y-hidden"
           closeIcon={false}
           placement="right"
           onClose={handleDrawerMedicalHistory}
           open={medicalHistoryDrawer}
-          width="75%"
+          legacyWidth="75%"
+          newWidth="85%"
         >
           <MedicalHistoryBox
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
@@ -2582,7 +2584,7 @@ function Prescription() {
             initialActiveKey={isGynaecHistoryAccessable ? "gynec" : "medical"}
             hideMenstrualHistoryTab={!isGynaecHistoryAccessable}
           />
-        </Drawer>
+        </MedicalHistoryDrawer>
         <Drawer
           closeIcon={false}
           placement="right"
