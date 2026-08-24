@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Drawer } from 'antd';
 import { isMobile, isTablet } from 'react-device-detect';
 import MedicalHistoryBox from './MedicalHistoryBox';
+import MedicalHistoryDrawer from './MedicalHistoryDrawer';
 import MedicalHistoryBoxMobile from './MedicalHistoryBoxMobile';
 import './MedicalHistoryDisplay.scss';
 
@@ -195,15 +195,14 @@ const MedicalHistoryDisplay = ({
         <span>Add/Edit Medical History</span>
       </div>
 
-      <Drawer
+      <MedicalHistoryDrawer
         className="scroll-y-hidden"
         closeIcon={false}
         placement="right"
         onClose={handleDrawerMedicalHistory}
-        maskClosable={false}
-        keyboard={false}
         open={medicalHistoryDrawer}
-        width="85%"
+        legacyWidth="75%"
+        newWidth="85%"
       >
         {(isMobile && !isTablet) ? (
           <MedicalHistoryBoxMobile
@@ -218,7 +217,7 @@ const MedicalHistoryDisplay = ({
             onSave={handleSaveMedicalHistory}
           />
         )}
-      </Drawer>
+      </MedicalHistoryDrawer>
     </div>
   );
 };

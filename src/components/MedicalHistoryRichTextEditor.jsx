@@ -1,11 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import { prescriptionMedicalHistoryToContextFormat } from '../utils/medicalHistoryUtils';
 import styles from './ConsultationDrawer.module.css';
 
 import MedicalHistoryBox from './MedicalHistoryBox';
+import MedicalHistoryDrawer from './MedicalHistoryDrawer';
 import MobileMedicalHistoryManager from './mobile/MobileMedicalHistoryManager';
 import { useDeviceType } from '../utils/deviceDetection';
 import { ASSETS } from "../assets";
@@ -493,15 +493,14 @@ const MedicalHistoryRichTextEditor = ({
           patient_data={patientDataProp}
         />
       ) : (
-        <Drawer
+        <MedicalHistoryDrawer
           className="scroll-y-hidden"
           closeIcon={false}
           placement="right"
           onClose={() => setMedicalHistoryDrawer(false)}
-          maskClosable={false}
-          keyboard={false}
           open={medicalHistoryDrawer}
-          width="85%"
+          legacyWidth="75%"
+          newWidth="85%"
         >
           <MedicalHistoryBox
             handleDrawerMedicalHistory={() => setMedicalHistoryDrawer(false)}
@@ -580,7 +579,7 @@ const MedicalHistoryRichTextEditor = ({
             initialActiveKey="medical"
             hideMenstrualHistoryTab={true}
           />
-        </Drawer>
+        </MedicalHistoryDrawer>
       )}
     </div>
   );
