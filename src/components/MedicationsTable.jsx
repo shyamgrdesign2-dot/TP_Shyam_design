@@ -12,8 +12,9 @@ import {
   searchMedication,
   getFrequentlySearchedMedication
 } from "../redux/medicationSlice";
-import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination, getHmTypeIndicator, getClinic, onlyDecimalFormat, isAlphabetExit } from '../utils/utils';
+import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination, getHmTypeIndicator, getHmTypeBadgeColor, getClinic, onlyDecimalFormat, isAlphabetExit } from '../utils/utils';
 import CommonModal from '../common/CommonModal';
+import LowStockBadge from '../common/LowStockBadge';
 import CashManagerContext from '../context/CashManagerContext';
 import { env } from '../EnvironmentConfig';
 import { GB_ZYDUS_USER, EXTRA_OPTIONS, GB_MED_INVESTIGATION } from '../utils/constants';
@@ -26,6 +27,19 @@ const {
   medication: medicationsIcon,
   groundingIndicator: groundingIndicatorBg,
 } = ASSETS.images;
+
+/** Z/A/VC sit on the Zydus grounding artwork; P (Genx) gets its own flat blue badge. */
+function getHmTypeBadgeSurfaceStyle(indicator) {
+  if (indicator === 'P') {
+    return { background: getHmTypeBadgeColor(indicator), color: '#fff' };
+  }
+  return {
+    backgroundImage: `url(${groundingIndicatorBg})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+  };
+}
 
 /** Shown in the medicine column; user edits update groundedMedicineName so voice PATCH keeps OCR/source in `name`. */
 function getMedicationDisplayName(item) {
@@ -169,23 +183,13 @@ const MedicationsTable = ({
               style={{
                 width: 18,
                 height: 18,
-                backgroundImage: `url(${groundingIndicatorBg})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
+                ...getHmTypeBadgeSurfaceStyle(getHmTypeIndicator(medication)),
               }}
             >
               {getHmTypeIndicator(medication)}
             </div>
           )}
-          {medication?.isLowStock && (
-            <span
-              className="d-inline-flex align-items-center text-white ms-1"
-              style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f' }}
-            >
-              Low Stock
-            </span>
-          )}
+          <LowStockBadge show={medication?.isLowStock} />
         </div>
       ),
     };
@@ -284,23 +288,13 @@ const MedicationsTable = ({
                     style={{
                       width: 18,
                       height: 18,
-                      backgroundImage: `url(${groundingIndicatorBg})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      backgroundRepeat: 'no-repeat'
+                      ...getHmTypeBadgeSurfaceStyle(getHmTypeIndicator(medication)),
                     }}
                   >
                     {getHmTypeIndicator(medication)}
                   </div>
                 )}
-                {medication?.isLowStock && (
-                  <span
-                    className="d-inline-flex align-items-center text-white ms-1"
-                    style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f' }}
-                  >
-                    Low Stock
-                  </span>
-                )}
+                <LowStockBadge show={medication?.isLowStock} />
               </div>
             ),
           });
@@ -1341,13 +1335,10 @@ const MedicationsTable = ({
                         {((item?.metadata?.tmm_hm_type == 1 || item?.metadata?.tmm_hm_type == 2 || item?.metadata?.tmm_hm_type == 21) && item?.metadata?.um_id === 0) && (
                           <span
                             className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
-                            style={{ 
-                              width: 18, 
-                              height: 18, 
-                              backgroundImage: `url(${groundingIndicatorBg})`,
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center',
-                              backgroundRepeat: 'no-repeat'
+                            style={{
+                              width: 18,
+                              height: 18,
+                              ...getHmTypeBadgeSurfaceStyle(getHmTypeIndicator(item?.metadata || item)),
                             }}
                           >
                             <div className="sc-tour-button">
@@ -1355,14 +1346,7 @@ const MedicationsTable = ({
                             </div>
                           </span>
                         )}
-                        {(item?.metadata?.isLowStock || item?.isLowStock) && (
-                          <span
-                            className="d-inline-flex align-items-center text-white ms-2"
-                            style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f' }}
-                          >
-                            Low Stock
-                          </span>
-                        )}
+                        <LowStockBadge show={item?.metadata?.isLowStock || item?.isLowStock} className="ms-2" />
                       </div>
                       {(item.corrected_name || item.metadata?.tmm_generic || item.metadata?.generic_name) && (
                         <div className={styles['medicine-subtitle']}>

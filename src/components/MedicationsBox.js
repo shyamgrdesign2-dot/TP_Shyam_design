@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator, getMedicineStockLabel, hasMedicineFrequency, hasMedicineDuration } from "../utils/utils";
+import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator, getHmTypeBadgeColor, getMedicineStockLabel, hasMedicineFrequency, hasMedicineDuration } from "../utils/utils";
 
 import { MenuOutlined } from '@ant-design/icons';
 
@@ -41,6 +41,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DoseCalculator from "./dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import FreeBadge from "../common/FreeBadge";
+import LowStockBadge from "../common/LowStockBadge";
 import { ASSETS } from "../assets";
 import { Grid5, Trash } from "iconsax-reactjs";
 import {
@@ -308,7 +309,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
             minWidth: wide ? 26 : 18,
             height: 18,
             padding: wide ? "0 6px" : "0 4px",
-            background: "#c44ea2",
+            background: getHmTypeBadgeColor(ind),
             lineHeight: "16px",
           }}
         >
@@ -583,7 +584,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
             {renderHmTypeBadge(medicine)}
             <FreeBadge show={medicine?.is_free} />
             {renderLowStockBadge(medicine)}
-            {medicine?.isLowStock && <span className="d-inline-flex align-items-center text-white ms-1" style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f' }}>Low Stock</span>}
+            <LowStockBadge show={medicine?.isLowStock} />
           </div>
         ),
       };
@@ -666,7 +667,7 @@ function MedicationsBox({ showVoiceRxModule, useTesseractUi = false }) {
             {renderHmTypeBadge(e)}
             <FreeBadge show={e?.is_free} />
             {renderLowStockBadge(e)}
-            {e?.isLowStock && <span className="d-inline-flex align-items-center text-white ms-1" style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f' }}>Low Stock</span>}
+            <LowStockBadge show={e?.isLowStock} />
           </div>
         ),
       });

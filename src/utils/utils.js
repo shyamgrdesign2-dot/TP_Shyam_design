@@ -857,17 +857,26 @@ export const getHmTypeIndicator = (item, isChikitsalayAccessable = false) => {
   if (!item) return '';
   const hmType = item.tmm_hm_type || item.hm_type || item.metadata?.tmm_hm_type || item.metadata?.hm_type;
   const umId = item.um_id ?? item.metadata?.um_id;
+  // Only medicines carry tmm_hm_type; investigations carry hm_type. Badges that are
+  // medicine-only must check this so they never leak onto investigation rows.
+  const hasMedicineHmType =
+    item.tmm_hm_type != null || item.metadata?.tmm_hm_type != null;
   if (hmType == 1 && Number(umId) === 0) return 'Z';
   if (hmType == 2 ) return 'A';
-  if (hmType == 21 && Number(umId) === 0) return 'P';
+  if (hmType == 21 && Number(umId) === 0 && hasMedicineHmType) return 'P';
   if (hmType == 15 && isChikitsalayAccessable && Number(umId) === 0) {
-    const hasMedicineHmType =
-      item.tmm_hm_type != null || item.metadata?.tmm_hm_type != null;
     if (hasMedicineHmType) return 'VC';
     if (Number(item?.is_available ?? item.metadata?.is_available) === 1) return 'VC';
   }
   return '';
 };
+
+// Background colour for the badge that wraps a getHmTypeIndicator() letter.
+// Z / A / VC keep the legacy partner pink; P (Genx) is blue.
+const HM_TYPE_BADGE_COLORS = { P: '#1e88e5' };
+export const DEFAULT_HM_TYPE_BADGE_COLOR = '#c44ea2';
+export const getHmTypeBadgeColor = (indicator) =>
+  HM_TYPE_BADGE_COLORS[indicator] || DEFAULT_HM_TYPE_BADGE_COLOR;
 
 export const getMedicineStockLabel = (med) => {
   if (med?.stock_status === MEDICINE_STOCK_STATUS.NO_STOCK) {

@@ -52,6 +52,7 @@ import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 import { SortableContainer, SortableElement } from './sortableHocAdapter';
 import DoseCalculator from "../dose_calculator/doseCalculator";
 import FreeBadge from "../../common/FreeBadge";
+import LowStockBadge from "../../common/LowStockBadge";
 import { ASSETS } from "../../assets";
 const {
   noRecordRound: noRecordFound,
@@ -2242,7 +2243,7 @@ function TabMedicationSearch({ passIndex, onClose }) {
                                 <span className="chip-med-content">
                                   <span className="chip-med-name">{item.value}</span>
                                   {renderLowStockBadge(JSON.parse(item.key))}
-                                  {JSON.parse(item.key)?.isLowStock && <span className="d-inline-flex align-items-center text-white ms-1" style={{fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f'}}>Low Stock</span>}
+                                  <LowStockBadge show={JSON.parse(item.key)?.isLowStock} />
                                 </span>
                               </Button>
                             )}
@@ -2267,7 +2268,7 @@ function TabMedicationSearch({ passIndex, onClose }) {
                               <span className="chip-med-content">
                                 <span className="chip-med-name">{item.tmm_medicine_name}</span>
                                 {renderLowStockBadge(item)}
-                                {item?.isLowStock && <span className="d-inline-flex align-items-center text-white ms-1" style={{fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#d32f2f'}}>Low Stock</span>}
+                                <LowStockBadge show={item?.isLowStock} />
                               </span>
                             </Button>
                             {(item?.tmm_hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small lh-1 fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}

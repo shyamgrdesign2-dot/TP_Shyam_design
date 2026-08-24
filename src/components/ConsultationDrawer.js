@@ -50,7 +50,7 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getHmTypeBadgeColor, getClinic, stopAllActiveRecorders } from "../utils/utils";
 import { vitalScalarString } from "../utils/symptomCollectorVitalsMerge";
 import {
   ensureLabInvestigationMetadataForRxSave,
@@ -60,6 +60,7 @@ import {
 } from "../utils/medicationRxPayload";
 
 import CommonModal from "../common/CommonModal";
+import LowStockBadge from "../common/LowStockBadge";
 import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
 import VoiceWaveVisualizer from "./WaveVisualizer";
@@ -3945,19 +3946,12 @@ const ConsultationDrawer = ({
             {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2 || e?.tmm_hm_type == 21) && e?.um_id === 0 && (
               <span
                 className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
-                style={{ width: 18, height: 18, background: "#c44ea2" }}
+                style={{ width: 18, height: 18, background: getHmTypeBadgeColor(getHmTypeIndicator(e)) }}
               >
                 {getHmTypeIndicator(e)}
               </span>
             )}
-            {e?.isLowStock && (
-              <span
-                className="d-inline-flex align-items-center text-white ms-1"
-                style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "#d32f2f" }}
-              >
-                Low Stock
-              </span>
-            )}
+            <LowStockBadge show={e?.isLowStock} />
           </div>
         ),
       });

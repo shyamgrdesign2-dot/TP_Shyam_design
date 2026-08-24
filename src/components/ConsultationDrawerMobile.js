@@ -48,7 +48,7 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, getVoiceRxMoengageBasePayload, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, getVoiceRxMoengageBasePayload, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getHmTypeBadgeColor, getClinic, stopAllActiveRecorders } from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 
 import CommonModal from "../common/CommonModal";
@@ -3575,10 +3575,10 @@ const ConsultationDrawerMobile = ({
           <div>
             <span className="fw-medium">{e.tmm_medicine_name}</span>,{" "}
             <span>{e.tmm_generic}</span>{" "}
-            {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2) && e?.um_id === 0 && (
+            {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2 || e?.tmm_hm_type == 21) && e?.um_id === 0 && (
               <span
                 className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
-                style={{ width: 18, height: 18, background: "#c44ea2" }}
+                style={{ width: 18, height: 18, background: getHmTypeBadgeColor(getHmTypeIndicator(e)) }}
               >
                 {getHmTypeIndicator(e)}
               </span>
