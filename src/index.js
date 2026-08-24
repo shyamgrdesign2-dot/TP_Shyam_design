@@ -33,6 +33,7 @@ import { isProductionEnv } from "./utils/environment";
 import { getSentryRouteNameFromUrl } from "./utils/sentryRouteNames";
 import { reportBrowserOfflineToSentry } from "./utils/sentryNetwork";
 import { SENTRY_ENVIRONMENT, SENTRY_ENABLED } from "./utils/sentryEnvironment";
+import { isUnactionableThirdPartyEvent } from "./utils/sentryNoiseFilters";
 
 // Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
@@ -158,15 +159,34 @@ Sentry.init({
   // The iOS equivalent is window.webkit.messageHandlers being undefined — same shape,
   // same cause, a webview host that has torn down its bridge.
   //
+  // These two overlap on purpose with isMetaInAppBrowserBridgeError in
+  // utils/sentryNoiseFilters.js, which also matches Meta-browser bridge errors but
+  // requires a browser tag and a bridge frame first. Deleting either of these two
+  // entries on the assumption that function now covers it removes real coverage —
+  // see the comment above that function for a captured production event its frame
+  // patterns did not recognise.
+  //
+  // MoEngage's web SDK rejects with a bare string when it cannot read its own
+  // settings out of localStorage. Most of these arrive from in-app browsers
+  // (Instagram on iOS) where storage is partitioned or unavailable, so the SDK
+  // has nothing to read on a first visit. It is thrown inside the vendor bundle
+  // loaded from public/index.html, with no stack attached, so the message is the
+  // only thing available to match on. It is specific enough not to catch
+  // anything of ours.
+  //
   // Keep these patterns narrow. A broad filter hides real bugs, which costs far more
   // than the noise does.
   ignoreErrors: [
     /Java object is gone/i,
     /window\.webkit\.messageHandlers/i,
+    /Error in getting sdk settings from localstorage/i,
   ],
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;
+    // Unhandled rejections thrown inside vendor SDKs we inject but cannot fix.
+    // See utils/sentryNoiseFilters.js for why these cannot be handled at source.
+    if (isUnactionableThirdPartyEvent(event)) return null;
     return event;
   },
   beforeSendTransaction(event) {
