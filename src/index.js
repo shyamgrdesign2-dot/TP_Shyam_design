@@ -159,8 +159,12 @@ Sentry.init({
   // The iOS equivalent is window.webkit.messageHandlers being undefined — same shape,
   // same cause, a webview host that has torn down its bridge.
   //
-  // Keep these patterns narrow. A broad filter hides real bugs, which costs far more
-  // than the noise does.
+  // These two overlap on purpose with isMetaInAppBrowserBridgeError in
+  // utils/sentryNoiseFilters.js, which also matches Meta-browser bridge errors but
+  // requires a browser tag and a bridge frame first. Deleting either of these two
+  // entries on the assumption that function now covers it removes real coverage —
+  // see the comment above that function for a captured production event its frame
+  // patterns did not recognise.
   //
   // MoEngage's web SDK rejects with a bare string when it cannot read its own
   // settings out of localStorage. Most of these arrive from in-app browsers
@@ -169,6 +173,9 @@ Sentry.init({
   // loaded from public/index.html, with no stack attached, so the message is the
   // only thing available to match on. It is specific enough not to catch
   // anything of ours.
+  //
+  // Keep these patterns narrow. A broad filter hides real bugs, which costs far more
+  // than the noise does.
   ignoreErrors: [
     /Java object is gone/i,
     /window\.webkit\.messageHandlers/i,

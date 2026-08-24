@@ -36,6 +36,33 @@ describe("isTalkativeFrame", () => {
   });
 });
 
+describe("isTalkativeWidgetEvent frame matching", () => {
+  it("matches on abs_path even when filename is present but non-matching", () => {
+    // Real Sentry frames commonly carry both fields, with filename a
+    // synthetic label ("<anonymous>") and abs_path the real URL. A `filename
+    // || abs_path` check would stop at the truthy non-matching filename and
+    // never look at abs_path — this is the shape that regression covers.
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [
+                {
+                  filename: "<anonymous>",
+                  abs_path: "https://au.engage.app/ecsv2/0.54.2/talkative-engage.js",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    expect(isTalkativeWidgetEvent(event)).toBe(true);
+  });
+});
+
 describe("isUnactionableThirdPartyEvent", () => {
   it("drops the Talkative config fetch failure", () => {
     // TATVAPRACTICE-1A / -1M. The innermost frame is Sentry's own fetch
@@ -208,6 +235,52 @@ describe("isMetaInAppBrowserBridgeError", () => {
         })
       )
     ).toBe(false);
+  });
+
+  it("does not accept a frame keyword that appears only in the message text", () => {
+    // The message mentions "sendDataToNative", but the actual frame is
+    // something unrelated. Bridge evidence must come from a real frame, not
+    // from re-finding the same keyword in the message a second time — that
+    // would let the "bridge frame" half of the AND be satisfied by the
+    // message alone, collapsing the three-way check to two conditions.
+    expect(
+      isMetaInAppBrowserBridgeError(
+        metaEvent({
+          value: "Error invoking sendDataToNative: Java object is gone",
+          functionName: "handleSubmit",
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("recognises any iabjs:// bridge frame, not just the enumerated call sites", () => {
+    // TATVAPRACTICE-1HB: Facebook browser, "Java object is gone", frames under
+    // iabjs://autofill_test_android and iabjs://iabjs_bridge_init — neither is
+    // one of the literal call-site names this module enumerates, but both are
+    // the iabjs:// bridge scheme. The enumerated names stay for frames whose
+    // filename does not carry that scheme; the scheme match is what makes this
+    // function's real-world coverage match what ignoreErrors already provided.
+    const event = {
+      contexts: { browser: { name: "Facebook" } },
+      exception: {
+        values: [
+          {
+            value: "Error: Java object is gone",
+            stacktrace: {
+              frames: [
+                { filename: "iabjs://autofill_test_android" },
+                {
+                  filename: "iabjs://iabjs_bridge_init",
+                  function: "window.__call_iabjs_unified_bridge",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    expect(isMetaInAppBrowserBridgeError(event)).toBe(true);
   });
 
   it("reads the browser name from tags when contexts are absent", () => {
