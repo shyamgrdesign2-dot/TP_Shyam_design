@@ -38,6 +38,11 @@ import {
   MISSION_HOSPITAL_ADDRESS,
 } from "../constants";
 import moment from "moment";
+import {
+  canRenderCanvasSection,
+  getHeaderFlowHeightPts,
+  getMaxCanvasImageHeightPts,
+} from "../print/letterheadMetrics";
 import { transformToothStateToApi } from "../../components/dental/lib/examination-helpers";
 import {
   DENTAL_EXAM_CASE_OPTION_ID,
@@ -201,20 +206,25 @@ Font.register({
   ],
 });
 
-// Bengali
+// Bengali / Assamese.
+// NotoSansBengali, not AnekBangla: AnekBangla places the below-base vowel signs
+// (ু ূ ৃ) as zero-advance marks pulled back by a GPOS xOffset of 0.55-0.91em, and
+// @react-pdf/renderer ignores that offset, so the mark lands under the *next*
+// consonant — "ওষুধ" prints as "ওষধু", "কুকুর" as "ককুবু". NotoSansBengali needs
+// no offset above 0.22em for the same text, so it renders correctly.
 Font.register({
-  family: "AnekBangla",
+  family: "NotoSansBengali",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Regular.ttf`,
+      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansBengali-Regular.ttf`,
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Medium.ttf`,
+      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansBengali-Medium.ttf`,
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Bold.ttf`,
+      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansBengali-Bold.ttf`,
       fontWeight: 700,
     }, // Bold
   ],
@@ -373,8 +383,17 @@ Font.register({
 });
 
 const widthOfA4PageInPts = 595;
+const heightOfA4PageInPts = 842;
 const CM_TO_PT = 28.35;
 const FOOTER_CONTENT_GAP = PX_TO_PT * 5;
+
+// Space the canvas block spends on things other than the image itself: the
+// section marginTop (20px), the canvas name Text (14px font + 10px marginBottom)
+// and the per-canvas marginBottom (15px). Kept as one number so the max-height
+// below stays readable.
+const CANVAS_BLOCK_CHROME_PTS = PX_TO_PT * (20 + 14 * 1.2 + 10 + 15);
+
+
 export const getMedicineFreqDosageFormat = (freqDosage, is_dosage_decimal) => {
   if (!!is_dosage_decimal) {
     return freqDosage;
@@ -1142,7 +1161,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       return "NotoSansTamil";
     }
     if (lg == 11 || lg == 12) {
-      return "AnekBangla";
+      return "NotoSansBengali";
     }
     if (lg == 13) {
       return "NotoSansOriya"; // Odia
@@ -2378,6 +2397,36 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   };
 
   const paddingStyles = calculatePadding();
+
+  /**
+   * Height the letterhead header takes out of page flow on every page.
+   *
+   * paddingBottom already reserves the footer (which is absolutely positioned), but
+   * paddingTop reserves only the letterhead margin - the header block itself is a
+   * `fixed`, non-absolute view and is laid out in flow. Anything sizing against the
+   * usable page height has to subtract this.
+   */
+  const headerFlowHeightPts = getHeaderFlowHeightPts({
+    letterheadFormat:
+      mode === NORMAL
+        ? printSettings?.letterhead_format
+        : printSettings?.whatsapp_letterhead_format,
+    header: printSettings?.header_footer?.header,
+    fileHeader,
+    logoEnabled: printSettings?.logo_enable === "Y",
+    availableWidthPts:
+      widthOfA4PageInPts -
+      (paddingStyles?.paddingLeft || 0) -
+      (paddingStyles?.paddingRight || 0),
+  });
+
+  const maxCanvasImageHeight = getMaxCanvasImageHeightPts({
+    pageHeightPts: heightOfA4PageInPts,
+    paddingTop: paddingStyles?.paddingTop,
+    paddingBottom: paddingStyles?.paddingBottom,
+    headerFlowHeightPts,
+    blockChromePts: CANVAS_BLOCK_CHROME_PTS,
+  });
   const getFooterImageRenderHeight = () => {
     return getFooterImageRenderHeightForWidth(
       paddingStyles?.paddingLeft,
@@ -17745,10 +17794,30 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           </View>
 
           {/* Rendering the Excalidraw Canvases */}
-          {shouldRenderSection(25) && drawingCanvases && drawingCanvases.length > 0 && (
+          {shouldRenderSection(25) &&
+            drawingCanvases &&
+            drawingCanvases.length > 0 &&
+            // No room under this letterhead: rendering anyway would loop react-pdf.
+            canRenderCanvasSection(maxCanvasImageHeight) && (
             <View style={{ marginTop: PX_TO_PT * 20 }} wrap={true}>
               {drawingCanvases.map((canvasObj, i) => (
-                <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                // wrap stays false so the canvas name and its drawing are never split
+                // across a page boundary. maxHeight below keeps the block small enough
+                // to fit a page, so it always has somewhere to land.
+                //
+                // The gap belongs *between* canvases, so the last block carries none.
+                // A trailing margin on the final block pushes the section's bottom edge
+                // just past the page's wrap area; react-pdf then carries a remainder that
+                // draws nothing onto a fresh page, and the prescription ends on a blank
+                // sheet. Reproduced at body heights 330-335pt with a single canvas.
+                <View
+                  key={`canvas-${i}`}
+                  wrap={false}
+                  style={{
+                    marginBottom:
+                      i === drawingCanvases.length - 1 ? 0 : PX_TO_PT * 15,
+                  }}
+                >
                   <Text
                     style={{
                       fontSize: PX_TO_PT * 14,
@@ -17764,6 +17833,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     src={canvasObj.imageUrl}
                     style={{
                       width: "100%",
+                      // maxHeight, NOT height. Left unbounded, react-pdf sizes the image
+                      // from its aspect ratio and a tall canvas overflows the page. An
+                      // explicit `height` would bound it but also force every short or
+                      // wide canvas into a full-height box, letterboxing it with blank
+                      // space; maxHeight bounds only the images that need it.
+                      maxHeight: maxCanvasImageHeight,
                       objectFit: "contain",
                     }}
                   />

@@ -54,6 +54,7 @@ import HeaderPrescription from "../../common/HeaderPrescription";
 import VitalsBox from "../../components/VitalsBox";
 import TabVitalsList from "../../components/tab_design/TabVitalsList";
 import MedicalHistoryBox from "../../components/MedicalHistoryBox";
+import MedicalHistoryDrawer from "../../components/MedicalHistoryDrawer";
 import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
@@ -2388,20 +2389,21 @@ function TabRx() {
             />
           </Drawer>
         )}
-        <Drawer
+        <MedicalHistoryDrawer
           className="scroll-y-hidden"
           closeIcon={false}
           placement="right"
           onClose={handleDrawerMedicalHistory}
           open={medicalHistoryDrawer}
-          width="100%"
+          legacyWidth="100%"
+          newWidth="100%"
         >
           <MedicalHistoryBox
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
           />
-        </Drawer>
+        </MedicalHistoryDrawer>
         <Drawer
           closeIcon={false}
           placement="right"

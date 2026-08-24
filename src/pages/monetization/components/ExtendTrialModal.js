@@ -5,7 +5,7 @@ import moment from "moment";
 import { useNavigate } from "react-router-dom";
 
 import { useSelector, useDispatch } from "react-redux";
-import { TRIAL, S_TATVA_PRACTICE } from "../../../utils/constants";
+import { TRIAL, S_TATVA_PRACTICE, SUPPORT_PHONE_NUMBER } from "../../../utils/constants";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../../utils/utils";
 
 import { extendFreeTrial, interest } from "../../../redux/monetizationSlice";
@@ -231,7 +231,7 @@ function ExtendTrialModal() {
                             <div className="d-flex align-items-center pt-3">
                                 <img className="me-2" src={contactSupport} alt="Contact Support" />
                                 <div className="fs-16 text-white opacity-08">Contact Support:</div>
-                                <a href="tel:+91-9974042363" className="fs-16 fw-medium text-white" onClick={contactNumberandEmail}>&nbsp;+91-9974042363&nbsp;|</a>
+                                <a href={`tel:+91-${SUPPORT_PHONE_NUMBER}`} className="fs-16 fw-medium text-white" onClick={contactNumberandEmail}>&nbsp;{`+91-${SUPPORT_PHONE_NUMBER}`}&nbsp;|</a>
                                 <a href="mailto:Support@tatvacare.in" className="fs-16 fw-medium text-white" onClick={contactNumberandEmail}>&nbsp;Support@tatvacare.in</a>
                             </div>
                         </Col>

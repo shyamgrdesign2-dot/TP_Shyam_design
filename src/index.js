@@ -10,6 +10,7 @@ import {
 
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { APP_RELEASE } from './utils/appVersion';
 
 import './index.css';
 import './styles/app.scss';
@@ -31,6 +32,8 @@ import {
 import { isProductionEnv } from "./utils/environment";
 import { getSentryRouteNameFromUrl } from "./utils/sentryRouteNames";
 import { reportBrowserOfflineToSentry } from "./utils/sentryNetwork";
+import { SENTRY_ENVIRONMENT, SENTRY_ENABLED } from "./utils/sentryEnvironment";
+import { isUnactionableThirdPartyEvent } from "./utils/sentryNoiseFilters";
 
 // Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
@@ -82,6 +85,19 @@ const tracesSampleRateValue =
 
 Sentry.init({
   dsn: "https://a4c36bf5194238bfa49de0a593619865@o4509755819294720.ingest.us.sentry.io/4510737179475968",
+  // Read from window.__APP_RELEASE__, which CI substitutes into build/index.html after
+  // the webpack build (see .github/workflows/*, "Stamp the release"). MUST be
+  // byte-identical to the release used for `sentry-cli sourcemaps upload`, otherwise
+  // Sentry cannot symbolicate — CI derives both from the same SENTRY_RELEASE value and
+  // fails the build if the substitution does not happen.
+  //
+  // It is NOT a REACT_APP_* var any more: those land in env.raw, which is webpack's
+  // cache.version, so a per-commit release string invalidated the whole filesystem cache
+  // every deploy. See docs/build-time-optimisation-plan.md §9.1.
+  //
+  // `|| undefined` keeps local dev behaviour identical — Sentry omits the field rather
+  // than registering a release of "".
+  release: APP_RELEASE || undefined,
   integrations: [
     Sentry.reactRouterV6BrowserTracingIntegration({
       useEffect: React.useEffect,
@@ -89,16 +105,88 @@ Sentry.init({
       useNavigationType,
       createRoutesFromChildren,
       matchRoutes,
+
+      // Web vitals were almost never recorded. Measured over 7d in prod (spans dataset):
+      //   pageload spans 285,081 | TTFB 206,161 (72%) | FCP 1,570 (0.55%)
+      //                          | LCP 420 (0.15%)    | CLS 0
+      // The capture rate falls off exactly in the order the metrics become available,
+      // because the pageload span had already been sent: its p50 duration was 430ms
+      // (p95 2131ms). TTFB exists immediately so it survives; FCP/LCP land later and
+      // CLS is only final at page-hide, so they were all dropped.
+      //
+      // Root cause: idleTimeout was never set, so it used the SDK default of 1000ms.
+      // Raised so the span stays open long enough for FCP/LCP on this bundle.
+      idleTimeout: 5000,
+
+      // CLS can only be known when the page is hidden, which no idleTimeout can wait for.
+      // These emit LCP and CLS as their own spans at page-hide, decoupled from the
+      // pageload span's lifetime — the only way to capture CLS at all.
+      // Still under _experiments in SDK 10.9.0; revisit on upgrade.
+      _experiments: {
+        enableStandaloneLcpSpans: true,
+        enableStandaloneClsSpans: true,
+      },
     }),
-    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+    // "error" only. Measured over 7d in prod on the Sentry logs dataset:
+    //   info 1,026,942 (57%) | warn 553,576 (31%) | error 227,319 (13%)
+    // console.log was pure developer chatter, and 91% of the warn volume was a single
+    // repeated react-pdf message ("Invalid '' string child outside <Text> component"),
+    // which is a code defect to fix at source rather than a signal worth shipping.
+    //
+    // Keeping "error" preserves the one case the other capture paths miss: a bare
+    // console.error(...) that never throws is NOT seen by the global error handler,
+    // the ErrorBoundary, or captureException. These land in Sentry Logs, not Issues.
+    Sentry.consoleLoggingIntegration({ levels: ["error"] }),
   ],
   tracesSampleRate: tracesSampleRateValue,
   tracePropagationTargets: [],
   sendDefaultPii: true,
-  environment: appEnv,
+  // Silent on developer machines unless REACT_APP_SENTRY_LOCAL=1. See utils/sentryEnvironment.js.
+  enabled: SENTRY_ENABLED,
+  // NOT appEnv: .env.dev sets REACT_APP_ENV=prod on purpose (it picks the API base URL),
+  // which filed every local error as a production error. Local runs land in "local".
+  environment: SENTRY_ENVIRONMENT,
+  // Errors thrown by code we do not ship and cannot fix.
+  //
+  // "Java object is gone" was the single most user-affecting issue in prod over 7 days
+  // (41 users). It is not ours: it comes from Instagram's in-app browser, which injects
+  // its own navigation_performance_logger_android script (frames appear under iabjs://)
+  // that calls an Android Java bridge after the bridge has been garbage-collected. The
+  // events also arrive from health.tatvacare.in, a different frontend sharing this DSN.
+  // Nothing in this codebase can prevent it, and every one of those events pushes a real
+  // issue further down the list.
+  //
+  // The iOS equivalent is window.webkit.messageHandlers being undefined — same shape,
+  // same cause, a webview host that has torn down its bridge.
+  //
+  // These two overlap on purpose with isMetaInAppBrowserBridgeError in
+  // utils/sentryNoiseFilters.js, which also matches Meta-browser bridge errors but
+  // requires a browser tag and a bridge frame first. Deleting either of these two
+  // entries on the assumption that function now covers it removes real coverage —
+  // see the comment above that function for a captured production event its frame
+  // patterns did not recognise.
+  //
+  // MoEngage's web SDK rejects with a bare string when it cannot read its own
+  // settings out of localStorage. Most of these arrive from in-app browsers
+  // (Instagram on iOS) where storage is partitioned or unavailable, so the SDK
+  // has nothing to read on a first visit. It is thrown inside the vendor bundle
+  // loaded from public/index.html, with no stack attached, so the message is the
+  // only thing available to match on. It is specific enough not to catch
+  // anything of ours.
+  //
+  // Keep these patterns narrow. A broad filter hides real bugs, which costs far more
+  // than the noise does.
+  ignoreErrors: [
+    /Java object is gone/i,
+    /window\.webkit\.messageHandlers/i,
+    /Error in getting sdk settings from localstorage/i,
+  ],
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;
+    // Unhandled rejections thrown inside vendor SDKs we inject but cannot fix.
+    // See utils/sentryNoiseFilters.js for why these cannot be handled at source.
+    if (isUnactionableThirdPartyEvent(event)) return null;
     return event;
   },
   beforeSendTransaction(event) {

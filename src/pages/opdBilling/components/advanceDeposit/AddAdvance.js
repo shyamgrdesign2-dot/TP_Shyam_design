@@ -392,7 +392,7 @@ function AddAdvance({
 
   useEffect(() => {
     if (isEditingName && nameAutoCompleteRef.current) {
-      nameAutoCompleteRef.current.focus();
+      nameAutoCompleteRef.current?.focus();
     }
   }, [isEditingName]);
 

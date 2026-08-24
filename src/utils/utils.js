@@ -498,6 +498,8 @@ export const HTMLTransformer = (htmlString) => {
       replaceContent(label, "{Procedure}");
     } else if (label.classList.contains("number_of_months")) {
       replaceContent(label, "{Number of Months}");
+     } else if (label.classList.contains("mrn_no")) {
+      replaceContent(label, "{MRN No.}");
     }
   });
 
@@ -1144,9 +1146,10 @@ export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
     return "AnekDevanagari";
   }
 
-  // Bengali/Assamese
+  // Bengali/Assamese - see the Font.register note in ViewPDF.js for why this is
+  // NotoSansBengali and not AnekBangla.
   if (/[\u0980-\u09FF]/.test(text)) {
-    return "AnekBangla";
+    return "NotoSansBengali";
   }
 
   // Tamil
@@ -1209,6 +1212,20 @@ export const isValidGST = (gstNumber) => {
 
   return true; // GST is valid
 };
+
+/**
+ * @react-pdf/renderer drops the last glyph cluster of a word that sits alone in a
+ * <Text> when shaping splits a matra into pre-base + post-base glyphs, so the glyph
+ * count outruns the character count (Bengali ো / ৌ, and the same class of vowel sign
+ * in the other Indic scripts). "ডোজ" prints as "ডো", "নোট" as "নো". A trailing
+ * zero-width space keeps the final cluster inside the measured run; it is invisible
+ * and adds no advance width, so layout is unchanged.
+ */
+const PDF_TRAILING_CLUSTER_GUARD = "\u200B"; // zero-width space
+const guardPdfTrailingCluster = (value) =>
+    typeof value === "string" && /[^\u0000-\u00FF]/.test(value)
+        ? value + PDF_TRAILING_CLUSTER_GUARD
+        : value;
 
 export const getRxTitle = (LanguageId, title) => {
     const translations = {
@@ -1330,7 +1347,7 @@ export const getRxTitle = (LanguageId, title) => {
             "NOTES": 'ଟିପ୍ପଣୀ',
         }
     };
-    return translations?.[parseInt(LanguageId)]?.[title] || title;
+    return guardPdfTrailingCluster(translations?.[parseInt(LanguageId)]?.[title] || title);
 }
 
 export const getDurationTitle = (LanguageId, tmm_duration_type) => {
@@ -1505,7 +1522,7 @@ export const getDurationTitle = (LanguageId, tmm_duration_type) => {
     return tmm_duration_type;
   }
 
-  return languageTranslations[tmm_duration_type];
+  return guardPdfTrailingCluster(languageTranslations[tmm_duration_type]);
 };
 
 export const getTimeingTitle = (LanguageId) => {
@@ -1973,6 +1990,58 @@ export const resolveFooterImageDimensions = async (fileFooter) => {
       footerHeight: 0,
       footerWidth: 0,
       renderedFooterImageHeight: 0,
+    };
+  }
+};
+
+const HEADER_A4_WIDTH_IN_PTS = 595;
+const HEADER_PAGE_X_PADDING = 0.75 * 60;
+
+export const computeHeaderImageDimensions = (width, height) => ({
+  headerHeight: height || 0,
+  headerWidth: width || 0,
+  renderedHeaderImageHeight:
+    width > 0
+      ? (height / width) * (HEADER_A4_WIDTH_IN_PTS - HEADER_PAGE_X_PADDING)
+      : 0,
+});
+
+/**
+ * Attaches the natural dimensions of an uploaded letterhead header image.
+ *
+ * The header renders the image at `width: "100%"` with no height bound, so its flow
+ * height is the aspect ratio applied to the content width. The PDF documents need that
+ * height to size anything else against the usable page - see utils/print/letterheadMetrics.
+ * Mirrors resolveFooterImageDimensions.
+ */
+export const resolveHeaderImageDimensions = async (fileHeader) => {
+  if (!fileHeader?.imageShow || !fileHeader?.showFile) {
+    return fileHeader;
+  }
+
+  const headerWidth = Number(fileHeader.headerWidth);
+  const headerHeight = Number(fileHeader.headerHeight);
+  if (
+    headerWidth > 0 &&
+    headerHeight > 0 &&
+    Number.isFinite(fileHeader.renderedHeaderImageHeight)
+  ) {
+    return fileHeader;
+  }
+
+  try {
+    const { width, height } = await getImageDimensions(fileHeader.showFile);
+    return {
+      ...fileHeader,
+      ...computeHeaderImageDimensions(width, height),
+    };
+  } catch (err) {
+    console.error("Failed to resolve header image dimensions:", err);
+    return {
+      ...fileHeader,
+      headerHeight: 0,
+      headerWidth: 0,
+      renderedHeaderImageHeight: 0,
     };
   }
 };

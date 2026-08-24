@@ -1,5 +1,10 @@
 import { listPatientCanvasMapping } from "../service";
 import { exportToBlob } from "@excalidraw/excalidraw";
+import {
+  deleteCachedCanvasPrint,
+  getCachedCanvasPrint,
+  setCachedCanvasPrint,
+} from "./drawingCanvasPrintCache";
 
 export const DRAWING_CANVAS_CASE_OPTION = {
   id: 25,
@@ -55,7 +60,45 @@ export const filterCanvasRecordsByFilename = (records, canvasFilename) => {
   });
 };
 
-export async function loadDrawingCanvasesForPrint({
+/**
+ * Deduplicates the print-side canvas pipeline.
+ *
+ * A single consultation view builds the print PDF from more than one place, and each
+ * build re-ran this whole pipeline: the mapping API, a ~875KB scene download per
+ * canvas, and a full Excalidraw rasterisation. Sharing the in-flight promise collapses
+ * those duplicates into one load.
+ *
+ * Note: onCorruptCanvas/onApiFailed only fire for the caller that misses the cache.
+ * They are telemetry, so one event per real load is what we want anyway.
+ */
+export async function loadDrawingCanvasesForPrint(options) {
+  const { patientId, tcmId, canvasFilename } = options || {};
+  const cacheKey = [
+    patientId,
+    tcmId,
+    normalizeCanvasIds(canvasFilename).join(","),
+  ].join("|");
+
+  const cached = getCachedCanvasPrint(cacheKey);
+  if (cached) return cached;
+
+  const promise = loadDrawingCanvasesForPrintUncached(options).then((result) => {
+    // A transient mapping-API failure must not be cached as "this consultation has
+    // no canvases" for the rest of the TTL.
+    if (result.apiFailed) {
+      deleteCachedCanvasPrint(cacheKey);
+    }
+    return {
+      drawingCanvases: result.drawingCanvases,
+      corruptedCanvasSkipped: result.corruptedCanvasSkipped,
+    };
+  });
+
+  setCachedCanvasPrint(cacheKey, promise);
+  return promise;
+}
+
+async function loadDrawingCanvasesForPrintUncached({
   patientId,
   tcmId,
   canvasFilename,
@@ -64,17 +107,18 @@ export async function loadDrawingCanvasesForPrint({
   onApiFailed,
 }) {
   if (!patientId || !tcmId) {
-    return { drawingCanvases: [], corruptedCanvasSkipped: 0 };
+    return { drawingCanvases: [], corruptedCanvasSkipped: 0, apiFailed: false };
   }
 
   const hasCanvasFilenameField =
     Array.isArray(canvasFilename) || typeof canvasFilename === "string";
   if (!hasCanvasFilenameField) {
-    return { drawingCanvases: [], corruptedCanvasSkipped: 0 };
+    return { drawingCanvases: [], corruptedCanvasSkipped: 0, apiFailed: false };
   }
 
   let drawingCanvases = [];
   let corruptedCanvasSkipped = 0;
+  let apiFailed = false;
 
   try {
     const res = await listPatientCanvasMapping(patientId, tcmId);
@@ -94,10 +138,21 @@ export async function loadDrawingCanvasesForPrint({
           if (textData) {
             const parsedData = JSON.parse(textData);
             if (parsedData?.elements) {
+              // JPEG, not the default PNG. @react-pdf embeds JPEG straight through as
+              // DCTDecode — it only parses the SOF header. A PNG instead goes through
+              // pdfkit's splitAlphaChannel: pure-JS inflate of the full raster, a
+              // per-pixel RGB/alpha split, then two pure-JS deflates. In Node those
+              // are native and finish in ~70ms; in the browser they run on polyfilled
+              // Buffer/zlib and hard-freeze the tab on a photo-sized canvas
+              // (measured: 507x690 RGBA, 586KB, never completes).
+              // exportBackground below makes the canvas opaque, so dropping PNG's
+              // alpha channel costs nothing.
               const blob = await exportToBlob({
                 elements: parsedData.elements,
                 appState: { ...parsedData.appState, exportBackground: true },
                 files: parsedData.files,
+                mimeType: "image/jpeg",
+                quality: 0.92,
               });
               if (blob) {
                 const url = URL.createObjectURL(blob);
@@ -123,11 +178,12 @@ export async function loadDrawingCanvasesForPrint({
       }
     }
   } catch (err) {
+    apiFailed = true;
     console.error("Failed to load drawing canvases for print:", err);
     onApiFailed?.({ patientId, tcmId, error: err });
   }
 
-  return { drawingCanvases, corruptedCanvasSkipped };
+  return { drawingCanvases, corruptedCanvasSkipped, apiFailed };
 }
 
 export const ensureDrawingCanvasCaseOption = (printSettings) => {

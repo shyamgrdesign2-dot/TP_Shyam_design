@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { Container, Navbar, Nav } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { Select, Button, Checkbox, Popover, Drawer, Dropdown, Spin } from "antd";
+import { APP_VERSION_LABEL, APP_RELEASE } from "../utils/appVersion";
 import { useSelector, useDispatch } from "react-redux";
 import { jwtDecode } from "jwt-decode";
 import { isChrome, isSafari, isBrowser, isMobile, isTablet } from "react-device-detect";
@@ -1577,6 +1578,19 @@ function Header({ locationPath }) {
             trigger={['click']}
             className="py-0 nav-link cursor-pointer"
             overlayClassName={`prfile-dropdown ${isCvtExtHosAccessableFromGB ? "logout-only-dropdown" : ""}`}
+            // Build version, pinned bottom-right of the dropdown. Rendered outside the
+            // menu (not as an item) so it cannot swallow the Log Out click. Hidden in
+            // local dev, where no release is stamped or inlined.
+            dropdownRender={(menu) => (
+              <div className="prfile-dropdown-inner">
+                {menu}
+                {APP_VERSION_LABEL && (
+                  <span className="app-version-badge" title={APP_RELEASE}>
+                    {APP_VERSION_LABEL}
+                  </span>
+                )}
+              </div>
+            )}
           >
             <a onClick={handeProfileDD}>
               {profile?.um_image && planDetails?.currentPlanStatus !== "PAID" ? (

@@ -277,7 +277,7 @@ const OphthalmologyTable = ({
     const nextKey = inputColumnKeys[currentIndex + 1];
     const nextRef = cellRefs[`${rowKey}-${nextKey}`];
     if (nextRef?.current) {
-      nextRef.current.focus();
+      nextRef.current?.focus();
     }
   };
 

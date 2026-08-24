@@ -7,6 +7,10 @@ ARG REACT_APP_ENV
 ARG SENTRY_AUTH_TOKEN
 ARG GENERATE_SOURCEMAP
 ARG PUBLIC_URL
+# Release identity for this build, e.g. pm-doctor-portal@4.8.0+61c4b3f (prod)
+# or pm-doctor-portal@61c4b3f (non-prod). Computed in CI, never here — the
+# Docker context has no reliable git metadata.
+ARG SENTRY_RELEASE
 # GitHub Packages PAT (read:packages) for @dhspl-tatvacare/* — passed from CI as a build-arg:
 #   buildArguments: NODE_AUTH_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
 # Consumed only for the install; .npmrc references it via ${NODE_AUTH_TOKEN} and is removed after
@@ -17,6 +21,11 @@ ENV REACT_APP_ENV=$REACT_APP_ENV
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ENV GENERATE_SOURCEMAP=$GENERATE_SOURCEMAP
 ENV PUBLIC_URL=$PUBLIC_URL
+# One build-arg drives both consumers so they can never drift:
+#   SENTRY_RELEASE            -> sentry-cli sourcemaps upload --release
+#   REACT_APP_SENTRY_RELEASE  -> inlined by CRA into Sentry.init({ release })
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
+ENV REACT_APP_SENTRY_RELEASE=$SENTRY_RELEASE
 
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV DISABLE_ESLINT_PLUGIN=true

@@ -9,7 +9,10 @@ import { DENTAL_EXAM_CASE_OPTION_ID } from "./dentalDefaultPrintSettings";
 import { hasDentalExamPayload } from "./cardiologyDentalOralExam";
 import { normalizeSmartRxDataForPrint } from "./smartRxPrintUtils";
 import { normalizeLabResultsResponse } from "./labResultsUtils";
-import { resolveFooterImageDimensions } from "./utils";
+import {
+  resolveFooterImageDimensions,
+  resolveHeaderImageDimensions,
+} from "./utils";
 
 function shouldPrefetchDentalToothImages({
   dentalExaminationData,
@@ -147,6 +150,9 @@ export const renderPrintPayloadToBlob = async (
       : printSettings;
 
   const resolvedFileFooter = await resolveFooterImageDimensions(fileFooter);
+  // The header is laid out in page flow, so the document needs its rendered height
+  // to know how much of the page is actually usable.
+  const resolvedFileHeader = await resolveHeaderImageDimensions(fileHeader);
 
   const normalizedCustomModules = Array.isArray(customModules)
     ? customModules
@@ -165,7 +171,7 @@ export const renderPrintPayloadToBlob = async (
       frequencyList={frequencyList}
       timingList={timingList}
       printSettings={resolvedPrintSettings}
-      fileHeader={fileHeader}
+      fileHeader={resolvedFileHeader}
       fileFooter={resolvedFileFooter}
       fileLogo={fileLogo}
       fileWatermark={fileWatermark}

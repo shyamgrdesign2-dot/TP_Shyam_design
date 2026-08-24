@@ -1,12 +1,13 @@
 {
   "name": "react-thyrocare",
-  "version": "4.7.5",
+  "version": "4.8.15",
   "apiCompatibilityVersion": 1.1,
   "private": true,
   "homepage": "/",
   "dependencies": {
-    "@cloudflare/realtimekit-react": "^1.2.4",
-    "@cloudflare/realtimekit-react-ui": "^1.1.0",
+    "@cloudflare/realtimekit": "1.5.1",
+    "@cloudflare/realtimekit-react": "1.5.1",
+    "@cloudflare/realtimekit-react-ui": "1.2.0",
     "@dhspl-tatvacare/tesseract-ui": "^1.1.0",
     "@dnd-kit/core": "^6.1.0",
     "@dnd-kit/modifiers": "^7.0.0",
@@ -49,7 +50,6 @@
     "iconsax-reactjs": "^0.0.8",
     "is-hotkey": "^0.2.0",
     "jodit-react": "^4.1.2",
-    "js-file-download": "^0.4.12",
     "jspdf": "^2.5.1",
     "jsqr": "^1.4.0",
     "jwt-decode": "^4.0.0",
@@ -80,7 +80,6 @@
     "react-scripts": "5.0.1",
     "react-signature-canvas": "^1.0.6",
     "react-slick": "^0.30.3",
-    "react-sortable-hoc": "^2.0.0",
     "react-to-print": "^2.14.15",
     "react-zoom-pan-pinch": "^3.6.1",
     "reactjs-pdf-reader": "^1.0.12",
@@ -93,7 +92,6 @@
     "slate-history": "^0.113.1",
     "slate-react": "^0.118.2",
     "slick-carousel": "^1.8.1",
-    "smart-webcomponents-react": "^25.5.0",
     "three": "^0.184.0",
     "uuid": "^9.0.1",
     "web-vitals": "^2.1.4",
@@ -114,7 +112,7 @@
     "test:e2e:debug": "PLAYWRIGHT_HTML_OPEN=never playwright test --debug=cli",
     "eject": "react-scripts eject",
     "compress:models": "node scripts/compress-models.js",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org digicare-health-solutions-priv --project tatvapractice ./build && sentry-cli sourcemaps upload --org digicare-health-solutions-priv --project tatvapractice ./build"
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org digicare-health-solutions-priv --project tatvapractice ./build && sentry-cli sourcemaps upload --org digicare-health-solutions-priv --project tatvapractice ${SENTRY_RELEASE:+--release \"$SENTRY_RELEASE\"} ./build"
   },
   "eslintConfig": {
     "extends": [

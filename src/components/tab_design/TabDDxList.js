@@ -15,7 +15,7 @@ import { useSelector } from "react-redux";
 import { isMobile, isTablet } from "react-device-detect";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../utils/utils";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FAILED_VERIFICATION, FREE, S_DDX } from "../../utils/constants";
+import { FAILED_VERIFICATION, FREE, S_DDX, SUPPORT_PHONE_NUMBER } from "../../utils/constants";
 import CampaignDiscount from "../../pages/monetization/components/CampaignDiscount";
 
 import { interest } from "../../redux/monetizationSlice";
@@ -247,7 +247,7 @@ const TabDDxList = ({
                 <div className="bg-white p-4 rounded-5 mt-4 text-start">
                   <div className="align-items-center my-3">
                     <i className="icon-phone fs-16 border p-1 rounded-2 me-1 text-secondary-custom"></i>
-                    <a className="text-main fw-medium fs-16 text-welcome" href="tel:+91-9974042363"> +91 93444 14944</a>
+                    <a className="text-main fw-medium fs-16 text-welcome" href={`tel:+91-${SUPPORT_PHONE_NUMBER}`}> {`+91-${SUPPORT_PHONE_NUMBER}`}</a>
                   </div>
                   <div className="align-items-center my-3">
                     <span className="me-2 border p-1 rounded-2" style={{ padding: '2px 4px' }}>

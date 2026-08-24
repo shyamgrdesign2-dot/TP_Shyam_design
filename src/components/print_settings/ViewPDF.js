@@ -30,11 +30,22 @@ import { renderDentalExamPdf } from './dental/renderDentalExamPdf';
 import { toothHasDentalPrintData } from './dental/dentalPrintHelpers';
 import { normalizeCanvasIds } from '../../pages/drawingCanvas/utils/drawingCanvasPrintUtils';
 
+import {
+    canRenderCanvasSection,
+    getHeaderFlowHeightPts,
+    getMaxCanvasImageHeightPts,
+} from "../../utils/print/letterheadMetrics";
+
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
 const FOOTER_CONTENT_GAP = PX_TO_PT * 5;
 const widthOfA4PageInPts = 595;
+const heightOfA4PageInPts = 842;
 const SOAP_PRINT_MODULE_ID = 90000101;
+
+// Section marginTop (15px) + canvas name Text (14px font + 10px marginBottom) +
+// per-canvas marginBottom (15px): everything in the block that is not the image.
+const CANVAS_BLOCK_CHROME_PTS = PX_TO_PT * (15 + 14 * 1.2 + 10 + 15);
 
 // Roboto
 Font.register({
@@ -100,13 +111,18 @@ Font.register({
     ],
 });
 
-// Bengali
+// Bengali / Assamese.
+// NotoSansBengali, not AnekBangla: AnekBangla places the below-base vowel signs
+// (ু ূ ৃ) as zero-advance marks pulled back by a GPOS xOffset of 0.55-0.91em, and
+// @react-pdf/renderer ignores that offset, so the mark lands under the *next*
+// consonant — "ওষুধ" prints as "ওষধু", "কুকুর" as "ককুবু". NotoSansBengali needs
+// no offset above 0.22em for the same text, so it renders correctly.
 Font.register({
-    family: 'AnekBangla',
+    family: 'NotoSansBengali',
     fonts: [
-        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Regular.ttf`, fontWeight: 400 }, // Regular
-        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Medium.ttf`, fontWeight: 500 }, // Medium
-        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Bold.ttf`, fontWeight: 700 }, // Bold
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansBengali-Regular.ttf`, fontWeight: 400 }, // Regular
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansBengali-Medium.ttf`, fontWeight: 500 }, // Medium
+        { src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansBengali-Bold.ttf`, fontWeight: 700 }, // Bold
     ],
 });
 
@@ -1195,7 +1211,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         } else if (selectedLang == 10) {
         value = "NotoSansTamil";
         } else if (selectedLang == 11 || selectedLang == 12) {
-        value = "AnekBangla";
+        value = "NotoSansBengali";
         } else if (selectedLang == 13) {
         value = "NotoSansOriya";
         } else {
@@ -1641,6 +1657,34 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     const paddingStyles = calculatePadding();
+
+    /**
+     * Height the letterhead header takes out of page flow on every page. paddingBottom
+     * already reserves the footer (absolutely positioned); paddingTop reserves only the
+     * letterhead margin, while the header block itself is `fixed` and laid out in flow.
+     * See utils/print/letterheadMetrics.
+     */
+    const headerFlowHeightPts = getHeaderFlowHeightPts({
+        letterheadFormat:
+            mode === NORMAL
+                ? printSettings?.letterhead_format
+                : printSettings?.whatsapp_letterhead_format,
+        header: printSettings?.header_footer?.header,
+        fileHeader,
+        logoEnabled: printSettings?.logo_enable === "Y",
+        availableWidthPts:
+            widthOfA4PageInPts -
+            (paddingStyles?.paddingLeft || 0) -
+            (paddingStyles?.paddingRight || 0),
+    });
+
+    const maxCanvasImageHeight = getMaxCanvasImageHeightPts({
+        pageHeightPts: heightOfA4PageInPts,
+        paddingTop: paddingStyles?.paddingTop,
+        paddingBottom: paddingStyles?.paddingBottom,
+        headerFlowHeightPts,
+        blockChromePts: CANVAS_BLOCK_CHROME_PTS,
+    });
 
      const getFooterImageRenderHeight = () => {
        return getFooterImageRenderHeightForWidth(
@@ -3594,7 +3638,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             option?.format === 'inline' ? (
                                                 <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Vitals & Body Composition:&nbsp;</Text>
-                                                    {patientBirthWeight && (
+                                                    {Boolean(patientBirthWeight) && (
                                                         <>
                                                             <Text
                                                                 style={{
@@ -3659,7 +3703,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>
                                                         Vitals & Body Composition:&nbsp;
 
-                                                        {patientBirthWeight && (
+                                                        {Boolean(patientBirthWeight) && (
                                                             <>
                                                                 <Text
                                                                     style={{
@@ -3745,7 +3789,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>
                                                         Vitals & Body Composition:&nbsp;
 
-                                                        {patientBirthWeight && (
+                                                        {Boolean(patientBirthWeight) && (
                                                             <>
                                                                 <Text
                                                                     style={{
@@ -4217,7 +4261,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     </>
                                                 ) : option?.format === 'listview' ? (
                                                     <>
-                                                        {transformGivenVaccines?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {transformGivenVaccines?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Given Vaccines :&nbsp;{'\n'}</Text>
                                                             {transformGivenVaccines?.map((item, i) => {
                                                                 return (
@@ -4253,7 +4297,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 )
                                                             })}
                                                         </View>}
-                                                        {todayVaccines?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {todayVaccines?.due?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Due Vaccines :&nbsp;{'\n'}</Text>
                                                             {todayVaccines?.due?.map((item, i) => {
                                                                 return (
@@ -4294,7 +4338,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     </>
                                                 ) : (
                                                     <>
-                                                        {transformGivenVaccines?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {transformGivenVaccines?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Given Vaccines :&nbsp;{'\n'}</Text>
                                                             <View style={styles.table}>
                                                                 <View style={styles.headerRow} fixed>
@@ -4325,7 +4369,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 ))}
                                                             </View>
                                                         </View>}
-                                                        {todayVaccines?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {todayVaccines?.due?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Due Vaccines :&nbsp;{'\n'}</Text>
                                                             <View style={styles.table}>
                                                                 <View style={styles.headerRow} fixed>
@@ -7329,10 +7373,25 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 25 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {filteredDrawingCanvases.length > 0 && (
+                                        {filteredDrawingCanvases.length > 0 &&
+                                            // No room under this letterhead: rendering
+                                            // anyway would loop react-pdf.
+                                            canRenderCanvasSection(maxCanvasImageHeight) && (
                                             <View style={{ marginTop: PX_TO_PT * 15 }} wrap={true}>
                                                 {filteredDrawingCanvases.map((canvasObj, i) => (
-                                                    <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                                                    // wrap stays false, and the gap belongs between
+                                                    // canvases so the last block carries none - see the
+                                                    // notes on the same block in utils/server/viewpdf.js.
+                                                    <View
+                                                        key={`canvas-${i}`}
+                                                        wrap={false}
+                                                        style={{
+                                                            marginBottom:
+                                                                i === filteredDrawingCanvases.length - 1
+                                                                    ? 0
+                                                                    : PX_TO_PT * 15,
+                                                        }}
+                                                    >
                                                         <Text
                                                             style={{
                                                                 fontSize: PX_TO_PT * 14,
@@ -7347,7 +7406,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         <Image
                                                             src={canvasObj.imageUrl}
                                                             style={{
+                                                                // maxHeight, NOT height — see the note on the
+                                                                // same block in utils/server/viewpdf.js.
                                                                 width: '100%',
+                                                                maxHeight: maxCanvasImageHeight,
                                                                 objectFit: 'contain',
                                                             }}
                                                         />
@@ -7604,7 +7666,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                              
                       </Page>
                       )}
-                      {structuralTeethDiagramImgUrl && (
+                      {Boolean(structuralTeethDiagramImgUrl) && (
                         <Page
                             size="A4"
                             style={{

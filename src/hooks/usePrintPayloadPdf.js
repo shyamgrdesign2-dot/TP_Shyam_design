@@ -5,6 +5,9 @@ import { normalizeLabResultsResponse } from "../utils/labResultsUtils";
 import { trackEvent } from "../utils/utils";
 import { fetchReferralDataForCaseManager } from "../utils/crossConsultHelpers";
 
+/** Same budget as the shared axios instance in api/services/axiosService.js. */
+const PRINT_PAYLOAD_TIMEOUT_MS = 20000;
+
 function pickStableDentalInput(dentalExaminationData, dentalexaminationData) {
   const raw = dentalExaminationData || dentalexaminationData;
   if (!raw) return null;
@@ -127,6 +130,7 @@ export const usePrintPayloadPdf = ({
     }
 
     let isCancelled = false;
+    const abortController = new AbortController();
     const fetchPayload = async () => {
       setIsGenerating(true);
       setError(null);
@@ -146,7 +150,14 @@ export const usePrintPayloadPdf = ({
             fetchUrl += fetchUrl.includes("?") ? "&output=json" : "?output=json";
           }
         }
-        const response = await axios.get(fetchUrl);
+        // Bare `axios` has no default timeout, so a stalled print-payload request
+        // used to hang forever with `isGenerating` stuck true — a permanent spinner
+        // with no error and nothing in Sentry. Mirror the app instance's 20s budget
+        // and abort the request when the effect is torn down.
+        const response = await axios.get(fetchUrl, {
+          timeout: PRINT_PAYLOAD_TIMEOUT_MS,
+          signal: abortController.signal,
+        });
         const data = response?.data?.data || null;
         if (!data) {
           throw new Error("Print payload is missing.");
@@ -170,6 +181,7 @@ export const usePrintPayloadPdf = ({
     return () => {
       isCancelled = true;
       clearTimeout(timeoutId);
+      abortController.abort();
     };
   }, [printUrl, payloadOverride, skipFetch]);
 
