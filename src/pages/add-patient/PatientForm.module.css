@@ -125,6 +125,47 @@
   min-width: 0;
 }
 
+/* Full name = salutation Dropdown + name InputBox, joined like agePair so the
+   control still reads as one field. Dropdown (not native <select>) keeps the
+   tablet picker from covering the whole screen. */
+.namePair {
+  display: flex;
+  gap: 0;
+  align-items: flex-start;
+}
+
+.nameSalutation {
+  flex: 0 0 108px;
+  min-width: 96px;
+}
+
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  margin-left: -1px;
+}
+
+.nameSalutation [id^="tp-drp-trigger"],
+.nameSalutation [aria-haspopup="listbox"] {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.nameInput [class*="_fieldRow_"] {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+.nameSalutation,
+.nameInput {
+  position: relative;
+}
+
+.nameSalutation:focus-within,
+.nameInput:focus-within {
+  z-index: 1;
+}
+
 /* ── Patient photo upload ─────────────────────────────────────────── */
 .avatarCircle {
   position: relative;

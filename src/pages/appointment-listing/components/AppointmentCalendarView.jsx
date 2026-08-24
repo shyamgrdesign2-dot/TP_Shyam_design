@@ -273,6 +273,13 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
 
   const status = statusMeta(cardTab);
   const visit = visitMeta(row.visitType);
+  /* Join only for an upcoming teleconsult. Cancelled/finished still carry
+     hasVideo on the record, but joining is no longer a valid action — and
+     rendering Join alone used to force the actions footer open, which then
+     drew a second kebab next to the head one (cancelled has no primary). */
+  const showJoin = row.hasVideo && cardTab === TAB_IDS.QUEUE;
+  const showMove = !!onMove && cardTab === TAB_IDS.QUEUE;
+  const showActionsFooter = !!(primary || showJoin || showMove);
   /* Two boxes on purpose: the outer one positions and carries the caret,
      the inner one clips its children to the 12px radius. A single box can't
      do both, because clipping would eat the caret. */
@@ -326,9 +333,9 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
             </p>
           )}
         </div>
-        {/* Cancelled appointments have no CTA, so there's no footer to put
-            the kebab in; it goes back to the head corner. */}
-        {!primary && <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />}
+        {/* Cancelled (and any other no-CTA) rows put the kebab here; when the
+            footer is open the kebab lives there instead — never both. */}
+        {!showActionsFooter && <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />}
       </div>
 
       {/* Icon-led rows: the glyph names the field, so no label column is
@@ -378,7 +385,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
       </div>
 
       {/* CTA left, the rest of the actions right. */}
-      {(primary || row.hasVideo) && (
+      {showActionsFooter && (
         <div className={styles.popoverActions}>
           <span className={styles.popoverActionsLead}>
             {primary && (
@@ -388,8 +395,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
                 <TableActions align="left" primary={primary} actions={[]} />
               )
             )}
-            {/* A video consult can be joined straight from the schedule. */}
-            {row.hasVideo && (
+            {showJoin && (
               <Button
                 size="sm"
                 variant="solid"
@@ -403,7 +409,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
             {/* The touch equivalent of dragging the card. Shown only where
                 there is no pointer to drag with, so a mouse user is not
                 offered two ways to do the same thing. */}
-            {onMove && cardTab === "queue" && (
+            {showMove && (
               <Button
                 size="sm"
                 variant="outline"
@@ -1358,9 +1364,15 @@ export default function AppointmentCalendarView({
             const el = e.currentTarget;
             setScrolled(el.scrollTop > 2);
             syncViewport(el);
-            // The tooltip is anchored to a viewport rect, so scrolling
-            // invalidates it; a pinned one stays put until dismissed.
-            if (popup && !popup.pinned) reanchorPopup();
+            // Hover tooltips re-anchor; a pinned card on a coarse pointer is
+            // dismissed instead — the fullscreen layer no longer traps scroll,
+            // so moving the day must close the card rather than leave it
+            // stranded over the wrong slot.
+            if (popup?.pinned && window.matchMedia?.("(pointer: coarse)").matches) {
+              closePopup();
+            } else if (popup && !popup.pinned) {
+              reanchorPopup();
+            }
             if (!todayVisible) {
               setNowChip(null);
             } else {
@@ -1385,43 +1397,38 @@ export default function AppointmentCalendarView({
             style={{ gridTemplateColumns: `72px repeat(${days.length}, minmax(0, 1fr))` }}
           >
             <div className={styles.gridHeaderGutter}>{tzLabel}</div>
+            {/* No "chosen day" mark here: the window IS the selection. Only
+                today is marked. Keep comments outside `return (` / ternaries —
+                a production minify of this file once dropped the entire
+                colHead JSX when a block comment sat between `return (` and
+                the root element, leaving only the GMT gutter in the DOM. */}
             {days.map((d) => {
               const dayISO = iso(d);
               const isToday = dayISO === todayISO;
               const hidden = hiddenByDay[dayISO] || [];
+              const dayHead =
+                mode === "day" ? (
+                  <span className={styles.dayTitle}>
+                    <span className={styles.dayTitleText}>{longDate.format(d)}</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.colHeadStack}
+                    title={`Open ${longDate.format(d)}`}
+                    onClick={() => {
+                      goToDate(d);
+                      pickMode("day");
+                    }}
+                  >
+                    <span className={styles.colHeadWeekday}>{weekdayShort.format(d)}</span>
+                    <span className={styles.colHeadNum}>{d.getDate()}</span>
+                  </button>
+                );
               return (
-                /* No "chosen day" mark here. Now that a week view selects the
-                   whole week and a month view picks the month, the window IS
-                   the selection: lighting one column inside it claimed a day
-                   had been singled out when nothing had. Only `today` is
-                   marked, which is a fact about the date rather than about
-                   what was picked. */
                 <div key={dayISO} className={styles.colHead} data-today={isToday || undefined}>
                   <span className={styles.colHeadAccent} aria-hidden="true" />
-                  {mode === "day" ? (
-                    /* One column, so the head is the panel's title rather
-                       than a cell to pick out: full weekday and date, left
-                       against the time axis. The accent rule above already
-                       says whether it is today. */
-                    <span className={styles.dayTitle}>
-                      <span className={styles.dayTitleText}>{longDate.format(d)}</span>
-                    </span>
-                  ) : (
-                    /* Week: a column among seven, so it is stacked and
-                       centred to sit over its column. */
-                    <button
-                      type="button"
-                      className={styles.colHeadStack}
-                      title={`Open ${longDate.format(d)}`}
-                      onClick={() => {
-                        goToDate(d);
-                        pickMode("day");
-                      }}
-                    >
-                      <span className={styles.colHeadWeekday}>{weekdayShort.format(d)}</span>
-                      <span className={styles.colHeadNum}>{d.getDate()}</span>
-                    </button>
-                  )}
+                  {dayHead}
                   {hidden.length > 0 && (
                     <button
                       type="button"
@@ -1673,10 +1680,8 @@ export default function AppointmentCalendarView({
           </div>
         </div>
       ) : (
-        /* The month has its own scroller, so it has to report its own scroll
-           position. Without this the header wore whatever `scrolled` the
-           day/week grid last set, which is why its shadow was on from the
-           moment you switched into month. */
+        // Month has its own scroller, so it reports its own scroll position
+        // (otherwise the header kept day/week `scrolled` and showed a shadow).
         <div
           className={styles.monthWrap}
           onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 2)}

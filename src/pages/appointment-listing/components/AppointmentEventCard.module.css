@@ -28,7 +28,11 @@
   text-align: left;
   overflow: hidden;
   transition: box-shadow 120ms;
-  touch-action: none;
+  /* Vertical pan must stay available: on tablets the finger is both the
+     cursor and the scrollbar, and drag-reschedule is pointer-only (see
+     startDrag). touch-action:none trapped the gesture on the card so a
+     press that began on an appointment could not scroll the day. */
+  touch-action: pan-y;
 }
 
 .card:hover {

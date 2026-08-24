@@ -432,27 +432,35 @@ function PatientForm({ onSaved, onClose, onInvalid, initialName = "", initialCon
             <div className={styles.heroFields}>
               <div className={styles.row}>
                 <div className={styles.colFull} data-field="pm_fullname">
-                  <InputBox
-                    label="Full Name"
-                    required
-                    placeholder="Enter patient's full name"
-                    value={form.pm_fullname}
-                    onChange={(e) => set("pm_fullname", e.target.value)}
-                    onBlur={() => checkField("pm_fullname")}
-                    status={errors.pm_fullname ? "error" : "default"}
-                    helperText={errors.pm_fullname || ""}
-                    fullWidth
-                    /* The design system's own select add-on, not a select
-                       dressed to look like one: it inherits the field's
-                       height, divider, chevron and focus ring for free. */
-                    leftAddon={{
-                      type: "select",
-                      ariaLabel: "Salutation",
-                      options: salutationOptions,
-                      value: form.pm_salutation,
-                      onChange: (e) => handleSalutationChange(e.target.value),
-                    }}
-                  />
+                  {/* Native <select> (InputBox leftAddon type=select) opens the
+                      OS picker on tablets and covers the whole screen. Use the
+                      same Tesseract Dropdown as Blood Group so the menu stays
+                      in-page and sized to its options. */}
+                  <label className={styles.fieldLabel} htmlFor="add-patient-full-name">
+                    Full Name<span className={styles.required}>*</span>
+                  </label>
+                  <div className={styles.namePair}>
+                    <div className={styles.nameSalutation}>
+                      <Dropdown
+                        ariaLabel="Salutation"
+                        options={salutationOptions}
+                        value={form.pm_salutation || undefined}
+                        onChange={(v) => handleSalutationChange(v)}
+                      />
+                    </div>
+                    <div className={styles.nameInput}>
+                      <InputBox
+                        id="add-patient-full-name"
+                        placeholder="Enter patient's full name"
+                        value={form.pm_fullname}
+                        onChange={(e) => set("pm_fullname", e.target.value)}
+                        onBlur={() => checkField("pm_fullname")}
+                        status={errors.pm_fullname ? "error" : "default"}
+                        helperText={errors.pm_fullname || ""}
+                        fullWidth
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 

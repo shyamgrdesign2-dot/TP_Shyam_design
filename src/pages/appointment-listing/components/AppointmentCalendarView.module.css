@@ -1225,6 +1225,19 @@ button.colHeadStack:hover {
   z-index: 1000;
 }
 
+/* On touch, a full-screen catcher blocks the calendar scroll after a tap
+   opens the card. Let gestures pass through the dim layer; the popover
+   itself still receives taps, and scroll dismisses the pin (see onScroll). */
+@media (pointer: coarse) {
+  .popoverLayer {
+    pointer-events: none;
+  }
+
+  .popoverLayer .popoverWrap {
+    pointer-events: auto;
+  }
+}
+
 /* Outer box: positions the tooltip, carries the caret and the shadow. The
    shadow is spread evenly on all sides rather than cast downwards, so the
    tooltip reads as lifted whether it sits above or below its card. */
