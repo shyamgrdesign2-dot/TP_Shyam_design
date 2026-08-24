@@ -1,5 +1,110 @@
 const path = require('path');
 
+// ---- Opt-in build accelerators -------------------------------------------------
+// Every flag below defaults to OFF. With none set, this config behaves exactly as it
+// did before they were added, so merging this file cannot change a build on its own —
+// each one is armed from the workflow that wants it.
+//
+// Measured by .github/workflows/measure-build-variants.yml. See
+// docs/build-time-optimisation-plan.md §7.1, §7.2, §9.1.
+//
+// USE_SASS_EMBEDDED and USE_ESBUILD_MINIFY need `sass-embedded` / `esbuild-loader`
+// installed. Neither is a dependency of this project: §7.1 measured at -1s and §7.2
+// costs +666 kB gzip, so both were rejected and carrying their packages would be dead
+// weight in a 4.9 GB tree. The require() calls sit inside the guarded functions, so an
+// unset flag never touches them. To re-measure either, install it with --no-save first
+// (see the measurement workflow).
+const useSassEmbedded = process.env.USE_SASS_EMBEDDED === '1';
+const useEsbuildMinify = process.env.USE_ESBUILD_MINIFY === '1';
+const persistWebpackCache = process.env.PERSIST_WEBPACK_CACHE === '1';
+
+// react-scripts 5.0.1 ships sass-loader 12.6.0, whose implementation resolution tries
+// `sass` first and only falls back to `sass-embedded` when neither `sass` nor
+// `node-sass` resolves (sass-loader/dist/utils.js:28). Since `sass` is a direct
+// dependency, installing sass-embedded alone changes nothing — the implementation has
+// to be handed over explicitly.
+function useSassEmbeddedImplementation(webpackConfig) {
+  const implementation = require('sass-embedded');
+  let patched = 0;
+
+  const visit = rules => {
+    for (const rule of rules) {
+      if (!rule || typeof rule !== 'object') continue;
+      if (Array.isArray(rule.oneOf)) visit(rule.oneOf);
+      if (Array.isArray(rule.rules)) visit(rule.rules);
+      if (!Array.isArray(rule.use)) continue;
+
+      for (const entry of rule.use) {
+        const loader = typeof entry === 'string' ? entry : entry && entry.loader;
+        if (typeof loader !== 'string' || !loader.includes('sass-loader')) continue;
+        if (typeof entry === 'string') continue; // no options object to attach to
+        entry.options = { ...entry.options, implementation };
+        patched += 1;
+      }
+    }
+  };
+
+  visit(webpackConfig.module.rules);
+
+  // CRA registers sass-loader twice (sassRegex and sassModuleRegex). Zero means the
+  // rule shape changed and this override silently did nothing — fail instead, or the
+  // measurement reports "no improvement" for a swap that never happened.
+  if (patched === 0) {
+    throw new Error(
+      'USE_SASS_EMBEDDED=1 but no sass-loader rule was found — the react-scripts webpack config shape changed'
+    );
+  }
+  console.log(`[craco] sass-embedded implementation applied to ${patched} sass-loader rule(s)`);
+}
+
+// CRA minifies with TerserPlugin (react-scripts webpack.config.js:262). esbuild's
+// minifier is typically several times faster. It is a DIFFERENT minifier producing
+// DIFFERENT output, so this is not a free swap — the app has to be exercised, not just
+// the build. CSS minification is left on cssnano deliberately; only JS moves.
+function useEsbuildMinifier(webpackConfig) {
+  const { EsbuildPlugin } = require('esbuild-loader');
+  const minimizer = webpackConfig.optimization && webpackConfig.optimization.minimizer;
+
+  if (!Array.isArray(minimizer)) {
+    throw new Error('USE_ESBUILD_MINIFY=1 but optimization.minimizer is not an array');
+  }
+
+  const terserIndex = minimizer.findIndex(
+    p => p && p.constructor && p.constructor.name === 'TerserPlugin'
+  );
+  if (terserIndex === -1) {
+    throw new Error('USE_ESBUILD_MINIFY=1 but no TerserPlugin was found to replace');
+  }
+
+  // es2015 mirrors what Terser is fed: babel has already downlevelled the syntax, so
+  // the target only bounds which transforms esbuild may apply while minifying.
+  minimizer[terserIndex] = new EsbuildPlugin({ target: 'es2015', legalComments: 'none' });
+  console.log('[craco] TerserPlugin replaced with esbuild minifier');
+}
+
+// react-scripts/scripts/build.js calls compiler.run() and never compiler.close().
+// webpack 5 flushes a `store: 'pack'` cache only on close, so the filesystem cache
+// configured at react-scripts webpack.config.js:242 is never written in a production
+// build — measured in run 32186452054, which produced only babel-loader. Closing the
+// compiler once the build is done persists it.
+//
+// NOTE: persisting the cache is not the same as benefiting from it. cache.version is
+// md5(env.raw) and env.raw carries every REACT_APP_* var, so REACT_APP_SENTRY_RELEASE
+// — which contains the commit sha — invalidates the whole pack between deploys. See
+// plan §9.1 before arming this in a real pipeline.
+class PersistWebpackCachePlugin {
+  apply(compiler) {
+    compiler.hooks.done.tapAsync('PersistWebpackCachePlugin', (stats, callback) => {
+      compiler.close(closeErr => {
+        if (closeErr) {
+          console.warn('[craco] webpack cache persist failed:', closeErr.message);
+        }
+        callback();
+      });
+    });
+  }
+}
+
 module.exports = {
   webpack: {
     configure: (webpackConfig) => {
@@ -14,6 +119,23 @@ module.exports = {
           'node_modules/@cloudflare/realtimekit/dist/index.es5.js'
         ),
       };
+
+      if (useSassEmbedded) useSassEmbeddedImplementation(webpackConfig);
+      if (useEsbuildMinify) useEsbuildMinifier(webpackConfig);
+      if (persistWebpackCache) {
+        webpackConfig.plugins = [...(webpackConfig.plugins || []), new PersistWebpackCachePlugin()];
+
+        // webpack keeps pack entries for unused modules for 60 days by default, so the
+        // cache only ever grows — measured on uat at 474 MB -> 509 MB -> 525 MB across
+        // three deploys. A week is far longer than the gap between deploys, so nothing
+        // still in use is pruned, while modules deleted or renamed stop being carried.
+        if (webpackConfig.cache && typeof webpackConfig.cache === 'object') {
+          webpackConfig.cache.maxAge = 7 * 24 * 60 * 60 * 1000;
+        }
+
+        console.log('[craco] webpack filesystem cache will be persisted on close');
+      }
+
       return webpackConfig;
     },
   },

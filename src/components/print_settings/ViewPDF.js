@@ -30,11 +30,22 @@ import { renderDentalExamPdf } from './dental/renderDentalExamPdf';
 import { toothHasDentalPrintData } from './dental/dentalPrintHelpers';
 import { normalizeCanvasIds } from '../../pages/drawingCanvas/utils/drawingCanvasPrintUtils';
 
+import {
+    canRenderCanvasSection,
+    getHeaderFlowHeightPts,
+    getMaxCanvasImageHeightPts,
+} from "../../utils/print/letterheadMetrics";
+
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
 const FOOTER_CONTENT_GAP = PX_TO_PT * 5;
 const widthOfA4PageInPts = 595;
+const heightOfA4PageInPts = 842;
 const SOAP_PRINT_MODULE_ID = 90000101;
+
+// Section marginTop (15px) + canvas name Text (14px font + 10px marginBottom) +
+// per-canvas marginBottom (15px): everything in the block that is not the image.
+const CANVAS_BLOCK_CHROME_PTS = PX_TO_PT * (15 + 14 * 1.2 + 10 + 15);
 
 // Roboto
 Font.register({
@@ -1641,6 +1652,34 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     const paddingStyles = calculatePadding();
+
+    /**
+     * Height the letterhead header takes out of page flow on every page. paddingBottom
+     * already reserves the footer (absolutely positioned); paddingTop reserves only the
+     * letterhead margin, while the header block itself is `fixed` and laid out in flow.
+     * See utils/print/letterheadMetrics.
+     */
+    const headerFlowHeightPts = getHeaderFlowHeightPts({
+        letterheadFormat:
+            mode === NORMAL
+                ? printSettings?.letterhead_format
+                : printSettings?.whatsapp_letterhead_format,
+        header: printSettings?.header_footer?.header,
+        fileHeader,
+        logoEnabled: printSettings?.logo_enable === "Y",
+        availableWidthPts:
+            widthOfA4PageInPts -
+            (paddingStyles?.paddingLeft || 0) -
+            (paddingStyles?.paddingRight || 0),
+    });
+
+    const maxCanvasImageHeight = getMaxCanvasImageHeightPts({
+        pageHeightPts: heightOfA4PageInPts,
+        paddingTop: paddingStyles?.paddingTop,
+        paddingBottom: paddingStyles?.paddingBottom,
+        headerFlowHeightPts,
+        blockChromePts: CANVAS_BLOCK_CHROME_PTS,
+    });
 
      const getFooterImageRenderHeight = () => {
        return getFooterImageRenderHeightForWidth(
@@ -7329,10 +7368,25 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 25 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {filteredDrawingCanvases.length > 0 && (
+                                        {filteredDrawingCanvases.length > 0 &&
+                                            // No room under this letterhead: rendering
+                                            // anyway would loop react-pdf.
+                                            canRenderCanvasSection(maxCanvasImageHeight) && (
                                             <View style={{ marginTop: PX_TO_PT * 15 }} wrap={true}>
                                                 {filteredDrawingCanvases.map((canvasObj, i) => (
-                                                    <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                                                    // wrap stays false, and the gap belongs between
+                                                    // canvases so the last block carries none - see the
+                                                    // notes on the same block in utils/server/viewpdf.js.
+                                                    <View
+                                                        key={`canvas-${i}`}
+                                                        wrap={false}
+                                                        style={{
+                                                            marginBottom:
+                                                                i === filteredDrawingCanvases.length - 1
+                                                                    ? 0
+                                                                    : PX_TO_PT * 15,
+                                                        }}
+                                                    >
                                                         <Text
                                                             style={{
                                                                 fontSize: PX_TO_PT * 14,
@@ -7347,7 +7401,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         <Image
                                                             src={canvasObj.imageUrl}
                                                             style={{
+                                                                // maxHeight, NOT height — see the note on the
+                                                                // same block in utils/server/viewpdf.js.
                                                                 width: '100%',
+                                                                maxHeight: maxCanvasImageHeight,
                                                                 objectFit: 'contain',
                                                             }}
                                                         />

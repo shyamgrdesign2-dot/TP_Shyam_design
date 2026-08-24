@@ -1,0 +1,10 @@
+# Build context for Dockerfile.runtime only. BuildKit uses <dockerfile>.dockerignore
+# in preference to .dockerignore when it exists, which is the whole reason this file
+# is here: the root .dockerignore excludes build/, and build/ is the only thing this
+# image needs.
+#
+# Excluding everything and re-including two paths also keeps the context at ~47 MB
+# instead of the whole repo, so the runtime image build is a few seconds.
+*
+!build
+!nginx.conf

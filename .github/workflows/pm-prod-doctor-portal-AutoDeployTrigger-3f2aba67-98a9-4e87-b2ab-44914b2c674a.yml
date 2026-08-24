@@ -40,6 +40,7 @@ jobs:
     permissions:
       id-token: write
       contents: write   # push the vX.Y.Z release tag
+      actions: write    # delete the previous build-cache entry before saving the new one
 
     steps:
       - name: Checkout to the branch
@@ -106,6 +107,212 @@ jobs:
           RELEASE="${{ steps.release.outputs.release }}"
           echo "{\"version\":\"$SHA\",\"apiVersion\":$API_VERSION,\"release\":\"$RELEASE\"}" > public/version.json
 
+      # The build runs on the runner, not inside Docker. Ported from uat (#3956, #3957)
+      # after it proved out there. docs/build-time-optimisation-plan.md §8.
+      #
+      # This supersedes the buildx layer cache that was tried and measurably lost
+      # (#3944, reverted in #3953): run 32177103750 spent 416.7s exporting cache for
+      # 0 CACHED layers, +5m15s on the deploy. That failed because it moved multi-GB
+      # layers to save ~126s. This moves a 99 MB babel-loader cache to save ~120s, and
+      # the ~/.npm cache on top. The note left on that revert — "revisit with a different
+      # approach, e.g. caching node_modules on the runner via actions/cache, outside the
+      # image" — is exactly this.
+      #
+      # Measured on uat: deploy 717s -> 481s once the cache is warm. The FIRST deploy
+      # after this merges is cold and will land near today's timing.
+      #
+      # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
+      # estimated 3-6 min to a deploy already dominated by the webpack compile. Release
+      # ATTRIBUTION does not need sourcemaps — `release` is event metadata, so "first seen
+      # in vX.Y.Z", regressions and release health all still work.
+
+      # Node 20 to match the `node:20` image the build used to run in.
+      # cache: 'npm' caches ~/.npm — the npm cache, not node_modules. Worth 85s on uat.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Holds BOTH caches: babel-loader (~99 MB on disk) and webpack's own pack cache
+      # (~967 MB on disk), which PERSIST_WEBPACK_CACHE in the build step makes real. On
+      # uat the entry settled at ~537 MB compressed, restore ~17s and save ~16s, against
+      # the ~120s of babel compile and ~320s of webpack compile it saves. (The 157 MB
+      # figure from the isolated measurement was with GENERATE_SOURCEMAP=false; prod also
+      # builds with false, so prod should land nearer 157 MB than uat's 537 MB.)
+      #
+      # Resolved ONCE, before npm install can rewrite package-lock.json, and reused by
+      # restore / delete / save.
+      #
+      # hashFiles() is evaluated when each step runs, and `npm install --legacy-peer-deps`
+      # rewrites the lockfile in between, because package.json and the lockfile are out of
+      # sync since the unused packages were removed without regenerating it. Computing the
+      # key inline gave restore one hash and save a different one, so the entry written was
+      # never the entry looked up. Caught on uat in run 32241192238, fixed in #3968.
+      - name: Resolve build cache key
+        id: cachekey
+        run: echo "key=${{ runner.os }}-craco-${{ hashFiles('package-lock.json') }}" >> "$GITHUB_OUTPUT"
+
+      # ONE cache entry, refreshed every run, rather than one per commit.
+      #
+      # The key deliberately carries no github.sha. With a per-commit key every deploy
+      # wrote a brand-new entry and nothing removed the old ones — measured on uat at
+      # 474 MB -> 509 MB -> 525 MB over three deploys. Around 19 such entries fill the
+      # 10 GB repo quota, after which GitHub evicts least-recently-used, and the first
+      # casualties are the older entries including the ~280 MB npm cache that takes
+      # install from 129s to 44s. Cache growth would quietly have started costing time.
+      #
+      # actions/cache never overwrites an existing key, so keeping the entry fresh means
+      # deleting it first — hence restore + save split, and the actions: write permission.
+      - name: Restore the build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules/.cache
+          key: ${{ steps.cachekey.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-craco-
+
+      # This branch's committed .npmrc carries a ${NODE_AUTH_TOKEN} placeholder, so
+      # setting the env var alone would work here — but the uat branch's .npmrc does not,
+      # and assuming prod's convention on uat is what broke the first attempt there
+      # (#3957). Writing the auth line explicitly works against either form, so the two
+      # pipelines cannot drift apart again.
+      #
+      # It goes to the runner's user-level ~/.npmrc, never the repo's committed .npmrc —
+      # a token in the working tree is one `git add -A` from being pushed.
+      - name: Authenticate npm to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::GH_PACKAGES_TOKEN is empty — @dhspl-tatvacare packages cannot be installed"
+            exit 1
+          fi
+          printf '//npm.pkg.github.com/:_authToken=%s\n' "$NODE_AUTH_TOKEN" >> ~/.npmrc
+
+      # `npm install --legacy-peer-deps`, not `npm ci`, to match what the Dockerfile did.
+      # package-lock.json has not been verified as in sync; switching is a separate change.
+      #
+      # NODE_AUTH_TOKEN must be set HERE, not only in the step above. This branch's
+      # committed .npmrc contains
+      #   //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+      # and a project-level .npmrc OVERRIDES the user-level ~/.npmrc — so the auth line
+      # written above is ignored, the placeholder expands to nothing, and npm sends an
+      # empty token. That is what broke preprod on its first runner build:
+      # "401 unauthenticated: User cannot be authenticated with the token provided",
+      # a different failure from uat's "token not provided".
+      #
+      # Both mechanisms are kept on purpose: the env var satisfies a .npmrc that has the
+      # placeholder, the ~/.npmrc line satisfies one that has none (uat's form). The
+      # combination is branch-agnostic.
+      - name: Install dependencies
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm install --legacy-peer-deps
+
+      # Mirrors the env the Dockerfile build stage set. Two that matter:
+      #   CI=false          — Actions sets CI=true, which makes CRA treat warnings as
+      #                       errors, and this repo builds with pre-existing warnings.
+      #
+      # REACT_APP_SENTRY_RELEASE is deliberately NOT set. Every REACT_APP_* var lands in
+      # env.raw, which is webpack's cache.version, so a per-commit release string
+      # invalidated the entire filesystem cache on every deploy. The release is stamped
+      # into build/index.html after the build instead — see the next step and plan §9.1.
+      # SENTRY_RELEASE stays, because sentry-cli still needs it for the sourcemap upload,
+      # and both derive from the same value so they cannot drift.
+      - name: Build
+        env:
+          REACT_APP_ENV: prod
+          GENERATE_SOURCEMAP: 'false'
+          PUBLIC_URL: ${{ env.PUBLIC_URL_PROD_CDN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_RELEASE: ${{ steps.release.outputs.release }}
+          NODE_OPTIONS: --max-old-space-size=8192
+          DISABLE_ESLINT_PLUGIN: 'true'
+          CI: 'false'
+          # Makes craco close the webpack compiler after the build, which is the only
+          # reason webpack's `store: 'pack'` cache is flushed at all —
+          # react-scripts/scripts/build.js calls compiler.run() and never
+          # compiler.close(), so the cache configured at webpack.config.js:242 has never
+          # been written in this repo. See craco.config.js and plan §4, §9.1.
+          #
+          # This only pays off because the release is no longer a REACT_APP_* var.
+          # cache.version is md5(env.raw) and env.raw carries every REACT_APP_*, so a
+          # per-commit release string invalidated the entire pack on every deploy.
+          # Reintroducing ANY per-commit REACT_APP_* var silently reverts this to a cold
+          # build every time — no error, the saving just quietly disappears.
+          PERSIST_WEBPACK_CACHE: '1'
+        run: |
+          set -euo pipefail
+          npm run build
+          # `npm run build` uploads the sourcemaps to Sentry as its last step. Drop them
+          # afterwards so they reach neither the image nor the CDN — same as the
+          # Dockerfile's `find /app/build -name "*.map" -delete`.
+          find build -name '*.map' -type f -delete
+
+      # Substituted AFTER the webpack build, on purpose. The release changes every
+      # commit; putting it anywhere webpack can see would either invalidate the entire
+      # filesystem cache (as REACT_APP_SENTRY_RELEASE did) or let a warm cache serve a
+      # stale value from a cached module — which fails silently, with Sentry attributing
+      # new errors to the previous deploy. index.html is regenerated every build, served
+      # no-store by nginx, and excluded from the blob upload, so it is the one place a
+      # per-deploy value can live safely.
+      #
+      # Only index.html is touched. The token also appears in the JS bundle, as the
+      # literal appVersion.js compares against for local dev; rewriting it there would
+      # break that check.
+      - name: Stamp the release into index.html
+        env:
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          if ! grep -q '%%APP_RELEASE%%' build/index.html; then
+            echo "::error::build/index.html has no %%APP_RELEASE%% placeholder — public/index.html lost it, or the build did not regenerate index.html. Sentry would report no release."
+            exit 1
+          fi
+          # The release string is [A-Za-z0-9@.+-] only, so | is a safe delimiter.
+          sed -i "s|%%APP_RELEASE%%|${RELEASE}|g" build/index.html
+          if grep -q '%%APP_RELEASE%%' build/index.html; then
+            echo "::error::placeholder survived substitution in build/index.html"
+            exit 1
+          fi
+          # THE check. An earlier version used __APP_RELEASE__ as the placeholder, which
+          # also appears as the property name on the same line, so a global substitution
+          # rewrote `window.__APP_RELEASE__ =` into `window.pm-doctor-portal@sha =` —
+          # invalid JS, script never runs, release silently empty. Every other check here
+          # passed on that build. Fixed on uat in #3963.
+          if ! grep -q 'window\.__APP_RELEASE__' build/index.html; then
+            echo "::error::the window.__APP_RELEASE__ assignment is gone from build/index.html — substitution clobbered the property name, and the release would be silently empty at runtime"
+            exit 1
+          fi
+          if ! grep -qF "$RELEASE" build/index.html; then
+            echo "::error::release '$RELEASE' is not present in build/index.html after substitution"
+            exit 1
+          fi
+          echo "Stamped release: $RELEASE"
+
+      # Delete the previous entry so the save below actually writes. Non-fatal: if it
+      # fails the cache simply keeps its previous contents, costing a little build time
+      # on the next run and breaking nothing.
+      - name: Refresh the build cache
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CACHE_KEY: ${{ steps.cachekey.outputs.key }}
+        run: |
+          set -euo pipefail
+          gh cache delete "$CACHE_KEY" --repo "${{ github.repository }}" \
+            && echo "deleted previous cache entry $CACHE_KEY" \
+            || echo "::notice::no previous cache entry to delete (first run for this lockfile)"
+
+      - name: Save the build cache
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules/.cache
+          key: ${{ steps.cachekey.outputs.key }}
+
       - name: Docker login to ACR
         env:
           REGISTRY_USER: ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_USERNAME }}
@@ -114,44 +321,25 @@ jobs:
           set -euo pipefail
           echo "$REGISTRY_PASS" | docker login acinacr.azurecr.io -u "$REGISTRY_USER" --password-stdin
 
-      # NO buildx layer cache here. It was tried and measurably lost.
-      #
-      # Run 32177103750 with cache-to type=gha,mode=max:
-      #   "preparing build cache for export 242.3s", cache export DONE 416.7s,
-      #   0 CACHED layers, Build step 835s vs 578s without it. +5m15s on the deploy.
-      #
-      # It cannot win on later runs either: mode=max re-exports every CHANGED layer, and
-      # `COPY . .` plus `npm run build` change on every commit, so the ~416s export recurs
-      # while the ceiling on savings is only the npm install layer (~260s). mode=min does
-      # not help — npm install lives in the build stage, which mode=min does not export.
-      # Revisit only with a different approach, e.g. caching node_modules on the runner
-      # via actions/cache, outside the image.
-      #
-      # GENERATE_SOURCEMAP stays false: generating + uploading ~103MB of maps added an
-      # estimated 3-6 min to a deploy already dominated by the webpack compile. Release
-      # ATTRIBUTION does not need sourcemaps — `release` is event metadata, so "first seen
-      # in vX.Y.Z", regressions and release health all still work.
-      - name: Build image and push to ACR
+      # Dockerfile.runtime is nginx + COPY build/. Its context is trimmed to build/ and
+      # nginx.conf by Dockerfile.runtime.dockerignore, which BuildKit uses in preference
+      # to .dockerignore — hence DOCKER_BUILDKIT=1 being explicit rather than assumed.
+      - name: Build and push the runtime image
+        env:
+          DOCKER_BUILDKIT: '1'
         run: |
           set -euo pipefail
-          docker build \
-            --build-arg REACT_APP_ENV=prod \
-            --build-arg GENERATE_SOURCEMAP=false \
-            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
-            --build-arg SENTRY_RELEASE="${{ steps.release.outputs.release }}" \
-            --build-arg NODE_AUTH_TOKEN="${{ secrets.GH_PACKAGES_TOKEN }}" \
-            --build-arg PUBLIC_URL="${{ env.PUBLIC_URL_PROD_CDN }}" \
-            -t "${{ env.IMAGE_NAME }}" .
+          docker build -f Dockerfile.runtime -t "${{ env.IMAGE_NAME }}" .
           docker push "${{ env.IMAGE_NAME }}"
 
-      # ---- 2. Extract built assets from the same image we just pushed ----
-      - name: Extract built assets (html minus index.html and version.json)
+      # ---- 2. Stage the blob payload ----
+      # This used to pull the files back out of the pushed image with docker create/cp.
+      # The build output is already on disk now, so it is a copy.
+      - name: Stage built assets (html minus index.html and version.json)
         run: |
           set -euo pipefail
-          CID=$(docker create "${{ env.IMAGE_NAME }}")
-          mkdir -p _blob_html
-          docker cp "$CID:/usr/share/nginx/html/." _blob_html/
-          docker rm -v "$CID"
+          rm -rf _blob_html
+          cp -r build _blob_html
           # index.html and version.json must only be served from the container (nginx),
           # never from blob/CDN — both need no-cache guarantees that blob cannot provide.
           rm -f _blob_html/index.html
@@ -299,4 +487,13 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v$VERSION" -m "$RELEASE"
-          git push origin "v$VERSION"
+          # --no-verify skips .husky/pre-push, which runs `npm run lint:errors` — a full
+          # ESLint pass over all 1,171 files in src. That hook exists to stop a developer
+          # pushing broken code from their machine; running it here lints code that has
+          # already been built and deployed, three steps after the Container App was
+          # updated. It cost 79s of a 316s deploy (run 32285837494), making it the single
+          # largest step once the build cache is warm.
+          #
+          # It also contradicts the build step, which sets DISABLE_ESLINT_PLUGIN=true on
+          # purpose so the compile does not wait on linting.
+          git push --no-verify origin "v$VERSION"

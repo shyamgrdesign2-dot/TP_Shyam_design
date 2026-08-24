@@ -1580,7 +1580,7 @@ function Header({ locationPath }) {
             overlayClassName={`prfile-dropdown ${isCvtExtHosAccessableFromGB ? "logout-only-dropdown" : ""}`}
             // Build version, pinned bottom-right of the dropdown. Rendered outside the
             // menu (not as an item) so it cannot swallow the Log Out click. Hidden in
-            // local dev, where REACT_APP_SENTRY_RELEASE is unset.
+            // local dev, where no release is stamped or inlined.
             dropdownRender={(menu) => (
               <div className="prfile-dropdown-inner">
                 {menu}

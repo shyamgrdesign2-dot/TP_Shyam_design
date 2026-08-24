@@ -1969,6 +1969,58 @@ export const resolveFooterImageDimensions = async (fileFooter) => {
   }
 };
 
+const HEADER_A4_WIDTH_IN_PTS = 595;
+const HEADER_PAGE_X_PADDING = 0.75 * 60;
+
+export const computeHeaderImageDimensions = (width, height) => ({
+  headerHeight: height || 0,
+  headerWidth: width || 0,
+  renderedHeaderImageHeight:
+    width > 0
+      ? (height / width) * (HEADER_A4_WIDTH_IN_PTS - HEADER_PAGE_X_PADDING)
+      : 0,
+});
+
+/**
+ * Attaches the natural dimensions of an uploaded letterhead header image.
+ *
+ * The header renders the image at `width: "100%"` with no height bound, so its flow
+ * height is the aspect ratio applied to the content width. The PDF documents need that
+ * height to size anything else against the usable page - see utils/print/letterheadMetrics.
+ * Mirrors resolveFooterImageDimensions.
+ */
+export const resolveHeaderImageDimensions = async (fileHeader) => {
+  if (!fileHeader?.imageShow || !fileHeader?.showFile) {
+    return fileHeader;
+  }
+
+  const headerWidth = Number(fileHeader.headerWidth);
+  const headerHeight = Number(fileHeader.headerHeight);
+  if (
+    headerWidth > 0 &&
+    headerHeight > 0 &&
+    Number.isFinite(fileHeader.renderedHeaderImageHeight)
+  ) {
+    return fileHeader;
+  }
+
+  try {
+    const { width, height } = await getImageDimensions(fileHeader.showFile);
+    return {
+      ...fileHeader,
+      ...computeHeaderImageDimensions(width, height),
+    };
+  } catch (err) {
+    console.error("Failed to resolve header image dimensions:", err);
+    return {
+      ...fileHeader,
+      headerHeight: 0,
+      headerWidth: 0,
+      renderedHeaderImageHeight: 0,
+    };
+  }
+};
+
 export const updateFooterImageHeight = (
   footerFile,
   setFileFooter,

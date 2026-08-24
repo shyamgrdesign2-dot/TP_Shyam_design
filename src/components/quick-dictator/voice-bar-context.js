@@ -115,7 +115,7 @@ export function VoiceBarProvider({ children, enabled = true }) {
       typeof restoreFocusRef.current.focus === "function"
     ) {
       try {
-        restoreFocusRef.current.focus();
+        restoreFocusRef.current?.focus();
       } catch (_) {
         /* ignore */
       }

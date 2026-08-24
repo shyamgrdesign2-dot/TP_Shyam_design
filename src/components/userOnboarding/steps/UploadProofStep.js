@@ -5,6 +5,7 @@ import styles from "../DoctorOnboarding.module.css";
 import { CloudUploadOutlined } from "@ant-design/icons";
 import CommonModal from "../../../common/CommonModal";
 import { ASSETS } from "../../../assets";
+import { SUPPORT_PHONE_NUMBER } from "../../../utils/constants";
 const {
   alerticon: alertIcon,
   govId,
@@ -565,8 +566,8 @@ const UploadProofStep = ({
             />
           </svg>
           <span className={styles.supportText}>Contact Support:</span>
-          <a href="tel:+91-9974042363" className={styles.supportLink}>
-            +91-9974042363
+          <a href={`tel:+91-${SUPPORT_PHONE_NUMBER}`} className={styles.supportLink}>
+            {`+91-${SUPPORT_PHONE_NUMBER}`}
           </a>
           <span className={styles.supportDivider}>|</span>
           <a href="mailto:Support@tatvacare.in" className={styles.supportLink}>
