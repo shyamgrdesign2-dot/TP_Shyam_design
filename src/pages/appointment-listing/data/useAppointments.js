@@ -3,9 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import ApiAppointments from "../../../api/services/ApiAppointments";
 import { isGrowthBookFeatureOn } from "../../../utils/growthbook";
-import { GB_CVT_EXT_HOS, TAB_FINISHED, TAB_ZYDUS_ENCOUNTER, TAB_ZYDUS_APPOINTMENT } from "../../../utils/constants";
+import { GB_CVT_EXT_HOS, TAB_CANCELLED, TAB_FINISHED, TAB_ZYDUS_ENCOUNTER, TAB_ZYDUS_APPOINTMENT } from "../../../utils/constants";
 import { zydusConsultAppoint, zydusAppointment, copyGetAllAppointment1 } from "../../../redux/appointmentsSlice";
 import { calculateAge } from "../../../utils/utils";
+import { buildZydusEncounterAppointmentRows } from "../../../utils/zydusEncounterAppointmentRows";
+import { matchesVisitTypeFilter } from "../../../utils/appointmentVisitTypeFilters";
 import { TAB_IDS, TAB_TO_AP_STATUS, ALL_MERGED_TABS } from "./appointmentsConfig";
 
 const DATE_FORMAT = "YYYY-MM-DD";
@@ -173,26 +175,14 @@ function mapZydusRecord(rec, tabId, index) {
   };
 }
 
-function transformZydusEncounterPayload(payload) {
-  const list = (payload || []).filter((e) => !e.isCancelled);
-  return list.map((e) => {
-    const age = calculateAge(moment(e.dob, "DD-MM-YYYY").format("YYYY-MM-DD"));
-    return {
-      ...e,
-      key: e.encounterId,
-      pm_fullname: e.patientName,
-      apTime: moment(e.encounterDateTime, "DD-MM-YYYY HH:mm").format("hh:mm A"),
-      apDate: moment(e.encounterDateTime, "DD-MM-YYYY HH:mm").format("Do MMM YYYY"),
-      DOB: moment(e.dob, "DD-MM-YYYY").format("Do MMM YYYY"),
-      ageYears: age?.years,
-      ageMonths: age?.months,
-      ageDays: age?.days,
-      pm_gender: e.gender,
-      pm_contact_no: e.mobileNo,
-      patient_address: e.patientAddress,
-      toct_type: e.consultationType,
-    };
+function transformZydusEncounterPayload(payload, { includeCancelled = false } = {}) {
+  // Same row builder the redux thunk uses for GenX clinical encounters.
+  const rows = buildZydusEncounterAppointmentRows(payload, {
+    calculateAge,
+    createKey: () => undefined,
   });
+  if (includeCancelled) return rows;
+  return rows.filter((e) => !e.isCancelled);
 }
 
 function transformZydusAppointmentPayload(payload) {
@@ -217,25 +207,37 @@ function matchesZydusQuery(row, q) {
   if (!qq) return true;
   const raw = row?.raw || {};
   return (
-    String(raw.pm_fullname || "").toLowerCase().includes(qq) ||
+    String(raw.pm_fullname || raw.patientName || "").toLowerCase().includes(qq) ||
     String(raw.mrno || "").toLowerCase().includes(qq) ||
-    String(raw.pm_contact_no || "").toLowerCase().includes(qq)
+    String(raw.pm_contact_no || raw.mobileNo || "").toLowerCase().includes(qq)
   );
 }
 
-export default function useAppointments({ tabId, dateRange, query, visitTypeCsv, fetchAllPages = false, includeDraft = true, zydusSiteId, zydusEmpNo }) {
+export default function useAppointments({
+  tabId,
+  dateRange,
+  query,
+  visitTypeCsv,
+  fetchAllPages = false,
+  includeDraft = true,
+  zydusSiteId,
+  zydusEmpNo,
+  isZydusAccount = false,
+}) {
   const dispatch = useDispatch();
   // Zydus encounter/appointment counts + buckets are maintained in redux by
   // the same thunks the legacy screen uses.
   const {
     queueCount,
     finishedCount,
-    cancelledCount,
     draftRxCount,
     zydusEncounterCount,
     zydusAappointmentCount,
-    appointmentsData: zydusReduxRows,
+    zydusCancelledEncounterCount,
   } = useSelector((state) => state.records);
+  // siteId/empNo can linger after a hospital switch — only treat as Zydus
+  // listing when the account gate says so (same as useListingAccess).
+  const isZydusListing = Boolean(isZydusAccount && zydusSiteId && zydusEmpNo);
   const { advancedSettings } = useSelector((state) => state.billing || {});
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({});
@@ -321,6 +323,42 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
     setHasMore(false);
     setError(null);
     try {
+      // Zydus Cancelled tab is GenX clinical-encounters with isCancel=true
+      // (legacy AppointmentData.js), not the TP listAppointment cancelled bucket.
+      if (isZydusListing && tabId === TAB_IDS.CANCELLED) {
+        const zydusApiDate = moment(startDate, DATE_FORMAT).format("DD-MM-YYYY");
+        const cancelAction = await dispatch(
+          zydusConsultAppoint({
+            siteId: zydusSiteId,
+            empNo: String(zydusEmpNo),
+            date: zydusApiDate,
+            apStatue: TAB_CANCELLED,
+            isCancel: true,
+            page: 0,
+            filterVisitType: visitTypeCsv || "",
+          })
+        );
+        if (seq !== requestSeq.current) return;
+        const payload =
+          cancelAction?.meta?.requestStatus === "fulfilled"
+            ? cancelAction.payload || []
+            : [];
+        let serverRecords = transformZydusEncounterPayload(payload, { includeCancelled: true });
+        if (visitTypeCsv) {
+          serverRecords = serverRecords.filter((rec) =>
+            matchesVisitTypeFilter(rec.toct_type, visitTypeCsv)
+          );
+        }
+        const mappedRows = serverRecords.map((rec, i) => mapZydusRecord(rec, TAB_IDS.CANCELLED, i));
+        zydusServerRowsRef.current = mappedRows;
+        setZydusServerRowsVersion((v) => v + 1);
+        const filteredRows = query ? mappedRows.filter((r) => matchesZydusQuery(r, query)) : mappedRows;
+        setRows(filteredRows);
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+
       // Zydus tabs fetch from the ICT system via the same redux thunks the
       // legacy AppointmentData.js uses. No standard TP getAllAppointment call.
       if (tabId === TAB_IDS.ZYDUS_ENCOUNTER || tabId === TAB_IDS.ZYDUS_APPOINTMENT) {
@@ -394,10 +432,9 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
 
         // Match legacy: reducer filters by filterVisitType CSV vs `toct_type`.
         if (visitTypeCsv) {
-          const allowed = visitTypeCsv.split(",").map((s) => s.trim()).filter(Boolean);
-          if (allowed.length) {
-            serverRecords = serverRecords.filter((rec) => allowed.includes(rec.toct_type));
-          }
+          serverRecords = serverRecords.filter((rec) =>
+            matchesVisitTypeFilter(rec.toct_type, visitTypeCsv)
+          );
         }
 
         const mappedRows = serverRecords.map((rec, i) => mapZydusRecord(rec, tabId, i));
@@ -505,6 +542,7 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
     includeDraft,
     zydusSiteId,
     zydusEmpNo,
+    isZydusListing,
     startDate,
     endDate,
     visitTypeCsv,
@@ -542,7 +580,29 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
     }
   }, [fetchAllPages, hasMore, loading, tabId, listPayload]);
 
-  const isZydusConsultTab = tabId === TAB_IDS.ZYDUS_ENCOUNTER || tabId === TAB_IDS.ZYDUS_APPOINTMENT;
+  const isZydusConsultTab =
+    tabId === TAB_IDS.ZYDUS_ENCOUNTER ||
+    tabId === TAB_IDS.ZYDUS_APPOINTMENT ||
+    (isZydusListing && tabId === TAB_IDS.CANCELLED);
+
+  // Prefetch GenX cancelled encounters so the Cancelled tab badge stays in
+  // sync (legacy always loads them on date/site change).
+  useEffect(() => {
+    if (!isZydusListing) return undefined;
+    const zydusApiDate = moment(startDate, DATE_FORMAT).format("DD-MM-YYYY");
+    dispatch(
+      zydusConsultAppoint({
+        siteId: zydusSiteId,
+        empNo: String(zydusEmpNo),
+        date: zydusApiDate,
+        apStatue: TAB_CANCELLED,
+        isCancel: true,
+        page: 0,
+        filterVisitType: "",
+      })
+    );
+    return undefined;
+  }, [dispatch, isZydusListing, zydusSiteId, zydusEmpNo, startDate]);
 
   // Fetch immediately on inputs, but for Zydus search typing we must not
   // re-fetch from the server. We accomplish this by skipping fetchRows when
@@ -554,7 +614,7 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
     }
 
     const fetchKey = isZydusConsultTab
-      ? `zydus|${tabId}|${startDate}|${zydusSiteId}|${zydusEmpNo}`
+      ? `zydus|${tabId}|${startDate}|${zydusSiteId}|${zydusEmpNo}|${visitTypeCsv || ""}`
       : `tp|${tabId}|${startDate}|${endDate}|${query}|${visitTypeCsv}|${fetchAllPages}|${includeDraft}`;
 
     if (prevFetchKeyRef.current === fetchKey) {
@@ -614,15 +674,19 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
   const countByTab = useMemo(() => {
     const base = tabId === TAB_IDS.ALL ? { ...counts, [TAB_IDS.ALL]: rows.length } : counts;
 
-    // On Zydus Encounter/Appointment, the queue/finished counts come from
-    // `copyGetAllAppointment1` loop (redux buckets). Local counts won't have
-    // been updated because those tabs don't call TP getAllAppointment.
+    // Only overwrite with Zydus redux buckets on a real Zydus listing.
+    if (!isZydusListing) {
+      return base;
+    }
+
+    // On Zydus Encounter/Appointment/Cancelled, queue/finished counts come from
+    // `copyGetAllAppointment1` / GenX cancelled prefetch (redux buckets).
     if (isZydusConsultTab) {
       return {
         ...base,
         [TAB_IDS.QUEUE]: queueCount ?? base[TAB_IDS.QUEUE] ?? 0,
         [TAB_IDS.FINISHED]: finishedCount ?? base[TAB_IDS.FINISHED] ?? 0,
-        [TAB_IDS.CANCELLED]: cancelledCount ?? base[TAB_IDS.CANCELLED] ?? 0,
+        [TAB_IDS.CANCELLED]: zydusCancelledEncounterCount ?? 0,
         [TAB_IDS.DRAFT]: includeDraft ? draftRxCount ?? base[TAB_IDS.DRAFT] ?? 0 : 0,
         [TAB_IDS.ZYDUS_ENCOUNTER]: zydusEncounterCount ?? 0,
         [TAB_IDS.ZYDUS_APPOINTMENT]: zydusAappointmentCount ?? 0,
@@ -631,6 +695,7 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
 
     return {
       ...base,
+      [TAB_IDS.CANCELLED]: zydusCancelledEncounterCount ?? base[TAB_IDS.CANCELLED] ?? 0,
       [TAB_IDS.ZYDUS_ENCOUNTER]: zydusEncounterCount ?? 0,
       [TAB_IDS.ZYDUS_APPOINTMENT]: zydusAappointmentCount ?? 0,
     };
@@ -639,13 +704,14 @@ export default function useAppointments({ tabId, dateRange, query, visitTypeCsv,
     rows.length,
     tabId,
     isZydusConsultTab,
+    isZydusListing,
     queueCount,
     finishedCount,
-    cancelledCount,
     draftRxCount,
     includeDraft,
     zydusEncounterCount,
     zydusAappointmentCount,
+    zydusCancelledEncounterCount,
   ]);
 
   return { rows, counts: countByTab, loading, loadingMore, hasMore, error, refetch: fetchRows, loadMore };

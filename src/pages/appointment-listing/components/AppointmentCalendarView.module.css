@@ -1230,7 +1230,11 @@ button.colHeadStack:hover {
    itself still receives taps, and scroll dismisses the pin (see onScroll). */
 @media (pointer: coarse) {
   .popoverLayer {
-    pointer-events: none;
+    /* Outside-tap should still close the pinned popover (onClick on the
+       layer), but allow vertical panning so the tablet can scroll the day
+       grid while the overlay is present. */
+    pointer-events: auto;
+    touch-action: pan-y;
   }
 
   .popoverLayer .popoverWrap {

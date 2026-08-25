@@ -81,10 +81,12 @@ export function useListingAccess() {
       isDentalEnabled,
       isZydusAccount,
       showDraft,
-      // Zydus has its own consult routing — no kebab, no booking, no billing badge
+      // Zydus: no kebab / Add Appointment / billing badge (legacy Welcome).
+      // Walk-In remains available and routes to the Zydus walk-in screen.
       showKebab: !isCvtExtHos && !isZydusAccount,
       showBilling: !isCvtExtHos && !isZydusAccount,
       showBookActions: !isCvtExtHos && !isZydusAccount,
+      showWalkIn: !isCvtExtHos,
     }),
     [
       isCvtExtHos,

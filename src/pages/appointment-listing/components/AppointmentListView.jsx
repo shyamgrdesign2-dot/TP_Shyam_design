@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
+import { useSelector } from "react-redux";
 import {
   Button,
   DataTable,
@@ -36,7 +37,28 @@ export default function AppointmentListView({
   const emptyMeta = EMPTY_STATE_BY_TAB[tabId] || EMPTY_STATE_BY_TAB[TAB_IDS.QUEUE];
   const wrapRef = useRef(null);
   const access = useListingAccess();
-  const { showBilling, showBookActions } = access;
+  const { showBilling, showBookActions, isZydusAccount } = access;
+  const finishedData = useSelector((state) => state.records?.finishedData) || [];
+  const zydusAppointmentData = useSelector((state) => state.records?.zydusAappointmentData) || [];
+
+  // Legacy: hide Encounter Consult when finishedData already has pam_ref_id.
+  const finishedEncounterIds = useMemo(() => {
+    const ids = new Set();
+    finishedData.forEach((item) => {
+      if (item?.pam_ref_id != null) ids.add(String(item.pam_ref_id));
+    });
+    return ids;
+  }, [finishedData]);
+
+  const actionCtx = useMemo(
+    () => ({ ...access, finishedEncounterIds }),
+    [access, finishedEncounterIds]
+  );
+
+  // Legacy UAT: name is not clickable on Zydus Appointment or Cancelled tabs.
+  const patientNameClickable =
+    !isZydusAccount ||
+    (tabId !== TAB_IDS.ZYDUS_APPOINTMENT && tabId !== TAB_IDS.CANCELLED);
 
   // The new table scrolls inside the DS scroller, not the page (unlike
   // legacy AppointmentData). Watch that scroller: near the bottom, or when
@@ -71,15 +93,19 @@ export default function AppointmentListView({
         minWidth: 180,
         cell: (row) => (
           <div className={styles.cellStack}>
-            <Button
-              variant="link"
-              theme="primary"
-              size="sm"
-              className={styles.patientLink}
-              onClick={() => onPatientClick?.(row)}
-            >
-              {row.name}
-            </Button>
+            {patientNameClickable ? (
+              <Button
+                variant="link"
+                theme="primary"
+                size="sm"
+                className={styles.patientLink}
+                onClick={() => onPatientClick?.(row)}
+              >
+                {row.name}
+              </Button>
+            ) : (
+              <span className={styles.patientNamePlain}>{row.name}</span>
+            )}
             <p className={styles.patientMeta}>
               {row.genderAge}
               {row.symptomsGathered && (
@@ -112,7 +138,22 @@ export default function AppointmentListView({
         header: "Patient ID",
         minWidth: 120,
         maxWidth: 180,
-        cell: (row) => <span className={styles.mrn}>{row.mrn || "--"}</span>,
+        cell: (row) => {
+          const mrn = row.mrn || "";
+          // Legacy Encounter Contact&Mrn: "(A)" when the same MRN also exists
+          // in the ICT appointments bucket.
+          const showApptBadge =
+            isZydusAccount &&
+            tabId === TAB_IDS.ZYDUS_ENCOUNTER &&
+            mrn &&
+            zydusAppointmentData.some((x) => String(x.mrno) === String(mrn));
+          return (
+            <span className={styles.mrn}>
+              {mrn || "--"}
+              {showApptBadge ? <span className={styles.apptBadge}> (A)</span> : null}
+            </span>
+          );
+        },
       },
       {
         id: "visitType",
@@ -178,14 +219,24 @@ export default function AppointmentListView({
             {tabId === TAB_IDS.QUEUE ? (
               <QueueRxSplitButton row={row} onRowAction={onRowAction} />
             ) : (
-              <TableActions align="right" primary={rowPrimaryAction(tabId, row, onRowAction, access)} actions={[]} />
+              <TableActions align="right" primary={rowPrimaryAction(tabId, row, onRowAction, actionCtx)} actions={[]} />
             )}
             <RowKebabMenu tabId={tabId} row={row} onRowAction={onRowAction} />
           </div>
         ),
       },
     ],
-    [tabId, onRowAction, onPatientClick, access, showBilling]
+    [
+      tabId,
+      onRowAction,
+      onPatientClick,
+      access,
+      showBilling,
+      patientNameClickable,
+      isZydusAccount,
+      zydusAppointmentData,
+      actionCtx,
+    ]
   );
 
   return (

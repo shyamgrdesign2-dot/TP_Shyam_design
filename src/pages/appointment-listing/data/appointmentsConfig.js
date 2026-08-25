@@ -68,9 +68,22 @@ export const SLOT_FILTER_GROUP = {
 // shared empty-docs illustration. Only the Queue tab carries a CTA
 // (Add Appointment); the others are informational.
 // Tabs shown for Zydus accounts (replaces standard LIST_TABS)
-export const ZYDUS_LIST_TABS = [TAB_IDS.ZYDUS_ENCOUNTER, TAB_IDS.ZYDUS_APPOINTMENT, TAB_IDS.QUEUE, TAB_IDS.FINISHED, TAB_IDS.CANCELLED].map(
-  (id) => TAB_META[id]
-);
+export const ZYDUS_LIST_TABS = [
+  TAB_IDS.ZYDUS_ENCOUNTER,
+  TAB_IDS.ZYDUS_APPOINTMENT,
+  TAB_IDS.QUEUE,
+  TAB_IDS.FINISHED,
+  TAB_IDS.CANCELLED,
+  TAB_IDS.DRAFT,
+  TAB_IDS.PENDING,
+].map((id) => TAB_META[id]);
+
+/** Zydus tabs that use the single-day prev/next navigator (legacy UAT). */
+export const ZYDUS_SINGLE_DAY_TABS = [
+  TAB_IDS.ZYDUS_ENCOUNTER,
+  TAB_IDS.ZYDUS_APPOINTMENT,
+  TAB_IDS.CANCELLED,
+];
 
 export const EMPTY_STATE_BY_TAB = {
   [TAB_IDS.ZYDUS_ENCOUNTER]: {

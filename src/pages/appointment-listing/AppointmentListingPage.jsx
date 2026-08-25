@@ -28,6 +28,7 @@ import "@dhspl-tatvacare/tesseract-ui/styles.css";
 import {
   LIST_TABS,
   ZYDUS_LIST_TABS,
+  ZYDUS_SINGLE_DAY_TABS,
   CALENDAR_TABS,
   SLOT_FILTER_GROUP,
   TAB_IDS,
@@ -69,10 +70,11 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   CLINIC_TARGET_STATUS,
   PATIENT_DETAILS_SIDEBAR_KEYS,
-  TAB_ZYDUS_ENCOUNTER,
-  TAB_ZYDUS_APPOINTMENT,
 } from "../../utils/constants";
-import { zydusConsultAppoint } from "../../redux/appointmentsSlice";
+import {
+  runZydusConsultOrPatientDetails,
+  ZYDUS_FLAG,
+} from "./data/zydusConsultFlow";
 import styles from "./AppointmentListingPage.module.css";
 
 /* All glyphs come from the Tesseract icon CDN via TPLibraryIcon (house
@@ -209,26 +211,28 @@ export default function AppointmentListingPage() {
     (state) => state.teleconsultNotification || {}
   );
   const uploadDocCategories = useSelector((state) => state.uploadDoc?.uploadDocCategories) || [];
-  const { showDraft, showBookActions, isZydusAccount } = useListingAccess();
+  const { showDraft, showBookActions, showWalkIn, isZydusAccount } = useListingAccess();
   // siteId / empNo are set by SidebarDoctor after the Zydus ICT login handshake;
   // they live in the doctors redux slice, same as legacy AppointmentData.js reads them.
   const { siteId: zydusSiteId, empNo: zydusEmpNo } = useSelector((state) => state.doctors);
+  const finishedData = useSelector((state) => state.records?.finishedData) || [];
+  const genxSyncInFlightRef = useRef(new Set());
 
   // Restored from the last visit; the calendar leads with "All", the table
   // with the queue, so the tab has to agree with the restored view.
   const [view, setView] = useState(() => readPreference("view", "list"));
   const [activeTab, setActiveTab] = useState(() => {
     // Zydus defaults to Encounter tab on first load; non-Zydus defaults to Queue.
-    if (readPreference("view", "list") === "calendar") return TAB_IDS.ALL;
+    // Calendar preference restores "All" only for non-Zydus (Zydus has no All tab).
+    if (!isZydusAccount && readPreference("view", "list") === "calendar") return TAB_IDS.ALL;
     return isZydusAccount ? TAB_IDS.ZYDUS_ENCOUNTER : TAB_IDS.QUEUE;
   });
 
   // Table keeps its status buckets; the calendar leads with the "All" view
   // (complete schedule). Switching view retargets the tab so the mode always
   // opens on its natural default.
-  // Zydus replaces the standard tab list with Encounter + Appointment + the
-  // standard TP buckets; calendar is disabled for Zydus (ICT data has no
-  // slot-based grid concept).
+  // Zydus keeps Encounter/Appointment/… tabs in both list and calendar; the
+  // calendar is day-only with no free-slot layer (see AppointmentCalendarView).
   const baseTabs = isZydusAccount ? ZYDUS_LIST_TABS : LIST_TABS;
   const visibleTabs = (view === "calendar" && !isZydusAccount ? CALENDAR_TABS : baseTabs).filter(
     (t) => t.id !== TAB_IDS.DRAFT || showDraft
@@ -239,6 +243,10 @@ export default function AppointmentListingPage() {
      grid anchored to one day. Selecting it renders the table without moving
      the view toggle, and leaving it puts the grid straight back. */
   const renderCalendar = isCalendar && activeTab !== TAB_IDS.PENDING;
+  // Single-day prev/next is for Zydus list tabs only; calendar uses the
+  // shared day picker like every other account.
+  const useZydusSingleDayNav =
+    isZydusAccount && !renderCalendar && ZYDUS_SINGLE_DAY_TABS.includes(activeTab);
 
   const changeView = (next) => {
     if (next === view) return;
@@ -336,7 +344,7 @@ export default function AppointmentListingPage() {
   };
 
   const activeFilterCount = Object.values(filters).reduce((n, v) => n + (v || []).length, 0);
-  const hasActiveFilters = !isZydusAccount && (query.trim() !== "" || activeFilterCount > 0);
+  const hasActiveFilters = query.trim() !== "" || activeFilterCount > 0;
 
   // Legacy date rule: only Queue (upcoming) may navigate into the future.
   // The calendar "All" view also spans upcoming appointments, so it too.
@@ -359,15 +367,23 @@ export default function AppointmentListingPage() {
   }, []);
 
   const filterGroups = useMemo(
-    () => [
-      SLOT_FILTER_GROUP,
-      {
+    () => {
+      // Legacy Zydus column filters use `toct_type` strings; TP listAppointment
+      // for non-Zydus uses `toct_id` values in filterVisitType.
+      const visitTypeGroup = {
         id: "visitType",
         label: "Visit Type",
-        options: caseTypes.map((t) => ({ value: String(t.toct_id), label: t.toct_type })),
-      },
-    ],
-    [caseTypes]
+        options: caseTypes.map((t) =>
+          isZydusAccount
+            ? { value: String(t.toct_type), label: t.toct_type }
+            : { value: String(t.toct_id), label: t.toct_type }
+        ),
+      };
+      // Zydus ICT/GenX rows have no in-clinic vs tele slot concept — visit type only.
+      if (isZydusAccount) return [visitTypeGroup];
+      return [SLOT_FILTER_GROUP, visitTypeGroup];
+    },
+    [caseTypes, isZydusAccount]
   );
 
   // Debounce only the search typing (legacy 500ms); tab / date / filter
@@ -398,6 +414,7 @@ export default function AppointmentListingPage() {
     includeDraft: showDraft,
     zydusSiteId,
     zydusEmpNo,
+    isZydusAccount,
   });
 
   useEffect(() => {
@@ -481,53 +498,60 @@ export default function AppointmentListingPage() {
         }
       : undefined;
 
+  const runZydusEncounterAction = useCallback(
+    async (flag, rec) => {
+      const finishedConsultation =
+        rec?.encounterId &&
+        finishedData.find((item) => String(item?.pam_ref_id) === String(rec.encounterId));
+      await runZydusConsultOrPatientDetails({
+        flag,
+        record: rec,
+        activeTab,
+        dispatch,
+        navigate,
+        profile,
+        siteId: zydusSiteId,
+        empNo: zydusEmpNo,
+        finishedConsultation: finishedConsultation || null,
+        isDentalEnabled,
+        dentalRoute: DENTAL_RX_PAD_ROUTE,
+        isVoiceRxNewUi,
+        syncInFlight: genxSyncInFlightRef.current,
+        onError: (title) => setToast({ status: "error", title }),
+      });
+    },
+    [
+      activeTab,
+      dispatch,
+      navigate,
+      profile,
+      zydusSiteId,
+      zydusEmpNo,
+      finishedData,
+      isDentalEnabled,
+      isVoiceRxNewUi,
+    ]
+  );
+
   const onRowAction = useCallback(
     async (action, row) => {
       const rec = row?.raw || row;
       if (!rec) return;
       const videoConsultData = videoConsultDataFor(rec);
+      // Encounter tab (or GenX-sourced rows): sync before Rx / patient details.
+      // Appointment-tab Consult without GENX keeps the plain navigate path below.
+      const isZydusEncounter =
+        isZydusAccount &&
+        (activeTab === TAB_IDS.ZYDUS_ENCOUNTER || rec?.source === "GENX");
       switch (action) {
         case "type-rx": {
           window.Moengage?.track_event("patient_search_consult", {
             doctor_id: profile?.doctor_unique_id,
             patient_id: rec?.patient_unique_id,
           });
-          // Zydus Encounter rows carry ICT-specific fields (encounterId, mrno,
-          // departmentId, visitId). The legacy screen fetches a fresh encounter
-          // list here to get the enriched data; we do the same for Encounter rows.
-          if (isZydusAccount && activeTab === TAB_IDS.ZYDUS_ENCOUNTER && zydusSiteId && zydusEmpNo) {
-            const dateStr = queryRange?.start
-              ? moment(queryRange.start).format("YYYY-MM-DD")
-              : moment().format("YYYY-MM-DD");
-            const action = await dispatch(
-              zydusConsultAppoint({
-                siteId: zydusSiteId,
-                empNo: String(zydusEmpNo),
-                date: dateStr,
-                apStatue: TAB_ZYDUS_ENCOUNTER,
-                page: 0,
-              })
-            );
-            if (action.meta.requestStatus === "fulfilled") {
-              const enriched = (action.payload || []).find(
-                (e) => e.encounterId == rec.encounterId || e.encounterId == rec.pam_ref_id
-              );
-              if (enriched) {
-                navigate("/prescription", {
-                  state: {
-                    patient_data: {
-                      ...rec,
-                      mrno: enriched.mrno,
-                      departmentId: enriched.departmentId,
-                      visitId: enriched.visitId,
-                      encounterId: enriched.encounterId,
-                    },
-                  },
-                });
-                break;
-              }
-            }
-            // Fall through to plain navigate if enrichment fails
+          if (isZydusEncounter) {
+            await runZydusEncounterAction(ZYDUS_FLAG.CONSULT, rec);
+            break;
           }
           navigate(isDentalEnabled ? DENTAL_RX_PAD_ROUTE : "/prescription", {
             state: { patient_data: rec, videoConsultData },
@@ -575,6 +599,10 @@ export default function AppointmentListingPage() {
           break;
         }
         case "voice-rx":
+          if (isZydusEncounter) {
+            await runZydusEncounterAction(ZYDUS_FLAG.VOICE_RX, rec);
+            break;
+          }
           navigate(isVoiceRxNewUi ? "/prescription" : "/voice-rx-consult", {
             state: {
               patient_data: rec,
@@ -585,12 +613,25 @@ export default function AppointmentListingPage() {
           });
           break;
         case "snap-rx":
+          if (isZydusEncounter) {
+            await runZydusEncounterAction(ZYDUS_FLAG.SNAP_RX, rec);
+            break;
+          }
           navigate("/snap-rx", { state: { patient_data: rec, videoConsultData: videoConsultDataFor(rec, true) } });
           break;
         case "smart-sync":
+          if (isZydusEncounter) {
+            await runZydusEncounterAction(ZYDUS_FLAG.SMART_RX, rec);
+            break;
+          }
           navigate("/smart-prescription", { state: { patient_data: rec, videoConsultData } });
           break;
         case "tab-rx":
+          if (isZydusEncounter) {
+            // TabRx is not a separate GenX flag in legacy; sync then open Consult.
+            await runZydusEncounterAction(ZYDUS_FLAG.CONSULT, rec);
+            break;
+          }
           navigate("/tab-rx", { state: { patient_data: rec, videoConsultData } });
           break;
         case "resume-rx": {
@@ -609,6 +650,10 @@ export default function AppointmentListingPage() {
           break;
         }
         case "patient-details":
+          if (isZydusEncounter) {
+            await runZydusEncounterAction(ZYDUS_FLAG.PATIENT_DETAILS, rec);
+            break;
+          }
           navigate("/patient_details", {
             state: {
               patient_data: activeTab === TAB_IDS.DRAFT ? { ...rec, pam_id: 0, tcm_id: 0 } : rec,
@@ -711,7 +756,7 @@ export default function AppointmentListingPage() {
           break;
       }
     },
-    [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions]
+    [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions, isZydusAccount, runZydusEncounterAction]
   );
 
   const handleUploadFileChange = (event) => {
@@ -820,28 +865,30 @@ export default function AppointmentListingPage() {
                 onValueChange={changeView}
               />
               {showBookActions && (
-                <>
-                  <Button
-                    variant="outline"
-                    theme="primary"
-                    surface="dark"
-                    className={styles.addApptBtn}
-                    leftIcon={<TPLibraryIcon name="add" family="essential" size={20} />}
-                    onClick={() => navigate("/add-appointment")}
-                  >
-                    Add Appointment
-                  </Button>
-                  <Button
-                    variant="solid"
-                    theme="primary"
-                    surface="dark"
-                    className={styles.startWalkInBtn}
-                    leftIcon={<TPLibraryIcon name="flash" size={24} />}
-                    onClick={() => navigate("/walk_in_consultation")}
-                  >
-                    Start Walk-In
-                  </Button>
-                </>
+                <Button
+                  variant="outline"
+                  theme="primary"
+                  surface="dark"
+                  className={styles.addApptBtn}
+                  leftIcon={<TPLibraryIcon name="add" family="essential" size={20} />}
+                  onClick={() => navigate("/add-appointment")}
+                >
+                  Add Appointment
+                </Button>
+              )}
+              {showWalkIn && (
+                <Button
+                  variant="solid"
+                  theme="primary"
+                  surface="dark"
+                  className={styles.startWalkInBtn}
+                  leftIcon={<TPLibraryIcon name="flash" size={24} />}
+                  onClick={() =>
+                    navigate(isZydusAccount ? "/walk_in_consultation_zydus" : "/walk_in_consultation")
+                  }
+                >
+                  Start Walk-In
+                </Button>
               )}
             </>
           }
@@ -908,7 +955,7 @@ export default function AppointmentListingPage() {
                     how much of it you see, so the picker drops to single
                     mode there rather than making the user express a span
                     twice. */}
-                {!isZydusAccount ? (
+                {!useZydusSingleDayNav ? (
                   <>
                     <div
                       className={styles.dateWrap}
@@ -957,15 +1004,6 @@ export default function AppointmentListingPage() {
                         disabled={activeTab === TAB_IDS.PENDING}
                       />
                     </div>
-                    <div className={styles.filterWrap} data-active={activeFilterCount > 0 || undefined}>
-                      <Filter
-                        groups={filterGroups}
-                        value={filters}
-                        onChange={setFilters}
-                        mode="live"
-                        icon={<TPLibraryIcon name="sort" size={15} />}
-                      />
-                    </div>
                   </>
                 ) : (
                   <div className={styles.zydusDateNav}>
@@ -1004,17 +1042,24 @@ export default function AppointmentListingPage() {
                     />
                   </div>
                 )}
+                <div className={styles.filterWrap} data-active={activeFilterCount > 0 || undefined}>
+                  <Filter
+                    groups={filterGroups}
+                    value={filters}
+                    onChange={setFilters}
+                    mode="live"
+                    icon={<TPLibraryIcon name="sort" size={15} />}
+                  />
+                </div>
               </div>
             </div>
 
-            {!isZydusAccount && (
-              <ActiveFilterBar
-                filters={filters}
-                groups={filterGroups}
-                onRemove={removeFilterValue}
-                onClearAll={() => setFilters({})}
-              />
-            )}
+            <ActiveFilterBar
+              filters={filters}
+              groups={filterGroups}
+              onRemove={removeFilterValue}
+              onClearAll={() => setFilters({})}
+            />
 
             <div className={styles.body} data-view={renderCalendar ? "calendar" : "list"}>
               {!renderCalendar ? (

@@ -103,11 +103,21 @@ export function rowPrimaryAction(tabId, row, onRowAction, ctx = {}) {
       return { label: "Resume", variant: "outline", theme: "primary", onClick: act("resume-rx") };
     case TAB_IDS.PENDING:
       return { label: "Digitise Rx", variant: "outline", theme: "primary", onClick: act("digitise-rx") };
-    // Zydus Encounter and Appointment rows both open the prescription pad
-    // (same "Consult" CTA as legacy AppointmentData.js WalkInConsultationZydus path)
-    case TAB_IDS.ZYDUS_ENCOUNTER:
+    // Zydus Encounter: Rx split like legacy PrimaryActionButton, but hide once
+    // finishedData already has this encounter (legacy AppointmentData.js).
+    case TAB_IDS.ZYDUS_ENCOUNTER: {
+      const encounterId = row?.raw?.encounterId ?? row?.raw?.pam_ref_id;
+      if (
+        encounterId != null &&
+        ctx.finishedEncounterIds?.has(String(encounterId))
+      ) {
+        return null;
+      }
+      return asTablePrimary(queueRxChoices(ctx), act);
+    }
+    // Legacy UAT: Appointment tab has an empty Action column — no Consult.
     case TAB_IDS.ZYDUS_APPOINTMENT:
-      return { label: "Consult", variant: "outline", theme: "primary", onClick: act("type-rx") };
+      return null;
     default:
       return null;
   }
