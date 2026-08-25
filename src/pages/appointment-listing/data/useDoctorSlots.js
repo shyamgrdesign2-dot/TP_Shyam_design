@@ -3,6 +3,7 @@ import moment from "moment";
 import { jwtDecode } from "jwt-decode";
 import { getSlotsList, getTeleconsultSlotsList } from "../../addAppointment/service";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../../utils/constants";
+import { findMatchingTeleSlot } from "./slotTeleMatch";
 
 export function getLoggedInDoctorId() {
   try {
@@ -57,13 +58,16 @@ async function loadDay(doctorId, dateISO) {
     getSlotsList(doctorId, dateISO).catch(() => null),
     getTeleconsultSlotsList(doctorId, dateISO).catch(() => null),
   ]);
-  const teleStarts = new Set(
-    (teleRes?.status ? teleRes.slots || [] : []).filter((s) => s.status === "available").map((s) => s.start)
-  );
-  return (clinicRes?.status ? clinicRes.slots || [] : []).map((s) => ({
-    ...normalizeSlot(s, dateISO),
-    teleAvailable: teleStarts.has(s.start),
-  }));
+  const teleSlots = teleRes?.status ? teleRes.slots || [] : [];
+  return (clinicRes?.status ? clinicRes.slots || [] : []).map((s) => {
+    const teleMatch = findMatchingTeleSlot(s.start, teleSlots);
+    return {
+      ...normalizeSlot(s, dateISO),
+      teleAvailable: Boolean(teleMatch),
+      // Book tele against the real tele start when grids are offset by 1–2 min.
+      teleStart: teleMatch?.start || null,
+    };
+  });
 }
 
 /**

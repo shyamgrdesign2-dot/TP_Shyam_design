@@ -18,6 +18,7 @@ import {
 import ApiAppointments from "../../../api/services/ApiAppointments";
 import { addAppointment, bookTeleconsult, getSlotsList, getTeleconsultSlotsList } from "../../addAppointment/service";
 import { getLoggedInDoctorId } from "../data/useDoctorSlots";
+import { findMatchingTeleSlot } from "../data/slotTeleMatch";
 import AddPatientDrawer from "../../add-patient/AddPatientDrawer";
 import styles from "./BookAppointmentDrawer.module.css";
 
@@ -127,6 +128,7 @@ export default function BookAppointmentDrawer({
   const [remarks, setRemarks] = useState("");
   const [booking, setBooking] = useState(false);
   const [teleSlotOk, setTeleSlotOk] = useState(true);
+  const [teleMatchedStart, setTeleMatchedStart] = useState(null);
   const [toast, setToast] = useState(null);
   const [addPatientOpen, setAddPatientOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -212,19 +214,19 @@ export default function BookAppointmentDrawer({
     ])
       .then(([clinicRes, teleRes]) => {
         if (mySeq !== slotSeq.current) return;
-        const teleOpen = new Set(
-          (teleRes?.status ? teleRes.slots || [] : []).filter((s) => s.status === "available").map((s) => s.start)
-        );
+        const teleSlots = teleRes?.status ? teleRes.slots || [] : [];
         const list = (clinicRes?.status ? clinicRes.slots || [] : [])
           .map((s) => {
             const startMin = toMin(s.start);
             const endMin = toMin(s.end);
+            const teleMatch = findMatchingTeleSlot(s.start, teleSlots);
             return {
               ...s,
               dateISO: pickDate,
               startMin,
               increment: s?.availability?.increment || (startMin != null && endMin != null ? endMin - startMin : 15),
-              teleAvailable: teleOpen.has(s.start),
+              teleAvailable: Boolean(teleMatch),
+              teleStart: teleMatch?.start || null,
               isPast: moment(`${pickDate} ${s.start}`, "YYYY-MM-DD HH:mm:ss").isBefore(moment()),
             };
           })
@@ -291,7 +293,8 @@ export default function BookAppointmentDrawer({
   }, [query, open]);
 
   // Edge case parity with the slot screen: a slot open for in-clinic is not
-  // necessarily open for teleconsultation. Validate on mode switch.
+  // necessarily open for teleconsultation. Validate on mode switch, allowing
+  // the 1–2 minute grid offset some clinics publish (TP-2771).
   useEffect(() => {
     let alive = true;
     if (!open || mode !== "teleconsult" || !effectiveSlot) return undefined;
@@ -299,12 +302,19 @@ export default function BookAppointmentDrawer({
     getTeleconsultSlotsList(doctorId, effectiveSlot.dateISO)
       .then((res) => {
         if (!alive) return;
-        const ok = !!(
-          res?.status && (res.slots || []).some((s) => s.start === effectiveSlot.start && s.status === "available")
-        );
-        setTeleSlotOk(ok);
+        const teleSlots = res?.status ? res.slots || [] : [];
+        const match =
+          (effectiveSlot.teleStart &&
+            teleSlots.find((s) => s.start === effectiveSlot.teleStart && (!s.status || s.status === "available"))) ||
+          findMatchingTeleSlot(effectiveSlot.start, teleSlots);
+        setTeleSlotOk(Boolean(match));
+        setTeleMatchedStart(match?.start || effectiveSlot.teleStart || null);
       })
-      .catch(() => alive && setTeleSlotOk(false));
+      .catch(() => {
+        if (!alive) return;
+        setTeleSlotOk(false);
+        setTeleMatchedStart(null);
+      });
     return () => {
       alive = false;
     };
@@ -360,14 +370,26 @@ export default function BookAppointmentDrawer({
     }
     setBooking(true);
     try {
+      const isTele = mode === "teleconsult";
+      // Tele books against the matched tele grid start when clinic/tele
+      // templates are offset by 1–2 minutes (TP-2771).
+      const bookStartSrc = isTele
+        ? teleMatchedStart || effectiveSlot.teleStart || effectiveSlot.start
+        : effectiveSlot.start;
+      const startM = moment(bookStartSrc, ["HH:mm:ss", "HH:mm"], true);
+      const durationMin = effectiveSlot.increment || 5;
+      const endM = startM.isValid()
+        ? startM.clone().add(durationMin, "minutes")
+        : moment(effectiveSlot.end, ["HH:mm:ss", "HH:mm"], true);
+
       let payload = {
         doctor_id: getLoggedInDoctorId(),
         patient_unique_id: patient.patient_unique_id,
         pm_pid: patient.pm_pid,
         appointment_date: effectiveSlot.dateISO,
-        appointment_start_time: moment(effectiveSlot.start, "HH:mm:ss").format("HH:mm"),
-        appointment_end_time: moment(effectiveSlot.end, "HH:mm:ss").format("HH:mm"),
-        appointment_duration: effectiveSlot.increment || 5,
+        appointment_start_time: startM.isValid() ? startM.format("HH:mm") : moment(effectiveSlot.start, "HH:mm:ss").format("HH:mm"),
+        appointment_end_time: endM.isValid() ? endM.format("HH:mm") : moment(effectiveSlot.end, "HH:mm:ss").format("HH:mm"),
+        appointment_duration: durationMin,
         toct_id: caseType,
       };
       if (category) payload.category_id = category;
@@ -416,7 +438,6 @@ export default function BookAppointmentDrawer({
         return;
       }
 
-      const isTele = mode === "teleconsult";
       if (isTele) payload = { ...payload, patient_unique_id: String(payload.patient_unique_id) };
       const res = isTele ? await bookTeleconsult(payload) : await addAppointment(payload);
       if (res?.status) {
