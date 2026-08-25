@@ -35,6 +35,8 @@ import { getCaseTypes, listCategories } from "../../redux/appointmentsSlice";
 import VideoModal from "../../common/VideoModal";
 import { EVENTS } from "../../utils/events";
 import { ASSETS } from "../../assets";
+import PageHeroBanner, { pageHeroBannerStyles } from "../../common/PageHeroBanner";
+import { Button as TessButton, TPLibraryIcon } from "@dhspl-tatvacare/tesseract-ui";
 const {
   tutorialIcon: tutorial,
   greenRoundedCheck: greenRightIcon,
@@ -966,66 +968,57 @@ function AddAppointment() {
 
   return (
     <>
-      <div className="welcomesection position-relative">
-        <div className="bg-welcome d-flex justify-content-between align-items-center">
-          <div className="d-flex align-items-center">
-            <div
-              onClick={() => navigate(-1)}
-              className="lh-1 me-1 px-2 text-dark cursor-pointer"
+      <PageHeroBanner
+        title="Select an Appointment Slot"
+        showBackButton
+        onBack={() => navigate(-1)}
+        actions={
+          <>
+            <Popover
+              open={popOverVideo}
+              onOpenChange={showHideVideoListPopover}
+              content={VIDEO_CONTENT}
+              trigger="click"
+              overlayClassName="pop-430 pp-0 videoTutorial"
+              placement="bottom"
             >
-              <i className="fs-3 icon-right"></i>
-            </div>
-            <div>
-              <h1>Select an Appointment Slot</h1>
-            </div>
-          </div>
-          <div className="d-flex gap-1">
-            <div className="d-lg-flex d-block">
-              <Popover
-                open={popOverVideo}
-                onOpenChange={showHideVideoListPopover}
-                content={VIDEO_CONTENT}
-                trigger="click"
-                overlayClassName="pop-430 pp-0 videoTutorial"
-                placement="bottom"
-              >
-                <button className="btn d-flex align-items-center btn-text mx-3 tutorial p-0">
-                  <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
-                    <img height={42} src={tutorial} />
-                    Tutorial
-                  </span>
-                </button>
-              </Popover>
-              {videoLink && (
-                <VideoModal
-                  videoLink={videoLink}
-                  onCancel={() => setVideoLink(null)}
-                />
-              )}
+              <button className="btn d-flex align-items-center btn-text tutorial p-0" type="button">
+                <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
+                  <img height={42} src={tutorial} alt="" />
+                  Tutorial
+                </span>
+              </button>
+            </Popover>
+            {videoLink && (
+              <VideoModal
+                videoLink={videoLink}
+                onCancel={() => setVideoLink(null)}
+              />
+            )}
 
-              <Button
-                variant="primary"
-                onClick={() => {
-                  myAvailability();
-                  HandleSettingsDescription();
-                  window.Moengage.track_event("TP_AddAppointments_AvailabilitySettings", {
-                    "Doctor_specialty": profile?.dp_name,
-                    "Doctor_unique_id": profile?.doctor_unique_id,
-                    "Doctor_Name": profile?.um_name,
-                    "Doctor_mobile_No": profile?.um_contact,
-                  });
-                }}
-                className="px-3 btn-41 d-flex align-items-center rounded-10px"
-                disabled={selectedDoctor != decodedToken?.result?.user_id}
-              >
-                <i className="icon-calendar me-2"></i>
-                {"Availability Settings"}
-              </Button>
-            </div>
-          </div>
-        </div>
-        <div className="pb-5">&nbsp;</div>
-      </div>
+            <TessButton
+              variant="solid"
+              theme="primary"
+              surface="dark"
+              className={pageHeroBannerStyles.solidBtn}
+              leftIcon={<TPLibraryIcon name="calendar" family="time" size={20} />}
+              disabled={selectedDoctor != decodedToken?.result?.user_id}
+              onClick={() => {
+                myAvailability();
+                HandleSettingsDescription();
+                window.Moengage.track_event("TP_AddAppointments_AvailabilitySettings", {
+                  Doctor_specialty: profile?.dp_name,
+                  Doctor_unique_id: profile?.doctor_unique_id,
+                  Doctor_Name: profile?.um_name,
+                  Doctor_mobile_No: profile?.um_contact,
+                });
+              }}
+            >
+              Availability Settings
+            </TessButton>
+          </>
+        }
+      />
       <div className={`border rounded-4 appointment-wrap p-4`}>
         {isTeleConsultEnabled && hasVideoSlotsFromApi && (
           <div
