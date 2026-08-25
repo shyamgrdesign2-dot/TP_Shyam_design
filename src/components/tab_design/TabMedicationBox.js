@@ -82,6 +82,7 @@ import { env } from "../../EnvironmentConfig";
 import DoseCalculator from "../dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../../redux/doctorsSlice";
 import FreeBadge from "../../common/FreeBadge";
+import LowStockBadge from "../../common/LowStockBadge";
 import { ASSETS } from "../../assets";
 const {
   alerticon: alertIcon,
@@ -2937,9 +2938,11 @@ function TabMedicationBox() {
                       <span className="chip-med-content">
                         <span className="chip-med-name">{`${item.tmm_medicine_name}`}</span>
                         {renderLowStockBadge(item)}
+                        <LowStockBadge show={item?.isLowStock} />
                       </span>
                     </Button>
                     {(item?.tmm_hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2', right: 6, top: -6 }}>Z</span>}
+                    {(item?.tmm_hm_type === 21 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#1e88e5', right: 6, top: -6 }}>P</span>}
                     {(item?.tmm_hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{ minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6 }}>VC</span>}
                     <FreeBadge show={item?.is_free} className="position-absolute" style={{ right: 0, top: -10 }} />
                   </div>
