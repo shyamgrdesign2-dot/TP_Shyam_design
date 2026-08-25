@@ -71,6 +71,8 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
     }
     if (action?.type === "upload-records") {
       setUploadFiles(action.files || []);
+      setShowDeletePopup(false);
+      setShowUploadDocPopup(Boolean(action.openPicker));
     } else {
       setUploadFiles([]);
       setShowDeletePopup(false);
@@ -307,7 +309,7 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
           }}
         />
       )}
-      {type === "upload-records" && (
+      {type === "upload-records" && (uploadFiles.length > 0 || !showUploadDocPopup) && (
         <AntDrawer
           closeIcon={false}
           placement="right"
@@ -334,11 +336,17 @@ export default function RowActionDrawers({ action, onClose, onDone }) {
       {type === "upload-records" && showUploadDocPopup && (
         <UploadDocPopup
           shouldShowUploadDocPopup={showUploadDocPopup}
-          onCancel={() => setShowUploadDocPopup(false)}
-          setFilesData={setUploadFiles}
+          onCancel={() => {
+            setShowUploadDocPopup(false);
+            if (!uploadFiles.length) onClose();
+          }}
+          setFilesData={(next) => {
+            setUploadFiles((prev) => (typeof next === "function" ? next(prev) : next));
+          }}
           filesData={uploadFiles}
           setUploadDocDrawer={(open) => {
-            if (!open) onClose();
+            if (open) setShowUploadDocPopup(false);
+            else onClose();
           }}
           patientData={record}
           setIsFileSizeError={() => {}}

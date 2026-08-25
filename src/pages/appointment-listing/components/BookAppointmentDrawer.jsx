@@ -100,6 +100,7 @@ export default function BookAppointmentDrawer({
   initialPatient = null,
   initialCaseType = null,
   initialCategory = null,
+  initialCategoryName = null,
   initialRemarks = "",
   initialDateISO = null,
   initialTime = null, // "HH:mm:ss" of the appointment being moved
@@ -169,8 +170,15 @@ export default function BookAppointmentDrawer({
       setQuery("");
       setPatients([]);
       setPatient(initialPatient || null);
-      setCaseType(initialCaseType || null);
-      setCategory(initialCategory || null);
+      setCaseType(initialCaseType != null && initialCaseType !== "" ? Number(initialCaseType) || initialCaseType : null);
+      /* Category ids arrive as strings or numbers depending on the list API;
+         the dropdown options use numeric pt_id. Coerce so "Derma" shows on
+         reschedule instead of the empty placeholder. */
+      setCategory(
+        initialCategory != null && initialCategory !== ""
+          ? Number(initialCategory) || initialCategory
+          : null
+      );
       setRemarks(initialRemarks || "");
       setTeleSlotOk(true);
       /* A reschedule opens on today with the appointment's own time already
@@ -191,9 +199,26 @@ export default function BookAppointmentDrawer({
       .then((res) => setCaseTypes(res?.status ? res.data?.case_type || [] : []))
       .catch(() => setCaseTypes([]));
     ApiAppointments.listCategories()
-      .then((res) => setCategories(res?.categories || res?.data?.categories || []))
+      .then((res) => {
+        const list = res?.categories || res?.data?.categories || [];
+        setCategories(list);
+        /* Re-bind after options land: Dropdown only paints a label when the
+           value exists in options, and the first paint often races the fetch. */
+        if (initialCategory != null && initialCategory !== "") {
+          const want = Number(initialCategory);
+          const match = list.find(
+            (c) => Number(c.pt_id) === want || String(c.pt_id) === String(initialCategory)
+          );
+          if (match) setCategory(match.pt_id);
+        } else if (initialCategoryName) {
+          const byName = list.find(
+            (c) => String(c.pt_name || "").toLowerCase() === String(initialCategoryName).toLowerCase()
+          );
+          if (byName) setCategory(byName.pt_id);
+        }
+      })
       .catch(() => setCategories([]));
-  }, [open]);
+  }, [open, initialCategory, initialCategoryName]);
 
   /* Slotless mode: the whole published day for the picked date, in-clinic
      with tele availability merged.
@@ -957,7 +982,7 @@ export default function BookAppointmentDrawer({
                 <Dropdown
                   options={categories.map((c) => ({ value: c.pt_id, label: c.pt_name }))}
                   value={category}
-                  onChange={isReschedule ? undefined : setCategory}
+                  onChange={isReschedule ? undefined : (v) => setCategory(v != null ? Number(v) || v : null)}
                   placeholder="Select Category"
                   disabled={isReschedule}
                 />

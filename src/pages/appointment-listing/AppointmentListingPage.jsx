@@ -63,6 +63,7 @@ import { DENTAL_RX_PAD_ROUTE } from "../../utils/dentalRoutes";
 import { handleAdmitToIpd } from "../../utils/utils";
 import { generateUniqueFileName, getCorrectedFileName } from "../medicalRecords/utils/helper";
 import { fetchAllDocumentCategories } from "../medicalRecords/service";
+import { isAndroid, isBrowser } from "react-device-detect";
 import {
   GB_VOICE_RX_NEW_UI,
   UNFINISHED_RX_CASE,
@@ -533,7 +534,7 @@ export default function AppointmentListingPage() {
     ]
   );
 
-  const onRowAction = useCallback(
+  const onRowActionAsync = useCallback(
     async (action, row) => {
       const rec = row?.raw || row;
       if (!rec) return;
@@ -688,8 +689,6 @@ export default function AppointmentListingPage() {
           });
           break;
         case "upload-records":
-          pendingUploadRef.current = rec;
-          fileInputRef.current?.click();
           break;
         case "download-abha": {
           const patientUniqueId = rec?.patient_unique_id;
@@ -757,6 +756,41 @@ export default function AppointmentListingPage() {
       }
     },
     [navigate, dispatch, isVoiceRxNewUi, activeTab, profile, isDentalEnabled, isChikitsalayAccessable, showBookActions, isZydusAccount, runZydusEncounterAction]
+  );
+
+  /* Medical-records must stay outside the async path: a programmatic file
+     input click only works while the browser still sees a user gesture. */
+  const onRowAction = useCallback(
+    (action, row) => {
+      const rec = row?.raw || row;
+      if (!rec) return;
+      if (action === "upload-records") {
+        if (isAndroid && !isBrowser) {
+          setActionDrawer({
+            type: "upload-records",
+            record: rec,
+            name: row.name,
+            files: [],
+            openPicker: true,
+          });
+          return;
+        }
+        if (fileInputRef.current) {
+          pendingUploadRef.current = rec;
+          fileInputRef.current.click();
+          return;
+        }
+        setActionDrawer({
+          type: "upload-records",
+          record: rec,
+          name: row.name,
+          files: [],
+        });
+        return;
+      }
+      void onRowActionAsync(action, row);
+    },
+    [onRowActionAsync]
   );
 
   const handleUploadFileChange = (event) => {
@@ -1161,7 +1195,15 @@ export default function AppointmentListingPage() {
               : null
           }
           initialCaseType={bookingCtx?.reschedule?.raw?.toct_id ?? null}
-          initialCategory={bookingCtx?.reschedule?.raw?.pt_id ?? bookingCtx?.reschedule?.raw?.category_id ?? null}
+          initialCategory={
+            bookingCtx?.reschedule?.raw?.pt_id ??
+            bookingCtx?.reschedule?.raw?.category_id ??
+            bookingCtx?.reschedule?.raw?.pam_category_id ??
+            null
+          }
+          initialCategoryName={
+            bookingCtx?.reschedule?.raw?.pt_name || bookingCtx?.reschedule?.specialty || null
+          }
           initialRemarks={bookingCtx?.reschedule?.raw?.pam_appointment_remark || ""}
           /* The appointment's own id, so a move is a PUT against it rather
              than a new booking plus a cancel. */

@@ -237,7 +237,7 @@ export function MiniDatePopover({ anchor, onPick, onClose, maxDate = null }) {
  * below the card depending on which side it fits, measured after mount rather
  * than estimated, and carries the CTA that small cards can't show inline.
  */
-function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, onMouseEnter, onMouseLeave, onMove }) {
+function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, onMouseEnter, onMouseLeave }) {
   // Act on this appointment's own status inside the merged "All" view.
   const cardTab = row.status || tabId;
   const access = useListingAccess();
@@ -278,8 +278,7 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
      rendering Join alone used to force the actions footer open, which then
      drew a second kebab next to the head one (cancelled has no primary). */
   const showJoin = row.hasVideo && cardTab === TAB_IDS.QUEUE;
-  const showMove = !!onMove && cardTab === TAB_IDS.QUEUE;
-  const showActionsFooter = !!(primary || showJoin || showMove);
+  const showActionsFooter = !!(primary || showJoin);
   /* Two boxes on purpose: the outer one positions and carries the caret,
      the inner one clips its children to the 12px radius. A single box can't
      do both, because clipping would eat the caret. */
@@ -406,23 +405,8 @@ function EventPopover({ anchorRect, row, tabId, onRowAction, onClose, pinned, on
                 Join
               </Button>
             )}
-            {/* The touch equivalent of dragging the card. Shown only where
-                there is no pointer to drag with, so a mouse user is not
-                offered two ways to do the same thing. */}
-            {showMove && (
-              <Button
-                size="sm"
-                variant="outline"
-                theme="neutral"
-                leftIcon={<TPLibraryIcon name="calendar-edit" size={16} />}
-                onClick={() => {
-                  onMove(row);
-                  onClose();
-                }}
-              >
-                Move
-              </Button>
-            )}
+            {/* Move CTA removed: tablet/desktop both drag the card onto a
+                free slot (see startDrag). The kebab still has Reschedule. */}
           </span>
           <RowKebabMenu tabId={cardTab} row={row} onRowAction={act} />
         </div>
@@ -500,11 +484,6 @@ export default function AppointmentCalendarView({
      the cursor and follows it; the rest of the day stays clear, which is the
      whole reason for turning the layer off. Keyed `dateISO|start`. */
   const [hoverSlotKey, setHoverSlotKey] = useState(null);
-  /* Touch has no drag (see startDrag), so the move has to be reachable some
-     other way. Measured once and kept, rather than sniffing the user agent. */
-  const [canDrag] = useState(
-    () => typeof window === "undefined" || !!window.matchMedia?.("(hover: hover) and (pointer: fine)").matches
-  );
   const hoverRafRef = useRef(0);
 
   /* Everything shows while the layer is on, and while a card is being
@@ -552,18 +531,11 @@ export default function AppointmentCalendarView({
     // shown inside the merged "All" view.
     if (!allowBook) return;
     if ((row.status || tabId) !== TAB_QUEUE_ID || e.button === 2) return;
-    /* Drag is a pointer gesture and stays one.
-
-       On a touch screen the finger is both the cursor and the scrollbar, so
-       press-and-move over a card is already spoken for: it scrolls the day.
-       Every way of taking that back costs something — a long press adds a
-       hidden gesture and a wait, and dragging a 45px slot under a fingertip
-       that covers it is the worst kind of target acquisition. So touch does
-       not drag at all. Tap opens the card, and the card offers "Move to
-       another time", which turns every free slot into a tap target. Two
-       taps, nothing hidden, no precision needed, and the destination stays
-       visible the whole time because nothing is under the finger. */
-    if (e.pointerType === "touch") return;
+    /* Pointer + touch both drag. Touch used to fall back to a "Move" button
+       in the popover (which overlapped Join on video cards); that CTA is
+       gone, so tablets use the same drag-to-slot gesture as laptops. A
+       slightly larger move threshold on touch keeps day-scroll available
+       until the finger clearly intends to drag the card. */
     const card = e.currentTarget;
     const rect = card.getBoundingClientRect();
     dragRef.current = {
@@ -575,6 +547,8 @@ export default function AppointmentCalendarView({
       width: rect.width,
       moved: false,
       prevHourPx: hourPxRef.current,
+      pointerType: e.pointerType || "mouse",
+      threshold: e.pointerType === "touch" ? 12 : 6,
     };
     try {
       card.setPointerCapture?.(e.pointerId);
@@ -621,13 +595,19 @@ export default function AppointmentCalendarView({
   const moveDrag = (e, row) => {
     const d = dragRef.current;
     if (!d || d.row.id !== row.id) return;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 6 && Math.abs(e.clientY - d.startY) < 6) return;
+    const threshold = d.threshold ?? 6;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < threshold && Math.abs(e.clientY - d.startY) < threshold) {
+      return;
+    }
     if (!d.moved) {
       d.moved = true;
       /* Ease out, never in: a grid already tighter than the drag scale is
          left exactly where the doctor put it. */
       if (hourPxRef.current > HOUR_PX_DRAG) zoomTo(HOUR_PX_DRAG, e.clientY);
     }
+    /* Once the card owns the gesture, stop the day from scrolling under the
+       finger (tablet) so the drop target stays under the ghost. */
+    if (e.cancelable) e.preventDefault();
     const hit = resolveDrop(e.clientX, e.clientY);
     setDropTarget(hit ? `${hit.dateISO}|${hit.slot.start}` : null);
     setDragging({
@@ -1840,8 +1820,6 @@ export default function AppointmentCalendarView({
           pinned={popup.pinned}
           tabId={tabId}
           onRowAction={onRowAction}
-          /* Dragging is the pointer's way in; this is touch's. */
-          onMove={canDrag || !allowBook ? undefined : onStartMove}
           onClose={closePopup}
           onMouseEnter={keepOpen}
           onMouseLeave={hoverClose}
