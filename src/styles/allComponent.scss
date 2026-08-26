@@ -1433,6 +1433,41 @@ body {
 
       border-bottom: 1px solid $bordercolor;
     }
+
+    // Tablet portrait / narrow widths: keep Patient Details + TabRx buttons reachable
+    @media (max-width: 1024px) {
+      width: max-content !important;
+      min-width: min(100%, 280px);
+      max-width: calc(100vw - 40px) !important;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch;
+
+      .rc-virtual-list,
+      .rc-virtual-list-holder,
+      .rc-virtual-list-holder-inner {
+        width: max-content !important;
+        min-width: 100%;
+        max-width: none;
+      }
+
+      .ant-select-item {
+        width: max-content;
+        min-width: 100%;
+      }
+
+      .ant-select-item-option-content {
+        overflow: visible !important;
+
+        > .d-flex {
+          flex-wrap: nowrap;
+          min-width: max-content;
+
+          > .d-flex:last-child {
+            flex-shrink: 0;
+          }
+        }
+      }
+    }
   }
 
   .ant-input-wrapper {
@@ -3912,6 +3947,40 @@ body {
   height: 62px !important;
   margin: 0 !important;
   box-shadow: -1px -1px 0px 0px #e2e2ea inset;
+  /* Keep title + Save on one row at all breakpoints (prevents tablet portrait stack/clip) */
+  flex-wrap: nowrap !important;
+
+  .header-snap-rx-title-col {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .header-snap-rx-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .header-snap-rx-actions-col {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: 55%;
+  }
+
+  .header-snap-rx-actions {
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+
+    > * {
+      flex-shrink: 0;
+    }
+  }
 }
 
 .snap-rx-img {

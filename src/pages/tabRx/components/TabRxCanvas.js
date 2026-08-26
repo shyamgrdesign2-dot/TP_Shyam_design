@@ -259,7 +259,7 @@ const TabRxCanvas = forwardRef(({
   // Refs to access canvas elements for export
   const canvasRefsByPage = useRef({});
   const scrollPagesRef = useRef(null);
-  const touchScrollRef = useRef({ active: false, pointerId: null, lastY: 0 });
+  const touchScrollRef = useRef({ active: false, pointerId: null, lastY: 0, lastX: 0 });
   const scrollLockRef = useRef({
     locked: false,
     prevOverflowY: '',
@@ -283,44 +283,46 @@ const TabRxCanvas = forwardRef(({
   // Finger-scroll on the pages scroller (works even when starting on the canvas).
   // We keep native touch-action disabled on the canvas to prevent Chrome from scrolling
   // the viewport during vertical stylus strokes.
+  // Supports both vertical and horizontal scroll (needed when zoomed wider than the viewport).
   useEffect(() => {
     const el = scrollPagesRef.current;
     if (!el) return;
 
     const onPointerDown = (e) => {
       if (e.pointerType !== 'touch') return;
-      touchScrollRef.current = { active: true, pointerId: e.pointerId, lastY: e.clientY };
+      touchScrollRef.current = {
+        active: true,
+        pointerId: e.pointerId,
+        lastY: e.clientY,
+        lastX: e.clientX,
+      };
     };
 
     const onPointerMove = (e) => {
       const s = touchScrollRef.current;
       if (!s.active || s.pointerId !== e.pointerId) return;
       const dy = e.clientY - s.lastY;
-      const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+      const dx = e.clientX - s.lastX;
+
+      const maxScrollY = Math.max(0, el.scrollHeight - el.clientHeight);
+      const maxScrollX = Math.max(0, el.scrollWidth - el.clientWidth);
       const st = el.scrollTop;
+      const sl = el.scrollLeft;
       const nextTop = st - dy;
+      const nextLeft = sl - dx;
+
       // Clamp at edges so we don't feed elastic overscroll into the browser (page scroll / spurious input).
-      if (nextTop < 0) {
-        el.scrollTop = 0;
-        s.lastY = e.clientY;
-        if (e.cancelable) e.preventDefault();
-        return;
-      }
-      if (nextTop > maxScroll) {
-        el.scrollTop = maxScroll;
-        s.lastY = e.clientY;
-        if (e.cancelable) e.preventDefault();
-        return;
-      }
-      el.scrollTop = nextTop;
+      el.scrollTop = Math.max(0, Math.min(maxScrollY, nextTop));
+      el.scrollLeft = Math.max(0, Math.min(maxScrollX, nextLeft));
       s.lastY = e.clientY;
+      s.lastX = e.clientX;
       if (e.cancelable) e.preventDefault();
     };
 
     const end = (e) => {
       const s = touchScrollRef.current;
       if (s.pointerId !== e.pointerId) return;
-      touchScrollRef.current = { active: false, pointerId: null, lastY: 0 };
+      touchScrollRef.current = { active: false, pointerId: null, lastY: 0, lastX: 0 };
     };
 
     el.addEventListener('pointerdown', onPointerDown, { capture: true, passive: true });
