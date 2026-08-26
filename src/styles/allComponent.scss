@@ -1434,36 +1434,43 @@ body {
       border-bottom: 1px solid $bordercolor;
     }
 
-    // Tablet portrait / narrow widths: keep Patient Details + TabRx buttons reachable
+    // Tablet portrait / medium widths: keep dropdown aligned to the search
+    // input (match select width). Avoid width:max-content / 100vw — that made
+    // the popup either too narrow (truncated names) or wider than the field
+    // (overlap sidebar).
     @media (max-width: 1024px) {
-      width: max-content !important;
-      min-width: min(100%, 280px);
-      max-width: calc(100vw - 40px) !important;
-      overflow-x: auto !important;
-      -webkit-overflow-scrolling: touch;
-
-      .rc-virtual-list,
-      .rc-virtual-list-holder,
-      .rc-virtual-list-holder-inner {
-        width: max-content !important;
-        min-width: 100%;
-        max-width: none;
-      }
-
-      .ant-select-item {
-        width: max-content;
-        min-width: 100%;
-      }
-
       .ant-select-item-option-content {
         overflow: visible !important;
 
         > .d-flex {
-          flex-wrap: nowrap;
-          min-width: max-content;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px 12px;
+          width: 100%;
+          min-width: 0;
 
+          // Patient name / phone / id block
+          > .d-flex:first-child {
+            flex: 1 1 220px;
+            min-width: 0;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+
+            .list-patientName {
+              margin-right: 0 !important;
+              max-width: 100%;
+
+              span {
+                white-space: normal;
+                word-break: break-word;
+              }
+            }
+          }
+
+          // Actions (Patient Details / Consult)
           > .d-flex:last-child {
-            flex-shrink: 0;
+            flex: 0 0 auto;
+            margin-left: auto;
           }
         }
       }
