@@ -6,7 +6,7 @@
   width: 100%;
   /* Spacer under the banner so legacy .appointment-wrap (margin-top: -80px)
      still overlaps the purple band the way it did the yellow welcome strip. */
-  padding-bottom: 72px;
+  padding-bottom: 5px;
 }
 
 .wrap[data-compact="true"] {

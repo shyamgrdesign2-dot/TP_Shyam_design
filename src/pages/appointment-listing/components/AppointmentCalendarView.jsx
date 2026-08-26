@@ -1010,21 +1010,54 @@ export default function AppointmentCalendarView({
 
   // Geometry for every booked card, resolved once per day so the render and
   // the overflow chips agree on where each card sits.
+  // When the day publishes both clinic and tele free grids, bookings sit in
+  // the same lane as those chips (clinic left, tele right) instead of
+  // spanning the full column over the other mode's slots.
   const laidByDay = useMemo(() => {
     const out = {};
     days.forEach((d) => {
       const dayISO = iso(d);
       const slots = slotsByDate[dayISO] || [];
-      const laid = layoutOverlaps(
-        (eventsByDay[dayISO] || []).map((row) => {
-          const startMin = row.slotHour * 60 + row.slotMinute;
-          /* Prefer clinic duration for card height; fall back to tele or 15. */
-          const matching =
-            slots.find((s) => s.startMin === startMin && s.bookMode === "in-clinic") ||
+      const dualLane =
+        slots.some((s) => s.bookMode === "teleconsult") &&
+        slots.some((s) => s.bookMode !== "teleconsult");
+
+      const toEvent = (row) => {
+        const startMin = row.slotHour * 60 + row.slotMinute;
+        const matching = row.hasVideo
+          ? slots.find((s) => s.startMin === startMin && s.bookMode === "teleconsult") ||
+            slots.find((s) => s.startMin === startMin)
+          : slots.find((s) => s.startMin === startMin && s.bookMode === "in-clinic") ||
             slots.find((s) => s.startMin === startMin);
-          return { row, startMin, durationMin: matching?.increment || 15 };
-        })
-      );
+        return {
+          row,
+          startMin,
+          durationMin: matching?.increment || matching?.durationMin || 15,
+        };
+      };
+
+      const events = (eventsByDay[dayISO] || []).map(toEvent);
+      let laid;
+      if (dualLane && mode !== "week") {
+        const clinicLaid = layoutOverlaps(events.filter((e) => !e.row.hasVideo));
+        const teleLaid = layoutOverlaps(events.filter((e) => e.row.hasVideo));
+        clinicLaid.forEach((e) => {
+          e.lane = 0;
+          e.laneCols = 2;
+        });
+        teleLaid.forEach((e) => {
+          e.lane = 1;
+          e.laneCols = 2;
+        });
+        laid = [...clinicLaid, ...teleLaid];
+      } else {
+        laid = layoutOverlaps(events);
+        laid.forEach((e) => {
+          e.lane = 0;
+          e.laneCols = 1;
+        });
+      }
+
       out[dayISO] =
         mode === "week"
           ? stackForWeek(laid, minPx)
@@ -1636,7 +1669,7 @@ export default function AppointmentCalendarView({
                       +{o.count} more
                     </button>
                   ))}
-                  {(laidByDay[dayISO]?.cards || []).map(({ row, top, height: heightPx, col, cols }) => {
+                  {(laidByDay[dayISO]?.cards || []).map(({ row, top, height: heightPx, col, cols, lane = 0, laneCols = 1 }) => {
                     const isDragging = dragging?.id === row.id;
                     const openPop = (e) => {
                       if (suppressClickRef.current) return;
@@ -1648,30 +1681,43 @@ export default function AppointmentCalendarView({
                        overlap instead, each keeping a legible width with the
                        later ones on top. */
                     const MIN_CARD_PX = 96;
-                    const tight = cols > 1 && colWidth / cols < MIN_CARD_PX;
-                    const step = tight
-                      ? Math.max(8, Math.min(22, (colWidth - MIN_CARD_PX) / Math.max(1, cols - 1)))
-                      : 0;
-                    const cardWidth = tight
-                      ? colWidth - col * step - 6
-                      : colWidth / cols - (cols > 1 ? 8 : 14);
-                    // Overlapping events share the column side-by-side
-                    // (Google style) instead of stacking on top of each other.
-                    const overlapStyle =
-                      cols > 1
-                        ? tight
-                          ? {
-                              left: col * step + 3,
-                              width: `calc(100% - ${col * step + 6}px)`,
-                              minWidth: 0,
-                              zIndex: 2 + col,
-                            }
-                          : {
-                              left: `calc(${(col * 100) / cols}% + 3px)`,
-                              width: `calc(${100 / cols}% - 6px)`,
-                              minWidth: 0,
-                            }
-                        : {};
+                    /* Dual clinic/tele lanes: same geometry as free-slot chips
+                       (clinic left, tele right). Overlaps within a lane still
+                       subdivide that half. */
+                    let overlapStyle = {};
+                    let cardWidth = colWidth - 14;
+                    if (laneCols > 1) {
+                      const lanePct = 100 / laneCols;
+                      const subCols = Math.max(1, cols);
+                      const subPct = lanePct / subCols;
+                      cardWidth = colWidth / laneCols / subCols - 8;
+                      overlapStyle = {
+                        left: `calc(${lane * lanePct + col * subPct}% + 3px)`,
+                        width: `calc(${subPct}% - 6px)`,
+                        minWidth: 0,
+                        zIndex: 2 + lane + col,
+                      };
+                    } else if (cols > 1) {
+                      const tight = colWidth / cols < MIN_CARD_PX;
+                      const step = tight
+                        ? Math.max(8, Math.min(22, (colWidth - MIN_CARD_PX) / Math.max(1, cols - 1)))
+                        : 0;
+                      cardWidth = tight
+                        ? colWidth - col * step - 6
+                        : colWidth / cols - 8;
+                      overlapStyle = tight
+                        ? {
+                            left: col * step + 3,
+                            width: `calc(100% - ${col * step + 6}px)`,
+                            minWidth: 0,
+                            zIndex: 2 + col,
+                          }
+                        : {
+                            left: `calc(${(col * 100) / cols}% + 3px)`,
+                            width: `calc(${100 / cols}% - 6px)`,
+                            minWidth: 0,
+                          };
+                    }
                     return (
                       <AppointmentEventCard
                         key={row.id}
