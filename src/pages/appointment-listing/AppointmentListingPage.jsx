@@ -1208,19 +1208,25 @@ export default function AppointmentListingPage() {
           /* The appointment's own id, so a move is a PUT against it rather
              than a new booking plus a cancel. */
           rescheduleId={bookingCtx?.reschedule?.raw?.pam_id ?? null}
-          /* A teleconsult appointment reopens on Tele-Consultation; a fresh
-             booking opens on whatever the slot filter says the doctor is
-             looking at, and In-clinic otherwise. A slot that merely supports
-             video is not enough to assume one: most do, and defaulting on
-             that would turn walk-ins into video visits. */
+          /* A teleconsult appointment reopens on Tele-Consultation. A free-slot
+             chip carries bookMode (clinic vs tele) and locks the switch. Fresh
+             bookings without a typed chip still follow the toolbar slot filter. */
           initialMode={
             bookingCtx?.reschedule
               ? bookingCtx.reschedule.hasVideo
                 ? "teleconsult"
                 : "in-clinic"
+              : bookingCtx?.slot?.bookMode === "teleconsult" ||
+                bookingCtx?.slot?.bookMode === "in-clinic"
+              ? bookingCtx.slot.bookMode
               : (filters.slot || []).length === 1 && filters.slot[0] === "video"
               ? "teleconsult"
               : "in-clinic"
+          }
+          modeLocked={
+            !bookingCtx?.reschedule &&
+            (bookingCtx?.slot?.bookMode === "teleconsult" ||
+              bookingCtx?.slot?.bookMode === "in-clinic")
           }
           seedDateISO={bookingCtx?.seed?.dateISO || null}
           seedStart={bookingCtx?.seed?.start || null}

@@ -749,6 +749,22 @@ button.colHeadStack:hover {
   padding: 0 6px;
 }
 
+/* Side-by-side clinic / tele chips: geometry comes from inline left/width.
+   Drop the day-view max-width so halves fill the column. */
+.slotBlock[data-split] {
+  min-width: 0;
+  max-width: none;
+}
+
+.slotBlock[data-book-mode="teleconsult"][data-state="free"] {
+  border-color: color-mix(in srgb, var(--tesseract-blue-300) 80%, transparent);
+  background: color-mix(in srgb, var(--tesseract-blue-100) 55%, transparent);
+}
+
+.gridBody[data-mode="week"] .slotBlock[data-split] {
+  padding: 0 4px;
+}
+
 /* A week column has room for the time and one glyph, no more. The plus
    drops to the size of the text it sits beside, the gap halves, and the
    video marker is pinned so it can never be the thing that gets clipped. */

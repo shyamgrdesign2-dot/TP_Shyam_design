@@ -3,7 +3,6 @@ import moment from "moment";
 import { jwtDecode } from "jwt-decode";
 import { getSlotsList, getTeleconsultSlotsList } from "../../addAppointment/service";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../../utils/constants";
-import { findMatchingTeleSlot } from "./slotTeleMatch";
 
 export function getLoggedInDoctorId() {
   try {
@@ -43,7 +42,7 @@ function normalizeSlot(slot, dateISO) {
    bumps `version`, which drops it so the grid re-reads the truth. */
 const slotCache = new Map();
 let cacheVersion = 0;
-const cacheKey = (doctorId, dateISO) => `${doctorId}|${dateISO}`;
+const cacheKey = (doctorId, dateISO) => `${doctorId}|${dateISO}|dual`;
 
 /* Availability is stable, "has this time passed" is not, so it is re-derived
    every time a cached day is handed out rather than frozen at fetch time. */
@@ -53,30 +52,49 @@ const withFreshPast = (slots) =>
     isPast: moment(`${s.dateISO} ${s.start}`, "YYYY-MM-DD HH:mm:ss").isBefore(moment()),
   }));
 
+/**
+ * Clinic and tele grids are independent templates (often different increments).
+ * Each API row becomes its own chip with `bookMode` so the calendar can paint
+ * every tele 5‑min slot and every clinic 15‑min slot on the timeline — not
+ * tele-as-a-flag on clinic rows.
+ */
 async function loadDay(doctorId, dateISO) {
   const [clinicRes, teleRes] = await Promise.all([
     getSlotsList(doctorId, dateISO).catch(() => null),
     getTeleconsultSlotsList(doctorId, dateISO).catch(() => null),
   ]);
-  const teleSlots = teleRes?.status ? teleRes.slots || [] : [];
-  return (clinicRes?.status ? clinicRes.slots || [] : []).map((s) => {
-    const teleMatch = findMatchingTeleSlot(s.start, teleSlots);
+
+  const clinic = (clinicRes?.status ? clinicRes.slots || [] : []).map((s) => {
+    const n = normalizeSlot(s, dateISO);
     return {
-      ...normalizeSlot(s, dateISO),
-      teleAvailable: Boolean(teleMatch),
-      // Book tele against the real tele start when grids are offset by 1–2 min.
-      teleStart: teleMatch?.start || null,
+      ...n,
+      bookMode: "in-clinic",
+      chipId: `clinic-${s.start}`,
+      /* Kept for drawer / filters that still ask "can this time do tele?" */
+      teleAvailable: false,
+      teleStart: null,
     };
   });
+
+  const tele = (teleRes?.status ? teleRes.slots || [] : []).map((s) => {
+    const n = normalizeSlot(s, dateISO);
+    return {
+      ...n,
+      bookMode: "teleconsult",
+      chipId: `tele-${s.start}`,
+      teleAvailable: true,
+      teleStart: s.start,
+    };
+  });
+
+  return [...clinic, ...tele];
 }
 
 /**
- * Doctor availability for the calendar, via the same listSlots API the Add
+ * Doctor availability for the calendar, via the same listSlots APIs the Add
  * Appointment flow uses. Fetches in-clinic AND teleconsultation availability
- * (pam_status_type_appointment=2) per visible day for the logged-in doctor,
- * merging tele availability onto the in-clinic grid as `teleAvailable`.
- * Slot statuses pass through untouched: available | confirmed | unavailable
- * | leave, so every edge the slot screen handles is representable here.
+ * (pam_status_type_appointment=2) per visible day and returns both as separate
+ * chip rows (bookMode in-clinic | teleconsult).
  *
  * Days already in the cache are returned on the first render, and the rest
  * are committed one at a time as they arrive, so the grid fills in column by

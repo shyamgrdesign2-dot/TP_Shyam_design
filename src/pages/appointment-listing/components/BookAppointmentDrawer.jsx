@@ -115,6 +115,9 @@ export default function BookAppointmentDrawer({
   /* The mode the appointment (or the slot) is already in, so the switch opens
      on the answer rather than on "In-clinic" every time. */
   initialMode = "in-clinic",
+  /* Calendar free-slot chips carry an explicit bookMode; locking keeps the
+     doctor on the mode of the chip they tapped (clinic vs tele). */
+  modeLocked = false,
   isReschedule = false,
 }) {
   const [mode, setMode] = useState(initialMode);
@@ -158,6 +161,7 @@ export default function BookAppointmentDrawer({
     return undefined;
   }, [open, initialPatient]);
 
+  const lockMode = isReschedule || modeLocked;
   const slotless = open && !slot;
 
   // Reset (or prefill, for reschedules) per opening.
@@ -220,14 +224,9 @@ export default function BookAppointmentDrawer({
       .catch(() => setCategories([]));
   }, [open, initialCategory, initialCategoryName]);
 
-  /* Slotless mode: the whole published day for the picked date, in-clinic
-     with tele availability merged.
-
-     Every slot is kept, not just the bookable ones. A grid holding a single
-     chip reads as "this doctor works one quarter-hour a day"; the same grid
-     with the day laid out and the gone or taken times greyed reads as
-     "4:45 is what is left", which is the true and far more useful statement.
-     `bookable` is the one thing the chips act on. */
+  /* Slotless mode: clinic and tele each contribute their own published
+     timings (same dual-grid model as the calendar). The mode switch then
+     shows the matching list — 5‑min tele chips when Tele is selected, etc. */
   useEffect(() => {
     if (!slotless || !pickDate) return;
     const doctorId = getLoggedInDoctorId();
@@ -239,23 +238,31 @@ export default function BookAppointmentDrawer({
     ])
       .then(([clinicRes, teleRes]) => {
         if (mySeq !== slotSeq.current) return;
-        const teleSlots = teleRes?.status ? teleRes.slots || [] : [];
-        const list = (clinicRes?.status ? clinicRes.slots || [] : [])
-          .map((s) => {
-            const startMin = toMin(s.start);
-            const endMin = toMin(s.end);
-            const teleMatch = findMatchingTeleSlot(s.start, teleSlots);
-            return {
-              ...s,
-              dateISO: pickDate,
-              startMin,
-              increment: s?.availability?.increment || (startMin != null && endMin != null ? endMin - startMin : 15),
-              teleAvailable: Boolean(teleMatch),
-              teleStart: teleMatch?.start || null,
-              isPast: moment(`${pickDate} ${s.start}`, "YYYY-MM-DD HH:mm:ss").isBefore(moment()),
-            };
-          })
-          .map((s) => ({ ...s, bookable: s.status === "available" && !s.isPast }));
+        const toChip = (s, bookMode) => {
+          const startMin = toMin(s.start);
+          const endMin = toMin(s.end);
+          return {
+            ...s,
+            dateISO: pickDate,
+            startMin,
+            endMin: endMin ?? (startMin != null ? startMin + (s?.availability?.increment || 5) : null),
+            increment: s?.availability?.increment || (startMin != null && endMin != null ? endMin - startMin : 15),
+            bookMode,
+            teleAvailable: bookMode === "teleconsult",
+            teleStart: bookMode === "teleconsult" ? s.start : null,
+            isPast: moment(`${pickDate} ${s.start}`, "YYYY-MM-DD HH:mm:ss").isBefore(moment()),
+          };
+        };
+        const clinic = (clinicRes?.status ? clinicRes.slots || [] : []).map((s) =>
+          toChip(s, "in-clinic")
+        );
+        const tele = (teleRes?.status ? teleRes.slots || [] : []).map((s) =>
+          toChip(s, "teleconsult")
+        );
+        const list = [...clinic, ...tele].map((s) => ({
+          ...s,
+          bookable: s.status === "available" && !s.isPast,
+        }));
         setDaySlots(list);
         /* Keep the doctor's choice if it survives the new day; otherwise fall
            back to the appointment's own time, which is the one time we know
@@ -289,10 +296,19 @@ export default function BookAppointmentDrawer({
       });
   }, [slotless, pickDate, initialTime]);
 
-  const effectiveSlot = useMemo(
-    () => slot || daySlots.find((s) => s.start === pickStart) || null,
-    [slot, daySlots, pickStart]
-  );
+  const effectiveSlot = useMemo(() => {
+    if (slot) return slot;
+    if (!pickStart) return null;
+    return (
+      daySlots.find(
+        (s) =>
+          s.start === pickStart &&
+          (s.bookMode === mode || (!s.bookMode && mode === "in-clinic"))
+      ) ||
+      daySlots.find((s) => s.start === pickStart) ||
+      null
+    );
+  }, [slot, daySlots, pickStart, mode]);
 
   // Debounced patient search (500ms, like the legacy form).
   useEffect(() => {
@@ -522,13 +538,13 @@ export default function BookAppointmentDrawer({
                 under it. A segmented control, not tabs: this switches a mode
                 within one form, it does not navigate between sections. */}
             <SegmentedControl
-              className={`${styles.modeSwitch}${isReschedule ? ` ${styles.modeLocked}` : ""}`}
+              className={`${styles.modeSwitch}${lockMode ? ` ${styles.modeLocked}` : ""}`}
               size="md"
               variant="block"
               fullWidth
               value={mode}
               onValueChange={(v) => {
-                if (!isReschedule) setMode(v);
+                if (!lockMode) setMode(v);
               }}
               options={MODE_TABS.map((m) => ({
                 value: m.value,
@@ -540,7 +556,7 @@ export default function BookAppointmentDrawer({
                   return <TPLibraryIcon name={g.name} family={g.family} variant={g.variant} size={18} />;
                 })(),
                 disabled:
-                  isReschedule ||
+                  lockMode ||
                   (!slotless && m.value === "teleconsult" && effectiveSlot?.teleAvailable === false),
               }))}
             />
@@ -550,13 +566,18 @@ export default function BookAppointmentDrawer({
                 drawer only moves the slot.
               </p>
             )}
-            {!slotless && effectiveSlot?.teleAvailable === false && (
+            {!isReschedule && modeLocked && (
+              <p className={styles.fieldHint}>
+                Mode is set by the slot you picked and cannot be changed here.
+              </p>
+            )}
+            {!slotless && !modeLocked && effectiveSlot?.teleAvailable === false && (
               <p className={styles.fieldWarning}>
                 <TPLibraryIcon name="info-circle" size={14} color="var(--tesseract-warning-600)" />
                 Tele-Consultation is off for this slot: it is open for in-clinic visits only.
               </p>
             )}
-            {!slotless && mode === "teleconsult" && !teleSlotOk && (
+            {!slotless && !modeLocked && mode === "teleconsult" && !teleSlotOk && (
               <p className={styles.fieldWarning}>
                 <TPLibraryIcon name="info-circle" size={14} color="var(--tesseract-warning-600)" />
                 This slot is not open for teleconsultation. Pick another slot or switch back to in-clinic.
@@ -635,13 +656,13 @@ export default function BookAppointmentDrawer({
                       sections rather than a second, unrelated chip
                       language. */}
                   {(() => {
-                    /* Teleconsult narrows what can be *booked*, not what is
-                       shown: hiding the clinic-only slots would misreport the
-                       day as empty when it is merely not open for video. */
+                    /* Show each mode's own published list. Tele is no longer
+                       a flag on clinic rows — dual grids — so filter by
+                       bookMode. */
                     const visible =
                       mode === "teleconsult"
-                        ? daySlots.map((s) => ({ ...s, bookable: s.bookable && s.teleAvailable }))
-                        : daySlots;
+                        ? daySlots.filter((s) => s.bookMode === "teleconsult")
+                        : daySlots.filter((s) => s.bookMode !== "teleconsult");
                     const part = DAY_PARTS.find((p) => p.key === dayPart) || DAY_PARTS[2];
                     const list = visible.filter((s) => slotInPart(s, part));
                     const openHere = list.filter((s) => s.bookable).length;
@@ -718,7 +739,7 @@ export default function BookAppointmentDrawer({
                               <div className={styles.slotGrid}>
                                 {list.map((s) => (
                                   <button
-                                    key={s.start}
+                                    key={`${s.bookMode || "clinic"}-${s.start}`}
                                     type="button"
                                     className={styles.slotChip}
                                     /* Shown so the day has a shape, but only

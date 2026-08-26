@@ -120,6 +120,72 @@ function layoutOverlaps(items) {
   return laid;
 }
 
+/**
+ * Free-slot chips from the dual clinic + tele lists in slotsByDate.
+ * Each API row is already a chip (`bookMode`). Overlapping bands share the
+ * column; in-clinic is always pinned left, tele right.
+ */
+function prepareFreeSlotChips(slots, slotFilter) {
+  const items = [];
+  (slots || []).forEach((slot) => {
+    if (!slot || slot.startMin == null) return;
+    if (slot.status === "confirmed") return;
+
+    const bookMode = slot.bookMode === "teleconsult" ? "teleconsult" : "in-clinic";
+    const bookable = slot.status === "available" && !slot.isPast;
+
+    if (slotFilter) {
+      if (!bookable) return;
+      if (slotFilter === "video" && bookMode !== "teleconsult") return;
+      if (slotFilter === "in-clinic" && bookMode !== "in-clinic") return;
+    }
+
+    const durationMin = Math.max(
+      1,
+      (slot.endMin != null ? slot.endMin : slot.startMin + (slot.increment || 5)) - slot.startMin
+    );
+
+    items.push({
+      ...slot,
+      bookMode,
+      bookable,
+      blocked: slot.status === "unavailable" || slot.status === "leave",
+      chipKey: slot.chipId || `${bookMode}-${slot.start}`,
+      durationMin,
+    });
+  });
+
+  /* Pack clinic before tele so the greedy column assigner lands clinic in
+     col 0 (left) and tele in col 1+ (right). */
+  const laid = layoutOverlaps(
+    [...items].sort(
+      (a, b) =>
+        a.startMin - b.startMin ||
+        (a.bookMode === "teleconsult" ? 1 : 0) - (b.bookMode === "teleconsult" ? 1 : 0) ||
+        b.durationMin - a.durationMin
+    )
+  );
+
+  /* Clusters that mix both modes: hard-pin clinic left / tele right so a
+     dense tele column cannot steal col 0 from in-clinic. */
+  const byCluster = new Map();
+  laid.forEach((e) => {
+    if (!byCluster.has(e.cluster)) byCluster.set(e.cluster, []);
+    byCluster.get(e.cluster).push(e);
+  });
+  byCluster.forEach((group) => {
+    const hasClinic = group.some((e) => e.bookMode !== "teleconsult");
+    const hasTele = group.some((e) => e.bookMode === "teleconsult");
+    if (!hasClinic || !hasTele) return;
+    group.forEach((e) => {
+      e.col = e.bookMode === "teleconsult" ? 1 : 0;
+      e.cols = 2;
+    });
+  });
+
+  return laid;
+}
+
 /* Week columns are roughly a seventh of the grid. Splitting an overlapping
    run across side-by-side columns there leaves each card 30-odd pixels wide,
    which is not a card, it is a sliver. So Week stacks them instead: full
@@ -568,9 +634,11 @@ export default function AppointmentCalendarView({
     if (!dateISO) return null;
     const rect = col.getBoundingClientRect();
     const minute = (clientY - rect.top) / (hourPxRef.current / 60);
-    const slot = (slotsByDate[dateISO] || []).find(
-      (s) => s.status === "available" && !s.isPast && s.startMin <= minute && minute < s.endMin
-    );
+    const slot = (slotsByDate[dateISO] || [])
+      .filter(
+        (s) => s.status === "available" && !s.isPast && s.startMin <= minute && minute < s.endMin
+      )
+      .sort((a, b) => (a.endMin - a.startMin) - (b.endMin - b.startMin))[0];
     return slot ? { dateISO, slot } : null;
   };
 
@@ -586,9 +654,9 @@ export default function AppointmentCalendarView({
     if (!dateISO) return null;
     const rect = col.getBoundingClientRect();
     const minute = (clientY - rect.top) / (hourPxRef.current / 60);
-    const slot = (slotsByDate[dateISO] || []).find(
-      (s) => s.status !== "confirmed" && s.startMin <= minute && minute < s.endMin
-    );
+    const slot = (slotsByDate[dateISO] || [])
+      .filter((s) => s.status !== "confirmed" && s.startMin <= minute && minute < s.endMin)
+      .sort((a, b) => (a.endMin - a.startMin) - (b.endMin - b.startMin))[0];
     return slot ? { dateISO, slot } : null;
   };
 
@@ -950,7 +1018,10 @@ export default function AppointmentCalendarView({
       const laid = layoutOverlaps(
         (eventsByDay[dayISO] || []).map((row) => {
           const startMin = row.slotHour * 60 + row.slotMinute;
-          const matching = slots.find((s) => s.startMin === startMin);
+          /* Prefer clinic duration for card height; fall back to tele or 15. */
+          const matching =
+            slots.find((s) => s.startMin === startMin && s.bookMode === "in-clinic") ||
+            slots.find((s) => s.startMin === startMin);
           return { row, startMin, durationMin: matching?.increment || 15 };
         })
       );
@@ -1479,60 +1550,51 @@ export default function AppointmentCalendarView({
                       />
                     ))}
 
-                  {/* Availability layer. With the switch on, the whole day is
-                      drawn; with it off, only the block under the pointer,
-                      so the grid can still be probed without being filled. */}
-                  {slots.map((slot) => {
-                    if (slot.startMin == null) return null;
-                    if (!showAllSlots && hoverSlotKey !== `${dayISO}|${slot.start}`) return null;
-                    // Breathing room between consecutive slots + a floor so
-                    // short slots stay tappable at any zoom.
-                    // 5px of air top and bottom, matching the horizontal
-                    // inset in the stylesheet.
-                    const heightPx = Math.max(18, (slot.endMin - slot.startMin) * minPx - 10);
-                    const bookable = slot.status === "available" && !slot.isPast;
-                    const blocked = slot.status === "unavailable" || slot.status === "leave";
-                    if (slot.status === "confirmed") return null; // rendered via events
-                    // With a slot filter active, show ONLY matching bookable
-                    // slots — no past/blocked noise to scroll through.
-                    if (slotFilter) {
-                      if (!bookable) return null;
-                      if (slotFilter === "video" && !slot.teleAvailable) return null;
-                    }
+                  {/* Availability layer: every clinic slot and every tele slot
+                      from their own APIs, laid on the timeline. Overlapping
+                      bands share the column side-by-side. */}
+                  {prepareFreeSlotChips(slots, slotFilter).map((chip) => {
+                    if (!showAllSlots && hoverSlotKey !== `${dayISO}|${chip.start}`) return null;
+                    const heightPx = Math.max(18, chip.durationMin * minPx - 10);
+                    const split = chip.cols > 1;
+                    const splitStyle = split
+                      ? {
+                          left: `calc(${(chip.col * 100) / chip.cols}% + 3px)`,
+                          width: `calc(${100 / chip.cols}% - 6px)`,
+                          minWidth: 0,
+                          maxWidth: "none",
+                        }
+                      : undefined;
+                    const isTele = chip.bookMode === "teleconsult";
                     return (
                       <button
-                        key={`${slot.start}`}
+                        key={chip.chipKey}
                         type="button"
                         className={styles.slotBlock}
-                        style={{ top: slot.startMin * minPx + 5, height: heightPx }}
-                        data-state={bookable ? "free" : blocked ? "blocked" : "past"}
-                        /* Lit while a card is being dragged over it. The
-                           highlight is on the slot rather than only on the
-                           ghost because the ghost follows the cursor and the
-                           slot is what the release actually lands on. */
-                        data-drop={dropTarget === `${dayISO}|${slot.start}` || undefined}
-                        /* Surfaced by the pointer rather than by the switch:
-                           drawn as an outline so it reads as a probe of the
-                           grid, not as the grid coming back. */
+                        style={{ top: chip.startMin * minPx + 5, height: heightPx, ...splitStyle }}
+                        data-state={chip.bookable ? "free" : chip.blocked ? "blocked" : "past"}
+                        data-book-mode={chip.bookMode || undefined}
+                        data-split={split || undefined}
+                        data-drop={dropTarget === `${dayISO}|${chip.start}` || undefined}
                         data-peek={!showAllSlots || undefined}
-                        aria-disabled={!bookable || undefined}
+                        aria-disabled={!chip.bookable || undefined}
                         title={
-                          bookable
-                            ? `Book ${slot.label12}`
-                            : blocked
+                          chip.bookable
+                            ? isTele
+                              ? `Book teleconsultation ${chip.label12}`
+                              : `Book in-clinic ${chip.label12}`
+                            : chip.blocked
                             ? "Unavailable"
                             : "This time slot has already passed"
                         }
-                        onClick={() => openBooking(slot)}
+                        onClick={() => openBooking(chip)}
                       >
                         <span className={styles.slotBlockLabel}>
-                          {bookable ? (
+                          {chip.bookable ? (
                             <>
-                              {/* The plus is the affordance, so it leads at a
-                                  size that reads as "book this slot". */}
                               <TPLibraryIcon name="add" family="essential" size={19} />
-                              {slot.label12}
-                              {slot.teleAvailable && (
+                              {chip.label12}
+                              {isTele && (
                                 <TPLibraryIcon
                                   name="video"
                                   variant="bulk"
@@ -1542,10 +1604,10 @@ export default function AppointmentCalendarView({
                                 />
                               )}
                             </>
-                          ) : blocked ? (
+                          ) : chip.blocked ? (
                             "Blocked"
                           ) : (
-                            slot.label12
+                            chip.label12
                           )}
                         </span>
                       </button>
