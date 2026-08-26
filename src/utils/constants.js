@@ -18,6 +18,8 @@ export const PERSISTANT_STORAGE_KEY_AUTH_TOKEN =
   "persistant.storage.key.auth-token";
 export const PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN =
   "persistant.storage.key.zydus-token";
+export const PERSISTANT_STORAGE_KEY_GENX_TOKEN =
+  "persistant.storage.key.genx-token";
 export const PERSISTANT_STORAGE_KEY_MEDECO_TOKEN =
   "persistant.storage.key.medeco-token";
 export const PERSISTANT_STORAGE_KEY_EXTRA = "persistant.storage.key.extra";

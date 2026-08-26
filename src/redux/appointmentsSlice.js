@@ -303,11 +303,17 @@ export const ictAuthToken = createAsyncThunk(
 
 export const zydusConsultAppoint = createAsyncThunk(
   "records/zydusConsultAppoint",
-  async ({ siteId, empNo, date, apStatue }, { dispatch }) => {
+  async (args, { dispatch }) => {
+    const { siteId, empNo, date, apStatue, isCancel = false } = args;
     try {
       let result = {};
-      if (apStatue === TAB_ZYDUS_ENCOUNTER) {
-        result = await ApiAppointments.consultations(siteId, empNo, date);
+      if (apStatue === TAB_ZYDUS_ENCOUNTER || isCancel) {
+        result = await ApiAppointments.consultations(
+          siteId,
+          empNo,
+          date,
+          isCancel
+        );
       } else {
         result = await ApiAppointments.appointments(siteId, empNo, date);
       }
@@ -317,14 +323,14 @@ export const zydusConsultAppoint = createAsyncThunk(
         throw Error(result.error);
       }
     } catch (error) {
-      if (error.response.status === 401) {
+      if (error?.response?.status === 401) {
         const action = await dispatch(ictAuthToken());
         if (action.meta.requestStatus === "fulfilled") {
           await localStorage.setItem(
             PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN,
             JSON.stringify(action.payload.tokenNo)
           );
-          dispatch(zydusConsultAppoint({ siteId, empNo, date, apStatue }));
+          dispatch(zydusConsultAppoint(args));
         }
       }
       // console.log("error: ", error);
@@ -368,6 +374,21 @@ export const syncZydusPatientAndAppointment = createAsyncThunk(
       return result;
     } else {
       throw Error(result.error);
+    }
+  }
+);
+
+export const syncGenxPatientAndAppointment = createAsyncThunk(
+  "records/syncGenxPatientAndAppointment",
+  async (data) => {
+    try {
+      const result = await ApiAppointments.syncGenxPatientAndAppointment(data);
+      if (result.status) {
+        return result;
+      }
+      throw Error(result.error || "Genx sync failed");
+    } catch (error) {
+      throw Error(error?.response?.data?.error || error?.message || error);
     }
   }
 );
