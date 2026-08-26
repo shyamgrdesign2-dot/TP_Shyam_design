@@ -72,6 +72,7 @@ import ThenConnector from "../../components/print_settings/ThenConnector";
 import { getDecodedToken } from "../localStorage";
 import { ASSETS } from "../../assets";
 import { CrossConsult } from "../../components/print_settings/crossConsult/CrossConsult";
+import { normalizeCanvasIds } from "../../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
 import {
   getSmartSyncUploadedFileUri,
   normalizeSmartRxDataForPrint,
@@ -773,6 +774,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     drawingCanvases,
     crossConsultData,
   } = props;
+  const filteredDrawingCanvases = (() => {
+    const canvasFilename = caseManagerData?.canvas_filename;
+    const hasCanvasFilenameField =
+      Array.isArray(canvasFilename) || typeof canvasFilename === "string";
+    if (!hasCanvasFilenameField) {
+      return [];
+    }
+    const selectedCanvasIds = normalizeCanvasIds(canvasFilename);
+    if (selectedCanvasIds.length === 0) {
+      return [];
+    }
+    if (!Array.isArray(drawingCanvases) || drawingCanvases.length === 0) {
+      return [];
+    }
+    const selectedSet = new Set(selectedCanvasIds.map(String));
+    return drawingCanvases.filter((canvas) => {
+      if (canvas?.id == null) return false;
+      return selectedSet.has(String(canvas.id));
+    });
+  })();
   const smartRxData = normalizeSmartRxDataForPrint(rawSmartRxData);
   let dentalExaminationData = rawDentalData || props.dentalExaminationData;
   if (dentalExaminationData && dentalExaminationData.toothState && typeof dentalExaminationData.toothState === "object") {
@@ -14146,6 +14167,64 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 </View>
                               ))}
                           </>
+                        ) : option?.id === 25 &&
+                          option?.enable === "Y" &&
+                          option?.custom_status === "Y" ? (
+                          <>
+                            {filteredDrawingCanvases.length > 0 &&
+                              // No room under this letterhead: rendering
+                              // anyway would loop react-pdf.
+                              canRenderCanvasSection(maxCanvasImageHeight) && (
+                              <View style={{ marginTop: PX_TO_PT * 15 }} wrap={true}>
+                                {filteredDrawingCanvases.map((canvasObj, i) => (
+                                  // wrap stays false so the canvas name and its drawing are never split
+                                  // across a page boundary. maxHeight below keeps the block small enough
+                                  // to fit a page, so it always has somewhere to land.
+                                  //
+                                  // The gap belongs *between* canvases, so the last block carries none.
+                                  // A trailing margin on the final block pushes the section's bottom edge
+                                  // just past the page's wrap area; react-pdf then carries a remainder that
+                                  // draws nothing onto a fresh page, and the prescription ends on a blank
+                                  // sheet. Reproduced at body heights 330-335pt with a single canvas.
+                                  <View
+                                    key={`canvas-${i}`}
+                                    wrap={false}
+                                    style={{
+                                      marginBottom:
+                                        i === filteredDrawingCanvases.length - 1
+                                          ? 0
+                                          : PX_TO_PT * 15,
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: PX_TO_PT * 14,
+                                        fontWeight: 700,
+                                        color: "#171725",
+                                        marginBottom: PX_TO_PT * 10,
+                                        fontFamily: "Roboto",
+                                      }}
+                                    >
+                                      {canvasObj.name}
+                                    </Text>
+                                    <Image
+                                      src={canvasObj.imageUrl}
+                                      style={{
+                                        width: "100%",
+                                        // maxHeight, NOT height. Left unbounded, react-pdf sizes the image
+                                        // from its aspect ratio and a tall canvas overflows the page. An
+                                        // explicit `height` would bound it but also force every short or
+                                        // wide canvas into a full-height box, letterboxing it with blank
+                                        // space; maxHeight bounds only the images that need it.
+                                        maxHeight: maxCanvasImageHeight,
+                                        objectFit: "contain",
+                                      }}
+                                    />
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+                          </>
                         ) : option?.id === 26 &&
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (
@@ -17792,60 +17871,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
               )
             )}
           </View>
-
-          {/* Rendering the Excalidraw Canvases */}
-          {shouldRenderSection(25) &&
-            drawingCanvases &&
-            drawingCanvases.length > 0 &&
-            // No room under this letterhead: rendering anyway would loop react-pdf.
-            canRenderCanvasSection(maxCanvasImageHeight) && (
-            <View style={{ marginTop: PX_TO_PT * 20 }} wrap={true}>
-              {drawingCanvases.map((canvasObj, i) => (
-                // wrap stays false so the canvas name and its drawing are never split
-                // across a page boundary. maxHeight below keeps the block small enough
-                // to fit a page, so it always has somewhere to land.
-                //
-                // The gap belongs *between* canvases, so the last block carries none.
-                // A trailing margin on the final block pushes the section's bottom edge
-                // just past the page's wrap area; react-pdf then carries a remainder that
-                // draws nothing onto a fresh page, and the prescription ends on a blank
-                // sheet. Reproduced at body heights 330-335pt with a single canvas.
-                <View
-                  key={`canvas-${i}`}
-                  wrap={false}
-                  style={{
-                    marginBottom:
-                      i === drawingCanvases.length - 1 ? 0 : PX_TO_PT * 15,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: PX_TO_PT * 14,
-                      fontWeight: 700,
-                      color: "#171725",
-                      marginBottom: PX_TO_PT * 10,
-                      fontFamily: "Roboto",
-                    }}
-                  >
-                    {canvasObj.name}
-                  </Text>
-                  <Image
-                    src={canvasObj.imageUrl}
-                    style={{
-                      width: "100%",
-                      // maxHeight, NOT height. Left unbounded, react-pdf sizes the image
-                      // from its aspect ratio and a tall canvas overflows the page. An
-                      // explicit `height` would bound it but also force every short or
-                      // wide canvas into a full-height box, letterboxing it with blank
-                      // space; maxHeight bounds only the images that need it.
-                      maxHeight: maxCanvasImageHeight,
-                      objectFit: "contain",
-                    }}
-                  />
-                </View>
-              ))}
-            </View>
-          )}
 
           {/* </View> */}
           {/* <View
