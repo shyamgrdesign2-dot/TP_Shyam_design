@@ -30,6 +30,9 @@ import OphthalmologyExamPanel from "../../components/ophthalmology/Ophthalmology
 import VitalsBoxMobile from "../../components/VitalsBoxMobile";
 import TabVitalsList from "../../components/tab_design/TabVitalsList";
 import MedicalHistoryBoxMobile from "../../components/MedicalHistoryBoxMobile";
+import MedicalHistoryBox from "../../components/MedicalHistoryBox";
+import MedicalHistoryDrawer from "../../components/MedicalHistoryDrawer";
+import { useMedicalHistoryNewUi } from "../../utils/medicalHistoryFeatureFlag";
 import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
@@ -200,6 +203,7 @@ function TabPrescription() {
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isCrossConsultAccessable = useCrossConsult();
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
+  const isMedicalHistoryNewUi = useMedicalHistoryNewUi();
   const shouldShowAncHistory = obstetricDetails?.ancHistory?.find(
     (item) =>
       !item?.deleted &&
@@ -2866,20 +2870,29 @@ function TabPrescription() {
             />
           </Drawer>
         )}
-        <Drawer
+        <MedicalHistoryDrawer
           className="scroll-y-hidden"
           closeIcon={false}
           placement="right"
           onClose={handleDrawerMedicalHistory}
           open={medicalHistoryDrawer}
-          width="100%"
+          legacyWidth="100%"
+          newWidth="100%"
         >
-          <MedicalHistoryBoxMobile
-            handleDrawerMedicalHistory={handleDrawerMedicalHistory}
-            handleCollapsed={(flag) => handleCollapsed(flag)}
-            onSave={handleSaveGynecHistory}
-          />
-        </Drawer>
+          {(!isMedicalHistoryNewUi || (isMobileDevice && !isTablet)) ? (
+            <MedicalHistoryBoxMobile
+              handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+              handleCollapsed={(flag) => handleCollapsed(flag)}
+              onSave={handleSaveGynecHistory}
+            />
+          ) : (
+            <MedicalHistoryBox
+              handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+              handleCollapsed={(flag) => handleCollapsed(flag)}
+              onSave={handleSaveGynecHistory}
+            />
+          )}
+        </MedicalHistoryDrawer>
         <Drawer
           closeIcon={false}
           placement="right"

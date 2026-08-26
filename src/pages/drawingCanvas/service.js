@@ -1,5 +1,6 @@
 import api from "../../api/services/axiosService";
 import config from "../../config";
+import { clearDrawingCanvasPrintCache } from "./utils/drawingCanvasPrintCache";
 
 const baseUrl = { customBaseUrl: config.snap_rx_api_url };
 
@@ -129,6 +130,7 @@ export const linkCanvasToPatient = async (name, file, patientUniqueId, tcmId) =>
             },
         });
         res = normalizeCanvasApiResult(response, "Error linking canvas to patient");
+        clearDrawingCanvasPrintCache();
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error linking canvas to patient" };
     }
@@ -155,6 +157,7 @@ export const renameMapping = async (mappingId, name) => {
     try {
         const response = await api.patch(`/api/v1/canvas/patient/${mappingId}/rename`, { name }, baseUrl);
         res = normalizeCanvasApiResult(response, "Error renaming mapping");
+        clearDrawingCanvasPrintCache();
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error renaming mapping" };
     }
@@ -174,6 +177,7 @@ export const editMapping = async (mappingId, file) => {
             },
         });
         res = normalizeCanvasApiResult(response, "Error editing mapping");
+        clearDrawingCanvasPrintCache();
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error editing mapping" };
     }
@@ -185,6 +189,7 @@ export const deleteMapping = async (mappingId) => {
     try {
         const response = await api.delete(`/api/v1/canvas/patient/${mappingId}`, baseUrl);
         res = normalizeCanvasApiResult(response, "Error deleting mapping");
+        clearDrawingCanvasPrintCache();
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error deleting mapping" };
     }

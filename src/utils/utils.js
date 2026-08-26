@@ -859,16 +859,26 @@ export const getHmTypeIndicator = (item, isChikitsalayAccessable = false) => {
   if (!item) return '';
   const hmType = item.tmm_hm_type || item.hm_type || item.metadata?.tmm_hm_type || item.metadata?.hm_type;
   const umId = item.um_id ?? item.metadata?.um_id;
+  // Only medicines carry tmm_hm_type; investigations carry hm_type. Badges that are
+  // medicine-only must check this so they never leak onto investigation rows.
+  const hasMedicineHmType =
+    item.tmm_hm_type != null || item.metadata?.tmm_hm_type != null;
   if (hmType == 1 && Number(umId) === 0) return 'Z';
   if (hmType == 2 ) return 'A';
+  if (hmType == 21 && Number(umId) === 0 && hasMedicineHmType) return 'P';
   if (hmType == 15 && isChikitsalayAccessable && Number(umId) === 0) {
-    const hasMedicineHmType =
-      item.tmm_hm_type != null || item.metadata?.tmm_hm_type != null;
     if (hasMedicineHmType) return 'VC';
     if (Number(item?.is_available ?? item.metadata?.is_available) === 1) return 'VC';
   }
   return '';
 };
+
+// Background colour for the badge that wraps a getHmTypeIndicator() letter.
+// Z / A / VC keep the legacy partner pink; P (Genx) is blue.
+const HM_TYPE_BADGE_COLORS = { P: '#1e88e5' };
+export const DEFAULT_HM_TYPE_BADGE_COLOR = '#c44ea2';
+export const getHmTypeBadgeColor = (indicator) =>
+  HM_TYPE_BADGE_COLORS[indicator] || DEFAULT_HM_TYPE_BADGE_COLOR;
 
 export const getMedicineStockLabel = (med) => {
   if (med?.stock_status === MEDICINE_STOCK_STATUS.NO_STOCK) {
@@ -1136,9 +1146,10 @@ export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
     return "AnekDevanagari";
   }
 
-  // Bengali/Assamese
+  // Bengali/Assamese - see the Font.register note in ViewPDF.js for why this is
+  // NotoSansBengali and not AnekBangla.
   if (/[\u0980-\u09FF]/.test(text)) {
-    return "AnekBangla";
+    return "NotoSansBengali";
   }
 
   // Tamil
@@ -1201,6 +1212,20 @@ export const isValidGST = (gstNumber) => {
 
   return true; // GST is valid
 };
+
+/**
+ * @react-pdf/renderer drops the last glyph cluster of a word that sits alone in a
+ * <Text> when shaping splits a matra into pre-base + post-base glyphs, so the glyph
+ * count outruns the character count (Bengali ো / ৌ, and the same class of vowel sign
+ * in the other Indic scripts). "ডোজ" prints as "ডো", "নোট" as "নো". A trailing
+ * zero-width space keeps the final cluster inside the measured run; it is invisible
+ * and adds no advance width, so layout is unchanged.
+ */
+const PDF_TRAILING_CLUSTER_GUARD = "\u200B"; // zero-width space
+const guardPdfTrailingCluster = (value) =>
+    typeof value === "string" && /[^\u0000-\u00FF]/.test(value)
+        ? value + PDF_TRAILING_CLUSTER_GUARD
+        : value;
 
 export const getRxTitle = (LanguageId, title) => {
     const translations = {
@@ -1322,7 +1347,7 @@ export const getRxTitle = (LanguageId, title) => {
             "NOTES": 'ଟିପ୍ପଣୀ',
         }
     };
-    return translations?.[parseInt(LanguageId)]?.[title] || title;
+    return guardPdfTrailingCluster(translations?.[parseInt(LanguageId)]?.[title] || title);
 }
 
 export const getDurationTitle = (LanguageId, tmm_duration_type) => {
@@ -1497,7 +1522,7 @@ export const getDurationTitle = (LanguageId, tmm_duration_type) => {
     return tmm_duration_type;
   }
 
-  return languageTranslations[tmm_duration_type];
+  return guardPdfTrailingCluster(languageTranslations[tmm_duration_type]);
 };
 
 export const getTimeingTitle = (LanguageId) => {
@@ -1965,6 +1990,58 @@ export const resolveFooterImageDimensions = async (fileFooter) => {
       footerHeight: 0,
       footerWidth: 0,
       renderedFooterImageHeight: 0,
+    };
+  }
+};
+
+const HEADER_A4_WIDTH_IN_PTS = 595;
+const HEADER_PAGE_X_PADDING = 0.75 * 60;
+
+export const computeHeaderImageDimensions = (width, height) => ({
+  headerHeight: height || 0,
+  headerWidth: width || 0,
+  renderedHeaderImageHeight:
+    width > 0
+      ? (height / width) * (HEADER_A4_WIDTH_IN_PTS - HEADER_PAGE_X_PADDING)
+      : 0,
+});
+
+/**
+ * Attaches the natural dimensions of an uploaded letterhead header image.
+ *
+ * The header renders the image at `width: "100%"` with no height bound, so its flow
+ * height is the aspect ratio applied to the content width. The PDF documents need that
+ * height to size anything else against the usable page - see utils/print/letterheadMetrics.
+ * Mirrors resolveFooterImageDimensions.
+ */
+export const resolveHeaderImageDimensions = async (fileHeader) => {
+  if (!fileHeader?.imageShow || !fileHeader?.showFile) {
+    return fileHeader;
+  }
+
+  const headerWidth = Number(fileHeader.headerWidth);
+  const headerHeight = Number(fileHeader.headerHeight);
+  if (
+    headerWidth > 0 &&
+    headerHeight > 0 &&
+    Number.isFinite(fileHeader.renderedHeaderImageHeight)
+  ) {
+    return fileHeader;
+  }
+
+  try {
+    const { width, height } = await getImageDimensions(fileHeader.showFile);
+    return {
+      ...fileHeader,
+      ...computeHeaderImageDimensions(width, height),
+    };
+  } catch (err) {
+    console.error("Failed to resolve header image dimensions:", err);
+    return {
+      ...fileHeader,
+      headerHeight: 0,
+      headerWidth: 0,
+      renderedHeaderImageHeight: 0,
     };
   }
 };

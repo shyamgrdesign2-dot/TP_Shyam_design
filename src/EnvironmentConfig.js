@@ -11,6 +11,9 @@ const dev = {
   casemanager_api_url: `https://strauss-casemanager.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   printsettings_api_url: `https://strauss-printsettings.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   medicalhistory_api_url: `https://strauss-medicalhistory.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
+  // Section order/visibility endpoints are only deployed on the UAT host
+  // today; every environment points there until prod is ready.
+  medicalhistory_section_order_api_url: `https://pm-medicalhistory-uat.tatvacare.in`,
   videolibrary_api_url: `https://strauss-videolibrary.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   sso_to_pm_url: `https://pms-upgrade.azurewebsites.net/api/get_doctor_sso_token.php`,
   sso_to_pm_admin_url: `https://pms-upgrade.azurewebsites.net/api/get_doctor_admin_sso_token.php`,
@@ -105,6 +108,9 @@ const qa_tp = {
   casemanager_api_url: `https://pm-casemanager-qa.tatvacare.in`,
   printsettings_api_url: `https://pm-printsetting-qa.tatvacare.in`,
   medicalhistory_api_url: `https://pm-medicalhistory-qa.tatvacare.in`,
+  // Section order/visibility endpoints are only deployed on the UAT host
+  // today; every environment points there until prod is ready.
+  medicalhistory_section_order_api_url: `https://pm-medicalhistory-uat.tatvacare.in`,
   videolibrary_api_url: `https://pm-videolibrary-qa.tatvacare.in`,
   sso_to_pm_url: `https://pm-uat-dhspl-2.tatvacare.in/api/get_doctor_sso_token.php`,
   sso_to_pm_admin_url: `https://pm-uat-dhspl-2.tatvacare.in/api/get_doctor_admin_sso_token.php`,
@@ -208,6 +214,9 @@ const qa = {
   casemanager_api_url: `https://strauss-casemanager.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   printsettings_api_url: `https://strauss-printsettings.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   medicalhistory_api_url: `https://strauss-medicalhistory.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
+  // Section order/visibility endpoints are only deployed on the UAT host
+  // today; every environment points there until prod is ready.
+  medicalhistory_section_order_api_url: `https://pm-medicalhistory-uat.tatvacare.in`,
   videolibrary_api_url: `https://strauss-videolibrary.salmonstone-47e08067.centralindia.azurecontainerapps.io`,
   sso_to_pm_url: `https://pms-upgrade.azurewebsites.net/api/get_doctor_sso_token.php`,
   sso_to_pm_admin_url: `https://pms-upgrade.azurewebsites.net/api/get_doctor_admin_sso_token.php`,
@@ -302,6 +311,9 @@ const uat = {
   casemanager_api_url: `https://pm-casemanager-uat.tatvacare.in`,
   printsettings_api_url: `https://pm-printsetting-uat.tatvacare.in`,
   medicalhistory_api_url: `https://pm-medicalhistory-uat.tatvacare.in`,
+  // Section order/visibility endpoints are only deployed on the UAT host
+  // today; every environment points there until prod is ready.
+  medicalhistory_section_order_api_url: `https://pm-medicalhistory-uat.tatvacare.in`,
   videolibrary_api_url: `https://pm-videolibrary-uat.tatvacare.in`,
   sso_to_pm_url: `https://pm-uat-dhspl-2.tatvacare.in/api/get_doctor_sso_token.php`,
   sso_to_pm_admin_url: `https://pm-uat-dhspl-2.tatvacare.in/api/get_doctor_admin_sso_token.php`,
@@ -407,6 +419,9 @@ const prod = {
   casemanager_api_url: `https://pm-casemanager-prod.tatvacare.in`,
   printsettings_api_url: `https://pm-printsetting-prod.tatvacare.in`,
   medicalhistory_api_url: `https://pm-medicalhistory-prod.tatvacare.in`,
+  // Section order/visibility endpoints are only deployed on the UAT host
+  // today; every environment points there until prod is ready.
+  medicalhistory_section_order_api_url: `https://pm-medicalhistory-prod.tatvacare.in`,
   videolibrary_api_url: `https://pm-videolibrary-prod.tatvacare.in`,
   sso_to_pm_url: `https://practice.tatvacare.in/api/get_doctor_sso_token.php`,
   sso_to_pm_admin_url: `https://practice.tatvacare.in/api/get_doctor_admin_sso_token.php`,
@@ -535,6 +550,9 @@ const zyPreprod = {
   casemanager_api_url: `https://pm-casemanager-preprod.tatvacare.in`,
   printsettings_api_url: `https://pm-printsetting-preprod.tatvacare.in`,
   medicalhistory_api_url: `https://pm-medicalhistory-preprod.tatvacare.in`,
+  // Section order/visibility endpoints are only deployed on the UAT host
+  // today; every environment points there until prod is ready.
+  medicalhistory_section_order_api_url: `https://pm-medicalhistory-preprod.tatvacare.in`,
   videolibrary_api_url: `https://pm-videolibrary-preprod.tatvacare.in`,
   sso_to_pm_url: `https://zy-practice-preprod.tatvacare.in/api/get_doctor_sso_token.php`,
   sso_to_pm_admin_url: `https://zy-practice-preprod.tatvacare.in/api/get_doctor_admin_sso_token.php`,
@@ -663,6 +681,9 @@ const zyProd = {
   casemanager_api_url: `https://zy-casemanager-prod.tatvacare.in`,
   printsettings_api_url: `https://zy-printsetting-prod.tatvacare.in`,
   medicalhistory_api_url: `https://zy-medicalhistory-prod.tatvacare.in`,
+  // Section order/visibility endpoints are only deployed on the UAT host
+  // today; every environment points there until prod is ready.
+  medicalhistory_section_order_api_url: `https://pm-medicalhistory-uat.tatvacare.in`,
   videolibrary_api_url: `https://zy-videolibrary-prod.tatvacare.in`,
   sso_to_pm_url: `https://tatvafrontdesk.zydushospitals.com/api/get_doctor_sso_token.php`,
   sso_to_pm_admin_url: `https://tatvafrontdesk.zydushospitals.com/api/get_doctor_admin_sso_token.php`,

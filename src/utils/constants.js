@@ -28,6 +28,9 @@ export const FROM_NATIVE_APP = "from_native_app";
 export const MESSAGE_KEY = "message_key";
 export const PERSISTANT_STORAGE_KEY_BILL_TOKEN = 'persistant.storage.key.bill-token';
 export const TNC_VERSION = "2.0";
+
+/** Single source of truth for the customer-support contact number. */
+export const SUPPORT_PHONE_NUMBER = "9898094149";
 export const IS_DEV = true;
 export const PAGE_SIZE = 10;
 
@@ -114,6 +117,7 @@ export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
 export const GB_VOICE_RX_MAX_SESSION_MINUTES = "VOICE_RX_MAX_SESSION_MINUTES";
 export const GB_VOICE_OLD_UI_NEW_PIPELINE = "voice-old-ui-new-pipeline";
 export const GB_LIMS = "lims";
+export const GB_MEDICAL_HISTORY_NEW_UI = "medical-history-new-ui";
 export const CLINIC_TARGET_STATUS = {
   SERVING: "SERVING",
   COMPLETED: "COMPLETED",
