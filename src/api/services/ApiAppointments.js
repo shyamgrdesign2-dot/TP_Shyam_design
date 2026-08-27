@@ -124,6 +124,7 @@ ApiAppointments.ictAuthToken = function () {
   return api.post(`/ictAuthProxy`, {}, baseZydusProxyUrl);
 };
 
+/* Prod Zydus path: ICT proxy consultations (not GenX clinical-encounters). */
 ApiAppointments.consultations = function (siteId, empNo, date) {
   return api.get(
     `/ictApiProxy/emr/op/consultations/list?siteId=${siteId}&empNo=${empNo}&date=${date}`,
@@ -166,6 +167,22 @@ ApiAppointments.placeIctOrder = function (data) {
 
 ApiAppointments.listCategories = function () {
   return api.get(`/api/v1/patient/listCategories`, baseVisitUrl);
+};
+
+/**
+ * Move an existing appointment to a new date/time in place.
+ *
+ * Until this landed, a "reschedule" was a booking of the new slot followed by
+ * a cancel of the old one: two writes, a window where the patient held two
+ * appointments, and a new pam_id that broke anything referencing the original.
+ * This is one call against the same appointment, so the id, the patient and
+ * the visit type all survive the move. Slot fields plus toct_id, category_id
+ * and appointment_remark so those values are not dropped.
+ *
+ * PUT /api/v1/appointment/:pam_id on the visit-integration service.
+ */
+ApiAppointments.rescheduleAppointment = function (pamId, data) {
+  return api.put(`/api/v1/appointment/${pamId}`, data, baseVisitUrl);
 };
 
 ApiAppointments.getSnapRxUnDigitisedIds = function () {

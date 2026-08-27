@@ -1817,6 +1817,17 @@ export const clearExpiredTokensFromStorage = () => {
 
 export const isZydus = () => env?.ZYDUS_BUSINESS_ID === getTokenData()?.hospital_business_id;
 
+export const shouldShowAdmitToIpdCta = ({
+  isNewIPDAccessableFromGB,
+  isNewIPDHosBusinessIdAccessableFromGB,
+  isAdmitted = false,
+  isCheckingAdmission = false,
+} = {}) => {
+  const isIPDAccessible =
+    isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB;
+  return isIPDAccessible && !isAdmitted && !isCheckingAdmission;
+};
+
 export const isVoiceRxFree = (isVoiceRxFreeFromGB = false) => {
   return (
     (isZydus() && new Date(env?.zydus_voice_rx_expiry_date) > new Date()) ||

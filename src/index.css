@@ -176,3 +176,58 @@ body.drawer-open-blur #root > *:not(.ant-drawer-root) {
   pointer-events: none;
   user-select: none;
 }
+
+/* Tesseract InputBox draws a status glyph inside the field on every non-default
+   state. The red border and the message below already say it, and on a narrow
+   field the glyph eats the room the value needs. Suppressed app-wide so error
+   states read the same everywhere. */
+[class*="_statusIcon_"] {
+  display: none !important;
+}
+
+/* Same reasoning one line down: the helper row under a field repeats the
+   state as a leading glyph. The red border and the sentence already carry
+   it, so the sentence stands on its own. */
+[class*="_footer_"] [data-tp-icon^="danger"],
+[class*="_footer_"] [data-tp-icon^="tick-circle"],
+[class*="_footer_"] [data-tp-icon^="info-circle"],
+[class*="_helper"] > [data-tp-icon] {
+  display: none !important;
+}
+
+/* One placeholder everywhere. A real input's ::placeholder renders at regular
+   weight; the design system paints its dropdown and date-trigger placeholders
+   at medium, so an empty dropdown read heavier than the empty input beside
+   it. Same tone, same weight, same size, whatever kind of control it is. */
+html[data-tp-theme] [class*="_placeholder_"] {
+  font-weight: var(--tesseract-weight-regular) !important;
+  font-size: var(--tesseract-text-body-sm) !important;
+  color: var(--tesseract-slate-400) !important;
+}
+
+/* Left-edge scroll cue for every Tesseract DataTable in the app.
+   The design system already paints the RIGHT edge, but only against a sticky
+   column — which our tables have (the Action column), so that side is left
+   to the system. Nothing owns the left edge, so a table scrolled away from
+   its first column gave no sign there was more to the left. Same gradient,
+   same trigger (data-overflow-left on the scroller), sitting above the rows
+   and below the sticky header. */
+[class*="_scrollerWrap_"] {
+  position: relative;
+}
+
+[class*="_scrollerWrap_"]:has(> [data-overflow-left="true"])::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--tesseract-size-18);
+  z-index: 15;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--tesseract-slate-900) 12%, transparent),
+    transparent
+  );
+}
